@@ -17,7 +17,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
+import {
+  TEACHER_GRADES, TEACHER_SUBJECTS,
+  getSubjectsForGrade, isSubjectValidForGrade, defaultSubjectForGrade,
+} from '../../../utils/teacherTools'
+import {
+  getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
+  getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
+} from '../../../config/curriculum'
+import {
+  getCalendarYears, getTermWeeks, getCurrentForecastWeek,
+} from '../../../utils/moeCalendar'
 import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../utils/weeklyForecast'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import {
@@ -34,9 +44,35 @@ const DRAFT_PREFIX = 'examprep:weeklyforecast:draft:'
 const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
 const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
 
+// teacher-tools subject slug → display label, and the inverse. The forecast
+// header stores the *label* (it prints on the document), but topic/competence
+// catalogue lookups are keyed by the slug, so we bridge between the two.
 const SUBJECT_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),
 )
+const SUBJECT_SLUG_BY_LABEL = Object.fromEntries(
+  TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label, s.value]),
+)
+
+const subjectLabelFor = (slug) => SUBJECT_LABEL[slug] || ''
+const subjectSlugFor = (label) => SUBJECT_SLUG_BY_LABEL[label] || ''
+const defaultSubjectLabel = (grade) => subjectLabelFor(defaultSubjectForGrade(grade))
+
+const YEARS = getCalendarYears()
+const thisYear = new Date().getFullYear()
+
+// The current calendar week (live term week, or week 1 of the next term in
+// the holidays) — used to pre-fill the header so the common case is one click.
+function currentWeekDefaults() {
+  const wk = getCurrentForecastWeek()
+  return {
+    year: String(wk?.year ?? thisYear),
+    term: wk?.termNumber ?? 1,
+    weekNumber: wk?.weekNumber ?? 1,
+    weekBeginning: wk?.beginningLabel ?? '',
+    weekEnding: wk?.endingLabel ?? '',
+  }
+}
 
 const blankDay = (n) => ({
   day: String(n),
@@ -67,16 +103,16 @@ export default function WeeklyForecastStudio() {
   const toast = useToast()
   const uid = currentUser?.uid
 
+  // What the teacher signed up with — used to pre-fill the school and name.
+  const profileSchool = userProfile?.schoolName || userProfile?.school || ''
+  const profileName = userProfile?.displayName || userProfile?.fullName || ''
+
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
-    teacherName: userProfile?.displayName || '',
+    school: profileSchool,
+    teacherName: profileName,
     grade: 'G4',
-    subject: '',
-    term: 1,
-    year: String(new Date().getFullYear()),
-    weekNumber: 1,
-    weekBeginning: '',
-    weekEnding: '',
+    subject: defaultSubjectLabel('G4'),
+    ...currentWeekDefaults(),
   }))
   const [days, setDays] = useState(() => [blankDay(1), blankDay(2), blankDay(3)])
   const [dayCount, setDayCount] = useState(3)
@@ -128,6 +164,70 @@ export default function WeeklyForecastStudio() {
   useEffect(() => { setDirtySinceSave(true) }, [header, days])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+
+  // ── Smart, grade-aware option lists ──
+  const subjectOptions = useMemo(() => {
+    // getSubjectsForGrade returns the teacher-tools shape (group headers +
+    // {value:slug}); the forecast stores labels, so re-key options to labels.
+    const opts = getSubjectsForGrade(header.grade).map((o) =>
+      o.group !== undefined ? o : { value: o.label, label: o.label })
+    // Keep a scheme-supplied or custom subject selectable even if it isn't in
+    // the grade's catalogue, so building from a scheme never blanks it.
+    if (header.subject && !opts.some((o) => o.value === header.subject)) {
+      return [{ value: header.subject, label: header.subject }, ...opts]
+    }
+    return opts
+  }, [header.grade, header.subject])
+
+  const subjectSlug = subjectSlugFor(header.subject)
+  const topicOptions = useMemo(
+    () => getTopicsForTeacherSubject(subjectSlug, header.grade),
+    [subjectSlug, header.grade],
+  )
+  const competenceOptions = useMemo(
+    () => getCompetencies(TEACHER_SUBJECT_TO_CURRICULUM[subjectSlug]),
+    [subjectSlug],
+  )
+  const termWeeks = useMemo(
+    () => getTermWeeks(Number(header.year), header.term),
+    [header.year, header.term],
+  )
+  const weekNumberChoices = useMemo(
+    () => (termWeeks.length ? termWeeks.map((w) => w.weekNumber) : Array.from({ length: 14 }, (_, i) => i + 1)),
+    [termWeeks],
+  )
+
+  // When the grade changes, drop a now-invalid subject back to a sensible
+  // default. A subject we can't map to a slug (custom / scheme-supplied) is
+  // left untouched so we don't clobber it.
+  useEffect(() => {
+    const slug = subjectSlugFor(header.subject)
+    if (slug && !isSubjectValidForGrade(slug, header.grade)) {
+      setHeader((h) => ({ ...h, subject: defaultSubjectLabel(h.grade) }))
+    }
+  }, [header.grade, header.subject])
+
+  // Pick a calendar week → fill the week number plus its begin/end dates.
+  function pickCalendarWeek(weekNumber) {
+    const wk = termWeeks.find((w) => w.weekNumber === Number(weekNumber))
+    setHeader((h) => ({
+      ...h,
+      weekNumber: Number(weekNumber),
+      ...(wk ? { weekBeginning: wk.beginningLabel, weekEnding: wk.endingLabel } : {}),
+    }))
+  }
+
+  // Changing term or year re-anchors the week's begin/end dates to that term's
+  // calendar (keeping the same week number where it still exists).
+  function setTermOrYear(field, value) {
+    setHeader((h) => {
+      const next = { ...h, [field]: value }
+      const weeks = getTermWeeks(Number(next.year), next.term)
+      const wk = weeks.find((w) => w.weekNumber === next.weekNumber) || weeks[0]
+      if (wk) { next.weekNumber = wk.weekNumber; next.weekBeginning = wk.beginningLabel; next.weekEnding = wk.endingLabel }
+      return next
+    })
+  }
 
   const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
   const weekOptions = useMemo(() => {
@@ -181,11 +281,11 @@ export default function WeeklyForecastStudio() {
 
   function clearAll() {
     setHeader({
-      school: userProfile?.schoolName || '',
-      teacherName: userProfile?.displayName || '',
-      grade: 'G4', subject: '', term: 1,
-      year: String(new Date().getFullYear()),
-      weekNumber: 1, weekBeginning: '', weekEnding: '',
+      school: profileSchool,
+      teacherName: profileName,
+      grade: 'G4',
+      subject: defaultSubjectLabel('G4'),
+      ...currentWeekDefaults(),
     })
     setDays([blankDay(1), blankDay(2), blankDay(3)])
     setDayCount(3)
@@ -296,17 +396,50 @@ export default function WeeklyForecastStudio() {
               </div>
               <div>
                 <label className="studio-label">Subject</label>
-                <input type="text" value={header.subject} maxLength={60} onChange={(e) => setH('subject', e.target.value)} placeholder="e.g. Integrated Science" className="studio-input" />
+                <GroupedSelect
+                  value={header.subject}
+                  options={subjectOptions}
+                  onChange={(v) => setH('subject', v)}
+                />
+              </div>
+              <div>
+                <label className="studio-label">Year</label>
+                <select value={header.year} onChange={(e) => setTermOrYear('year', e.target.value)} className="studio-input">
+                  {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                  {!YEARS.includes(Number(header.year)) && <option value={header.year}>{header.year}</option>}
+                </select>
               </div>
               <div>
                 <label className="studio-label">Term</label>
-                <select value={String(header.term)} onChange={(e) => setH('term', Number(e.target.value))} className="studio-input">
+                <select value={String(header.term)} onChange={(e) => setTermOrYear('term', Number(e.target.value))} className="studio-input">
                   {[1, 2, 3].map((t) => <option key={t} value={t}>Term {t}</option>)}
                 </select>
               </div>
               <div>
                 <label className="studio-label">Week number</label>
-                <input type="number" min={1} max={14} value={header.weekNumber} onChange={(e) => setH('weekNumber', clampInt(e.target.value, 1, 14))} className="studio-input" />
+                <select value={String(header.weekNumber)} onChange={(e) => pickCalendarWeek(e.target.value)} className="studio-input">
+                  {weekNumberChoices.map((n) => <option key={n} value={n}>Week {n}</option>)}
+                  {!weekNumberChoices.includes(Number(header.weekNumber)) && (
+                    <option value={header.weekNumber}>Week {header.weekNumber}</option>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="studio-label">School calendar</label>
+                <select
+                  value={termWeeks.some((w) => w.weekNumber === Number(header.weekNumber)) ? String(header.weekNumber) : ''}
+                  onChange={(e) => { if (e.target.value) pickCalendarWeek(e.target.value) }}
+                  className="studio-input"
+                  disabled={!termWeeks.length}
+                  title="Fill the dates from the MoE school calendar"
+                >
+                  <option value="">{termWeeks.length ? '📅 Pick week dates…' : '—'}</option>
+                  {termWeeks.map((w) => (
+                    <option key={w.weekNumber} value={w.weekNumber}>
+                      Wk {w.weekNumber}: {w.beginningLabel} – {w.endingLabel}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="studio-label">Week beginning</label>
@@ -317,6 +450,10 @@ export default function WeeklyForecastStudio() {
                 <input type="text" value={header.weekEnding} maxLength={20} onChange={(e) => setH('weekEnding', e.target.value)} placeholder="e.g. 16 Jan 2026" className="studio-input" />
               </div>
             </div>
+            <p className="text-xs" style={{ color: '#566f76' }}>
+              Subjects follow the grade you pick. Dates default to this week on the MoE calendar — switch the week
+              number or pick from the calendar to change them, or just type your own.
+            </p>
           </section>
 
           {/* ── Day editors ── */}
@@ -333,15 +470,30 @@ export default function WeeklyForecastStudio() {
                   <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Day {i + 1}</p>
                   <div>
                     <label className="studio-label">Topic</label>
-                    <input type="text" value={d.topic} maxLength={120} onChange={(e) => updateDay(i, 'topic', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                    <PickSelect
+                      options={topicOptions}
+                      placeholder="＋ Pick a curriculum topic…"
+                      onPick={(v) => updateDay(i, 'topic', v)}
+                    />
+                    <input type="text" value={d.topic} maxLength={120} onChange={(e) => updateDay(i, 'topic', e.target.value)} placeholder="…or type your own" className="studio-input !py-1.5 text-sm" />
                   </div>
                   <div>
                     <label className="studio-label">Sub-topic / to be done</label>
-                    <input type="text" value={d.subtopic} maxLength={160} onChange={(e) => updateDay(i, 'subtopic', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                    <PickSelect
+                      options={getSubtopicsForTeacherSubject(subjectSlug, header.grade, d.topic)}
+                      placeholder="＋ Pick a sub-topic…"
+                      onPick={(v) => updateDay(i, 'subtopic', v)}
+                    />
+                    <input type="text" value={d.subtopic} maxLength={160} onChange={(e) => updateDay(i, 'subtopic', e.target.value)} placeholder="…or type your own" className="studio-input !py-1.5 text-sm" />
                   </div>
                   <div>
                     <label className="studio-label">Specific competence</label>
-                    <textarea rows={2} value={d.specificCompetence} maxLength={400} onChange={(e) => updateDay(i, 'specificCompetence', e.target.value)} className="studio-input !py-1.5 text-sm resize-none" />
+                    <PickSelect
+                      options={competenceOptions}
+                      placeholder="＋ Pick a competence…"
+                      onPick={(v) => updateDay(i, 'specificCompetence', v)}
+                    />
+                    <textarea rows={2} value={d.specificCompetence} maxLength={400} onChange={(e) => updateDay(i, 'specificCompetence', e.target.value)} placeholder="…or write your own" className="studio-input !py-1.5 text-sm resize-none" />
                   </div>
                   <div>
                     <label className="studio-label">Learning activities (one per line)</label>
@@ -414,5 +566,49 @@ export default function WeeklyForecastStudio() {
         onCancel={() => setConfirmClear(false)}
       />
     </div>
+  )
+}
+
+/**
+ * A quick-fill dropdown that sits above a free-text field: choosing an option
+ * drops it into the field (via onPick), then the select snaps back to its
+ * placeholder so the text field stays the single source of truth. Renders
+ * nothing when there are no options to offer.
+ */
+function PickSelect({ options, onPick, placeholder }) {
+  if (!Array.isArray(options) || options.length === 0) return null
+  return (
+    <select
+      value=""
+      onChange={(e) => { if (e.target.value) onPick(e.target.value) }}
+      className="studio-input !py-1.5 text-sm mb-1"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  )
+}
+
+/**
+ * A <select> that understands the teacher-tools option shape — entries with a
+ * `group` key render as <optgroup> labels, the rest as options. Used for the
+ * grade-filtered subject list.
+ */
+function GroupedSelect({ value, options, onChange }) {
+  const groups = []
+  let cur = null
+  for (const o of options) {
+    if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
+    else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
+  }
+  if (cur) groups.push(cur)
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="studio-input">
+      {groups.map((g, i) => (
+        g.label
+          ? <optgroup key={i} label={g.label}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+          : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)
+      ))}
+    </select>
   )
 }
