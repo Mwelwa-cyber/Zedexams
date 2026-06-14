@@ -14,7 +14,7 @@ import {
   SYLLABUS_TYPES,
   buildLibraryCoords,
   getSubjectsForGradeForm,
-} from '../config/library'
+} from '../config/library.js'
 
 /* ── Grade / Form translation ────────────────────────────────── */
 
@@ -185,6 +185,7 @@ export const TOOL_TO_LIBRARY_TYPE = {
   weekly_forecast:   LIBRARY_TYPES.WEEKLY_FORECASTS,
   record_of_work:    LIBRARY_TYPES.RECORDS_OF_WORK,
   mark_schedule:     LIBRARY_TYPES.MARK_SCHEDULES,
+  class_timetable:   LIBRARY_TYPES.CLASS_TIMETABLES,
   notes:             LIBRARY_TYPES.NOTES,
   worksheet:         LIBRARY_TYPES.ASSESSMENTS, // worksheets read as assessments
   rubric:            LIBRARY_TYPES.ASSESSMENTS,

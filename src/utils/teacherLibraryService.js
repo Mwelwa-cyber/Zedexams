@@ -303,6 +303,31 @@ export async function saveRecordOfWorkGeneration({ uid, existingId, artifact }) 
   })
 }
 
+export async function saveClassTimetableGeneration({ uid, existingId, artifact }) {
+  const hasLesson = artifact?.slots && Object.values(artifact.slots)
+    .some((row) => row && Object.values(row).some(Boolean))
+  if (!hasLesson) throw new Error('Fill at least one lesson before saving.')
+  const header = artifact.header || {}
+  const cls = header.className || (header.grade ? `Grade ${String(header.grade).replace(/^G/i, '')}` : '')
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'class_timetable',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null && header.term !== '' ? String(header.term) : null,
+      subject: null,
+      topic: `${cls || 'Class'} timetable`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.CLASS_TIMETABLES,
+      grade: header.grade,
+      term: header.term,
+    },
+  })
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
@@ -378,6 +403,12 @@ export const TOOL_META = {
     route: '/teacher/generate/mark-schedule',
     colour: 'lime',
   },
+  class_timetable: {
+    label: 'Class Timetable',
+    icon: '🗓️',
+    route: '/teacher/generate/class-timetable',
+    colour: 'violet',
+  },
   worksheet: {
     label: 'Worksheet',
     icon: '📝',
@@ -412,6 +443,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'weekly_forecast', label: 'Weekly forecasts'},
   {value: 'record_of_work', label: 'Records of work'},
   {value: 'mark_schedule', label: 'Mark schedules'},
+  {value: 'class_timetable', label: 'Class timetables'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
@@ -469,6 +501,14 @@ export function titleForGeneration(gen) {
     const n = out?.pupils?.length
     const head = `${g ? `Grade ${String(g).replace(/^G/i, '')}` : ''} — Term ${t} Mark Schedule${y ? ` ${y}` : ''}`.trim()
     return n ? `${head} (${n} pupils)` : head
+  }
+  if (gen.tool === 'class_timetable') {
+    const h = out?.header || {}
+    const cls = h.className || (h.grade ? `Grade ${String(h.grade).replace(/^G/i, '')}` : '')
+    const t = h.term || gen.inputs?.term || ''
+    const y = h.year || ''
+    return [cls || 'Class', `Timetable${t ? ` — Term ${t}` : ''}${y ? ` ${y}` : ''}`]
+      .filter(Boolean).join(' ').trim() || 'Class timetable'
   }
   if (gen.tool === 'rubric') {
     return out?.header?.title ||

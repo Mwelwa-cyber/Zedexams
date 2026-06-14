@@ -1,0 +1,559 @@
+/**
+ * Class Timetable studio — /teacher/generate/class-timetable
+ *
+ * Pure client-side tool (no AI call, no usage meter). The teacher sets the
+ * class, the teaching days and the period times, then either auto-fills the
+ * week from the curriculum subjects (a deterministic, balanced spread — see
+ * src/utils/classTimetable.js) or fills cells by hand. Subjects are seeded
+ * from the site curriculum for the chosen grade.
+ *
+ * Outputs the official timetable grid on screen and as DOCX / XLSX / PDF,
+ * and saves to the teacher's library. Drafts autosave to localStorage per
+ * teacher so a half-built week survives a refresh.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../../contexts/AuthContext'
+import { TEACHER_GRADES } from '../../../utils/teacherTools'
+import {
+  DAYS_OF_WEEK,
+  DEFAULT_DAYS,
+  DEFAULT_TIMING,
+  buildPeriods,
+  lessonCapacity,
+  curriculumSubjectsForGrade,
+  newSubject,
+  defaultPeriodsPerWeek,
+  autoFillTimetable,
+  totalAllocated,
+  filledCount,
+  buildTimetableArtifact,
+} from '../../../utils/classTimetable'
+import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
+import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
+import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
+import { clampInt } from '../../../utils/inputs.js'
+import ClassTimetableView from '../views/ClassTimetableView'
+import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
+import ConfirmDialog from '../../ui/ConfirmDialog'
+import { useToast } from '../../ui/Toast'
+
+const DRAFT_PREFIX = 'examprep:classtimetable:draft:'
+const DRAFT_TTL = 60 * 24 * 60 * 60 * 1000 // 60 days — a timetable spans a term
+const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+
+const GRADE_OPTIONS = TEACHER_GRADES.filter((g) => g.value)
+
+function seedSubjects(grade) {
+  const fromCurriculum = curriculumSubjectsForGrade(grade)
+  if (fromCurriculum.length) return fromCurriculum
+  // Grades with no catalogued list — start from a minimal core the teacher
+  // can rename/extend.
+  return ['Mathematics', 'English', 'Science'].map((l) => ({
+    id: `s-${l}`, label: l, periodsPerWeek: defaultPeriodsPerWeek(l),
+  }))
+}
+
+function loadDraft(uid) {
+  try {
+    const raw = localStorage.getItem(draftKey(uid))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
+    return parsed
+  } catch { return null }
+}
+
+export default function ClassTimetableStudio() {
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const toast = useToast()
+  const uid = currentUser?.uid
+
+  const initialGrade = 'G5'
+  const [header, setHeader] = useState(() => ({
+    school: userProfile?.schoolName || '',
+    grade: initialGrade,
+    className: '',
+    term: '',
+    year: String(new Date().getFullYear()),
+    teacherName: userProfile?.displayName || userProfile?.fullName || '',
+  }))
+  const [days, setDays] = useState(DEFAULT_DAYS)
+  const [timing, setTiming] = useState(() => ({
+    startTime: DEFAULT_TIMING.startTime,
+    periodMinutes: DEFAULT_TIMING.periodMinutes,
+    lessonPeriods: DEFAULT_TIMING.lessonPeriods,
+    breaks: DEFAULT_TIMING.breaks.map((b) => ({ ...b, enabled: true })),
+  }))
+  const [subjects, setSubjects] = useState(() => seedSubjects(initialGrade))
+  const [slots, setSlots] = useState({})
+
+  const [generationId, setGenerationId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirtySinceSave, setDirtySinceSave] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const loadedRef = useRef(false)
+  const lastGradeRef = useRef(initialGrade)
+
+  const periods = useMemo(() => buildPeriods(timing), [timing])
+  const capacity = useMemo(() => lessonCapacity(periods, days), [periods, days])
+  const allocated = useMemo(() => totalAllocated(subjects), [subjects])
+  const filled = useMemo(() => filledCount(slots, periods, days), [slots, periods, days])
+
+  const artifact = useMemo(() => buildTimetableArtifact({
+    header: { ...header, term: header.term === '' ? '' : Number(header.term) },
+    days,
+    periods,
+    slots,
+  }), [header, days, periods, slots])
+
+  /* Restore a saved draft once per mount. */
+  useEffect(() => {
+    if (loadedRef.current || !uid) return
+    loadedRef.current = true
+    const draft = loadDraft(uid)
+    if (!draft) return
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); lastGradeRef.current = draft.header.grade || lastGradeRef.current }
+    if (Array.isArray(draft.days) && draft.days.length) setDays(draft.days)
+    if (draft.timing) setTiming((t) => ({ ...t, ...draft.timing }))
+    if (Array.isArray(draft.subjects) && draft.subjects.length) setSubjects(draft.subjects)
+    if (draft.slots && typeof draft.slots === 'object') setSlots(draft.slots)
+    if (draft.generationId) setGenerationId(draft.generationId)
+  }, [uid])
+
+  /* Reseed the subject list from the curriculum when the grade changes. */
+  useEffect(() => {
+    if (header.grade === lastGradeRef.current) return
+    lastGradeRef.current = header.grade
+    setSubjects(seedSubjects(header.grade))
+    setSlots({})
+  }, [header.grade])
+
+  /* Debounced autosave. */
+  useEffect(() => {
+    if (!uid) return undefined
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey(uid), JSON.stringify({
+          savedAt: Date.now(), header, days, timing, subjects, slots, generationId,
+        }))
+      } catch { /* storage full/blocked — the editor still works */ }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [uid, header, days, timing, subjects, slots, generationId])
+
+  /* Any data edit marks the library copy stale. */
+  useEffect(() => { setDirtySinceSave(true) }, [header, days, timing, subjects, slots])
+
+  const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+  const setT = (field, value) => setTiming((t) => ({ ...t, [field]: value }))
+
+  function toggleDay(day) {
+    setDays((list) => list.includes(day)
+      ? list.filter((d) => d !== day)
+      : DAYS_OF_WEEK.filter((d) => d === day || list.includes(d)))
+  }
+
+  /* ── subjects ── */
+  function updateSubject(id, field, value) {
+    setSubjects((list) => list.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
+  }
+  function addSubject() {
+    setSubjects((list) => [...list, newSubject(`Subject ${list.length + 1}`)])
+  }
+  function removeSubject(id) {
+    setSubjects((list) => (list.length > 1 ? list.filter((s) => s.id !== id) : list))
+  }
+  function resetSubjectsFromCurriculum() {
+    setSubjects(seedSubjects(header.grade))
+    toast.info('Subjects reset from the curriculum for this grade.')
+  }
+
+  /* ── breaks ── */
+  function updateBreak(idx, field, value) {
+    setTiming((t) => ({
+      ...t,
+      breaks: t.breaks.map((b, i) => (i === idx ? { ...b, [field]: value } : b)),
+    }))
+  }
+
+  /* ── grid ── */
+  function setCell(pid, day, value) {
+    setSlots((prev) => {
+      const next = { ...prev, [pid]: { ...(prev[pid] || {}) } }
+      if (value) next[pid][day] = value
+      else delete next[pid][day]
+      return next
+    })
+  }
+
+  function onAutoFill() {
+    if (!days.length) { toast.error('Pick at least one teaching day first.'); return }
+    if (!subjects.length) { toast.error('Add at least one subject first.'); return }
+    setSlots(autoFillTimetable({ subjects, days, periods }))
+    toast.success('Timetable auto-filled — fine-tune any cell below.')
+  }
+
+  function onClearGrid() {
+    setSlots({})
+    setConfirmClear(false)
+    toast.info('Grid cleared.')
+  }
+
+  /* ── persistence + export ── */
+  async function onSaveToLibrary() {
+    if (saving) return
+    if (filled === 0) { toast.error('Fill at least one lesson before saving.'); return }
+    setSaving(true)
+    try {
+      const id = await saveClassTimetableGeneration({ uid, existingId: generationId, artifact })
+      setGenerationId(id)
+      setDirtySinceSave(false)
+      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+    } catch (err) {
+      console.error('[ClassTimetableStudio] save failed', err)
+      toast.error(err?.message || 'Could not save to your library. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function fileBase() {
+    const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
+    return [slug(header.className || header.grade), header.term ? `term${header.term}` : '', header.year]
+      .filter(Boolean).join('_') || 'class-timetable'
+  }
+  const attribution = isFreePlanTeacher({ userProfile, isAdmin })
+
+  async function onExportDocx() {
+    if (filled === 0) { toast.error('Fill the timetable first.'); return }
+    try {
+      await downloadClassTimetableDocx(artifact, `${fileBase()}_timetable.docx`, { attribution })
+      toast.success('Timetable downloaded.')
+    } catch (err) {
+      console.error('[ClassTimetableStudio] docx export failed', err)
+      toast.error('Could not build the Word file. Please try again.')
+    }
+  }
+  async function onExportXlsx() {
+    if (filled === 0) { toast.error('Fill the timetable first.'); return }
+    try {
+      await downloadClassTimetableXlsx(artifact, `${fileBase()}_timetable.xlsx`)
+      toast.success('Excel workbook downloaded.')
+    } catch (err) {
+      console.error('[ClassTimetableStudio] xlsx export failed', err)
+      toast.error('Could not build the Excel file. Please try again.')
+    }
+  }
+  function onExportPdf() {
+    if (filled === 0) { toast.error('Fill the timetable first.'); return }
+    try {
+      printClassTimetableAsPdf(artifact, { attribution })
+    } catch (err) {
+      console.error('[ClassTimetableStudio] pdf export failed', err)
+      toast.error(err?.message || 'Could not open the print view. Please allow pop-ups.')
+    }
+  }
+
+  const overAllocated = allocated > capacity
+  const subjectLabels = subjects.map((s) => s.label).filter(Boolean)
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Class timetable" noIndex />
+      <div className="max-w-7xl mx-auto">
+        <StudioPageHeader
+          eyebrow="Class Timetable"
+          title="Build your week from the curriculum"
+          subtitle="Set the class, days and period times, then auto-fill a balanced week from the curriculum subjects — or place each lesson by hand. Print it, or export to Word, Excel or PDF."
+          emoji="🗓️"
+        />
+
+        <div className="space-y-6">
+          {/* ── Class details ── */}
+          <section className="studio-card p-5 space-y-4">
+            <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Class details</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <Field label="School">
+                <input type="text" value={header.school} maxLength={120}
+                  onChange={(e) => setH('school', e.target.value)}
+                  placeholder="School name" className="studio-input" />
+              </Field>
+              <Field label="Grade">
+                <select value={header.grade} onChange={(e) => setH('grade', e.target.value)} className="studio-input">
+                  {GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Class / stream (optional)">
+                <input type="text" value={header.className} maxLength={40}
+                  onChange={(e) => setH('className', e.target.value)}
+                  placeholder="e.g. Grade 5 Blue" className="studio-input" />
+              </Field>
+              <Field label="Term (optional)">
+                <select value={String(header.term)} onChange={(e) => setH('term', e.target.value)} className="studio-input">
+                  <option value="">No term</option>
+                  {[1, 2, 3].map((t) => <option key={t} value={t}>Term {t}</option>)}
+                </select>
+              </Field>
+              <Field label="Year">
+                <input type="text" value={header.year} maxLength={4}
+                  onChange={(e) => setH('year', e.target.value.replace(/[^\d]/g, ''))}
+                  className="studio-input" />
+              </Field>
+              <Field label="Class teacher">
+                <input type="text" value={header.teacherName} maxLength={80}
+                  onChange={(e) => setH('teacherName', e.target.value)}
+                  placeholder="Mr / Mrs ..." className="studio-input" />
+              </Field>
+            </div>
+
+            <Field label="Teaching days">
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK.map((day) => {
+                  const on = days.includes(day)
+                  return (
+                    <button key={day} type="button" onClick={() => toggleDay(day)}
+                      aria-pressed={on}
+                      className={`rounded-full px-3 py-1.5 text-xs font-black border transition-all ${
+                        on ? 'theme-accent-fill theme-on-accent border-transparent' : 'bg-white theme-text-muted theme-border hover:theme-text'
+                      }`}>
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          </section>
+
+          {/* ── Period times ── */}
+          <section className="studio-card p-5 space-y-4">
+            <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Period times</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <Field label="Day starts">
+                <input type="time" value={timing.startTime}
+                  onChange={(e) => setT('startTime', e.target.value)} className="studio-input" />
+              </Field>
+              <Field label="Period length (minutes)">
+                <input type="number" min={5} max={180} value={timing.periodMinutes}
+                  onChange={(e) => setT('periodMinutes', clampInt(e.target.value, 5, 180))} className="studio-input" />
+              </Field>
+              <Field label="Lesson periods per day">
+                <input type="number" min={1} max={14} value={timing.lessonPeriods}
+                  onChange={(e) => setT('lessonPeriods', clampInt(e.target.value, 1, 14))} className="studio-input" />
+              </Field>
+            </div>
+            <div className="space-y-2">
+              <span className="studio-label">Breaks</span>
+              {timing.breaks.map((b, idx) => (
+                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border theme-border bg-white px-3 py-2">
+                  <label className="flex items-center gap-1.5 text-xs font-bold">
+                    <input type="checkbox" checked={b.enabled !== false}
+                      onChange={(e) => updateBreak(idx, 'enabled', e.target.checked)} />
+                    <input type="text" value={b.name} maxLength={16}
+                      aria-label="Break name"
+                      onChange={(e) => updateBreak(idx, 'name', e.target.value.toUpperCase())}
+                      className="w-24 outline-none bg-transparent font-black" />
+                  </label>
+                  <span className="text-xs theme-text-secondary">after period</span>
+                  <input type="number" min={1} max={timing.lessonPeriods} value={b.afterPeriod}
+                    aria-label="After period"
+                    onChange={(e) => updateBreak(idx, 'afterPeriod', clampInt(e.target.value, 1, timing.lessonPeriods))}
+                    className="w-14 text-xs font-bold text-center studio-input !py-1.5" />
+                  <span className="text-xs theme-text-secondary">for</span>
+                  <input type="number" min={5} max={120} value={b.minutes}
+                    aria-label="Break minutes"
+                    onChange={(e) => updateBreak(idx, 'minutes', clampInt(e.target.value, 5, 120))}
+                    className="w-16 text-xs font-bold text-center studio-input !py-1.5" />
+                  <span className="text-xs theme-text-secondary">min</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Subjects ── */}
+          <section className="studio-card p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Subjects &amp; weekly periods</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  Seeded from the curriculum for this grade. Set how many periods a week each subject needs.
+                </p>
+              </div>
+              <button type="button" onClick={resetSubjectsFromCurriculum} className="studio-btn-ghost text-xs">
+                ↺ Reset from curriculum
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {subjects.map((s) => (
+                <div key={s.id} className="flex items-center gap-1.5 rounded-xl border theme-border bg-white px-2.5 py-1.5">
+                  <input type="text" value={s.label} maxLength={40}
+                    aria-label="Subject name"
+                    onChange={(e) => updateSubject(s.id, 'label', e.target.value)}
+                    className="flex-1 min-w-0 text-sm font-bold outline-none bg-transparent" />
+                  <input type="number" min={0} max={capacity || 40} value={s.periodsPerWeek}
+                    aria-label={`${s.label} periods per week`}
+                    onChange={(e) => updateSubject(s.id, 'periodsPerWeek', clampInt(e.target.value, 0, capacity || 40))}
+                    className="w-12 text-xs font-bold text-center outline-none bg-slate-50 rounded-md py-1" />
+                  <span className="text-[10px] theme-text-secondary">/wk</span>
+                  <button type="button" onClick={() => removeSubject(s.id)}
+                    disabled={subjects.length <= 1}
+                    aria-label={`Remove ${s.label}`}
+                    className="text-rose-500 hover:text-rose-700 disabled:opacity-30 text-sm font-black px-1">×</button>
+                </div>
+              ))}
+              <button type="button" onClick={addSubject}
+                className="rounded-xl border border-dashed theme-border bg-white/60 px-2.5 py-1.5 text-xs font-bold theme-text-secondary hover:theme-text">
+                + Add subject
+              </button>
+            </div>
+
+            <div className={`text-xs font-bold ${overAllocated ? 'text-rose-700' : ''}`} style={overAllocated ? undefined : { color: '#566f76' }}>
+              {allocated} periods allocated · {capacity} slots available
+              {overAllocated && ' — over capacity: extra periods won\'t be placed.'}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button type="button" onClick={onAutoFill} className="studio-btn-primary">
+                ⚡ Auto-fill timetable
+              </button>
+              <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-rose-700">
+                Clear grid
+              </button>
+            </div>
+          </section>
+
+          {/* ── Editable grid ── */}
+          <section className="studio-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>The week</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  {filled} of {capacity} lesson slots filled · click any cell to change it.
+                </p>
+              </div>
+            </div>
+
+            {days.length === 0 ? (
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+                Pick at least one teaching day above.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm min-w-[680px]">
+                  <thead>
+                    <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#566f76' }}>
+                      <th className="py-1.5 px-2 text-left w-32">Time</th>
+                      {days.map((d) => <th key={d} className="py-1.5 px-2 text-center">{d}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {periods.map((p) => {
+                      if (p.kind === 'break') {
+                        return (
+                          <tr key={p.id} className="border-t theme-border">
+                            <td className="py-1.5 px-2 text-xs font-bold whitespace-nowrap" style={{ color: '#566f76' }}>
+                              {p.start}–{p.end}
+                            </td>
+                            <td colSpan={days.length} className="py-1.5 px-2 text-center text-xs font-black uppercase tracking-widest"
+                              style={{ background: '#efe9da', color: '#7a6f57' }}>
+                              {p.label}
+                            </td>
+                          </tr>
+                        )
+                      }
+                      return (
+                        <tr key={p.id} className="border-t theme-border align-middle">
+                          <td className="py-1.5 px-2 whitespace-nowrap">
+                            <div className="text-xs font-bold">{p.start}–{p.end}</div>
+                            <div className="text-[10px] theme-text-secondary">{p.label}</div>
+                          </td>
+                          {days.map((d) => (
+                            <td key={d} className="py-1 px-1">
+                              <select
+                                value={slots?.[p.id]?.[d] || ''}
+                                aria-label={`${p.label} ${d}`}
+                                onChange={(e) => setCell(p.id, d, e.target.value)}
+                                className="studio-input !py-1.5 !px-1.5 text-xs w-full"
+                              >
+                                <option value="">—</option>
+                                {subjectLabels.map((label) => (
+                                  <option key={label} value={label}>{label}</option>
+                                ))}
+                                {/* Keep a stale value selectable if its subject was renamed/removed. */}
+                                {slots?.[p.id]?.[d] && !subjectLabels.includes(slots[p.id][d]) && (
+                                  <option value={slots[p.id][d]}>{slots[p.id][d]}</option>
+                                )}
+                              </select>
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* ── Preview + export ── */}
+          <section className="studio-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Preview &amp; export</h2>
+              <div className="flex gap-2 flex-wrap items-center">
+                <button type="button" onClick={onSaveToLibrary}
+                  disabled={filled === 0 || saving || (generationId && !dirtySinceSave)}
+                  className="studio-btn-ghost disabled:opacity-50">
+                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
+                <button type="button" onClick={onExportXlsx} disabled={filled === 0} className="studio-btn-ghost disabled:opacity-50">
+                  📊 .xlsx
+                </button>
+                <button type="button" onClick={onExportPdf} disabled={filled === 0} className="studio-btn-ghost disabled:opacity-50">
+                  🖨️ PDF
+                </button>
+                <button type="button" onClick={onExportDocx} disabled={filled === 0} className="studio-btn-primary disabled:opacity-50">
+                  📄 .docx (landscape)
+                </button>
+              </div>
+            </div>
+            {generationId && (
+              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+                In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
+              </p>
+            )}
+            {filled > 0 ? (
+              <ClassTimetableView timetable={artifact} />
+            ) : (
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+                Auto-fill or place a few lessons above — your printable timetable shows here.
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear the timetable grid?"
+        message="Every placed lesson is removed. Your class details, days, periods and subjects are kept."
+        confirmLabel="Clear grid"
+        variant="danger"
+        onConfirm={onClearGrid}
+        onCancel={() => setConfirmClear(false)}
+      />
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="studio-label">{label}</label>
+      {children}
+    </div>
+  )
+}

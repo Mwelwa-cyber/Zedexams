@@ -74,6 +74,16 @@ const STUDIOS = [
     meta: 'After tests',
   },
   {
+    icon: CalendarDays,
+    tone: 'violet',
+    badge: 'NEW',
+    libraryKey: 'class-timetable',
+    title: 'Class Timetable',
+    tagline: 'Auto-fill a balanced week from the curriculum subjects.',
+    to: '/teacher/generate/class-timetable',
+    meta: 'Term planning',
+  },
+  {
     icon: PencilLine,
     tone: 'orange',
     badge: null,
@@ -165,6 +175,7 @@ const STUDIOS = [
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
   scheme_of_work: { icon: CalendarDays, accent: '#faecb8', label: 'Scheme of Work' },
+  class_timetable: { icon: CalendarDays, accent: '#e3dcf5', label: 'Class Timetable' },
   worksheet: { icon: FileText, accent: '#d8ecd0', label: 'Worksheet' },
   flashcards: { icon: Layers, accent: '#fde9b8', label: 'Flashcards' },
   rubric: { icon: ClipboardCheckList, accent: '#f0d6e0', label: 'Rubric' },
