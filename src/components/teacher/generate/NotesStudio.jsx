@@ -11,6 +11,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import SeoHelmet from '../../seo/SeoHelmet'
 import {
@@ -159,16 +160,13 @@ export default function NotesStudio() {
 
   function onExportDocx() {
     if (!notes) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.teacherName || 'teacher'),
-      slug(notes.header?.grade || form.grade),
-      slug(notes.header?.subject || form.subject),
-      slug(notes.header?.topic || form.topic || 'notes'),
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    downloadNotesDocx(notes, `${parts.join('_')}_teacher-notes.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: 'Notes',
+      grade: notes.header?.grade || form.grade,
+      subject: notes.header?.subject || form.subject,
+      topic: notes.header?.topic || form.topic,
+    })
+    downloadNotesDocx(notes, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

@@ -11,6 +11,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
@@ -150,16 +151,13 @@ export default function SchemeOfWorkGenerator() {
 
   function onExportDocx() {
     if (!scheme) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.teacherName || 'teacher'),
-      slug(form.grade),
-      slug(form.subject),
-      `term${form.term}`,
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    downloadSchemeOfWorkDocx(scheme, `${parts.join('_')}_scheme-of-work.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: 'Scheme of Work',
+      grade: form.grade,
+      subject: form.subject,
+      term: form.term,
+    })
+    downloadSchemeOfWorkDocx(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

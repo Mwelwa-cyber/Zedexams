@@ -85,6 +85,7 @@ import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
 import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
+import { buildDownloadName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES, normalizeSubject } from '../../config/curriculum'
@@ -1564,7 +1565,16 @@ export default function AssessmentStudio() {
     }
     setExporting(true)
     try {
-      const baseFile = (assessmentDoc.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()
+      // The assessment title (e.g. "Grade 4 Mathematics - Fractions") already
+      // reads well, so keep it as the filename base; only fall back to
+      // grade/subject when the paper has no title yet.
+      const hasTitle = Boolean(assessmentDoc.title?.trim())
+      const docName = (variant) => buildDownloadName({
+        docType: hasTitle ? assessmentDoc.title.trim() : 'Assessment',
+        grade: hasTitle ? undefined : assessmentDoc.grade,
+        subject: hasTitle ? undefined : assessmentDoc.subject,
+        variant,
+      })
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
@@ -1572,17 +1582,16 @@ export default function AssessmentStudio() {
           printAnswerSheetAsPdf(assessmentDoc, serializedPreview.questions)
           showToast('Answer sheet PDF opened.')
         } else if (kind === 'docx') {
-          await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, `${baseFile}-answer-sheet.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+          await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, docName('Answer Sheet'), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
           showToast('Answer sheet download started.')
         }
         return
       }
-      const fileSuffix = mode === 'scheme' ? '-marking-key' : ''
       if (kind === 'pdf') {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
         showToast('PDF dialog opened.')
       } else if (kind === 'docx') {
-        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
       } else if (kind === 'print') {
         window.print()

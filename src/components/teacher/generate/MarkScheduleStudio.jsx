@@ -20,6 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -193,7 +194,7 @@ export default function MarkScheduleStudio() {
 
   async function onExportDocx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.docx`
+    const name = buildDownloadName({ docType: 'Mark Schedule', grade: header.grade, term: header.term, year: header.year })
     try {
       await downloadMarkScheduleDocx(artifact, name, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Mark schedule downloaded.')
@@ -205,7 +206,7 @@ export default function MarkScheduleStudio() {
 
   async function onExportXlsx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.xlsx`
+    const name = buildDownloadName({ docType: 'Mark Schedule', grade: header.grade, term: header.term, year: header.year, ext: 'xlsx' })
     try {
       await downloadMarkScheduleXlsx(artifact, name)
       toast.success('Excel workbook downloaded — totals and positions stay live when you edit marks.')
@@ -217,7 +218,7 @@ export default function MarkScheduleStudio() {
 
   async function onExportReportCards() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_report-cards.docx`
+    const name = buildDownloadName({ docType: 'Report Cards', grade: header.grade, term: header.term, year: header.year })
     try {
       await downloadReportCardsDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success(`Report cards downloaded — one page per pupil (${artifact.pupils.length}).`)

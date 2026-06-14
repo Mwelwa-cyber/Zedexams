@@ -10,6 +10,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -136,16 +137,12 @@ export default function FlashcardGenerator() {
   }, [])
 
   function buildFilename() {
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.grade),
-      slug(form.subject),
-      slug(flashcards?.header?.topic || form.topic),
-      'flashcards',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    return `${parts.join('_')}.docx`
+    return buildDownloadName({
+      docType: 'Flashcards',
+      grade: form.grade,
+      subject: form.subject,
+      topic: flashcards?.header?.topic || form.topic,
+    })
   }
 
   function onExport() {

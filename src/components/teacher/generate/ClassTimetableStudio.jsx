@@ -36,6 +36,7 @@ import { getFrameworkForGrade, FRAMEWORK_SOURCE } from '../../../utils/curriculu
 import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
 import { clampInt } from '../../../utils/inputs.js'
 import ClassTimetableView from '../views/ClassTimetableView'
@@ -272,17 +273,22 @@ export default function ClassTimetableStudio() {
     }
   }
 
-  function fileBase() {
-    const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
-    return [slug(header.className || header.grade), header.term ? `term${header.term}` : '', header.year]
-      .filter(Boolean).join('_') || 'class-timetable'
+  function fileBase(ext = 'docx') {
+    return buildDownloadName({
+      docType: 'Class Timetable',
+      grade: header.grade,
+      extra: header.className,
+      term: header.term,
+      year: header.year,
+      ext,
+    })
   }
   const attribution = isFreePlanTeacher({ userProfile, isAdmin })
 
   async function onExportDocx() {
     if (filled === 0) { toast.error('Fill the timetable first.'); return }
     try {
-      await downloadClassTimetableDocx(artifact, `${fileBase()}_timetable.docx`, { attribution })
+      await downloadClassTimetableDocx(artifact, fileBase('docx'), { attribution })
       toast.success('Timetable downloaded.')
     } catch (err) {
       console.error('[ClassTimetableStudio] docx export failed', err)
@@ -292,7 +298,7 @@ export default function ClassTimetableStudio() {
   async function onExportXlsx() {
     if (filled === 0) { toast.error('Fill the timetable first.'); return }
     try {
-      await downloadClassTimetableXlsx(artifact, `${fileBase()}_timetable.xlsx`)
+      await downloadClassTimetableXlsx(artifact, fileBase('xlsx'))
       toast.success('Excel workbook downloaded.')
     } catch (err) {
       console.error('[ClassTimetableStudio] xlsx export failed', err)
