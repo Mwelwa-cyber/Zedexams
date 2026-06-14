@@ -18,7 +18,7 @@
 
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { dirname, join, basename } from "node:path";
+import { dirname, join, basename, resolve, relative, isAbsolute } from "node:path";
 import fs from "node:fs";
 import { parseCdcModule } from "./cdcModuleParser.mjs";
 
@@ -141,9 +141,18 @@ async function main() {
   const terms = [...new Set(valid.map((v) => v.term))].sort();
   const termTag = terms.length <= 1 ?
     `t${terms[0] || meta.term}` : `t${terms[0]}-${terms[terms.length - 1]}`;
-  const outPath = args.out ||
+  // Confine the write to the repository. This is a local dev CLI, but a stray
+  // or hostile --out ("--out /etc/x" or "--out ../../x") shouldn't be able to
+  // write outside the project tree — cheap hardening in case it's ever wired
+  // into automation.
+  const outPath = resolve(args.out ||
     join(ROOT, "functions", "data", "modules",
-      `${meta.subject}_${meta.grade.toLowerCase()}_${termTag}.json`);
+      `${meta.subject}_${meta.grade.toLowerCase()}_${termTag}.json`));
+  const rel = relative(ROOT, outPath);
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) {
+    console.error(`Refusing to write outside the repository: ${outPath}`);
+    process.exit(2);
+  }
   fs.mkdirSync(dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(valid, null, 2) + "\n");
 
