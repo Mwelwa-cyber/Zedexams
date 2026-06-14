@@ -60,6 +60,13 @@ function gatherInput() {
     // Optional toggle — older studio DOMs may not have the row yet.
     showVocabulary: (() => { const el = $('#t-vocab'); return !!el && el.dataset.on === 'true'; })(),
     compactMeta: $('#t-compact').dataset.on === 'true',
+    // Writing-style controls (added 2026-06). Selects read directly; default
+    // to standard register + summarised cells when the DOM is an older bundle.
+    languageLevel: (() => { const el = $('#f-language-level'); return (el && el.value) || 'standard'; })(),
+    detailLevel: (() => { const el = $('#f-detail-level'); return (el && el.value) || 'summarised'; })(),
+    // Auto-draw diagrams for Maths/Science. On by default; older DOMs (no row)
+    // fall back to on so the feature is not silently lost on a stale bundle.
+    autoDiagrams: (() => { const el = $('#t-diagrams'); return el ? el.dataset.on === 'true' : true; })(),
     format: formatChoice,
     learningEnvironments: $$('#learning-env .le-pill')
       .filter(p => p.dataset.on === 'true')
@@ -81,6 +88,50 @@ function gatherInput() {
       generateOnlyIndex: lp.generateOnlyIndex || null,
     },
   };
+}
+
+// Writing-style guidance injected into the user prompt from the teacher's
+// "Language level" + "Level of detail" selectors. Kept here (not in the
+// cached system prompt) so changing a knob never invalidates Anthropic's
+// system-prompt cache.
+const LANGUAGE_GUIDE = {
+  simple: 'Simple — Use very plain, everyday words and short sentences a young learner could read aloud. Avoid technical jargon; if a subject term is unavoidable, explain it in plain words. Pitch the reading level low, suited to lower primary and Early Childhood Education.',
+  standard: 'Standard — Use clear, correct, professional staffroom English pitched at the stated grade. This is the register a Zambian head teacher expects to read.',
+  advanced: 'Advanced — Use richer, more precise subject vocabulary and fuller academic phrasing, appropriate for upper primary and secondary learners. Keep it grammatically clean and never pompous.',
+};
+const DETAIL_GUIDE = {
+  summarised: 'Summarised — Keep every table cell concise, exactly the way the official printed sample lesson plans are written: 2 to 4 short bullet-style points per cell, each a brief phrase or one short sentence. Do NOT write long paragraphs inside the progression table. Keep prose fields (rationale, lesson goal) short. Favour brevity over completeness.',
+  detailed: 'Detailed — Expand each cell with fuller teaching detail: more numbered steps, worked examples and expected answers, so that a relief teacher could deliver the lesson without extra preparation.',
+};
+
+// Subjects for which auto-diagrams make sense. The studio toggle gates the
+// feature; this regex makes sure we only ask for diagrams when the lesson is
+// genuinely Mathematics or a Science.
+const DIAGRAM_SUBJECT_RE = /math|science|biolog|chemis|physic/i;
+
+// The diagram types the studio's SVG engine (11-diagrams.js) can draw, with
+// the params each one accepts. Listed inline (not read from the catalog,
+// which loads after this file) so the model only ever names a renderable
+// type. labels/values are comma-separated lists.
+const DIAGRAM_SPEC_HELP = [
+  'Shapes 2D — triangle{a,b,c}, righttriangle{a,b,c}, square{side}, rectangle{l,w}, parallelogram{base,side}, trapezium{top,bottom,height}, rhombus{side}, pentagon{}, hexagon{}, circle{center,radius}, angle{label}',
+  'Shapes 3D — cube{side}, cuboid{l,w,h}, cylinder{r,h}, cone{r,h}, sphere{r}',
+  'Number & data — numberline{min,max,step,highlight}, coordgrid{range}, fractionbar{parts,shaded}, barchart{labels,values}, piechart{labels,values}, linegraph{labels,values}',
+  'Sets — venn2{a,b}, venn3{a,b,c}',
+  'Science — plantcell{}, animalcell{}, circuit{}, forcearrows{up,down,left,right}, foodchain{a,b,c,d}',
+  'Geography — compass{}, contourlines{}',
+  'Organisers — mindmap{centre,a,b,c,d}, tchart{left,right}, timeline{years,events}, flowchart{a,b,c,d}',
+].map((l) => `  • ${l}`).join('\n');
+
+function buildStyleBlock(i) {
+  const langKey = (i.languageLevel || 'standard').toLowerCase();
+  const detKey = (i.detailLevel || 'summarised').toLowerCase();
+  return `\n\nSTYLE CONTROLS (the teacher chose these — follow them exactly):\n- Language level: ${LANGUAGE_GUIDE[langKey] || LANGUAGE_GUIDE.standard}\n- Level of detail: ${DETAIL_GUIDE[detKey] || DETAIL_GUIDE.summarised}`;
+}
+
+function buildDiagramBlock(i) {
+  if (!i.autoDiagrams || !DIAGRAM_SUBJECT_RE.test(String(i.subject || ''))) return '';
+  return `\n\nDIAGRAMS (this is a Mathematics/Science lesson — include diagrams where they genuinely help, exactly as the official printed Maths and Science modules do):\n- Add an OPTIONAL top-level "diagrams" array to your JSON. Each entry: { "stage": one of the stage names you used, "type": one of the supported types below, "params": { ... }, "caption": short caption }.\n- Use a diagram ONLY where a picture aids the explanation or the exercise (e.g. a shape whose area is found, a number line, a Venn/set grouping, a bar chart of collected data, a plant or animal cell, a simple circuit). Do not force one into every lesson — 1 to 3 well-chosen diagrams is plenty. If none would help, omit the array entirely.\n- Attach each diagram to the stage where it is used (usually "LESSON DEVELOPMENT" or "EXERCISE / ASSESSMENT").\n- Supported "type" values and their "params" (use ONLY these; keep params short with plain ASCII labels; for barchart/piechart/linegraph/timeline pass comma-separated strings):\n${DIAGRAM_SPEC_HELP}`;
 }
 
 // Build the user prompt for one specific lesson in the series.
@@ -129,7 +180,7 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
 - Sub-topic: ${i.subtopic || 'choose an appropriate sub-topic'}
 - Duration: ${i.duration} minutes
 - Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
-${syllabusContext}
+${syllabusContext}${buildStyleBlock(i)}${buildDiagramBlock(i)}
 IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope shown above (${versionLabel}). If the user-supplied topic doesn't match this grade level, return {"error": "explanation"} instead.
 
 Return JSON only.`;
@@ -246,6 +297,46 @@ function formatProse(text) {
   return lines.map(l => '<div style="margin:3px 0">' + esc(l) + '</div>').join('');
 }
 
+// Render any AI-supplied diagrams attached to a given stage, using the same
+// SVG engine the manual diagram inserter uses (11-diagrams.js exposes its
+// catalog on window.__studioDiagrams). Robust by design: an unknown type, a
+// bad param, or a render throw is skipped silently rather than breaking the
+// plan. Params are coerced to strings (arrays joined with commas) so the
+// renderers — several of which call .split(',') — never choke on model drift.
+function normStageName(s) {
+  return String(s || '').toUpperCase().replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ').trim();
+}
+function baseStageName(s) {
+  return normStageName(s).split(' — ')[0].split(' - ')[0].trim();
+}
+function stageDiagramsHtml(stageName, specs) {
+  if (!Array.isArray(specs) || specs.length === 0) return '';
+  const catalog = (typeof window !== 'undefined' && window.__studioDiagrams) || null;
+  if (!catalog) return '';
+  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#0a5454';
+  const target = baseStageName(stageName);
+  if (!target) return '';
+  const html = specs.filter((d) => {
+    if (!d || !d.type || !catalog[d.type]) return false;
+    const sb = baseStageName(d.stage);
+    return sb && (sb === target || target.startsWith(sb) || sb.startsWith(target));
+  }).map((d) => {
+    const def = catalog[d.type];
+    const params = Object.assign({}, def.defaults);
+    const raw = (d.params && typeof d.params === 'object') ? d.params : {};
+    for (const k of Object.keys(raw)) {
+      const v = raw[k];
+      params[k] = Array.isArray(v) ? v.join(',') : (v == null ? '' : String(v));
+    }
+    let svg = '';
+    try { svg = def.render(params, accent); } catch (e) { svg = ''; }
+    if (!svg) return '';
+    const cap = esc(d.caption || params.cap || def.name);
+    return `<div class="diagram-wrap" contenteditable="false">${svg}<div class="diagram-caption">${cap}</div></div>`;
+  }).join('');
+  return html ? `<div class="stage-diagrams">${html}</div>` : '';
+}
+
 // ── Renderers ─────────────────────────────────────────────────────────────────
 //
 // All three formats render the SAME canonical data contract (see
@@ -334,7 +425,7 @@ function renderModern(data, meta) {
     <div class="stage-block"><table class="stage-table m-stage-table">
       <tr><td colspan="3" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
       <tr><th class="col-head">TEACHER'S ACTIVITIES</th><th class="col-head">LEARNERS' ACTIVITIES</th><th class="col-head">ASSESSMENT CRITERIA</th></tr>
-      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td><td>${formatProse(s.assessment || '')}</td></tr>
+      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td><td>${formatProse(s.assessment || '')}</td></tr>
     </table></div>`).join('');
   const vocab = meta.showVocabulary && asList(data.keyVocabulary).length
     ? `<h2 class="sec">Key Vocabulary</h2><ul>${list(data.keyVocabulary)}</ul>` : '';
@@ -376,7 +467,7 @@ function renderClassic(data, meta) {
   const stagesHtml = ensureStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
     ${renderFieldLines(data, meta)}
@@ -399,7 +490,7 @@ function renderClassic2(data, meta) {
       </tr>
       <tr>
         <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
         <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td>
       </tr>
     </table></div>`).join('');
@@ -489,7 +580,7 @@ function renderOldClassic(data, meta) {
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
     ${renderOldFieldLines(data)}
@@ -508,7 +599,7 @@ function renderOldClassic2(data, meta) {
   const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
     ${renderOldFieldLines(data)}
@@ -543,7 +634,7 @@ function renderOldModern(data, meta) {
   const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td></tr>`).join('');
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td></tr>`).join('');
   const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`;
   const evaluation = meta.showReflection ? `
     <div class="field-line" style="margin-top:14px"><strong>EVALUATION:</strong></div>
@@ -761,3 +852,12 @@ function __studioInitGenerate() {
 
 window.__studioRebinders = window.__studioRebinders || [];
 window.__studioRebinders.push(__studioInitGenerate);
+
+// Test seam — expose the pure prompt/diagram helpers so the node regression
+// test (scripts/test-lesson-studio-style.mjs) can exercise them without a
+// browser. No production effect beyond attaching three function references.
+if (typeof window !== 'undefined') {
+  window.__studioBuildStyleBlock = buildStyleBlock;
+  window.__studioBuildDiagramBlock = buildDiagramBlock;
+  window.__studioStageDiagramsHtml = stageDiagramsHtml;
+}

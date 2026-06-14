@@ -68,7 +68,14 @@
     if (i.showReflection) on.push('Lesson evaluation');
     if (i.showVocabulary) on.push('Key vocabulary');
     if (i.compactMeta) on.push('Compact metadata');
+    if (i.autoDiagrams && /math|science|biolog|chemis|physic/i.test(String(i.subject || ''))) on.push('Auto diagrams');
     return on;
+  }
+
+  // Title-case a style key (e.g. "summarised" → "Summarised") for the summary.
+  function styleLabel(v, fallback) {
+    const s = String(v || fallback || '').trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
   }
 
   function chips(values) {
@@ -99,6 +106,8 @@
       cell('Term &amp; Week', i.termWeek ? esc(i.termWeek) : '<span class="lp-review-muted">—</span>'),
       cell('Format', esc(formatLabel(i.format))),
       cell('Plan scope', esc(planScopeText(i.planner))),
+      cell('Language', esc(styleLabel(i.languageLevel, 'standard'))),
+      cell('Detail', esc(styleLabel(i.detailLevel, 'summarised'))),
       cell('Learning environment', env, true),
       cell('Includes', includes, true),
     ].join('');

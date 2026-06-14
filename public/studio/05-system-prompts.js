@@ -79,7 +79,10 @@ const canonicalSchema = `Output STRICTLY valid JSON, no preamble, no markdown fe
     { "name": "CONCLUSION", "duration": "5 min", "teacher": string, "pupils": string, "assessment": string }
   ],
   "remedialWork": string,           // short support task for learners who struggled ("" if not needed)
-  "extensionActivity": string       // short stretch task for fast finishers ("" if not needed)
+  "extensionActivity": string,      // short stretch task for fast finishers ("" if not needed)
+  "diagrams": [                     // OPTIONAL — include ONLY when the user prompt explicitly enables diagrams (a Maths/Science lesson). Omit this key entirely in every other case.
+    { "stage": string, "type": string, "params": object, "caption": string }
+  ]
 }
 
 Rules for the stages (this is the official CDC teaching-module lesson progression — do not invent other stage names):
@@ -171,7 +174,10 @@ const oldSchema = `Output STRICTLY valid JSON, no preamble, no markdown fences. 
     { "name": "DEVELOPMENT",  "duration": "25 min", "content": string, "teacher": string, "pupils": string, "methods": string },
     { "name": "CONCLUSION",   "duration": "10 min", "content": string, "teacher": string, "pupils": string, "methods": string }
   ],
-  "homework": string             // the HOMEWORK/EXERCISE task set after the table, with expected answers where natural
+  "homework": string,            // the HOMEWORK/EXERCISE task set after the table, with expected answers where natural
+  "diagrams": [                  // OPTIONAL — include ONLY when the user prompt explicitly enables diagrams (a Maths/Science lesson). Omit this key entirely in every other case.
+    { "stage": string, "type": string, "params": object, "caption": string }
+  ]
 }
 
 Rules for the stages (this is the official 2013 lesson format — do not invent other stage names):
