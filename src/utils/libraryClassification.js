@@ -22,7 +22,9 @@ import {
 // Multiple grades map to multiple academic levels; for ECE we treat it as
 // CBC Grade 1 because the library has no separate ECE bucket yet.
 const GRADE_FORM_MAP = {
-  ECE: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE:   { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE_N: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE_R: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
   G1:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
   G2:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 2' },
   G3:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 3' },

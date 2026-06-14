@@ -254,13 +254,15 @@ function inferGradeProfile(grade) {
       mappingNote: "",
     };
   }
-  if (raw === "ECE") {
+  if (raw === "ECE" || raw === "ECE_N" || raw === "ECE_R") {
+    const levelLabel = raw === "ECE_N" ? "Nursery (3-4)" :
+      raw === "ECE_R" ? "Reception (4-5)" : "ECE";
     return {
       raw,
       band: "ece",
       gradeNumber: null,
       formNumber: null,
-      levelLabel: "ECE",
+      levelLabel,
       mappingNote: "",
     };
   }

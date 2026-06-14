@@ -94,12 +94,19 @@ const FORM_TO_GRADE = {
   "form 5": "G12",
 };
 
-const ECE_AGE_PATTERNS = [/3-4\s*years?/i, /4-5\s*years?/i, /3-5\s*years?/i];
+// ECE age bands map to distinct grade codes (Nursery 3-4 → ECE_N,
+// Reception 4-5 → ECE_R) so KB topics are scoped per band. Mirrors
+// sheetNameToGrade in src/utils/syllabusMapping.js — keep in lock-step.
+const ECE_NURSERY_PATTERN = /3-4\s*years?/i;
+const ECE_RECEPTION_PATTERN = /4-5\s*years?/i;
+const ECE_COMBINED_PATTERN = /3-5\s*years?/i;
 
 function sheetNameToGrade(sheetName) {
   if (!sheetName) return "";
   const lower = String(sheetName).trim().toLowerCase();
-  if (ECE_AGE_PATTERNS.some((re) => re.test(lower))) return "ECE";
+  if (ECE_NURSERY_PATTERN.test(lower)) return "ECE_N";
+  if (ECE_RECEPTION_PATTERN.test(lower)) return "ECE_R";
+  if (ECE_COMBINED_PATTERN.test(lower)) return "ECE";
   const gradeMatch = lower.match(/grade\s*(\d+)/);
   if (gradeMatch) return `G${gradeMatch[1]}`;
   for (const [pattern, grade] of Object.entries(FORM_TO_GRADE)) {

@@ -52,8 +52,14 @@ const generateExamPaperCallable = httpsCallable(functions, 'generateExamPaper', 
 //
 // Items with `group` (no `value`) render as <optgroup> labels in FieldSelect.
 export const TEACHER_GRADES = [
-  { group: 'Pre-Primary' },
-  { value: 'ECE', label: 'ECE — Early Childhood Education' },
+  { group: 'Pre-Primary (ECE)' },
+  // ECE is split by age band to match the curriculum reference (the Syllabi
+  // Studio carries separate "3-4 Years" and "4-5 Years" sheets). Picking a
+  // band scopes the topic/sub-topic suggestions to that band's syllabus.
+  // Legacy 'ECE' is still accepted by the backend for older data, but it's
+  // no longer offered here — authors choose Nursery or Reception instead.
+  { value: 'ECE_N', label: 'Nursery (3–4 yrs)' },
+  { value: 'ECE_R', label: 'Reception (4–5 yrs)' },
   { group: 'Lower Primary (Grades 1–4)' },
   { value: 'G1', label: 'Grade 1' },
   { value: 'G2', label: 'Grade 2' },
@@ -110,16 +116,16 @@ export const TEACHER_SUBJECTS = [
 const SUBJECT_GRADE_MAP = {
   // Languages — English & Zambian Language span everything; Literacy is
   // the lower-primary reading-and-writing strand that gives way to English.
-  english:           ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  literacy:          ['ECE','G1','G2','G3','G4'],
-  cinyanja:          ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  zambian_language:  ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  english:           ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  literacy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
+  cinyanja:          ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  zambian_language:  ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
   // STEM — Numeracy is the early-grade pre-Mathematics strand. Integrated
   // Science covers all primary + junior secondary, then splits into
   // Bio/Chem/Phys at senior secondary.
   mathematics:       ['G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  numeracy:          ['ECE','G1','G2','G3','G4'],
+  numeracy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
   integrated_science:['G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   environmental_science: ['G1','G2','G3','G4'],
   biology:           ['G10','G11','G12'],
@@ -128,11 +134,11 @@ const SUBJECT_GRADE_MAP = {
 
   // Humanities — Social Studies covers ECE through junior secondary; in
   // senior secondary it splits into History/Geography/Civic Education.
-  social_studies:    ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
+  social_studies:    ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   history:           ['G8','G9','G10','G11','G12'],
   geography:         ['G8','G9','G10','G11','G12'],
   civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  religious_education:['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  religious_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
   // Business — commercial subjects offered at senior secondary only.
   accounts:          ['G10','G11','G12'],
@@ -143,8 +149,8 @@ const SUBJECT_GRADE_MAP = {
   technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
   creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
   home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  expressive_arts:   ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  physical_education:['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  expressive_arts:   ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
+  physical_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 }
 
 /**

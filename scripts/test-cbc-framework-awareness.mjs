@@ -84,6 +84,8 @@ function check(label, cond, detail) {
 
 console.log("getGradeBand — 2023 framework split");
 check("ECE is Lower Primary", kb.getGradeBand("ECE") === "Lower Primary (Pre-Primary)");
+check("ECE Nursery (ECE_N) is Lower Primary", kb.getGradeBand("ECE_N") === "Lower Primary (Pre-Primary)");
+check("ECE Reception (ECE_R) is Lower Primary", kb.getGradeBand("ECE_R") === "Lower Primary (Pre-Primary)");
 check("G1 is Lower Primary", kb.getGradeBand("G1") === "Lower Primary");
 check("G3 is Lower Primary", kb.getGradeBand("G3") === "Lower Primary");
 check("G4 is Upper Primary", kb.getGradeBand("G4") === "Upper Primary");

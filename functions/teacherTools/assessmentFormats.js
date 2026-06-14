@@ -47,7 +47,7 @@ const QUESTION_TYPES = new Set([
  */
 function gradeToBand(grade) {
   const g = String(grade || "").toUpperCase().trim();
-  if (g === "ECE") return "lower_primary";
+  if (g === "ECE" || g === "ECE_N" || g === "ECE_R") return "lower_primary";
   const m = g.match(/^([GF])(\d{1,2})$/);
   if (!m) return null;
   const n = Number(m[2]);

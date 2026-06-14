@@ -23,7 +23,9 @@ export const CURRICULUM_FRAMEWORKS = [
 export function studioGradeToKbGrade(grade) {
   const g = String(grade || '').trim().toUpperCase()
   if (!g) return ''
-  return g.startsWith('G') || g.startsWith('F') || g === 'ECE' ? g : `G${g}`
+  // Pass through grade/form codes and the ECE family (ECE, ECE_N, ECE_R)
+  // unchanged; only bare numbers ("4") get the G-prefix.
+  return g.startsWith('G') || g.startsWith('F') || g.startsWith('ECE') ? g : `G${g}`
 }
 
 const SUBJECT_FIXES = {

@@ -35,7 +35,7 @@ const SCHEME_TOOL_SCHEMA = {
 };
 
 const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
@@ -162,8 +162,13 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   // has invented "UNKNOWN" for a blank school and last year's date).
   scheme.header.school = inputs.school;
   scheme.header.teacherName = inputs.teacherName;
-  scheme.header.grade = inputs.grade === "ECE" ?
-    "ECE" : inputs.grade.replace(/^G/i, "");
+  const eceHeaderLabels = {
+    ECE: "ECE",
+    ECE_N: "ECE Nursery (3-4)",
+    ECE_R: "ECE Reception (4-5)",
+  };
+  scheme.header.grade = eceHeaderLabels[inputs.grade] ||
+    inputs.grade.replace(/^G/i, "");
   scheme.header.term = inputs.term;
   scheme.header.numberOfWeeks = inputs.numberOfWeeks;
   scheme.header.year = String(new Date().getUTCFullYear());

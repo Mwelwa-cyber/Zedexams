@@ -70,7 +70,7 @@ const SLIDE_NOTES_TOOL_SCHEMA = {
 
 // Reuse the same allowlists the teacher-notes generator enforces.
 const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
   "F1", "F2", "F3", "F4",
 ]);

@@ -43,6 +43,8 @@ const KB_DEFAULT_VERSION = KB_VERSION;
 // given grade's syllabus (e.g. RE/Creative Arts at G4 in the 2023 framework).
 const CBC_2023_BANDS = Object.freeze({
   ECE: "Lower Primary (Pre-Primary)",
+  ECE_N: "Lower Primary (Pre-Primary)", // Nursery (3-4)
+  ECE_R: "Lower Primary (Pre-Primary)", // Reception (4-5)
   G1: "Lower Primary",
   G2: "Lower Primary",
   G3: "Lower Primary",

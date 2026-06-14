@@ -102,9 +102,13 @@ function ok(cond, label = "condition") {
 
 console.log("\nsheetNameToGrade");
 
-test("ECE age-bands map to ECE", () => {
-  eq(clientSheetToGrade("3-4 Years - English Language"), "ECE");
-  eq(clientSheetToGrade("4-5 Years - Pre-Maths & Science"), "ECE");
+test("ECE age-bands map to their own grade codes", () => {
+  // Nursery (3-4) → ECE_N, Reception (4-5) → ECE_R so the topic/sub-topic
+  // pickers can scope to the band the teacher selected.
+  eq(clientSheetToGrade("3-4 Years - English Language"), "ECE_N");
+  eq(clientSheetToGrade("4-5 Years - Pre-Maths & Science"), "ECE_R");
+  // The combined band (if a sheet ever uses it) stays the generic 'ECE'.
+  eq(clientSheetToGrade("3-5 Years - English Language"), "ECE");
 });
 
 test("Grade N sheets map to G<N>", () => {

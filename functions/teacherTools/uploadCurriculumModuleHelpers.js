@@ -66,7 +66,7 @@ function sanitiseStoragePath(value) {
 
 function sanitiseGrade(value) {
   const v = String(value || "").trim().toUpperCase();
-  if (/^G\d{1,2}$/.test(v) || v === "ECE" || /^F\d{1,2}$/.test(v)) return v;
+  if (/^G\d{1,2}$/.test(v) || /^ECE(_[NR])?$/.test(v) || /^F\d{1,2}$/.test(v)) return v;
   return null;
 }
 
