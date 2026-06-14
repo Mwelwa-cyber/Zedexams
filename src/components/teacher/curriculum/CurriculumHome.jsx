@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, GraduationCap, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../ui/icons'
+import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../ui/icons'
 import Icon from '../../ui/Icon'
 import SeoHelmet from '../../seo/SeoHelmet'
 import {
@@ -17,6 +17,19 @@ const ZAMBIA_GOLD = '#d4a017'
 const ZAMBIA_RED = '#c0392b'
 
 const LEVELS = [
+  {
+    to: '/teacher/curriculum/ece',
+    icon: PuzzlePieceIcon,
+    title: 'Early Childhood',
+    range: 'Ages 0 – 5',
+    sub: 'Day-Care (0–3) + Nursery (3–4) + Reception (4–5)',
+    bullets: [
+      '3 learning areas, aligned with Primary',
+      'Thematic, play-based across 5 developmental domains',
+      '15 hours / 30 periods per week',
+    ],
+    tint: ZAMBIA_RED,
+  },
   {
     to: '/teacher/curriculum/primary',
     icon: BookOpen,
@@ -50,7 +63,7 @@ export default function CurriculumHome() {
     <div>
       <SeoHelmet
         title="Zambia Curriculum Reference"
-        description="Browse the 2023 Zambia National School Curriculum — primary and secondary structure, subjects, pathways and assessment."
+        description="Browse the 2023 Zambia National School Curriculum — early childhood, primary and secondary structure, subjects, pathways and assessment."
         path="/teacher/curriculum"
         noIndex
       />
@@ -73,10 +86,11 @@ export default function CurriculumHome() {
           </h1>
           <p className="mt-2 max-w-2xl text-sm sm:text-base" style={{ color: 'rgba(255,255,255,0.85)' }}>
             A fast, browsable summary of the 2023 framework — structure, subjects, timetables,
-            pathways and assessment. Use this alongside the official syllabi for quick lookups
-            while you plan lessons.
+            pathways and assessment, from Early Childhood through Secondary. Use this alongside
+            the official syllabi for quick lookups while you plan lessons.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            <span className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>Ages 0 – 5</span>
             <span className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>Grades 1 – 6</span>
             <span className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>Forms 1 – 6</span>
             <span className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>8 O-Level pathways</span>
@@ -87,7 +101,7 @@ export default function CurriculumHome() {
       </section>
 
       {/* Level cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {LEVELS.map(level => (
           <Link
             key={level.to}
@@ -129,7 +143,7 @@ export default function CurriculumHome() {
         ))}
       </div>
 
-      {/* ── The rest of the education system (ECE · Tertiary · YALE) ── */}
+      {/* ── The rest of the education system (Tertiary · YALE) ── */}
       <section className="mt-8">
         <header className="mb-3">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
@@ -138,12 +152,12 @@ export default function CurriculumHome() {
           </div>
           <h2 className="mt-1 text-xl font-black theme-text">Other Levels in the Framework</h2>
           <p className="mt-1 max-w-3xl text-sm theme-text-muted">
-            ZedExams centres on Primary and Secondary, but the 2023 framework spans the full education
-            system. Here is how Primary connects to what comes before and after.
+            ZedExams covers Early Childhood, Primary and Secondary, but the 2023 framework spans the
+            full education system. Here is how schooling connects to what comes after.
           </p>
         </header>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {OTHER_LEVELS.map(level => (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {OTHER_LEVELS.filter(level => !level.title.includes('Early Childhood')).map(level => (
             <article key={level.title} className="flex flex-col rounded-3xl border theme-border theme-card p-5 shadow-elev-md">
               <div className="flex items-start gap-3">
                 <span className="text-2xl" aria-hidden>{level.emoji}</span>
