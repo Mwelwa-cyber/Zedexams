@@ -221,6 +221,11 @@
 .idc-table th:first-child{width:25%}
 .diagram-wrap{position:relative;margin:14px 0;padding:10px;border:1px dashed var(--line-2);border-radius:4px;display:inline-block;max-width:100%}
 .diagram-caption{font:italic 10pt/1.2 var(--font-doc);text-align:center;margin-top:6px;color:var(--muted)}
+/* AI-supplied diagrams rendered inside a stage cell — keep the SVG within the
+   column width so the progression table never blows out on narrow cells. */
+.stage-diagrams{margin-top:8px}
+.stage-diagrams .diagram-wrap{display:block;margin:8px 0;padding:6px}
+.lp-table .diagram-wrap svg,.stage-table .diagram-wrap svg,.stage-diagrams svg{max-width:100%;height:auto}
 .empty-state{text-align:center;padding:80px 20px;color:var(--muted)}
 .empty-state .glyph{width:84px;height:84px;margin:0 auto 18px;background:var(--paper-2);border-radius:50%;display:grid;place-items:center;border:1px dashed var(--line-2)}
 .empty-state h2{font:600 22px/1.2 var(--font-display);color:var(--ink);margin:0 0 8px}
