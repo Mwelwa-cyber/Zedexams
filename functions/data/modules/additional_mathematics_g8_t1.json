@@ -1,0 +1,198 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "additional_mathematics",
+    "term": 1,
+    "topic": "REAL NUMBERS",
+    "subtopic": "Types of Numbers",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Use the different types of numbers in real life."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Let the learners express and as decimals. Decimals such as 1.7142857... that do not terminate and are called infinite decimals on the other hand decimals which termite such as 0.375 are called finite decimals. Let the learners present recurring decimals correctly. Skills to be developed: Critical thinking classification and ICT skills. Let learners generate the square numbers (1, 4, 9...) and cube numbers from (1, 8, 27...) so that they understand the square roots and cube roots. Skills to be developed: Analytical thinking computational and ICT skills.",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Exploring Different Types of Numbers Introduction: Real numbers include various types of numbers such as natural numbers, whole numbers, integers, rational numbers, and irrational numbers. They form the basis for arithmetic and algebraic calculations. Real numbers are commonly used in everyday life, from counting objects to physical quantities, such as distance, velocity and acceleration, in science and engineering. Real numbers are also applied in finance and budgeting, inventory management, time keeping and scheduling, scoring and grading, distance and measurement, game scores and points, ju",
+      ".1: Research on Numbers",
+      ".2: Experiment Using a Die",
+      ".3: Magic Square Game",
+      ".4: Number Sorting",
+      ".5: Number Line Relay Race",
+      "Distinguishing Rational and Irrational Numbers Introduction: Rational numbers can be expressed as fractions, while irrational numbers cannot. Examples include and respectively. These classifications help in understanding patterns and calculations.",
+      ".1: Classifying Numbers as Rational or Irrational",
+      ".2: Fun with Rational and Irrational Numbers",
+      "Evaluating Squares and Cubes Introduction: Squaring a number means multiplying a number by itself or raising a number to the power of two, while cubing means multiplying a number by itself three times or raising a number to the power of three. Understanding square roots and cube roots helps build a strong foundation in Mathematics. They are essential for solving more complex problems involving roots, exponents, and logarithms. Moreover, they enable learners to understand and work with numbers in a more intuitive way, helping them make sense of the world around them. This is essential in geomet",
+      ".1: Square and Cube Roots (mental math)",
+      ".2: Splitting Whole Numbers into Square Numbers",
+      ".4: Finding Area",
+      ".3: Cube Roots and Real Life Applications",
+      "Creating Number Patterns and Puzzles Introduction: Number patterns involve sequences based on specific rules. Identifying and creating patterns enhances problem-solving skills.",
+      ".1: Creating Number Patterns",
+      ".2: Creating Number Patterns",
+      ".3: Pattern Block Puzzles",
+      "under this topic, learners are expected to use different types of numbers correctly in real life. Summative Assessment Guide: Prepare tests, quiz on the following Ø Identify different types of numbers. Ø Distinguish between rational and irrational numbers. Ø Calculate square and cube roots. Ø Create and solve number patterns or puzzles. Ø Conduct a quiz with mixed questions on all subtopics. Summary: Key Points Recap: Ø Real numbers include rational and irrational numbers. Ø Rational numbers can be expressed as fractions, while irrational numbers cannot. Ø Square and cube roots are fundamental"
+    ],
+    "teachingMaterials": [
+      "to Set up",
+      "to Set up a",
+      "to set up a"
+    ],
+    "assessmentCriteria": [],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "additional_mathematics",
+    "term": 1,
+    "topic": "SETS",
+    "subtopic": "SETS",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply the concept of set-builder notation and set operations in real life."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Let learners come up with different set-builder notations for natural, whole, prime, integers, even, rational and irrational numbers. Skills to be developed: Collaboration, communication and critical thinking",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Exploring sets in the environment Introduction Sets are fundamental in Mathematics and help us classify objects, ideas and concepts in a structured way. Set theory connects with the environment, foster observations, analysis, and reasoning skills among learners.",
+      ".1: Research on Sets",
+      ".2: Sorting and Classifying Objects",
+      "Exploring types of sets Introduction Through explorations and inquiry based learning, learners will be expected to identify and define different types of sets, and develop critical thinking by analyzing set related problems in diverse scenarios.",
+      ".2: Empty set/ null set and singleton set",
+      ".3: Finite and infinite sets",
+      ".4: Intersection and Union Set",
+      "Interpreting Set-builder Notation Introduction Set-builder notation is very essential as it helps learners to express sets more precisely and compactly especially when describing large or infinite sets. It also allows for a clear and efficient way to define sets using a rule or condition, rather than just listing elements individually. Doing so fosters logical thinking and deeper understanding of how mathematical structures can be represented and manipulated. For more information on set-builder notation, visit https://study.com/academy/lesson/how-to-write-sets-using-set-builder-notation.html#/",
+      ".1: Research on Set Presentation",
+      ".2 Video Showing",
+      "Presenting Sets in Set-builder Notation Set builder notation is one of the ways of representing sets in the most convenient and concise way.",
+      ".1: Sorting Numbers by Type",
+      ".2: Sports Team or Club Membership"
+    ],
+    "teachingMaterials": [
+      "to Set up",
+      "to set up"
+    ],
+    "assessmentCriteria": [],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "additional_mathematics",
+    "term": 1,
+    "topic": "INTEGERS 1.",
+    "subtopic": "The Four Operations on Integers.",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply the four operations on integers in real-life situations."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "The subtraction of integers is a fundamental mathematical operation that involves finding the difference between two numbers.",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Exploring Integers Introduction: Exploring integers starts with understanding their basic properties and how they interact in different mathematical situations and operations. They are commonly used in everyday life from counting to measuring and keeping track of financial transactions. Integers can be introduced through a mixture of visual tools, hands-on activities and real-life examples that can make learners develop a strong and intuitive grasp of essential mathematical concepts. Here are several engaging activities to help learners explore and understand integers.",
+      ". 1: Research on Integers",
+      ". 2: The Zero Bank Balance",
+      "Comparing situations which depict integers Introduction Integers are everywhere even though we might not recognize them. In all reality, integers are just numbers, but a way to represent both positive and negative values that affect our daily lives in meaningful ways. Hence, there is need to guide the learners to come up with scenarios that depict the integers around us through the use of real-life situations. Here are some suggested activities; comparing situations which depict integers such as loss and profit in business, low and high temperatures, elevation below and above sea level.",
+      ". 1: Negative Numbers in the Environment",
+      ". 2: Exploring Elevations Above and Below Sea Level",
+      "Adding Integers Introduction Adding integers is a fundamental concept in Mathematics, essential for understanding more complex operations. The process of adding integers involves combining given numbers to find their sum.",
+      ". 1: Integer Card Game (Addition)",
+      ". 2: Integer Number Line Walk",
+      "Subtracting integers",
+      ". 1: Integer Card Game (Subtraction)",
+      ". 2: Integer Number Line Walk (Subtraction)",
+      ". 3: Integer Dice Battle",
+      "– Multiplying Integers Introduction Mastering multiplication of integers is essential for solving real-life problems such as calculating temperature, financial transactions and mathematical equations. There is need for the learners to understand the rules that govern these operations.",
+      ". 1: Integer Dice Battle",
+      ". 2: Integer Jump Race",
+      "Dividing of Integers Introduction In our daily lives, we often share and divide things equally. Division is a process of splitting a number into equal parts. The concept of division will equip learners with the skills of sharing, distributing, comparing and solving problems efficiently.",
+      ". 1: Exploring Division of Integers",
+      "Applying Combined Operations on Integers Introduction: By now it is understandable that there are various operations that are used on integers in different situations. Learning combined operations on integers builds a strong foundation in Mathematics. It will help learners how to approach problems step by step, deciding which operation to apply first and simplify expressions efficiently using the operations; addition, subtraction, division and multiplication of integers.",
+      ". 1: Research on Combined Operations",
+      ". 2: Card Game",
+      "Using ICT Tools to Enhance Understanding of Integers Introduction The use of ICT tools can improve and reinforce learners’ understanding with integers. There are various interactive tools that can be such as GeoGebra, IXL Math, Math Blaster-game-based learning and Kahoot.",
+      ". 1: Integer War Game"
+    ],
+    "teachingMaterials": [
+      "to Set up",
+      "to set up"
+    ],
+    "assessmentCriteria": [
+      "By the end of this topic learners should: Four Operations applied on Integers accurately in real life. Summary Key Points Ø Explore integers in the environment Ø Add integers Ø Subtract integers Ø Multiply integers Ø Divide integers"
+    ],
+    "exercises": [
+      "s: Give learners exercises on division of integers and ensure that they can apply them to real-life. Give learners exercises on division of integers using learners’ books such as Progress in Mathematics, Grade 8 (pages 17 - 18), Zambia Basic Education Course, Grade 8 (pages 63 - 65).",
+      "Give learners a project-based assignment to create integer activities, scenarios and games using digital tools. Summative Assessment: Investigative the how integers are applied in businesses"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "additional_mathematics",
+    "term": 1,
+    "topic": "ALGEBRA",
+    "subtopic": "Algebraic Expressions",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply algebraic expressions in different life contexts."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Algebraic expressions are mathematical phrases that include numbers, variables (letters that represent unknown values), and operations (such as addition, subtraction, multiplication, and division). For example, and are algebraic expressions. Understanding algebraic expressions is crucial for higher-level mathematics topics, such as algebra, calculus, and statistics. It also enhances critical thinking and problem solving abilities, helping learners develop logical reasoning skills. Ensure that learners understand that 'x+5' means ́add 5 to a variable x’ or’ 5 more than x’, 'a +b' means ‘the sum of a and b’ and so on. Skills to be developed: Critical thinking, presentation and team work. Let learners formulate word statements and state clearly the variable in the statement and the constant e.g \"Sarah has picked 3 empty bottles, and her friend gives her y more empty bottles. How many empty bottles does Sarah have now?\" 3 = Constant (fixed number of empty bottles Sarah has) y = Variable (number of empty bottles her friend gives) Expression: 3+y Skills to be developed: Communication, collaboration and presentation Conceptualization: Make sure the concept of relating letters (variables) and numbers to word statements is coming out clearly. Synthesis: Relate variables and numbers to real-life scenarios. Evaluation: Check if learners can relate variables and numbers to word statements. Assessment: Ask learners to carry out a research on how variables help in understanding relationships between quantities and their use to everyday life. Give learners exercises from books such as Zambia Basic education course pupils book (page 67 - 68). Learning Explain to learners that variables are the letters that can change value. Coefficients are the numbers in front of the variables, showing how many times the variable is multiplied. If there is no number before a variable, the coefficient is 1. A negative sign in front of a number is part of the coefficient. Conceptualization: Make sure that the concept of coefficient as a numerical factor, and variable as a representation of the unknown values in an algebraic expression is understood by learners. Synthesis: Relate variables and coefficient to real-life scenarios. Evaluation: Check if learners can relate variables and coefficients to word statements. Assessment: Ask learners how variables and coefficients help in understanding relationships between quantities and their use to everyday life. Give learners exercises from books such as Zambia basic education course pupils book 8 (page 69). Learning Let learners have expressions such as 3(x+2)+ 2(2x+5) with 7x+16 stuck on the wall together with other solutions for other expression. Observe individual learners in their groups whether they are cooperative and whether they collaborate with their colleagues. Skills to be developed: Collaboration and communication Make sure that learners are given algebraic expression questions of the form for them to simplify. Use suitable sites like khan academy for better and quality video content. Conceptualization: Ensure that the concept of expanding and simplifying algebraic expressions is applied in real-life. Synthesis: Connect the expansion and simplification of algebraic expressions to real-life. Evaluation: Observe the learners in their groups as they carry out the activities. Find out the learners’ attitude towards the group work and integrity. Check if they are able to do the work in harmony. During the process of the description or exploration learners should communicate effectively. Are they learning from one another? are they creative? Check if learners can expand and simplify algebraic expressions and use them in their daily lives. Assessment: Let learners investigate how expansion and simplification of algebraic expressions can help in understanding relationships between quantities and their use to everyday life. Give exercises such as the ones on pages 72 - 74 of Zambia Basic Education Course Mathematics Pupils Book 8, exercises 1, 2, 3 and 4, Zambia Basic Education Course Mathematics Pupils’ Books 9, pages 93 - 97. Design a worksheet with different questioning techniques. Skills to be developed: Analytical thinking, Collaboration, Communication, Critical thinking and Problem solving.",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Constructing algebraic expressions from word statements. Introduction: Construction of algebraic expressions from word statements can be a rewarding experience for learners as it provides a mix of word problems for learners to translate into expressions. Several engaging activities can be explored to help learners understand algebra. Sound knowledge of the basics such as translation of word statements, building complexities, practice with examples, real-world application, review and reinforcements through quizzes and games would make the lesson more understandable and captivating.",
+      ".1: Algebraic Word Problems.",
+      ".2: Expression Matching Game",
+      ".3: Field Trip",
+      "Relating letters and numbers. Introduction Relating letters and numbers in algebra is important for several reasons; one of them is that letters (variables) allow us to represent general cases and patterns, making it easier to solve a wide range of problems without specifying particular values. Moreover, using letters encourages abstract reasoning, helping learners and mathematicians think about relationships and structures rather than just specific numbers. Teaching the relationship between letters and numbers in algebra can be made engaging through several practical activities. Some effectiv",
+      ".1: Variable Scavenger Hunt.",
+      "Identifying Variables and Coefficients Introduction",
+      ".1: Variable and Coefficient Identification",
+      "Grouping Like terms and Unlike terms Introduction Like terms are terms with the same variable raised to the same power, for example 3x and 5x, . Unlike terms are terms with different variables or different powers of the same variable, for example 2x and 3y, . Teaching like and unlike terms in algebra can be engaging and effective through a variety of practical activities.",
+      ".1: Real Life Scenario Algebraic Term Sorting",
+      "Expanding and Simplifying Algebraic Expressions Introduction The expansion and simplification of algebraic expressions is crucial because it facilitates understanding, enhances problem solving and prepares for advanced concepts among others.",
+      ".1: Treasure Hunt",
+      ".2: Expanding and Simplifying Expressions Using Online Tools",
+      "Applying Commutative, Associative and Distributive (CAD) Laws Introduction The commutative, distributive and associative laws are fundamental concepts in algebra that describe how numbers and variables interact. Commutative law states that the order of numbers/variables does not affect the result of an operation. This applies to both addition and multiplication. The law allows for flexibility in rearranging terms. The distributive law connects addition and multiplication, showing how to distribute multiplication over addition. This property is crucial for simplifying expressions and solving eq",
+      ".1: Commutative law",
+      ".2: Associative Law",
+      ".3: Distributive Law",
+      "Factorizing Algebraic Expressions Using Common Factors Introduction Factorizing algebraic expressions is a fundamental skill in algebra that involves breaking down complex expressions into simpler, multiplicative components. Factorizing algebraic expressions by common factors is one of the most basic and widely used methods. This method is particularly useful when all terms in an expression share a common factor, which can be factored out to simplify the expression.",
+      ".1 Error Analysis in Factorisation",
+      ".2: Factorisation Treasure Hunt",
+      "Applying the Four Operations on Algebraic Expressions. Introduction Applying the four operations (addition, subtraction, multiplication and division) to algebraic expressions can be made practical and engaging through various activities such as building blocks, manipulating real life scenarios, group work, digital tools and budgeting.",
+      ". 1: Four Operations on Algebraic Expressions",
+      ". 2: The Four Operations.",
+      "Evaluating Algebraic Expressions by Substituting Variables with Numbers Introduction Substitution in algebra is a fundamental concept where variables are replaced with specific values to simplify expressions. This helps learners grasp the concept that letters in algebra stand for numbers and can be replaced accordingly.",
+      ".1: Evaluating of Algebraic Expressions by Substitution.",
+      ".2: Class Competition on Algebra"
+    ],
+    "teachingMaterials": [
+      "to Set up",
+      "to Set up the",
+      "to set up the"
+    ],
+    "assessmentCriteria": [],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  }
+]

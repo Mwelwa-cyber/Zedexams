@@ -41,7 +41,7 @@ const PAGE_TAG = /\|\s*P\s*a\s*g\s*e/i;
 // when stuck to a preceding word/punctuation, so already-spaced text (where the
 // marker starts its own line) is untouched.
 const SEGMENT_MARKERS = [
-  "Suggested Teaching and Learning Materials",
+  "Suggested Teaching and Learning Materials", "Suggested Methodology",
   "Teaching and Learning Materials", "Suggested Learning Environment",
   "Suggested Activity Process", "Teaching Materials",
   "Specific Competence", "General Competence",
@@ -115,7 +115,7 @@ const CI_RE = new RegExp(
 // even when a space precedes them — they're long enough not to fire inside
 // ordinary prose. (SEGMENT_RE/CI_RE only handle the glued, no-space case.)
 const STRONG_MARKERS = [
-  "Suggested Teaching and Learning Materials",
+  "Suggested Teaching and Learning Materials", "Suggested Methodology",
   "Teaching and Learning Materials", "Learning Environment",
   "Specific Competence", "General Competence", "Expected Standard",
   "Assessment Criteria", "Assessment Strategies", "Assessment Guidelines",

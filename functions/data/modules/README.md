@@ -13,7 +13,7 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 160 modules across 16 files
+## What's here — 171 modules across 18 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
@@ -28,10 +28,12 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `creative_and_technology_studies_g1_t3.json` | G1 | CTS | 3 | 8 |
 | `creative_and_technology_studies_ece_t2.json` | ECE [3–4] | CTS | 2 | 7 |
 | `geography_g8_t2.json` | G8 | Geography | 2 | 7 |
+| `musical_arts_education_g8_t2.json` | G8 | Musical Arts Education | 2 | 7 |
 | `food_and_nutrition_g8_t1.json` | G8 | Food & Nutrition | 1 | 6 |
 | `oral_english_g1_t3.json` | G1 | Oral English | 3 | 6 |
 | `commerce_g8_t1.json` | G8 | Commerce | 1 | 5 |
 | `oral_english_g1_t2.json` | G1 | Oral English | 2 | 5 |
+| `additional_mathematics_g8_t1.json` | G8 | Mathematics II | 1 | 4 |
 | `civic_education_g8_t2.json` | G8 | Civic Education | 2 | 3 |
 
 `Form 1 = Grade 8`. Only **Expressive Arts G4** is inside the platform's live
@@ -73,6 +75,9 @@ structure:
 - **History (Form 1, T2)** — `TOPIC n.n:` headers parse, but most topics share
   one heavily-merged page and only 2 sub-topics extracted cleanly; treat as
   incomplete and author the rest by hand.
+- **Literacy in English (Grade 2, T1 & T2)** — `Specific competences:` with the
+  competence text wrapped awkwardly across lines (code/sound fragments on their
+  own lines), so the outcomes came out as noise; author by hand.
 
 Author these (or fill the gaps) directly as module JSON in the same shape.
 
