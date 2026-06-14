@@ -72,6 +72,7 @@ const SUBJECTS = [
   [/literature\s+in\s+english/i, "literature_in_english"],
   [/oral\s+english/i, "oral_english"],
   [/musical\s+arts/i, "musical_arts_education"],
+  [/travel\s+and\s+tourism/i, "travel_and_tourism"],
   [/\bliteracy\b/i, "literacy"],
   [/\bnumeracy\b/i, "numeracy"],
   [/\bgeography\b/i, "geography"],

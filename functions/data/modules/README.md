@@ -77,6 +77,11 @@ structure:
   one or two phonics/greeting competences across many activity pages and lack
   per-sub-topic headers, so they merge into 2 noisy modules. (The G1 T2/T3
   books for these subjects DO parse cleanly and are included.)
+- **Travel and Tourism (Form 1, T1)** — the source PDF has a broken font
+  encoding: extracted text comes out garbled (`ti` ligatures map to wrong
+  glyphs, e.g. "IntroducCon", "acEviEes"). Needs a clean re-export of the PDF,
+  then re-run the parser (the `travel_and_tourism` cover pattern is already
+  wired into the CLI).
 - **Pre-Mathematics/Science (ECE)** — different template; competences not
   captured.
 - **History (Form 1, T2)** — `TOPIC n.n:` headers parse, but most topics share
