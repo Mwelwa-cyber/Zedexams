@@ -25,11 +25,14 @@ import {
   curriculumSubjectsForGrade,
   newSubject,
   defaultPeriodsPerWeek,
+  recommendedLessonPeriods,
   autoFillTimetable,
+  validateTimetable,
   totalAllocated,
   filledCount,
   buildTimetableArtifact,
 } from '../../../utils/classTimetable'
+import { getFrameworkForGrade, FRAMEWORK_SOURCE } from '../../../utils/curriculumFramework'
 import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
@@ -55,6 +58,13 @@ function seedSubjects(grade) {
   return ['Mathematics', 'English', 'Science'].map((l) => ({
     id: `s-${l}`, label: l, periodsPerWeek: defaultPeriodsPerWeek(l),
   }))
+}
+
+/** Lesson periods/day that fit the framework's weekly load for a grade, or
+ * the studio default when the framework doesn't cover it (secondary). */
+function lessonPeriodsForGrade(grade, days) {
+  const fw = getFrameworkForGrade(grade)
+  return fw ? recommendedLessonPeriods(fw.totalPeriods, days) : DEFAULT_TIMING.lessonPeriods
 }
 
 function loadDraft(uid) {
@@ -85,7 +95,8 @@ export default function ClassTimetableStudio() {
   const [timing, setTiming] = useState(() => ({
     startTime: DEFAULT_TIMING.startTime,
     periodMinutes: DEFAULT_TIMING.periodMinutes,
-    lessonPeriods: DEFAULT_TIMING.lessonPeriods,
+    // Right-size the grid to the framework's weekly load for the starting grade.
+    lessonPeriods: lessonPeriodsForGrade(initialGrade, DEFAULT_DAYS),
     breaks: DEFAULT_TIMING.breaks.map((b) => ({ ...b, enabled: true })),
   }))
   const [subjects, setSubjects] = useState(() => seedSubjects(initialGrade))
@@ -102,6 +113,11 @@ export default function ClassTimetableStudio() {
   const capacity = useMemo(() => lessonCapacity(periods, days), [periods, days])
   const allocated = useMemo(() => totalAllocated(subjects), [subjects])
   const filled = useMemo(() => filledCount(slots, periods, days), [slots, periods, days])
+  const framework = useMemo(() => getFrameworkForGrade(header.grade), [header.grade])
+  const validation = useMemo(
+    () => validateTimetable({ slots, subjects, periods, days }),
+    [slots, subjects, periods, days],
+  )
 
   const artifact = useMemo(() => buildTimetableArtifact({
     header: { ...header, term: header.term === '' ? '' : Number(header.term) },
@@ -124,13 +140,16 @@ export default function ClassTimetableStudio() {
     if (draft.generationId) setGenerationId(draft.generationId)
   }, [uid])
 
-  /* Reseed the subject list from the curriculum when the grade changes. */
+  /* Reseed the subject list — and right-size the grid — from the curriculum
+   * when the grade changes. Skipped on the initial draft restore (the grade
+   * matches lastGradeRef there, so a half-built week is never wiped). */
   useEffect(() => {
     if (header.grade === lastGradeRef.current) return
     lastGradeRef.current = header.grade
     setSubjects(seedSubjects(header.grade))
+    setTiming((t) => ({ ...t, lessonPeriods: lessonPeriodsForGrade(header.grade, days) }))
     setSlots({})
-  }, [header.grade])
+  }, [header.grade, days])
 
   /* Debounced autosave. */
   useEffect(() => {
@@ -195,6 +214,26 @@ export default function ClassTimetableStudio() {
     if (!subjects.length) { toast.error('Add at least one subject first.'); return }
     setSlots(autoFillTimetable({ subjects, days, periods }))
     toast.success('Timetable auto-filled — fine-tune any cell below.')
+  }
+
+  /* Build a fresh curriculum-based week: reset subjects to the framework
+   * allocation for the grade, right-size the grid to fit the weekly load,
+   * then spread it with the balanced auto-fill. */
+  function onGenerateFromCurriculum() {
+    if (!days.length) { toast.error('Pick at least one teaching day first.'); return }
+    const fresh = seedSubjects(header.grade)
+    setSubjects(fresh)
+    let nextPeriods = periods
+    if (framework) {
+      const rec = recommendedLessonPeriods(framework.totalPeriods, days)
+      if (rec !== timing.lessonPeriods) {
+        const nextTiming = { ...timing, lessonPeriods: rec }
+        setTiming(nextTiming)
+        nextPeriods = buildPeriods(nextTiming)
+      }
+    }
+    setSlots(autoFillTimetable({ subjects: fresh, days, periods: nextPeriods }))
+    toast.success('Curriculum timetable generated — review and fine-tune below.')
   }
 
   function onClearGrid() {
@@ -268,7 +307,7 @@ export default function ClassTimetableStudio() {
         <StudioPageHeader
           eyebrow="Class Timetable"
           title="Build your week from the curriculum"
-          subtitle="Set the class, days and period times, then auto-fill a balanced week from the curriculum subjects — or place each lesson by hand. Print it, or export to Word, Excel or PDF."
+          subtitle="Pick a grade and the studio knows the 2023 framework subjects and how many periods each needs. Generate a balanced week in one click — assembly, breaks, lunch and closing included — then fine-tune any cell. Print it, or export to Word, Excel or PDF."
           emoji="🗓️"
         />
 
@@ -328,6 +367,47 @@ export default function ClassTimetableStudio() {
             </Field>
           </section>
 
+          {/* ── Curriculum requirements ── */}
+          <section className="studio-card p-5 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Curriculum requirements</h2>
+                {framework ? (
+                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                    {framework.bandLabel} · <strong>{framework.totalPeriods} periods/week</strong> · {framework.periodMinutes}-minute periods.
+                    The 2023 framework sets which subjects belong to this grade and how many times each should appear in the week.
+                  </p>
+                ) : (
+                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                    No official framework allocation for this grade yet — subjects below start from the standard list; set the weekly periods yourself.
+                  </p>
+                )}
+              </div>
+              <button type="button" onClick={onGenerateFromCurriculum} className="studio-btn-primary whitespace-nowrap">
+                ✨ Generate curriculum timetable
+              </button>
+            </div>
+
+            {framework && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {framework.subjects.filter((s) => s.periodsPerWeek > 0).map((s) => (
+                    <div key={s.label} className="flex items-center justify-between gap-2 rounded-xl border theme-border bg-white px-3 py-1.5">
+                      <span className="text-sm font-bold truncate" title={s.timeAllocation ? `${s.label} · ${s.timeAllocation}` : s.label}>
+                        {s.label}
+                        {s.choiceGroup && <span className="ml-1 text-[10px] font-black uppercase" style={{ color: '#9a7000' }}>· choice</span>}
+                      </span>
+                      <span className="text-xs font-black whitespace-nowrap" style={{ color: '#1E8449' }}>{s.periodsPerWeek}/wk</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px]" style={{ color: '#8a7f67' }}>
+                  Source: {FRAMEWORK_SOURCE}. Expressive Arts or Home Economics is a one-of choice — swap their weekly periods to match your class.
+                </p>
+              </>
+            )}
+          </section>
+
           {/* ── Period times ── */}
           <section className="studio-card p-5 space-y-4">
             <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Period times</h2>
@@ -346,30 +426,41 @@ export default function ClassTimetableStudio() {
               </Field>
             </div>
             <div className="space-y-2">
-              <span className="studio-label">Breaks</span>
-              {timing.breaks.map((b, idx) => (
-                <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border theme-border bg-white px-3 py-2">
-                  <label className="flex items-center gap-1.5 text-xs font-bold">
-                    <input type="checkbox" checked={b.enabled !== false}
-                      onChange={(e) => updateBreak(idx, 'enabled', e.target.checked)} />
-                    <input type="text" value={b.name} maxLength={16}
-                      aria-label="Break name"
-                      onChange={(e) => updateBreak(idx, 'name', e.target.value.toUpperCase())}
-                      className="w-24 outline-none bg-transparent font-black" />
-                  </label>
-                  <span className="text-xs theme-text-secondary">after period</span>
-                  <input type="number" min={1} max={timing.lessonPeriods} value={b.afterPeriod}
-                    aria-label="After period"
-                    onChange={(e) => updateBreak(idx, 'afterPeriod', clampInt(e.target.value, 1, timing.lessonPeriods))}
-                    className="w-14 text-xs font-bold text-center studio-input !py-1.5" />
-                  <span className="text-xs theme-text-secondary">for</span>
-                  <input type="number" min={5} max={120} value={b.minutes}
-                    aria-label="Break minutes"
-                    onChange={(e) => updateBreak(idx, 'minutes', clampInt(e.target.value, 5, 120))}
-                    className="w-16 text-xs font-bold text-center studio-input !py-1.5" />
-                  <span className="text-xs theme-text-secondary">min</span>
-                </div>
-              ))}
+              <span className="studio-label">Assembly, breaks, lunch &amp; closing</span>
+              {timing.breaks.map((b, idx) => {
+                const isBookend = b.event === 'assembly' || b.event === 'closing'
+                return (
+                  <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border theme-border bg-white px-3 py-2">
+                    <label className="flex items-center gap-1.5 text-xs font-bold">
+                      <input type="checkbox" checked={b.enabled !== false}
+                        onChange={(e) => updateBreak(idx, 'enabled', e.target.checked)} />
+                      <input type="text" value={b.name} maxLength={16}
+                        aria-label="Break name"
+                        onChange={(e) => updateBreak(idx, 'name', e.target.value.toUpperCase())}
+                        className="w-24 outline-none bg-transparent font-black" />
+                    </label>
+                    {isBookend ? (
+                      <span className="text-xs theme-text-secondary">
+                        {b.event === 'assembly' ? 'before lessons' : 'after last period'}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-xs theme-text-secondary">after period</span>
+                        <input type="number" min={1} max={timing.lessonPeriods} value={b.afterPeriod}
+                          aria-label="After period"
+                          onChange={(e) => updateBreak(idx, 'afterPeriod', clampInt(e.target.value, 1, timing.lessonPeriods))}
+                          className="w-14 text-xs font-bold text-center studio-input !py-1.5" />
+                      </>
+                    )}
+                    <span className="text-xs theme-text-secondary">for</span>
+                    <input type="number" min={5} max={120} value={b.minutes}
+                      aria-label="Break minutes"
+                      onChange={(e) => updateBreak(idx, 'minutes', clampInt(e.target.value, 5, 120))}
+                      className="w-16 text-xs font-bold text-center studio-input !py-1.5" />
+                    <span className="text-xs theme-text-secondary">min</span>
+                  </div>
+                )
+              })}
             </div>
           </section>
 
@@ -436,6 +527,31 @@ export default function ClassTimetableStudio() {
                 </p>
               </div>
             </div>
+
+            {filled > 0 && (
+              <div className="mb-4 rounded-xl border p-3 text-xs space-y-1"
+                style={validation.ok
+                  ? { borderColor: 'rgba(30,132,73,0.3)', background: 'rgba(30,132,73,0.06)' }
+                  : { borderColor: 'rgba(212,160,23,0.35)', background: 'rgba(212,160,23,0.08)' }}>
+                {validation.ok ? (
+                  <div className="font-bold" style={{ color: '#1E8449' }}>
+                    ✓ Curriculum check passed — {validation.totalPlaced} of {validation.totalTarget} required periods placed and balanced across the week.
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-black uppercase tracking-wide" style={{ color: '#7a5800' }}>
+                      Curriculum check
+                    </div>
+                    {validation.errors.map((m) => (
+                      <div key={m} className="font-bold text-rose-700">• {m}</div>
+                    ))}
+                    {validation.warnings.map((m) => (
+                      <div key={m} style={{ color: '#9a7000' }}>• {m}</div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
 
             {days.length === 0 ? (
               <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
