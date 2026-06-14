@@ -13,7 +13,7 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 219 modules across 24 files
+## What's here — 223 modules across 25 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
@@ -24,6 +24,7 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `literacy_g1_t3.json` | G1 | Literacy | 3 | 16 |
 | `creative_and_technology_studies_ece_t1.json` | ECE [3–4] | CTS | 1 | 12 |
 | `creative_and_technology_studies_g1_t2.json` | G1 | CTS | 2 | 11 |
+| `creative_and_technology_studies_g1_t1.json` | G1 | CTS | 1 | 4 |
 | `civic_education_g8_t1.json` | G8 | Civic Education | 1 | 10 |
 | `design_and_technology_g8_t1.json` | G8 | Design & Technology | 1 | 9 |
 | `creative_and_technology_studies_g1_t3.json` | G1 | CTS | 3 | 8 |
@@ -86,6 +87,10 @@ structure:
   one or two phonics/greeting competences across many activity pages and lack
   per-sub-topic headers, so they merge into 2 noisy modules. (The G1 T2/T3
   books for these subjects DO parse cleanly and are included.)
+- **Cinyanja (ECE Level 2, T1)** — the module is written in Nyanja, so its
+  section labels aren't the English keywords the parser keys on (`Specific
+  Competence`, etc.) and nothing was detected. Local-language modules need
+  manual authoring (or a language-specific label map).
 - **Travel and Tourism (Form 1, T1)** — the source PDF has a broken font
   encoding: extracted text comes out garbled (`ti` ligatures map to wrong
   glyphs, e.g. "IntroducCon", "acEviEes"). Needs a clean re-export of the PDF,
