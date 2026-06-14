@@ -55,7 +55,9 @@ function renderInstructionsHtml(text) {
 export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } = {}) {
   if (!assessment) throw new Error('No assessment to export.')
 
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  // Must NOT pass `noopener`/`noreferrer` here — either one makes window.open
+  // return `null` (blank white page bug). We need the handle to write the doc.
+  const win = window.open('', '_blank', 'width=900,height=1100')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
@@ -117,7 +119,8 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
  */
 export function printAnswerSheetAsPdf(assessment, questions) {
   if (!assessment) throw new Error('No assessment to export.')
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  // No `noopener`/`noreferrer` — either one nulls the handle (blank page bug).
+  const win = window.open('', '_blank', 'width=900,height=1100')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
