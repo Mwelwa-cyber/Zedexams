@@ -15,9 +15,15 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import {
+  attachLibraryToGeneration,
+  isFreePlanTeacher,
+  listMyGenerations,
+  titleForGeneration,
+} from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { SOURCE_META } from '../views/SchemeOfWorkView'
 
 export default function SchemeOfWorkGenerator() {
   const { userProfile, isAdmin } = useAuth()
@@ -40,11 +46,44 @@ export default function SchemeOfWorkGenerator() {
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
+  const [advisories, setAdvisories] = useState([])
+  const [curriculumSource, setCurriculumSource] = useState('')
+
+  // Teacher's saved Class Timetables — attaching one makes the scheme
+  // timetable-aware (periods/week + teaching days for the chosen subject).
+  const [timetables, setTimetables] = useState([])
+  const [timetableId, setTimetableId] = useState('')
 
   const subjectOptions = useMemo(
     () => getSubjectsForGrade(form.grade),
     [form.grade],
   )
+
+  useEffect(() => {
+    let cancelled = false
+    const uid = userProfile?.uid
+    if (!uid) return undefined
+    listMyGenerations({ uid, tool: 'class_timetable' })
+      .then((rows) => { if (!cancelled) setTimetables(rows || []) })
+      .catch(() => { if (!cancelled) setTimetables([]) })
+    return () => { cancelled = true }
+  }, [userProfile?.uid])
+
+  // Surface the matching-grade timetables first so the obvious pick is on top.
+  const timetableOptions = useMemo(() => {
+    const opts = [{ value: '', label: 'None — pace by curriculum only' }]
+    const sorted = [...timetables].sort((a, b) => {
+      const am = a.inputs?.grade === form.grade ? 0 : 1
+      const bm = b.inputs?.grade === form.grade ? 0 : 1
+      return am - bm
+    })
+    for (const t of sorted) {
+      const grade = t.inputs?.grade
+      const mismatch = grade && grade !== form.grade ? ` · ${grade}` : ''
+      opts.push({ value: t.id, label: `${titleForGeneration(t)}${mismatch}` })
+    }
+    return opts
+  }, [timetables, form.grade])
 
   useEffect(() => {
     if (!isSubjectValidForGrade(form.subject, form.grade)) {
@@ -56,15 +95,32 @@ export default function SchemeOfWorkGenerator() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  function selectedTimetablePayload() {
+    if (!timetableId) return null
+    const gen = timetables.find((t) => t.id === timetableId)
+    const out = gen?.output
+    if (!out || typeof out !== 'object') return null
+    // Trim to the fields the server trusts (it sanitises again).
+    return {
+      header: out.header || {},
+      days: out.days || [],
+      subjects: out.subjects || [],
+      slots: out.slots || {},
+    }
+  }
+
   async function onGenerate(e) {
     e.preventDefault()
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')
     setWarning('')
+    setAdvisories([])
+    setCurriculumSource('')
     setScheme(null)
 
-    const res = await generateSchemeOfWork(form)
+    const payload = { ...form, timetable: selectedTimetablePayload() }
+    const res = await generateSchemeOfWork(payload)
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
@@ -78,6 +134,8 @@ export default function SchemeOfWorkGenerator() {
     setGenerationId(res.data.generationId)
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
+    setAdvisories(Array.isArray(res.data.advisories) ? res.data.advisories : [])
+    setCurriculumSource(res.data.curriculumSource || '')
     setStatus('success')
 
     if (res.data.generationId) {
@@ -144,6 +202,19 @@ export default function SchemeOfWorkGenerator() {
               options={SCHEME_WEEK_COUNTS.map((p) => ({ value: String(p.value), label: p.label }))}
               onChange={(v) => updateField('numberOfWeeks', Number(v))}
             />
+            <div>
+              <FieldSelect
+                label="Class timetable (optional)"
+                value={timetableId}
+                options={timetableOptions}
+                onChange={setTimetableId}
+              />
+              <p className="text-xs mt-1" style={{ color: '#566f76' }}>
+                {timetables.length
+                  ? 'Attach a saved timetable to pace the scheme around your real periods and teaching days.'
+                  : 'No saved timetables yet — create one in the Class Timetable Studio to make schemes timetable-aware.'}
+              </p>
+            </div>
             <FieldSelect
               label="Language"
               value={form.language}
@@ -223,6 +294,7 @@ export default function SchemeOfWorkGenerator() {
                     ⚠️ {warning}
                   </div>
                 )}
+                <AdvisoryPanel advisories={advisories} curriculumSource={curriculumSource} />
                 <SchemeOfWorkView scheme={scheme} />
                 {generationId && (
                   <div className="mt-6 text-xs theme-text-secondary">
@@ -234,6 +306,52 @@ export default function SchemeOfWorkGenerator() {
           </section>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── Curriculum advisories + provenance ─────────────────────── */
+
+function AdvisoryPanel({ advisories, curriculumSource }) {
+  const list = Array.isArray(advisories) ? advisories : []
+  const sourceMeta = SOURCE_META[curriculumSource]
+  if (list.length === 0 && !sourceMeta) return null
+
+  return (
+    <div className="mb-5 space-y-2">
+      {sourceMeta && (
+        <div
+          className="rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2"
+          style={{ background: '#f0f7f4', borderColor: '#bfe3d4', color: '#0e2a32' }}
+        >
+          <span>🧭</span>
+          <span>
+            Curriculum source:{' '}
+            <strong style={{ color: sourceMeta.fg }}>{sourceMeta.label}</strong>
+            {curriculumSource === 'ai_inferred' &&
+              ' — no official outline was found, so general CBC knowledge was used.'}
+            {curriculumSource === 'uploaded_module' &&
+              ' — grounded on an uploaded module.'}
+            {curriculumSource === 'syllabi_studio' &&
+              ' — topics pulled from the official Syllabi Studio outline.'}
+          </span>
+        </div>
+      )}
+      {list.map((a, i) => {
+        const warn = a.level === 'warning'
+        return (
+          <div
+            key={`${a.code || 'adv'}-${i}`}
+            className="rounded-xl border px-4 py-2.5 text-sm flex items-start gap-2"
+            style={warn
+              ? { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }
+              : { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }}
+          >
+            <span>{warn ? '⚠️' : 'ℹ️'}</span>
+            <span>{a.message}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
