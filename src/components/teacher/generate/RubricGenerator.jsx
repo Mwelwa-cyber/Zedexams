@@ -11,6 +11,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
 import StudioPageHeader from '../StudioPageHeader'
@@ -99,15 +100,13 @@ export default function RubricGenerator() {
 
   function onExport() {
     if (!rubric) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.grade),
-      slug(form.subject),
-      slug(form.taskType),
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    downloadRubricDocx(rubric, `${parts.join('_')}_rubric.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: 'Rubric',
+      grade: form.grade,
+      subject: form.subject,
+      topic: form.taskType,
+    })
+    downloadRubricDocx(rubric, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

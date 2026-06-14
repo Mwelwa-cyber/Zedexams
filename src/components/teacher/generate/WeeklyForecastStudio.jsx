@@ -49,6 +49,7 @@ import {
 import { listAllSyllabusTopics } from '../../../utils/syllabusKbService'
 import { suggestForecastResources } from '../../../utils/forecastResourceSuggest'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
   listMyGenerations, titleForGeneration, saveWeeklyForecastGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
@@ -489,7 +490,7 @@ export default function WeeklyForecastStudio() {
 
   async function onExportDocx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_week${header.weekNumber}_weekly-forecast.docx`
+    const name = buildDownloadName({ docType: 'Weekly Forecast', grade: header.grade, subject: header.subject, term: header.term, week: header.weekNumber })
     try {
       await downloadWeeklyForecastDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Weekly forecast downloaded.')

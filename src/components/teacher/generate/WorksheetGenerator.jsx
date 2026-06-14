@@ -15,6 +15,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -132,16 +133,13 @@ export default function WorksheetGenerator() {
   }
 
   function buildFilename(mode) {
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.grade),
-      slug(form.subject),
-      slug(worksheet?.header?.topic || form.topic),
-      mode === 'answer_key' ? 'ANSWER-KEY' : 'worksheet',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    return `${parts.join('_')}.docx`
+    return buildDownloadName({
+      docType: 'Worksheet',
+      grade: form.grade,
+      subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic,
+      variant: mode === 'answer_key' ? 'Answer Key' : undefined,
+    })
   }
 
   function onExportPupil() {

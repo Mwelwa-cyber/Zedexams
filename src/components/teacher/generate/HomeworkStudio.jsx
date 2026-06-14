@@ -12,6 +12,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -97,14 +98,13 @@ export default function HomeworkStudio() {
 
   function onExport() {
     if (!homework) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const name = [
-      slug(form.grade), slug(form.subject),
-      slug(homework.header?.topic || form.topic), 'homework',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    downloadHomeworkDocx(homework, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: 'Homework',
+      grade: form.grade,
+      subject: form.subject,
+      topic: homework.header?.topic || form.topic,
+    })
+    downloadHomeworkDocx(homework, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

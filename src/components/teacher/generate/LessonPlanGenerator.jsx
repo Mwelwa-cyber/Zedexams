@@ -14,6 +14,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { printLessonPlanAsPdf } from '../../../utils/lessonPlanToPdf'
 import StudioPageHeader from '../StudioPageHeader'
@@ -149,9 +150,9 @@ export default function LessonPlanGenerator() {
   function onExportPdf() {
     if (!lessonPlan) return
     try {
-      const titleForDoc = lessonPlan.header?.topic
-        ? `CBC Lesson Plan — ${lessonPlan.header.topic}`
-        : 'CBC Lesson Plan'
+      // The browser's "Save as PDF" dialog defaults the filename to the print
+      // document's title, so give it the same human-readable name as the .docx.
+      const titleForDoc = buildFilename(form, lessonPlan).replace(/\.docx$/, '')
       printLessonPlanAsPdf(lessonPlan, titleForDoc)
     } catch (err) {
       // The helper only throws when popups are blocked — surface that
@@ -519,17 +520,10 @@ function ErrorState({ message, detail, onDismiss }) {
 /* Rendered lesson plan — shared viewer (v3 official / v2 5E / v1 legacy). */
 
 function buildFilename(form, plan) {
-  const slug = (s) => String(s || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40)
-  const parts = [
-    slug(form.teacherName || 'teacher'),
-    slug(form.grade),
-    slug(form.subject),
-    slug(plan?.header?.topic || form.topic),
-    new Date().toISOString().slice(0, 10),
-  ].filter(Boolean)
-  return `${parts.join('_')}.docx`
+  return buildDownloadName({
+    docType: 'Lesson Plan',
+    grade: form.grade,
+    subject: form.subject,
+    topic: plan?.header?.topic || form.topic,
+  })
 }
