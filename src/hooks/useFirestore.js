@@ -22,9 +22,7 @@ export const ADMIN_QUERY_LIMIT = 200
 const ADMIN_RECENT_WINDOW_DAYS = 90
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
-import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
-import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
@@ -32,22 +30,28 @@ import { normalizeSubject } from '../config/curriculum.js'
 import { PLANS } from '../utils/subscriptionConfig.js'
 
 /**
- * Convert a rich-text field to its Tiptap JSON representation for persistence.
- *
- * Accepts anything the editor or the legacy pipeline might hand us:
- *   - null / undefined / '' → null
- *   - Tiptap JSON object     → returned as-is
- *   - HTML string            → parsed via migrateContent()
- *   - Plain text             → wrapped into a paragraph node
- *
- * migrateContent() already handles every case defensively; this is just a
- * named wrapper so the intent ("turn this into JSON for Firestore") is
- * visible at the call site.
+ * The rich-text write pipeline — `migrateContent` (HTML/legacy → Tiptap JSON)
+ * and `normalizeRichTextPayload` (sanitised canonical HTML) — lives in the
+ * editor runtime, which statically pulls @tiptap/core + ProseMirror + KaTeX
+ * (~1.5 MB). It is only needed when SAVING question content, yet useFirestore
+ * is imported by ~36 components, so importing it at module scope hoisted the
+ * entire editor into the eager `index` chunk — every learner downloaded it on
+ * first paint. Loading it lazily (memoised, fetched once) keeps the editor out
+ * of the entry chunk; the save path awaits normalizeQuestionPayload(), which
+ * resolves this before it touches any rich-text field. See vite.config.js.
  */
-function toRichTextJSON(value) {
-  if (value == null) return null
-  if (typeof value === 'string' && !value.trim()) return null
-  return migrateContent(value)
+let _writePipelinePromise
+function loadWritePipeline() {
+  if (!_writePipelinePromise) {
+    _writePipelinePromise = Promise.all([
+      import('../editor/utils/migration.js'),
+      import('../utils/quizRichText.js'),
+    ]).then(([migration, quizRichText]) => ({
+      migrateContent: migration.migrateContent,
+      normalizeRichTextPayload: quizRichText.normalizeRichTextPayload,
+    }))
+  }
+  return _writePipelinePromise
 }
 
 /**
@@ -79,7 +83,17 @@ function normalizeDiagramParams(params) {
  * in a field name, an over-size payload, or an invalid question type fails
  * loudly on the client instead of silently writing garbage.
  */
-function normalizeQuestionPayload(q, order) {
+async function normalizeQuestionPayload(q, order) {
+  // Lazily fetch the editor-backed rich-text helpers (see loadWritePipeline).
+  // The promise is memoised, so this resolves instantly after the first call.
+  const { migrateContent, normalizeRichTextPayload } = await loadWritePipeline()
+  // Convert a rich-text field to its Tiptap JSON for persistence. null/empty →
+  // null; HTML/plain string or Tiptap JSON → migrateContent handles every case.
+  const toRichTextJSON = (value) => {
+    if (value == null) return null
+    if (typeof value === 'string' && !value.trim()) return null
+    return migrateContent(value)
+  }
   const type = q.type || 'mcq'
   // Short-answer / diagram / essay collect a written response, not an option
   // list — no options array, correctAnswer is a (possibly blank) string.
@@ -345,10 +359,10 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const batch = writeBatch(db)
-      chunk.forEach((q, offset) => {
+      for (const [offset, q] of chunk.entries()) {
         const ref = doc(collection(db, 'quizzes', quizId, 'questions'))
-        batch.set(ref, normalizeQuestionPayload(q, i + offset + 1))
-      })
+        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
+      }
       await batch.commit()
     }
   }
@@ -429,10 +443,10 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const batch = writeBatch(db)
-      chunk.forEach((q, offset) => {
+      for (const [offset, q] of chunk.entries()) {
         const ref = doc(collection(db, 'assessments', assessmentId, 'questions'))
-        batch.set(ref, normalizeQuestionPayload(q, i + offset + 1))
-      })
+        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
+      }
       await batch.commit()
     }
   }
@@ -461,14 +475,14 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const upsertBatch = writeBatch(db)
-      chunk.forEach((q, offset) => {
-        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
+      for (const [offset, q] of chunk.entries()) {
+        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'assessments', assessmentId, 'questions', q._id), cleanQ)
         } else {
           upsertBatch.set(doc(collection(db, 'assessments', assessmentId, 'questions')), cleanQ)
         }
-      })
+      }
       await upsertBatch.commit()
     }
   }
@@ -1161,8 +1175,8 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const upsertBatch = writeBatch(db)
-      chunk.forEach((q, offset) => {
-        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
+      for (const [offset, q] of chunk.entries()) {
+        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
           idMap.push({ localId: q.localId, id: q._id })
@@ -1171,7 +1185,7 @@ export function useFirestore() {
           upsertBatch.set(newRef, cleanQ)
           idMap.push({ localId: q.localId, id: newRef.id })
         }
-      })
+      }
       await upsertBatch.commit()
     }
     return idMap
