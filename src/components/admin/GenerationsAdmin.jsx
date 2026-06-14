@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   listAllGenerations,
   setAdminFlag,
+  resolveGeneration,
+  isUnresolvedFailure,
   deleteGeneration,
   exportGenerationsCsv,
   formatDate,
   STATUS_COLOURS,
   TOOL_META,
 } from '../../utils/adminGenerationsService'
+import { TOOL_META as TOOL_ROUTES } from '../../utils/teacherLibraryService'
+import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
 import {
   TEACHER_GRADES,
   TEACHER_SUBJECTS,
@@ -23,6 +27,7 @@ import { useToast } from '../ui/Toast'
  */
 export default function GenerationsAdmin() {
   const toast = useToast()
+  const navigate = useNavigate()
   const [rows, setRows] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -66,7 +71,9 @@ export default function GenerationsAdmin() {
   const stats = useMemo(() => {
     const total = rows.length
     const complete = rows.filter((r) => r.status === 'complete').length
-    const failed = rows.filter((r) => r.status === 'failed').length
+    // Match the dashboard "Needs attention" count — resolved failures are
+    // kept for the audit trail but no longer flagged as outstanding.
+    const failed = rows.filter(isUnresolvedFailure).length
     const flagged = rows.filter((r) => r.status === 'flagged' || r.visibility === 'flagged_for_review').length
     const costCents = rows.reduce((acc, r) => acc + Number(r.costUsdCents || 0), 0)
     return {
@@ -91,6 +98,31 @@ export default function GenerationsAdmin() {
       ))
     }
     setSavingIds((s) => { const n = new Set(s); n.delete(row.id); return n })
+  }
+
+  async function onToggleResolve(row) {
+    setSavingIds((s) => new Set([...s, row.id]))
+    const willResolve = !row.adminResolved
+    const ok = await resolveGeneration(row.id, willResolve)
+    if (ok) {
+      setRows((rs) => rs.map((r) =>
+        r.id === row.id ? { ...r, adminResolved: willResolve } : r,
+      ))
+    } else {
+      toast.error('Could not update this generation. Check console for details.')
+    }
+    setSavingIds((s) => { const n = new Set(s); n.delete(row.id); return n })
+  }
+
+  // Retry a failed run by reopening the matching generator with the original
+  // inputs prefilled (same mechanism as the library's "Generate similar").
+  function onRetry(row) {
+    const route = TOOL_ROUTES[row.tool]?.route
+    if (!route) {
+      toast.error('This tool can no longer be regenerated.')
+      return
+    }
+    navigate(`${route}${buildGeneratorQueryString(row.inputs || {})}`)
   }
 
   function onDelete(row) {
@@ -226,12 +258,13 @@ export default function GenerationsAdmin() {
                 {filtered.map((row) => {
                   const tool = TOOL_META[row.tool] || { label: row.tool, icon: '📄' }
                   const isFailed = row.status === 'failed'
+                  const isUnresolved = isUnresolvedFailure(row)
                   const isFlagged = row.status === 'flagged' || row.visibility === 'flagged_for_review'
                   return (
                     <tr
                       key={row.id}
                       className={`border-b theme-border last:border-0 hover:bg-slate-50/50 ${
-                        isFailed ? 'bg-rose-50/30' : isFlagged ? 'bg-amber-50/30' : ''
+                        isUnresolved ? 'bg-rose-50/30' : isFlagged ? 'bg-amber-50/30' : ''
                       }`}
                     >
                       <td className="px-3 py-2 whitespace-nowrap text-slate-600">{formatDate(row.createdAt)}</td>
@@ -245,6 +278,11 @@ export default function GenerationsAdmin() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${STATUS_COLOURS[row.status] || 'bg-slate-100 text-slate-700'}`}>
                           {row.status}
                         </span>
+                        {isFailed && row.adminResolved && (
+                          <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-100 text-slate-600">
+                            ✓ resolved
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2">{row.inputs?.grade || '—'}</td>
                       <td className="px-3 py-2 max-w-[280px] truncate" title={row.inputs?.topic || ''}>
@@ -271,6 +309,25 @@ export default function GenerationsAdmin() {
                         >
                           view
                         </Link>
+                        {isFailed && (
+                          <>
+                            {TOOL_ROUTES[row.tool]?.route && (
+                              <button
+                                onClick={() => onRetry(row)}
+                                className="text-xs text-sky-700 hover:underline mr-2"
+                              >
+                                retry
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onToggleResolve(row)}
+                              disabled={savingIds.has(row.id)}
+                              className="text-xs text-slate-600 hover:underline mr-2 disabled:opacity-50"
+                            >
+                              {row.adminResolved ? 'reopen' : 'resolve'}
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => onToggleFlag(row)}
                           disabled={savingIds.has(row.id)}
