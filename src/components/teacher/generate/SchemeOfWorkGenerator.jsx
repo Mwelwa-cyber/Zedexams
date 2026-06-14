@@ -36,7 +36,7 @@ export default function SchemeOfWorkGenerator() {
     numberOfWeeks: 12,
     language: 'english',
     teacherName: userProfile?.displayName || userProfile?.fullName || '',
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     instructions: '',
     ...urlDefaults,
   }))
