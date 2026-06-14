@@ -109,6 +109,25 @@ test("junk values are normalised, never crash", () => {
   assert.equal(w.references, "");
 });
 
+test("per-week source is normalised to a known label", () => {
+  const res = validateSchemeOfWork({
+    header: goodHeader,
+    weeks: [
+      {...goodWeek, source: "syllabi_studio"},
+      {...goodWeek, source: "MODULE"},
+      {...goodWeek, source: "general"},
+      {...goodWeek, source: "nonsense value"},
+      {...goodWeek},
+    ],
+  });
+  assert.equal(res.ok, true);
+  assert.equal(res.value.weeks[0].source, "syllabi_studio");
+  assert.equal(res.value.weeks[1].source, "uploaded_module");
+  assert.equal(res.value.weeks[2].source, "ai_inferred");
+  assert.equal(res.value.weeks[3].source, "");
+  assert.equal(res.value.weeks[4].source, "");
+});
+
 test("empty weeks fails validation", () => {
   const res = validateSchemeOfWork({header: goodHeader, weeks: []});
   assert.equal(res.ok, false);

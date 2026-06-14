@@ -8,6 +8,8 @@
  * renders them via the legacy branch of SchemeOfWorkView.
  */
 
+const {normalizeSource} = require("./schemeCurriculumOutline");
+
 const SCHEMA_VERSION = "2.0";
 
 function isNonEmptyString(v) { return typeof v === "string" && v.trim().length > 0; }
@@ -58,6 +60,9 @@ function validateSchemeOfWork(input) {
       methods: cleanStringArray(w.methods),
       tlAids: cleanStringArray(w.tlAids),
       references: cleanString(w.references),
+      // Provenance of the week's topic: "syllabi_studio" | "uploaded_module"
+      // | "ai_inferred" | "teacher". "" when the model didn't tag it.
+      source: normalizeSource(w.source),
     }));
 
   if (weeks.length === 0) {
