@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from '../../ui/icons'
 import Icon from '../../ui/Icon'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { NATIONAL_VALUES, CROSS_CUTTING_THEMES } from './frameworkData'
 
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
@@ -388,6 +389,59 @@ export default function SecondaryCurriculum() {
             <article key={c.label} className="rounded-2xl border theme-border theme-card p-4 text-center shadow-elev-md">
               <div className="text-2xl" aria-hidden>{c.emoji}</div>
               <p className="mt-1 text-sm font-black theme-text">{c.label}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* National Values & Principles */}
+      <section className="mb-7">
+        <header className="mb-3 text-center">
+          <div className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
+            Article 8 · §3.6
+          </div>
+          <h2 className="mt-1 text-xl font-black theme-text">National Values &amp; Principles</h2>
+          <p className="mx-auto mt-1 max-w-xl text-sm theme-text-muted">
+            Carried through from primary and integrated across every pathway — most strongly in Civic
+            Education, History and Religious Studies.
+          </p>
+        </header>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {NATIONAL_VALUES.map((value, i) => (
+            <article key={value} className="flex items-start gap-3 rounded-2xl border theme-border theme-card p-4 shadow-elev-md">
+              <span
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black text-white"
+                style={{ background: ZAMBIA_GOLD }}
+                aria-hidden
+              >
+                {i + 1}
+              </span>
+              <p className="text-sm font-bold theme-text">{value}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* Cross-cutting themes */}
+      <section className="mb-7">
+        <header className="mb-3 text-center">
+          <div className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
+            Chapter 3
+          </div>
+          <h2 className="mt-1 text-xl font-black theme-text">18 Cross-Cutting Themes</h2>
+          <p className="mx-auto mt-1 max-w-xl text-sm theme-text-muted">
+            National concerns integrated across all subjects and pathways at secondary level — not taught as
+            stand-alone subjects.
+          </p>
+        </header>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {CROSS_CUTTING_THEMES.map(([name, def], i) => (
+            <article key={name} className="rounded-2xl border theme-border theme-card p-3.5 shadow-elev-md">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[11px] font-black" style={{ color: ZAMBIA_GOLD }}>{i + 1}</span>
+                <h3 className="text-xs font-black theme-text">{name}</h3>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed theme-text-muted">{def}</p>
             </article>
           ))}
         </div>

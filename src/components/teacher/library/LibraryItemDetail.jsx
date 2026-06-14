@@ -18,6 +18,7 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import MarkScheduleView from '../views/MarkScheduleView'
 import WeeklyForecastView from '../views/WeeklyForecastView'
 import RecordOfWorkView from '../views/RecordOfWorkView'
+import ClassTimetableView from '../views/ClassTimetableView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -32,6 +33,9 @@ import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
 import FullLessonView from '../views/FullLessonView'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
+import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
+import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
+import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -184,12 +188,15 @@ export default function LibraryItemDetail() {
     } else if (item.tool === 'record_of_work') {
       await downloadRecordOfWorkDocx(item.output, `${base}_record-of-work.docx`)
       recordExport(item.id, 'docx')
+    } else if (item.tool === 'class_timetable') {
+      await downloadClassTimetableDocx(item.output, `${base}_timetable.docx`)
+      recordExport(item.id, 'docx')
     }
   }
 
   async function onExportXlsx() {
-    if (item?.tool !== 'mark_schedule' || !item.output) return
-    if (!permissions.canDownload) return
+    if (!item?.output || !permissions.canDownload) return
+    if (item.tool !== 'mark_schedule' && item.tool !== 'class_timetable') return
     const slug = (s) => String(s || '')
       .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
     const base = [
@@ -197,8 +204,22 @@ export default function LibraryItemDetail() {
       slug(item.inputs?.subject),
       new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
     ].filter(Boolean).join('_')
-    await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+    if (item.tool === 'class_timetable') {
+      await downloadClassTimetableXlsx(item.output, `${base}_timetable.xlsx`)
+    } else {
+      await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+    }
     recordExport(item.id, 'xlsx')
+  }
+
+  function onExportPdf() {
+    if (item?.tool !== 'class_timetable' || !item.output || !permissions.canDownload) return
+    try {
+      printClassTimetableAsPdf(item.output)
+      recordExport(item.id, 'pdf')
+    } catch (err) {
+      console.error('[LibraryItemDetail] timetable pdf failed', err)
+    }
   }
 
   async function onExportReportCards() {
@@ -363,16 +384,28 @@ export default function LibraryItemDetail() {
             >
               📄 Export .docx
             </button>
-            {item.tool === 'mark_schedule' && (
+            {(item.tool === 'mark_schedule' || item.tool === 'class_timetable') && (
               <button
                 onClick={onExportXlsx}
                 disabled={!permissions.canDownload}
                 className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
                 title={permissions.canDownload
-                  ? 'Download an Excel workbook with live total and position formulas'
+                  ? 'Download an Excel workbook'
                   : 'Premium only — upgrade to download library documents'}
               >
                 📊 Export .xlsx
+              </button>
+            )}
+            {item.tool === 'class_timetable' && (
+              <button
+                onClick={onExportPdf}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Open a print view to save as PDF'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🖨️ Export PDF
               </button>
             )}
             {item.tool === 'mark_schedule' && (
@@ -512,6 +545,9 @@ export default function LibraryItemDetail() {
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
           {item.tool === 'mark_schedule' && item.output && (
             <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
+          )}
+          {item.tool === 'class_timetable' && item.output && (
+            <ClassTimetableView timetable={item.output} />
           )}
           {item.tool === 'weekly_forecast' && item.output && (
             <WeeklyForecastView forecast={item.output} />
