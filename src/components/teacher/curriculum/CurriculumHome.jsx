@@ -1,50 +1,20 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, GraduationCap, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck } from '../../ui/icons'
+import { BookOpen, GraduationCap, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../ui/icons'
 import Icon from '../../ui/Icon'
 import SeoHelmet from '../../seo/SeoHelmet'
+import {
+  GENERAL_COMPETENCES,
+  LANGUAGE_OF_INSTRUCTION,
+  NATIONAL_VALUES,
+  CROSS_CUTTING_THEMES,
+  GUIDING_PRINCIPLES,
+  KEY_INSTRUMENTS,
+  OTHER_LEVELS,
+} from './frameworkData'
 
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
 const ZAMBIA_RED = '#c0392b'
-
-/**
- * Table 1 — General Competences and Definition (2023 ZECF, §2.3.1).
- * The cross-curricular heart of the Competence-Based Curriculum: every
- * subject syllabus breaks these down into subject-specific competences, so
- * teachers plan towards them in every lesson regardless of grade or subject.
- */
-const GENERAL_COMPETENCES = [
-  ['🧩', 'Analytical Thinking', 'Breaking down complex information into its components and understanding how they are interconnected.'],
-  ['🤝', 'Collaboration', 'Working with others to achieve results as a team.'],
-  ['💬', 'Communication', 'Sharing ideas, thoughts, information and messages concisely and precisely.'],
-  ['💡', 'Creativity & Innovation', 'Creating new ideas and products by applying processes and introducing new techniques that add value.'],
-  ['🔎', 'Critical Thinking', 'Conceptualising, applying, analysing, synthesising and evaluating information to form a judgement or guide a belief or action.'],
-  ['🏛️', 'Citizenship', 'Acting as a responsible citizen and participating fully in civic and social life, grounded in social, cultural, economic, legal and political principles, global trends and sustainability.'],
-  ['💻', 'Digital Literacy', 'Using a broad range of ICTs — such as a phone, computer or calculator — in specific contexts.'],
-  ['❤️', 'Emotional Intelligence', "Recognising one's own emotions and those of others, and using that to manage oneself and one's relationships in different situations."],
-  ['🚀', 'Entrepreneurship', 'The knowledge, skills and behaviour needed to identify, create, develop, manage and grow a business venture.'],
-  ['🌳', 'Environmental Sustainability', 'Appropriate and sustainable use of natural resources and preservation of the environment.'],
-  ['💰', 'Financial Literacy', 'Applying knowledge of key financial concepts, products and services to financial management.'],
-  ['🧠', 'Problem Solving', 'Identifying, analysing and finding solutions to challenging situations.'],
-]
-
-/** Language of Instruction policy (2023 ZECF, §2.3.2 + reforms in §4.2). */
-const LANGUAGE_OF_INSTRUCTION = [
-  'The Education Act of 2011 prescribes English as the official Language of Instruction from Early Childhood Education (ECE) through to Tertiary, building one continuous learning foundation.',
-  'A Zambian Language may be used to explain concepts, while English stays the medium across the curriculum — except when a Zambian or foreign language is itself the subject being taught.',
-  'At Lower Primary (Grades 1–3), code-switching to a community Zambian Language is encouraged to ease transition, supported by the Early Grade Literacy Programme (EGLP) in both English and a Zambian Language.',
-  'Sign Language is the medium of instruction for learners with hearing impairment at all levels; Braille materials support learners with visual impairment.',
-]
-
-/** National Values & Principles — Article 8 of the Constitution (2023 ZECF, §3.6). */
-const NATIONAL_VALUES = [
-  'Morality and Ethics',
-  'Patriotism and National Unity',
-  'Democracy and Constitutionalism',
-  'Good Governance and Integrity',
-  'Human Dignity, Equity, Social Justice, Equality and Non-Discrimination',
-  'Sustainable Development',
-]
 
 const LEVELS = [
   {
@@ -159,6 +129,49 @@ export default function CurriculumHome() {
         ))}
       </div>
 
+      {/* ── The rest of the education system (ECE · Tertiary · YALE) ── */}
+      <section className="mt-8">
+        <header className="mb-3">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
+            <Icon as={Layers} size="xs" strokeWidth={2.2} />
+            The whole system
+          </div>
+          <h2 className="mt-1 text-xl font-black theme-text">Other Levels in the Framework</h2>
+          <p className="mt-1 max-w-3xl text-sm theme-text-muted">
+            ZedExams centres on Primary and Secondary, but the 2023 framework spans the full education
+            system. Here is how Primary connects to what comes before and after.
+          </p>
+        </header>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {OTHER_LEVELS.map(level => (
+            <article key={level.title} className="flex flex-col rounded-3xl border theme-border theme-card p-5 shadow-elev-md">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl" aria-hidden>{level.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black theme-text">{level.title}</h3>
+                  </div>
+                  <p className="text-[11px] font-bold theme-text-muted uppercase tracking-[0.08em]">
+                    {level.range} · {level.section}
+                  </p>
+                </div>
+              </div>
+              <dl className="mt-3 space-y-2">
+                {level.facts.map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-[11px] font-black uppercase tracking-[0.06em] theme-text-muted">{label}</dt>
+                    <dd className="text-sm theme-text">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 border-t theme-border pt-3 text-xs leading-relaxed theme-text-muted">
+                {level.notes}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       {/* ── Framework Foundations (apply across every grade & subject) ── */}
       <section className="mt-8">
         <header className="mb-3">
@@ -251,10 +264,66 @@ export default function CurriculumHome() {
           </article>
         </div>
 
-        <p className="mt-3 text-xs theme-text-muted">
-          The Primary page lists all <strong className="theme-text">18 cross-cutting themes</strong> (national
-          concerns) and where they show up in each subject.
-        </p>
+        {/* 18 Cross-Cutting Themes */}
+        <div className="mt-4 overflow-hidden rounded-3xl border theme-border theme-card shadow-elev-md">
+          <header className="flex items-center gap-2 border-b theme-border px-4 py-3" style={{ background: '#0e2a32', color: '#fff' }}>
+            <h3 className="text-sm font-black">The 18 Cross-Cutting Themes (National Concerns)</h3>
+            <span className="ml-auto text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.8)' }}>Chapter 3</span>
+          </header>
+          <p className="px-4 pt-3 text-xs theme-text-muted">
+            National concerns that must be integrated across the curriculum at every level — not taught as
+            stand-alone subjects. The Primary page also maps each theme to the subjects it lands in.
+          </p>
+          <div className="grid grid-cols-1 gap-px theme-bg-subtle p-px sm:grid-cols-2">
+            {CROSS_CUTTING_THEMES.map(([name, def], i) => (
+              <div key={name} className="theme-card p-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[11px] font-black" style={{ color: ZAMBIA_GOLD }}>{i + 1}</span>
+                  <h4 className="text-xs font-black theme-text">{name}</h4>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed theme-text-muted">{def}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Guiding Principles + Key Instruments */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-3xl border theme-border theme-card p-5 shadow-elev-md">
+            <h3 className="text-sm font-black theme-text">Education Guiding Principles</h3>
+            <p className="text-[11px] font-bold theme-text-muted uppercase tracking-[0.08em]">§2.2</p>
+            <ul className="mt-3 space-y-2.5">
+              {GUIDING_PRINCIPLES.map(([name, def]) => (
+                <li key={name} className="text-sm theme-text">
+                  <span className="font-black" style={{ color: ZAMBIA_GREEN }}>{name}.</span>{' '}
+                  <span className="theme-text-muted">{def}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="rounded-3xl border theme-border theme-card p-5 shadow-elev-md">
+            <h3 className="text-sm font-black theme-text">What the Framework Is Built On</h3>
+            <p className="text-[11px] font-bold theme-text-muted uppercase tracking-[0.08em]">Key instruments · §2.1</p>
+            <div className="mt-3 space-y-3">
+              {Object.entries(KEY_INSTRUMENTS).map(([group, items]) => (
+                <div key={group}>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.06em]" style={{ color: ZAMBIA_GOLD }}>{group}</h4>
+                  <ul className="mt-1 flex flex-wrap gap-1.5">
+                    {items.map(item => (
+                      <li
+                        key={item}
+                        className="rounded-full border theme-border px-2.5 py-1 text-[11px] font-bold theme-text-muted theme-bg-subtle"
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
       </section>
 
       {/* Footer attribution */}
