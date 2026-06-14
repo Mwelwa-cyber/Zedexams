@@ -167,6 +167,7 @@ const SchoolCalendar = lazy(() => import('./components/teacher/SchoolCalendar'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
 const CurriculumHome = lazy(() => import('./components/teacher/curriculum/CurriculumHome'))
+const ECECurriculum = lazy(() => import('./components/teacher/curriculum/ECECurriculum'))
 const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/PrimaryCurriculum'))
 const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
@@ -575,6 +576,7 @@ export default function App() {
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
           <Route path="/teacher/calendar"                element={<TeacherRoute><SchoolCalendar /></TeacherRoute>} />
           <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/ece"          element={<TeacherRoute><ECECurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
