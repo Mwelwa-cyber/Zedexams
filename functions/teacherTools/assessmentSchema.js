@@ -52,6 +52,57 @@ function isNonNegativeNumber(v) {
   return typeof v === "number" && Number.isFinite(v) && v >= 0;
 }
 
+const OPTION_LETTERS = "ABCDEFGH".split("");
+
+// Strip a letter prefix the model baked into an MCQ option ("A. digestive
+// system" at index 0). The studio renderers add their own A/B/C/D label, so a
+// stored prefix printed twice ("A. A. digestive system"). Only strips when the
+// leading letter matches the slot and is followed by a delimiter, so genuine
+// options like "Arteries" or "A car is faster" are never touched.
+function stripOptionLabel(value, index) {
+  const expected = OPTION_LETTERS[index];
+  if (!expected || typeof value !== "string") return value;
+  const m = value.match(/^\s*([A-Za-z])\s*[.):\-–—]\s+/);
+  if (m && m[1].toUpperCase() === expected) return value.slice(m[0].length).trim();
+  return value;
+}
+
+// Strip a leading "SECTION A:" / "PART 1 —" label from a section title. The
+// renderers always print "Section <letter> — <title>", so a baked-in label
+// produced "Section A — SECTION A: Multiple choice". A real title such as
+// "Sections of a plant" is left alone (no label delimiter).
+function stripSectionLabel(title) {
+  const t = String(title || "").trim();
+  if (!t) return "";
+  const labelled = t.match(
+      /^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*[:.)\-–—]+\s*(.*)$/i,
+  );
+  if (labelled) return labelled[1].trim();
+  if (/^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*$/i.test(t)) return "";
+  return t;
+}
+
+// Some generations stuffed a whole name/date/marks header into the cover
+// instructions ("NAME: ___ DATE: ___ TOTAL MARKS: ___ INSTRUCTIONS: Answer
+// ALL questions."), which then printed twice because the paper already draws
+// those fields. When the text before an "Instructions:" marker is just field
+// labels, drop it and keep the real instruction prose.
+function cleanCoverInstructions(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  const m = t.match(/^(.*?)\binstructions?\b\s*[:\-–—]\s*(.+)$/is);
+  if (m) {
+    const preamble = m[1];
+    const rest = m[2].trim();
+    if (rest &&
+        /\b(?:pupil'?s?\s*name|name|date|class|total\s*marks|marks)\b\s*[:_]/i
+            .test(preamble)) {
+      return rest;
+    }
+  }
+  return t;
+}
+
 // Normalise a question's visual spec. Prefers the structured `visual`, falls
 // back to the legacy `diagram` string (a bare stem figure). Always degrades
 // gracefully — a malformed visual becomes null rather than throwing. Returns
@@ -135,7 +186,7 @@ function validateAssessment(input) {
       Math.round(Number(h.durationMinutes)) : 40,
     totalMarks: isNonNegativeNumber(Number(h.totalMarks)) ?
       Math.round(Number(h.totalMarks)) : 0,
-    instructions: str(h.instructions, 1000) ||
+    instructions: cleanCoverInstructions(str(h.instructions, 1000)) ||
       "Answer ALL questions. Write clearly and show your working.",
   };
   if (!header.title) errors.push("header.title is required");
@@ -162,7 +213,8 @@ function validateAssessment(input) {
                     Math.round(q.number) : globalQNum;
                   globalQNum = Math.max(globalQNum + 1, number + 1);
                   const options = Array.isArray(q.options) ?
-                    q.options.filter(isNonEmptyString) : null;
+                    q.options.filter(isNonEmptyString)
+                        .map((o, i) => stripOptionLabel(o, i)) : null;
                   // Match-the-columns (v1.3): left/right string columns +
                   // pairs[i] = index into right that pairs with left[i].
                   // A malformed matching question degrades to short_answer
@@ -212,7 +264,7 @@ function validateAssessment(input) {
                 }) :
             [];
           return {
-            title: str(s.title, 200) || `Section ${sIdx + 1}`,
+            title: stripSectionLabel(str(s.title, 200)) || `Section ${sIdx + 1}`,
             instructions: str(s.instructions, 600),
             // Optional original reading passage (v1.2). Coerces to null
             // unless a non-empty text is present, so old payloads and
