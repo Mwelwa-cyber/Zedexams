@@ -199,7 +199,7 @@ function SubjectCard({ subject, quizzes, expanded, onToggle, onStart, isLocked }
 // ── Skeletons ──────────────────────────────────────────────────────────────
 function SubjectSkeleton() {
   return (
-    <div className="zx-card animate-pulse rounded-[22px] bg-white p-4 sm:p-5">
+    <div className="zx-card rounded-[22px] bg-white p-4 sm:p-5">
       <div className="flex items-center gap-4">
         <Skeleton shape="circle" size={64} />
         <div className="flex-1 space-y-2">

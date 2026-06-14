@@ -14,6 +14,7 @@ import { subscribeToDailyLeaderboard, getDailyLeaderboard, fmtDuration } from '.
 import { recordExamCompletion, computeRivalry } from '../../utils/gamificationService'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import useSoundEffects from '../../hooks/useSoundEffects'
 import { Volume2, VolumeX } from '../ui/icons'
 import ExamCelebrations from './ExamCelebrations'
@@ -326,7 +327,7 @@ function LeaderboardSection({ attempt, currentUserId }) {
 
       {loading ? (
         <div className="space-y-2">
-          {[1,2,3].map(i => <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-14" />)}
+          {[1,2,3].map(i => <Skeleton key={i} height={56} className="!rounded-2xl" />)}
         </div>
       ) : rows.length === 0 ? (
         <div className="theme-card rounded-2xl border theme-border p-6 text-center">

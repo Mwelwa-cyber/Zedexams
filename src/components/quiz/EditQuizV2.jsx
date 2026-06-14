@@ -42,6 +42,7 @@ import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import Skeleton from '../ui/Skeleton'
 import BulkAnswerKey from './BulkAnswerKey'
 import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
 import ReviewPanel from './ReviewPanel'
@@ -1746,7 +1747,7 @@ export default function EditQuizV2() {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map(item => (
-          <div key={item} className="theme-card theme-border theme-bg-subtle h-24 animate-pulse rounded-2xl border p-5" />
+          <Skeleton key={item} height={96} className="!rounded-2xl" />
         ))}
       </div>
     )

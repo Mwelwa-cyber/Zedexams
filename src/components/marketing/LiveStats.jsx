@@ -21,6 +21,7 @@
 import { useEffect, useState } from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import Skeleton from '../ui/Skeleton'
 
 const STATS_REF_PATH = ['publicStats', 'global']
 const numberFmt = new Intl.NumberFormat('en-ZM')
@@ -30,8 +31,8 @@ function StatCard({ value, label, hint, loading }) {
     <div className="theme-card border theme-border rounded-radius-md p-5 text-center min-w-0">
       {loading ? (
         <div aria-hidden="true" className="space-y-2">
-          <div className="mx-auto h-9 w-24 rounded-md bg-current/10 animate-pulse" />
-          <div className="mx-auto h-3 w-32 rounded-md bg-current/10 animate-pulse" />
+          <Skeleton width={96} height={36} className="mx-auto !rounded-md" />
+          <Skeleton width={128} height={12} className="mx-auto !rounded-md" />
         </div>
       ) : (
         <>

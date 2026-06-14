@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { listLearnerClasses } from '../../utils/classes'
 import { SUBJECTS } from '../../config/curriculum'
 import SubjectIcon from '../ui/SubjectIcon'
+import Skeleton from '../ui/Skeleton'
 
 const MAX_PREVIEW = 3
 
@@ -51,17 +52,17 @@ export default function ClassesQuickCard() {
         role="region"
         aria-label="My classes"
         aria-busy="true"
-        className="theme-card theme-border rounded-radius-md border p-4 shadow-elev-sm animate-pulse"
+        className="theme-card theme-border rounded-radius-md border p-4 shadow-elev-sm"
       >
         <div className="flex items-center justify-between mb-3">
-          <div className="h-4 w-24 rounded bg-current/10" />
+          <Skeleton height={16} width={96} />
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1 space-y-2">
-            <div className="h-4 w-2/3 rounded bg-current/10" />
-            <div className="h-3 w-full rounded bg-current/10" />
+            <Skeleton height={16} width="66%" />
+            <Skeleton height={12} />
           </div>
-          <div className="h-9 w-28 rounded-full bg-current/10" />
+          <Skeleton height={36} width={112} className="!rounded-full" />
         </div>
       </section>
     )

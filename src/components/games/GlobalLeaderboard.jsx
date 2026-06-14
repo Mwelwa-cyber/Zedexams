@@ -11,6 +11,7 @@ import { subscribeToGlobalLeaderboard, formatWhen } from '../../utils/gamesServi
 import GamesShell from './GamesShell'
 import { GamesSectionHeading, MetaPill, getSubjectMascot } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -58,7 +59,7 @@ export default function GlobalLeaderboard() {
       <WindowTabs value={win} onChange={setWin} />
 
       {state.error && <ErrorCard error={state.error} />}
-      {!state.error && state.rows == null && <Skeleton />}
+      {!state.error && state.rows == null && <LeaderboardSkeleton />}
       {!state.error && state.rows != null && state.rows.length === 0 && <EmptyCard />}
       {!state.error && state.rows != null && state.rows.length > 0 && (
         <div className="zx-card overflow-hidden rounded-[22px] bg-white">
@@ -236,17 +237,17 @@ function ErrorCard({ error }) {
   )
 }
 
-function Skeleton() {
+function LeaderboardSkeleton() {
   return (
     <div className="zx-card overflow-hidden rounded-[22px] bg-white">
       {Array.from({ length: 8 }).map((_, index) => (
         <div key={index} className="flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5">
-          <div className="h-12 w-12 rounded-[12px] border-2 border-slate-900 bg-slate-100 animate-pulse" />
+          <Skeleton width={48} height={48} className="border-2 border-slate-900 !rounded-[12px]" />
           <div className="flex-1">
-            <div className="h-4 w-1/3 rounded bg-slate-100 animate-pulse" />
-            <div className="mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+            <Skeleton width="33%" height={16} className="!rounded" />
+            <Skeleton width="50%" height={12} className="mt-2 !rounded" />
           </div>
-          <div className="h-7 w-12 rounded bg-slate-100 animate-pulse" />
+          <Skeleton width={48} height={28} className="!rounded" />
         </div>
       ))}
     </div>

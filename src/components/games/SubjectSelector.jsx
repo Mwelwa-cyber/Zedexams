@@ -17,6 +17,7 @@ import {
   buildSubjectProgress,
 } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * /games/g/:grade — choose a subject inside the selected grade.
@@ -95,11 +96,11 @@ export default function SubjectSelector() {
       {state.loading ? (
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="zx-card animate-pulse rounded-[22px] bg-white p-4">
-              <div className="mb-3 h-16 w-16 rounded-[18px] border-2 border-slate-900 bg-slate-100" />
-              <div className="h-4 w-2/3 rounded bg-slate-100" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
-              <div className="mt-3 h-2 rounded-full border-[1.5px] border-slate-900 bg-slate-100" />
+            <div key={index} className="zx-card rounded-[22px] bg-white p-4">
+              <Skeleton width={64} height={64} className="mb-3 border-2 border-slate-900 !rounded-[18px]" />
+              <Skeleton width="66%" height={16} className="!rounded" />
+              <Skeleton width="50%" height={12} className="mt-2 !rounded" />
+              <Skeleton height={8} className="mt-3 border-[1.5px] border-slate-900 !rounded-full" />
             </div>
           ))}
         </div>
