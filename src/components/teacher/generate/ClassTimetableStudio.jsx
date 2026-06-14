@@ -39,6 +39,7 @@ import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
 import { clampInt } from '../../../utils/inputs.js'
 import ClassTimetableView from '../views/ClassTimetableView'
+import TimetableUploadPanel from './TimetableUploadPanel'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -242,6 +243,17 @@ export default function ClassTimetableStudio() {
     toast.info('Grid cleared.')
   }
 
+  /* Apply an uploaded/photographed timetable into the editable grid. Subjects
+   * reset to the grade's curriculum allocation so the curriculum check can
+   * tell the teacher whether the upload matches the requirements. */
+  function onUploadExtracted(result) {
+    if (!result) return
+    if (Array.isArray(result.days) && result.days.length) setDays(result.days)
+    if (result.timing) setTiming((t) => ({ ...t, ...result.timing }))
+    setSubjects(seedSubjects(header.grade))
+    setSlots(result.slots || {})
+  }
+
   /* ── persistence + export ── */
   async function onSaveToLibrary() {
     if (saving) return
@@ -407,6 +419,9 @@ export default function ClassTimetableStudio() {
               </>
             )}
           </section>
+
+          {/* ── Upload an existing timetable ── */}
+          <TimetableUploadPanel grade={header.grade} days={days} onExtracted={onUploadExtracted} />
 
           {/* ── Period times ── */}
           <section className="studio-card p-5 space-y-4">
