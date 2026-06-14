@@ -13,11 +13,12 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 177 modules across 19 files
+## What's here — 197 modules across 20 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
 | `english_g8_t2.json` | G8 (Form 1) | English | 2 | 21 |
+| `english_g4_t2.json` | **G4 (live)** | English | 2 | 20 |
 | `literacy_g1_t2.json` | G1 | Literacy | 2 | 18 |
 | `expressive_arts_g4_t1-2.json` | **G4 (live)** | Expressive Arts | 1 & 2 | 16 |
 | `literacy_g1_t3.json` | G1 | Literacy | 3 | 16 |
@@ -37,8 +38,8 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `additional_mathematics_g8_t1.json` | G8 | Mathematics II | 1 | 4 |
 | `civic_education_g8_t2.json` | G8 | Civic Education | 2 | 3 |
 
-`Form 1 = Grade 8`. **Expressive Arts G4** and **Social Studies G4** are inside
-the platform's live Grade 4–7 band today; the rest ground Junior-Secondary /
+`Form 1 = Grade 8`. **English G4**, **Expressive Arts G4** and **Social Studies
+G4** are inside the platform's live Grade 4–7 band today; the rest ground Junior-Secondary /
 ECE / Grade 1 when those go live. `social_studies_g4_t1.json` comes from a
 "Term 1 & 2" PDF with no clean in-document term divider, so all six topics are
 stored under Term 1 — review and re-tag the Term 2 ones before/after import. Note the Scheme-of-Work generator's `ALLOWED_SUBJECTS` currently
