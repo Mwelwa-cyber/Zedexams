@@ -52,7 +52,7 @@ const SEGMENT_MARKERS = [
   "Key Terms", "Key Words", "Key words",
   "Content Tips", "Content Tip",
   "INTRODUCTION", "INTRODOCTION", "Introduction",
-  "Methodology", "Summary", "Learners to", "Learner to",
+  "Methodology", "Summary", "Learners to", "Learner to", "Activity",
   // De-glue topic/sub-topic headers from running-header prefixes
   // ("…TEACHING MODULE -TERM 20.1.2 TOPIC: DRAMA").
   "Sub-Topic", "Sub Topic", "Sub-topic", "Subtopic", "SUBTOPIC", "TOPIC",
@@ -109,10 +109,40 @@ const CI_MARKERS = [
 const CI_RE = new RegExp(
   "([A-Za-z0-9)\\].,;:])(" + CI_MARKERS.map(escapeRe).join("|") + ")", "gi");
 
+// Some modules pack several fields onto ONE space-separated line ("Specific
+// Competence(s) – Learners to: X Activity 1 …" or "…equipment. Learning
+// Activity 1: …"). Break before these distinctive multi-word section markers
+// even when a space precedes them — they're long enough not to fire inside
+// ordinary prose. (SEGMENT_RE/CI_RE only handle the glued, no-space case.)
+const STRONG_MARKERS = [
+  "Suggested Teaching and Learning Materials",
+  "Teaching and Learning Materials", "Learning Environment",
+  "Specific Competence", "General Competence", "Expected Standard",
+  "Assessment Criteria", "Assessment Strategies", "Assessment Guidelines",
+  "Learning Activities", "Learning Activity", "Content Tips",
+].sort((a, b) => b.length - a.length);
+const STRONG_RE = new RegExp(
+  "\\s+(" + STRONG_MARKERS.map(escapeRe).join("|") + ")\\b", "gi");
+
+// All-caps topic/sub-topic headers (and Introduction) also sit mid-line after
+// the previous section's prose ("…resources 1.1.2. SUB-TOPIC 2: POPULATION").
+// Break before them when space-separated — CASE-SENSITIVE so lowercase "topic"
+// in running prose ("the focus of this topic") is left alone.
+// NB: not "Introduction" — it appears inside legit titles ("INTRODUCTION TO
+// CIVIC EDUCATION"); headerTitle() trims a glued intro instead.
+const STRONG_CS_MARKERS = [
+  "SUB-TOPIC", "SUB TOPIC", "SUBTOPIC", "Sub-Topic", "Sub Topic", "Subtopic",
+  "TOPIC", "Activity", "ACTIVITY",
+].sort((a, b) => b.length - a.length);
+const STRONG_CS_RE = new RegExp(
+  "\\s+(" + STRONG_CS_MARKERS.map(escapeRe).join("|") + ")\\b", "g");
+
 export function injectBreaks(text) {
   return String(text || "")
     .replace(SEGMENT_RE, "$1\n$2")
-    .replace(CI_RE, "$1\n$2");
+    .replace(CI_RE, "$1\n$2")
+    .replace(STRONG_RE, "\n$1")
+    .replace(STRONG_CS_RE, "\n$1");
 }
 
 const TERM_WORD = { one: 1, two: 2, three: 3 };
@@ -159,14 +189,16 @@ const RE = {
   subDecimal: /^(\d+\.\d+\.\d+)\s+(\S.*)$/,
   // "1.1.1.1 Specific Competence"  (exactly 4 dotted numbers)
   competenceDecimal: /^\d+\.\d+\.\d+\.\d+\s+specific competence/i,
-  // "TOPIC: PRODUCTION", "0.1.1 TOPIC: : FOOD", "TOPIC: 1.6 SOUNDS"
-  topicLabelled: /^(?:\d+(?:\.\d+)*\s+)?topic\s*[:\-]+\s*(\S.*)$/i,
-  // "Sub Topic: Name" / "Sub-Topic 1 - Name" / "Subtopic: Name" / "0.1.1.1 Subtopic: Name"
-  subLabelled: /^(?:\d+(?:\.\d+)*\s+)?sub\s*-?\s*topic\s*\d*\s*[:\-]+?\s*(\S.*)$/i,
-  // "Specific Competence: <text>" / "Specific Competence(s): 1.7.1.1 <text>"
-  specific: /^specific\s+competenc(?:e|es|y|ies)\s*\(?s?\)?\s*[:\-]?\s*(.*)$/i,
-  general: /^general\s+competenc(?:e|es|y|ies)\s*\(?s?\)?\s*[:\-]?\s*(.*)$/i,
-  learnersTo: /^learners?\s*to\s*[:\-]?\s*(.+)$/i,
+  // "TOPIC: PRODUCTION", "0.1.1 TOPIC: : FOOD", "TOPIC: 1.6 SOUNDS",
+  // "1.1. TOPIC 1: NATURAL RESOURCES", "TOPIC 1.5: …" (dotted code after label)
+  topicLabelled: /^(?:\d[\d.]*\s+)?topic\s*[\d.]*\s*[:\-]+\s*(\S.*)$/i,
+  // "Sub Topic: Name" / "Sub-Topic 1 - Name" / "SUB-TOPIC:1.6.1: Name"
+  subLabelled: /^(?:\d[\d.]*\s+)?sub\s*-?\s*topic\s*[\d.]*\s*[:\-]+?\s*(\S.*)$/i,
+  // "Specific Competence: X" / "Specific Competence(s) – Learners to: X" /
+  // "Specific Competence 1.1.5.1: X" — tolerate (s), a dotted code, en/em-dashes.
+  specific: /^specific\s+competenc(?:e|es|y|ies)\s*(?:\(s\))?\s*[\d.]*\s*[:;\-–—]*\s*(.*)$/i,
+  general: /^general\s+competenc(?:e|es|y|ies)\s*(?:\(s\))?\s*[\d.]*\s*[:;\-–—]*\s*(.*)$/i,
+  learnersTo: /^learners?\s*to\s*[:;\-–—]*\s*(.+)$/i,
   learningActivities: /^learning\s+activit(?:y|ies)\b\s*\d*\s*[:\-]?\s*(.*)$/i,
   materials: /^(?:suggested\s+)?teaching\s+and\s+learning\s+materials?\s*[:\-]?\s*(.*)$/i,
   learningEnv: /^(?:suggested\s+)?learning\s+environments?\s*[:\-]?\s*(.*)$/i,
@@ -191,7 +223,12 @@ const NEUTRAL = ["hook", "methodology", "steps", "summary", "activity"];
 // a stray match on a prose line can't swallow a paragraph as a "title".
 function headerTitle(raw) {
   let t = String(raw).trim().replace(/^[-–:\s]+/, "");
-  const cut = t.search(/\b(Introduction|INTRODUCTION|INTRODOCTION|Specific Competence|General Competence|Learning Activit|Teaching|Expected Standard|Assessment|Key Terms|Key Words|Content Tip|Hook)\b/);
+  // A code sometimes sits after the label ("SUB-TOPIC:1.6.1: Name") — drop it.
+  // Require a trailing colon so a real title like "1.6 SOUNDS" is left intact.
+  t = t.replace(/^\d[\d.]*\s*:\s*/, "");
+  // No trailing \b — the next word is often glued ("…IntroductionPopulation…")
+  // so the body keyword must still cut the title.
+  const cut = t.search(/\b(Introduction|INTRODUCTION|INTRODOCTION|Specific [Cc]ompetence|General [Cc]ompetence|Learning Activit|Teaching|Expected Standard|Assessment|Key Terms|Key Words|Content Tip|Hook)/);
   if (cut > 0) t = t.slice(0, cut).trim();
   t = t.replace(/\s+\d{1,3}\s*$/, "").replace(/^topic\s*[:\-]\s*/i, "").trim();
   return t;
@@ -420,7 +457,12 @@ function splitList(s) {
     .filter((x) => x.length >= 2 && x.length <= 200);
 }
 
-function stripLearnersTo(s) { return String(s).replace(RE.learnersTo, "$1").trim(); }
+// Strip a leading "Learners to:" even behind a dash ("– Learners to: X" → "X").
+function stripLearnersTo(s) {
+  return String(s)
+    .replace(/^[\s–—•·-]*learners?\s*to\s*[:;\-–—]*\s*/i, "")
+    .trim();
+}
 // Outcomes sometimes lead with the competence code: "1.7.1.1 Practice simple
 // plays." → "Practice simple plays."
 function stripLeadCode(s) { return String(s).replace(/^\s*\d+(?:\.\d+)*\s+/, "").trim(); }

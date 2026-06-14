@@ -1,0 +1,807 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /m/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /m/ which is a common consonant sound. Learners will be Introduced to the sound, shape and the words containing the /m/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      "Grapheme-phoneme cards",
+      "word cards",
+      "h)",
+      "pictures of a man",
+      "a mat."
+    ],
+    "assessmentCriteria": [
+      " Consonant in English sounded out correctly",
+      " Consonant in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘m’ correctly",
+      " Ask learners to sound the /m/ sound correctly",
+      " Ask learners to write the given words.",
+      " Ask learners to segment and blend words.",
+      " Ask learners to read the given text."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /d/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /d/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /d/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      "Picture of a dress",
+      "word cards",
+      "grapheme – phoneme cards",
+      "h)",
+      "Grapheme – phoneme cards"
+    ],
+    "assessmentCriteria": [
+      " Consonant in English sounded out correctly",
+      " Consonant in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly",
+      "Page 19 of"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘d’ correctly",
+      " Ask learners to sound the /d/ sound correctly",
+      " Ask learners to write the given words.",
+      " Ask learners to segment and blend words.",
+      " Ask learners to read decodable text",
+      "Page 17 of 93"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /g/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /g/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /g/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "as groups, pairs or individuals."
+    ],
+    "teachingMaterials": [
+      "Grapheme – phoneme cards",
+      "h)",
+      " Pictures of a pig",
+      "peg",
+      "water dripping from a tap",
+      "word cards",
+      "decodable texts."
+    ],
+    "assessmentCriteria": [
+      " Consonant in English sounded out correctly",
+      " Consonant in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘g’ correctly",
+      " Ask learners to sound the /g/ sound correctly",
+      " Ask learners to write the given words.",
+      " Ask learners to segment and blend words.",
+      " Ask learners to read decodable text.",
+      "Page 24 of 93"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.1 Sound /o/",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.1.1"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /o/ which is a common vowel sound. Learners will be introduced to the sound, shape and the words containing the /o/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Grapheme – phoneme cards",
+      "word cards.",
+      "h)"
+    ],
+    "assessmentCriteria": [
+      " Short vowel in English sounded out correctly",
+      " Short vowel in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with vowels read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘o’ correctly",
+      " Ask learners to sound the /o/ sound correctly",
+      " Ask learners to write the given words.",
+      " Ask learners to segment and blend words.",
+      " Ask learners to read decodable text."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.1 Sound /u/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.1.1",
+      "Sound out short vowels."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /u/ which is a common vowel sound. Learners will be introduced to the sound, shape and the words containing the /u/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Picture of a cup/real object",
+      "grapheme-phoneme cards",
+      "h)",
+      " Phrase cards",
+      "word cards",
+      "g)"
+    ],
+    "assessmentCriteria": [
+      " Short vowels in English sounded out correctly",
+      " Short vowels in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly",
+      "Page 31 of"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘u’ correctly",
+      " Ask learners to sound the /u/ sound correctly",
+      " Ask learners to copy the given words.",
+      " Ask learners to blend and segment words.",
+      " Ask learners to write own name independently.",
+      "Page 33 of 93",
+      " Ask learners blend and segment words.",
+      " Ask learners to copy own names."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /l/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /l/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /l/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Picture of a leg/real object",
+      "word cards",
+      "grapheme-phoneme cards",
+      "h)",
+      " word cards",
+      "g)"
+    ],
+    "assessmentCriteria": [
+      " Consonants in English sounded out correctly",
+      " Consonants in English written correctly",
+      "Page 35 of",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly",
+      "Page 37 of"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘l’ correctly",
+      " Ask learners to sound the /l/ sound correctly",
+      " Ask learners to copy the given words.",
+      " Ask learners blend and segment words.",
+      " Ask learners to copy own names."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /f/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /f/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /f/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Picture of a flag",
+      "frog",
+      "fish",
+      "grapheme-phoneme cards",
+      "h)",
+      " Chart with a story",
+      "word cards"
+    ],
+    "assessmentCriteria": [
+      " Consonants in English sounded out correctly",
+      " Consonants in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      " Ask learners to write the letter ‘f’ correctly",
+      " Ask learners to sound the /f/ sound correctly",
+      " Ask learners to copy the given words.",
+      " Ask learners blend and segment words.",
+      " Ask learners to copy own names.",
+      "Page 42 of 93",
+      " Ask learners to write own names independently."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /b/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /b/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /b/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Pictures of a bag",
+      "book",
+      "box or real objects",
+      "word cards",
+      "grapheme-",
+      "phoneme cards",
+      "h)",
+      " Word cards",
+      "grapheme-phoneme cards"
+    ],
+    "assessmentCriteria": [
+      " Consonants in English sounded out correctly",
+      " Consonants in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      "Page 44 of 93",
+      " Ask learners to write the letter ‘b’ correctly",
+      " Ask learners to sound the /b/ sound correctly",
+      " Ask learners to copy the given words.",
+      " Ask learners blend and segment words.",
+      " Ask learners to copy own names.",
+      "Page 46 of 93"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.3 Sound /ai/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.3.1",
+      "Sound out long vowels"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /ai/ which is a common long vowel sound. Learners will be introduced to the sound, shape and the words containing the /ai/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Flip charts",
+      "grapheme cards",
+      "Page 48 of 93",
+      "h)",
+      "graphene cards",
+      "Page 50 of 93"
+    ],
+    "assessmentCriteria": [
+      " Long vowels sounded out correctly",
+      " Words with long vowels blend and read correctly.",
+      " Sitting posture demonstrated correctly.",
+      " Knowledge of basic concepts of print demonstrated correctly."
+    ],
+    "exercises": [
+      "activities",
+      " Ask learners to write the letters ‘ai’ correctly",
+      " Ask learners to sound out the /ai/ sound correctly.",
+      " Ask learners to write the given sentences correctly.",
+      " Ask learners to write their own names.",
+      " Ask learners to write the given words correctly."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /j/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /j/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /j/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Flip charts",
+      "grapheme cards",
+      "word cards",
+      "empty box",
+      "h)",
+      "graphene cards."
+    ],
+    "assessmentCriteria": [
+      " Consonants in English sounded out correctly.",
+      " Sitting posture demonstrated correctly.",
+      " Knowledge of basic concepts of print demonstrated correctly."
+    ],
+    "exercises": [
+      "activities",
+      " Ask learners to write the letters ‘j’ correctly",
+      " Ask learners to sound out the /j/ sound correctly.",
+      " Ask learners to write the given words correctly.",
+      " Ask learners to write their own names.",
+      " Ask learners to write the given sentences correctly."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.3 Sound /oa/",
+    "suggestedLessons": 3,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.3.1",
+      "Sound out long vowels",
+      "Page 57 of 93"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /oa/ which is a common long vowel sound. Learners will be introduced to the sound, shape and the words containing the /oa/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Flip charts",
+      "graphene cards",
+      "e)",
+      "h)"
+    ],
+    "assessmentCriteria": [
+      " Long vowels sounded out correctly",
+      " Words with long vowels blend and read correctly.",
+      " Sitting posture demonstrated correctly.",
+      " Knowledge of basic concepts of print demonstrated correctly.",
+      "Page 59 of"
+    ],
+    "exercises": [
+      "activities",
+      " Ask learners to write the letters ‘oa’ correctly",
+      " Ask learners to sound out the /oa/ sound correctly.",
+      " Ask learners to write the given words correctly.",
+      " Ask learners to write their own names.",
+      " Ask learners to write the given sentences correctly."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.3 Sound /ie/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.3.1",
+      "Sound out long vowels"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /ie/ which is a common long vowel sound. Learners will be introduced to the sound, shape and the words containing the /ie/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Flip charts",
+      "graphene cards",
+      "grapheme cards"
+    ],
+    "assessmentCriteria": [
+      " Long vowels sounded out correctly",
+      " Words with long vowels blend and read correctly.",
+      " Sitting posture demonstrated correctly.",
+      "Page 61 of",
+      " Knowledge of basic concepts of print demonstrated correctly."
+    ],
+    "exercises": [
+      "activities",
+      " Ask learners to write the letters ‘ie’ correctly",
+      " Ask learners to sound out the /ie/ sound correctly.",
+      " Ask learners to write the given words correctly.",
+      " Ask learners to write their own names.",
+      "Page 63 of 93",
+      " Ask learners to write the given sentences correctly."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.3 Sound /ee/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.3.1",
+      "Sound out long vowels."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /ee/ which is a common long vowel sound. Learners will be introduced to the sound, shape and the words containing the /ee/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Grapheme-phoneme cards",
+      "word cards",
+      "pictures",
+      "h)"
+    ],
+    "assessmentCriteria": [
+      " Long vowels sounded out correctly",
+      " Long vowels in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with long vowels read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      "Ask learners to write the diagraph ‘ee’ correctly",
+      "Ask learners to sound the /ee/ sound correctly",
+      "Ask learners to write the given words.",
+      "Ask learners to write their own names independently.",
+      "Ask learners to do a substitution activity to form words.",
+      "Ask learners to answer questions about the story",
+      "Ask learners to write the given words and sentences.",
+      "Ask learners to write own names independently.",
+      "Ask learners to complete a story started by the teacher."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.4 Sound /or/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.4.1",
+      "1.9.4.1"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview Page 68 of 93 This subtopic is about sound /or/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /or/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Real objects",
+      "grapheme-phoneme cards",
+      "h)",
+      " Grapheme-phoneme cards",
+      "word cards"
+    ],
+    "assessmentCriteria": [
+      " Diagraphs sounded out correctly",
+      " Diagraphs in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Diagraphs read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      "Ask learners to write the letter ‘or’ correctly",
+      "Ask learners to sound the /or/ sound correctly",
+      "Ask learners to write the given words.",
+      "Ask learners to write their own names independently.",
+      "Ask learners to blend and segment words.",
+      "Page 70 of 93",
+      "Ask learners to retell the story in their own words.",
+      "Ask learners to write the diagraph ‘or’ correctly",
+      "Page 72 of 93",
+      "Ask learners to write own names independently.",
+      "Ask learners to do a substitution activity to form words.",
+      "Ask learners to answer questions about the story"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2 Sound /z/",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "1.9.2.1"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /z/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /z/ sound. Sound /z/ This subtopic is about sound /z/ which is a common consonant sound. Learners will be introduced to the sound, shape, blending, segmenting and the words it is found in. They will also be introduced to some sentences including other decodable sounds.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      "Grapheme-phoneme cards",
+      "word cards",
+      "pictures",
+      "h)",
+      "story chart"
+    ],
+    "assessmentCriteria": [
+      "Consonant in English sounded out correctly",
+      "Consonant in English written correctly",
+      "Knowledge of basic concepts of print demonstrated correctly",
+      "Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      "Ask learners to write the letter ‘z’ correctly",
+      "Ask learners to sound the /z/ sound correctly",
+      "Ask learners to write the given words.",
+      "Ask learners to write their own names independently.",
+      "Ask learners to blend and segment word.",
+      "Ask learners to answer oral questions about the story",
+      "Ask learners to do a substitution activity to form words."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2. Sound /w/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "1.9.2.1"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview Page 77 of 93 This subtopic is about sound /w/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /w/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      "Grapheme-phoneme cards",
+      "word cards",
+      "pictures",
+      "Page 79 of 93",
+      "h)",
+      " Grapheme-phoneme cards",
+      "decodable poem chart"
+    ],
+    "assessmentCriteria": [
+      "Consonant in English sounded out correctly",
+      "Consonant in English written correctly",
+      "Knowledge of basic concepts of print demonstrated correctly",
+      "Words with consonants read and blended correctly",
+      " Consonant in English sounded out correctly",
+      " Consonant in English written correctly",
+      " Knowledge of basic concepts of print demonstrated correctly",
+      " Words with consonants read and blended correctly"
+    ],
+    "exercises": [
+      "Activities",
+      "Ask learners to write the letter ‘w’ correctly",
+      "Ask learners to sound the /w/ sound correctly",
+      "Ask learners to write the given words.",
+      "Ask learners to write their own names independently.",
+      "Ask learners to blend and segment word.",
+      "Ask learners to answer oral questions about the story",
+      "Ask learners to do a substitution activity to form words.",
+      "Ask learners to answer questions about the story"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9. Sounds",
+    "subtopic": "1.9.2. Sound /v/",
+    "suggestedLessons": 2,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.2.1",
+      "Sound out consonants in English."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Overview This subtopic is about sound /v/ which is a common consonant sound. Learners will be introduced to the sound, shape and the words containing the /v/ sound.",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      " Flip charts",
+      "grapheme cards",
+      "story",
+      "word cards.",
+      "h)",
+      " Grapheme-phoneme cards",
+      "word cards"
+    ],
+    "assessmentCriteria": [
+      " Consonants in English sounded out correctly",
+      " Words with consonants blended and read correctly.",
+      " Sitting posture demonstrated correctly.",
+      " Knowledge of basic concepts of print demonstrated correctly.",
+      " Knowledge of basic concepts of print demonstrated correctly"
+    ],
+    "exercises": [
+      "activities",
+      " Ask learners to write the words ‘v’ correctly",
+      " Ask learners to sound out the /v/ sound correctly.",
+      " Ask learners to write the sentences with words that carry the /v/ sound correctly.",
+      " Ask learners to write their own names independently.",
+      "Activities",
+      "Ask learners to write the consonant ‘v’ correctly",
+      "Ask learners to sound the /v/ sound correctly",
+      "Ask learners to write the dictated words.",
+      "Ask learners to write own names independently.",
+      "Ask learners to complete a story started by the teacher."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G1",
+    "subject": "literacy",
+    "term": 2,
+    "topic": "1.9 Sounds Total No. of Learners:",
+    "subtopic": "1.9.3.1 Long Vowels",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "s: 1.9.3.1 Sound out long vowels. (As it is presented in the syllabus)"
+    ],
+    "competencies": [
+      "s: Critical thinking, Collaboration, Creativity Innovation, and",
+      "problem solving. (Drawn from the syllabus)"
+    ],
+    "vocabulary": [],
+    "contentSummary": "Page 89 of 93  Show the cards with taught graphemes and ask learners to sound out the given graphemes. (s,a,t,p,I,n,ck,m,n,h,oo,r...)  Say the words that contain the /oa/ sound. (For example soap, coat, goat, boat and road).  Ask learners to mention the common sound in the given words  Sound out the given graphemes (s,a,t,p,I,n,ck,m,n,h,oo,r ...)  Listen to the words and mention the common sound in the given words Learners sounding out the graphemes correctly Learners listening and mentioning the common sounds in the given words DEVELOPMENT",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [
+      "/Resources: Grapheme-phoneme cards",
+      "chart of a story",
+      "word cards"
+    ],
+    "assessmentCriteria": [
+      "Long vowels sounded out correctly, Words with long vowels blend",
+      "and read correctly.",
+      "Page 90 of",
+      "LESSON PROGRESSION:",
+      "STAGES TEACHER’S ROLE",
+      "LEARNERS’ ROLE",
+      "PERFORMANCE",
+      "INDICATOR"
+    ],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  }
+]

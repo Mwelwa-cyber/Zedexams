@@ -59,17 +59,32 @@ function pageRender(pageData) {
   });
 }
 
+// Order matters — first match wins, so the more specific / lower-grade names
+// (Literacy, Numeracy, Oral English, Literature in English) come before the
+// generic English / Mathematics they contain.
 const SUBJECTS = [
   [/civic\s+education/i, "civic_education"],
   [/\bcommerce\b/i, "commerce"],
   [/design\s+and\s+technology/i, "design_and_technology"],
   [/creative\s+and\s+technology\s+studies/i, "creative_and_technology_studies"],
+  [/information\s+and\s+communication\s+technology|\bICT\b/i, "ict"],
+  [/food\s+and\s+nutrition/i, "food_and_nutrition"],
+  [/literature\s+in\s+english/i, "literature_in_english"],
+  [/oral\s+english/i, "oral_english"],
+  [/\bliteracy\b/i, "literacy"],
+  [/\bnumeracy\b/i, "numeracy"],
+  [/\bgeography\b/i, "geography"],
+  [/\bhistory\b/i, "history"],
+  [/religious\s+education/i, "religious_education"],
+  [/\bbiology\b/i, "biology"],
+  [/\bchemistry\b/i, "chemistry"],
+  [/\bphysics\b/i, "physics"],
   [/integrated\s+science/i, "integrated_science"],
   [/\bmathematics\b/i, "mathematics"],
-  [/\benglish\b/i, "english"],
   [/social\s+studies/i, "social_studies"],
   [/home\s+economics/i, "home_economics"],
   [/expressive\s+arts/i, "expressive_arts"],
+  [/\benglish\b/i, "english"],
 ];
 
 function detectMeta(coverText) {

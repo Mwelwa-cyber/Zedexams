@@ -4,6 +4,74 @@
     "grade": "G4",
     "subject": "expressive_arts",
     "term": 1,
+    "topic": "SAFETY AND HEALTH",
+    "subtopic": "SAFETY AND HEALTH",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Use appropriate attire and tools."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": " Use locally familiar sports (football, netball, running ...).  Emphasize comfort, safety, and freedom of movement.  Show real attire and equipment where possible.  Reinforce the idea that proper attire helps prevent injuries. Reflection  What do yo u wear during Phys ical Education lessons?  Why are sports shoes better than slippers?  What problems can arise from wearing wrong attire?  Provide hands-on practice in wearing attire correctly.  Emphasize personal responsibility for safety.  Ensure inclusive participation for all learners.  Supervise to maintain safety during demonstrations. Reflection  How did yo u feel wearing proper sports attire?  What did yo u learn about preparing for Phys ical Education and Sports?  Why must we follow safety rules during sports?",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Appropriate attire and tools used accordingly"
+    ],
+    "exercises": [
+      "Learners to do the following:",
+      "1. Id entify correct attire and tools for Phys ical Education and Sport",
+      "2. Demonstrate proper dressing for a sports activity.",
+      "3. Practice team work, cooperation and sportsmanship in Phys ical Education and Sport",
+      "4. Id entify and correct mistakes",
+      "5. Confidently demonstrate safe practices",
+      "Oral Questions",
+      "1. Why is it important to wear proper attire in Phys ical Education and Sport?",
+      "2. Name two pieces of appropriate sportswear.",
+      "3. What can happen if yo u wear wrong shoes during Phys ical Education and Sport?"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G4",
+    "subject": "expressive_arts",
+    "term": 1,
+    "topic": "SAFETY AND HEALTH",
+    "subtopic": "4.1.2 Health",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Compose healthy-related songs"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Health is an important aspect of learners ’ daily lives. At Grade 4 level, learners are ex pected to understand basic healthy practices such as hygi ene, nutrition, ex ercise, and cleanliness. Through music, learners can creatively ex press and reinforce healthy habits. This module engages learners in singing and composing songs that promote healthy living, making learning enjoyable, memorable and practical. 4.1.2.2  Use simple and familiar tunes to support composition.  Encourage repetition to make songs easy to remember.  Focus on key health messages such as we washing hands, eating balanced meals, keeping the environment clean, ex ercising regularly ...  Allow learners to use local languages where appropriate for better understanding.  Encourage participation from all learners. Reflection  Did learners actively participate in singing and composing songs?  Were learners able to identify and ex plain healthy practices?  Did learners demonstrate creativity and teamwork?  What challenges did learners face during composition?",
+    "teacherActivities": [],
+    "learnerActivities": [],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Healthy related songs composed accordingly"
+    ],
+    "exercises": [
+      "Learners to do the following:",
+      "1. Participate actively in singing, showing confidence and ability to follow the song.",
+      "2. Answer oral questions to ex plain the health message of the song and why staying healthy",
+      "is important.",
+      "3. Work in groups to compose and perform a health song, demonstrating clear message,",
+      "creativity, teamwork, and full participation."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G4",
+    "subject": "expressive_arts",
+    "term": 1,
     "topic": "4.2 MOVEMENT",
     "subtopic": "4.2.1 Structured Movements",
     "suggestedLessons": 1,
@@ -15,10 +83,7 @@
     "vocabulary": [],
     "contentSummary": " Start with simple movements before progressing to complex ones  Demonstrate each activity clearly before learners attempt  Ensure safety by checking equipment and supervising learners  Encourage participation from all learners  Use locally available materials where necessary Reflection  Were learners able to perform the movements correctly?  Which activities were challenging for learners?  Did learners use equipment safely?  How can the lesson be improved nex t time?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Performing structured movements (dumbbells, climbing rope, skipping rope...)",
-      " Displaying balancing skills using various equipment (bottle race, hula hoop ...)"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [
       " Dumbbells",
       " Skipping ropes",
@@ -59,16 +124,15 @@
       "Mix two primary colours",
       "Id entify secondary colours"
     ],
-    "competencies": [],
+    "competencies": [
+      "s:"
+    ],
     "vocabulary": [],
     "contentSummary": " Hold the pencil correctly for control.  Start with light sketches before finalising lines.  Break objects into simple shapes using lines (circles, ovals, rectangles ...).  Use curved lines for round objects (fruits, cups ...).  Use straight and diagonal lines for structured objects (pots, containers ...).  Use a centre line to guide balance and proportion.  Begin with light sketches and refine the drawing.  Observe objects carefully before drawing.  Encourage neatness, spacing, and creativity. Reflection:  What objects did yo u draw and which lines did yo u use?  Which object was easiest or most difficult to draw? Why?  How did using different lines help yo u create yo ur drawing?  Primary colours: Red, blue, yel low cannot be formed by mixing other colours.  Two primary colours produce secondary colours; o Red + Yellow = Orange o Blue + Yellow = Green o Red + Blue = Purple  Use small amounts of paint when mixing.  Mix colours thoroughly to get an even result.  Clean brushes when changing colours.  Encourage creativity in colour use. Reflection  Which colours did yo u mix and what new colours did yo u get?  Which colour combination did yo u like most? Why?  How can yo u use mixed colours in yo ur drawings or paintings?  Secondary colours are formed by mixing two primary colours: o Red + Yellow = Orange o Blue + Yellow = Green o Red + Blue = Violet  Observe natural objects to reinforce identification.  Encourage learners to name colours correctly and consistently.  Mix colours lightly first and gradually adjust intensity.  Secondary colours can be used creatively in drawings and paintings. Reflection  Which secondary colour did yo u observe in nature or yo ur surroundings?  How did mixing primary colours help yo u identify secondary colours?  Which secondary colour did yo u enjoy using in yo ur artwork, and why?",
     "teacherActivities": [],
     "learnerActivities": [
-      " Id entifyi ng typ es of lines",
-      "Drawing lines",
       "Drawing different objects:",
-      "Mixing any Two Primary Colours",
-      " Id entifyi ng secondary colours (orange, violet and green )"
+      "Mixing any Two Primary Colours"
     ],
     "teachingMaterials": [],
     "assessmentCriteria": [],
@@ -164,9 +228,7 @@
     ],
     "contentSummary": " Encourage learners to use colours to ex press emotions  Use green to represent healthy environments  Use brown or grey to show damaged or polluted areas  Guide learners to illustrate environmental problems clearly  Encourage inclusion of possible solutions in their artwork  Promote balance between showing negative effects and positive action Reflection After completing the activities, learners discuss:  How did their imagination help them represent ideas?  What colours and techniques did they use to convey emotions or messages?  How can their artwork raise awareness about family or environmental issues?. Notation is the system used to read and write music using symbols. It helps learners understand how music is organised in terms of pitch, rhythm, and duration. At Grade 4, learners begin to recognise and perform basic musical notes, which are the foundation for singing, playing instruments and composing simple music. In line with the Competency-Based Curriculum (CBC), this topic develops learners’ abilities to perform, interpret, and appreciate music, while enhancing creativity, listening skills, and cultural awareness. Learners are encouraged to relate musical notation to songs and rhythms commonly found in Zambian communities.",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Creating Im aginative Compositions in Colour."
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [],
     "exercises": [
@@ -250,10 +312,7 @@
     "vocabulary": [],
     "contentSummary": " In troduce each note sym bol clearly before combining them.  Use repetition and demonstration to reinforce understanding.  Relate note values to simple counting (1–2–3–4).  Use familiar Zambian contex ts such as songs, clapping games, and drumming.  Encourage learners to visualise and recognise sym bols quickly. Reflection  Which musical note sym bols did yo u learn today?  How do the sym bols help yo u understand music?  Which note was easiest or most difficult to identify?  How can yo u use these notes in songs yo u know?  Begin with simple note values before combining them.  Use counting (1–2–3–4) to guide performance.  Emphasize correct timing and coordination.  Use familiar Zambian rhythms (e.g., traditional drumming patterns).  Encourage participation and confidence in performance. Reflection  Which musical notes did you perform today?  How did you use your body or instruments to show different note values?  Which activity did you enjoy most and why?  How can these rhythms be used in songs or dances in your community?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Identifying Musical Notes - (Semibreve, Minim, Crotchet, Quaver)",
-      " Performing musical notes (semi-brave, minim, crotchet and quaver )."
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [],
     "exercises": [
@@ -262,6 +321,7 @@
       "2. Answer oral questions during activities.",
       "3. Id entify and name musical notes from given sym bols.",
       "4. Match notes to correct beat values and interpret simple note patterns.",
+      "Learning",
       "1. Perform a simple rhythm using correct note values.",
       "2. Demonstrate ability to follow note patterns.",
       "3. Accurately perform note values",
@@ -288,9 +348,7 @@
     "vocabulary": [],
     "contentSummary": " Start with simple patterns before moving to complex ones.  Reinforce understanding of note values and counting.  Encourage creativity and originality.  Use familiar cultural ex amples to make learning meaningful.  Guide learners in organising notes into clear sequences. Reflection  What rhyt hm did yo u create today?  Which notes did yo u use in yo ur composition?  How did yo ur group work together to create the rhyt hm?  Where can yo u hear similar rhyt hms in yo ur community?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Composing Simple Rhyt hmic Patterns"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [],
     "exercises": [
@@ -320,8 +378,7 @@
     "contentSummary": " Begin with familiar sounds (clapping, local songs, chants).  Use simple Tonic Solfa syl lables (do, re, mi, fa, so).  Progress from imitation to creation.  Encourage use of local language songs where appropriate.  Maintain short and repetitive patterns suitable for Grade 4.  Emphasize listening; pitch accuracy, and rhyt hm control. Reflection  What rhyt hmic pattern did yo u enjoy creating? Why?  Were yo u able to follow the Tonic Solfa patterns correctly?  How did working in groups help yo ur performance?  Where do we hear similar rhyt hms or songs in our community?",
     "teacherActivities": [],
     "learnerActivities": [
-      "performing the tonic solfa (singing only)",
-      "Category Description"
+      "performing the tonic solfa (singing only)"
     ],
     "teachingMaterials": [],
     "assessmentCriteria": [],
@@ -352,9 +409,7 @@
     "vocabulary": [],
     "contentSummary": " Use local examples of songs and dances learners may already know.  Encourage participation by allowing learners to create their own rhythms.  Highlight the importance of music in community life (celebrations, storytelling, rituals...). Reflection  Learners reflect on how performing traditional music made them feel.  Discuss why it is important to preserve traditional music.",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Performing Zambian Authentic Traditional music. (Singing and dancing)"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [],
     "exercises": [
@@ -382,9 +437,7 @@
     "vocabulary": [],
     "contentSummary": "This sub-topic introduces learners to activities that develop their bodies phys ically. Learners engage in structured developmental activities such as climbing, balancing and stretching to improve fitness and body control.  Start with simple activities before progressing to complex ones  Ensure safety at all times (check equipment and spacing)  Encourage all learners to participate at their own ability level  Demonstrate each activity clearly before learners attempt  Use praise and correction to improve performance Reflection  Which activity did yo u enjoy most?  What was difficult for yo u?  How can yo u improve yo ur performance?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Demonstrating developmental activities (obstacles, parallel bars, mats ... )"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [
       "Developmental activities demonstrated appropriately."
@@ -423,8 +476,7 @@
     "contentSummary": "Gymnastics involves body movements that improve flex ibility, balance, strength, and coordination. In this sub-topic, learners focus on stunt and tumbling activities, especially individual and simple group formations (headstand, forward roll, backward roll, astride vault, crouch balance, pyramids) which require cooperation and safety awareness.  Begin with warm-up ex ercises to avoid injuries.  Demonstrate each activity step-by-step.  Emphasize safety (use of mats, proper spacing).  Allow learners to practice gradually.  Provide individual support where needed. Reflection:  Were learners able to perform the movements correctly?  Which activity was most challenging?  Did learners follow safety rules?  How can the lesson be improved nex t time?  Always begin with warm-up ex ercises  Use appropriate gym nastic equipment to prevent injuries  Ensure learners understand roles (base must be strong and stable)  Start with simple stunts before complex ones  Emphasize teamwork and communication  Supervise closely at all times Reflection  Did learners cooperate well in groups?  Did learners follow safety rules during activities?  Which learners need more support with balance and coordination?  Were all learners actively involved?",
     "teacherActivities": [],
     "learnerActivities": [
-      " Performing tumbling activities (frog jumps, backward roll, crouch balance)",
-      " Stunt activities performed correctly"
+      " Performing tumbling activities (frog jumps, backward roll, crouch balance)"
     ],
     "teachingMaterials": [],
     "assessmentCriteria": [
@@ -465,9 +517,7 @@
     "vocabulary": [],
     "contentSummary": "Ball games involve the use of balls in different sports such as football, netball, volleyb all, and basketball. These games help learners improve coordination, teamwork, and movement skills while following rules and playi ng safely.  Start with simple skills before moving to complex ones  Ensure safety by checking the playing area  Use demonstrations for each skill  Encourage participation from all learners  Adapt activities for learners with different abilities Reflection  Were learners able to perform the skills correctly?  Did learners follow rules during the games?  Which activities did learners enjoy most?  What challenges did learners face?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Practicing Sport ex ercises (football, netball, volleyball, basketball, exercises)"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [
       "Ball games practiced appropriately"
@@ -499,9 +549,7 @@
     "vocabulary": [],
     "contentSummary": "Water orientation helps learners become familiar and comfortable in water by gradually introducing them to the environment, building confidence and reducing fear. It includes basic movements such as safe entry and ex it, moving in shallow water, and breath control, as well as simple skills like floating, gliding and kicking. These activities improve coordination and balance while preparing learners for safe and effective participation in swimming.  Always begin with warm-up ex ercises.  Ensure safety rules are clearly explained before entering water.  Start in shallow water for beginners.  Provide continuous supervision.  Encourage learners who may fear water. Reflection  What did learners find easy or difficult?  Were learners confident in water?  Did all learners participate safely?  What improvements are needed for the nex t lesson?",
     "teacherActivities": [],
-    "learnerActivities": [
-      " Demonstrating simple swimming skills (side strokes)"
-    ],
+    "learnerActivities": [],
     "teachingMaterials": [],
     "assessmentCriteria": [
       "Simple swimming skills demonstrated skillfully."
@@ -526,17 +574,17 @@
     "learningEnvironmentOptions": [],
     "outcomes": [
       "Perform unskilled strokes",
-      "perform traditional games. (This must come from the syllabus with its"
+      "S: 2.5.1.1 perform traditional games. (This must come from the syllabus with its"
     ],
     "competencies": [
-      "Creativity and Innovation, citizenship, Collaboration, Communication,",
+      "S: Creativity and Innovation, citizenship, Collaboration, Communication,",
       "Financial literacy and emotional intelligence"
     ],
     "vocabulary": [],
     "contentSummary": "Water games are fun and engaging activities carried out in water that help learners practice and improve their swimming skills in an enjoyable and relax ed way. Through these games, learners develop confidence and become more comfortable in the water while reducing fear and anx iety. Water games also provide opportunities to practice simple swimming strokes, floating, kicking, and other basic movements in a playful environment. In addition, they promote teamwork, cooperation, and social interaction among learners, making the learning process both effective and enjoyable.  Always ensure safety first in water activities  Start in shallow water for beginners  Encourage learners to relax and not fear water  Demonstrate slowly and clearly before practice  Give individual support where needed Reflection  Were learners able to perform basic strokes?  Did learners enjoy the water games?  Which learners need more support?  Was the environment safe and effective?  Ensure all learners are safe and comfortable in water  Start with simple games before introducing complex ones  Encourage teamwork rather than competition  Use clear and simple instructions  Monitor all learners closely Reflection  What game did yo u enjoy most?  How did yo u help yo ur team?  What did yo u learn about playing in water safely? Gives learners the following scenario  Imagine a group of children gathered under a tree at home many years ago. There is no football, no television and no mobile phone. One child picks up a stick, another finds a few seeds and someone draws a circle in the dust. Within minutes, the laughter begins. Children are running, spinning tops, chasing one another and shouting with excitement.  Now ask yourself a question: “How could children have so much fun with almost nothing?” Brainstorming and asking each other what types of games those could be. Short answer question, class participation and engagement. LESSON DEVELOPMENT  Draws the table on the board, asks learners to fill in the missing information by identifying the traditional games from each category and discuss how they are performed. Task 1 Complete the table by filling in the categories of traditional games and how they are performed  Group project, research, discussion and presentation  Puts learners in groups leaners in groups and ask them to choose two traditional games from the list and perform Task 2 Choose two traditional games from the list and perform in their groups  Class participation and engagement,  skill execution and application of theory (showing understanding of rules  Ask learners to invent new traditional games, write their rules and give them local names. Task 3 Invent new Traditional games, use only natural or recycled material, write their rules and give them local names.  Project and research, reports, class participation and engagement. EXERCISE /APPLICATION  Ask learners to identify at least three Traditional games Identify the traditional games from any of the  Depth of analysis, class from any of the three provinces in Zambia and demonstrate how they are performed three provinces of Zambia and demonstrate how they are performed. (Bearing in mind that some provinces belong to the same ethnic groups.) participation, short answer questions, demonstration ... HOMEWORK  Ask learners to organise an inclusive Traditional Games Day in School.  Tells/instructs learners to create their own examples of traditional games. Task 4  Organise an inclusive Traditional games Day in school to be performed at a latter time.  Research and consultation,  Creativity and originality,  Organisation and presentation. CONCLUSION Review key concepts:  Traditional games, jumping, running, secretive and knowledge testing games  Sharing reflections and insights on different types of Traditional games  Short answer Questions, class discussions and participation... LESSON EVALUATION: TEACHER/SELF EVALUATION: SAMPLE LESSON PLAN 2 NAME OF SCH0OL: KANJALA PRIMARY SCHOOL NAME OF TEACHER: LITONGOLA MWELWA DATE: 23/ 03/ 2026 CLASS: Grade 4A DURATION: 120 Minutes TIME: 08:00-10:20 TOTAL NO. OF PUPILS: 54 SUBJECT: Expressive Arts",
     "teacherActivities": [],
     "learnerActivities": [
-      " Performing unskilled strokes"
+      "for"
     ],
     "teachingMaterials": [
       "/RESOURCES: Bottle tops",
@@ -553,7 +601,7 @@
       "Traditional Games Performed Accordingly. (This must come from the syllabus as it",
       "is)",
       "LESSON PROGRESSION:",
-      "STAGES TEACHER’S ROLE LEARNERS’ ROLE ASSESSMENT CRITERIA"
+      "STAGES TEACHER’S ROLE LEARNERS’ ROLE"
     ],
     "exercises": [
       "Learners to do the following:",
@@ -573,22 +621,13 @@
       "Ministry of General Education. (2017). Learner-Centred Pedagogy Guidelines. Lusaka: MoGE.",
       "Ministry of General Education. (2018). School Health and Nutrition Guidelines. Lu saka: MoGE.",
       ", (2024) Curriculum Framework Expressive Arts",
-      "Ex aminations Council of Zambia (ECZ). (2017). Standards-Based Assessment Guidelines for",
+      "Ex aminations Council of Zambia (ECZ). (2017). Standards-Based",
+      "Guidelines for",
       "Primary Schools. Lu saka: ECZ.",
       "UNESCO. (2015). Quality Physical Education (QPE) Guidelines for Policy-Makers. Paris:",
       "UNESCO.",
-      "World Health Organization (WHO). (2010). Global Recommendations on Physical Activity for",
-      "Health. Geneva: WHO.",
-      "Appendices:",
-      "SAMPLE LESSON PLAN 2",
-      "NAME OF SCHHOL: SALULA SECONDARY SCOOL",
-      "NAME OF TEACHER: MR. MUDONLO DATE: 17/ 05/ 2026",
-      "CLASS: 2 B DURATION: 80 Minutes",
-      "TIME: 08:20-09:20 TOTAL NO. OF PUPILS: 54",
-      "SUBJECT: EXPRESSIVE ARTS",
-      "TOPIC: 2.5 RECREATIONAL GAMES AND ACTIVITIES (This must come from the syllabus with its serial",
-      "number)",
-      "SUB-TOPIC: 2.5.1 traditional Games. (This must come from the syllabus with its serial number)"
+      "World Health Organization (WHO). (2010). Global Recommendations on Physical",
+      "CRITERIA"
     ],
     "remedialActivities": [],
     "extensionActivities": []
@@ -603,10 +642,10 @@
     "suggestedLessons": 1,
     "learningEnvironmentOptions": [],
     "outcomes": [
-      "Use appropriate attire and tools."
+      "S: 4.1.1.1 Use appropriate attire and tools."
     ],
     "competencies": [
-      "Analytical, Creativity, Collaboration, Communication, emotional intelligence,",
+      "S: Analytical, Creativity, Collaboration, Communication, emotional intelligence,",
       "digital literacy, problem solving."
     ],
     "vocabulary": [],
