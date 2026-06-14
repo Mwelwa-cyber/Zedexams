@@ -152,6 +152,11 @@ const diagrams = {
     render: (p, col) => `<svg viewBox="0 0 200 360" xmlns="http://www.w3.org/2000/svg" width="200"><g font-family="Lora,serif" font-size="13" font-weight="600">${[p.a,p.b,p.c,p.d].map((t,i)=>`<rect x="20" y="${20+i*84}" width="160" height="50" rx="${i===2?0:14}" fill="${col}" fill-opacity=".15" stroke="${col}" stroke-width="2" transform="${i===2?`rotate(45 100 ${45+i*84})`:''}" /><text x="100" y="${50+i*84}" text-anchor="middle" fill="#1c1612">${esc(t)}</text>`).join('')}${[0,1,2].map(i=>`<line x1="100" y1="${72+i*84}" x2="100" y2="${102+i*84}" stroke="#1c1612" stroke-width="2"/><polygon points="100,${108+i*84} 95,${100+i*84} 105,${100+i*84}" fill="#1c1612"/>`).join('')}</g></svg>` }
 };
 
+// Expose the catalog so the AI generator (06-generate.js, which loads before
+// this file) can render model-supplied diagram specs through the very same
+// SVG renderers used by the manual inserter. Single source of truth.
+if (typeof window !== 'undefined') window.__studioDiagrams = diagrams;
+
 function openDiagramModal() {
   const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
   const cats = ['All', ...Array.from(new Set(Object.values(diagrams).map(d => d.cat)))];

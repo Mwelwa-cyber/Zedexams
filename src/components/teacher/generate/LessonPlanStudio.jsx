@@ -23,7 +23,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v18'
+const STUDIO_ASSET_VERSION = 'v19'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -648,6 +648,25 @@ export default function LessonPlanStudio() {
                   <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div className="lp-section-body">
+                  <div className="field-row">
+                    <div className="field">
+                      <label>Language level</label>
+                      <select id="f-language-level" defaultValue="standard">
+                        <option value="simple">Simple — plain words (lower primary / ECE)</option>
+                        <option value="standard">Standard — clear professional (default)</option>
+                        <option value="advanced">Advanced — richer vocabulary (upper / secondary)</option>
+                      </select>
+                      <div className="helper">Controls how simple or rich the wording is.</div>
+                    </div>
+                    <div className="field">
+                      <label>Level of detail</label>
+                      <select id="f-detail-level" defaultValue="summarised">
+                        <option value="summarised">Summarised — short, like the official samples</option>
+                        <option value="detailed">Detailed — fuller steps &amp; examples</option>
+                      </select>
+                      <div className="helper">Summarised keeps each cell brief.</div>
+                    </div>
+                  </div>
                   <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>
                     <div className="format-card active" data-format="modern">
                       <div className="format-card-body">
@@ -732,6 +751,10 @@ export default function LessonPlanStudio() {
                   </div>
                   <div className="toggle-row" id="t-vocab" data-on="false">
                     <div className="lbl">Include Key Vocabulary<small>4–8 terms with learner-friendly meanings</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row on" id="t-diagrams" data-on="true">
+                    <div className="lbl">Auto-add diagrams<small>For Maths &amp; Science: AI draws shapes, number lines, sets, charts &amp; science diagrams where they help</small></div>
                     <div className="toggle-switch"></div>
                   </div>
                 </div>
