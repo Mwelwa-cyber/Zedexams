@@ -22,8 +22,13 @@ npm run preview                   # serve built dist/ locally
 npm run lint                      # flat-config ESLint over src/ + functions/
 npm run lint:fix
 
-# Tests — there is no test runner. Each script is plain `node` invocation.
-npm run test:all                  # what CI's "Tests" job runs (importer + sanitize + schema + …)
+# Tests — two suites, kept separate by filename:
+#   • `*.test.js` / `test-*.mjs`  → plain `node` assertion scripts (the bulk of the suite)
+#   • `*.spec.{js,jsx}`           → Vitest (jsdom) component/hook/behaviour tests
+npm run test:all                  # what CI's "Tests" job runs (importer + sanitize + schema + …) — the node scripts
+npm run test:unit                 # Vitest run over src/**/*.spec.{js,jsx} (jsdom)
+npm run test:unit:watch           # Vitest watch mode
+npm run test:coverage             # Vitest + v8 coverage of src/ → ./coverage (frontend gap is measured here)
 npm run test:importer             # quiz-document parser unit tests
 npm run test:sanitize             # rich-text sanitiser
 npm run test:schema               # question schema
@@ -34,7 +39,6 @@ npm run test:rules-text           # Firestore rules text checks
 npm run test:storage-rules-text   # Storage rules text checks
 npm run test:exam-grading         # functions/grading/dailyExamGrading.test.js
 npm run test:ai-prompt-policy     # functions/aiPromptPolicy.test.js
-npm run test:momo-settlement      # functions/momoSettlement.test.js
 npm run test:cors                 # functions/cors.test.js
 npm run test:storage-cleanup      # functions/storageCleanup helpers
 
@@ -183,7 +187,7 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 - **ESLint config is in `eslint.config.js`** (flat config). The file is heavily commented with the rationale for each rule. `no-unused-vars` exempts `caughtErrors` (lots of intentional `catch (err) {}`), `no-empty` allows empty catches, `eqeqeq` is `'smart'`. Tests + Cloud Functions get Node globals and `no-unused-vars` off.
 - **Pre-commit hook** (`.husky/pre-commit`) only runs `scripts/check-file-integrity.mjs` against staged files — it does **not** run lint-staged or ESLint. The history of stash/restore cycles corrupting Windows-filesystem working trees is in the hook comments; don't switch it back without reading that. Run `npm run lint` manually before pushing if you care about CI-clean output.
 - **lint-staged config exists in package.json** but is only invoked by lint-staged-aware tooling, not by the pre-commit hook.
-- **No test runner / no `vitest`**. Every test file is invoked with `node` directly. Add new tests as plain ES-module scripts that throw on assertion failure and add a `test:*` npm script + a line in `test:all`.
+- **Two test suites, split by filename.** (1) The original suite: every `*.test.js` / `test-*.mjs` file is a plain ES-module script invoked with `node` directly — throw on assertion failure, add a `test:*` npm script + a line in `test:all`. This is still the right tool for pure logic, schemas, parsers, and Cloud Functions helpers. (2) Vitest (added for frontend coverage): files named `*.spec.{js,jsx}` run under `npm run test:unit` in jsdom — use these for React component/hook/behaviour tests via `@testing-library/react`. `npm run test:coverage` reports v8 line coverage of `src/` into `./coverage`. The two never collide: Vitest only collects `*.spec.*`, the node scripts are all `*.test.*`. Config is `vitest.config.js`; shared setup (jest-dom matchers + auto-cleanup) is `src/test/setup.js`.
 - **Router is fully lazy.** Adding a new route in `App.jsx` means `lazy(() => import('...'))` + a `<Suspense fallback={<PageLoader />}>` if it's a new top-level branch. Don't import page components eagerly.
 - **`<NavLink>` / `Navigate` use `getRoleLandingPath`** (`src/utils/navigation.js`) to send each role to the right landing page after auth.
 - **Public theme paths** are pinned to the brand default theme in `App.jsx` (`PUBLIC_THEME_PATHS` + `isPublicThemePath`). Adding a new always-public route may need an entry here so it doesn't inherit a saved learner theme.
