@@ -35,6 +35,7 @@ export const LIBRARY_TYPES = {
   NOTES:            'notes',
   ASSESSMENTS:      'assessments',
   MARK_SCHEDULES:   'mark_schedules',
+  CLASS_TIMETABLES: 'class_timetables',
 }
 
 export const LIBRARY_SECTIONS = [
@@ -125,6 +126,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: false,
     createTo:  '/teacher/generate/mark-schedule',
     emptyHint: 'Enter marks once — totals, positions and report comments are calculated for you.',
+  },
+  {
+    id:        LIBRARY_TYPES.CLASS_TIMETABLES,
+    label:     'Class Timetables',
+    folder:    'Class Timetables',
+    icon:      '🗓️',
+    accent:    '#e3dcf5',
+    hasTerm:   true,
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/class-timetable',
+    emptyHint: 'Build a weekly class timetable from the curriculum subjects.',
   },
 ]
 

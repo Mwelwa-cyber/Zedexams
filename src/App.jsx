@@ -183,6 +183,7 @@ const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/S
 const MarkScheduleStudio = lazy(() => import('./components/teacher/generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('./components/teacher/generate/WeeklyForecastStudio'))
 const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/RecordOfWorkStudio'))
+const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
 
@@ -533,6 +534,7 @@ export default function App() {
           <Route path="/admin/generate/worksheet"       element={<AdminRoute><WorksheetGenerator /></AdminRoute>} />
           <Route path="/admin/generate/flashcards"      element={<AdminRoute><FlashcardGenerator /></AdminRoute>} />
           <Route path="/admin/generate/scheme-of-work"  element={<AdminRoute><SchemeOfWorkGenerator /></AdminRoute>} />
+          <Route path="/admin/generate/class-timetable" element={<AdminRoute><ClassTimetableStudio /></AdminRoute>} />
           <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
           <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />
@@ -565,6 +567,7 @@ export default function App() {
           <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><ClassTimetableStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
