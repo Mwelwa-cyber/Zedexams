@@ -319,7 +319,7 @@ export default function ClassTimetableStudio() {
   const subjectLabels = subjects.map((s) => s.label).filter(Boolean)
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
       <SeoHelmet title="Class timetable" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader

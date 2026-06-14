@@ -170,7 +170,7 @@ export default function NotesStudio() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
       <SeoHelmet title="Notes studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
