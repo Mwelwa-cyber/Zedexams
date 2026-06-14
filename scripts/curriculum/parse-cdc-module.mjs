@@ -73,6 +73,7 @@ const SUBJECTS = [
   [/oral\s+english/i, "oral_english"],
   [/musical\s+arts/i, "musical_arts_education"],
   [/travel\s+and\s+tourism/i, "travel_and_tourism"],
+  [/principles\s+of\s+accounts|accountancy|accounting/i, "principles_of_accounts"],
   [/\bliteracy\b/i, "literacy"],
   [/\bnumeracy\b/i, "numeracy"],
   [/\bgeography\b/i, "geography"],

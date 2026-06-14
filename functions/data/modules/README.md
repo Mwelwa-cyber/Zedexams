@@ -13,7 +13,7 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 197 modules across 20 files
+## What's here — 219 modules across 24 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
@@ -31,18 +31,24 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `geography_g8_t2.json` | G8 | Geography | 2 | 7 |
 | `musical_arts_education_g8_t2.json` | G8 | Musical Arts Education | 2 | 7 |
 | `food_and_nutrition_g8_t1.json` | G8 | Food & Nutrition | 1 | 6 |
+| `geography_g8_t1.json` | G8 | Geography | 1 | 6 |
+| `ict_g8_t1.json` | G8 | ICT | 1 (see note) | 6 |
+| `mathematics_g8_t1.json` | G8 | Mathematics I | 1 (see note) | 6 |
 | `oral_english_g1_t3.json` | G1 | Oral English | 3 | 6 |
 | `social_studies_g4_t1.json` | **G4 (live)** | Social Studies | 1 (see note) | 6 |
 | `commerce_g8_t1.json` | G8 | Commerce | 1 | 5 |
 | `oral_english_g1_t2.json` | G1 | Oral English | 2 | 5 |
 | `additional_mathematics_g8_t1.json` | G8 | Mathematics II | 1 | 4 |
+| `religious_education_g8_t2.json` | G8 | Religious Education | 2 | 4 |
 | `civic_education_g8_t2.json` | G8 | Civic Education | 2 | 3 |
 
 `Form 1 = Grade 8`. **English G4**, **Expressive Arts G4** and **Social Studies
 G4** are inside the platform's live Grade 4–7 band today; the rest ground Junior-Secondary /
-ECE / Grade 1 when those go live. `social_studies_g4_t1.json` comes from a
-"Term 1 & 2" PDF with no clean in-document term divider, so all six topics are
-stored under Term 1 — review and re-tag the Term 2 ones before/after import. Note the Scheme-of-Work generator's `ALLOWED_SUBJECTS` currently
+ECE / Grade 1 when those go live. Several files come from combined multi-term PDFs with **no clean in-document
+term divider** (Social Studies G4 "Term 1 & 2", ICT "Terms 1, 2 & 3",
+Mathematics I) — their topics are all stored under Term 1; review and re-tag
+the later-term ones before/after import. (Expressive Arts G4 *did* have a clean
+`TERM 2` page and is split correctly.) Note the Scheme-of-Work generator's `ALLOWED_SUBJECTS` currently
 covers `english`, `civic_education`, `expressive_arts`, `social_studies`, etc.,
 but not yet `commerce`, `geography`, `food_and_nutrition`, `oral_english`,
 `literacy`, `design_and_technology` — those modules still store and ground other
@@ -70,8 +76,10 @@ The parser only keeps schema-valid rows (≥1 specific competence), and four
 sources were dropped or under-extracted because their layout hides the
 structure:
 
-- **ICT (Form 1)** — `Topic 1:` / `Sub-Topic:` glued mid-line with **no
-  `Specific Competence` labels** at all; nothing validated.
+- **Principles of Accounts (Form 1, T2)** — only two sub-topics carried a
+  distinct competence (the rest repeat one outcome); author the rest by hand.
+  (Note: an earlier short ICT *sample* PDF didn't parse, but the full
+  "ICT Terms 1, 2 & 3" module does and is included above.)
 - **Literature in English (Form 1, T1 & T2)** — set-book / prose driven; the
   whole of "Oral Literature" collapses into one sub-topic, so it under-extracts.
 - **Grade 1 Literacy (T1) and Grade 1 Oral English (T1)** — the T1 books repeat

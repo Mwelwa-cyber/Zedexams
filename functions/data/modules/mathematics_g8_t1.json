@@ -1,0 +1,230 @@
+[
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "NUMBERS",
+    "subtopic": "Classification of Numbers.",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply classification of numbers in real life situations Key question: You are on duty to wash the kitchen utensils you used for lunch. After washing you are to pack them. What would you consider in the packing process? Can you do the same for numbers?"
+    ],
+    "competencies": [
+      "Analytical Thinking, Communication, Problem Solving, Collaboration, Financial Literacy, Digital literacy, Creativity. Key question: Imagine a world where numbers no longer exist. One day, you wake up to find that all numerical data has vanished from your life. How different would the world be?"
+    ],
+    "vocabulary": [],
+    "contentSummary": "From the examination of the two groups of numbers of learners will observe the properties of the numbers - Numbers in A (Decimal part is repeating and for others its terminating, they can be written in the form /0 , contains perfect squares ... Rational Numbers) - Numbers in B (Decimal part is non repeating and for others its nonterminating, they cannot be written in the form /0 , contains non perfect squares ...Irrational Numbers ) - Groups of numbers expected are natural, whole numbers, prime numbers, even, odd, integers rational, irrational, composite numbers. Learning A factor is a number that goes into another number without leaving a remainder. From the activity, all possible arrangements of equal groups of any number give the factors of the number (1, 2, 4, 5, 10, 20 are factors of 20) A multiple is a number into which another number goes without leaving a remainder. From the activity, 20 is a multiple of 1, 2, 4, 5, 10, 20 Every number is both a factor and multiple of itself Learning Listing method involves (a) HCF: listing all the factors of the given numbers and picking the highest of the factors common to the numbers. (b)LCM: listing as many multiples of the given number and picking the lowest common multiple. Prime factorisation involves expressing a given number as products of its prime factors. (a) To find HCF using prime factorisation, express the given numbers as a product of prime factors. Multiply the lowest powers of common prime factor to get the HCF. The HCF of 12 and 18 12=2×2×3=24×3 18=2×3×3=2×34 퐻퐶퐹=2!×3!=ퟔ (b) To find LCM using prime factorisation, express the given numbers as a product of prime factors. Multiply the highest powers of all prime factors to get the LCM. The HCF of 12 and 20 12=2×2×3=24×3 20=2×2×5=24×5 퐿퐶푀=24×3!×5!=ퟑퟎ HCF is used for finding the largest equal division or shared factor between things (dividing resources, scheduling overlapping events, and Time Management, Building Projects (Like Fencing),...) LCM is useful when finding smallest common interval or multiple when events with different cycles need to align or match, (purchasing items in bulk, coordinating schedules, Finding Common Time Intervals, Planning Work Cycles, Working with Timetables...). Learning",
+    "teacherActivities": [],
+    "learnerActivities": [
+      ".3: Individual Work Task: a. Create groups of numbers that have the same properties, from the numbers given in the table. 4 0 5 21 -7 23 12 -3 7 -13 37 8 3 2/5 10 19 4/7 휋 √9 26 √7 -1 14 o.25 35 9 16 √25 2.5 43 11 18 1 37 2 -4 19 √2 √3 6 b. State the properties of the numbers in the each of the groups you have created. Key considerations - Ensure that learners are given enough time to analyse the numbers. - Fill in the gaps of classifications not identified by asking probing questions. - Check on the learners as they work.",
+      "Investigating the factors and multiples of numbers",
+      ".1 Group work Materials: Paper, markers Whiteboards, Manila paper, Number cards (20 to 50), Counters (bottletops, cubes, ...) brought by learners, Worksheets for recording findings Instructions: Divide the class into small groups. pick a number card and show it to the learners ask the learners to group their counters into equal sets based on the different ways the given number can be organised ask the learners to explain how they came up with the equal groups ask follow up questions in case of any missing groups. Ask each group to pick a number card and find all possible equal groups and prese",
+      ".2: Individual task.",
+      "Investigating ways of finding Highest common factor (HCF) and Lowest common multiple (LCM) (prime factorisation, listing...). Activity3.1 : Pair work Materials Needed: Paper and pencil A calculator (optional) Whiteboard (for demonstration) Pre-prepared sets of pairs of numbers for practice (36 and 60, 24 and 36, 12 and 15...) Instructions: Give learners cards with pairs of numbers Learners (in pairs) will explore different methods to find the Highest common factor (HCF) and Lowest common multiple (LCM)of two numbers. Presentation, learners to present to the class the method used to find Highes",
+      ".2: (Individual task) 1. A teacher has 120 pencils and 150 erasers. If she wants to distribute them into identical packages with the same number of pencils and erasers in each, what is the maximum number of identical packages she can create? 2. The school tuckshop receives deliveries at regular intervals. One supplier delivers every 12 days and the other supplies every 18 days. Both suppliers delivered today, in how many days will the two suppliers deliver on the same day again? 3. Tinta works for state house and is tasked to plan the Presidents movements. He must ensure that the President pas",
+      "Creating number patterns (games, puzzles)",
+      ".1 : Project: Design and Present a Math Board Game Procedure: Learnersshouldcreate a board game that challenges players to use their understanding of number properties, factors, multiples, HCF and LCM. Presentation: Learners will present their games to the class and explain how the game incorporates the mathematical concepts they've learned. Learners may incorporate technology into their games or during presentations."
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Numbers applied in real life situations consistently. SUB"
+    ],
+    "exercises": [
+      "Criteria: - Accuracy: Correctly identifying and explaining properties of numbers, finding factors, and calculating HCF and LCM. - Creativity: Originality and design of the number-based games, puzzles, and patterns. - Presentation: Clear and confident explanation of the final project (board game), with an emphasis on the math concepts involved."
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "Combined Operations on Real Numbers",
+    "subtopic": "Combined Operations on Real Numbers",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply combined operations on real numbers in real life situations"
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "Word problems should be written as mathematical expressions correctly; learners write the problems as mathematical statements (in question (1) the mathematical statement could be 6×15−7×(15−10)) The correct order of operations should be applied in Combined operations. P: Parentheses (Brackets) – First, simplify expressions inside parentheses (brackets). E: Exponents (Powers) – Next, evaluate exponents (like squares, cubes, ...). MD: Multiplication and Division – Perform multiplication and division from left to right. AS: Addition and Subtraction – Finally, perform addition and subtraction from left to right When solving word problems, learners should understand the problem, devise a plan, carryout the plan and evaluate the solution.",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Solving real life situations using combined operations. Activity1.1:Group work Place learners in groups and ask them to work out the following questions: 1. A pen costs k15 and a pencil costs k10 less than a pen. Find the total cost of six pens and seven pencils. 2. Two females namedSpiwe and Patience, work a forty-hour week, Spiwe is paid at the rate of k450 per hour and Patience is paid at the rate of k600 per hour. Calculate how much they were paid in one week. Learners present their work to the whole class",
+      ".2 Individual activity - Learners answer the following questions 1. Jones decides to host a party for 4 of his friends. He needs 5 snack packs at k59 each, 5 drinks at k11.50each , music system at k200 , transport to the venue at k100 one way and k200 for their venue. If they are given a 15% discount on all their expenses, find their total expenditure. 2. A family of 5 is planning to go on a road trip from one city to another. The distance between the two cities is 300 kilometres, their car has a fuel consumption rate of 15 kilometres per litre. Fuel costs k34 per litre. They will spend a nigh"
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Combined operations on real numbers applied in everyday life situations correctly.",
+      "T0PIC2: INTEGERS Introduction Integers are the building blocks of mathematics. Mastering integers is key to understanding essential math operations like addition, subtraction, multiplication, and division, which lay the groundwork for tackling more complex concepts. In this topic, we’ll dive into how these operations on integers apply to real-world situations and why they matter. Key Terms: Intege",
+      "How do you think negative numbers and zero can be useful in our everyday lives?"
+    ],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "Combined Operations on Real Numbers",
+    "subtopic": "The Four Operations on Integers",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Use integers in real life."
+    ],
+    "competencies": [],
+    "vocabulary": [],
+    "contentSummary": "- If integer tiles are used, they will act as a visual representation of addition and subtracting i. (+5)+(0)=(+5) Add four positive tiles The answer Red (+) We can add any number of pairs of negative and positive tiles but they will equal zero and still give us the number we started with ii. (+1)+(+4)=(+5) iii. (+5)+(−4)=(+1) iv. (−3)+(−4)=(−7) v. (−7)+(+3)=(−4) Add four positive tiles The answer Add four negative tiles The answer The pair of negative and positive tiles will equal zero Add four negative tiles The answer vi. (+5)−(+4)=(+1) vii. (−2)−(+4)=(−6) Add three positive tiles The answer The pair of negative and positive tile will equal zero Take away four positivetiles The answer The pair of negative and positive tile will equal zero viii. (+2)−(−4)=(+6) ix. (−2)−(−4)=(+2) Take away four positivetiles The answer There are not enough positive tiles so we add zeros (four pairs ) then take away four positive tiles Take away four positive tiles The answer There are no negative tiles to remove so we add zeros (four pairs) then take away four negative tiles Take away four positive tiles The answer There are not enough negative tiles to remove so we add zeros (two pairs) then take away four negative tiles Ensure that the activity selected allows learners to explore and practice the addition and subtraction operation and discover the following generalizations a. (−2)+(−4) 푐푎푛 푏푒 푒푥푝푟푒푠푠푒푑 푎푠 −2−4 b. (−2)−(−4) 푐푎푛 푏푒 푒푥푝푟푒푠푠푒푑 푎푠 −2+4 Positive integer + Positive integer = Positive integer, +5+(+3)=+8 5+3=8 Negative integer + Negative integer = Negative integer −ퟒ+(−ퟑ)=−7 −4−3=−7 Positive integer + Negative integer = subtract the numerically smaller number form the numerically bigger number and take the sign of the bigger one For (Negative < Positive): 7+(−4)=3 (since 7 is larger, the result is positive) For (Negative > Positive): −6+3=−3 (since -6 is larger, the result is negative) Any number + 0 = the number itself 8+0=8 0+(−5)=−5 When multiplying two integers of the same signs the result should be positive [4×3=12 , (−2)×(−5)=10 ] When multiplying two integers of the different signs the result should be negative [4×(−3)=(−12) , 2×(−5)=(−10) ] These conclusions for multiplying integers are the same as those for dividing integers. When dividingtwointegers of the same signs the result is positive ( 4÷2=2 , (−2)÷(−1)=2 When dividing two integers of the different signs the result is negative 4÷(−2)=(−2 ), (−2)÷(1)=(−2)",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Exploring the applications of the four operations (addition, subtraction, multiplication, division) on integers in real life situations (temperatures, bank account balance, share market, index goal, difference...)",
+      ".1 Project - Give the learners the following project. - Project should be submitted by the end of the topic and presentation shall be the last activity in this topic. Project Title: \"Exploring integers: Real-Life Applications\" Learners will work on a project where they simulate real-life scenarios that involve the use of integers. They will research different situations where integers are used, solve problems related to these situations, and create a visual or written report of their findings.",
+      ".3:individual work 1. Jack dreams of becoming a meteorologist one day! A meteorologist is someone who studies the atmosphere, weather patterns, and climate. To kickstart his journey, Jack decides to practice by observing different climates around the world. He begins by creating a colorful map that shows various climate zones around the Earth and tabulates average winter temperatures for each of the zones in 2024. i. Of the climate Zones shown in the table, which zone has: a. Has the highest average winter temperature? b. Has the lowest average winter temperature? ii. Zambia has typically a Tr",
+      ".4: Individual work Scenario: Mobile money Account Transactions Imagine you have a mobile money account with neither withdraw nor deposit charges. Over the course of a week, you make several deposits and withdrawals. The table below shows the balance changes after each transaction. Positive numbers represent deposits (money added to the account), while negative numbers represent withdrawals (money taken out). Day Transaction Description Balance Change New Account Balance Monday Deposit: K200 +200 +200 Tuesday Withdrawal: K50 -50 +150",
+      ".5 : Task (pair work) Learners to be placed in pairs to attempt the task below. Copy and complete the table below. The first 2 rows have been completed for you. Multiplication Repeated addition Solution 4×3 4×(−2) (−2)×4 2×10 2×(−4) i. Follow up questions a. What do you observe about the sum in each row? b. What conclusions can we make based on the results? ii. Learners to present and explain their work to the class.",
+      ".6 : Pair work Learners to work in pairs and take the activity below. Instructions: i. In pairs learners should fill in the blank spaces of the arithmetic grid given below. Learners should clearly show all their working.",
+      ".7: Individual task Learners to answer questions individually"
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Integers used in real life correctly"
+    ],
+    "exercises": [
+      "Criteria: Learners will be awarded marks for • Accuracy: Correct use of addition, subtraction, multiplication, and division of integers.",
+      "Relevance to real life: How well the project connects the abstract concept of integers to a practical scenario. • Creativity and Clarity of Explanation: Ability to explain the project and the use of integers clearly and effectively.",
+      "White (-)",
+      "ii. Provide learners with integer tiles and have them explore how to represent the mathematical statements with number tiles. a. (+5)+(0)=(+5) b. (+1)+(+4)=(+5) c. (5)+(−4)=(+1) d. (−3)+(−4)=(−7) e. (−7)+(+3)=(−4) f. (−1)+(+4)=(+3) g. (+5)−(+4)=(+1) h. (−2)−(+4)=(−6) i. (+2)−(−4)=(+6)",
+      "j. (−2)−(−4)=(+2) iii. Learners to apply number tiles to solving questions on operations on integers (addition, subtraction) a. (−2)+(−4)= b. (+2)−(−4)= c. (−2)−(−4)= d. (−2)−(−4)= iv. Learners to make conclusions about the integer value of the result after adding: a. Any number + 0 b. Positive integer + Positive integer c. Negative integer + Negative integer d. Positive integer + Negative integer"
+    ],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "APPROXIMATIONS AND ESTIMATIONS",
+    "subtopic": "Approximations",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Use approximation to make informed decisions in real life."
+    ],
+    "competencies": [
+      "Problem solving, analytical thinking, collaboration, communication, digital literacy and financial literacy."
+    ],
+    "vocabulary": [],
+    "contentSummary": "• Approximate values are used when the exact value of something cannot be found, or it is not important that the value be exact for the exercise. Rounding is one way of approximating a value. • By using different instruments with different degrees of accuracy, the learners will be forced to pick one of the two measurements to be used on their poster based on their reasoning (measuring an apple with a digital scale and with a beam balance that is correct to one decimal place may give, digital scale = 70.34grams while the beam balance will give 70.3grams) • The selection of one of the two measures to place on the poster will lead the learners into approximation. • Significant figures are used to express degree of detail (precision) of a measurement. • All non-zero digits in a number are significant (3727 has 4 significant figures) • Zeros between non-zero digits are always significant in both whole and decimal numbers (105 has 3 significant figures, 1.03 has 3 significant figures, 0.00402 has 3 significant figures) • Zeros at the end of a whole numberare not significant. • Zeros at the end of a decimal number are significant (3.00 has 3 significant figures) • Zeros before the first non-zero digit in a decimal are not significant (0.0045 has 2 significant figures) • In the group work, rounding off 0.07855g to 2 significant figures gives 0.079g (since 8 is rounded up), to 3 significant figures it is 0.0786g and 4 significant figures is 0.07855g. • Based on these results on the dosage when the number is rounded off, it either gets bigger or smaller, in this case it may make the drug stronger or weaker. • In general, when rounding off to a specified number of significant figures - Identify the significant figures. - Determine the position of the last significant figure (based on how many you need). - Check the Digit After the Last Significant Figure. If the digit immediately following the last significant figure is 5 or greater, round the last significant figure up. If the digit following the last significant figure is less than 5, leave the last significant figure unchanged. Replace any remaining digits with zeros (if it’s a whole number) or remove them (if it’s a decimal). • The representation on the calculator is known as Scientific Notation. It is written as: 푎 × 10푛where. i. 푎 is a number greater or equal to one and less than 10. ii. 푛is an integer (positive, negative, or zero). iii. 10푛 scales the number to its actual magnitude. Steps to follow when expressing in standard form: a) Large Numbers in Standard Form i. Move the decimal point to the left until you have one nonzero digit to the left of the decimal point. This number becomes a. ii. Count the number of places you moved the decimal point. This becomes the positive exponent (푛). iii. Write the number as: 푎×10푛 b) Smaller numbersin Standard Form i. Move the decimal point to the right until you have one nonzero digit to the left of the decimal point. This number becomes a. ii. Count the number of places you moved the decimal point. This becomes the negative exponent (푛). iii. Write the number as: 푎×10-푛 • Approximating numbers in scientific notation to a given degree of accuracy involves rounding the coefficient (the number before the \"×10n \") to the desired number of significant figures or decimal places. Here are the key rules and steps: • Consider the number of significant figures needed • Round the coefficient ‘a’ to the specified number of significant figures or decimal places using standard rounding rules (If the digit after the desired precision is 5 or greater, round up. If it is less than 5, round down). • If rounding the coefficient changes its magnitude (e.g., from 9.99 to 10.0), adjust the exponent n to maintain the correct value. For example: 9.99×103 rounded to 2 significant figures becomes 10×103, which is rewritten as 1.0×104. • Express the number in scientific notation with the rounded coefficient and adjusted exponent( if applicable ) .",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Exploring approximations in real life situations.",
+      ".1 Measuring Materials needed: Objects (books, desks, liquids...), measuring instruments (ruler, measuring tape, measuring cylinder, string...), pencil, paper. Procedure: • Place learners in small groups or pairs. • Ensure each group/pair has the materials needed. • Groups/ pairs to measure the objects using two different instruments. • Groups to round of the measurement to a given degree of accuracy ( 10 units, unit, tenth, hundredth ...) • Groups/pairs to the design a poster giving details of the quantities they have measured. • Groups/ pairs to explain how they took the measurement. Present",
+      ".2: Individual activity Answer the following: 1. You are shopping for groceries and the total prices of items in your cart are as follows: K12.49, K5.75, K8.23, K15.99, and K9.50.",
+      "Investigating the significance of figures in measures.",
+      ".1: Group Assignment Learner to be given this assignment as part of conclusion to activity 1.1 exploring approximation and the findings presented as part of activity two.",
+      ".2 individual work i. A Weather station in Mongu depends on Significant figures to determine the exactness(detail) of a measurement from rain gauges. It has two rain gauges for measuring the amount of rainfall. On the 4th of January the two gauges gave readings as gauge A = 63.5mm and gauge B = 60.40mm. a. State the number of significant figures in the measurement from : 1) gauge A , 2) gauge B. b. Which of the two rain gauges is more detailed?",
+      "Expressing measures (whole and decimal) to a required number of significant figures.",
+      ".1: Group work Put the learners in small groups and let them discuss the following question, their answers should be presented to the class. 1. A pharmaceutical company is producing new medication in capsules, and each capsule must contain exactly 0.07855 grams of the active ingredient. However, due to the limitations of the measuring instruments used during production, the company decides to round off the exact measure to a specified number of significant figures. a) Assist the company to round off 0.07855 g to: i. 1 significant figure ii. 2 significant figures iii. 3 significant figures",
+      ".2: Individual task 1. Jane is an engineer working on designing a part that needs to fit exactly into an existing system. She measures the length of the part with a high detail ruler and the measurement comes out as 15. 206. For consistency and simplicity, the company standard requires her to report all measurements with 2 significant figures. What measure would she report? 2. A rectangular iron sheet has got sides 5.302 cm and 7.60 cm. Round off its area correct to 3 significant figures. 3. Give each of the following numbers correct to 3 significant figures. (a) 47035(b) 3530 (c) 0.6001 (d) 2",
+      "Exploring ways of expressing large and small measures",
+      ".1: Brainstorming Instruction - Learners to be placed in groups and answer the following questions.",
+      ".1",
+      "Exploring scientific notation (a × 10n) using scientific calculators andactivities(notation maze, scientific notation maze, scientific notation Bingo, scientific notation escape, room activity, card game...) Design/ select activities that would allow learners to explore scientific notation. One such activity has been provided:",
+      ".1 brainstorming - Learners to answer questions in activity 4.1. this time they mustuse Scientific calculator - The pairs to then answer the follow up question: a. Analyze the calculator’s representation of the solution to question 1 and 2 from the activity 4.1 explain what each term represents and analyze how you think the number can be converted back with or without a calculator. - Pairs / groups to then present their solutions to the class and give reasons.",
+      ".2: Scientific Notation learning by play activities. Design/ select activities that would allow learners to explore scientific notation. One such activity has been provided:",
+      ".2:Individual work 1. Mars is approximately 227, 939, 921 km from Earth. How many buses of length 6m each could be placed end to end to reach Mars from Earth? Give your answer in standard form.",
+      "Approximating measures in scientific form to a specified degree of accuracy.",
+      ".1 Pair work 1. “A spacecraft traveling to Mars covers a distance of 225,623,000 kilometers. Engineers need to plan fuel requirements and communicate efficiently. a) Express this distance in scientific notation and round it to 2 and 3 significant figures?\" b) If the cost of fuel per litre is K34.67 and the spacecraft consumes 67000litres per km to reach Mars, determine the cost of the fuel required in standard form correct to 2 and 3 significant figures. c) State which cost is realistic for this distance and explain why.",
+      ".2 Individual work 1. The mass of the earth is approximated as being 5,972,000,000,000,000,000,000,000 kilograms. a. Express this in scientific Notation correct to i. 2 significant figures ii. 3significant figures"
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Approximations used to make informed decisions in real life appropriately."
+    ],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "APPROXIMATIONS AND ESTIMATIONS",
+    "subtopic": "Estimations",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Use estimation to make informed decisions in real life."
+    ],
+    "competencies": [
+      "Problem solving, analytical thinking, collaboration, communication, digital literacy and financial literacy."
+    ],
+    "vocabulary": [],
+    "contentSummary": "• From the practical activity 1, we obtained different measurements against the true value (8.4m, 9.6m,...) the difference between the true value and the measured value is called absolute error. Absolute error = |Measured Value−True value| (8.4m -8.2m=0.2m,...) in this case our absolute error is 0.2m. • Relative error is the ratio of the absolute error of the measurement to the true measurement. (refer to the different measurements that learners have found). Relative Error = ghijklmn noojopoln qrkln • Error in measurement may also be expressed as a percent of error. The percent of error is found by multiplying the relative error by 100% Percentage Error = ghijklmn noojopoln qrkln ×100% • Tolerance refers to the allowable limit of variation in a measurement, value, or dimension. It defines the range within which a measurement or value is considered acceptable or accurate. One of the ways of expressing Tolerance range is True Value ± Tolerance value ( for instance 10 cm ± 0.2 cm), where the true value (10 cm) is the target or ideal measurement. The tolerance range (±0.2 cm) specifies how much the actual measurement can deviate from the true value and still be acceptable. • Tolerance range =Nominal Value ± Tolerance Value • Tolerance range can also be expressed using limits, ( lower limit ≤ l < upper limit where the lower bound = true value – tolerance value , upper bound = true value + tolerance value and l is the true value ) • When the true value is rounded off, the acceptable error can be found by taking half the smallest unit value (8.4cm to one decimal place smallest unit value of 0.1 giving a tolerance range of 8.4±0.05 cm) The smallest unit value of: i. 5cm is 1 ii. 5.3 km is 0.1 iii. 10.234litres is 0.001 - The objective of the activity is to increase learners’ awareness of how errors arise during manufacturing process as they compare the measurements of the model to those on their design",
+    "teacherActivities": [],
+    "learnerActivities": [
+      "Estimating measures and comparing them with actual measurements",
+      ".2 : Individual work 1. Judith was enrolled into attend a boarding school at Form 1. She wants to ask her mother for money to buy school stationery, but she hasn’t been to the shops in a long time. She remembers that the previous year, a book cost K39.50, a pen was K5.00, and a box of pencils was K40.00. She knows that the prices have definitely gone up, but she has no time to confirm the prices. If she needs 15 books, 5 pens, and 5 boxes of pencils, how much should she ask her mother for?",
+      "Interpreting the absolute, relative, percentage errors and tolerance in real life.",
+      ".1 :Practical activity Instructions • The teacher sets a predetermined target like the length of the classroom (8.4m,9.6m...) after measuring it and does not tell the learners. • learners as groups/ pairs to take turns in measuring the length of the classroom and give the measurement found. • Learners in pairs/group answer the following: i. Compare your measurements, with the true value provided (8.4) and find the difference. ii. Find the value that relates the difference to the true measurement as a fraction. iii. What percentage of the true value is the difference found in (i). iv. Given tha",
+      ".2 Pair work 1. You are tasked with measuring the length of a piece of wire using a ruler. The true length (measured with a highly accurate tool) is 100 cm, but your ruler is not perfect, and you get a measurement of 98 cm. a. what is your i. Absolute error ii. Relative error iii. Percentage error b. Given that the tolerance Value is ±0.1cm , is you measure within the acceptable range? Give reasons for your answer. 2. A Milling company called Nyambe millers has put a tolerance value for a bag of mealie meal at ±0.5kg . Musonda decides to buy a bag of mealie meal from them. As soon as she gets ",
+      ".3: Individual work 1. John is a carpenter, and he is tasked with building custom doors for state house. Each door needs to fit perfectly in the door frame. His blueprint says the door width should be 90 cm, but the manufacturing process allows for a small difference and hence sets a tolerance of ±0.5 cm for the width of the door. A door whose width is outside the acceptable range is returned to the production cycle for modifications. i. What is the acceptable range of the door’s width? ii. He measures the width of three doors as 89.8 cm,90.6 cm and 90.4cm. Will any of the three be returned to"
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "– Estimations to make informed decisions in real life used correctly. 2.6 Project: Designing Instructions: • Learners to design of their choice(table, chair, wire car, ...), learners should be encouraged to use computers to make the designs where possible. • They will then build a model based on their layout design and set acceptable errors for the model. • After completing the model learners will"
+    ],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  },
+  {
+    "schemaVersion": "1.0",
+    "grade": "G8",
+    "subject": "mathematics",
+    "term": 1,
+    "topic": "SETS",
+    "subtopic": "Operations on sets",
+    "suggestedLessons": 1,
+    "learningEnvironmentOptions": [],
+    "outcomes": [
+      "Apply set operations in real life context. Learning Activity1-Creating sets using information gathered by learners (both numerical and descriptive)"
+    ],
+    "competencies": [
+      "Communication, creativity, innovation, collaboration, critical thinking, digital literacy and problem solving."
+    ],
+    "vocabulary": [],
+    "contentSummary": "• From the activity learners will notice that the members in the category are sets with items called elements which are well defined (same characteristics) and distinct (not repeated).For instance, a set of Natural numbers from 1 up to 7 maybe {1,2,3,4,5,6,7}, a group of vowels could be {a, e, i, o, u}, names of the villages maybe named as {Kasese, Mwangu , Fendi,...} • A set is denoted with a capital letter (A, B,...) and elements enclosed using curly brackets or braces {} for instance, V= {a, e, i, o, u}. The order of elements in that group or collection may not be important. Learning From the activity: Roster form or listing set of shoe sizes can be (S = {1, 2, 3, 4, ,...}or S= {34,35,36,...}, V= {Kasese, Mwangu, Fendi,...}) i. Set-builder notation form, since the shoe sizes are recorded using a set of numbers which belong to Natural numbers, thus maybe: {x | x is a Natural number less than 5} or {x| x<5, x∈N}. (Numerical elements) ii. Number line: ({x | x is a Whole number less than 5} or {x| x<5, x∈N}. (Numerical elements ) iii. A Venn diagram will provide visual representation of the universal set aswell as subcategories and their intersection. ( descriptive and Numerical) 0 -3 -2 -1 3 2 1 -4 S= {x| -2 ≤ x < 3} 0 -3 -2 -1 3 2 1 -4 S= {-3, -1, 0, 3} Sets without any intersection are disjoint sets • The learners reflect on their learning through discussions. - Drawing a Venn diagram with i. actual elements will show a point at the beginning of each number. E B A .2 .20 .12 .18 .4 .19 .5 .30 .17 .9 .34 .40 .41 ii. number of elements will not show a point at the beginning of each number. Learning • The intersection of sets is the set of all elements which are common to the given sets. From the activity above, the list of the common hobbies in each pair is the intersection ( ∩) set. This is written as A ∩B where A is a set of Ann’s hobbies and B is a set of Boyd’s hobbies and ∩is the symbol for intersection. • The union (∪) of sets is the set of all elements which belong to the sets under consideration. From the activity, the list of all the hobbies for a pair is the Union set. The complement of a set is the set of elements that are in one set but not in the other set. From the activity above, the list of hobbies that are one partners list and are not part of the other partners list is the compliment. Given a set A its compliment is Ac. • (All the hobbies,... form the universal (E) set). - The sets to be shed should: i. be created by the learners themselves ii. include some combined operations iii. must have operations for upto 3 sets .( Ac∩ (BUC) ) - Each pair should create presentations that clearly shows the operations by shadings. A ∩퐵 A ∪퐵",
+    "teacherActivities": [],
+    "learnerActivities": [
+      ".1 Pair work In pairs learners gather objects/information Instructions - Divide learners into small groups and assign each group a specific category to gather information about (names of villages where they come from, seasons, rivers in Zambia, colors, groups of numbers, unit of sweets, letters of the English alphabet, all the teachers in school, shoe sizes, teachers of mathematics at your school, members of your class, sets of numbers, whole numbers less than 10, set of multiples of 10 less than 100,...). - Each group must either research online or brainstorm to list items at least 10 items t",
+      "Exploring different forms of set representation (listing, number line, set builder notation, Venn diagram; difference between elements and number of elements on Venn diagram) 2.1: Brainstorming Instructions - Each group to split thecategory given in activity 1.1 into two subcategories.(teachers in the school: teachers of English, teachers of history ...) - Learners to then explore different ways of representing their set. - learners to present their work to the class",
+      ".2: pair work - Learners in pairs answer the following question 1. A local running club tracks the distances run by its members over a month. The club wants to analyze the performance of two different groups: beginners and experienced runners. Each group records their running distances in kilometers. set of Distances Run by Beginners (B): • B= {5,7,10,12,15} set of Distances Run by Experienced Runners (Ex): • Ex = {10,12,15,18,20} a. Use a Venn diagram to represent this information by showing the i. actual elements. ii. number of elements",
+      ".3 : Individual",
+      "Leaners answer the following questions 1. A local library tracks the number of books read by its members every day for eight days. The library wants to analyse the reading habits of two groups of members: Casual Readers and Avid Readers. Each group records the number of books read in the past month.",
+      "Exploring and interpreting various, single and combined set operations (intersection(∩), union (∪) complement, set difference (-),...) through games and real-life activities (event planning, email management, task management, shopping list, scores of an experiment, tests,...)",
+      ".1: Pair work Instructions: • Place learners in pairs or more.",
+      ".2:Group work • This activity should be repeated, with learners placed in groups of 3 each • Ask each group to make one list of their hobbies. • Ask learners to identify common hobbies and list them separately. Hobbies that are: i. common to all three ii. common to any two but not the third. • Ask learners to list hobbies that are unique to them ( not on any of the other two friends lists) • Pairs to present and explain their Solutions to the class",
+      ".3 Individual work 1. A school library categorizes its books into three different categories : Fiction, Biography, and Science. For record keeping purposes the books are assigned numbers.In order to arrange the books in an orderly manner, the Librarian decides to number the books so that he can clearly see the overlap. The books were arranged in categories as follows: Category: Fiction Book title Number given Harry Potter 1 The Martian 2 I know why the caged bird sings 3 Dune 4 A Journey to the centre of the Earth 6 Paths of glory 10 The Wise Book 12 A brief History of Time 14",
+      "Representing combined operations on Venn diagram using tools (Computers, paperboard, chalkboard,...upto 3 sets).",
+      ".1: Pairs / groups Materials needed : (Computers, paperboard, chalkboard,...) In pairs/ Groups learners to create various set operations and represent them on a Venn diagram by shading Learners to show set operations on a Venn diagram through shading a given operation on a set using as many tools as is locally available (Microsoft word, Paper board, black board...)"
+    ],
+    "teachingMaterials": [],
+    "assessmentCriteria": [
+      "Set operations as applied in real life context correctly.",
+      "References (2023) Zambia Education Curriculum Framework. Zambia: Lusaka, . (2023) Mathematics I Syllabus- Ordinary Level Secondary Education Form 1-4. Zambia: Lusaka, . BOYD C. J etal (1999) Mathematics’ Application and connections course 1 and 2,New York : Glencoe/ Mcgraw- Hill. https://thirdspacelearning.com/gcse-maths/ https://courses.lumenlearning.com/waymakermath4libarts/chapter/union-interse"
+    ],
+    "exercises": [],
+    "remedialActivities": [],
+    "extensionActivities": []
+  }
+]
