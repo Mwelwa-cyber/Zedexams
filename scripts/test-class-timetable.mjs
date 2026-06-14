@@ -15,13 +15,20 @@ import {
   lessonCapacity,
   curriculumSubjectsForGrade,
   defaultPeriodsPerWeek,
+  recommendedLessonPeriods,
   roundRobinTokens,
   autoFillTimetable,
+  validateTimetable,
   totalAllocated,
   filledCount,
   buildTimetableArtifact,
   DEFAULT_DAYS,
 } from '../src/utils/classTimetable.js'
+import {
+  getFrameworkForGrade,
+  bandForGrade,
+  subjectLoad,
+} from '../src/utils/curriculumFramework.js'
 import { buildClassTimetableWorkbookFiles } from '../src/utils/classTimetableToXlsx.js'
 
 let pass = 0
@@ -157,6 +164,115 @@ test('buildClassTimetableWorkbookFiles emits a valid single-sheet workbook', () 
   assert(sheet.includes('CLASS TIMETABLE'), 'title missing')
   assert(sheet.includes('<mergeCells'), 'expected merged title/break cells')
   assert(sheet.includes('Mathematics'), 'a placed subject should appear in the sheet')
+})
+
+/* ── 2023 framework allocations ───────────────────────────────── */
+
+test('bandForGrade maps grades to the framework bands', () => {
+  assert(bandForGrade('G2') === 'lower_primary', 'G2 should be lower primary')
+  assert(bandForGrade('Grade 5') === 'upper_primary', 'Grade 5 should be upper primary')
+  assert(bandForGrade('G9') === null, 'secondary grades have no framework band yet')
+})
+
+test('getFrameworkForGrade returns the official upper-primary allocation (42/wk)', () => {
+  const fw = getFrameworkForGrade('G5')
+  assert(fw, 'expected a framework for G5')
+  assert(fw.periodMinutes === 40, `upper primary periods are 40 min, got ${fw.periodMinutes}`)
+  assert(fw.totalPeriods === 42, `expected 42 periods/week, got ${fw.totalPeriods}`)
+  const maths = fw.subjects.find((s) => s.label === 'Mathematics')
+  assert(maths && maths.periodsPerWeek === 6, 'Mathematics should be 6 periods/week')
+  const tech = fw.subjects.find((s) => s.label === 'Technology Studies')
+  assert(tech && tech.periodsPerWeek === 7, 'Technology Studies should be 7 periods/week')
+  // Expressive Arts OR Home Economics — the alternative is seeded at 0.
+  const he = fw.subjects.find((s) => s.label === 'Home Economics')
+  assert(he && he.periodsPerWeek === 0 && he.choiceGroup === 'practical', 'Home Economics is the seeded-0 choice alternative')
+})
+
+test('getFrameworkForGrade returns the lower-primary allocation (42/wk, 30-min)', () => {
+  const fw = getFrameworkForGrade('G2')
+  assert(fw && fw.periodMinutes === 30, 'lower primary periods are 30 min')
+  assert(fw.totalPeriods === 42, `expected 42 periods/week, got ${fw.totalPeriods}`)
+  assert(fw.subjects.length === 4, `expected 4 combined learning areas, got ${fw.subjects.length}`)
+})
+
+test('curriculumSubjectsForGrade seeds the framework period counts for primary', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  assert(totalAllocated(subjects) === 42, `seeded week should total 42, got ${totalAllocated(subjects)}`)
+  assert(subjects.every((s) => s.load), 'every seeded subject carries a cognitive load')
+})
+
+test('subjectLoad classifies core academic subjects as heavy', () => {
+  assert(subjectLoad('Mathematics') === 'heavy', 'Maths is heavy')
+  assert(subjectLoad('Integrated Science') === 'heavy', 'Science is heavy')
+  assert(subjectLoad('Expressive Arts') === 'light', 'Expressive Arts is light')
+  assert(subjectLoad('Social Studies') === 'medium', 'Social Studies is medium')
+})
+
+test('recommendedLessonPeriods right-sizes the grid for the weekly load', () => {
+  assert(recommendedLessonPeriods(42, DEFAULT_DAYS) === 9, '42 over 5 days → 9 periods/day')
+  assert(recommendedLessonPeriods(42, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) === 7, '42 over 6 days → 7/day')
+})
+
+/* ── assembly / closing rows ──────────────────────────────────── */
+
+test('buildPeriods emits assembly before Period 1 and closing after the last lesson', () => {
+  const periods = buildPeriods({
+    startTime: '07:30',
+    periodMinutes: 40,
+    lessonPeriods: 3,
+    breaks: [
+      { afterPeriod: 0, minutes: 15, name: 'ASSEMBLY', event: 'assembly' },
+      { afterPeriod: 'end', minutes: 10, name: 'CLOSING', event: 'closing' },
+    ],
+  })
+  assert(periods[0].event === 'assembly' && periods[0].start === '07:30', 'assembly should be the first row, at the start time')
+  assert(periods[1].kind === 'lesson' && periods[1].start === '07:45', 'Period 1 starts after the 15-min assembly')
+  const last = periods[periods.length - 1]
+  assert(last.event === 'closing', 'closing should be the final row')
+  assert(lessonPeriods(periods).length === 3, 'still three lesson rows')
+})
+
+/* ── balanced distribution ────────────────────────────────────── */
+
+test('autoFill spreads heavy subjects so no day is overloaded', () => {
+  const periods = buildPeriods({ lessonPeriods: 9, breaks: [] }) // 9×5 = 45 slots
+  const subjects = curriculumSubjectsForGrade('G5')               // 42 framework periods
+  const slots = autoFillTimetable({ subjects, days: DEFAULT_DAYS, periods })
+  // Count heavy lessons per day; the spread should keep them within the limit.
+  for (const day of DEFAULT_DAYS) {
+    let heavy = 0
+    for (const p of lessonPeriods(periods)) {
+      const subj = slots?.[p.id]?.[day]
+      if (subj && subjectLoad(subj) === 'heavy') heavy += 1
+    }
+    assert(heavy <= 4, `${day} carries ${heavy} heavy subjects — should be ≤ 4`)
+  }
+})
+
+/* ── validation ───────────────────────────────────────────────── */
+
+test('validateTimetable flags a missing subject and counts placements', () => {
+  const periods = buildPeriods({ lessonPeriods: 6, breaks: [] })
+  const subjects = [
+    { id: 'm', label: 'Mathematics', periodsPerWeek: 5, load: 'heavy' },
+    { id: 'e', label: 'English', periodsPerWeek: 5, load: 'heavy' },
+  ]
+  // Place only Mathematics, leave English empty.
+  const slots = autoFillTimetable({ subjects: [subjects[0]], days: DEFAULT_DAYS, periods })
+  const report = validateTimetable({ slots, subjects, periods, days: DEFAULT_DAYS })
+  assert(!report.ok, 'report should not be ok when English is missing')
+  assert(report.errors.some((m) => /English/.test(m)), 'English should be flagged missing')
+  const maths = report.bySubject.find((r) => r.label === 'Mathematics')
+  assert(maths && maths.placed === 5 && maths.status === 'ok', 'Mathematics should be fully placed')
+})
+
+test('validateTimetable passes a correctly-allocated week', () => {
+  const periods = buildPeriods({ lessonPeriods: 9, breaks: [] })
+  const subjects = curriculumSubjectsForGrade('G5')
+  const slots = autoFillTimetable({ subjects, days: DEFAULT_DAYS, periods })
+  const report = validateTimetable({ slots, subjects, periods, days: DEFAULT_DAYS })
+  assert(report.totalPlaced === 42, `expected all 42 framework periods placed, got ${report.totalPlaced}`)
+  assert(report.errors.length === 0, `expected no errors, got: ${report.errors.join('; ')}`)
 })
 
 console.log('')

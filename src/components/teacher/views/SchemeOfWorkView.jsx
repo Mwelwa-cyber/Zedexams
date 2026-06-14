@@ -28,6 +28,59 @@ export default function SchemeOfWorkView({ scheme }) {
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top text-left'
 
+/* Provenance of a scheme's topics — "show where the info came from". */
+export const SOURCE_META = {
+  syllabi_studio: { label: 'Syllabi Studio', short: 'Syllabi', bg: '#dcfce7', fg: '#166534' },
+  uploaded_module: { label: 'Uploaded module', short: 'Module', bg: '#dbeafe', fg: '#1e40af' },
+  ai_inferred: { label: 'General CBC (AI)', short: 'AI', bg: '#fef3c7', fg: '#92400e' },
+  teacher: { label: 'Teacher', short: 'Teacher', bg: '#f3e8ff', fg: '#6b21a8' },
+}
+
+function SourceTag({ source }) {
+  const meta = SOURCE_META[source]
+  if (!meta) return null
+  return (
+    <span
+      className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide leading-none"
+      style={{ background: meta.bg, color: meta.fg, fontFamily: 'system-ui, sans-serif' }}
+      title={`Source: ${meta.label}`}
+    >
+      {meta.short}
+    </span>
+  )
+}
+
+function ProvenanceLegend({ scheme }) {
+  const weeks = Array.isArray(scheme.weeks) ? scheme.weeks : []
+  const present = new Set(weeks.map((w) => w.source).filter((s) => SOURCE_META[s]))
+  if (scheme.curriculumSource && SOURCE_META[scheme.curriculumSource]) {
+    present.add(scheme.curriculumSource)
+  }
+  if (present.size === 0) return null
+  const overall = SOURCE_META[scheme.curriculumSource]
+  return (
+    <div
+      className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]"
+      style={{ fontFamily: 'system-ui, sans-serif', color: '#566f76' }}
+    >
+      <span className="font-bold uppercase tracking-wide">Sources:</span>
+      {overall && (
+        <span>
+          Topics mainly from <strong style={{ color: overall.fg }}>{overall.label}</strong>.
+        </span>
+      )}
+      <span className="flex flex-wrap items-center gap-2">
+        {Array.from(present).map((s) => (
+          <span key={s} className="inline-flex items-center gap-1">
+            <SourceTag source={s} />
+            <span>{SOURCE_META[s].label}</span>
+          </span>
+        ))}
+      </span>
+    </div>
+  )
+}
+
 function DocCellList({ items }) {
   const list = Array.isArray(items) ? items.filter(Boolean) : (items ? [items] : [])
   if (list.length === 0) return <>—</>
@@ -69,8 +122,13 @@ function OfficialScheme({ scheme }) {
         </div>
       )}
 
+      {/* Provenance legend — where the topics came from */}
+      <div className="mt-3">
+        <ProvenanceLegend scheme={scheme} />
+      </div>
+
       {/* Scheme grid */}
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-1 overflow-x-auto">
         <table className="w-full border-collapse border border-black min-w-[860px]">
           <thead>
             <tr className="align-bottom">
@@ -89,7 +147,10 @@ function OfficialScheme({ scheme }) {
             {(scheme.weeks || []).map((w, i) => (
               <tr key={i}>
                 <td className={`${TD} font-bold text-center`}>{w.week}</td>
-                <td className={`${TD} font-bold`}>{w.topic}</td>
+                <td className={`${TD} font-bold`}>
+                  {w.topic}
+                  {w.source && <div><SourceTag source={w.source} /></div>}
+                </td>
                 <td className={TD}>{w.subtopic}</td>
                 <td className={TD}><DocCellList items={w.specificCompetences} /></td>
                 <td className={TD}><DocCellList items={w.learningActivities} /></td>

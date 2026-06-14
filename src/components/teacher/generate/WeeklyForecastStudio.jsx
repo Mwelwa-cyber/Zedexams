@@ -32,8 +32,10 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
   getSubjectsForGrade, isSubjectValidForGrade, defaultSubjectForGrade,
+  getTermModuleOutline,
 } from '../../../utils/teacherTools'
 import {
+  getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
 } from '../../../config/curriculum'
 import {
@@ -161,6 +163,10 @@ export default function WeeklyForecastStudio() {
   const [schemesStatus, setSchemesStatus] = useState('loading')
   const [schemeId, setSchemeId] = useState('')
   const [weekPick, setWeekPick] = useState('')
+  // Curriculum-module fallback: when there's no saved scheme, the teacher can
+  // load the term's uploaded modules and build the forecast from those.
+  const [moduleWeeks, setModuleWeeks] = useState([])
+  const [moduleStatus, setModuleStatus] = useState('idle') // idle|loading|ready|empty|error
 
   // Class timetable source picker.
   const [timetables, setTimetables] = useState([])
@@ -257,8 +263,21 @@ export default function WeeklyForecastStudio() {
     () => buildTopicCatalog(kbTopics || [], header.grade, subjectSlug),
     [kbTopics, header.grade, subjectSlug],
   )
-  const topicNames = useMemo(() => topicCatalog.map((t) => t.topic), [topicCatalog])
+  // Topic names from the syllabus KB; fall back to the static curriculum
+  // catalogue when the KB has no rows for this grade/subject so the dropdown
+  // is never empty for a catalogued combination.
+  const topicNames = useMemo(() => (
+    topicCatalog.length ? topicCatalog.map((t) => t.topic) : getTopicsForTeacherSubject(subjectSlug, header.grade)
+  ), [topicCatalog, subjectSlug, header.grade])
   const kbLoading = kbTopics == null
+
+  // Sub-topics for a day's topic: prefer the syllabus KB, fall back to the
+  // static curriculum catalogue (which carries its own topic→subtopic map).
+  const subtopicOptionsFor = (topic) => {
+    const fromKb = subtopicsForTopic(topicCatalog, topic)
+    if (fromKb.length) return fromKb
+    return getSubtopicsForTeacherSubject(subjectSlug, header.grade, topic)
+  }
 
   // The timetable's view of this subject: which weekdays + how many periods.
   const selectedTimetable = useMemo(
@@ -309,32 +328,63 @@ export default function WeeklyForecastStudio() {
     })
   }
 
-  // ── Scheme of Work source ──
+  // ── Scheme of Work + uploaded-module source ──
   const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
+  // Week options come from the selected scheme, or — when none is selected —
+  // from the loaded curriculum modules (each module sub-topic is one option).
   const weekOptions = useMemo(() => {
-    if (!selectedScheme) return []
-    return schemeWeeks(selectedScheme.output).map((w) => {
+    const source = selectedScheme ? schemeWeeks(selectedScheme.output) : moduleWeeks
+    return source.map((w) => {
       const n = weekNumberOf(w)
       const norm = normalizeSchemeWeek(w)
-      return { value: String(n), label: `Week ${n} — ${norm.topic || 'untitled'}`, week: w }
+      const label = selectedScheme
+        ? `Week ${n} — ${norm.topic || 'untitled'}`
+        : `${norm.topic || 'Topic'} — ${norm.subtopic || 'sub-topic'}`
+      return { value: String(n), label, week: w }
     })
-  }, [selectedScheme])
+  }, [selectedScheme, moduleWeeks])
+
+  // Load the term's uploaded curriculum modules for the current grade/subject/
+  // term. Used as the third source when there's no saved scheme to start from.
+  async function loadModules() {
+    const subject = subjectSlugFor(header.subject)
+    if (!subject) { toast.error('Pick a subject first.'); return }
+    setModuleStatus('loading')
+    const res = await getTermModuleOutline({ grade: header.grade, subject, term: header.term })
+    if (!res.ok) { setModuleStatus('error'); toast.error(res.error || 'Could not load modules.'); return }
+    const weeks = Array.isArray(res.data?.weeks) ? res.data.weeks : []
+    setSchemeId(''); setWeekPick('')
+    setModuleWeeks(weeks)
+    setModuleStatus(weeks.length ? 'ready' : 'empty')
+    if (!weeks.length) {
+      toast.info('No curriculum modules uploaded for this grade, subject and term yet.')
+    } else {
+      toast.success(`${weeks.length} sub-topic${weeks.length === 1 ? '' : 's'} loaded from curriculum modules.`)
+    }
+  }
 
   function buildFromScheme() {
     const picked = weekOptions.find((o) => o.value === weekPick)
-    if (!picked) { toast.error('Pick a scheme and a week first.'); return }
+    if (!picked) { toast.error(selectedScheme ? 'Pick a scheme and a week first.' : 'Load modules and pick a sub-topic first.'); return }
     const weekdays = days.map((d) => d.day)
     const content = buildForecastDays(picked.week, Math.max(1, weekdays.length))
     setDays(weekdays.map((wd, i) => ({ ...(content[i] || blankDay(wd)), day: wd })))
-    const out = selectedScheme.output || {}
-    setHeader((h) => ({
-      ...h,
-      grade: selectedScheme.inputs?.grade || h.grade,
-      subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
-      term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
-      weekNumber: Number(picked.value) || h.weekNumber,
-    }))
-    toast.success(`Week ${picked.value} loaded across ${weekdays.length} day${weekdays.length === 1 ? '' : 's'} — adjust each as you need.`)
+    if (selectedScheme) {
+      const out = selectedScheme.output || {}
+      setHeader((h) => ({
+        ...h,
+        grade: selectedScheme.inputs?.grade || h.grade,
+        subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
+        term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
+        weekNumber: Number(picked.value) || h.weekNumber,
+      }))
+      toast.success(`Week ${picked.value} loaded across ${weekdays.length} day${weekdays.length === 1 ? '' : 's'} — adjust each as you need.`)
+    } else {
+      // Built from a module sub-topic — header grade/subject/term already
+      // reflect what the teacher chose, so leave them and just load the days.
+      setUsedModuleFallback(true)
+      toast.success(`Sub-topic loaded across ${weekdays.length} day${weekdays.length === 1 ? '' : 's'} — adjust each as you need.`)
+    }
   }
 
   // ── Teaching days ──
@@ -412,6 +462,7 @@ export default function WeeklyForecastStudio() {
     })
     setDays(DEFAULT_WEEKDAYS.map(blankDay))
     setSchemeId(''); setWeekPick(''); setTimetableId('')
+    setModuleWeeks([]); setModuleStatus('idle')
     setUsedModuleFallback(false)
     autoTimetableRef.current = ''
     setGenerationId(null)
@@ -553,9 +604,9 @@ export default function WeeklyForecastStudio() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Scheme of work */}
+              {/* Scheme of work + uploaded modules */}
               <div className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>📋 Scheme of work</p>
+                <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>📋 Scheme of work or modules</p>
                 <div>
                   <label className="studio-label">Saved scheme</label>
                   <select value={schemeId} onChange={(e) => { setSchemeId(e.target.value); setWeekPick('') }} className="studio-input" disabled={schemesStatus !== 'ready' || !schemes.length}>
@@ -564,6 +615,22 @@ export default function WeeklyForecastStudio() {
                       <option key={s.id} value={s.id}>{titleForGeneration(s)}</option>
                     ))}
                   </select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={loadModules}
+                    disabled={moduleStatus === 'loading'}
+                    className="studio-btn-ghost text-xs disabled:opacity-50"
+                  >
+                    {moduleStatus === 'loading' ? 'Loading modules…' : '📚 Load from curriculum modules'}
+                  </button>
+                  <span className="text-xs" style={{ color: '#566f76' }}>
+                    {moduleStatus === 'ready' && !selectedScheme && `${moduleWeeks.length} module sub-topic${moduleWeeks.length === 1 ? '' : 's'} — pick one in “Week”.`}
+                    {moduleStatus === 'empty' && 'No modules for this grade, subject and term yet.'}
+                    {moduleStatus === 'error' && 'Could not load modules.'}
+                    {moduleStatus === 'idle' && 'No saved scheme? Use uploaded modules.'}
+                  </span>
                 </div>
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
@@ -673,14 +740,17 @@ export default function WeeklyForecastStudio() {
                   </div>
                   <div>
                     <label className="studio-label">Sub-topic / to be done</label>
-                    {subtopicsForTopic(topicCatalog, d.topic).length > 0 && (
-                      <PickSelect
-                        options={subtopicsForTopic(topicCatalog, d.topic)}
-                        value={subtopicsForTopic(topicCatalog, d.topic).includes(d.subtopic) ? d.subtopic : ''}
-                        placeholder="＋ Pick a sub-topic…"
-                        onPick={(v) => applyTopicToDay(i, d.topic, v)}
-                      />
-                    )}
+                    {(() => {
+                      const subOpts = subtopicOptionsFor(d.topic)
+                      return subOpts.length > 0 && (
+                        <PickSelect
+                          options={subOpts}
+                          value={subOpts.includes(d.subtopic) ? d.subtopic : ''}
+                          placeholder="＋ Pick a sub-topic…"
+                          onPick={(v) => applyTopicToDay(i, d.topic, v)}
+                        />
+                      )
+                    })()}
                     <input type="text" value={d.subtopic} maxLength={160} onChange={(e) => updateDay(i, 'subtopic', e.target.value)} placeholder="…or type your own" className="studio-input !py-1.5 text-sm" />
                   </div>
                   <div>

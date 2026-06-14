@@ -19,11 +19,28 @@ const {
 } = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 
-const {resolveCbcContext} = require("./cbcKnowledge");
+const {
+  resolveCbcContext,
+  resolveTermModuleOutline,
+  classifySubjectForGrade,
+  getOfficialSubjectsForGrade,
+} = require("./cbcKnowledge");
 const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+const {resolveSchemeOutline} = require("./schemeCurriculumOutline");
+const {
+  sanitizeTimetableInput,
+  summarizeTimetableForSubject,
+} = require("./schemeTimetable");
+const {buildSchemeAdvisories} = require("./schemeAdvisories");
+
+/** "integrated_science" → "Integrated Science" for human-facing messages. */
+function humanizeSubject(slug) {
+  return String(slug || "").split("_").filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
 
 // Permissive top-level shape — validateSchemeOfWork() does the strict
 // checking. Tool mode forces an object response and removes "AI returned
@@ -71,6 +88,9 @@ function sanitizeInputs(raw = {}) {
     teacherName: str(raw.teacherName, 80),
     school: str(raw.school, 120),
     instructions: str(raw.instructions, 500),
+    // Optional: a trimmed copy of one of the teacher's saved Class Timetables
+    // so the scheme can pace around the real week. null when not attached.
+    timetable: sanitizeTimetableInput(raw.timetable),
   };
 }
 
@@ -93,13 +113,76 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   }
 
   // CBC context — scheme-of-work uses the broad grade+subject context,
-  // not a specific topic, so we pass the term as the topic anchor.
-  const {contextBlock, kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
+  // not a specific topic, so we pass the term as the topic anchor. The
+  // curriculum OUTLINE (Syllabi Studio → seed → admin overlay, with uploaded
+  // modules folded in) is the authoritative topic list; the context block is
+  // the supplemental grounding (and the uploaded-module fallback path).
+  const [{contextBlock, kbMatch, kbWarning, kbVersion}, outline, termOutline] =
+    await Promise.all([
+      resolveCbcContext({
+        grade: inputs.grade,
+        subject: inputs.subject,
+        topic: `Term ${inputs.term} overview`,
+        subtopic: "",
+      }),
+      resolveSchemeOutline({
+        grade: inputs.grade,
+        subject: inputs.subject,
+        term: inputs.term,
+      }),
+      // Uploaded curriculum modules arranged at term level — the backup
+      // source. The per-sub-topic module lookup can't fire for a whole-term
+      // scheme, so this term-level lookup is how a scheme reaches modules.
+      resolveTermModuleOutline({
+        grade: inputs.grade,
+        subject: inputs.subject,
+        term: inputs.term,
+      }),
+    ]);
+
+  // Source precedence (per spec): Syllabi Studio is the MAIN source; an
+  // uploaded module is the BACKUP, used only where the Syllabi outline is
+  // missing. That keeps the prompt from carrying two competing "authoritative"
+  // topic lists for the common case where Syllabi data already covers it.
+  const moduleGrounded = Boolean(termOutline) && outline.topicCount === 0;
+
+  // Where the scheme's topics ultimately come from, for the provenance badge.
+  const curriculumSource = outline.topicCount > 0 ?
+    "syllabi_studio" :
+    ((moduleGrounded || kbMatch) ? "uploaded_module" : "ai_inferred");
+
+  // Timetable awareness — pace the term around the teacher's real week.
+  const timetableSummary = inputs.timetable ?
+    summarizeTimetableForSubject(inputs.timetable, inputs.subject) : null;
+  const periodsPerWeek = timetableSummary && timetableSummary.found &&
+    timetableSummary.periods > 0 ?
+    `${timetableSummary.periods} period${timetableSummary.periods === 1 ? "" : "s"} per week` :
+    "";
+  const teachingDays = timetableSummary ? timetableSummary.days : [];
+
+  // Curriculum advisories — flag mismatches between curriculum, timetable and
+  // the chosen week/term shape. Deterministic; surfaced to the teacher.
+  const subjectLabel = humanizeSubject(inputs.subject);
+  const advisories = buildSchemeAdvisories({
     grade: inputs.grade,
     subject: inputs.subject,
-    topic: `Term ${inputs.term} overview`,
-    subtopic: "",
+    subjectLabel,
+    term: inputs.term,
+    numberOfWeeks: inputs.numberOfWeeks,
+    classification: classifySubjectForGrade(inputs.grade, inputs.subject),
+    officialSubjects: getOfficialSubjectsForGrade(inputs.grade),
+    outline,
+    timetableSummary,
   });
+
+  // Grounding order: Syllabi Studio outline (primary) → supplemental CBC
+  // context → uploaded term-module outline (backup, only when no Syllabi
+  // outline). Everything the model needs so it sequences real topics.
+  const fullContextBlock = [
+    outline.block,
+    contextBlock,
+    moduleGrounded ? termOutline.outlineBlock : "",
+  ].filter(Boolean).join("\n\n");
 
   const usage = await assertAndIncrement(uid, "scheme_of_work");
 
@@ -110,6 +193,8 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     inputs,
     output: null,
     outputText: "",
+    advisories,
+    curriculumSource,
     modelUsed: "claude-sonnet-4-6",
     promptVersion: PROMPT_VERSION,
     kbVersion,
@@ -125,7 +210,13 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     visibility: "private",
   });
 
-  const userPrompt = buildUserPrompt(inputs);
+  const userPrompt = buildUserPrompt({
+    ...inputs,
+    periodsPerWeek,
+    teachingDays,
+    hasOutline: outline.topicCount > 0,
+    hasModuleOutline: moduleGrounded,
+  });
   let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
@@ -133,7 +224,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   try {
     const response = await callClaude(apiKey, {
       systemPrompt: SYSTEM_PROMPT,
-      cbcContextBlock: contextBlock,
+      cbcContextBlock: fullContextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 8000,   // schemes are long
       temperature: 0.3,
@@ -172,6 +263,14 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   scheme.header.term = inputs.term;
   scheme.header.numberOfWeeks = inputs.numberOfWeeks;
   scheme.header.year = String(new Date().getUTCFullYear());
+  // Timetable is the source of truth for the period allocation + days when one
+  // is attached — never let the model override the teacher's real schedule.
+  if (periodsPerWeek) scheme.header.periodsPerWeek = periodsPerWeek;
+  if (teachingDays && teachingDays.length) {
+    scheme.header.teachingDays = teachingDays;
+  }
+  // Provenance the view + exporters surface ("From Syllabi Studio", etc.).
+  scheme.curriculumSource = curriculumSource;
   if (!validation.ok) {
     await genRef.update({
       status: "flagged",
@@ -187,11 +286,13 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       generationId: genRef.id,
       schemeOfWork: scheme,
       usage,
+      advisories,
+      curriculumSource,
       warning: [
         "Some fields were incomplete — please review.",
         kbWarning,
       ].filter(Boolean).join(" "),
-      kbGrounded: Boolean(kbMatch),
+      kbGrounded: Boolean(kbMatch) || moduleGrounded,
     };
   }
 
@@ -215,8 +316,10 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     generationId: genRef.id,
     schemeOfWork: scheme,
     usage,
+    advisories,
+    curriculumSource,
     warning: kbWarning || null,
-    kbGrounded: Boolean(kbMatch),
+    kbGrounded: Boolean(kbMatch) || moduleGrounded,
   };
 }
 

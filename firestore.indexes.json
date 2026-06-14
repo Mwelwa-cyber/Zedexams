@@ -828,6 +828,14 @@
         { "fieldPath": "learnerId",   "order": "ASCENDING"  },
         { "fieldPath": "lastUpdated", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "topics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "grade",   "order": "ASCENDING" },
+        { "fieldPath": "subject", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
