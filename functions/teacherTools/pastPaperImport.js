@@ -268,6 +268,29 @@ function normaliseQuestion(raw, idx) {
 }
 
 /**
+ * Drop questions the model returned twice. LLM extraction occasionally emits
+ * the same MCQ more than once (especially on long papers), which lands as a
+ * duplicate card in the editor. Two questions are the same when their stem and
+ * option set are identical after normalisation — order/position is ignored.
+ */
+function dedupeExtractedQuestions(questions) {
+  const seen = new Set();
+  const out = [];
+  for (const q of questions) {
+    const key = [
+      String(q.prompt || "").toLowerCase().replace(/\s+/g, " ").trim(),
+      (q.options || [])
+        .map((o) => String(o || "").toLowerCase().replace(/\s+/g, " ").trim())
+        .join("␟"),
+    ].join("␟");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(out.length === q.order ? q : {...q, order: out.length});
+  }
+  return out;
+}
+
+/**
  * Erase the existing question set on a quiz before writing fresh AI
  * output. Past-paper quizzes are AI-curated end-to-end; the admin
  * re-runs the importer when they want a clean slate.
@@ -354,10 +377,12 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey}) {
 
   const rawQuestions = Array.isArray(result && result.parsed &&
     result.parsed.questions) ? result.parsed.questions : [];
-  const questions = rawQuestions
-    .slice(0, MAX_QUESTIONS)
-    .map((q, i) => normaliseQuestion(q, i))
-    .filter((q) => q.prompt && q.options.length >= 2);
+  const questions = dedupeExtractedQuestions(
+    rawQuestions
+      .slice(0, MAX_QUESTIONS)
+      .map((q, i) => normaliseQuestion(q, i))
+      .filter((q) => q.prompt && q.options.length >= 2),
+  );
 
   // If a target quizId was supplied, persist the questions directly so
   // the admin can open the Quiz Editor and find them ready for review.
@@ -455,4 +480,6 @@ module.exports = {
   // Source loaders reused by extractAssessmentFormat (same download,
   // size-cap and DOCX→text handling for sample assessment papers).
   loadPaperOrThrow, pickSources, buildMessageBlocks,
+  // Exposed for unit testing the duplicate collapse.
+  dedupeExtractedQuestions,
 };

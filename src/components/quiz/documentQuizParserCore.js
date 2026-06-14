@@ -1999,6 +1999,116 @@ function flattenComprehensionQuestions(questions = []) {
   return out
 }
 
+// Normalised content key for a question — lower-cased stem + options + type.
+// Two questions with the same key are the same question detected twice (e.g.
+// a stem that wrapped onto the next paragraph and got re-emitted, or an
+// answer-key list the heading detector didn't recognise). Position/order is
+// deliberately excluded: import-time duplicates surface at DIFFERENT document
+// positions, so keying on order (the way the persistence-layer dedupe in
+// scripts/dedupe-quiz-questions.mjs does) would miss them.
+function questionContentKey(question) {
+  const text = cleanImportedText(question?.text || '').toLowerCase()
+  const options = (Array.isArray(question?.options) ? question.options : [])
+    .map(opt => cleanImportedText(opt).toLowerCase())
+    .join('␟')
+  return `${question?.type || ''}␟${text}␟${options}`
+}
+
+// A standalone "question" whose entire stem is just an option letter (A–D) or
+// a true/false token, with no options of its own, is an answer-key row that
+// leaked into the question stream — e.g. a "Solutions"/"Answer sheet" list
+// whose heading ANSWER_KEY_HEADING_RE didn't catch, so `12. B` parsed as a
+// brand-new Q12 with stem "B". These inflate the count and never represent a
+// real question.
+function isAnswerKeyFragment(question) {
+  if (!question || question.type === 'comprehension') return false
+  if ((question.options || []).length) return false
+  const text = cleanImportedText(question.text || '')
+  return /^[A-D]$/i.test(text) || /^(?:true|false)$/i.test(text)
+}
+
+// Rough "how complete is this question" score, used to pick which survivor to
+// keep when two questions collide on the same (part, source number): prefer the
+// one with the most real options, a resolved answer, and the fuller stem.
+function questionCompleteness(question) {
+  const options = (question?.options || []).filter(Boolean).length
+  const hasAnswer = question?.correctAnswer !== '' && question?.correctAnswer != null ? 1 : 0
+  const textLen = Math.min(10, cleanImportedText(question?.text || '').length / 20)
+  return options * 2 + hasAnswer + textLen
+}
+
+function dedupeSubQuestions(subQuestions, onRemove) {
+  const out = []
+  const seenContent = new Set()
+  const seenNumber = new Set()
+  subQuestions.forEach(sub => {
+    if (isAnswerKeyFragment(sub)) { onRemove(); return }
+    const contentKey = questionContentKey(sub)
+    if (seenContent.has(contentKey)) { onRemove(); return }
+    const number = sub?.sourceQuestionNumber
+    const hasNumber = number != null && number !== ''
+    if (hasNumber && seenNumber.has(String(number))) { onRemove(); return }
+    out.push(sub)
+    seenContent.add(contentKey)
+    if (hasNumber) seenNumber.add(String(number))
+  })
+  return out
+}
+
+// Collapse questions the document repeated. Two independent signals mark a
+// duplicate, both scoped so legitimately distinct questions are never merged:
+//   1. Identical normalised content (stem + options + type).
+//   2. The same source question number inside the same Part. A real paper
+//      numbers each Part once (the parts test asserts 1..60 are unique), so a
+//      repeated `Q12` in one Part is always a double-detection; numbering that
+//      legitimately restarts does so at a Part boundary, which changes the key.
+// Answer-key fragments (a bare `A`/`True` with no options) are dropped outright.
+// Comprehension blocks keep their place; only their sub-questions are deduped.
+function dedupeImportedQuestions(questions) {
+  let removed = 0
+  const out = []
+  const seenContent = new Set()
+  const indexByNumberKey = new Map()
+
+  questions.forEach(question => {
+    if (question?.type === 'comprehension' || question?.detectedType === 'comprehension') {
+      question.subQuestions = dedupeSubQuestions(question.subQuestions || [], () => { removed += 1 })
+      out.push(question)
+      return
+    }
+
+    if (isAnswerKeyFragment(question)) { removed += 1; return }
+
+    const contentKey = questionContentKey(question)
+    if (seenContent.has(contentKey)) { removed += 1; return }
+
+    const number = question?.sourceQuestionNumber
+    const numberKey = number != null && number !== ''
+      ? `${question.partTitle || ''}␟${number}`
+      : null
+
+    if (numberKey && indexByNumberKey.has(numberKey)) {
+      const existingIndex = indexByNumberKey.get(numberKey)
+      const existing = out[existingIndex]
+      // Same Part + same number: keep whichever is more complete, at the
+      // earlier document position.
+      if (questionCompleteness(question) > questionCompleteness(existing)) {
+        seenContent.delete(questionContentKey(existing))
+        out[existingIndex] = question
+        seenContent.add(contentKey)
+      }
+      removed += 1
+      return
+    }
+
+    out.push(question)
+    seenContent.add(contentKey)
+    if (numberKey) indexByNumberKey.set(numberKey, out.length - 1)
+  })
+
+  return { questions: out, removed }
+}
+
 // `options`:
 //   preserveNumbering  (default true)  — keep each question's
 //     sourceQuestionNumber. When false, renumber sequentially 1..N in
@@ -2040,6 +2150,19 @@ export function processImportedQuestionBlocks(blocks = [], warnings = [], option
     questions = regroupComprehensionBlocks(questions)
   } else {
     questions = flattenComprehensionQuestions(questions)
+  }
+
+  // Drop questions the document repeated (a stem re-detected after its options,
+  // an answer-key list parsed as fresh questions, the same number emitted
+  // twice). Runs BEFORE renumbering so sequential numbers are assigned to the
+  // real, de-duplicated set — otherwise a 60-question paper surfaces as "64",
+  // with some questions appearing twice in the editor.
+  const deduped = dedupeImportedQuestions(questions)
+  questions = deduped.questions
+  if (deduped.removed > 0) {
+    warnings.push(
+      `Removed ${deduped.removed} duplicate question${deduped.removed === 1 ? '' : 's'} the document repeated.`,
+    )
   }
 
   // Renumber sequentially only when the teacher opted OUT of preserving the
