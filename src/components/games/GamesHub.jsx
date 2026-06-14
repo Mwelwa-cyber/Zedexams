@@ -31,6 +31,7 @@ import {
 } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
 import { GamesHubTour } from '../ui/learnerTours'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a
@@ -390,11 +391,11 @@ function SubjectGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3.5">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="zx-card animate-pulse rounded-[22px] bg-white p-4">
-          <div className="mb-3 h-16 w-16 rounded-[18px] border-2 border-slate-900 bg-slate-100" />
-          <div className="h-4 w-2/3 rounded bg-slate-100" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
-          <div className="mt-3 h-2 rounded-full border-[1.5px] border-slate-900 bg-slate-100" />
+        <div key={i} className="zx-card rounded-[22px] bg-white p-4">
+          <Skeleton width={64} height={64} className="mb-3 border-2 border-slate-900 !rounded-[18px]" />
+          <Skeleton width="66%" height={16} className="!rounded" />
+          <Skeleton width="50%" height={12} className="mt-2 !rounded" />
+          <Skeleton height={8} className="mt-3 border-[1.5px] border-slate-900 !rounded-full" />
         </div>
       ))}
     </div>
@@ -405,11 +406,11 @@ function HotGamesSkeleton() {
   return (
     <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-hidden px-[18px] pb-3 pt-1">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="zx-card w-[230px] shrink-0 animate-pulse rounded-[22px] bg-white p-4">
-          <div className="mb-3 h-11 w-11 rounded-[12px] border-2 border-slate-900 bg-slate-100" />
-          <div className="h-3 w-1/2 rounded bg-slate-100" />
-          <div className="mt-2 h-4 w-3/4 rounded bg-slate-100" />
-          <div className="mt-2 h-3 w-full rounded bg-slate-100" />
+        <div key={i} className="zx-card w-[230px] shrink-0 rounded-[22px] bg-white p-4">
+          <Skeleton width={44} height={44} className="mb-3 border-2 border-slate-900 !rounded-[12px]" />
+          <Skeleton width="50%" height={12} className="!rounded" />
+          <Skeleton width="75%" height={16} className="mt-2 !rounded" />
+          <Skeleton height={12} className="mt-2 !rounded" />
         </div>
       ))}
     </div>

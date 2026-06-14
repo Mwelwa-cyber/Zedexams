@@ -11,6 +11,7 @@ import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
 import { SeedImportPanel } from '../components/SeedImportPanel'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 import '../styles/notes.css'
 
 export function AdminNotesList() {
@@ -91,14 +92,14 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-neutral-200 p-5 animate-pulse">
+        <div key={i} className="bg-white rounded-xl border border-neutral-200 p-5">
           <div className="flex gap-2 mb-3">
-            <div className="h-5 w-24 bg-neutral-100 rounded-full" />
-            <div className="h-5 w-16 bg-neutral-100 rounded-full" />
+            <Skeleton width={96} height={20} className="!rounded-full" />
+            <Skeleton width={64} height={20} className="!rounded-full" />
           </div>
-          <div className="h-7 bg-neutral-100 rounded w-3/4 mb-2" />
-          <div className="h-4 bg-neutral-100 rounded w-full mb-1" />
-          <div className="h-4 bg-neutral-100 rounded w-2/3" />
+          <Skeleton width="75%" height={28} className="!rounded mb-2" />
+          <Skeleton height={16} className="!rounded mb-1" />
+          <Skeleton width="66%" height={16} className="!rounded" />
         </div>
       ))}
     </div>

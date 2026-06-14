@@ -11,6 +11,7 @@ import { importPowerPointLesson } from './pptxImporter'
 import { renderPowerPointToImages } from './pptxPresentationRenderer'
 import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from './sampleLesson'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import {
   CREATION_MODES,
   LESSON_GRADES,
@@ -1056,8 +1057,8 @@ export default function LessonEditor() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 w-2/3 animate-pulse rounded-xl bg-gray-200" />
-        <div className="h-64 animate-pulse rounded-3xl bg-gray-200" />
+        <Skeleton width="66%" height={40} className="!rounded-xl" />
+        <Skeleton height={256} className="!rounded-3xl" />
       </div>
     )
   }

@@ -3,6 +3,7 @@ import { ClipboardList } from '../ui/icons'
 import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
+import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -148,7 +149,7 @@ export default function AdminResults() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-24" />
+            <Skeleton key={i} height={96} className="!rounded-2xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (

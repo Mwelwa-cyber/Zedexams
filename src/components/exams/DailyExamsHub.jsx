@@ -23,6 +23,7 @@ import { getTodaysExamsBySubject, checkDailyLock } from '../../utils/examService
 import { getSubjectMascot } from '../games/gamesUi'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 
 // Subject id → game-mascot slug (gamesUi.getSubjectMascot uses slugs
 // like "social" / "arts" / "home", not the full curriculum IDs).
@@ -252,7 +253,7 @@ export default function DailyExamsHub() {
         {loading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {Array.from({ length: SUBJECTS.length }).map((_, i) => (
-              <div key={i} className="zx-card-shared animate-pulse" style={{ minHeight: 132 }} />
+              <Skeleton key={i} height={132} className="!rounded-[22px]" />
             ))}
           </div>
         ) : (

@@ -48,6 +48,7 @@ import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 import PictureBankPicker from './PictureBankPicker'
@@ -1777,7 +1778,7 @@ export default function AssessmentStudio() {
         <SeoHelmet title="Edit assessment" noIndex />
         <div style={{ padding: '48px 16px' }} className="space-y-4">
           {[1, 2, 3].map(item => (
-            <div key={item} className="theme-card theme-border theme-bg-subtle h-24 animate-pulse rounded-2xl border p-5" />
+            <Skeleton key={item} height={96} className="!rounded-2xl" />
           ))}
         </div>
       </div>

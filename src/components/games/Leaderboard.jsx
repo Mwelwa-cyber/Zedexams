@@ -3,6 +3,7 @@ import { TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatWhen, getLeaderboard } from '../../utils/gamesService'
 import { MetaPill, getSubjectMascot } from './gamesUi'
+import Skeleton from '../ui/Skeleton'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -28,7 +29,7 @@ export default function Leaderboard({ gameId, limit = 10 }) {
     return () => { cancelled = true }
   }, [gameId, limit])
 
-  if (rows == null) return <Skeleton />
+  if (rows == null) return <LeaderboardSkeleton />
 
   if (rows.length === 0) {
     return (
@@ -154,18 +155,18 @@ function LeaderCheer({ topRow }) {
   )
 }
 
-function Skeleton() {
+function LeaderboardSkeleton() {
   return (
     <div className="zx-card rounded-[22px] bg-white p-5">
-      <div className="h-6 w-36 rounded bg-slate-100 animate-pulse" />
+      <Skeleton width={144} height={24} className="!rounded" />
       {Array.from({ length: 4 }).map((_, index) => (
         <div key={index} className="mt-4 flex items-center gap-4">
-          <div className="h-10 w-10 rounded-[10px] border-2 border-slate-900 bg-slate-100 animate-pulse" />
+          <Skeleton width={40} height={40} className="border-2 border-slate-900 !rounded-[10px]" />
           <div className="flex-1">
-            <div className="h-4 w-1/2 rounded bg-slate-100 animate-pulse" />
-            <div className="mt-2 h-3 w-2/3 rounded bg-slate-100 animate-pulse" />
+            <Skeleton width="50%" height={16} className="!rounded" />
+            <Skeleton width="66%" height={12} className="mt-2 !rounded" />
           </div>
-          <div className="h-6 w-12 rounded bg-slate-100 animate-pulse" />
+          <Skeleton width={48} height={24} className="!rounded" />
         </div>
       ))}
     </div>

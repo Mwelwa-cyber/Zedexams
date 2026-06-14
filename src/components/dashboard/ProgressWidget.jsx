@@ -3,6 +3,8 @@
  * Receives already-fetched results so it adds zero extra Firestore queries.
  */
 
+import Skeleton from '../ui/Skeleton'
+
 const WEEKLY_GOAL = 5
 const DAY_LABELS  = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -123,9 +125,9 @@ function WeekBars({ buckets }) {
 export default function ProgressWidget({ results = [], streak = 0, loading = false }) {
   if (loading) {
     return (
-      <div className="theme-card rounded-2xl border theme-border p-4 animate-pulse">
-        <div className="h-4 bg-gray-100 rounded w-32 mb-4" />
-        <div className="h-16 bg-gray-100 rounded" />
+      <div className="theme-card rounded-2xl border theme-border p-4">
+        <Skeleton height={16} width={128} className="mb-4" />
+        <Skeleton height={64} />
       </div>
     )
   }
