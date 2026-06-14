@@ -407,6 +407,93 @@ export function getCalendarContextForAI(date = _today()) {
 }
 
 /**
+ * The MoE calendar years we hold data for, ascending. Handy for a
+ * year dropdown so it never offers a year we can't price weeks for.
+ */
+export function getCalendarYears() {
+  return Object.keys(MOE_CALENDAR).map(Number).sort((a, b) => a - b);
+}
+
+/** Look up one term by year + 1-based term number. Returns null if absent. */
+export function getTermByNumber(year, termNumber) {
+  const terms = MOE_CALENDAR[year]?.terms ?? [];
+  return terms.find((t) => t.number === Number(termNumber)) ?? null;
+}
+
+/** Add `n` whole days to a "YYYY-MM-DD" string, returning the same shape. */
+function _addDaysISO(iso, n) {
+  const d = _parse(iso);
+  d.setDate(d.getDate() + n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * How many Monday–Friday teaching weeks a term spans, counted from its
+ * opening date to its closing date. Distinct from getTotalWeeksInTerm()
+ * (which divides resident days and overshoots) — this matches the
+ * week-by-week pacing teachers actually plan against (~10–14 weeks).
+ */
+export function getTotalTeachingWeeks(term) {
+  if (!term) return 0;
+  const span = Math.floor((_parse(term.close) - _parse(term.open)) / 86400000);
+  return Math.floor(span / 7) + 1;
+}
+
+/**
+ * The week-by-week skeleton for a term: one entry per teaching week with
+ * its Monday "week beginning" and Friday "week ending" (term open dates in
+ * the MoE calendar are Mondays). Labels are short-formatted ("12 Jan 2026")
+ * to drop straight into the forecast header. Returns [] for unknown years.
+ */
+export function getTermWeeks(year, termNumber) {
+  const term = getTermByNumber(year, termNumber);
+  if (!term) return [];
+  const total = getTotalTeachingWeeks(term);
+  return Array.from({ length: total }, (_, i) => {
+    const beginning = _addDaysISO(term.open, i * 7);
+    const ending = _addDaysISO(beginning, 4); // Mon → Fri
+    return {
+      weekNumber: i + 1,
+      beginning,
+      ending,
+      beginningLabel: fmtDate(beginning, "short"),
+      endingLabel: fmtDate(ending, "short"),
+    };
+  });
+}
+
+/**
+ * The calendar week to default a weekly forecast to: the live week of the
+ * active term, or week 1 of the next term during the holidays. Returns the
+ * pieces the forecast header needs, or null when no term data covers today.
+ */
+export function getCurrentForecastWeek(date = _today()) {
+  const active = getActiveTerm(date);
+  const ref = active ?? getNextTerm(date);
+  if (!ref) return null;
+  const weeks = getTermWeeks(ref.year, ref.term.number);
+  if (!weeks.length) return null;
+  let weekNumber = 1;
+  if (active) {
+    const daysSinceOpen = Math.floor((date - _parse(ref.term.open)) / 86400000);
+    weekNumber = Math.min(weeks.length, Math.max(1, Math.floor(daysSinceOpen / 7) + 1));
+  }
+  const wk = weeks[weekNumber - 1];
+  return {
+    year: ref.year,
+    termNumber: ref.term.number,
+    weekNumber,
+    beginning: wk.beginning,
+    ending: wk.ending,
+    beginningLabel: wk.beginningLabel,
+    endingLabel: wk.endingLabel,
+  };
+}
+
+/**
  * Format a date string for display.
  * mode: "full" | "short" | "day"
  */
