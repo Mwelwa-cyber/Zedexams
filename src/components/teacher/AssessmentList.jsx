@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
-import { buildDownloadName } from '../../utils/downloadFilename'
+import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
@@ -37,11 +37,10 @@ function formatDate(ts) {
 }
 
 function assessmentFileName(assessment, variant) {
-  const hasTitle = Boolean(assessment.title?.trim())
-  return buildDownloadName({
-    docType: hasTitle ? assessment.title.trim() : 'Assessment',
-    grade: hasTitle ? undefined : assessment.grade,
-    subject: hasTitle ? undefined : assessment.subject,
+  return buildAssessmentName({
+    title: assessment.title,
+    grade: assessment.grade,
+    subject: assessment.subject,
     variant,
   })
 }

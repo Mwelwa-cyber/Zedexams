@@ -3,7 +3,7 @@
  *
  *   node scripts/test-download-filename.mjs
  */
-import { buildDownloadName, gradeLabel, subjectLabel } from '../src/utils/downloadFilename.js'
+import { buildDownloadName, buildAssessmentName, gradeLabel, subjectLabel } from '../src/utils/downloadFilename.js'
 
 let passed = 0
 let failed = 0
@@ -83,6 +83,36 @@ eq(
   buildDownloadName({}),
   'Document.docx',
   'empty input falls back to Document',
+)
+
+// --- buildAssessmentName ------------------------------------------------
+eq(
+  // Auto-generated title already leads with grade/subject → used as-is.
+  buildAssessmentName({ title: 'Grade 4 Integrated Science - Fractions', grade: '4', subject: 'integrated_science' }),
+  'Grade 4 Integrated Science - Fractions.docx',
+  'auto-titled assessment kept as-is (no duplication)',
+)
+eq(
+  // Custom title with no grade/subject context → context prepended, title kept.
+  buildAssessmentName({ title: 'My Test Paper', grade: '4', subject: 'integrated_science' }),
+  'Grade 4 Integrated Science - My Test Paper.docx',
+  'custom-titled assessment keeps grade/subject context',
+)
+eq(
+  buildAssessmentName({ title: 'My Test Paper', grade: '4', subject: 'integrated_science', variant: 'Marking Key' }),
+  'Grade 4 Integrated Science - My Test Paper (Marking Key).docx',
+  'custom title + marking key variant',
+)
+eq(
+  buildAssessmentName({ grade: '4', subject: 'mathematics' }),
+  'Grade 4 Mathematics Assessment.docx',
+  'no title falls back to grade/subject Assessment',
+)
+eq(
+  // No grade available → title used directly rather than producing "Document".
+  buildAssessmentName({ title: 'My Test Paper' }),
+  'My Test Paper.docx',
+  'custom title with no grade uses the title directly',
 )
 
 if (failed > 0) {

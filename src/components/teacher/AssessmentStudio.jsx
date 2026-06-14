@@ -85,7 +85,7 @@ import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
 import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
-import { buildDownloadName } from '../../utils/downloadFilename'
+import { buildAssessmentName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES, normalizeSubject } from '../../config/curriculum'
@@ -1565,14 +1565,13 @@ export default function AssessmentStudio() {
     }
     setExporting(true)
     try {
-      // The assessment title (e.g. "Grade 4 Mathematics - Fractions") already
-      // reads well, so keep it as the filename base; only fall back to
-      // grade/subject when the paper has no title yet.
-      const hasTitle = Boolean(assessmentDoc.title?.trim())
-      const docName = (variant) => buildDownloadName({
-        docType: hasTitle ? assessmentDoc.title.trim() : 'Assessment',
-        grade: hasTitle ? undefined : assessmentDoc.grade,
-        subject: hasTitle ? undefined : assessmentDoc.subject,
+      // Auto-titles (e.g. "Grade 4 Mathematics - Fractions") read well as-is;
+      // a custom title gets grade/subject prepended so the file still says
+      // what it is. buildAssessmentName handles both.
+      const docName = (variant) => buildAssessmentName({
+        title: assessmentDoc.title,
+        grade: assessmentDoc.grade,
+        subject: assessmentDoc.subject,
         variant,
       })
       // Standalone answer sheet (bubble grid) — its own builder, not the

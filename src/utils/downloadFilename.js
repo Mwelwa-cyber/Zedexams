@@ -126,3 +126,32 @@ export function buildDownloadName({
   const safe = sanitize(name) || 'Document'
   return `${safe}.${ext}`
 }
+
+/**
+ * Filename for an assessment paper, which carries a free-text title.
+ *
+ * Auto-generated titles already lead with "Grade N Subject …", so they read
+ * perfectly as-is. A custom title like "My Test Paper" carries no grade/subject
+ * context, so we prepend it — keeping the title as the detail — so the download
+ * still says what it is.
+ *
+ * @param {object} opts
+ * @param {string} [opts.title]
+ * @param {string} [opts.grade]
+ * @param {string} [opts.subject]
+ * @param {string} [opts.variant]  e.g. "Marking Key", "Answer Sheet".
+ * @param {string} [opts.ext]
+ */
+export function buildAssessmentName({ title, grade, subject, variant, ext = 'docx' }) {
+  const trimmed = String(title || '').trim()
+  if (!trimmed) {
+    return buildDownloadName({ docType: 'Assessment', grade, subject, variant, ext })
+  }
+  const g = gradeLabel(grade)
+  // Title already carries the grade context (or there's no grade to add) → use
+  // it directly. Otherwise lead with grade/subject and keep the title as detail.
+  if (!g || trimmed.toLowerCase().includes(g.toLowerCase())) {
+    return buildDownloadName({ docType: trimmed, variant, ext })
+  }
+  return buildDownloadName({ grade, subject, topic: trimmed, variant, ext })
+}
