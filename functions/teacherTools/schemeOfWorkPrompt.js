@@ -21,6 +21,7 @@ Your schemes of work MUST:
 - List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject Module, locally available materials).
 - Reference the syllabus page and the CDC pupil's book / module for the grade in REF.
 - Cover topics typical of the Zambian syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in CDC material.
+- If a <term_module_outline> block is provided, it is the VERIFIED uploaded curriculum for this term: use its exact topic and sub-topic arrangement and naming as the backbone for sequencing the weeks, and draw each week's specific competences, learning activities, expected standard and T/L aids from it. Spread its sub-topics sensibly across the available weeks; do not introduce topics it doesn't contain.
 - Schedule assessment the way schools do: note "CLASS TEST administered" in the EXPECTED STANDARD at the mid-term checkpoint weeks, and make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
 - If the teacher requests a specific emphasis, weight the weeks around it.
 

@@ -20,6 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
   getSubjectsForGrade, isSubjectValidForGrade, defaultSubjectForGrade,
+  getTermModuleOutline,
 } from '../../../utils/teacherTools'
 import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
@@ -122,6 +123,10 @@ export default function WeeklyForecastStudio() {
   const [schemesStatus, setSchemesStatus] = useState('loading')
   const [schemeId, setSchemeId] = useState('')
   const [weekPick, setWeekPick] = useState('')
+  // Curriculum-module fallback: when there's no saved scheme, the teacher can
+  // load the term's uploaded modules and build the forecast from those.
+  const [moduleWeeks, setModuleWeeks] = useState([])
+  const [moduleStatus, setModuleStatus] = useState('idle') // idle|loading|ready|empty|error
 
   const [confirmClear, setConfirmClear] = useState(false)
   const [generationId, setGenerationId] = useState(null)
@@ -230,29 +235,59 @@ export default function WeeklyForecastStudio() {
   }
 
   const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
+  // Week options come from the selected scheme, or — when none is selected —
+  // from the loaded curriculum modules (each module sub-topic is one option).
   const weekOptions = useMemo(() => {
-    if (!selectedScheme) return []
-    return schemeWeeks(selectedScheme.output).map((w) => {
+    const source = selectedScheme ? schemeWeeks(selectedScheme.output) : moduleWeeks
+    return source.map((w) => {
       const n = weekNumberOf(w)
       const norm = normalizeSchemeWeek(w)
-      return { value: String(n), label: `Week ${n} — ${norm.topic || 'untitled'}`, week: w }
+      const label = selectedScheme
+        ? `Week ${n} — ${norm.topic || 'untitled'}`
+        : `${norm.topic || 'Topic'} — ${norm.subtopic || 'sub-topic'}`
+      return { value: String(n), label, week: w }
     })
-  }, [selectedScheme])
+  }, [selectedScheme, moduleWeeks])
+
+  // Load the term's uploaded curriculum modules for the current grade/subject/
+  // term. Used when the teacher has no saved scheme to start from.
+  async function loadModules() {
+    const subject = subjectSlugFor(header.subject)
+    if (!subject) { toast.error('Pick a subject first.'); return }
+    setModuleStatus('loading')
+    const res = await getTermModuleOutline({ grade: header.grade, subject, term: header.term })
+    if (!res.ok) { setModuleStatus('error'); toast.error(res.error || 'Could not load modules.'); return }
+    const weeks = Array.isArray(res.data?.weeks) ? res.data.weeks : []
+    setSchemeId(''); setWeekPick('')
+    setModuleWeeks(weeks)
+    setModuleStatus(weeks.length ? 'ready' : 'empty')
+    if (!weeks.length) {
+      toast.info('No curriculum modules uploaded for this grade, subject and term yet.')
+    } else {
+      toast.success(`${weeks.length} sub-topic${weeks.length === 1 ? '' : 's'} loaded from curriculum modules.`)
+    }
+  }
 
   function buildFromScheme() {
     const picked = weekOptions.find((o) => o.value === weekPick)
-    if (!picked) { toast.error('Pick a scheme and a week first.'); return }
+    if (!picked) { toast.error(selectedScheme ? 'Pick a scheme and a week first.' : 'Load modules and pick a sub-topic first.'); return }
     const built = buildForecastDays(picked.week, dayCount)
     setDays(built)
-    const out = selectedScheme.output || {}
-    setHeader((h) => ({
-      ...h,
-      grade: selectedScheme.inputs?.grade || h.grade,
-      subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
-      term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
-      weekNumber: Number(picked.value) || h.weekNumber,
-    }))
-    toast.success(`Week ${picked.value} loaded — now adjust each day as you need.`)
+    if (selectedScheme) {
+      const out = selectedScheme.output || {}
+      setHeader((h) => ({
+        ...h,
+        grade: selectedScheme.inputs?.grade || h.grade,
+        subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
+        term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
+        weekNumber: Number(picked.value) || h.weekNumber,
+      }))
+      toast.success(`Week ${picked.value} loaded — now adjust each day as you need.`)
+    } else {
+      // Built from a module sub-topic — header grade/subject/term already
+      // reflect what the teacher chose, so leave them and just load the days.
+      toast.success('Sub-topic loaded — now adjust each day as you need.')
+    }
   }
 
   function setDayCountAndResize(n) {
@@ -342,9 +377,25 @@ export default function WeeklyForecastStudio() {
               <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Start from your scheme of work</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 {schemesStatus === 'ready' && schemes.length === 0
-                  ? 'No saved schemes yet — generate one first, or fill the days in manually below.'
+                  ? 'No saved schemes yet — generate one first, load the curriculum modules for this term, or fill the days in manually below.'
                   : 'The forecast copies the chosen week into every teaching day; you then fine-tune per day.'}
               </p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={loadModules}
+                  disabled={moduleStatus === 'loading'}
+                  className="studio-btn-ghost text-xs disabled:opacity-50"
+                >
+                  {moduleStatus === 'loading' ? 'Loading modules…' : '📚 Load from curriculum modules'}
+                </button>
+                <span className="text-xs" style={{ color: '#566f76' }}>
+                  {moduleStatus === 'ready' && !selectedScheme && `Showing ${moduleWeeks.length} module sub-topic${moduleWeeks.length === 1 ? '' : 's'} for ${header.subject}, Term ${header.term} — pick one in “Week”.`}
+                  {moduleStatus === 'empty' && 'No modules uploaded for this grade, subject and term yet.'}
+                  {moduleStatus === 'error' && 'Could not load curriculum modules.'}
+                  {moduleStatus === 'idle' && 'No saved scheme? Use the uploaded curriculum modules instead.'}
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr_auto] gap-3 items-end">
               <div>

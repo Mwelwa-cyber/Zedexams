@@ -19,7 +19,8 @@ const {
 } = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 
-const {resolveCbcContext} = require("./cbcKnowledge");
+const {resolveCbcContext, resolveTermModuleOutline} =
+  require("./cbcKnowledge");
 const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
@@ -101,6 +102,21 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     subtopic: "",
   });
 
+  // Uploaded curriculum modules show how the term's topics/sub-topics are
+  // arranged — the strongest grounding a scheme can have. When present, append
+  // the outline so the model sequences the weeks against the real curriculum
+  // rather than inventing topics. (lookupSubtopicModule above can't fire for a
+  // scheme: there's no single sub-topic, so this term-level lookup is how the
+  // scheme generator reaches modules at all.)
+  const termOutline = await resolveTermModuleOutline({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    term: inputs.term,
+  });
+  const cbcContextBlock = termOutline ?
+    `${contextBlock}\n\n${termOutline.outlineBlock}` : contextBlock;
+  const moduleGrounded = Boolean(termOutline);
+
   const usage = await assertAndIncrement(uid, "scheme_of_work");
 
   const genRef = admin.firestore().collection("aiGenerations").doc();
@@ -133,7 +149,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   try {
     const response = await callClaude(apiKey, {
       systemPrompt: SYSTEM_PROMPT,
-      cbcContextBlock: contextBlock,
+      cbcContextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 8000,   // schemes are long
       temperature: 0.3,
@@ -191,7 +207,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         "Some fields were incomplete — please review.",
         kbWarning,
       ].filter(Boolean).join(" "),
-      kbGrounded: Boolean(kbMatch),
+      kbGrounded: Boolean(kbMatch) || moduleGrounded,
     };
   }
 
@@ -216,7 +232,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     schemeOfWork: scheme,
     usage,
     warning: kbWarning || null,
-    kbGrounded: Boolean(kbMatch),
+    kbGrounded: Boolean(kbMatch) || moduleGrounded,
   };
 }
 
