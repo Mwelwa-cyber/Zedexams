@@ -1,7 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  getSchoolProfile,
+  saveSchoolProfile,
+  uploadSchoolLogo,
+  getBrandingFromRecentPapers,
+} from '../../utils/schoolProfileService';
+import { isEmptySchoolProfile } from '../../utils/schoolProfile';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
@@ -56,6 +63,7 @@ const TABS = {
     { id: 'appearance',    label: 'Appearance' },
   ],
   teacher: [
+    { id: 'school',        label: 'School Details' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
   ],
@@ -1071,6 +1079,199 @@ function LearnerParentPanel() {
   );
 }
 
+/* ── Teacher panels (Firestore-wired) ─────────────────────────────────────── */
+
+function TeacherSchoolProfilePanel({ pushToast }) {
+  const { currentUser } = useAuth();
+  const [form, setForm] = useState({
+    schoolName: '',
+    schoolLogoUrl: '',
+    schoolLogoTransform: null,
+    defaultDuration: '',
+    defaultCoverInstructions: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  // True when we pre-filled the form from the teacher's recent papers because
+  // no saved profile existed yet (the one-time migration nudge).
+  const [prefilled, setPrefilled] = useState(false);
+  const fileRef = useRef(null);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const fromProfile = (p) => ({
+    schoolName: p.schoolName || '',
+    schoolLogoUrl: p.schoolLogoUrl || '',
+    schoolLogoTransform: p.schoolLogoTransform || null,
+    defaultDuration: p.defaultDuration ? String(p.defaultDuration) : '',
+    defaultCoverInstructions: p.defaultCoverInstructions || '',
+  });
+
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    if (!uid) { setLoading(false); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const profile = await getSchoolProfile(uid);
+      if (cancelled) return;
+      if (profile && !isEmptySchoolProfile(profile)) {
+        setForm(fromProfile(profile));
+        setLoading(false);
+        return;
+      }
+      // No saved profile — pre-fill from recent papers so existing branding
+      // is one click from becoming the saved default.
+      const recent = await getBrandingFromRecentPapers(uid);
+      if (cancelled) return;
+      if (recent && !isEmptySchoolProfile(recent)) {
+        setForm(fromProfile(recent));
+        setPrefilled(true);
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [currentUser?.uid]);
+
+  const handleLogo = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadSchoolLogo(currentUser.uid, file);
+      set('schoolLogoUrl', url);
+      pushToast('success', 'Logo uploaded — remember to save.');
+    } catch (err) {
+      console.error('school logo upload failed', err);
+      pushToast('error', err?.message || 'Could not upload the logo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSchoolProfile(currentUser.uid, {
+        schoolName: form.schoolName,
+        schoolLogoUrl: form.schoolLogoUrl,
+        schoolLogoTransform: form.schoolLogoTransform,
+        defaultDuration: form.defaultDuration ? Number(form.defaultDuration) : null,
+        defaultCoverInstructions: form.defaultCoverInstructions,
+      });
+      setPrefilled(false);
+      pushToast('success', 'School details saved.');
+    } catch (err) {
+      console.error('school profile save failed', err);
+      pushToast('error', err?.message || 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SectionCard title="School details" description="Used to brand your exam papers and tests.">
+        <div style={{ color: T.muted, fontSize: 14, padding: '8px 0' }}>
+          Loading your saved details…
+        </div>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard
+      title="School details"
+      description="Set your logo, school name, and paper defaults once. New exam papers, tests, and mocks fill these in automatically — you can still change them per paper."
+      footer={<Button onClick={handleSave} loading={saving}>Save school details</Button>}
+    >
+      {prefilled && (
+        <div style={{
+          padding: '10px 12px', marginBottom: 16,
+          background: T.primarySoft, border: `1px solid ${T.primary}`,
+          borderRadius: 8, fontSize: 13, color: T.textSoft,
+        }}>
+          We filled these in from your most recent paper. Check them and click
+          {' '}<strong style={{ color: T.text }}>Save</strong> to keep them as your defaults.
+        </div>
+      )}
+
+      {/* Logo uploader */}
+      <FieldLabel hint="Shown at the top-left of every printed paper">School logo</FieldLabel>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+        <div style={{
+          width: 72, height: 72, flexShrink: 0,
+          borderRadius: 10, overflow: 'hidden',
+          border: `1px solid ${T.border}`, background: T.surface,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {form.schoolLogoUrl
+            ? <img src={form.schoolLogoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            : <span style={{ fontSize: 22 }} aria-hidden="true">🏫</span>}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleLogo(file);
+              e.target.value = '';
+            }}
+          />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="soft" onClick={() => fileRef.current?.click()} loading={uploading}>
+              {form.schoolLogoUrl ? 'Replace logo' : 'Upload logo'}
+            </Button>
+            {form.schoolLogoUrl && !uploading && (
+              <Button variant="ghost" onClick={() => set('schoolLogoUrl', '')}>Remove</Button>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: T.muted }}>JPG, PNG or WEBP, up to 10 MB.</div>
+        </div>
+      </div>
+
+      <div className="zx-grid-2">
+        <TextField
+          label="School name"
+          value={form.schoolName}
+          onChange={(v) => set('schoolName', v)}
+          placeholder="e.g. Twatasha Primary School"
+          autoComplete="organization"
+        />
+        <TextField
+          label="Default paper duration"
+          type="number"
+          hint="minutes — optional"
+          value={form.defaultDuration}
+          onChange={(v) => set('defaultDuration', v)}
+          placeholder="e.g. 90"
+        />
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
+        <FieldLabel hint="Printed under the paper title — optional">Standard instructions</FieldLabel>
+        <textarea
+          className="zx-input"
+          value={form.defaultCoverInstructions}
+          onChange={(e) => set('defaultCoverInstructions', e.target.value)}
+          rows={4}
+          placeholder={'Write your name and class in the spaces provided.\nAnswer ALL questions.'}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '10px 12px',
+            fontFamily: T.font, fontSize: 14, color: T.text,
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 8, resize: 'vertical',
+          }}
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 const VALID_ROLES = ['admin', 'teacher', 'learner'];
@@ -1083,7 +1284,13 @@ export default function ZedExamsSettings({ role = 'admin' }) {
 
   const safeRole = VALID_ROLES.includes(role) ? role : 'learner';
   const tabs = TABS[safeRole];
-  const [active, setActive] = useState(tabs[0].id);
+  // Honour a ?tab=<id> deep link (e.g. the Assessment Studio links to
+  // /settings?tab=school) when it's a valid tab for this role.
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const [active, setActive] = useState(
+    tabs.some((t) => t.id === requestedTab) ? requestedTab : tabs[0].id,
+  );
 
   // Reset active tab if role changes (and current tab no longer valid).
   useEffect(() => {
@@ -1101,6 +1308,7 @@ export default function ZedExamsSettings({ role = 'admin' }) {
   // simply not in its sidebar.
   const renderActive = () => {
     switch (active) {
+      case 'school':        return <TeacherSchoolProfilePanel pushToast={pushToast} />;
       case 'profile':       return <LearnerProfilePanel pushToast={pushToast} />;
       case 'security':      return <LearnerSecurityPanel pushToast={pushToast} />;
       case 'notifications': return <LearnerNotificationsPanel pushToast={pushToast} />;

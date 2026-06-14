@@ -31,7 +31,7 @@ service cloud.firestore {
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
-    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot']; }
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']; }
     function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {
@@ -130,7 +130,18 @@ service cloud.firestore {
               && incoming().correctRegion.y >= 0 && incoming().correctRegion.y <= 1
               && incoming().correctRegion.radius is number
               && incoming().correctRegion.radius >= 0 && incoming().correctRegion.radius <= 0.5
-            ));
+            ))
+        // Assessment-paper answer fields (numeric / matching / sequence).
+        // Per-element shape + completeness is enforced by the Zod schema and
+        // the pre-publish checklist client-side; mirror the size/type caps
+        // here as a server-side backstop, same convention as `tolerance`.
+        && (!('numericTolerance' in incoming()) || (incoming().numericTolerance is number && incoming().numericTolerance >= 0 && incoming().numericTolerance <= 1000000))
+        && (!('numericUnit' in incoming()) || (incoming().numericUnit is string && incoming().numericUnit.size() <= 40))
+        && (!('matchingLeft' in incoming()) || (incoming().matchingLeft is list && incoming().matchingLeft.size() <= 20))
+        && (!('matchingRight' in incoming()) || (incoming().matchingRight is list && incoming().matchingRight.size() <= 20))
+        && (!('matchingAnswer' in incoming()) || (incoming().matchingAnswer is list && incoming().matchingAnswer.size() <= 20))
+        && (!('sequenceItems' in incoming()) || (incoming().sequenceItems is list && incoming().sequenceItems.size() <= 20))
+        && (!('sequenceAnswer' in incoming()) || (incoming().sequenceAnswer is list && incoming().sequenceAnswer.size() <= 20));
     }
 
     function validLessonFields() {
@@ -625,6 +636,21 @@ service cloud.firestore {
       // (.size() counts characters, the limit is in bytes).
       allow write: if isAuthed() && isOwner(uid)
         && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
+    }
+
+    // ── schoolProfiles ────────────────────────────────────────
+    // One saved "school branding" doc per teacher: logo URL, school name, and
+    // the default paper duration + cover instructions, reused as the header
+    // defaults across the Assessment Studio (and other printable outputs).
+    // Owner-only writes; owner + admin reads (admins read for support, like
+    // teacherLibraries). Private working content — never learner-facing. Field
+    // sizes are bounded as a tampered-client backstop (UI caps mirror these).
+    match /schoolProfiles/{uid} {
+      allow read: if isAuthed() && (isOwner(uid) || isAdmin());
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('schoolName' in incoming()) || (incoming().schoolName is string && incoming().schoolName.size() <= 200))
+        && (!('schoolLogoUrl' in incoming()) || (incoming().schoolLogoUrl is string && incoming().schoolLogoUrl.size() <= 2000))
+        && (!('defaultCoverInstructions' in incoming()) || (incoming().defaultCoverInstructions is string && incoming().defaultCoverInstructions.size() <= 2000));
     }
 
     // ── usageMeters ───────────────────────────────────────────

@@ -170,7 +170,6 @@ const CurriculumHome = lazy(() => import('./components/teacher/curriculum/Curric
 const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/PrimaryCurriculum'))
 const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
-const EditAssessment = lazy(() => import('./components/teacher/EditAssessment'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 
 // Teacher — AI Generators
@@ -547,10 +546,12 @@ export default function App() {
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
           {/* Assessment Studio — teacher-only, private. Replaces the old
-              teacher-side quiz creator and `/teacher/content` workflow. */}
+              teacher-side quiz creator and `/teacher/content` workflow.
+              Both create and edit run through the same studio so a saved paper
+              reopens in the full, type-complete builder. */}
           <Route path="/teacher/assessments"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
           <Route path="/teacher/assessments/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
-          <Route path="/teacher/assessments/:assessmentId/edit"       element={<TeacherRoute><EditAssessment /></TeacherRoute>} />
+          <Route path="/teacher/assessments/:assessmentId/edit"       element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
