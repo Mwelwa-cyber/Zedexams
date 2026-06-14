@@ -74,6 +74,7 @@ const SUBJECTS = [
   [/musical\s+arts/i, "musical_arts_education"],
   [/travel\s+and\s+tourism/i, "travel_and_tourism"],
   [/principles\s+of\s+accounts|accountancy|accounting/i, "principles_of_accounts"],
+  [/art\s+and\s+design/i, "art_and_design"],
   [/\bci?nyanja\b/i, "cinyanja"],
   [/\bici?bemba\b|\bbemba\b/i, "icibemba"],
   [/\bsilozi\b|\blozi\b/i, "silozi"],
@@ -110,8 +111,9 @@ function detectMeta(coverText) {
   }
 
   let grade = "";
-  const form = cover.match(/\bform\s+(\d)\b/i);
-  const gr = cover.match(/\bgrade\s+(\d{1,2})\b/i);
+  // No leading \b — covers glue the title onto it ("…MODULEFORM 1 - TERM 2").
+  const form = cover.match(/form\s*([1-4])\b/i);
+  const gr = cover.match(/grade\s*(\d{1,2})\b/i);
   if (form) grade = `G${Number(form[1]) + 7}`; // Form 1 = Grade 8
   else if (gr) grade = `G${gr[1]}`;
   else if (/early\s+childhood|\bece\b|\[\s*3\s*-\s*4\s*years?\s*\]/i.test(cover)) grade = "ECE";

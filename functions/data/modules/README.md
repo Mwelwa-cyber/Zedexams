@@ -13,12 +13,13 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 223 modules across 25 files
+## What's here — 245 modules across 27 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
 | `english_g8_t2.json` | G8 (Form 1) | English | 2 | 21 |
 | `english_g4_t2.json` | **G4 (live)** | English | 2 | 20 |
+| `art_and_design_g8_t1.json` | G8 | Art & Design | 1 | 18 |
 | `literacy_g1_t2.json` | G1 | Literacy | 2 | 18 |
 | `expressive_arts_g4_t1-2.json` | **G4 (live)** | Expressive Arts | 1 & 2 | 16 |
 | `literacy_g1_t3.json` | G1 | Literacy | 3 | 16 |
@@ -40,6 +41,7 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `commerce_g8_t1.json` | G8 | Commerce | 1 | 5 |
 | `oral_english_g1_t2.json` | G1 | Oral English | 2 | 5 |
 | `additional_mathematics_g8_t1.json` | G8 | Mathematics II | 1 | 4 |
+| `chemistry_g8_t1.json` | G8 | Chemistry | 1 | 4 |
 | `religious_education_g8_t2.json` | G8 | Religious Education | 2 | 4 |
 | `civic_education_g8_t2.json` | G8 | Civic Education | 2 | 3 |
 
@@ -87,6 +89,8 @@ structure:
   one or two phonics/greeting competences across many activity pages and lack
   per-sub-topic headers, so they merge into 2 noisy modules. (The G1 T2/T3
   books for these subjects DO parse cleanly and are included.)
+- **Art & Design (Form 1, T2)** — only two sub-topics carried a usable
+  competence (T1 parses cleanly with 18 and is included).
 - **Cinyanja (ECE Level 2, T1)** — the module is written in Nyanja, so its
   section labels aren't the English keywords the parser keys on (`Specific
   Competence`, etc.) and nothing was detected. Local-language modules need

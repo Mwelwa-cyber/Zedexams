@@ -120,6 +120,7 @@ const STRONG_MARKERS = [
   "Specific Competence", "General Competence", "Expected Standard",
   "Assessment Criteria", "Assessment Strategies", "Assessment Guidelines",
   "Learning Activities", "Learning Activity", "Content Tips",
+  "Key Terms", "Key Words",
 ].sort((a, b) => b.length - a.length);
 const STRONG_RE = new RegExp(
   "\\s+(" + STRONG_MARKERS.map(escapeRe).join("|") + ")\\b", "gi");
@@ -463,9 +464,14 @@ function stripLearnersTo(s) {
     .replace(/^[\s–—•·-]*learners?\s*to\s*[:;\-–—]*\s*/i, "")
     .trim();
 }
-// Outcomes sometimes lead with the competence code: "1.7.1.1 Practice simple
-// plays." → "Practice simple plays."
-function stripLeadCode(s) { return String(s).replace(/^\s*\d+(?:\.\d+)*\s+/, "").trim(); }
+// Outcomes sometimes lead with a bullet and/or the competence code:
+// "• Demonstrate …" / "1.7.1.1 Practice simple plays." → the bare statement.
+function stripLeadCode(s) {
+  return String(s)
+    .replace(/^[\s•·▪◦‣*\-–—]+/, "")
+    .replace(/^\d+(?:\.\d+)*\s+/, "")
+    .trim();
+}
 // "... shown accordingly 7" / "...- text 30" → drop a trailing page number.
 function stripTrailingCode(s) { return String(s).replace(/\s+\d{1,3}\s*$/, "").trim(); }
 // Key term entries are "Term: definition" — keep the term head for vocabulary.
