@@ -38,7 +38,7 @@ const FLASHCARDS_TOOL_SCHEMA = {
 };
 
 const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.

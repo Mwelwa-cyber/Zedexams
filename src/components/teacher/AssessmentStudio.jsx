@@ -3363,7 +3363,16 @@ function ReviseQuestionPopover({
   paperMeta, targetGrade, modifier, revising, error, preview,
   onTargetGradeChange, onModifierChange, onRevise, onApply, onDiscard, onClose,
 }) {
-  const GRADES = ['ECE', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12']
+  const GRADES = [
+    { value: 'ECE_N', label: 'Nursery (3–4)' },
+    { value: 'ECE_R', label: 'Reception (4–5)' },
+    { value: 'G1', label: 'G1' }, { value: 'G2', label: 'G2' },
+    { value: 'G3', label: 'G3' }, { value: 'G4', label: 'G4' },
+    { value: 'G5', label: 'G5' }, { value: 'G6', label: 'G6' },
+    { value: 'G7', label: 'G7' }, { value: 'G8', label: 'G8' },
+    { value: 'G9', label: 'G9' }, { value: 'G10', label: 'G10' },
+    { value: 'G11', label: 'G11' }, { value: 'G12', label: 'G12' },
+  ]
   return (
     <div style={{ margin: '4px 0 8px', padding: 10, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-paper)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -3377,7 +3386,7 @@ function ReviseQuestionPopover({
           >
             <option value="">— pick —</option>
             {GRADES.map(g => (
-              <option key={g} value={g} disabled={g === paperMeta?.grade}>{g}{g === paperMeta?.grade ? ' (current)' : ''}</option>
+              <option key={g.value} value={g.value} disabled={g.value === paperMeta?.grade}>{g.label}{g.value === paperMeta?.grade ? ' (current)' : ''}</option>
             ))}
           </select>
         </div>
