@@ -35,7 +35,9 @@ function buildTints(timetable) {
 
 export function printClassTimetableAsPdf(timetable, { attribution = false } = {}) {
   if (!timetable) throw new Error('No timetable to export.')
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=850')
+  // Must NOT pass `noopener`/`noreferrer` here — either one makes window.open
+  // return `null` (blank white page bug). We need the handle to write the doc.
+  const win = window.open('', '_blank', 'width=1100,height=850')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }

@@ -24,7 +24,11 @@ const BRAND_PRIMARY = '#059669' // emerald-600, matches the lesson-plan UI
 export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan') {
   if (!plan) throw new Error('No lesson plan to export.')
 
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  // NOTE: must NOT pass `noopener`/`noreferrer` in the features string — when
+  // either is present `window.open` opens a blank window but returns `null`,
+  // severing the handle we need to write the document into. That is what made
+  // the "Download PDF" buttons across the app pop a blank white page.
+  const win = window.open('', '_blank', 'width=900,height=1100')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
