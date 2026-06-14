@@ -99,7 +99,7 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot']
+const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
 // level the teacher tags so the studio can show the spread of thinking skills.
@@ -203,6 +203,27 @@ export const questionSchema = z
       })
       .nullable()
       .default(null),
+
+    // ── Assessment-paper answer fields (numeric / matching / sequence) ──
+    // These power the Assessment Studio's essay/numeric/matching/sequence
+    // blocks and their printed marking keys. They're OPTIONAL (not
+    // `.default([])`) so a question that isn't one of these types simply
+    // omits them rather than writing empty arrays to every Firestore doc.
+    //
+    // `numericTolerance` / `numericUnit` are the assessment-side numeric
+    // fields (the learner-quiz path uses `tolerance` above; the persistence
+    // layer keeps both in sync for numeric questions).
+    numericTolerance: z.number().min(0).max(1_000_000).optional(),
+    numericUnit: z.string().max(40).optional(),
+    // `matchingLeft[i]` pairs with `matchingRight[matchingAnswer[i]]`.
+    matchingLeft: z.array(z.string().max(500)).max(20).optional(),
+    matchingRight: z.array(z.string().max(500)).max(20).optional(),
+    matchingAnswer: z.array(z.number().int().min(-1).max(20)).max(20).optional(),
+    // `sequenceItems` shown to the learner; `sequenceAnswer[i]` is the 1-based
+    // position item i belongs in (0 = unset). The pre-publish checklist
+    // (collectQuizIssues) enforces a complete permutation before save.
+    sequenceItems: z.array(z.string().max(500)).max(20).optional(),
+    sequenceAnswer: z.array(z.number().int().min(0).max(20)).max(20).optional(),
 
     // Parallel, index-aligned media for each option. A `null` entry means the
     // option is text-only (the original shape). Stored as a separate array so

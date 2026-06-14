@@ -82,6 +82,50 @@ test('short_answer with string correctAnswer', () => {
   assert(result.success, JSON.stringify(result.error?.issues))
 })
 
+test('essay record passes (no options, blank answer ok)', () => {
+  const d = validDoc()
+  d.type = 'essay'
+  d.options = []
+  d.correctAnswer = ''
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('numeric record carries numericTolerance + numericUnit', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.options = []
+  d.correctAnswer = 42
+  d.numericTolerance = 0.5
+  d.numericUnit = 'kg'
+  d.tolerance = 0.5
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('matching record carries left/right/answer arrays', () => {
+  const d = validDoc()
+  d.type = 'matching'
+  d.options = []
+  d.correctAnswer = ''
+  d.matchingLeft = ['Zambia', 'Kenya']
+  d.matchingRight = ['Lusaka', 'Nairobi']
+  d.matchingAnswer = [0, 1]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('sequence record carries items + answer arrays', () => {
+  const d = validDoc()
+  d.type = 'sequence'
+  d.options = []
+  d.correctAnswer = ''
+  d.sequenceItems = ['Egg', 'Larva', 'Adult']
+  d.sequenceAnswer = [1, 2, 3]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
 test('tiptapDoc accepts null (empty field)', () => {
   const result = tiptapDoc.safeParse(null)
   assert(result.success, 'null should be accepted')
