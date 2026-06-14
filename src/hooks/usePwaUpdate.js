@@ -69,7 +69,9 @@ export function usePwaUpdate() {
           onRegisteredSW(swScriptUrl, registration) {
             // registration is undefined if the browser refused to register.
             if (cancelled || !registration) return
-            const check = () => { registration.update().catch(() => {}) }
+            const check = async () => {
+              try { await registration.update() } catch { /* update check is best-effort */ }
+            }
             // Re-check on a 30-minute timer so a tab left open for hours
             // still picks up a deploy without the user touching anything.
             pollId = setInterval(check, 30 * 60 * 1000)

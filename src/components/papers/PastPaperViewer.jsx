@@ -45,23 +45,24 @@ export default function PastPaperViewer() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getPaper(paperId)
-      .then((row) => {
+    const load = async () => {
+      try {
+        const row = await getPaper(paperId)
         if (cancelled) return
         if (!row || (row.status !== 'published' && !isAdmin)) {
           setErrored(true)
           return
         }
         setPaper(row)
-        recordPaperEvent(paperId, 'view').catch(() => {})
-      })
-      .catch((err) => {
+        try { await recordPaperEvent(paperId, 'view') } catch { /* view telemetry is best-effort */ }
+      } catch (err) {
         console.warn('[PastPaperViewer] load failed', err)
         if (!cancelled) setErrored(true)
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
+    load().catch(() => {})
     return () => { cancelled = true }
   }, [paperId, isAdmin])
 
@@ -167,7 +168,7 @@ export default function PastPaperViewer() {
         })
     })
     return () => { cancelled = true }
-  }, [paper, currentUser, previewSource?.kind, previewSource?.assets])
+  }, [paper, currentUser, previewSource])
 
   const handleImageLoad = useCallback((pageKey) => {
     setLoadedPages((prev) => ({ ...prev, [pageKey]: true }))

@@ -38,16 +38,21 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
 
   useEffect(() => {
     let cancelled = false
-    searchActivePictures({ subject: subject || 'all' }).then(({ rows }) => {
+    const load = async () => {
+      const { rows } = await searchActivePictures({ subject: subject || 'all' })
       if (cancelled) return
       setBank(rows)
       for (const p of rows) {
         if (p.url) continue
-        resolvePictureUrl(p).then((u) => {
+        try {
+          const u = await resolvePictureUrl(p)
           if (u && !cancelled) setUrls((m) => (m[p.id] ? m : { ...m, [p.id]: u }))
-        }).catch(() => {})
+        } catch {
+          // A single thumbnail failing to resolve shouldn't block the rest.
+        }
       }
-    })
+    }
+    load().catch(() => {})
     return () => { cancelled = true }
   }, [subject])
 
