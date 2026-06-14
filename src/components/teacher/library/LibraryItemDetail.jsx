@@ -38,6 +38,22 @@ import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
+
+// Human-readable document-type labels, keyed by the generation's `tool`.
+const TOOL_DOC_TYPES = {
+  lesson_plan: 'Lesson Plan',
+  worksheet: 'Worksheet',
+  flashcards: 'Flashcards',
+  scheme_of_work: 'Scheme of Work',
+  rubric: 'Rubric',
+  notes: 'Notes',
+  mark_schedule: 'Mark Schedule',
+  full_lesson: 'Full Lesson',
+  weekly_forecast: 'Weekly Forecast',
+  record_of_work: 'Record of Work',
+  class_timetable: 'Class Timetable',
+}
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { publishShare } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -149,47 +165,50 @@ export default function LibraryItemDetail() {
       )
       return
     }
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      slug(item.inputs?.topic || item.output?.header?.topic),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
+    const name = (ext = 'docx') => buildDownloadName({
+      docType: TOOL_DOC_TYPES[item.tool] || TOOL_META[item.tool]?.label || 'Document',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      topic: item.inputs?.topic || item.output?.header?.topic,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+      week: item.inputs?.weekNumber ?? item.output?.header?.weekNumber,
+      extra: item.output?.header?.className,
+      ext,
+    })
 
     if (item.tool === 'lesson_plan') {
-      await downloadLessonPlanDocx(item.output, `${base}_lesson-plan.docx`)
+      await downloadLessonPlanDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'worksheet') {
-      await downloadWorksheetDocx(item.output, `${base}_worksheet.docx`, { mode: 'worksheet' })
+      await downloadWorksheetDocx(item.output, name(), { mode: 'worksheet' })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'flashcards') {
-      await downloadFlashcardsDocx(item.output, `${base}_flashcards.docx`)
+      await downloadFlashcardsDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'scheme_of_work') {
-      await downloadSchemeOfWorkDocx(item.output, `${base}_scheme-of-work.docx`)
+      await downloadSchemeOfWorkDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'rubric') {
-      await downloadRubricDocx(item.output, `${base}_rubric.docx`)
+      await downloadRubricDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'notes') {
-      await downloadNotesDocx(item.output, `${base}_teacher-notes.docx`)
+      await downloadNotesDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'mark_schedule') {
-      await downloadMarkScheduleDocx(item.output, `${base}_mark-schedule.docx`, { mode: showPercents ? 'percent' : 'marks' })
+      await downloadMarkScheduleDocx(item.output, name(), { mode: showPercents ? 'percent' : 'marks' })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'full_lesson') {
-      await downloadFullLessonDocx(item.output, `${base}_full-lesson.docx`)
+      await downloadFullLessonDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'weekly_forecast') {
-      await downloadWeeklyForecastDocx(item.output, `${base}_weekly-forecast.docx`)
+      await downloadWeeklyForecastDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'record_of_work') {
-      await downloadRecordOfWorkDocx(item.output, `${base}_record-of-work.docx`)
+      await downloadRecordOfWorkDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'class_timetable') {
-      await downloadClassTimetableDocx(item.output, `${base}_timetable.docx`)
+      await downloadClassTimetableDocx(item.output, name())
       recordExport(item.id, 'docx')
     }
   }
@@ -197,17 +216,19 @@ export default function LibraryItemDetail() {
   async function onExportXlsx() {
     if (!item?.output || !permissions.canDownload) return
     if (item.tool !== 'mark_schedule' && item.tool !== 'class_timetable') return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
+    const name = buildDownloadName({
+      docType: TOOL_DOC_TYPES[item.tool] || 'Document',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+      extra: item.output?.header?.className,
+      ext: 'xlsx',
+    })
     if (item.tool === 'class_timetable') {
-      await downloadClassTimetableXlsx(item.output, `${base}_timetable.xlsx`)
+      await downloadClassTimetableXlsx(item.output, name)
     } else {
-      await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+      await downloadMarkScheduleXlsx(item.output, name)
     }
     recordExport(item.id, 'xlsx')
   }
@@ -225,29 +246,27 @@ export default function LibraryItemDetail() {
   async function onExportReportCards() {
     if (item?.tool !== 'mark_schedule' || !item.output) return
     if (!permissions.canDownload) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    await downloadReportCardsDocx(item.output, `${base}_report-cards.docx`)
+    const name = buildDownloadName({
+      docType: 'Report Cards',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+    })
+    await downloadReportCardsDocx(item.output, name)
     recordExport(item.id, 'report_cards')
   }
 
   async function onExportAnswerKey() {
     if (item?.tool !== 'worksheet' || !item.output) return
     if (!permissions.canDownload) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      slug(item.inputs?.topic || item.output?.header?.topic),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    await downloadWorksheetDocx(item.output, `${base}_ANSWER-KEY.docx`, { mode: 'answer_key' })
+    const name = buildDownloadName({
+      docType: 'Worksheet',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      topic: item.inputs?.topic || item.output?.header?.topic,
+      variant: 'Answer Key',
+    })
+    await downloadWorksheetDocx(item.output, name, { mode: 'answer_key' })
     recordExport(item.id, 'docx_answer_key')
   }
 

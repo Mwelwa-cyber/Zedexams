@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { buildDownloadName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
@@ -35,12 +36,14 @@ function formatDate(ts) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function safeFileName(title, suffix) {
-  const base = String(title || 'assessment')
-    .replace(/[^a-zA-Z0-9 _-]/g, '')
-    .replace(/\s+/g, '-')
-    .slice(0, 80) || 'assessment'
-  return `${base}-${suffix}`
+function assessmentFileName(assessment, variant) {
+  const hasTitle = Boolean(assessment.title?.trim())
+  return buildDownloadName({
+    docType: hasTitle ? assessment.title.trim() : 'Assessment',
+    grade: hasTitle ? undefined : assessment.grade,
+    subject: hasTitle ? undefined : assessment.subject,
+    variant,
+  })
 }
 
 function AssessmentRow({ assessment, onDelete, onExport, busy }) {
@@ -195,12 +198,9 @@ export default function AssessmentList() {
   async function handleExport(assessment, format, mode) {
     // Fetch the full question set on-demand so the list view stays cheap.
     const questions = await getAssessmentQuestions(assessment.id)
-    const filename = safeFileName(
-      assessment.title,
-      mode === 'paper' ? 'paper' : 'marking-scheme',
-    )
+    const filename = assessmentFileName(assessment, mode === 'paper' ? undefined : 'Marking Key')
     if (format === 'docx') {
-      await downloadAssessmentDocx(assessment, questions, `${filename}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+      await downloadAssessmentDocx(assessment, questions, filename, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
     } else {
       printAssessmentAsPdf(assessment, questions, { mode })
     }

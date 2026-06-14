@@ -21,6 +21,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
   listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
@@ -191,7 +192,7 @@ export default function RecordOfWorkStudio() {
 
   async function onExportDocx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_record-of-work.docx`
+    const name = buildDownloadName({ docType: 'Record of Work', grade: header.grade, subject: header.subject, term: header.term })
     try {
       await downloadRecordOfWorkDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Record of work downloaded.')

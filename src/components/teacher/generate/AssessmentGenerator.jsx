@@ -12,6 +12,7 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { downloadCurriculumAssessmentDocx } from '../../../utils/curriculumAssessmentToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -99,14 +100,13 @@ export default function AssessmentGenerator() {
 
   function onExport() {
     if (!assessment) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const name = [
-      slug(form.grade), slug(form.subject),
-      slug(assessment.header?.topic || form.topic), 'assessment',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    downloadCurriculumAssessmentDocx(assessment, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: 'Assessment',
+      grade: form.grade,
+      subject: form.subject,
+      topic: assessment.header?.topic || form.topic,
+    })
+    downloadCurriculumAssessmentDocx(assessment, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (
