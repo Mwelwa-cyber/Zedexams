@@ -147,7 +147,7 @@ export default function WeeklyForecastStudio() {
   const uid = currentUser?.uid
 
   // What the teacher signed up with — used to pre-fill the school and name.
-  const profileSchool = userProfile?.schoolName || userProfile?.school || ''
+  const profileSchool = userProfile?.school || userProfile?.schoolName || ''
   const profileName = userProfile?.displayName || userProfile?.fullName || ''
 
   const [header, setHeader] = useState(() => ({
