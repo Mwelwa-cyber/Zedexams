@@ -13,7 +13,7 @@ They are the "additional curriculum source" the studios fall back to: once
 imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 `resolveTermModuleOutline` / `resolveCbcContext` in `cbcKnowledge.js`).
 
-## What's here — 171 modules across 18 files
+## What's here — 177 modules across 19 files
 
 | File | Grade | Subject | Term(s) | Modules |
 |---|---|---|---|---|
@@ -31,14 +31,17 @@ imported they ground the Scheme of Work, Lesson Plan and Weekly Forecast (see
 | `musical_arts_education_g8_t2.json` | G8 | Musical Arts Education | 2 | 7 |
 | `food_and_nutrition_g8_t1.json` | G8 | Food & Nutrition | 1 | 6 |
 | `oral_english_g1_t3.json` | G1 | Oral English | 3 | 6 |
+| `social_studies_g4_t1.json` | **G4 (live)** | Social Studies | 1 (see note) | 6 |
 | `commerce_g8_t1.json` | G8 | Commerce | 1 | 5 |
 | `oral_english_g1_t2.json` | G1 | Oral English | 2 | 5 |
 | `additional_mathematics_g8_t1.json` | G8 | Mathematics II | 1 | 4 |
 | `civic_education_g8_t2.json` | G8 | Civic Education | 2 | 3 |
 
-`Form 1 = Grade 8`. Only **Expressive Arts G4** is inside the platform's live
-Grade 4–7 band today; the rest ground Junior-Secondary / ECE / Grade 1 when
-those go live. Note the Scheme-of-Work generator's `ALLOWED_SUBJECTS` currently
+`Form 1 = Grade 8`. **Expressive Arts G4** and **Social Studies G4** are inside
+the platform's live Grade 4–7 band today; the rest ground Junior-Secondary /
+ECE / Grade 1 when those go live. `social_studies_g4_t1.json` comes from a
+"Term 1 & 2" PDF with no clean in-document term divider, so all six topics are
+stored under Term 1 — review and re-tag the Term 2 ones before/after import. Note the Scheme-of-Work generator's `ALLOWED_SUBJECTS` currently
 covers `english`, `civic_education`, `expressive_arts`, `social_studies`, etc.,
 but not yet `commerce`, `geography`, `food_and_nutrition`, `oral_english`,
 `literacy`, `design_and_technology` — those modules still store and ground other
@@ -68,8 +71,12 @@ structure:
 
 - **ICT (Form 1)** — `Topic 1:` / `Sub-Topic:` glued mid-line with **no
   `Specific Competence` labels** at all; nothing validated.
-- **Literature in English (Form 1, T2)** — set-book / prose driven; only one
-  sub-topic carried a usable competence.
+- **Literature in English (Form 1, T1 & T2)** — set-book / prose driven; the
+  whole of "Oral Literature" collapses into one sub-topic, so it under-extracts.
+- **Grade 1 Literacy (T1) and Grade 1 Oral English (T1)** — the T1 books repeat
+  one or two phonics/greeting competences across many activity pages and lack
+  per-sub-topic headers, so they merge into 2 noisy modules. (The G1 T2/T3
+  books for these subjects DO parse cleanly and are included.)
 - **Pre-Mathematics/Science (ECE)** — different template; competences not
   captured.
 - **History (Form 1, T2)** — `TOPIC n.n:` headers parse, but most topics share

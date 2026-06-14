@@ -90,8 +90,15 @@ const SUBJECTS = [
 
 function detectMeta(coverText) {
   const cover = coverText.slice(0, 3000);
+  // Pick the subject whose name appears EARLIEST in the cover — the title sits
+  // at the very top, while template boilerplate (e.g. a stray "Creative and
+  // Technology Studies" copyright line) can appear lower and must not win.
   let subject = "";
-  for (const [re, slug] of SUBJECTS) if (re.test(cover)) { subject = slug; break; }
+  let best = Infinity;
+  for (const [re, slug] of SUBJECTS) {
+    const m = cover.match(re);
+    if (m && m.index < best) { best = m.index; subject = slug; }
+  }
 
   let grade = "";
   const form = cover.match(/\bform\s+(\d)\b/i);
