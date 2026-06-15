@@ -328,6 +328,29 @@ export async function saveClassTimetableGeneration({ uid, existingId, artifact }
   })
 }
 
+export async function saveSbaMarkSheetGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'sba_mark_sheet',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: null,
+      subject: header.subject || null,
+      topic: `${header.subjectLabel || ''} ${header.gradeLabel || ''} SBA marks`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.SBA_MARK_SHEETS,
+      syllabusHint: 'OBC',
+      grade: header.grade,
+      subject: header.subject,
+    },
+  })
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
