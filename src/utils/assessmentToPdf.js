@@ -33,6 +33,22 @@ function diagramSvgHtml(diagram, style) {
     .replace(/<svg /, `<svg preserveAspectRatio="xMidYMid meet" style="${style}" `)
 }
 
+// Render a figure with a dashed-red fallback layer behind it. When the image
+// loads it draws opaque-white on top (z-index 1) and hides the fallback. When
+// it can't be rasterised — the html2canvas CORS read fails even though the
+// <img> displays on screen — the image area comes out transparent and the
+// fallback shows through, so the teacher gets a clear "could not load" note
+// instead of a silent blank gap. `labelHtml` (diagram label overlays) is
+// positioned against the same relative frame.
+function imageWithFallbackHtml(url, alt, labelHtml = '') {
+  return `<div class="img-frame">` +
+    `<div class="img-fallback">⚠ Figure could not be loaded.` +
+    `<span class="hint">Regenerate or re-upload the image, then download again.</span></div>` +
+    `<img class="framed-img" src="${escapeHtml(url)}" alt="${escapeHtml(alt || '')}">` +
+    `${labelHtml}` +
+    `</div>`
+}
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -418,8 +434,20 @@ body {
 }
 .question .word-bank strong { margin-right: 4pt; }
 .question .q-image { margin: 6pt 0; text-align: center; }
-.question .q-image .q-image-frame { position: relative; display: inline-block; max-width: 80%; }
-.question .q-image .q-image-frame img { max-width: 100%; max-height: 240pt; display: block; }
+.img-frame { position: relative; display: inline-block; max-width: 80%; }
+.img-frame .framed-img {
+  position: relative; z-index: 1;
+  max-width: 100%; max-height: 240pt; display: block;
+  background: #fff;
+}
+.img-fallback {
+  position: absolute; inset: 0; z-index: 0;
+  min-width: 200pt; min-height: 90pt;
+  border: 1px dashed #b91c1c; background: #fef2f2; color: #b91c1c;
+  display: grid; place-items: center; align-content: center;
+  text-align: center; font-size: 9pt; padding: 6pt; line-height: 1.35;
+}
+.img-fallback .hint { display: block; color: #6b7280; font-style: italic; font-size: 8pt; margin-top: 3pt; }
 .diagram-label {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -751,7 +779,7 @@ function renderPassage(b) {
   return `<div class="passage">
     ${b.title ? `<strong class="h">${escapeHtml(b.title)}</strong>` : ''}
     ${b.text ? `<div>${b.text.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('')}</div>` : ''}
-    ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;"><img src="${escapeHtml(b.imageUrl)}" alt="${escapeHtml(b.imageAlt || '')}"></div>` : ''}
+    ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;">${imageWithFallbackHtml(b.imageUrl, b.imageAlt || '')}</div>` : ''}
   </div>`
 }
 
@@ -772,7 +800,7 @@ function renderQuestion(b) {
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
     }).join('')
-    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="${escapeHtml(b.imageAlt || '')}">${labelHtml}</div></div>`
+    body += `<div class="q-image">${imageWithFallbackHtml(b.imageUrl, b.imageAlt || '', labelHtml)}</div>`
     if (isIdentify && labels.length && b.type !== 'mcq') {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`

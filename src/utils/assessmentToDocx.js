@@ -504,6 +504,35 @@ async function imageParagraph(url, opts = {}) {
   return run ? centeredPara([run]) : null
 }
 
+// A visible placeholder for a figure that was expected but could not be
+// embedded — typically because the image bytes couldn't be read
+// cross-origin (Storage CORS not yet applied) or the URL is broken. Without
+// this the picture silently vanished, leaving a confusing blank gap that
+// teachers only noticed after printing. A dashed red box makes the gap
+// obvious and tells them how to recover.
+function imageFallbackBlock(alt = '') {
+  const label = String(alt || '').trim()
+  const dashed = { style: BorderStyle.DASHED, size: 6, color: 'B91C1C' }
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [new TableRow({
+      children: [new TableCell({
+        borders: { top: dashed, bottom: dashed, left: dashed, right: dashed },
+        children: [
+          centeredPara(runText(
+            `⚠ Figure could not be embedded${label ? ` (${label})` : ''}.`,
+            { bold: true, size: 18, color: 'B91C1C' },
+          )),
+          centeredPara(runText(
+            'Open the paper in the studio, regenerate or re-upload the image, then download again.',
+            { italics: true, size: 16, color: '6B7280' },
+          )),
+        ],
+      })],
+    })],
+  })
+}
+
 async function renderBlock(block) {
   switch (block.kind) {
     case 'header': return renderHeader(block)
@@ -625,7 +654,7 @@ async function renderPassage(b) {
   }
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
-    if (img) out.push(img)
+    out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
   return out
@@ -662,7 +691,7 @@ async function renderQuestion(b) {
 
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '' })
-    if (img) out.push(img)
+    out.push(img || imageFallbackBlock(b.imageAlt || ''))
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
     if (labels.length) {
