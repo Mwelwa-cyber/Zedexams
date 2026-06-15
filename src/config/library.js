@@ -35,6 +35,7 @@ export const LIBRARY_TYPES = {
   NOTES:            'notes',
   ASSESSMENTS:      'assessments',
   SBA_TASKS:        'sba_tasks',
+  SBA_MARK_SHEETS:  'sba_mark_sheets',
   MARK_SCHEDULES:   'mark_schedules',
   CLASS_TIMETABLES: 'class_timetables',
 }
@@ -127,6 +128,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: false,
     createTo:  '/teacher/generate/sba',
     emptyHint: 'Create an ECZ School Based Assessment task (Grades 5–7) with its marking scheme.',
+  },
+  {
+    id:        LIBRARY_TYPES.SBA_MARK_SHEETS,
+    label:     'SBA Mark Sheets',
+    folder:    'SBA Mark Sheets',
+    icon:      '🧮',
+    accent:    '#dcefe2',
+    hasTerm:   false,           // an SBA grade spans the whole year
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/sba-tracker',
+    emptyHint: 'Track SBA task marks — the converted 10%-per-grade mark, OMES-ready.',
   },
   {
     id:        LIBRARY_TYPES.MARK_SCHEDULES,

@@ -192,5 +192,6 @@ export const TOOL_TO_LIBRARY_TYPE = {
   worksheet:         LIBRARY_TYPES.ASSESSMENTS, // worksheets read as assessments
   rubric:            LIBRARY_TYPES.ASSESSMENTS,
   sba_task:          LIBRARY_TYPES.SBA_TASKS,
+  sba_mark_sheet:    LIBRARY_TYPES.SBA_MARK_SHEETS,
   flashcards:        LIBRARY_TYPES.NOTES,
 }
