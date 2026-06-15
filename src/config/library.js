@@ -36,6 +36,7 @@ export const LIBRARY_TYPES = {
   ASSESSMENTS:      'assessments',
   SBA_TASKS:        'sba_tasks',
   SBA_MARK_SHEETS:  'sba_mark_sheets',
+  SBA_PLANS:        'sba_plans',
   MARK_SCHEDULES:   'mark_schedules',
   CLASS_TIMETABLES: 'class_timetables',
 }
@@ -139,6 +140,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: false,
     createTo:  '/teacher/generate/sba-tracker',
     emptyHint: 'Track SBA task marks — the converted 10%-per-grade mark, OMES-ready.',
+  },
+  {
+    id:        LIBRARY_TYPES.SBA_PLANS,
+    label:     'SBA Plans',
+    folder:    'SBA Plans',
+    icon:      '🗂️',
+    accent:    '#dbe7f4',
+    hasTerm:   false,           // an SBA plan covers the whole grade-year
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/sba-planner',
+    emptyHint: 'Track which ECZ tasks are planned, administered and marked across the year.',
   },
   {
     id:        LIBRARY_TYPES.MARK_SCHEDULES,

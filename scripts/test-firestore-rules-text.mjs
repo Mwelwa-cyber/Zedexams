@@ -299,8 +299,8 @@ test('aiGenerations client create stays locked to the client-side tools', () => 
   const create = block[1].match(/allow create:[\s\S]*?;/)
   assert(create, 'aiGenerations create rule not found')
   assert(
-    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast', 'record_of_work', 'class_timetable', 'sba_mark_sheet'\]/.test(create[0]),
-    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast + record_of_work + class_timetable + sba_mark_sheet may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
+    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast', 'record_of_work', 'class_timetable', 'sba_mark_sheet', 'sba_plan'\]/.test(create[0]),
+    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast + record_of_work + class_timetable + sba_mark_sheet + sba_plan may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
   )
   const AI_TOOLS = ['lesson_plan', 'worksheet', 'scheme_of_work', 'notes', 'flashcards', 'rubric', 'quiz', 'assessment', 'exam_paper']
   AI_TOOLS.forEach((t) => {
