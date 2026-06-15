@@ -32,6 +32,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import SbaTaskView from '../views/SbaTaskView'
+import SbaWorkflowNote from '../SbaWorkflowNote'
 
 const TERMS = [
   { value: '', label: '— Term (optional) —' },
@@ -137,6 +138,8 @@ export default function SbaTaskStudio() {
           subtitle="One compliant task at a time — the right task type, Bloom level and marking scheme for Grades 5–7. No multiple choice."
           emoji="🏫"
         />
+
+        <SbaWorkflowNote current="studio" />
 
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
           <Link to="/teacher/generate/sba-tracker" className="studio-btn-ghost">
