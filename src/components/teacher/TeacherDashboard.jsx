@@ -215,6 +215,7 @@ const TOOL_META = {
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
   sba_task: { icon: GraduationCap, accent: '#d8e6f0', label: 'SBA Task' },
   sba_mark_sheet: { icon: Calculator, accent: '#dcefe2', label: 'SBA Mark Sheet' },
+  sba_plan: { icon: Target, accent: '#dbe7f4', label: 'SBA Year Plan' },
 }
 
 function SectionLabel({ children }) {

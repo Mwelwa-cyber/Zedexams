@@ -193,5 +193,6 @@ export const TOOL_TO_LIBRARY_TYPE = {
   rubric:            LIBRARY_TYPES.ASSESSMENTS,
   sba_task:          LIBRARY_TYPES.SBA_TASKS,
   sba_mark_sheet:    LIBRARY_TYPES.SBA_MARK_SHEETS,
+  sba_plan:          LIBRARY_TYPES.SBA_PLANS,
   flashcards:        LIBRARY_TYPES.NOTES,
 }

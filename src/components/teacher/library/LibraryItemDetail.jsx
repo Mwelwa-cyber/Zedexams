@@ -23,6 +23,7 @@ import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SbaTaskView from '../views/SbaTaskView'
 import SbaTrackerView from '../views/SbaTrackerView'
+import SbaPlanView from '../views/SbaPlanView'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
@@ -42,6 +43,8 @@ import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
 import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
+import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
+import { buildSbaPlan } from '../../../utils/sbaPlanner'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 
 // Human-readable document-type labels, keyed by the generation's `tool`.
@@ -59,6 +62,7 @@ const TOOL_DOC_TYPES = {
   class_timetable: 'Class Timetable',
   sba_task: 'SBA Task',
   sba_mark_sheet: 'SBA Mark Schedule',
+  sba_plan: 'SBA Year Plan',
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
@@ -238,6 +242,13 @@ export default function LibraryItemDetail() {
     } else if (item.tool === 'sba_mark_sheet') {
       await downloadSbaTrackerDocx(item.output, name())
       recordExport(item.id, 'docx')
+    } else if (item.tool === 'sba_plan') {
+      const h = item.output?.header || {}
+      const plan = buildSbaPlan(h.subject, h.grade, item.output?.statuses || {})
+      if (plan) {
+        await downloadSbaPlannerDocx({ ...plan, statuses: item.output?.statuses || {} }, h, name())
+        recordExport(item.id, 'docx')
+      }
     }
   }
 
@@ -634,6 +645,7 @@ export default function LibraryItemDetail() {
           {item.tool === 'notes' && <NotesView notes={item.output} />}
           {item.tool === 'sba_task' && <SbaTaskView task={item.output} showAnswers />}
           {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
+          {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.

@@ -351,6 +351,31 @@ export async function saveSbaMarkSheetGeneration({ uid, existingId, artifact }) 
   })
 }
 
+export async function saveSbaPlanGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.statuses || !Object.keys(artifact.statuses).length) {
+    throw new Error('Set at least one task status before saving.')
+  }
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'sba_plan',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: null,
+      subject: header.subject || null,
+      topic: `${header.subjectLabel || ''} ${header.gradeLabel || ''} SBA plan`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.SBA_PLANS,
+      syllabusHint: 'OBC',
+      grade: header.grade,
+      subject: header.subject,
+    },
+  })
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
