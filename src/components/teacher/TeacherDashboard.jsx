@@ -162,6 +162,15 @@ const STUDIOS = [
     meta: 'OMES-ready',
   },
   {
+    icon: Target,
+    tone: 'blue',
+    badge: 'NEW',
+    title: 'SBA Year Planner',
+    tagline: 'Track every required ECZ task from Planned to Marked, per term.',
+    to: '/teacher/generate/sba-planner',
+    meta: 'Coverage',
+  },
+  {
     icon: FolderOpen,
     tone: 'slate',
     badge: null,
@@ -205,6 +214,7 @@ const TOOL_META = {
   full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
   sba_task: { icon: GraduationCap, accent: '#d8e6f0', label: 'SBA Task' },
+  sba_mark_sheet: { icon: Calculator, accent: '#dcefe2', label: 'SBA Mark Sheet' },
 }
 
 function SectionLabel({ children }) {

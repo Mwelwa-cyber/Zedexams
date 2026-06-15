@@ -142,6 +142,9 @@ export default function SbaTaskStudio() {
           <Link to="/teacher/generate/sba-tracker" className="studio-btn-ghost">
             🧮 Open the SBA Mark Tracker →
           </Link>
+          <Link to="/teacher/generate/sba-planner" className="studio-btn-ghost">
+            🗂️ Open the SBA Year Planner →
+          </Link>
         </div>
 
         <div className="grid lg:grid-cols-5 gap-6">

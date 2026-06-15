@@ -27,7 +27,7 @@ import { clampInt } from '../../../utils/inputs.js'
 import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaTrackerXlsx } from '../../../utils/sbaTrackerToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/teacherLibraryService'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -66,6 +66,11 @@ export default function SbaMarkTracker() {
   const [pupils, setPupils] = useState(() => blankPupils(5))
   const [confirmClear, setConfirmClear] = useState(false)
 
+  // Library persistence — one saved doc per subject + grade sheet.
+  const [generationId, setGenerationId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirtySinceSave, setDirtySinceSave] = useState(false)
+
   // Cumulative combiner (decoupled — the three grades are different years).
   const [combo, setCombo] = useState({ g5: '', g6: '', g7: '' })
 
@@ -96,21 +101,30 @@ export default function SbaMarkTracker() {
     if (draft) {
       if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
       setPupils(Array.isArray(draft.pupils) && draft.pupils.length ? draft.pupils : blankPupils(5))
+      setGenerationId(draft.generationId || null)
     } else {
       setPupils(blankPupils(5))
+      setGenerationId(null)
     }
+    setDirtySinceSave(false)
   }, [uid, subject, grade])
 
-  // Debounced autosave.
+  // Debounced autosave (the library doc id rides along so "Update in library"
+  // survives a refresh).
   useEffect(() => {
     if (!uid) return undefined
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, pupils }))
+        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, pupils, generationId }))
       } catch { /* storage full/blocked — the editor still works */ }
     }, 700)
     return () => clearTimeout(t)
-  }, [uid, subject, grade, header, pupils])
+  }, [uid, subject, grade, header, pupils, generationId])
+
+  // Any data edit marks the saved library copy stale.
+  useEffect(() => {
+    setDirtySinceSave(true)
+  }, [header, pupils])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
@@ -136,8 +150,11 @@ export default function SbaMarkTracker() {
   }
 
   const artifact = useMemo(() => ({
+    schemaVersion: 'sba-mark-sheet-1.0',
     header: {
       ...header,
+      subject,
+      grade,
       subjectLabel: subjectMeta?.label || subject,
       gradeLabel: SBA_GRADES.find((g) => g.value === grade)?.label || grade,
     },
@@ -151,6 +168,22 @@ export default function SbaMarkTracker() {
     try { localStorage.removeItem(draftKey(uid, subject, grade)) } catch { /* ignore */ }
     setConfirmClear(false)
     toast.info('Cleared this sheet.')
+  }
+
+  async function onSaveToLibrary() {
+    if (!named.length || saving) return
+    setSaving(true)
+    try {
+      const id = await saveSbaMarkSheetGeneration({ uid, existingId: generationId, artifact })
+      setGenerationId(id)
+      setDirtySinceSave(false)
+      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+    } catch (err) {
+      console.error('[SbaMarkTracker] save failed', err)
+      toast.error(err?.message || 'Could not save to your library. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function onExportDocx() {
@@ -196,6 +229,7 @@ export default function SbaMarkTracker() {
 
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
           <Link to="/teacher/generate/sba" className="studio-btn-ghost">🏫 Create SBA tasks →</Link>
+          <Link to="/teacher/generate/sba-planner" className="studio-btn-ghost">🗂️ Year Planner →</Link>
         </div>
 
         <div className="space-y-6">
@@ -249,6 +283,14 @@ export default function SbaMarkTracker() {
                 <button type="button" onClick={() => addPupils(1)} className="studio-btn-ghost text-xs">+ Add pupil</button>
                 <button type="button" onClick={() => addPupils(5)} className="studio-btn-ghost text-xs">+ Add 5</button>
                 <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-xs text-rose-700">Clear</button>
+                <button
+                  type="button"
+                  onClick={onSaveToLibrary}
+                  disabled={!named.length || saving || (generationId && !dirtySinceSave)}
+                  className="studio-btn-ghost text-xs disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
                 <button type="button" onClick={onExportXlsx} disabled={!named.length} className="studio-btn-ghost text-xs disabled:opacity-50">
                   📊 .xlsx (live formula)
                 </button>
@@ -257,6 +299,11 @@ export default function SbaMarkTracker() {
                 </button>
               </div>
             </div>
+            {generationId && (
+              <p className="text-xs mb-2 -mt-2" style={{ color: '#566f76' }}>
+                In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
+              </p>
+            )}
 
             <div className="overflow-x-auto">
               <table className="text-sm border-collapse min-w-[720px]">
