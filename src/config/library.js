@@ -34,6 +34,7 @@ export const LIBRARY_TYPES = {
   LESSON_PLANS:     'lesson_plans',
   NOTES:            'notes',
   ASSESSMENTS:      'assessments',
+  SBA_TASKS:        'sba_tasks',
   MARK_SCHEDULES:   'mark_schedules',
   CLASS_TIMETABLES: 'class_timetables',
 }
@@ -115,6 +116,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: true,    // extra leaf level: Topic / Monthly / Mid / End
     createTo:  '/teacher/assessments/new',
     emptyHint: 'Create a topic, monthly, midterm or end-of-term assessment.',
+  },
+  {
+    id:        LIBRARY_TYPES.SBA_TASKS,
+    label:     'SBA Tasks',
+    folder:    'SBA Tasks',
+    icon:      '🏫',
+    accent:    '#d8e6f0',
+    hasTerm:   true,
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/sba',
+    emptyHint: 'Create an ECZ School Based Assessment task (Grades 5–7) with its marking scheme.',
   },
   {
     id:        LIBRARY_TYPES.MARK_SCHEDULES,

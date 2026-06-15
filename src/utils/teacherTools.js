@@ -45,6 +45,9 @@ const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
+const generateSbaTaskCallable = httpsCallable(functions, 'generateSbaTask', {
+  timeout: 120_000, // server: 120s — single SBA task with its marking scheme
+})
 const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
 })
@@ -741,6 +744,41 @@ export async function generateAssessment(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate one ECZ-compliant School Based Assessment (SBA) task for an
+ * upper-primary (Grade 5–7) subject + task type, with the marking artefact the
+ * task type requires (answer key / oral observation / method marks / rubric).
+ */
+export async function generateSbaTask(inputs) {
+  console.info('[zedexams] generateSbaTask →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    taskType: inputs?.taskType, component: inputs?.component,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateSbaTaskCallable(inputs),
+      125_000,
+      'generateSbaTask',
+    )
+    console.info('[zedexams] generateSbaTask ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateSbaTask ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )

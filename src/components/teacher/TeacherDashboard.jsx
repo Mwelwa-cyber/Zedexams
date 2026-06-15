@@ -143,6 +143,25 @@ const STUDIOS = [
     meta: 'Assessment bank',
   },
   {
+    icon: GraduationCap,
+    tone: 'sky',
+    badge: 'NEW',
+    libraryKey: 'sba',
+    title: 'SBA Studio',
+    tagline: 'ECZ School Based Assessment tasks for Grades 5–7, with marking schemes.',
+    to: '/teacher/generate/sba',
+    meta: 'Grades 5–7',
+  },
+  {
+    icon: Calculator,
+    tone: 'green',
+    badge: 'NEW',
+    title: 'SBA Mark Tracker',
+    tagline: 'Enter task marks — the ECZ 10%-per-grade SBA mark is calculated for you.',
+    to: '/teacher/generate/sba-tracker',
+    meta: 'OMES-ready',
+  },
+  {
     icon: FolderOpen,
     tone: 'slate',
     badge: null,
@@ -185,6 +204,7 @@ const TOOL_META = {
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
   full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
+  sba_task: { icon: GraduationCap, accent: '#d8e6f0', label: 'SBA Task' },
 }
 
 function SectionLabel({ children }) {
