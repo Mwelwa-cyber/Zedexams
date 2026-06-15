@@ -60,9 +60,13 @@ export default function ImportQuizPanel({
   // and threaded down to the parser so they actually gate behaviour.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
   const [groupComprehension, setGroupComprehension] = useState(true)
+  // How scanned diagrams are handled. Default 'keep' — most Zambian assessment
+  // questions depend on their figure, so we never drop diagrams by default.
+  // 'text' (leave out) is deliberately NOT the default.
+  const [diagramHandling, setDiagramHandling] = useState('keep')
 
   function currentOptions() {
-    return { preserveNumbering, groupComprehension }
+    return { preserveNumbering, groupComprehension, diagramHandling }
   }
 
   function handlePick(fileList) {
@@ -165,6 +169,33 @@ export default function ImportQuizPanel({
           />
           Group comprehension questions under passage
         </label>
+      </div>
+
+      <div className="theme-card theme-border rounded-xl border p-3">
+        <label htmlFor="diagram-handling" className="theme-text text-xs font-black">
+          How should diagrams be handled?
+        </label>
+        <select
+          id="diagram-handling"
+          value={diagramHandling}
+          disabled={importing}
+          onChange={event => setDiagramHandling(event.target.value)}
+          className="theme-border theme-text mt-1.5 w-full rounded-lg border bg-white px-3 py-2 text-sm font-bold"
+        >
+          <option value="keep">Keep diagrams and place them in the correct questions</option>
+          <option value="clean">Clean diagrams before adding them</option>
+          <option value="text">Leave out diagrams and use text only</option>
+          <option value="ask">Ask me for each diagram</option>
+        </select>
+        <p className="theme-text mt-1.5 text-xs font-bold leading-relaxed opacity-80">
+          {diagramHandling === 'text'
+            ? '⚠️ Diagrams will be left out. Many questions depend on their figure — only use this for text-only papers.'
+            : diagramHandling === 'clean'
+              ? 'Each diagram is cropped, straightened and cleaned to sharp black-and-white before it is placed under its question.'
+              : diagramHandling === 'ask'
+                ? 'Each detected diagram is attached and flagged so you can decide what to do with it after import.'
+                : 'Recommended. Each diagram is cropped from the page and kept under the question it belongs to.'}
+        </p>
       </div>
 
       {smartFellBack && (

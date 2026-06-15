@@ -17,6 +17,7 @@
     "test:suggest-answers": "node functions/suggestQuizAnswers.test.js",
     "test:review-utils": "node src/components/quiz/reviewUtils.test.js",
     "test:crop-geometry": "node src/components/quiz/cropGeometry.test.js",
+    "test:diagram-clean": "node src/utils/diagramClean.test.js",
     "test:diagram-catalog": "node scripts/test-diagram-catalog.mjs",
     "test:quiz-import-order": "node scripts/test-quiz-import-order.mjs",
     "test:comprehension-grouping": "node scripts/test-comprehension-grouping.mjs",
