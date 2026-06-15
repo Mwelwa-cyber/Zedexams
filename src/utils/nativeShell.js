@@ -13,12 +13,18 @@ export function initNativeShell() {
   if (!isNativePlatform()) return
   initialized = true
 
-  // System bar tint must match android/app/src/main/res/values/styles.xml so
-  // a hot reload of the WebView doesn't flash a different colour. Style.Dark
-  // means "dark status bar" — i.e. light/white icons.
+  // Status-bar *icon* appearance only. Style.Dark means "dark status bar" —
+  // i.e. light/white icons — which reads correctly over the brand violet bar.
+  // This routes through WindowInsetsControllerCompat (not deprecated).
+  //
+  // The bar *background* colour is owned by the edge-to-edge plugin
+  // (capacitor.config.json → plugins.EdgeToEdge.backgroundColor), which paints
+  // overlay views behind the WebView. We deliberately no longer call
+  // StatusBar.setBackgroundColor / setOverlaysWebView here: on Android 15/16
+  // edge-to-edge is enforced and those go through the deprecated
+  // Window.setStatusBarColor path (a no-op on-device, and it left two edge-to-
+  // edge systems fighting over the bars — the violet never actually rendered).
   StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-  StatusBar.setBackgroundColor({ color: '#4C1D95' }).catch(() => {})
-  StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
 
   // Android hardware back button: rely on Capacitor's own canGoBack
   // signal (it tracks the WebView's history) — window.history.length is
