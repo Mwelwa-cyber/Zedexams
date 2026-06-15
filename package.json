@@ -171,6 +171,7 @@
     "prepare": "husky",
     "deploy:firebase:functions": "npx -y firebase-tools@latest deploy --only functions",
     "deploy:firebase:firestore": "npx -y firebase-tools@latest deploy --only firestore",
+    "storage:cors": "gcloud storage buckets update gs://examsprepzambia.firebasestorage.app --cors-file=cors.json",
     "preview": "vite preview",
     "android:sync": "vite build && cap sync android",
     "android:open": "cap open android",

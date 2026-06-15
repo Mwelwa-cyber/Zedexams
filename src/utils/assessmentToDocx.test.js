@@ -10,6 +10,7 @@
  */
 
 import { Document, ImageRun, Packer, Paragraph } from 'docx'
+import { unzipSync, strFromU8 } from 'fflate'
 import { buildAssessmentDocument, detectImageType } from './assessmentToDocx.js'
 
 let failures = 0
@@ -81,6 +82,26 @@ try {
   const webpText = Buffer.from(await Packer.toBuffer(webpDoc)).toString('latin1')
   assert(!webpText.includes('.undefined'), 'WEBP question → no .undefined media part')
   assert(!webpText.includes('media/'), 'WEBP question → no broken media part when transcoding is unavailable')
+} finally {
+  globalThis.fetch = realFetch
+}
+
+console.log('\nUnreadable image → visible fallback placeholder (not a silent gap)')
+// When the image bytes can't be read (e.g. Storage CORS not applied, or a
+// dead URL), fetchImageBytes returns null. The exporter must drop a visible
+// dashed placeholder into the paper so the diagram gap is obvious — this is
+// the belt to the cors.json braces.
+globalThis.fetch = async () => ({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) })
+try {
+  const failDoc = await buildAssessmentDocument(
+    { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const buf = await Packer.toBuffer(failDoc)
+  const docXml = strFromU8(unzipSync(new Uint8Array(buf))['word/document.xml'])
+  assert(docXml.includes('could not be embedded'), 'unreadable image → fallback placeholder text in the paper')
+  assert(!docXml.includes('media/'), 'unreadable image → no broken media part')
 } finally {
   globalThis.fetch = realFetch
 }
