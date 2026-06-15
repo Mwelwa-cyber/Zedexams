@@ -85,3 +85,61 @@ function runStandaloneTypeRoundTripTest() {
 }
 
 runStandaloneTypeRoundTripTest()
+
+// ── Stimulus answer-space + passage total marks round-trip ──
+// Answer-space settings (format/lines/labelled-blanks), per-sub-question word
+// banks, and a passage's pinned total must survive serialize → hydrate.
+function runStimulusAnswerSpaceRoundTripTest() {
+  const passageSection = createPassageSection({
+    passageKind: 'diagram',
+    title: 'Study the diagram below and answer the questions that follow.',
+    manualMarks: 7,
+    questions: [
+      {
+        type: 'short_answer', text: 'Name the parts P, Q and R.', options: [], correctAnswer: 'P=nose',
+        answerFormat: 'labelled_blanks', blankLabels: ['P', 'Q', 'R'], wordBank: ['Nose', 'Lungs'],
+      },
+      {
+        type: 'short_answer', text: 'State the function of R.', options: [], correctAnswer: 'gas exchange',
+        answerFormat: 'lines', answerLines: 3,
+      },
+      {
+        type: 'short_answer', text: 'Answered on the diagram.', options: [], correctAnswer: '',
+        answerFormat: 'none',
+      },
+    ],
+  })
+
+  const serialized = serializeQuizSections([passageSection], [])
+  const savedPassage = serialized.passages[0]
+  assert.equal(savedPassage.passageKind, 'diagram', 'passageKind diagram persists')
+  assert.equal(savedPassage.manualMarks, 7, 'passage manualMarks persists')
+
+  const labelled = serialized.questions.find(q => q.answerFormat === 'labelled_blanks')
+  assert(labelled, 'labelled-blanks sub-question serialized')
+  assert.deepEqual(labelled.blankLabels, ['P', 'Q', 'R'], 'blankLabels persist')
+  assert.deepEqual(labelled.wordBank, ['Nose', 'Lungs'], 'wordBank persists')
+
+  const { sections: reopened } = hydrateQuizSections(
+    serialized.questions, serialized.passages, [], serialized.pagebreaks,
+  )
+  const passage = reopened.find(s => s.kind === 'passage')
+  assert(passage, 'passage reopens')
+  assert.equal(passage.passage.passageKind, 'diagram', 'passageKind reopens as diagram')
+  assert.equal(passage.passage.manualMarks, 7, 'manualMarks reopens')
+
+  const subLabelled = passage.passage.questions.find(q => q.answerFormat === 'labelled_blanks')
+  assert(subLabelled, 'labelled-blanks sub-question reopens')
+  assert.deepEqual(subLabelled.blankLabels, ['P', 'Q', 'R'], 'blankLabels reopen')
+  assert.deepEqual(subLabelled.wordBank, ['Nose', 'Lungs'], 'wordBank reopens on the sub-question')
+
+  const subLines = passage.passage.questions.find(q => q.answerLines === 3)
+  assert(subLines, 'custom answer-lines sub-question reopens with its line count')
+
+  const subNone = passage.passage.questions.find(q => q.answerFormat === 'none')
+  assert(subNone, "'none' answer-space sub-question reopens")
+
+  console.log('runStimulusAnswerSpaceRoundTripTest passed (answer-space + passage total)')
+}
+
+runStimulusAnswerSpaceRoundTripTest()

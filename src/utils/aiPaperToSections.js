@@ -14,6 +14,7 @@ import {
   importMarkupToRichHtml,
   importMarkupToOptionHtml,
 } from '../components/quiz/importRichText.js'
+import { stimulusDescriptorFromQuestion } from './stimulusQuestion.js'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
@@ -306,6 +307,31 @@ export function aiAssessmentToStudioBlocks(assessment) {
     for (const q of questions) {
       if (!q || typeof q !== 'object' || !String(q.prompt || '').trim()) {
         out.warnings.push('Skipped an empty AI question.')
+        continue
+      }
+      // Stimulus / source detection: a single question whose prompt reads
+      // "study the diagram below … (a) … (b) … (c) …" is split into a stimulus
+      // passage (instruction → diagram/source → follow-up sub-questions) so it
+      // prints in the correct layout instead of one paragraph above the figure.
+      const stimulus = stimulusDescriptorFromQuestion({
+        text: q.prompt,
+        marks: q.marks,
+        imageDiagram: (q.visual && q.visual.kind === 'shape' && q.visual.libraryKey)
+          ? { libraryKey: q.visual.libraryKey, params: q.visual.params || {} }
+          : undefined,
+      })
+      if (stimulus && stimulus.questions.length >= 2) {
+        out.sections.push(createPassageSection({
+          passageKind: stimulus.passageKind,
+          title: stimulus.title,
+          imageDiagram: stimulus.imageDiagram,
+          partId: part.id,
+          questions: stimulus.questions,
+        }))
+        out.sections[out.sections.length - 1].partId = part.id
+        out.questionCount += stimulus.questions.length
+        out.totalMarks += stimulus.questions.reduce((s, sq) => s + (Number(sq.marks) || 0), 0)
+        out.warnings.push(`Classified Q"${String(q.prompt).slice(0, 40)}…" as a stimulus question with ${stimulus.questions.length} sub-questions.`)
         continue
       }
       const { overrides, warnings } = mapAiQuestion(q, { partId: part.id })

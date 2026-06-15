@@ -231,6 +231,19 @@ async function normalizeQuestionPayload(q, order) {
     imagePosition: q.imagePosition || null,
     imageWidth:    normaliseImageWidth(q.imageWidth),
     diagramText:   q.diagramText || null,
+    // Answer-space settings. Only persisted when the teacher set a non-default
+    // value so a plain MCQ never carries them (keeps the .strict() schema happy
+    // and the doc small). 'lines' + null + [] is the implicit default.
+    ...(q.answerFormat && q.answerFormat !== 'lines' ? { answerFormat: q.answerFormat } : {}),
+    ...(Number.isInteger(q.answerLines) && q.answerLines >= 0
+      ? { answerLines: Math.min(40, q.answerLines) }
+      : {}),
+    ...(Array.isArray(q.blankLabels) && q.blankLabels.length
+      ? { blankLabels: q.blankLabels.map(l => String(l ?? '').trim().slice(0, 24)).filter(Boolean).slice(0, 26) }
+      : {}),
+    ...(Array.isArray(q.wordBank) && q.wordBank.length
+      ? { wordBank: q.wordBank.map(w => String(w ?? '').trim().slice(0, 120)).filter(Boolean).slice(0, 40) }
+      : {}),
     requiresReview: Boolean(q.requiresReview),
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],
     importWarnings: Array.isArray(q.importWarnings) ? q.importWarnings.map(note => String(note ?? '').trim()).filter(Boolean) : [],

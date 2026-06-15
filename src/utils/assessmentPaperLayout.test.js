@@ -175,6 +175,66 @@ console.log('\nbuildPaperLayout — drops duplicated name/date header from instr
   assert(instr.text === 'Answer ALL questions. Show your working.', 'leaves normal instructions unchanged')
 }
 
+console.log('\nbuildPaperLayout — answer-space format threads onto question blocks')
+{
+  const blocks = buildPaperLayout(baseAssessment, [
+    {
+      localId: 'q1', order: 1, type: 'short_answer', marks: 3,
+      text: 'Name the parts labelled P, Q and R.',
+      answerFormat: 'labelled_blanks', blankLabels: ['P', 'Q', 'R'],
+    },
+    {
+      localId: 'q2', order: 2, type: 'short_answer', marks: 1,
+      text: 'State the function.', answerFormat: 'none',
+    },
+  ])
+  const q1 = blocks.find(b => b.kind === 'question' && b.number === 1)
+  assert(q1.answerFormat === 'labelled_blanks', 'labelled_blanks format threads onto the block')
+  assert(Array.isArray(q1.blankLabels) && q1.blankLabels.join(',') === 'P,Q,R', 'blankLabels thread onto the block')
+  const q2 = blocks.find(b => b.kind === 'question' && b.number === 2)
+  assert(q2.answerFormat === 'none', "answerFormat 'none' threads onto the block")
+}
+
+console.log('\nbuildPaperLayout — stimulus passage emits a total-marks footer')
+{
+  const blocks = buildPaperLayout(
+    { ...baseAssessment, passages: [{ id: 'p1', order: 1, title: 'Study the diagram below.', passageKind: 'diagram', imageUrl: 'https://x/lungs.png' }] },
+    [
+      { localId: 'a', order: 1, passageId: 'p1', type: 'short_answer', marks: 3, text: 'Name P, Q, R.' },
+      { localId: 'b', order: 2, passageId: 'p1', type: 'short_answer', marks: 1, text: 'Function of R.' },
+      { localId: 'c', order: 3, passageId: 'p1', type: 'short_answer', marks: 1, text: 'Gas breathed out.' },
+    ],
+  )
+  // Order must be: passage (instruction + image) → its questions → total footer.
+  const passageIdx = blocks.findIndex(b => b.kind === 'passage')
+  const footerIdx = blocks.findIndex(b => b.kind === 'passageTotal')
+  assert(passageIdx >= 0 && footerIdx > passageIdx, 'passage comes before its total footer')
+  const footer = blocks[footerIdx]
+  assert(footer && footer.totalMarks === 5, 'auto-sums sub-question marks to 5')
+  // The instruction (title) and image sit on the passage block, before the questions.
+  const passage = blocks[passageIdx]
+  assert(passage.title === 'Study the diagram below.' && passage.imageUrl === 'https://x/lungs.png', 'instruction + diagram render before the questions')
+}
+
+console.log('\nbuildPaperLayout — comprehension passage has no total footer')
+{
+  const blocks = buildPaperLayout(
+    { ...baseAssessment, passages: [{ id: 'p1', order: 1, title: 'A story', passageKind: 'comprehension', passageText: 'Once upon a time.' }] },
+    [{ localId: 'a', order: 1, passageId: 'p1', type: 'mcq', marks: 1, text: 'Q', options: ['x', 'y'], correctAnswer: 0 }],
+  )
+  assert(!blocks.some(b => b.kind === 'passageTotal'), 'comprehension passages keep their historical no-total layout')
+}
+
+console.log('\nbuildPaperLayout — pinned manual total overrides the auto-sum')
+{
+  const blocks = buildPaperLayout(
+    { ...baseAssessment, passages: [{ id: 'p1', order: 1, title: 'Diagram', passageKind: 'diagram', manualMarks: 10 }] },
+    [{ localId: 'a', order: 1, passageId: 'p1', type: 'short_answer', marks: 3, text: 'Q' }],
+  )
+  const footer = blocks.find(b => b.kind === 'passageTotal')
+  assert(footer && footer.totalMarks === 10, 'manualMarks overrides the auto-sum')
+}
+
 console.log('\nlatexToReadableText — readable maths for non-JS exports')
 assert(latexToReadableText('18') === '18', 'plain number unchanged')
 assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')

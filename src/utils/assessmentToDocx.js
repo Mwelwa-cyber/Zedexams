@@ -551,6 +551,11 @@ async function renderBlock(block) {
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'passageTotal': return [new Paragraph({
+      children: [runText(`Total: ${block.totalMarks} mark${block.totalMarks === 1 ? '' : 's'}`, { bold: true, size: 22 })],
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 160 },
+    })]
     case 'pagebreak': return [new Paragraph({ children: [new PageBreak()] })]
     case 'endOfPaper': return [centeredPara(runText(block.text, { italics: true, size: 20, color: '555555' }))]
     case 'footerCode': return [new Paragraph({
@@ -667,6 +672,28 @@ async function renderPassage(b) {
     out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  return out
+}
+
+// Blank answer space for a written-answer question, honouring the teacher's
+// answerFormat: 'none' (no space), 'labelled_blanks' (one "Label: ____" row
+// per blankLabels entry), or the default N ruled underscore lines.
+const ANSWER_RULE = '______________________________________________________'
+function answerSpaceParas(b, defaultLines) {
+  if (b.answerFormat === 'none') return []
+  if (b.answerFormat === 'labelled_blanks' && Array.isArray(b.blankLabels) && b.blankLabels.length) {
+    return b.blankLabels.map(label => para([
+      runText(`${label}:  `, { bold: true, size: 20 }),
+      runText('________________________________________', { size: 20 }),
+    ]))
+  }
+  const n = Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0
+    ? Number(b.answerLines)
+    : defaultLines
+  const out = []
+  for (let i = 0; i < n; i += 1) {
+    out.push(para(runText(ANSWER_RULE, { size: 20 })))
+  }
   return out
 }
 
@@ -855,10 +882,7 @@ async function renderQuestion(b) {
       })
     }
   } else if (b.type === 'short_answer' || b.type === 'fill') {
-    const lines = b.answerLines || 2
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
-    }
+    answerSpaceParas(b, 2).forEach(p => out.push(p))
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
     // underscore run roughly matches the 160pt line in the PDF.
@@ -909,15 +933,9 @@ async function renderQuestion(b) {
       ]))
     }
   } else if (b.type === 'diagram') {
-    const lines = b.answerLines || 4
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
-    }
+    answerSpaceParas(b, 4).forEach(p => out.push(p))
   } else if (b.type === 'essay') {
-    const lines = b.answerLines || 10
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
-    }
+    answerSpaceParas(b, 10).forEach(p => out.push(p))
   }
 
   if (Number.isFinite(Number(b.drawingHeight)) && Number(b.drawingHeight) > 0) {

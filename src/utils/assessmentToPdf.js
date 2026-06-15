@@ -537,6 +537,11 @@ body {
 
 .answer-lines { margin: 6pt 0 12pt; }
 .answer-line { border-bottom: 1px solid #000; height: 18pt; margin-bottom: 4pt; }
+.answer-lines.labelled-blanks { margin: 6pt 0 12pt; }
+.blank-row { display: flex; align-items: flex-end; gap: 8pt; margin-bottom: 6pt; }
+.blank-label { font-weight: 600; white-space: nowrap; }
+.answer-line.blank-line { flex: 1; margin-bottom: 0; }
+.passage-total { text-align: right; font-weight: 700; font-size: 11pt; margin: 2pt 0 12pt; }
 .numeric-line { display: flex; align-items: flex-end; gap: 8pt; margin: 6pt 0 12pt; }
 .numeric-line .answer-line.numeric { display: inline-block; flex: 0 0 160pt; margin-bottom: 0; }
 .numeric-unit { font-size: 11pt; }
@@ -706,6 +711,7 @@ function renderBlock(block) {
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'passageTotal': return `<div class="passage-total">Total: ${block.totalMarks}&nbsp;mark${block.totalMarks === 1 ? '' : 's'}</div>`
     case 'pagebreak': return '<div class="pagebreak"></div>'
     case 'endOfPaper': return `<div class="end-of-paper">${escapeHtml(block.text)}</div>`
     case 'footerCode': return `<div class="footer-code">${escapeHtml(block.code)}</div>`
@@ -823,11 +829,11 @@ function renderQuestion(b) {
   if (b.type === 'mcq') {
     body += renderOptionsHtml(b)
   } else if (b.type === 'short_answer' || b.type === 'fill') {
-    body += renderAnswerLines(b.answerLines ?? 2)
+    body += renderAnswerSpace(b, 2)
   } else if (b.type === 'diagram') {
-    body += renderAnswerLines(b.answerLines ?? 4)
+    body += renderAnswerSpace(b, 4)
   } else if (b.type === 'essay') {
-    body += renderAnswerLines(b.answerLines ?? 10)
+    body += renderAnswerSpace(b, 10)
   } else if (b.type === 'numeric') {
     body += renderNumericLine(b)
   } else if (b.type === 'matching') {
@@ -938,6 +944,22 @@ function renderOptionsHtml(b) {
 function renderAnswerLines(count) {
   const n = Math.max(1, Math.min(20, count))
   return `<div class="answer-lines">${Array.from({ length: n }).map(() => '<div class="answer-line"></div>').join('')}</div>`
+}
+
+// Answer space honouring the teacher's answerFormat choice. 'none' prints
+// nothing; 'labelled_blanks' prints one "Label: ____" row per blankLabels
+// entry; otherwise the default N ruled lines.
+function renderAnswerSpace(b, defaultLines) {
+  if (b.answerFormat === 'none') return ''
+  if (b.answerFormat === 'labelled_blanks' && Array.isArray(b.blankLabels) && b.blankLabels.length) {
+    const rows = b.blankLabels.map(label =>
+      `<div class="blank-row"><span class="blank-label">${escapeHtml(label)}:</span><span class="answer-line blank-line"></span></div>`
+    ).join('')
+    return `<div class="answer-lines labelled-blanks">${rows}</div>`
+  }
+  const n = Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0 ? Number(b.answerLines) : defaultLines
+  if (n <= 0) return ''
+  return renderAnswerLines(n)
 }
 
 // Numeric questions get a single short answer line with an optional unit

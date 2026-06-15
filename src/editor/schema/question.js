@@ -290,6 +290,22 @@ export const questionSchema = z
     // exporters). Absent on legacy docs → renderer falls back to full width.
     imageWidth: z.enum(['small', 'medium', 'large', 'full']).default('full'),
     diagramText: z.string().max(2000).nullable().default(null),
+
+    // ── Answer-space settings (stimulus / structured sub-questions) ──
+    // How much blank space prints under the question. 'lines' renders N ruled
+    // lines, 'none' renders nothing (answered on the diagram), 'labelled_blanks'
+    // renders one "Label: ____" row per `blankLabels` entry. Absent on legacy
+    // docs → renderer falls back to the per-type default line count.
+    answerFormat: z.enum(['lines', 'none', 'labelled_blanks']).optional(),
+    // Explicit ruled-line count for the 'lines' format. Null/absent → per-type
+    // default. Capped well above any sane hand-set value.
+    answerLines: z.number().int().min(0).max(40).nullable().optional(),
+    // Labels for the 'labelled_blanks' format, e.g. ['P','Q','R'].
+    blankLabels: z.array(z.string().max(24)).max(26).optional(),
+    // Optional word bank printed above the answer space (candidate answers the
+    // student chooses from). Used by structured / stimulus sub-questions.
+    wordBank: z.array(z.string().max(120)).max(40).optional(),
+
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),
     importWarnings: z.array(z.string().max(2000)).default([]),

@@ -105,6 +105,23 @@ export function emptyQuestion(overrides = {}) {
     // a blank bordered rectangle of this height under the question text
     // for the student to draw their own diagram in. null = no canvas.
     drawingHeight: null,
+    // Answer-space settings — surfaced for stimulus/structured sub-questions so
+    // a teacher can pick how much blank space prints under each follow-up.
+    //   answerFormat — 'lines' (default; print N ruled lines), 'none' (no
+    //                  space at all, e.g. the sub-part is answered on the
+    //                  diagram), or 'labelled_blanks' (print "P: ____" rows).
+    //   answerLines  — explicit ruled-line count for the 'lines' format.
+    //                  null = fall back to the per-type default (2 for
+    //                  short-answer, 4 for structured/diagram, etc.).
+    //   blankLabels  — labels for the 'labelled_blanks' format, e.g.
+    //                  ['P','Q','R'] → three "P: ____" rows. Renderers also
+    //                  accept ['A','B','C'] / ['1','2','3'] / ['i','ii','iii'].
+    answerFormat: 'lines',
+    answerLines: null,
+    blankLabels: [],
+    // Optional word bank printed above the answer space (a row of candidate
+    // answers the student picks from). Stored as an array of short strings.
+    wordBank: [],
     ...overrides,
   }
 
@@ -161,9 +178,55 @@ export function createPartGroup(overrides = {}) {
 
 export const PASSAGE_KIND_COMPREHENSION = 'comprehension'
 export const PASSAGE_KIND_MAP = 'map'
+// Stimulus / source-based question kinds. A 'diagram' stimulus leads with an
+// instruction, then a figure/picture/graph/table, then the follow-up
+// sub-questions underneath. A 'source' stimulus is the document-study variant
+// (passage extract, table, map, chart). Both reuse the passage data model —
+// instruction = passage.instructions, the stimulus = passageText/imageUrl, and
+// every follow-up lives in passage.questions[].
+export const PASSAGE_KIND_DIAGRAM = 'diagram'
+export const PASSAGE_KIND_SOURCE = 'source'
+
+const PASSAGE_KINDS = new Set([
+  PASSAGE_KIND_COMPREHENSION,
+  PASSAGE_KIND_MAP,
+  PASSAGE_KIND_DIAGRAM,
+  PASSAGE_KIND_SOURCE,
+])
 
 function normalizePassageKind(value) {
-  return value === PASSAGE_KIND_MAP ? PASSAGE_KIND_MAP : PASSAGE_KIND_COMPREHENSION
+  return PASSAGE_KINDS.has(value) ? value : PASSAGE_KIND_COMPREHENSION
+}
+
+// A passage's total marks normally auto-sum from its sub-questions, but a
+// teacher can pin an explicit total (e.g. to match a printed paper). Returns a
+// clamped integer or null (= auto).
+export function normalizeManualMarks(value) {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.min(999, Math.round(n))
+}
+
+// Sum the marks across a passage's sub-questions. Used for the auto total.
+export function sumPassageMarks(questions = []) {
+  return (questions || []).reduce((sum, q) => sum + (Number(q?.marks) || 0), 0)
+}
+
+const ANSWER_FORMATS = new Set(['lines', 'none', 'labelled_blanks'])
+
+// Normalise the answer-space settings on the way in/out of storage so renderers
+// can trust the shape. Returns { answerFormat, answerLines, blankLabels }.
+export function normalizeAnswerSpace(question = {}) {
+  const answerFormat = ANSWER_FORMATS.has(question.answerFormat) ? question.answerFormat : 'lines'
+  const rawLines = Number(question.answerLines)
+  const answerLines = Number.isFinite(rawLines) && rawLines >= 0
+    ? Math.min(40, Math.round(rawLines))
+    : null
+  const blankLabels = Array.isArray(question.blankLabels)
+    ? question.blankLabels.map(l => String(l ?? '').trim().slice(0, 24)).filter(Boolean).slice(0, 26)
+    : []
+  return { answerFormat, answerLines, blankLabels }
 }
 
 // A page break is a structural marker that forces a new page when the paper
@@ -201,6 +264,8 @@ export function createPassageSection(passageOverrides = {}) {
     collapsed: false,
     ...passageOverrides,
     passageKind: normalizePassageKind(passageOverrides.passageKind),
+    // null = total marks auto-sum from the sub-questions; a number pins it.
+    manualMarks: normalizeManualMarks(passageOverrides.manualMarks),
   }
 
   return {
@@ -506,6 +571,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         // succeeds; never persisted long-term.
         imageAssetId: passage.imageAssetId || '',
         passageKind: normalizePassageKind(passage.passageKind),
+        manualMarks: normalizeManualMarks(passage.manualMarks),
         order: startOrder,
         partId: passagePartId,
       })
@@ -525,6 +591,7 @@ export function serializeQuizSections(sections = [], parts = []) {
           // Text-answer sub-questions carry no options; clear any stale ones
           // left over from a type switch so they don't round-trip as MCQ.
           options: subIsTextAnswer ? [] : serializeOptions(question.options),
+          ...normalizeAnswerSpace(question),
           passageId,
           type: subType,
           detectedType: question.detectedType ?? subType,
@@ -544,6 +611,7 @@ export function serializeQuizSections(sections = [], parts = []) {
       text: serializeRichField(question.text),
       explanation: serializeRichField(question.explanation),
       options: serializeOptions(question.options),
+      ...normalizeAnswerSpace(question),
       passageId: null,
       subtype: question.subtype ?? null,
       partId: resolvePartId(question.partId),
@@ -701,6 +769,10 @@ function hydrateStandaloneQuestion(question = {}) {
     drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
       ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
       : null,
+    wordBank: Array.isArray(question.wordBank)
+      ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
+      : [],
+    ...normalizeAnswerSpace(question),
   })
 }
 
@@ -740,6 +812,44 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     passageId,
     imageUploading: false,
     imageUploadStep: '',
+    // Stimulus sub-questions may carry their own optional figure, table, word
+    // bank and answer-space settings (e.g. "(a) Label the parts P, Q, R" with
+    // labelled blanks). Preserve them across a reload instead of resetting to
+    // the empty-question defaults.
+    imageUrl: question.imageUrl ?? '',
+    imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
+    imageWidth: question.imageWidth ?? 'full',
+    imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
+      ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
+      : null,
+    diagramText: question.diagramText ?? '',
+    diagramLabels: Array.isArray(question.diagramLabels)
+      ? question.diagramLabels
+        .map(l => ({
+          id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+          text: String(l?.text ?? '').slice(0, 80),
+        }))
+        .slice(0, 20)
+      : [],
+    diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
+    tableData: question.tableData && Array.isArray(question.tableData.headers)
+      ? {
+        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+        rows: Array.isArray(question.tableData.rows)
+          ? question.tableData.rows
+            .slice(0, 12)
+            .map(row => Array.isArray(row)
+              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6)
+              : [])
+          : [],
+      }
+      : null,
+    wordBank: Array.isArray(question.wordBank)
+      ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
+      : [],
+    ...normalizeAnswerSpace(question),
   })
 }
 
@@ -764,6 +874,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
       imageUrl: passage.imageUrl ?? '',
       imageAssetId: passage.imageAssetId ?? '',
       passageKind: passage.passageKind,
+      manualMarks: passage.manualMarks,
       questions: [],
     })
     section.partId = passage.partId ?? null

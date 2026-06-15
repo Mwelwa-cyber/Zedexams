@@ -150,6 +150,7 @@
     "test:note-import": "node functions/noteImport.test.js",
     "test:note-import-client": "node src/features/notes/lib/noteImport.test.js",
     "test:ai-paper-blocks": "node src/utils/aiPaperToSections.test.js",
+    "test:stimulus-question": "node src/utils/stimulusQuestion.test.js",
     "test:diagram-match": "node src/utils/diagramMatch.test.js",
     "test:picture-starter-pack": "node src/utils/pictureBankStarterPack.test.js",
     "test:picture-naming": "node functions/pictureNaming.test.js",

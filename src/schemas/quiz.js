@@ -63,6 +63,10 @@ export const passageSchema = z
     passageText: emptyableString(50000),
     imageUrl: emptyableString(2000),
     passageKind: emptyableString(40),
+    // Pinned total marks for a stimulus block (overrides the auto-sum of its
+    // sub-questions). null = auto. Nullable so the editor can clear it back to
+    // auto with an explicit value Firestore will persist.
+    manualMarks: z.number().int().min(0).max(999).nullable().optional(),
     order: z.number().int().min(0).max(10000).default(0),
   })
   .passthrough()
@@ -214,6 +218,7 @@ function coercePassage(raw) {
     passageText: safeString(raw.passageText),
     imageUrl: safeString(raw.imageUrl),
     passageKind: safeString(raw.passageKind),
+    manualMarks: raw.manualMarks == null ? null : safeNumber(raw.manualMarks, null),
     order: safeNumber(raw.order, 0),
     // Preserve any extra fields the runner might read directly.
     ...raw,

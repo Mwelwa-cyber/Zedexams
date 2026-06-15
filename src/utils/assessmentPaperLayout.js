@@ -446,11 +446,14 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
           imageUrl: item.passage.imageUrl || '',
           imageAlt: plain(item.passage.imageAlt) || plain(item.passage.title) || '',
           passageKind: item.passage.passageKind || 'comprehension',
+          ...passageMarksFields(item.passage, passageQuestions),
         })
         for (const q of passageQuestions) {
           runningNumber += 1
           blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers, mcqOpts))
         }
+        const footer = passageTotalFooter(item.passage, passageQuestions)
+        if (footer) blocks.push(footer)
       } else if (item.kind === 'pagebreak') {
         blocks.push({ kind: 'pagebreak' })
       } else {
@@ -471,6 +474,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       imageUrl: passage.imageUrl || '',
       imageAlt: plain(passage.imageAlt) || plain(passage.title) || '',
       passageKind: passage.passageKind || 'comprehension',
+      ...passageMarksFields(passage, []),
     })
   }
 
@@ -483,6 +487,34 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   }
 
   return blocks
+}
+
+// Stimulus passages (diagram / source / map) auto-total the marks of their
+// sub-questions and print "Total: N marks" beneath them. A teacher can pin an
+// explicit total via passage.manualMarks. Comprehension passages keep their
+// historical behaviour (no total line) to avoid changing existing papers.
+const STIMULUS_PASSAGE_KINDS = new Set(['diagram', 'source', 'map'])
+
+function sumQuestionMarks(questions = []) {
+  return (questions || []).reduce((sum, q) => sum + (Number(q?.marks) || 0), 0)
+}
+
+function passageMarksFields(passage, questions) {
+  const auto = sumQuestionMarks(questions)
+  const manual = Number.isFinite(Number(passage?.manualMarks)) && passage?.manualMarks != null
+    ? Math.max(0, Math.round(Number(passage.manualMarks)))
+    : null
+  return { autoMarks: auto, manualMarks: manual, totalMarks: manual != null ? manual : auto }
+}
+
+function passageTotalFooter(passage, questions) {
+  const kind = passage?.passageKind || 'comprehension'
+  const { totalMarks, manualMarks } = passageMarksFields(passage, questions)
+  // Show the total for stimulus-style passages, or whenever a manual total was
+  // pinned. Skip when there's nothing to count.
+  const show = STIMULUS_PASSAGE_KINDS.has(kind) || manualMarks != null
+  if (!show || totalMarks <= 0) return null
+  return { kind: 'passageTotal', totalMarks }
 }
 
 function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
@@ -554,6 +586,12 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,
+    // Answer-space format: 'lines' (default), 'none', or 'labelled_blanks'.
+    // 'labelled_blanks' prints one "Label: ____" row per blankLabels entry.
+    answerFormat: q.answerFormat === 'none' || q.answerFormat === 'labelled_blanks' ? q.answerFormat : 'lines',
+    blankLabels: Array.isArray(q.blankLabels)
+      ? q.blankLabels.map(l => plain(l)).map(l => l.trim()).filter(Boolean)
+      : [],
     // Numeric-only fields. Defaulted to safe values for every block so
     // renderers can read them unconditionally.
     numericTolerance: Number.isFinite(Number(q.numericTolerance)) ? Number(q.numericTolerance) : 0,
