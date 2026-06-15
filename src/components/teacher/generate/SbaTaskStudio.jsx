@@ -243,7 +243,7 @@ export default function SbaTaskStudio() {
           {/* ── Result ── */}
           <div className="lg:col-span-3 studio-card p-5">
             {status === 'generating' && (
-              <AiGenerationProgress label="Setting your SBA task and its marking scheme…" />
+              <AiGenerationProgress variant="card" preset="assessment" running title="Setting your SBA task and its marking scheme…" />
             )}
 
             {status !== 'generating' && !task && (
