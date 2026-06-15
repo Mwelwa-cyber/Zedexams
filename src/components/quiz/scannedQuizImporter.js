@@ -23,6 +23,21 @@
 
 import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
+
+// How detected diagrams are handled when converting a scanned paper. The
+// DEFAULT is 'keep' — many Zambian assessment questions depend on their figure,
+// so we never drop diagrams unless the teacher explicitly chooses 'text'.
+//   keep  — crop each diagram and place it under its question, as-is.
+//   clean — crop, then clean it (B&W, de-shadowed, sharpened) before adding.
+//   text  — leave diagrams out; import the typed text only.
+//   ask    — crop + attach, but flag every diagram for the teacher to decide.
+export const DIAGRAM_HANDLING_MODES = ['keep', 'clean', 'text', 'ask']
+export const DEFAULT_DIAGRAM_HANDLING = 'keep'
+
+export function normaliseDiagramHandling(mode) {
+  return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
+}
 
 // Pages per server call. Smaller batches make the vision model enumerate
 // every numbered question far more reliably — large batches tempt it to
@@ -229,6 +244,7 @@ function mapVisionQuestion(q, order, options, deps) {
   const toOption = deps.toOptionHtml || importMarkupToOptionHtml
   const pageAssetByNumber = options.pageAssetByNumber || {}
   const usedAssetIds = options.usedAssetIds
+  const diagramHandling = normaliseDiagramHandling(options.diagramHandling)
 
   const opts = (Array.isArray(q?.options) ? q.options : []).map(opt => toOption(String(opt ?? '')))
   const rawStem = String(q?.text ?? '').trim()
@@ -257,13 +273,26 @@ function mapVisionQuestion(q, order, options, deps) {
     sourcePage: q?.sourcePage ?? null,
   }
 
-  if (q?.hasDiagram && q?.sourcePage != null) {
-    const asset = pageAssetByNumber[q.sourcePage]
-    if (asset) {
-      overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
-      overrides.imageAssetId = asset.id
-      overrides.diagramText = `Figure on page ${q.sourcePage} — crop or replace this image with just this question's diagram.`
-      usedAssetIds?.add(asset.id)
+  const diagrams = Array.isArray(q?.diagrams) ? q.diagrams : []
+  const hasCroppableDiagram = diagrams.some(d => d?.box)
+
+  // 'text' mode: the teacher chose text-only — leave every figure out.
+  if (diagramHandling !== 'text') {
+    // Carry the detected-diagram metadata so the DOM crop pass cuts each
+    // figure out of its page and the studio can show the Detected Diagrams
+    // review. attachQuestionDiagrams sets the actual imageUrl from the crop.
+    if (diagrams.length) overrides.detectedDiagrams = diagrams
+
+    // Whole-page fallback ONLY when a figure was flagged but no croppable box
+    // was given — otherwise the precise crop replaces it.
+    if (q?.hasDiagram && q?.sourcePage != null && !hasCroppableDiagram) {
+      const asset = pageAssetByNumber[q.sourcePage]
+      if (asset) {
+        overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
+        overrides.imageAssetId = asset.id
+        overrides.diagramText = `Figure on page ${q.sourcePage} — crop or replace this image with just this question's diagram.`
+        usedAssetIds?.add(asset.id)
+      }
     }
   }
   return overrides
@@ -277,6 +306,7 @@ function mapVisionQuestion(q, order, options, deps) {
  */
 export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
   const pageAssetByNumber = options.pageAssetByNumber || {}
+  const diagramHandling = normaliseDiagramHandling(options.diagramHandling)
   const toRich = deps.toRichHtml || importMarkupToRichHtml
   const makeStandalone = deps.createSection || createStandaloneSection
   const makePassage = deps.createPassage || createPassageSection
@@ -286,7 +316,7 @@ export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
   const local = sections.map(section => {
     if (section?.kind === 'passage') {
       const questions = (Array.isArray(section.questions) ? section.questions : [])
-        .map(q => mapVisionQuestion(q, order++, { pageAssetByNumber, usedAssetIds }, deps))
+        .map(q => mapVisionQuestion(q, order++, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps))
       const overrides = {
         title: section.title || '',
         instructions: section.instructions ? toRichPreservingBreaks(section.instructions, toRich) : '',
@@ -294,17 +324,27 @@ export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
         passageKind: section.passageKind === 'map' ? 'map' : 'comprehension',
         questions,
       }
-      if (section.hasImage && section.sourcePage != null) {
-        const asset = pageAssetByNumber[section.sourcePage]
-        if (asset) {
-          overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
-          overrides.imageAssetId = asset.id
-          usedAssetIds.add(asset.id)
+      const pDiagrams = Array.isArray(section.diagrams) ? section.diagrams : []
+      const pHasCroppable = pDiagrams.some(d => d?.box)
+      if (diagramHandling !== 'text') {
+        // Carry the shared map's diagram metadata + its page so the crop pass
+        // can cut the map out precisely (and the studio can review it).
+        if (pDiagrams.length) {
+          overrides.detectedDiagrams = pDiagrams
+          overrides.sourcePage = section.sourcePage ?? null
+        }
+        if (section.hasImage && section.sourcePage != null && !pHasCroppable) {
+          const asset = pageAssetByNumber[section.sourcePage]
+          if (asset) {
+            overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
+            overrides.imageAssetId = asset.id
+            usedAssetIds.add(asset.id)
+          }
         }
       }
       return makePassage(overrides)
     }
-    return makeStandalone(mapVisionQuestion(section.question, order++, { pageAssetByNumber, usedAssetIds }, deps))
+    return makeStandalone(mapVisionQuestion(section.question, order++, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps))
   })
 
   return { sections: local, usedAssetIds }
@@ -328,6 +368,52 @@ export function planOptionImageCrops(rawQuestion, pageAsset) {
     }
   })
   return plan
+}
+
+/**
+ * For a raw vision item (question or passage) with detected diagrams, return
+ * the crop plan: one entry per diagram that has a usable bounding box and a
+ * rendered source page to crop from, LARGEST FIRST (so the primary figure leads).
+ * Pure — the actual crop is done in the DOM helper below. Returns [] when the
+ * item has no croppable diagram.
+ */
+export function planDiagramCrops(rawItem, pageAsset) {
+  if (!pageAsset) return []
+  const diagrams = Array.isArray(rawItem?.diagrams) ? rawItem.diagrams : []
+  const plan = []
+  diagrams.forEach((d, index) => {
+    const box = d?.box
+    if (box && Number.isFinite(box.w) && Number.isFinite(box.h) && box.w > 0 && box.h > 0) {
+      plan.push({
+        index,
+        box,
+        area: box.w * box.h,
+        classification: d.classification || 'review',
+        kind: d.kind || 'other',
+        caption: String(d.caption || ''),
+        confidence: Number.isFinite(d.confidence) ? d.confidence : null,
+      })
+    }
+  })
+  return plan.sort((a, b) => b.area - a.area)
+}
+
+// A short, teacher-facing note explaining how a detected diagram was handled,
+// keyed off the AI's classification. Surfaced in the question's reviewNotes and
+// the Detected Diagrams review step. Pure.
+export function diagramReviewNote(classification, { cleaned = false } = {}) {
+  if (cleaned) return 'Diagram was cleaned for printing — check it reads clearly, then adjust if needed.'
+  switch (classification) {
+    case 'preserve':
+      return 'Diagram kept as an image (complex figure). Crop or replace it if the capture is off.'
+    case 'recreate':
+      return 'Simple figure — kept as an image; you can recreate it as an editable diagram.'
+    case 'clean':
+      return 'Diagram attached — clean it for a sharper print, or replace it.'
+    case 'review':
+    default:
+      return 'Diagram attached for review — confirm it belongs to this question.'
+  }
 }
 
 /** Count questions across local editor sections (passage children + standalones). */
@@ -366,6 +452,22 @@ export function findMissingQuestionNumbers(rawSections = []) {
     if (!seen.has(n)) missing.push(n)
   }
   return missing
+}
+
+/**
+ * Count the figures the vision model detected across the RAW merged sections
+ * (questions + shared maps). Used to warn a teacher who chose "text only" that
+ * the paper actually had figures, and to report how many were attached. Pure.
+ */
+export function countDetectedDiagrams(rawSections = []) {
+  const ofItem = (item) => (Array.isArray(item?.diagrams) ? item.diagrams.length : 0)
+  return rawSections.reduce((total, section) => {
+    if (section?.kind === 'passage') {
+      return total + ofItem(section) +
+        (section.questions || []).reduce((m, q) => m + ofItem(q), 0)
+    }
+    return total + ofItem(section?.question || section)
+  }, 0)
 }
 
 /** Human-readable "21, 22, 47 and 3 more" for a list of missing numbers. */
@@ -538,6 +640,99 @@ async function attachOptionImages(localSections, rawSections, assetByPage, usedA
 }
 
 /**
+ * Crop each question's (and shared map's) detected diagram out of its page and
+ * attach it under the right item — the heart of "keep diagrams in the correct
+ * questions". Walks the local sections, reads the `detectedDiagrams` metadata
+ * carried by mapVisionQuestion / visionSectionsToLocal, crops the primary
+ * figure, optionally cleans it (handling === 'clean'), and writes
+ * imageUrl/imageAlt/diagramText/diagramMeta onto the item. Returns the new crop
+ * assets so the caller uploads them at save time. DOM-only (canvas).
+ *
+ * `diagramHandling` of 'text' never reaches here (the metadata isn't carried);
+ * 'keep'/'ask' attach as-is, 'clean' runs the cleaner first. Every item gets
+ * flagged requiresReview so the Detected Diagrams step can show it.
+ */
+async function attachQuestionDiagrams(localSections, assetByPage, usedAssetIds, diagramHandling = DEFAULT_DIAGRAM_HANDLING) {
+  const cropAssets = []
+  if (diagramHandling === 'text') return cropAssets
+
+  // Every item that can own a diagram: standalone questions, the passage's own
+  // shared map, and each passage child question.
+  const targets = []
+  localSections.forEach(section => {
+    if (section?.kind === 'passage') {
+      if (section.passage) targets.push(section.passage)
+      ;(section.passage?.questions || []).forEach(q => targets.push(q))
+    } else if (section?.question) {
+      targets.push(section.question)
+    }
+  })
+
+  for (const target of targets) {
+    const diagrams = Array.isArray(target?.detectedDiagrams) ? target.detectedDiagrams : []
+    if (!diagrams.length) continue
+    const pageAsset = assetByPage[target.sourcePage]
+    if (!pageAsset) continue
+    const plan = planDiagramCrops({ diagrams }, pageAsset)
+    if (!plan.length) continue
+    const primary = plan[0]
+
+    try {
+      const crop = await cropAssetRegion(pageAsset, primary.box)
+      let asset = crop
+      let cleaned = false
+      if (diagramHandling === 'clean' && isDiagramCleanSupported()) {
+        try {
+          const result = await cleanDiagramSource(crop.objectUrl, { mimeType: 'image/png' })
+          if (result?.blob) {
+            asset = makePageAsset(result.blob, pageAsset.sourcePage)
+            cleaned = true
+            // The raw (uncleaned) crop is now unused — release it.
+            if (crop.objectUrl && canRevokeObjectUrl()) URL.revokeObjectURL(crop.objectUrl)
+          }
+        } catch {
+          // Cleaning failed — keep the plain crop rather than losing the figure.
+        }
+      }
+
+      target.imageUrl = asset.objectUrl
+      target.imageAssetId = asset.id
+      target.imageAlt = primary.caption || target.imageAlt || ''
+      target.diagramText = diagramReviewNote(primary.classification, { cleaned })
+      target.diagramMeta = {
+        classification: primary.classification,
+        kind: primary.kind,
+        confidence: primary.confidence,
+        caption: primary.caption,
+        sourcePage: target.sourcePage ?? null,
+        handling: diagramHandling,
+        cleaned,
+        // Extra figures on the same page we did NOT auto-attach (kept to one
+        // per item to stay within the single-image question shape).
+        extraCount: Math.max(0, plan.length - 1),
+      }
+      target.requiresReview = true
+      const notes = [diagramReviewNote(primary.classification, { cleaned })]
+      if (plan.length > 1) {
+        notes.push(`${plan.length - 1} more figure${plan.length - 1 === 1 ? '' : 's'} were detected here — add ${plan.length - 1 === 1 ? 'it' : 'them'} with the Diagram Scanner if needed.`)
+      }
+      target.reviewNotes = [...new Set([...(target.reviewNotes || []), ...notes])]
+      cropAssets.push(asset)
+      usedAssetIds?.add(asset.id)
+    } catch {
+      // Crop failed — fall back to attaching the whole source page so the
+      // figure is never silently lost.
+      target.imageUrl = pageAsset.imageUrl || pageAsset.objectUrl || ''
+      target.imageAssetId = pageAsset.id
+      target.diagramText = `Figure on page ${target.sourcePage} — crop or replace this image with just this item's diagram.`
+      target.requiresReview = true
+      usedAssetIds?.add(pageAsset.id)
+    }
+  }
+  return cropAssets
+}
+
+/**
  * Render PDF pages to JPEGs at an OCR-friendly resolution. Returns the data
  * URLs (for the vision call) and a per-page in-memory asset (for attaching to
  * diagram/map questions). `onProgress({ phase, current, total })` reports
@@ -655,10 +850,12 @@ export async function runVisionImport({
   callVision,
   onProgress,
   sourceNoun = 'scanned paper',
+  diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
   if (!pageImages.length) {
     throw new Error(`None of the ${sourceNoun} pages could be read for import.`)
   }
+  const handling = normaliseDiagramHandling(diagramHandling)
 
   const batches = chunkPages(pageImages)
   const batchResults = []
@@ -678,17 +875,24 @@ export async function runVisionImport({
   const merged = mergeSectionBatches(batchResults)
   const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
     pageAssetByNumber: assetByPage,
+    diagramHandling: handling,
   })
 
   // Crop pictorial answer options out of their page into per-option media.
   // Runs before the revoke pass below so the page object URLs are still alive.
   const optionCropAssets = await attachOptionImages(sections, merged.sections, assetByPage, usedAssetIds)
 
+  // Crop each detected diagram out of its page and place it under the right
+  // question/passage (unless the teacher chose text-only). Same lifetime rules
+  // as the option crops — runs before the revoke pass.
+  const diagramCropAssets = await attachQuestionDiagrams(sections, assetByPage, usedAssetIds, handling)
+
   // Only ship assets that actually got attached, so we don't upload a dozen
   // unused full-page snapshots at save time. Revoke the rest to avoid a leak.
   const imageAssets = [
     ...Object.values(assetByPage).filter(asset => usedAssetIds.has(asset.id)),
     ...optionCropAssets,
+    ...diagramCropAssets,
   ]
   Object.values(assetByPage).forEach(asset => {
     if (!usedAssetIds.has(asset.id) && asset.objectUrl && canRevokeObjectUrl()) {
@@ -697,6 +901,19 @@ export async function runVisionImport({
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
+  // Diagram handling notices: never silently drop figures.
+  const detectedDiagramCount = countDetectedDiagrams(merged.sections)
+  if (handling === 'text' && detectedDiagramCount > 0) {
+    warnings.push(
+      `${detectedDiagramCount} diagram${detectedDiagramCount === 1 ? '' : 's'} were left out because "text only" was chosen. ` +
+      'Re-import with a diagram option, or add them with the Diagram Scanner, if a question needs its figure.',
+    )
+  } else if (diagramCropAssets.length > 0) {
+    warnings.push(
+      `${diagramCropAssets.length} diagram${diagramCropAssets.length === 1 ? '' : 's'} were placed under their questions` +
+      `${handling === 'clean' ? ' and cleaned for printing' : ''} — review each one before publishing.`,
+    )
+  }
   if (!sections.length) {
     warnings.push(`No questions could be read from this ${sourceNoun}.`)
   } else {
@@ -739,6 +956,7 @@ export async function runScannedImport({
   gradeHint = '',
   callVision,
   onProgress,
+  diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
   const { pageImages, assetByPage, warnings: renderWarnings } =
     await renderPdfPagesForVision(pdf, { onProgress })
@@ -757,6 +975,7 @@ export async function runScannedImport({
     callVision,
     onProgress,
     sourceNoun: 'scanned paper',
+    diagramHandling,
   })
 }
 
@@ -772,6 +991,7 @@ export async function runImageImport({
   gradeHint = '',
   callVision,
   onProgress,
+  diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
   const list = normalizeImportInput(files)
   const { pageImages, assetByPage, warnings: renderWarnings } =
@@ -791,5 +1011,6 @@ export async function runImageImport({
     callVision,
     onProgress,
     sourceNoun: list.length > 1 ? 'images' : 'image',
+    diagramHandling,
   })
 }

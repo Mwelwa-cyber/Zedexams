@@ -15,10 +15,15 @@ const {
   normaliseScannedSections,
   countSectionQuestions,
   sanitiseOptionBoxes,
+  classifyDiagram,
+  sanitiseDiagram,
+  sanitiseDiagrams,
   reconcileCounts,
   parseGeminiCount,
   buildClaudeMessages,
   buildGeminiImages,
+  CLAUDE_SYSTEM_PROMPT,
+  SCANNED_TOOL_SCHEMA,
   MAX_PAGES_PER_CALL,
 } = require("./scannedQuizImport");
 
@@ -484,6 +489,119 @@ test("runScannedQuizImport uses maxTokens 16000 in the callClaude call", async (
     capturedMaxTokens >= 16000,
     `maxTokens must be >= 16000 to avoid truncation on English batches (got ${capturedMaxTokens})`,
   );
+});
+
+// ── Diagram detection + classification ──────────────────────────────────────
+
+const box = (over = {}) => ({x: 0.1, y: 0.1, w: 0.4, h: 0.4, ...over});
+
+test("classifyDiagram preserves complex/realistic figures as images", () => {
+  for (const kind of ["map", "labelled_science", "body_part", "plant", "animal", "tool", "food_chart", "circuit", "photo"]) {
+    assert.equal(
+      classifyDiagram({kind, complexity: "complex", confidence: 0.9}),
+      "preserve",
+      `${kind} should preserve`,
+    );
+  }
+});
+
+test("classifyDiagram recreates simple figures as editable diagrams", () => {
+  for (const kind of ["number_line", "shape", "venn", "bar_chart", "line_graph", "pie_chart", "table", "measurement"]) {
+    assert.equal(
+      classifyDiagram({kind, complexity: "simple", confidence: 0.9}),
+      "recreate",
+      `${kind} should recreate`,
+    );
+  }
+});
+
+test("classifyDiagram routes low-confidence and unsure figures to review", () => {
+  assert.equal(classifyDiagram({kind: "map", complexity: "complex", confidence: 0.2}), "review");
+  assert.equal(classifyDiagram({kind: "shape", complexity: "unsure", confidence: 0.9}), "review");
+  assert.equal(classifyDiagram({kind: "other", complexity: "complex", confidence: 0.9}), "review");
+  assert.equal(classifyDiagram({kind: "", confidence: 0.9}), "review");
+});
+
+test("classifyDiagram cleans an unrecognised line drawing", () => {
+  assert.equal(classifyDiagram({kind: "drawing", complexity: "simple", confidence: 0.8}), "recreate");
+  assert.equal(classifyDiagram({kind: "drawing", confidence: 0.8}), "clean");
+});
+
+test("sanitiseDiagram drops a figure with no usable box", () => {
+  assert.equal(sanitiseDiagram({kind: "map", confidence: 0.9}), null);
+  assert.equal(sanitiseDiagram({box: {x: 0, y: 0, w: 0.001, h: 0.001}, kind: "map"}), null);
+});
+
+test("sanitiseDiagram normalises a valid figure with a classification", () => {
+  const d = sanitiseDiagram({box: box(), caption: "Fig. 1", kind: "MAP", complexity: "complex", confidence: 0.91});
+  assert.ok(d);
+  assert.equal(d.kind, "map");
+  assert.equal(d.caption, "Fig. 1");
+  assert.equal(d.classification, "preserve");
+  assert.equal(d.confidence, 0.91);
+  assert.deepEqual(d.box, {x: 0.1, y: 0.1, w: 0.4, h: 0.4});
+});
+
+test("sanitiseDiagram defaults missing complexity/confidence safely", () => {
+  const d = sanitiseDiagram({box: box(), kind: "number_line"});
+  assert.equal(d.complexity, "unsure"); // unknown complexity → unsure
+  assert.equal(d.confidence, 0.5);
+  assert.equal(d.classification, "review"); // unsure wins → review
+});
+
+test("sanitiseDiagrams drops boxless entries and caps the count", () => {
+  const raws = [
+    {box: box(), kind: "map", complexity: "complex", confidence: 0.9},
+    {kind: "map"}, // no box → dropped
+    ...Array.from({length: 10}, () => ({box: box(), kind: "shape", complexity: "simple", confidence: 0.9})),
+  ];
+  const out = sanitiseDiagrams(raws);
+  assert.ok(out.length <= 6, "capped at MAX_DIAGRAMS_PER_QUESTION");
+  assert.ok(out.every((d) => d.box));
+});
+
+test("normaliseScannedQuestion attaches diagrams and forces hasDiagram", () => {
+  const q = normaliseScannedQuestion(
+    mcq({
+      prompt: "Study the diagram and name part A",
+      hasDiagram: false, // model forgot the flag …
+      diagrams: [{box: box(), kind: "labelled_science", complexity: "complex", confidence: 0.88}],
+    }),
+    [3],
+  );
+  assert.equal(q.hasDiagram, true, "diagrams[] present must force hasDiagram");
+  assert.equal(q.diagrams.length, 1);
+  assert.equal(q.diagrams[0].classification, "preserve");
+});
+
+test("normaliseScannedQuestion leaves diagrams empty for a text-only question", () => {
+  const q = normaliseScannedQuestion(mcq(), []);
+  assert.deepEqual(q.diagrams, []);
+  assert.equal(q.hasDiagram, false);
+});
+
+test("map passage carries its shared diagrams and hasImage", () => {
+  const sections = normaliseScannedSections(
+    [{
+      kind: "passage",
+      passageKind: "map",
+      title: "Map of Zambia",
+      diagrams: [{box: box(), kind: "map", complexity: "complex", confidence: 0.95}],
+      questions: [mcq({prompt: "Which province is shaded?"})],
+    }],
+    [2],
+  );
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].hasImage, true);
+  assert.equal(sections[0].diagrams.length, 1);
+  assert.equal(sections[0].diagrams[0].classification, "preserve");
+});
+
+test("the OCR schema and prompt include diagram detection", () => {
+  assert.ok(SCANNED_TOOL_SCHEMA.$defs.diagram, "schema defines a diagram shape");
+  assert.ok(SCANNED_TOOL_SCHEMA.$defs.question.properties.diagrams, "questions carry diagrams[]");
+  assert.match(CLAUDE_SYSTEM_PROMPT, /NEVER LEAVE THEM OUT/);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /complexity/);
 });
 
 console.log(`\nscannedQuizImport: ${passed} passed`);

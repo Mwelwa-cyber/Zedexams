@@ -18,6 +18,7 @@ import {
   isImageImportFile,
   normalizeImportInput,
   IMAGE_IMPORT_EXTENSIONS,
+  DEFAULT_DIAGRAM_HANDLING,
 } from './scannedQuizImporter.js'
 
 let pdfjsLoader = null
@@ -960,6 +961,7 @@ async function importScannedPdfQuiz({ pdf, file, importOptions }) {
     gradeHint: metadata.grade || '',
     callVision: structureScannedQuiz,
     onProgress,
+    diagramHandling: importOptions.diagramHandling,
   })
 
   const warnings = result.warnings || []
@@ -1003,6 +1005,7 @@ async function importImageQuiz({ files, importOptions }) {
     gradeHint: metadata.grade || '',
     callVision: structureScannedQuiz,
     onProgress,
+    diagramHandling: importOptions.diagramHandling,
   })
 
   const warnings = result.warnings || []
@@ -1042,6 +1045,10 @@ async function importImageQuiz({ files, importOptions }) {
 export const DEFAULT_IMPORT_OPTIONS = {
   preserveNumbering: true,
   groupComprehension: true,
+  // How scanned diagrams are handled. Default 'keep' — never drop figures by
+  // default, because many Zambian assessment questions depend on them. The
+  // teacher can choose 'clean', 'text' (leave out), or 'ask' in the importer.
+  diagramHandling: DEFAULT_DIAGRAM_HANDLING,
 }
 
 export async function importQuizDocument(input, options = {}) {
