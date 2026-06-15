@@ -1769,6 +1769,53 @@ export default function AssessmentStudio() {
         // a first-class block type with its own block picker tile.
         newSection = createPassageSection({ passageKind: 'map' })
         break
+      case 'diagram_stimulus':
+        // Diagram-Based Question: one instruction/stem, then a figure, then
+        // follow-up sub-questions underneath (passageKind 'diagram'). This is
+        // the correct layout for "Study the diagram below and answer the
+        // questions that follow." — the instruction prints first, the diagram
+        // next, and the sub-questions below it (not all crammed above it).
+        newSection = createPassageSection({
+          passageKind: 'diagram',
+          title: 'Study the diagram below and answer the questions that follow.',
+          questions: [
+            { type: 'short_answer', options: [], correctAnswer: '', marks: 1, answerFormat: 'lines', answerLines: 2 },
+          ],
+        })
+        break
+      case 'source_stimulus':
+        // Source-Based Question: a passage / table / chart / map source, then
+        // follow-up sub-questions. Same passage data model, passageKind
+        // 'source'. The teacher attaches the source (text and/or image) and
+        // adds the questions underneath.
+        newSection = createPassageSection({
+          passageKind: 'source',
+          title: 'Study the source below and answer the questions that follow.',
+          questions: [
+            { type: 'short_answer', options: [], correctAnswer: '', marks: 1, answerFormat: 'lines', answerLines: 2 },
+          ],
+        })
+        break
+      case 'labelled_diagram':
+        // Labelled Diagram Question: a diagram stimulus whose first sub-question
+        // uses the "labelled blanks" answer format (P: ____, Q: ____, R: ____)
+        // so the student names each labelled part.
+        newSection = createPassageSection({
+          passageKind: 'diagram',
+          title: 'Study the diagram below and answer the questions that follow.',
+          questions: [
+            {
+              type: 'short_answer',
+              options: [],
+              correctAnswer: '',
+              marks: 3,
+              text: 'Name the parts labelled P, Q and R.',
+              answerFormat: 'labelled_blanks',
+              blankLabels: ['P', 'Q', 'R'],
+            },
+          ],
+        })
+        break
       case 'image_identify':
         // Image Identify is a diagram-with-labels question rendered in
         // "identify" mode: numbered markers print on the image, and the
@@ -3237,10 +3284,29 @@ function SectionBlock(props) {
 
 function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
   const passage = section.passage
-  const isMap = passage.passageKind === 'map'
+  const kind = passage.passageKind || 'comprehension'
+  const isMap = kind === 'map'
+  const isDiagram = kind === 'diagram'
+  const isSource = kind === 'source'
+  // Diagram / map stimuli lead with an image and hide the long passage body.
+  const isImageLed = isMap || isDiagram
+  // Any stimulus kind (vs a plain reading comprehension) — used for labels.
   const passageText = toEditableText(passage.passageText)
   const wordCount = plainTextWordCount(passage.passageText)
   const fileInputRef = useRef(null)
+
+  const PASSAGE_KIND_META = {
+    comprehension: { icon: '📖', label: 'Comprehension Passage' },
+    map: { icon: '🗺', label: 'Map Question' },
+    diagram: { icon: '🔬', label: 'Diagram-Based Question' },
+    source: { icon: '📜', label: 'Source-Based Question' },
+  }
+  const meta = PASSAGE_KIND_META[kind] || PASSAGE_KIND_META.comprehension
+
+  // Auto-total the sub-question marks; a teacher can pin an explicit total.
+  const autoMarks = (passage.questions || []).reduce((sum, q) => sum + (Number(q.marks) || 0), 0)
+  const manualMarks = passage.manualMarks
+  const totalMarks = Number.isFinite(Number(manualMarks)) && manualMarks != null ? Number(manualMarks) : autoMarks
 
   function setKind(nextKind) {
     onUpdateSection(sectionIndex, s => ({
@@ -3249,20 +3315,32 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
     }))
   }
 
+  function setManualMarks(value) {
+    onUpdateSection(sectionIndex, s => ({
+      ...s,
+      passage: { ...s.passage, manualMarks: value },
+    }))
+  }
+
   return (
     <>
-      <div className={`sv-block b-passage${isMap ? ' b-passage-map' : ''}`}>
+      <div className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}`}>
         <div className="sv-block-head">
-          <span className="sv-ic">{isMap ? '🗺' : '📖'}</span> {isMap ? 'Map Question' : 'Comprehension Passage'}
+          <span className="sv-ic">{meta.icon}</span> {meta.label}
           <select
-            value={isMap ? 'map' : 'comprehension'}
+            value={kind}
             onChange={e => setKind(e.target.value)}
             style={{ marginLeft: 'var(--sv-s2)', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '2px 6px', fontSize: 11.5 }}
-            title="Switch between Comprehension passage and Map question"
+            title="Choose the stimulus type — the instruction prints first, then the diagram/source, then the questions"
           >
             <option value="comprehension">Comprehension</option>
+            <option value="diagram">Diagram-based</option>
+            <option value="source">Source-based</option>
             <option value="map">Map</option>
           </select>
+          <span className="sv-paper-passage-total" style={{ marginLeft: 'auto', marginRight: 8, fontSize: 11.5, color: 'var(--sv-muted)' }} title="Auto-summed from the sub-questions below">
+            Total: {totalMarks} mark{totalMarks === 1 ? '' : 's'}
+          </span>
           <span className="sv-tools">
             <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
             <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
@@ -3274,13 +3352,17 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
             <input
               value={passage.title || ''}
               onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, title: e.target.value } }))}
-              placeholder={isMap ? 'Map title (e.g. "Map of Zambia")' : 'Passage title'}
+              placeholder={
+                isImageLed || isSource
+                  ? 'Instruction / stem (e.g. "Study the diagram below and answer the questions that follow.")'
+                  : 'Passage title'
+              }
             />
-            {!isMap && <span className="sv-pword-count">~{wordCount} words</span>}
+            {!isImageLed && !isSource && <span className="sv-pword-count">~{wordCount} words</span>}
           </div>
 
           {/* Image upload area — required for Map kind, optional for comprehension. */}
-          {(isMap || passage.imageUrl) && (
+          {(isImageLed || isSource || passage.imageUrl) && (
             <div style={{ margin: '8px 0' }}>
               {passage.imageUrl ? (
                 <div className="sv-q-media filled filled-wrap" style={{ minHeight: 'auto' }}>
@@ -3293,15 +3375,15 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
                   >×</button>
                 </div>
               ) : passage.imageUploading ? (
-                <div className="sv-q-media"><div className="sv-ic">⏳</div><div>Uploading map…</div></div>
+                <div className="sv-q-media"><div className="sv-ic">⏳</div><div>Uploading image…</div></div>
               ) : (
                 <button
                   type="button"
                   className="sv-q-media"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <div className="sv-ic">🗺</div>
-                  <div>Upload the map image</div>
+                  <div className="sv-ic">{isMap ? '🗺' : isDiagram ? '🔬' : '🖼'}</div>
+                  <div>{isMap ? 'Upload the map image' : isDiagram ? 'Upload the diagram / figure' : 'Upload an image / table / chart (optional)'}</div>
                   <small>JPG, PNG or WEBP · up to 15 MB</small>
                   <input
                     ref={fileInputRef}
@@ -3330,24 +3412,45 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
             </div>
           )}
 
-          {/* Comprehension passages need a text body; map questions just need the image
-              + optional caption, so we hide the long-text textarea entirely there. */}
-          {!isMap && (
+          {/* Comprehension + source passages carry a text body; image-led
+              (diagram / map) stimuli just need the image + optional caption,
+              so we hide the long-text textarea entirely there. */}
+          {!isImageLed && (
             <textarea
               className="sv-passage-text"
               value={passageText}
               onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
-              placeholder="Paste or type the passage text here."
+              placeholder={isSource ? 'Paste or type the source text here (passage extract, table caption, data…).' : 'Paste or type the passage text here.'}
               rows={6}
             />
           )}
-          {isMap && (
+          {isImageLed && (
             <input
               value={passageText}
               onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
               placeholder="Optional caption / instructions (e.g. 'Use the map above to answer the questions below.')"
               style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '6px 8px', fontSize: 13, marginTop: 4 }}
             />
+          )}
+        </div>
+
+        <div style={{ marginTop: 'var(--sv-s3)', display: 'flex', alignItems: 'center', gap: 'var(--sv-s2)', fontSize: 12.5, color: 'var(--sv-muted)', flexWrap: 'wrap' }}>
+          <span title="Total marks for this stimulus question">Total marks:</span>
+          <strong style={{ color: 'var(--sv-text)' }}>{totalMarks}</strong>
+          <span style={{ opacity: 0.8 }}>
+            {manualMarks != null ? '(manually set)' : `(auto-summed from ${(passage.questions || []).length} sub-question${(passage.questions || []).length === 1 ? '' : 's'})`}
+          </span>
+          <input
+            type="number"
+            min="0"
+            value={manualMarks ?? ''}
+            placeholder="auto"
+            onChange={e => setManualMarks(e.target.value === '' ? null : clampInt(e.target.value, 0, 999, 0))}
+            title="Override the total marks (leave blank to auto-sum)"
+            style={{ width: 64, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12.5 }}
+          />
+          {manualMarks != null && (
+            <button className="sv-tool" type="button" title="Reset to auto" onClick={() => setManualMarks(null)}>↺ auto</button>
           )}
         </div>
 
@@ -3404,10 +3507,16 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
               onSelectCorrect={(optIndex) => onUpdatePassageQuestion(sectionIndex, qIndex, 'correctAnswer', optIndex)}
             />
           ) : (
-            <ShortAnswerInputs
-              correctAnswer={question.correctAnswer}
-              onChange={value => onUpdatePassageQuestion(sectionIndex, qIndex, 'correctAnswer', value)}
-            />
+            <>
+              <ShortAnswerInputs
+                correctAnswer={question.correctAnswer}
+                onChange={value => onUpdatePassageQuestion(sectionIndex, qIndex, 'correctAnswer', value)}
+              />
+              <AnswerSpaceControl
+                question={question}
+                onUpdate={(field, value) => onUpdatePassageQuestion(sectionIndex, qIndex, field, value)}
+              />
+            </>
           )}
         </div>
       ))}
@@ -4181,10 +4290,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       )}
 
       {isShortAnswer && (
-        <ShortAnswerInputs
-          correctAnswer={question.correctAnswer}
-          onChange={value => updateQuestion('correctAnswer', value)}
-        />
+        <>
+          <ShortAnswerInputs
+            correctAnswer={question.correctAnswer}
+            onChange={value => updateQuestion('correctAnswer', value)}
+          />
+          <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
+        </>
       )}
 
       {isStructured && !isMcq && (
@@ -4228,6 +4340,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             label="Expected response / marking notes"
             lines={4}
           />
+          <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
         </>
       )}
 
@@ -4502,6 +4615,104 @@ function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
         rows={lines}
         style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
       />
+    </div>
+  )
+}
+
+// Per-sub-question answer-space control. Lets the teacher pick how much blank
+// space prints under a written-answer follow-up: no space, a fixed number of
+// ruled lines, a custom count, or labelled blanks (P: ____, Q: ____, …).
+function AnswerSpaceControl({ question, onUpdate }) {
+  const format = question.answerFormat || 'lines'
+  const lines = Number.isInteger(question.answerLines) ? question.answerLines : null
+  const labels = Array.isArray(question.blankLabels) ? question.blankLabels : []
+  // The dropdown collapses the (format, answerLines) pair into one friendly
+  // choice. 'none' / '1' / '2' / '3' / 'custom' / 'labelled_blanks'.
+  const selectValue = format === 'none'
+    ? 'none'
+    : format === 'labelled_blanks'
+      ? 'labelled_blanks'
+      : (lines === 1 || lines === 2 || lines === 3)
+        ? String(lines)
+        : lines == null
+          ? '2'
+          : 'custom'
+
+  function onSelect(value) {
+    if (value === 'none') { onUpdate('answerFormat', 'none'); return }
+    if (value === 'labelled_blanks') {
+      onUpdate('answerFormat', 'labelled_blanks')
+      if (!labels.length) onUpdate('blankLabels', ['P', 'Q', 'R'])
+      return
+    }
+    if (value === 'custom') {
+      onUpdate('answerFormat', 'lines')
+      if (lines == null) onUpdate('answerLines', 4)
+      return
+    }
+    // '1' | '2' | '3'
+    onUpdate('answerFormat', 'lines')
+    onUpdate('answerLines', Number(value))
+  }
+
+  const labelPresets = {
+    'P, Q, R': ['P', 'Q', 'R'],
+    'A, B, C': ['A', 'B', 'C'],
+    '1, 2, 3': ['1', '2', '3'],
+    'i, ii, iii': ['i', 'ii', 'iii'],
+  }
+
+  return (
+    <div className="sv-answer-space-control" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '6px 0 2px', fontSize: 12 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sv-muted)' }}>
+        📏 Answer space:
+        <select
+          value={selectValue}
+          onChange={e => onSelect(e.target.value)}
+          style={{ padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12 }}
+        >
+          <option value="none">No answer space</option>
+          <option value="1">1 line</option>
+          <option value="2">2 lines</option>
+          <option value="3">3 lines</option>
+          <option value="custom">Custom lines…</option>
+          <option value="labelled_blanks">Labelled blanks</option>
+        </select>
+      </label>
+
+      {selectValue === 'custom' && (
+        <input
+          type="number"
+          min="0"
+          max="40"
+          value={lines ?? 4}
+          onChange={e => onUpdate('answerLines', clampInt(e.target.value, 0, 40, 4))}
+          title="Number of answer lines"
+          style={{ width: 56, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12 }}
+        />
+      )}
+
+      {format === 'labelled_blanks' && (
+        <>
+          <input
+            type="text"
+            value={labels.join(', ')}
+            onChange={e => onUpdate('blankLabels', e.target.value.split(/[,]/).map(s => s.trim()).filter(Boolean).slice(0, 26))}
+            placeholder="P, Q, R"
+            title="Comma-separated labels — one blank prints per label"
+            style={{ flex: '1 1 140px', minWidth: 120, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12 }}
+          />
+          <select
+            value=""
+            onChange={e => { if (e.target.value) onUpdate('blankLabels', labelPresets[e.target.value]) }}
+            title="Quick label presets"
+            style={{ padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12 }}
+          >
+            <option value="">Preset…</option>
+            {Object.keys(labelPresets).map(k => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </>
+      )}
     </div>
   )
 }
@@ -5201,6 +5412,11 @@ function PaperBlock({ block }) {
     case 'sectionHeader': return <PaperSectionHead block={block} />
     case 'passage': return <PaperPassageBlock block={block} />
     case 'question': return <PaperQuestionBlock block={block} />
+    case 'passageTotal': return (
+      <div className="sv-paper-passage-total" style={{ textAlign: 'right', fontWeight: 700, fontSize: 12.5, margin: '2px 0 14px', color: '#000' }}>
+        Total: {block.totalMarks} mark{block.totalMarks === 1 ? '' : 's'}
+      </div>
+    )
     case 'pagebreak': return (
       <div style={{ borderTop: '2px dashed #94a3b8', margin: '28px 0 14px', position: 'relative' }}>
         <span style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#fff', padding: '0 10px', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -5399,9 +5615,7 @@ function PaperQuestionBlock({ block }) {
       )}
       {block.type === 'mcq' && <PaperMcqOptions block={block} />}
       {(block.type === 'short_answer' || block.type === 'fill') && (
-        <div className="sv-paper-answer-lines">
-          {Array.from({ length: block.answerLines || 2 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
-        </div>
+        <PaperAnswerSpace block={block} defaultLines={2} />
       )}
       {block.type === 'numeric' && (
         <div className="sv-paper-numeric-line" style={{ display: 'flex', alignItems: 'flex-end', gap: 8, margin: '6px 0' }}>
@@ -5427,16 +5641,39 @@ function PaperQuestionBlock({ block }) {
         }} aria-label="Drawing canvas" />
       )}
       {block.type === 'diagram' && (
-        <div className="sv-paper-answer-lines">
-          {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
-        </div>
+        <PaperAnswerSpace block={block} defaultLines={4} />
       )}
       {block.type === 'essay' && (
-        <div className="sv-paper-answer-lines">
-          {Array.from({ length: block.answerLines || 8 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
-        </div>
+        <PaperAnswerSpace block={block} defaultLines={8} />
       )}
       {block.showAnswer && <PaperAnswerBlock block={block} />}
+    </div>
+  )
+}
+
+// Renders the blank answer space under a written-answer question, honouring the
+// teacher's answer-space choice: 'none' (nothing), 'labelled_blanks' (one
+// "P: ____" row per label) or the default N ruled lines.
+function PaperAnswerSpace({ block, defaultLines = 2 }) {
+  if (block.answerFormat === 'none') return null
+  if (block.answerFormat === 'labelled_blanks' && block.blankLabels?.length > 0) {
+    return (
+      <div className="sv-paper-answer-lines sv-paper-labelled-blanks">
+        {block.blankLabels.map((label, i) => (
+          <div className="sv-paper-blank-row" key={i} style={{ display: 'flex', alignItems: 'flex-end', gap: 8, margin: '4px 0' }}>
+            <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{label}:</span>
+            <span className="sv-paper-answer-line" style={{ flex: 1 }} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  const count = Number.isFinite(Number(block.answerLines)) && Number(block.answerLines) >= 0
+    ? Number(block.answerLines)
+    : defaultLines
+  return (
+    <div className="sv-paper-answer-lines">
+      {Array.from({ length: count }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
     </div>
   )
 }
@@ -5719,6 +5956,13 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
           <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
           <BlockPickerItem icon="🔤" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
+        </div>
+
+        <div className="sv-block-cat">Stimulus &amp; source</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem icon="🔬" title="Diagram-Based Question" hint="Instruction → diagram → follow-up sub-questions" onClick={() => onPick('diagram_stimulus')} />
+          <BlockPickerItem icon="📜" title="Source-Based Question" hint="Passage / table / map / chart → follow-up sub-questions" onClick={() => onPick('source_stimulus')} />
+          <BlockPickerItem icon="🏷" title="Labelled Diagram" hint="Name labelled parts (P: __, Q: __, R: __)" onClick={() => onPick('labelled_diagram')} />
         </div>
 
         <div className="sv-block-cat">Media &amp; reading</div>
