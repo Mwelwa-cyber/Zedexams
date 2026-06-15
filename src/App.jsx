@@ -187,6 +187,8 @@ const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/Reco
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
+const SbaTaskStudio = lazy(() => import('./components/teacher/generate/SbaTaskStudio'))
+const SbaMarkTracker = lazy(() => import('./components/teacher/generate/SbaMarkTracker'))
 
 // Teacher — Library
 const TeacherLibrary = lazy(() => import('./components/teacher/library/TeacherLibrary'))
@@ -571,6 +573,9 @@ export default function App() {
           <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><ClassTimetableStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/sba"             element={<TeacherRoute><SbaTaskStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><SbaMarkTracker /></TeacherRoute>} />
+          <Route path="/teacher/sba"                      element={<TeacherRoute><SbaTaskStudio /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />

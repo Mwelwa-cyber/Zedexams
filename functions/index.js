@@ -86,6 +86,10 @@ const {
 const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
+// Teacher Tools — SBA Studio (ECZ School Based Assessment task generator).
+const {
+  createGenerateSbaTask,
+} = require("./teacherTools/generateSbaTask");
 const {
   createGenerateQuiz,
 } = require("./teacherTools/generateQuiz");
@@ -2076,6 +2080,9 @@ exports.generateHomework = createGenerateHomework(anthropicApiKey);
 
 // Teacher Tools — Assessment (formal curriculum-grounded graded test).
 exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
+
+// Teacher Tools — SBA Studio (ECZ School Based Assessment task, Grades 5–7).
+exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);
 
 // Teacher Tools — Quiz (short curriculum-grounded formative quiz).
 exports.generateQuiz = createGenerateQuiz(anthropicApiKey);

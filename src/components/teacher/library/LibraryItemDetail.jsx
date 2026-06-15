@@ -21,6 +21,7 @@ import RecordOfWorkView from '../views/RecordOfWorkView'
 import ClassTimetableView from '../views/ClassTimetableView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
+import SbaTaskView from '../views/SbaTaskView'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
@@ -38,6 +39,7 @@ import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 
 // Human-readable document-type labels, keyed by the generation's `tool`.
@@ -53,6 +55,7 @@ const TOOL_DOC_TYPES = {
   weekly_forecast: 'Weekly Forecast',
   record_of_work: 'Record of Work',
   class_timetable: 'Class Timetable',
+  sba_task: 'SBA Task',
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
@@ -225,6 +228,9 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'class_timetable') {
       await downloadClassTimetableDocx(item.output, name())
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'sba_task') {
+      await downloadSbaTaskDocx(item.output, name(), { includeAnswers: true })
       recordExport(item.id, 'docx')
     }
   }
@@ -620,6 +626,7 @@ export default function LibraryItemDetail() {
           {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
+          {item.tool === 'sba_task' && <SbaTaskView task={item.output} showAnswers />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.
