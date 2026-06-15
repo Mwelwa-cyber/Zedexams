@@ -26,6 +26,7 @@ import {
   FileText,
   FolderOpen,
   GraduationCap,
+  ImageIcon,
   Layers,
   PencilLine,
   Sparkles,
@@ -33,6 +34,16 @@ import {
 } from '../ui/icons'
 
 const STUDIOS = [
+  {
+    icon: ImageIcon,
+    tone: 'orange',
+    badge: 'NEW',
+    libraryKey: null,
+    title: 'Visual Studio',
+    tagline: 'Make labelled diagrams & test pictures — AI, templates, then send to a studio.',
+    to: '/teacher/visual-studio',
+    meta: 'Pictures & diagrams',
+  },
   {
     icon: CalendarDays,
     tone: 'amber',

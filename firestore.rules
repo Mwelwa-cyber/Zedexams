@@ -762,6 +762,43 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── visualAssets (Visual Studio — teacher-owned pictures) ─
+    // A teacher's own saved Visual Studio diagrams ("My Visuals"). Owner is
+    // createdBy. Private by default: the owner reads/writes their own, an admin
+    // can read/moderate everything, and any signed-in user can read a picture
+    // the owner has explicitly published publicly. (School-wide sharing is a
+    // later iteration — for now non-public visibilities read as private.)
+    match /visualAssets/{assetId} {
+      allow read: if isAdmin()
+        || (isAuthed() && resource.data.createdBy == request.auth.uid)
+        || (isAuthed()
+            && resource.data.get('visibility', 'private') == 'public'
+            && resource.data.get('status', 'draft') in ['approved', 'published']);
+      allow create: if isAuthed()
+        && incoming().createdBy == request.auth.uid
+        && (incoming().get('status', 'draft') != 'published' || isAdmin())
+        && (!('imageUrl' in incoming()) || (incoming().imageUrl is string && incoming().imageUrl.size() <= 2000))
+        && (!('storagePath' in incoming()) || (incoming().storagePath is string && incoming().storagePath.size() <= 500));
+      allow update: if isAdmin()
+        || (isAuthed()
+            && resource.data.createdBy == request.auth.uid
+            && incoming().createdBy == resource.data.createdBy);
+      allow delete: if isAuthed() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
+    // ── visualProjects (Visual Studio — editable canvas projects) ─
+    // Owner-only working documents (the editable canvas state behind a saved
+    // asset). Owner is ownerId; admins may moderate.
+    match /visualProjects/{projectId} {
+      allow read: if isAuthed() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && incoming().ownerId == request.auth.uid;
+      allow update: if isAdmin()
+        || (isAuthed()
+            && resource.data.ownerId == request.auth.uid
+            && incoming().ownerId == resource.data.ownerId);
+      allow delete: if isAuthed() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
     // ── promptTemplates ───────────────────────────────────────
     // Admin-only. Never exposed to non-admin clients.
     match /promptTemplates/{toolId} {

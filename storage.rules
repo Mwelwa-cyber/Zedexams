@@ -53,6 +53,14 @@ service firebase.storage {
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
+    // Visual Studio baked diagrams (image + labels flattened to PNG) and
+    // uploaded source pictures. Slightly larger cap than quiz images because a
+    // detailed labelled diagram baked at 2× can run past the 5 MB line.
+    function validVisualStudioUpload() {
+      return request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
     function validLessonPresentationUpload() {
       // SVG is intentionally excluded — pptxPresentationRenderer.js used to
       // upload programmatically-built SVG slides, but a malicious .pptx could
@@ -108,6 +116,19 @@ service firebase.storage {
       allow create, update: if ownsPath(ownerUid)
         && isTeacherOrAdmin()
         && validQuizImageUpload();
+      allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
+    }
+
+    // Visual Studio: a teacher's baked diagrams + uploaded source pictures.
+    // Owner-scoped folder; any signed-in user can READ (a diagram sent into a
+    // shared assessment/worksheet must remain loadable), only the owner/admin
+    // writes. Bucket CORS (cors.json) must be deployed so exporters can read
+    // the BYTES — see CLAUDE.md "npm run storage:cors".
+    match /visual-studio/{ownerUid}/{fileName=**} {
+      allow read: if isAuthed();
+      allow create, update: if ownsPath(ownerUid)
+        && isTeacherOrAdmin()
+        && validVisualStudioUpload();
       allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
     }
 
