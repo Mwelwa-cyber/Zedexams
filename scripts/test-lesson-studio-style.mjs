@@ -4,9 +4,10 @@
  * upgrades (public/studio/06-generate.js).
  *
  * Guards three behaviours added in 2026-06:
- *   1. buildStyleBlock — maps the teacher's Language level + Level of detail
- *      selectors onto explicit instruction text, defaulting to
- *      Standard / Summarised.
+ *   1. buildStyleBlock — maps the teacher's Language level (Simple /
+ *      Professional / Detailed Teacher Language) + Lesson plan type
+ *      (Simplified / Detailed) selectors onto explicit instruction text,
+ *      defaulting to Professional / Simplified.
  *   2. buildDiagramBlock — only asks for diagrams when auto-diagrams is on
  *      AND the subject is Maths/Science; lists only renderable diagram types.
  *   3. stageDiagramsHtml — matches model-supplied diagram specs to the right
@@ -91,21 +92,34 @@ test('exposes the three helpers on window', () => {
 })
 
 // ── buildStyleBlock ───────────────────────────────────────────────────────────
-test('style block honours explicit language + detail', () => {
+test('style block honours explicit language + lesson plan type', () => {
   const b = buildStyleBlock({ languageLevel: 'simple', detailLevel: 'detailed' })
   assert(/Language level: Simple/.test(b), 'missing Simple language guidance')
-  assert(/Level of detail: Detailed/.test(b), 'missing Detailed guidance')
+  assert(/Lesson plan type: Detailed/.test(b), 'missing Detailed guidance')
 })
 
-test('style block defaults to Standard + Summarised', () => {
+test('style block supports all three language levels', () => {
+  assert(/Language level: Simple/.test(buildStyleBlock({ languageLevel: 'simple' })), 'simple not wired')
+  assert(/Language level: Professional/.test(buildStyleBlock({ languageLevel: 'professional' })), 'professional not wired')
+  assert(/Language level: Detailed Teacher Language/.test(buildStyleBlock({ languageLevel: 'teacher' })), 'teacher not wired')
+})
+
+test('style block uses the "Lesson plan type" label, not "Level of detail"', () => {
+  const b = buildStyleBlock({ detailLevel: 'simplified' })
+  assert(/Lesson plan type:/.test(b), 'expected the "Lesson plan type" label')
+  assert(!/Level of detail:/.test(b), 'stale "Level of detail" label still present')
+})
+
+test('style block defaults to Professional + Simplified', () => {
   const b = buildStyleBlock({})
-  assert(/Language level: Standard/.test(b), `expected Standard default, got: ${b}`)
-  assert(/Level of detail: Summarised/.test(b), 'expected Summarised default')
+  assert(/Language level: Professional/.test(b), `expected Professional default, got: ${b}`)
+  assert(/Lesson plan type: Simplified/.test(b), 'expected Simplified default')
 })
 
 test('style block tolerates odd casing on the keys', () => {
-  const b = buildStyleBlock({ languageLevel: 'ADVANCED', detailLevel: 'Summarised' })
-  assert(/Language level: Advanced/.test(b), 'uppercase key not normalised')
+  const b = buildStyleBlock({ languageLevel: 'TEACHER', detailLevel: 'Detailed' })
+  assert(/Language level: Detailed Teacher Language/.test(b), 'uppercase key not normalised')
+  assert(/Lesson plan type: Detailed/.test(b), 'uppercase detail key not normalised')
 })
 
 // ── buildDiagramBlock ─────────────────────────────────────────────────────────

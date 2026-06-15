@@ -60,10 +60,10 @@ function gatherInput() {
     // Optional toggle — older studio DOMs may not have the row yet.
     showVocabulary: (() => { const el = $('#t-vocab'); return !!el && el.dataset.on === 'true'; })(),
     compactMeta: $('#t-compact').dataset.on === 'true',
-    // Writing-style controls (added 2026-06). Selects read directly; default
-    // to standard register + summarised cells when the DOM is an older bundle.
-    languageLevel: (() => { const el = $('#f-language-level'); return (el && el.value) || 'standard'; })(),
-    detailLevel: (() => { const el = $('#f-detail-level'); return (el && el.value) || 'summarised'; })(),
+    // Writing-style controls. Selects read directly; default to a professional
+    // register + a simplified plan when the DOM is an older bundle.
+    languageLevel: (() => { const el = $('#f-language-level'); return (el && el.value) || 'professional'; })(),
+    detailLevel: (() => { const el = $('#f-detail-level'); return (el && el.value) || 'simplified'; })(),
     // Auto-draw diagrams for Maths/Science. On by default; older DOMs (no row)
     // fall back to on so the feature is not silently lost on a stale bundle.
     autoDiagrams: (() => { const el = $('#t-diagrams'); return el ? el.dataset.on === 'true' : true; })(),
@@ -91,17 +91,31 @@ function gatherInput() {
 }
 
 // Writing-style guidance injected into the user prompt from the teacher's
-// "Language level" + "Level of detail" selectors. Kept here (not in the
+// "Language level" + "Lesson plan type" selectors. Kept here (not in the
 // cached system prompt) so changing a knob never invalidates Anthropic's
 // system-prompt cache.
+//
+// Language level controls the REGISTER and how much teaching guidance is woven
+// in — it never changes the JSON shape:
+//   • simple        — plain words, quick classroom use
+//   • professional  — formal, for records / inspection / submission
+//   • teacher       — explanatory; coaches the teacher on HOW to teach the lesson
 const LANGUAGE_GUIDE = {
-  simple: 'Simple — Use very plain, everyday words and short sentences a young learner could read aloud. Avoid technical jargon; if a subject term is unavoidable, explain it in plain words. Pitch the reading level low, suited to lower primary and Early Childhood Education.',
-  standard: 'Standard — Use clear, correct, professional staffroom English pitched at the stated grade. This is the register a Zambian head teacher expects to read.',
-  advanced: 'Advanced — Use richer, more precise subject vocabulary and fuller academic phrasing, appropriate for upper primary and secondary learners. Keep it grammatically clean and never pompous.',
+  simple: 'Simple — Use easy, everyday words and short sentences so the plan is quick to read and use in class. Avoid jargon; if a subject term is unavoidable, explain it in plain words. Pitch the reading level low. Good for quick classroom use.',
+  professional: 'Professional — Use formal, polished staffroom English suitable for official records, the school file, inspection and submission to a head teacher or standards officer. Keep it correct, concise and businesslike.',
+  teacher: 'Detailed Teacher Language — As well as the lesson content, coach the teacher on HOW to teach this lesson. Within the EXISTING activity and prose fields (do not add new JSON keys), weave in brief, practical guidance: how to introduce and explain each step, what to demonstrate or ask, why each activity matters, simple classroom-management tips, and the common mistakes or misconceptions learners make and how to correct them. Aim so that even a new or non-specialist teacher could deliver the lesson confidently.',
+  // Back-compat aliases for any value left over in a stale cached bundle.
+  standard: 'Professional — Use formal, polished staffroom English suitable for official records, inspection and submission.',
+  advanced: 'Detailed Teacher Language — Coach the teacher on how to teach the lesson, folding practical guidance into the existing activity and prose fields.',
 };
+// Lesson plan type controls how SHORT or COMPLETE the plan is.
+//   • simplified — short, main parts only (quick planning)
+//   • detailed   — full plan for formal submission / inspection
 const DETAIL_GUIDE = {
-  summarised: 'Summarised — Keep every table cell concise, exactly the way the official printed sample lesson plans are written: 2 to 4 short bullet-style points per cell, each a brief phrase or one short sentence. Do NOT write long paragraphs inside the progression table. Keep prose fields (rationale, lesson goal) short. Favour brevity over completeness.',
-  detailed: 'Detailed — Expand each cell with fuller teaching detail: more numbered steps, worked examples and expected answers, so that a relief teacher could deliver the lesson without extra preparation.',
+  simplified: 'Simplified — A short, easy-to-prepare plan covering only the main, important parts, in the spirit of the official printed sample lesson plans. Keep every progression-table cell concise (2 to 4 short bullet-style points, each a brief phrase or one short sentence) and keep prose fields (rationale, lesson goal) short. Do NOT write long paragraphs inside the table. Good for quick planning.',
+  detailed: 'Detailed — A more complete, well-explained plan. Expand each cell with fuller teaching detail: more numbered steps, worked examples and expected answers, richer teacher and learner activities, clear assessment criteria, listed teaching and learning resources, and a reflection — so the plan is suitable for formal submission or inspection and a relief teacher could deliver it without extra preparation.',
+  // Back-compat alias for any value left over in a stale cached bundle.
+  summarised: 'Simplified — Keep every table cell concise (2 to 4 short points) and prose fields short, like the official printed sample lesson plans.',
 };
 
 // Subjects for which auto-diagrams make sense. The studio toggle gates the
@@ -124,9 +138,9 @@ const DIAGRAM_SPEC_HELP = [
 ].map((l) => `  • ${l}`).join('\n');
 
 function buildStyleBlock(i) {
-  const langKey = (i.languageLevel || 'standard').toLowerCase();
-  const detKey = (i.detailLevel || 'summarised').toLowerCase();
-  return `\n\nSTYLE CONTROLS (the teacher chose these — follow them exactly):\n- Language level: ${LANGUAGE_GUIDE[langKey] || LANGUAGE_GUIDE.standard}\n- Level of detail: ${DETAIL_GUIDE[detKey] || DETAIL_GUIDE.summarised}`;
+  const langKey = (i.languageLevel || 'professional').toLowerCase();
+  const detKey = (i.detailLevel || 'simplified').toLowerCase();
+  return `\n\nSTYLE CONTROLS (the teacher chose these — follow them exactly):\n- Language level: ${LANGUAGE_GUIDE[langKey] || LANGUAGE_GUIDE.professional}\n- Lesson plan type: ${DETAIL_GUIDE[detKey] || DETAIL_GUIDE.simplified}`;
 }
 
 function buildDiagramBlock(i) {
