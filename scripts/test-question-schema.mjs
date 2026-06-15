@@ -573,6 +573,65 @@ test('preserves passthrough fields (correctAnswer, text, tiptap JSON, …)', () 
   assert(out.contentVersion === 3)
 })
 
+// ── Diagram labels / table / drawing canvas persistence ──────────
+console.log('\nschema (diagram labels, table, drawing canvas)')
+
+test('diagram question with labels + identify mode passes', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.imageUrl = 'https://x/lungs.png'
+  d.diagramLabels = [
+    { id: 'lbl-1', x: 0.8, y: 0.2, text: 'P' },
+    { id: 'lbl-2', x: 0.8, y: 0.5, text: 'Q' },
+  ]
+  d.diagramMode = 'identify'
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels.length === 2, 'labels survive parse')
+  assert(result.data.diagramMode === 'identify', 'identify mode survives parse')
+})
+
+test('inline data table passes', () => {
+  const d = validDoc()
+  d.type = 'short_answer'
+  d.options = []
+  d.correctAnswer = ''
+  d.tableData = { headers: ['Animal', 'Legs'], rows: [['Dog', '4'], ['Bird', '2']] }
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.tableData.rows.length === 2, 'table rows survive parse')
+})
+
+test('draw & label canvas height passes', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.drawingHeight = 200
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.drawingHeight === 200, 'drawing height survives parse')
+})
+
+test('out-of-range diagram label coordinate is rejected', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 1.5, y: 0.2, text: 'P' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'x > 1 should fail')
+})
+
+test('plain mcq still passes without the new fields', () => {
+  const result = questionWriteSchema.safeParse(validDoc())
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels === undefined, 'no empty diagramLabels on a plain mcq')
+  assert(result.data.tableData === undefined, 'no empty tableData on a plain mcq')
+})
+
 // ── Report ────────────────────────────────────────────────────────
 console.log('')
 console.log(`─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)

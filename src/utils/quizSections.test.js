@@ -143,3 +143,63 @@ function runStimulusAnswerSpaceRoundTripTest() {
 }
 
 runStimulusAnswerSpaceRoundTripTest()
+
+// ── Diagram labels / table / drawing canvas round-trip ──
+// These rich fields must survive serialize → hydrate for BOTH standalone and
+// passage sub-questions (they previously survived only in the local draft).
+function runDiagramFieldsRoundTripTest() {
+  const sections = [
+    createStandaloneSection({
+      type: 'diagram', text: 'Label the heart', options: [], correctAnswer: '',
+      imageUrl: 'https://x/heart.png',
+      diagramLabels: [{ id: 'l1', x: 0.5, y: 0.3, text: 'Aorta' }],
+      diagramMode: 'identify',
+      drawingHeight: 220,
+    }),
+    createStandaloneSection({
+      type: 'short_answer', text: 'Read the table', options: [], correctAnswer: '',
+      tableData: { headers: ['Animal', 'Legs'], rows: [['Dog', '4'], ['Bird', '2']] },
+    }),
+    createPassageSection({
+      passageKind: 'diagram',
+      title: 'Study the diagram and answer the questions.',
+      questions: [
+        {
+          type: 'short_answer', text: 'Name the labelled parts', options: [], correctAnswer: '',
+          diagramLabels: [{ id: 'p1', x: 0.2, y: 0.8, text: 'X' }],
+          diagramMode: 'identify',
+          drawingHeight: 160,
+          tableData: { headers: ['Part'], rows: [['lung']] },
+        },
+      ],
+    }),
+  ]
+
+  const serialized = serializeQuizSections(sections, [])
+  const { sections: reopened } = hydrateQuizSections(
+    serialized.questions, serialized.passages, [], serialized.pagebreaks,
+  )
+
+  const diagramQ = reopened.find(s => s.kind === 'standalone' && s.question.type === 'diagram')?.question
+  assert(diagramQ, 'standalone diagram question reopens')
+  assert.equal(diagramQ.diagramLabels.length, 1, 'standalone diagram labels round-trip')
+  assert.equal(diagramQ.diagramLabels[0].text, 'Aorta', 'label text round-trips')
+  assert.equal(diagramQ.diagramMode, 'identify', 'diagramMode round-trips')
+  assert.equal(diagramQ.drawingHeight, 220, 'drawingHeight round-trips')
+
+  const tableQ = reopened.find(s => s.kind === 'standalone' && s.question.tableData)?.question
+  assert(tableQ, 'standalone table question reopens')
+  assert.deepEqual(tableQ.tableData.headers, ['Animal', 'Legs'], 'table headers round-trip')
+  assert.equal(tableQ.tableData.rows.length, 2, 'table rows round-trip')
+
+  const passage = reopened.find(s => s.kind === 'passage')
+  const subQ = passage.passage.questions[0]
+  assert.equal(subQ.diagramLabels.length, 1, 'passage sub-question diagram labels round-trip')
+  assert.equal(subQ.diagramMode, 'identify', 'passage sub-question diagramMode round-trips')
+  assert.equal(subQ.drawingHeight, 160, 'passage sub-question drawingHeight round-trips')
+  assert.deepEqual(subQ.tableData.headers, ['Part'], 'passage sub-question table round-trips')
+
+  console.log('runDiagramFieldsRoundTripTest passed (labels/table/canvas, standalone + passage)')
+}
+
+runDiagramFieldsRoundTripTest()

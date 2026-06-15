@@ -291,6 +291,39 @@ export const questionSchema = z
     imageWidth: z.enum(['small', 'medium', 'large', 'full']).default('full'),
     diagramText: z.string().max(2000).nullable().default(null),
 
+    // ── Diagram label overlays / inline table / drawing canvas ──
+    // Power the Assessment Studio's labelled-diagram, image-identify,
+    // data-table and draw-&-label questions. All optional (absent on plain
+    // questions) so legacy docs and MCQs don't carry empty values.
+    //   diagramLabels — draggable labels on the question image. x/y are 0..1
+    //                   ratios of the image so they stay anchored across the
+    //                   preview / PDF / DOCX renderers.
+    //   diagramMode   — 'labeled' prints the label text on the image;
+    //                   'identify' prints numbers and the student names each.
+    //   tableData     — inline table { headers[], rows[][] }.
+    //   drawingHeight — blank Draw & Label canvas height in points.
+    diagramLabels: z
+      .array(
+        z.object({
+          id: z.string().max(64).optional(),
+          x: z.number().min(0).max(1),
+          y: z.number().min(0).max(1),
+          text: z.string().max(80).default(''),
+        }).strict()
+      )
+      .max(20)
+      .optional(),
+    diagramMode: z.enum(['labeled', 'identify']).optional(),
+    tableData: z
+      .object({
+        headers: z.array(z.string().max(60)).max(6).default([]),
+        rows: z.array(z.array(z.string().max(60)).max(6)).max(12).default([]),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    drawingHeight: z.number().int().min(80).max(500).nullable().optional(),
+
     // ── Answer-space settings (stimulus / structured sub-questions) ──
     // How much blank space prints under the question. 'lines' renders N ruled
     // lines, 'none' renders nothing (answered on the diagram), 'labelled_blanks'
