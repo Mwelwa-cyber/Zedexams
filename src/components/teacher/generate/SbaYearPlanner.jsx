@@ -21,7 +21,7 @@ import {
 } from '../../../utils/sbaPlanner'
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { isFreePlanTeacher, saveSbaPlanGeneration } from '../../../utils/teacherLibraryService'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import SbaWorkflowNote from '../SbaWorkflowNote'
@@ -63,6 +63,11 @@ export default function SbaYearPlanner() {
   }))
   const [statuses, setStatuses] = useState({})
 
+  // Library persistence — one saved doc per subject + grade plan.
+  const [generationId, setGenerationId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirtySinceSave, setDirtySinceSave] = useState(false)
+
   const subjectMeta = getSbaSubject(subject)
   const plan = useMemo(() => buildSbaPlan(subject, grade, statuses), [subject, grade, statuses])
 
@@ -76,18 +81,39 @@ export default function SbaYearPlanner() {
     const draft = loadDraft(uid, subject, grade)
     setStatuses(draft?.statuses && typeof draft.statuses === 'object' ? draft.statuses : {})
     if (draft?.header) setHeader((h) => ({ ...h, ...draft.header }))
+    setGenerationId(draft?.generationId || null)
+    setDirtySinceSave(false)
   }, [uid, subject, grade])
 
-  // Debounced autosave.
+  // Debounced autosave (the saved library doc id rides along).
   useEffect(() => {
     if (!uid) return undefined
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, statuses }))
+        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, statuses, generationId }))
       } catch { /* storage full/blocked — the planner still works */ }
     }, 600)
     return () => clearTimeout(t)
-  }, [uid, subject, grade, header, statuses])
+  }, [uid, subject, grade, header, statuses, generationId])
+
+  // Any edit marks the saved library copy stale.
+  useEffect(() => {
+    setDirtySinceSave(true)
+  }, [header, statuses])
+
+  // The saved artifact: header (with raw subject/grade + labels) + statuses.
+  // The library detail view rebuilds the plan from these.
+  const artifact = useMemo(() => ({
+    schemaVersion: 'sba-plan-1.0',
+    header: {
+      ...header,
+      subject,
+      grade,
+      subjectLabel: subjectMeta?.label || subject,
+      gradeLabel: SBA_GRADES.find((g) => g.value === grade)?.label || grade,
+    },
+    statuses,
+  }), [header, subject, grade, subjectMeta, statuses])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
@@ -102,6 +128,22 @@ export default function SbaYearPlanner() {
     const next = {}
     for (const g of plan.groups) for (const c of g.columns) next[c.key] = value
     setStatuses(next)
+  }
+
+  async function onSaveToLibrary() {
+    if (!plan || saving) return
+    setSaving(true)
+    try {
+      const id = await saveSbaPlanGeneration({ uid, existingId: generationId, artifact })
+      setGenerationId(id)
+      setDirtySinceSave(false)
+      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+    } catch (err) {
+      console.error('[SbaYearPlanner] save failed', err)
+      toast.error(err?.message || 'Could not save to your library. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function onExport() {
@@ -194,9 +236,22 @@ export default function SbaYearPlanner() {
                 <div className="flex gap-2 flex-wrap items-center">
                   <button type="button" onClick={() => markAll('not_started')} className="studio-btn-ghost text-xs">Reset all</button>
                   <button type="button" onClick={() => markAll('marked')} className="studio-btn-ghost text-xs">Mark all done</button>
+                  <button
+                    type="button"
+                    onClick={onSaveToLibrary}
+                    disabled={saving || (generationId && !dirtySinceSave)}
+                    className="studio-btn-ghost text-xs disabled:opacity-50"
+                  >
+                    {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                  </button>
                   <button type="button" onClick={onExport} className="studio-btn-primary text-xs">📄 Download plan (.docx)</button>
                 </div>
               </div>
+              {generationId && (
+                <p className="text-xs mb-3" style={{ color: '#566f76' }}>
+                  In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
+                </p>
+              )}
 
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-3 rounded-full bg-slate-200 overflow-hidden">
