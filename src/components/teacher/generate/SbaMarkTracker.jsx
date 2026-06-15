@@ -183,6 +183,7 @@ export default function SbaMarkTracker() {
 
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
           <Link to="/teacher/generate/sba" className="studio-btn-ghost">🏫 Create SBA tasks →</Link>
+          <Link to="/teacher/generate/sba-planner" className="studio-btn-ghost">🗂️ Year Planner →</Link>
         </div>
 
         <div className="space-y-6">
