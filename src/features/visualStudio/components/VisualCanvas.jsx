@@ -330,8 +330,11 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
       const blankRows = (version === 'learner' || version === 'answerKey')
         ? labelObjs.map((l) => `<p style="margin:6px 0;font-size:13pt">${l.letter}. ______________________________</p>`).join('')
         : ''
+      // Escape label-derived text: teacher input must never be interpolated raw
+      // into export HTML. answerKeyLines() returns PLAIN text by design (it is
+      // also persisted to Firestore), so escaping happens here at the HTML site.
       const keyHtml = version === 'answerKey' && labelObjs.length
-        ? `<div style="margin-top:14px;font-size:12pt"><b>Answer key:</b> ${answerKeyLines(labelObjs).join('; ')}</div>`
+        ? `<div style="margin-top:14px;font-size:12pt"><b>Answer key:</b> ${escapeHtml(answerKeyLines(labelObjs).join('; '))}</div>`
         : ''
       const html = `<div style="font-family:Arial,sans-serif;color:#111;padding:8px">
         <h2 style="margin:0 0 8px">${escapeHtml(title)}</h2>

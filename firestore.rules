@@ -774,15 +774,26 @@ service cloud.firestore {
         || (isAuthed()
             && resource.data.get('visibility', 'private') == 'public'
             && resource.data.get('status', 'draft') in ['approved', 'published']);
+      // Non-admins may only create PRIVATE DRAFTS. Reaching a publicly-readable
+      // state (visibility:'public' + status:'approved'/'published' — the combo
+      // the read rule above exposes) is admin-only: that is the moderation gate
+      // (brief item 13, "approve or reject shared visuals"). Admins bypass the
+      // value constraints.
       allow create: if isAuthed()
         && incoming().createdBy == request.auth.uid
-        && (incoming().get('status', 'draft') != 'published' || isAdmin())
+        && (isAdmin() || (
+              incoming().get('status', 'draft') == 'draft'
+              && incoming().get('visibility', 'private') != 'public'))
         && (!('imageUrl' in incoming()) || (incoming().imageUrl is string && incoming().imageUrl.size() <= 2000))
         && (!('storagePath' in incoming()) || (incoming().storagePath is string && incoming().storagePath.size() <= 500));
+      // Owners can edit their own asset but cannot self-promote it to a
+      // published/public (admin-approved) state; admins can change anything.
       allow update: if isAdmin()
         || (isAuthed()
             && resource.data.createdBy == request.auth.uid
-            && incoming().createdBy == resource.data.createdBy);
+            && incoming().createdBy == resource.data.createdBy
+            && incoming().get('status', 'draft') == 'draft'
+            && incoming().get('visibility', 'private') != 'public');
       allow delete: if isAuthed() && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
