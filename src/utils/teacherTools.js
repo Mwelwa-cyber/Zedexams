@@ -55,102 +55,19 @@ const getTermModuleOutlineCallable = httpsCallable(functions, 'getTermModuleOutl
   timeout: 35_000, // server: 30s — a couple of small Firestore reads
 })
 
-// Maps each subject value to the grades it's actually taught at in the
-// Zambian CBC. Used by getSubjectsForGrade() to filter the dropdown so
-// teachers only see pedagogically valid combinations (no Biology for
-// Grade 1, no Literacy for Grade 12).
-const SUBJECT_GRADE_MAP = {
-  // Languages — English & Zambian Language span everything; Literacy is
-  // the lower-primary reading-and-writing strand that gives way to English.
-  english:           ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  literacy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
-  cinyanja:          ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  zambian_language:  ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-
-  // STEM — Numeracy is the early-grade pre-Mathematics strand. Integrated
-  // Science covers all primary + junior secondary, then splits into
-  // Bio/Chem/Phys at senior secondary.
-  mathematics:       ['G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  numeracy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
-  integrated_science:['G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  environmental_science: ['G1','G2','G3','G4'],
-  biology:           ['G10','G11','G12'],
-  chemistry:         ['G10','G11','G12'],
-  physics:           ['G10','G11','G12'],
-
-  // Humanities — Social Studies covers ECE through junior secondary; in
-  // senior secondary it splits into History/Geography/Civic Education.
-  social_studies:    ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  history:           ['G8','G9','G10','G11','G12'],
-  geography:         ['G8','G9','G10','G11','G12'],
-  civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  religious_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-
-  // Business — commercial subjects offered at senior secondary only.
-  accounts:          ['G10','G11','G12'],
-
-  // Technical & creative — Creative & Technology Studies is the primary-
-  // level integrated subject; Technology Studies and Home Economics take
-  // over from upper primary onwards. Expressive Arts runs ECE–junior.
-  technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
-  creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
-  home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  expressive_arts:   ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  physical_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-}
-
-/**
- * Returns the TEACHER_SUBJECTS list filtered to the subjects taught at
- * the given grade. Group headers are kept only if at least one subject in
- * that group survives the filter. Falls back to the full list if grade is
- * unknown (e.g. legacy URL deeplink).
- */
-export function getSubjectsForGrade(grade) {
-  if (!grade) return TEACHER_SUBJECTS
-  const filtered = []
-  let pendingGroup = null
-  let groupHasItems = false
-  for (const opt of TEACHER_SUBJECTS) {
-    if (opt.group !== undefined) {
-      pendingGroup = opt
-      groupHasItems = false
-      continue
-    }
-    const grades = SUBJECT_GRADE_MAP[opt.value]
-    const allowed = !grades || grades.includes(grade)
-    if (!allowed) continue
-    if (pendingGroup && !groupHasItems) {
-      filtered.push(pendingGroup)
-      groupHasItems = true
-    }
-    filtered.push(opt)
-  }
-  // Defensive: never return an empty list. If a future grade has no
-  // subject mappings at all, fall back to the full list rather than
-  // showing an empty dropdown.
-  return filtered.length > 0 ? filtered : TEACHER_SUBJECTS
-}
-
-/**
- * Picks a sensible default subject for a grade — used when the grade
- * changes and the previously-selected subject no longer applies.
- * Returns the first non-group option from getSubjectsForGrade().
- */
-export function defaultSubjectForGrade(grade) {
-  const opts = getSubjectsForGrade(grade)
-  const firstSubject = opts.find((o) => o.value !== undefined)
-  return firstSubject?.value || 'mathematics'
-}
-
-/**
- * True if `subject` is taught at `grade` according to SUBJECT_GRADE_MAP.
- * Subjects with no mapping entry default to true (forward-compatible).
- */
-export function isSubjectValidForGrade(subject, grade) {
-  const grades = SUBJECT_GRADE_MAP[subject]
-  if (!grades) return true
-  return grades.includes(grade)
-}
+// The grade-aware subject helpers + the ECE subject set live in the pure
+// taxonomy module so plain `node` tests can exercise them without pulling in
+// firebase/config. Re-exported here so existing
+// `import { getSubjectsForGrade } from '../utils/teacherTools'` callers keep
+// working.
+export {
+  ECE_GRADE_CODES,
+  ECE_SUBJECTS,
+  isEceGrade,
+  getSubjectsForGrade,
+  defaultSubjectForGrade,
+  isSubjectValidForGrade,
+} from '../config/teacherTaxonomy'
 
 export const TEACHER_LANGUAGES = [
   { value: 'english', label: 'English' },
