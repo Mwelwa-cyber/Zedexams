@@ -34,6 +34,7 @@
     "test:exam-subject-match": "node scripts/test-todays-exam-match.mjs",
     "test:exam-calendar": "node scripts/test-exam-calendar-fix.mjs",
     "test:slide-notes": "node scripts/test-slide-notes-schema.mjs",
+    "test:contractions-lesson": "node scripts/test-grade4-contractions-lesson.mjs",
     "test:study-blocks": "node scripts/test-study-blocks.mjs",
     "test:notes-toc": "node scripts/test-notes-toc.mjs",
     "test:grade7-seed": "node scripts/test-grade7-seed.mjs",

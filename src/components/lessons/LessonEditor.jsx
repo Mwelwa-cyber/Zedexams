@@ -10,6 +10,7 @@ import { convertQuickLessonToSlides } from './quickLessonConverter'
 import { importPowerPointLesson } from './pptxImporter'
 import { renderPowerPointToImages } from './pptxPresentationRenderer'
 import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from './sampleLesson'
+import { GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES } from './grade4ContractionsLesson'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import {
@@ -99,7 +100,7 @@ function Toast({ toast }) {
   )
 }
 
-function ModeChoice({ onChoose, onSample }) {
+function ModeChoice({ onChoose, onSample, onSampleContractions }) {
   return (
     <div className="space-y-6">
       <div>
@@ -130,11 +131,16 @@ function ModeChoice({ onChoose, onSample }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-display-md text-sky-900" style={{ fontSize: 15 }}>Need a starting point?</p>
-            <p className="text-body-sm text-sky-700 mt-1 font-bold">Load the Grade 4 Integrated Science respiratory system sample lesson.</p>
+            <p className="text-body-sm text-sky-700 mt-1 font-bold">Load a ready-made sample lesson and edit it to fit your class.</p>
           </div>
-          <button onClick={onSample} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
-            Use sample lesson
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onSample} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+              Grade 4 Science: Respiratory System
+            </button>
+            <button onClick={onSampleContractions} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+              Grade 4 English: Contractions
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -665,11 +671,11 @@ export default function LessonEditor() {
     setActiveIndex(0)
   }
 
-  function loadSampleLesson() {
-    const sample = clone(SAMPLE_RESPIRATORY_LESSON)
+  function loadSampleLesson(sampleLesson = SAMPLE_RESPIRATORY_LESSON, sampleNotes = SAMPLE_QUICK_NOTES) {
+    const sample = clone(sampleLesson)
     setSelectedMode(sample.creationMode)
     setForm(sample)
-    setQuickNotes(SAMPLE_QUICK_NOTES)
+    setQuickNotes(sampleNotes)
     setPendingPresentation(null)
     setPresentationAnswersText('')
     setActiveIndex(0)
@@ -1067,7 +1073,11 @@ export default function LessonEditor() {
     return (
       <>
         <Toast toast={toast} />
-        <ModeChoice onChoose={chooseMode} onSample={loadSampleLesson} />
+        <ModeChoice
+          onChoose={chooseMode}
+          onSample={() => loadSampleLesson()}
+          onSampleContractions={() => loadSampleLesson(GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES)}
+        />
       </>
     )
   }
