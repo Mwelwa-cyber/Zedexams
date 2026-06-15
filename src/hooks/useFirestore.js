@@ -27,6 +27,7 @@ import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.j
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
 import { normalizeSubject } from '../config/curriculum.js'
+import { normaliseImageWidth } from '../utils/imageWidth.js'
 import { PLANS } from '../utils/subscriptionConfig.js'
 
 /**
@@ -228,6 +229,7 @@ async function normalizeQuestionPayload(q, order) {
     imageAlt:      String(q.imageAlt ?? '').trim(),
     imageDiagram,
     imagePosition: q.imagePosition || null,
+    imageWidth:    normaliseImageWidth(q.imageWidth),
     diagramText:   q.diagramText || null,
     requiresReview: Boolean(q.requiresReview),
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],

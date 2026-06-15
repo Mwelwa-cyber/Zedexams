@@ -12,6 +12,7 @@
  */
 
 import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { downloadHtmlAsPdf } from './htmlToPdf.js'
@@ -40,8 +41,11 @@ function diagramSvgHtml(diagram, style) {
 // fallback shows through, so the teacher gets a clear "could not load" note
 // instead of a silent blank gap. `labelHtml` (diagram label overlays) is
 // positioned against the same relative frame.
-function imageWithFallbackHtml(url, alt, labelHtml = '') {
-  return `<div class="img-frame">` +
+function imageWithFallbackHtml(url, alt, labelHtml = '', widthPreset = 'full') {
+  // The teacher's chosen size preset scales the frame down from its 80% cap.
+  const pct = resolveImageWidthPercent(widthPreset)
+  const widthStyle = pct < 100 ? ` style="max-width:${(pct * 0.8).toFixed(1)}%"` : ''
+  return `<div class="img-frame"${widthStyle}>` +
     `<div class="img-fallback">⚠ Figure could not be loaded.` +
     `<span class="hint">Regenerate or re-upload the image, then download again.</span></div>` +
     `<img class="framed-img" src="${escapeHtml(url)}" alt="${escapeHtml(alt || '')}">` +
@@ -800,7 +804,7 @@ function renderQuestion(b) {
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
     }).join('')
-    body += `<div class="q-image">${imageWithFallbackHtml(b.imageUrl, b.imageAlt || '', labelHtml)}</div>`
+    body += `<div class="q-image">${imageWithFallbackHtml(b.imageUrl, b.imageAlt || '', labelHtml, b.imageWidth)}</div>`
     if (isIdentify && labels.length && b.type !== 'mcq') {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`
