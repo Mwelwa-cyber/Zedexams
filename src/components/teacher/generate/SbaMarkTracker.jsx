@@ -25,6 +25,7 @@ import {
 } from '../../../config/sba'
 import { clampInt } from '../../../utils/inputs.js'
 import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
+import { downloadSbaTrackerXlsx } from '../../../utils/sbaTrackerToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/teacherLibraryService'
 import StudioPageHeader from '../StudioPageHeader'
@@ -197,6 +198,18 @@ export default function SbaMarkTracker() {
     }
   }
 
+  async function onExportXlsx() {
+    if (!named.length) return
+    const name = buildDownloadName({ docType: 'SBA Mark Schedule', grade, subject, topic: header.className || header.year, ext: 'xlsx' })
+    try {
+      await downloadSbaTrackerXlsx(artifact, name)
+      toast.success('Excel workbook downloaded — the SBA mark stays live when you edit marks.')
+    } catch (err) {
+      console.error('[SbaMarkTracker] xlsx export failed', err)
+      toast.error('Could not build the Excel file. Please try again.')
+    }
+  }
+
   const finalMark = combineFinalSbaMark({
     g5: Number(combo.g5) || 0,
     g6: Number(combo.g6) || 0,
@@ -277,6 +290,9 @@ export default function SbaMarkTracker() {
                   className="studio-btn-ghost text-xs disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
+                <button type="button" onClick={onExportXlsx} disabled={!named.length} className="studio-btn-ghost text-xs disabled:opacity-50">
+                  📊 .xlsx (live formula)
                 </button>
                 <button type="button" onClick={onExportDocx} disabled={!named.length} className="studio-btn-primary text-xs disabled:opacity-50">
                   📄 Download schedule (.docx)

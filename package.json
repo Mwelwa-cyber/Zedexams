@@ -36,6 +36,7 @@
     "test:sba-config": "node scripts/test-sba-config.mjs",
     "test:sba-task": "node functions/teacherTools/sbaTask.test.js",
     "test:sba-planner": "node scripts/test-sba-planner.mjs",
+    "test:sba-tracker-xlsx": "node scripts/test-sba-tracker-xlsx.mjs",
     "test:quiz-subject": "node scripts/test-quiz-subject-normalization.mjs",
     "test:teacher-subjects": "node scripts/test-teacher-subjects.mjs",
     "test:exam-subject-match": "node scripts/test-todays-exam-match.mjs",
