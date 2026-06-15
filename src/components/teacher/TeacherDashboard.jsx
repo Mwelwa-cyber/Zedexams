@@ -162,6 +162,15 @@ const STUDIOS = [
     meta: 'OMES-ready',
   },
   {
+    icon: Target,
+    tone: 'blue',
+    badge: 'NEW',
+    title: 'SBA Year Planner',
+    tagline: 'Track every required ECZ task from Planned to Marked, per term.',
+    to: '/teacher/generate/sba-planner',
+    meta: 'Coverage',
+  },
+  {
     icon: FolderOpen,
     tone: 'slate',
     badge: null,
