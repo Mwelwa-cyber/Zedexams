@@ -10,9 +10,10 @@
   },
   "plugins": {
     "StatusBar": {
-      "overlaysWebView": false,
-      "style": "LIGHT",
-      "backgroundColor": "#ffffff"
+      "style": "DARK"
+    },
+    "EdgeToEdge": {
+      "backgroundColor": "#4C1D95"
     },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,

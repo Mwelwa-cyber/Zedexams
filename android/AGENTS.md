@@ -80,7 +80,9 @@ implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
 ```
 Required to prevent WebView from drawing over system bars; otherwise time, signal, battery become invisible.
 
-**Capacitor StatusBar Plugin**: Reasserts status bar colors from JavaScript after theme load. Theme preemptively sets `#4C1D95` (brand violet) to avoid one-frame flash on cold start.
+**System-bar ownership** (Android 15/16, edge-to-edge enforced):
+- **Bar background colour** is owned solely by `@capawesome/capacitor-android-edge-to-edge-support` via `capacitor.config.json → plugins.EdgeToEdge.backgroundColor` (`#4C1D95` brand violet). The plugin paints overlay views behind the WebView + applies insets — the modern, non-deprecated path. Don't also set the colour through the StatusBar plugin: on API ≥ 35 that goes through the deprecated `Window.setStatusBarColor` (a no-op on-device) and double-manages the bars.
+- **Status-bar icon appearance** (light vs dark icons) is owned by `@capacitor/status-bar` via `StatusBar.setStyle()` in `src/utils/nativeShell.js` (routes through `WindowInsetsControllerCompat`, not deprecated).
 
 ## Build Artifacts & Asset Flow
 
