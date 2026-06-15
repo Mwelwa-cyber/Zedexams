@@ -3813,11 +3813,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               />
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button type="button" className="sv-btn sv-btn-ghost" style={{ fontSize: 13 }}
+              <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                 onClick={() => setDiagramTarget('question')}>
                 ✏️ Edit shape
               </button>
-              <button type="button" className="sv-btn sv-btn-ghost" style={{ fontSize: 13 }}
+              <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                 onClick={() => updateQuestion('imageDiagram', null)}>
                 Remove
               </button>
@@ -3871,7 +3871,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             </button>
             <button
               type="button"
-              className="sv-btn sv-btn-ghost"
+              className="sv-btn sv-btn-outline"
               style={{ marginTop: 6, fontSize: 13 }}
               onClick={() => setBankTarget('question')}
             >
@@ -3879,7 +3879,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             </button>
             <button
               type="button"
-              className="sv-btn sv-btn-ghost"
+              className="sv-btn sv-btn-outline"
               style={{ marginTop: 6, fontSize: 13 }}
               onClick={() => setDiagramTarget('question')}
             >
@@ -4192,7 +4192,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
             style={{
               width: 32, height: 32, borderRadius: 4,
               border: '1.5px dashed var(--sv-border-strong)',
-              background: 'transparent', color: 'var(--sv-muted)',
+              background: 'transparent', color: 'var(--sv-ink)',
               display: 'grid', placeItems: 'center', cursor: 'pointer',
               fontSize: 14,
             }}
@@ -4218,7 +4218,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
               style={{
                 width: 32, height: 32, borderRadius: 4,
                 border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-muted)',
+                background: 'transparent', color: 'var(--sv-ink)',
                 display: 'grid', placeItems: 'center', cursor: 'pointer',
                 fontSize: 14,
               }}
@@ -4234,7 +4234,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
               style={{
                 width: 32, height: 32, borderRadius: 4,
                 border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-muted)',
+                background: 'transparent', color: 'var(--sv-ink)',
                 display: 'grid', placeItems: 'center', cursor: 'pointer',
                 fontSize: 14,
               }}
