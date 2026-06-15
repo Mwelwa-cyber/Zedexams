@@ -244,6 +244,41 @@ async function normalizeQuestionPayload(q, order) {
     ...(Array.isArray(q.wordBank) && q.wordBank.length
       ? { wordBank: q.wordBank.map(w => String(w ?? '').trim().slice(0, 120)).filter(Boolean).slice(0, 40) }
       : {}),
+    // Diagram label overlays, identify-mode flag, inline data table, and the
+    // Draw & Label canvas height. These power the Assessment Studio's labelled
+    // diagram / image-identify / data-table / draw-and-label questions. Without
+    // persisting them, a saved paper reopened from Firestore (rather than the
+    // local draft) lost its labels, table and canvas. Only written when set so
+    // a plain MCQ never carries them (keeps the .strict() schema lean).
+    ...(Array.isArray(q.diagramLabels) && q.diagramLabels.length
+      ? {
+        diagramLabels: q.diagramLabels
+          .map(l => ({
+            id: typeof l?.id === 'string' && l.id ? l.id : `lbl-${Math.random().toString(36).slice(2, 10)}`,
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: String(l?.text ?? '').slice(0, 80),
+          }))
+          .slice(0, 20),
+        // diagramMode only matters alongside labels; persist it with them.
+        diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
+      }
+      : {}),
+    ...(q.tableData && Array.isArray(q.tableData.headers) && q.tableData.headers.length
+      ? {
+        tableData: {
+          headers: q.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+          rows: Array.isArray(q.tableData.rows)
+            ? q.tableData.rows
+              .slice(0, 12)
+              .map(row => Array.isArray(row) ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6) : [])
+            : [],
+        },
+      }
+      : {}),
+    ...(Number.isFinite(Number(q.drawingHeight)) && Number(q.drawingHeight) > 0
+      ? { drawingHeight: Math.max(80, Math.min(500, Math.round(Number(q.drawingHeight)))) }
+      : {}),
     requiresReview: Boolean(q.requiresReview),
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],
     importWarnings: Array.isArray(q.importWarnings) ? q.importWarnings.map(note => String(note ?? '').trim()).filter(Boolean) : [],

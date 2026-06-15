@@ -849,6 +849,9 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     wordBank: Array.isArray(question.wordBank)
       ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
       : [],
+    drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
+      ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
+      : null,
     ...normalizeAnswerSpace(question),
   })
 }
