@@ -37,6 +37,8 @@ export function emptyQuestion(overrides = {}) {
     // Alt-text description for the question image — read by screen readers in
     // the exported paper and given to the AI marker as context for the figure.
     imageAlt: '',
+    // Width preset for an inserted image ('small' | 'medium' | 'large' | 'full').
+    imageWidth: 'full',
     imageUploading: false,
     imageUploadStep: '',
     imageAssetId: '',
@@ -634,6 +636,8 @@ function hydrateStandaloneQuestion(question = {}) {
     partId: question.partId ?? null,
     imageUrl: question.imageUrl ?? '',
     imageAssetId: question.imageAssetId ?? '',
+    imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
+    imageWidth: question.imageWidth ?? 'full',
     diagramText: question.diagramText ?? '',
     imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
       ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }

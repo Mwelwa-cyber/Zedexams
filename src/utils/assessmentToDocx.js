@@ -32,6 +32,7 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
@@ -500,7 +501,16 @@ async function logoParagraph(url, transform = null) {
 
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
-  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220, alt: opts.alt || '' })
+  // A width preset scales the fit-box down from the full-width default so a
+  // teacher's "Small/Medium/Large" choice carries into the Word download.
+  const baseWidth = opts.width || 360
+  const baseHeight = opts.height || 220
+  const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+  const run = await loadImageRun(url, {
+    width: Math.round(baseWidth * pct),
+    height: Math.round(baseHeight * pct),
+    alt: opts.alt || '',
+  })
   return run ? centeredPara([run]) : null
 }
 
@@ -690,7 +700,7 @@ async function renderQuestion(b) {
   }
 
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '' })
+    const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
     out.push(img || imageFallbackBlock(b.imageAlt || ''))
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'

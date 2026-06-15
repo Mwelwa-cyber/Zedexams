@@ -550,6 +550,7 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
       ? { libraryKey: q.imageDiagram.libraryKey, params: q.imageDiagram.params || {} }
       : null,
     imageAlt: plain(q.imageAlt) || '',
+    imageWidth: q.imageWidth || 'full',
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,

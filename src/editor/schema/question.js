@@ -285,6 +285,10 @@ export const questionSchema = z
     // `null` (or absent on legacy docs) → renderer falls back to 'above',
     // which is the only behaviour that existed before this field was added.
     imagePosition: z.enum(['above', 'below', 'left', 'right', 'inline']).nullable().default(null),
+    // How wide the question image renders, as a friendly preset (resolved to a
+    // percentage of the content width by the studio preview and the PDF / DOCX
+    // exporters). Absent on legacy docs → renderer falls back to full width.
+    imageWidth: z.enum(['small', 'medium', 'large', 'full']).default('full'),
     diagramText: z.string().max(2000).nullable().default(null),
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),
