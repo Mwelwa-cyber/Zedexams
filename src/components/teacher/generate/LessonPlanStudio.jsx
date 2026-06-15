@@ -23,7 +23,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v19'
+const STUDIO_ASSET_VERSION = 'v20'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -650,21 +650,21 @@ export default function LessonPlanStudio() {
                 <div className="lp-section-body">
                   <div className="field-row">
                     <div className="field">
-                      <label>Language level</label>
-                      <select id="f-language-level" defaultValue="standard">
-                        <option value="simple">Simple — plain words (lower primary / ECE)</option>
-                        <option value="standard">Standard — clear professional (default)</option>
-                        <option value="advanced">Advanced — richer vocabulary (upper / secondary)</option>
+                      <label>Lesson plan type</label>
+                      <select id="f-detail-level" defaultValue="simplified">
+                        <option value="simplified">Simplified — short, main parts only (quick planning)</option>
+                        <option value="detailed">Detailed — full activities, assessment, resources &amp; reflection</option>
                       </select>
-                      <div className="helper">Controls how simple or rich the wording is.</div>
+                      <div className="helper">Simplified is quick to prepare; Detailed suits formal submission or inspection.</div>
                     </div>
                     <div className="field">
-                      <label>Level of detail</label>
-                      <select id="f-detail-level" defaultValue="summarised">
-                        <option value="summarised">Summarised — short, like the official samples</option>
-                        <option value="detailed">Detailed — fuller steps &amp; examples</option>
+                      <label>Language level</label>
+                      <select id="f-language-level" defaultValue="professional">
+                        <option value="simple">Simple — easy, everyday words (quick classroom use)</option>
+                        <option value="professional">Professional — formal (records, inspection, submission)</option>
+                        <option value="teacher">Detailed Teacher Language — explains how to teach the lesson</option>
                       </select>
-                      <div className="helper">Summarised keeps each cell brief.</div>
+                      <div className="helper">Sets the wording and how much teaching guidance is included.</div>
                     </div>
                   </div>
                   <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>

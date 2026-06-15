@@ -72,10 +72,19 @@
     return on;
   }
 
-  // Title-case a style key (e.g. "summarised" → "Summarised") for the summary.
-  function styleLabel(v, fallback) {
-    const s = String(v || fallback || '').trim();
-    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+  // Friendly labels for the writing-style selectors in the summary card. The
+  // maps include the back-compat keys (standard/advanced/summarised) so a stale
+  // cached value still reads sensibly.
+  function languageLabel(v) {
+    const map = {
+      simple: 'Simple', professional: 'Professional', teacher: 'Detailed teacher',
+      standard: 'Professional', advanced: 'Detailed teacher',
+    };
+    return map[String(v || '').toLowerCase()] || 'Professional';
+  }
+  function planTypeLabel(v) {
+    const map = { simplified: 'Simplified', detailed: 'Detailed', summarised: 'Simplified' };
+    return map[String(v || '').toLowerCase()] || 'Simplified';
   }
 
   function chips(values) {
@@ -106,8 +115,8 @@
       cell('Term &amp; Week', i.termWeek ? esc(i.termWeek) : '<span class="lp-review-muted">—</span>'),
       cell('Format', esc(formatLabel(i.format))),
       cell('Plan scope', esc(planScopeText(i.planner))),
-      cell('Language', esc(styleLabel(i.languageLevel, 'standard'))),
-      cell('Detail', esc(styleLabel(i.detailLevel, 'summarised'))),
+      cell('Language', esc(languageLabel(i.languageLevel))),
+      cell('Lesson plan type', esc(planTypeLabel(i.detailLevel))),
       cell('Learning environment', env, true),
       cell('Includes', includes, true),
     ].join('');
