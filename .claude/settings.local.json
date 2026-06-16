@@ -3,7 +3,10 @@
     "allow": [
       "Bash(head -100 /m/Claude/Examprep-zambia/src/hooks/*.jsx)",
       "Read(//c/Users/mahen/Downloads/**)",
-      "Bash(unzip -o \"Quiz Craft.zip\" -d \"/tmp/quiz-craft-update\")"
+      "Bash(unzip -o \"Quiz Craft.zip\" -d \"/tmp/quiz-craft-update\")",
+      "mcp__Canva__start-editing-transaction",
+      "mcp__Canva__cancel-editing-transaction",
+      "mcp__Canva__perform-editing-operations"
     ]
   }
 }
