@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "visualAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [

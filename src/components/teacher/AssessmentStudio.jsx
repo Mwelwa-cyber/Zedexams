@@ -76,6 +76,7 @@ import DiagramPicker from '../diagrams/DiagramPicker'
 import CameraCaptureModal from './CameraCaptureModal'
 import ImageEditorModal from './ImageEditorModal'
 import { resolveImageWidthPercent } from '../../utils/imageWidth'
+import { consumeVisualHandoff, isVisualHandoffRequest } from '../../utils/studioHandoff'
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
 import ScanPaperModal from './scan/ScanPaperModal'
 import {
@@ -543,6 +544,33 @@ export default function AssessmentStudio() {
     setToast({ message, isErr })
     window.clearTimeout(showToast._t)
     showToast._t = window.setTimeout(() => setToast(null), 2500)
+  }, [])
+
+  // Visual Studio handoff (src/features/visualStudio): when this studio is
+  // opened via "Send to Assessment Studio" (?from=visual-studio), pull the
+  // pending diagram out of sessionStorage and drop it onto the first question
+  // — image above, blank "P: ___" rows + answer key as real question fields,
+  // so the questions are never trapped inside the picture. Runs once on mount.
+  useEffect(() => {
+    if (isEditing) return
+    if (!isVisualHandoffRequest(searchParams)) return
+    const payload = consumeVisualHandoff()
+    if (!payload) return
+    const ALLOWED = ['imageUrl', 'imageAlt', 'imageWidth', 'diagramText', 'text', 'explanation', 'answerFormat', 'blankLabels']
+    const patch = {}
+    for (const k of ALLOWED) { if (payload[k] != null) patch[k] = payload[k] }
+    setSections((prev) => {
+      const base = (prev && prev.length) ? prev : [createStandaloneSection()]
+      const next = [...base]
+      next[0] = { ...next[0], question: { ...next[0].question, ...patch } }
+      return next
+    })
+    setView('builder')
+    showToast('Diagram added from Visual Studio')
+    const sp = new URLSearchParams(searchParams)
+    sp.delete('from')
+    setSearchParams(sp, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const setF = useCallback((field, value) => {
