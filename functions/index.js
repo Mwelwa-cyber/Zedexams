@@ -2602,7 +2602,10 @@ exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubs
 // can pick a plan id but never dictate the price charged.
 
 function lencoApiKeyValue() {
-  return lencoApiKey.value() || process.env.LENCO_API_KEY || "";
+  // Trim — a stray trailing newline/space pasted into
+  // `functions:secrets:set` would otherwise corrupt the Bearer header
+  // and surface as a confusing 401 Unauthorized from Lenco.
+  return (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
 }
 
 function lencoEmailSecrets() {
@@ -2728,8 +2731,16 @@ exports.initiateLencoPayment = onCall({
       failureReason: String(err?.message || err).slice(0, 300),
     }).catch(() => {});
     if (err instanceof HttpsError) throw err;
-    console.error("[initiateLencoPayment] error", {code: err?.code, message: err?.message});
-    throw new HttpsError("internal", "Could not start the payment. Please try again.");
+    // Surface Lenco's actual rejection reason (auth, operator, phone,
+    // amount, account-not-enabled, …) so the buyer and support see WHY
+    // instead of an opaque "try again". err.body holds Lenco's JSON.
+    console.error("[initiateLencoPayment] Lenco error", {
+      code: err?.code, message: err?.message, body: err?.body,
+    });
+    const detail = typeof err?.message === "string" && err.message ?
+      `: ${err.message.slice(0, 160)}` :
+      ".";
+    throw new HttpsError("internal", `Could not start the payment${detail}`);
   }
 });
 
