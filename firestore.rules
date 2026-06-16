@@ -756,6 +756,13 @@ service cloud.firestore {
     // generation, or extraction from uploaded sample papers (staged for
     // tagging first). Teachers only ever see status == 'active' docs —
     // their queries must filter on it; admins see everything.
+    // ── aiGenerationLog (server-written audit of AI image generations) ─
+    // Cloud Functions write it via the admin SDK (rules bypassed). Admins may
+    // read it for the Visual Studio cost report; clients never write it.
+    match /aiGenerationLog/{logId} {
+      allow read: if isAdmin();
+    }
+
     match /pictureBank/{picId} {
       allow read: if isAdmin() ||
         (isAuthed() && resource.data.get('status', '') == 'active');
