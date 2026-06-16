@@ -22,23 +22,19 @@ console.log('normalizeSchoolProfile')
 {
   const n = normalizeSchoolProfile({
     schoolName: '  Twatasha Primary  ',
-    schoolLogoUrl: ' https://x/logo.jpg ',
-    schoolLogoTransform: { width: 120 },
     defaultDuration: '90',
     defaultCoverInstructions: 'Answer ALL questions.',
   })
   assert(n.schoolName === 'Twatasha Primary', 'trims school name')
-  assert(n.schoolLogoUrl === 'https://x/logo.jpg', 'trims logo url')
-  assert(n.schoolLogoTransform && n.schoolLogoTransform.width === 120, 'keeps transform object')
+  assert(n.schoolLogoUrl === undefined, 'no logo url in normalised shape')
   assert(n.defaultDuration === 90, 'coerces numeric duration string')
   assert(n.defaultCoverInstructions === 'Answer ALL questions.', 'keeps instructions')
 
   const blank = normalizeSchoolProfile(undefined)
-  assert(blank.schoolName === '' && blank.schoolLogoUrl === '', 'undefined → blank strings')
-  assert(blank.defaultDuration === null && blank.schoolLogoTransform === null, 'undefined → null numerics/objects')
+  assert(blank.schoolName === '', 'undefined → blank strings')
+  assert(blank.defaultDuration === null, 'undefined → null numerics')
   assert(normalizeSchoolProfile({ defaultDuration: -5 }).defaultDuration === null, 'non-positive duration → null')
   assert(normalizeSchoolProfile({ defaultDuration: 'abc' }).defaultDuration === null, 'non-numeric duration → null')
-  assert(normalizeSchoolProfile({ schoolLogoTransform: 'x' }).schoolLogoTransform === null, 'non-object transform → null')
   assert(normalizeSchoolProfile({ schoolName: 'a'.repeat(500) }).schoolName.length === 200, 'caps name length')
 }
 
@@ -52,18 +48,14 @@ console.log('\nisEmptySchoolProfile')
 
 console.log('\napplySchoolProfileDefaults — profile wins on a fresh paper')
 {
-  const fresh = { schoolName: '', schoolLogoUrl: '', schoolLogoTransform: null, duration: 60, coverInstructions: '' }
+  const fresh = { schoolName: '', duration: 60, coverInstructions: '' }
   const profile = {
     schoolName: 'Twatasha Primary',
-    schoolLogoUrl: 'https://x/logo.jpg',
-    schoolLogoTransform: { width: 140 },
     defaultDuration: 90,
     defaultCoverInstructions: 'Write your name.\nAnswer ALL questions.',
   }
   const out = applySchoolProfileDefaults(fresh, profile)
   assert(out.schoolName === 'Twatasha Primary', 'seeds school name')
-  assert(out.schoolLogoUrl === 'https://x/logo.jpg', 'seeds logo url')
-  assert(out.schoolLogoTransform.width === 140, 'seeds logo transform')
   assert(out.duration === 90, 'profile duration overrides the system default 60')
   assert(out.coverInstructions.startsWith('Write your name.'), 'seeds cover instructions')
 
@@ -73,7 +65,7 @@ console.log('\napplySchoolProfileDefaults — profile wins on a fresh paper')
 
   // Profile with blanks → keep the form's existing values, never wipe them.
   const partial = applySchoolProfileDefaults(
-    { schoolName: 'Kept', duration: 45, coverInstructions: 'Keep me', schoolLogoUrl: '' },
+    { schoolName: 'Kept', duration: 45, coverInstructions: 'Keep me' },
     { schoolName: '', defaultDuration: null, defaultCoverInstructions: '' },
   )
   assert(partial.schoolName === 'Kept', 'blank profile name does not wipe form name')
@@ -83,35 +75,35 @@ console.log('\napplySchoolProfileDefaults — profile wins on a fresh paper')
 
 console.log('\nbrandingForAiPaper — form wins, then profile, then recent papers')
 {
-  const profile = { schoolName: 'Profile School', schoolLogoUrl: 'p-logo.jpg' }
-  const recent = { schoolName: 'Recent School', schoolLogoUrl: 'r-logo.jpg' }
+  const profile = { schoolName: 'Profile School' }
+  const recent = { schoolName: 'Recent School' }
 
   // Teacher already typed a name on the paper → keep it.
-  const a = brandingForAiPaper({ schoolName: 'Typed', schoolLogoUrl: '' }, profile, recent)
+  const a = brandingForAiPaper({ schoolName: 'Typed' }, profile, recent)
   assert(a.schoolName === 'Typed', 'form name wins when set')
-  assert(a.schoolLogoUrl === 'p-logo.jpg', 'blank logo falls back to profile')
+
+  // Blank form name → fall back to profile.
+  const a2 = brandingForAiPaper({ schoolName: '' }, profile, recent)
+  assert(a2.schoolName === 'Profile School', 'blank name falls back to profile')
 
   // No profile → fall back to recent-paper branding.
-  const b = brandingForAiPaper({ schoolName: '', schoolLogoUrl: '' }, null, recent)
+  const b = brandingForAiPaper({ schoolName: '' }, null, recent)
   assert(b.schoolName === 'Recent School', 'recent name used when no profile')
-  assert(b.schoolLogoUrl === 'r-logo.jpg', 'recent logo used when no profile')
 
-  // Nothing anywhere → blank strings, never undefined.
+  // Nothing anywhere → blank string, never undefined.
   const c = brandingForAiPaper({}, null, null)
-  assert(c.schoolName === '' && c.schoolLogoUrl === '', 'empty everywhere → blanks')
-  assert(c.schoolLogoTransform === null, 'transform defaults to null')
+  assert(c.schoolName === '', 'empty everywhere → blank')
 }
 
 console.log('\nbrandingFromPapers — newest-first migration source')
 {
   const papers = [
-    { schoolName: '', schoolLogoUrl: '', duration: 0 },          // newest, blank
-    { schoolName: 'Newer School', schoolLogoUrl: '', duration: 90 },
-    { schoolName: 'Older School', schoolLogoUrl: 'old-logo.jpg', duration: 60 },
+    { schoolName: '', duration: 0 },          // newest, blank
+    { schoolName: 'Newer School', duration: 90 },
+    { schoolName: 'Older School', duration: 60 },
   ]
   const b = brandingFromPapers(papers)
   assert(b.schoolName === 'Newer School', 'picks most-recent non-blank name')
-  assert(b.schoolLogoUrl === 'old-logo.jpg', 'picks most-recent non-blank logo')
   assert(b.defaultDuration === 90, 'picks most-recent positive duration')
 
   assert(brandingFromPapers([]) === null, 'no papers → null')

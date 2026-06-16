@@ -271,7 +271,7 @@ function buildQuestionNumberMap(questions = []) {
 
 // Reverse of the createAssessment payload: map a stored assessment doc back
 // onto the studio's `form` shape so editing reopens with every paper-level
-// field (cover toggles, logo transform, MCQ layout, import metadata) intact.
+// field (cover toggles, MCQ layout, import metadata) intact.
 // Only defined keys are returned so the caller can spread over form defaults.
 function mapAssessmentToForm(a = {}) {
   const out = {}
@@ -291,8 +291,6 @@ function mapAssessmentToForm(a = {}) {
   copy('paperName')
   copy('assessmentDate')
   copy('coverInstructions')
-  copy('schoolLogoUrl')
-  copy('schoolLogoTransform')
   copy('endOfPaperText')
   copy('mcqOptionLayout')
   copy('mcqAnswerChoiceCount')
@@ -391,8 +389,6 @@ export default function AssessmentStudio() {
     paperName: '',
     assessmentDate: '',
     coverInstructions: '',
-    schoolLogoUrl: '',
-    schoolLogoTransform: null, // { width: number, offsetX: number, offsetY: number } or null = defaults
     showNameField: true,
     showDateField: true,
     showMarksField: true,
@@ -450,8 +446,8 @@ export default function AssessmentStudio() {
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
   const [recentPapers, setRecentPapers] = useState([])
-  // The teacher's saved School Profile (logo / name / default duration +
-  // cover instructions). Loaded once; used to pre-brand a fresh paper and to
+  // The teacher's saved School Profile (name / default duration + cover
+  // instructions). Loaded once; used to pre-brand a fresh paper and to
   // backfill the header on AI-created papers.
   const [schoolProfile, setSchoolProfile] = useState(null)
 
@@ -490,8 +486,6 @@ export default function AssessmentStudio() {
     paperName: form.paperName,
     assessmentDate: form.assessmentDate,
     coverInstructions: form.coverInstructions,
-    schoolLogoUrl: form.schoolLogoUrl,
-    schoolLogoTransform: form.schoolLogoTransform || null,
     endOfPaperText: form.endOfPaperText,
     footerCode,
     showNameField: form.showNameField,
@@ -679,9 +673,9 @@ export default function AssessmentStudio() {
     return () => { cancelled = true }
   }, [currentUser?.uid])
 
-  // Pre-brand a FRESH paper from the saved profile (school name + logo +
-  // default duration / cover instructions) so new papers print with the
-  // school header without re-typing it. Runs once, only after the draft
+  // Pre-brand a FRESH paper from the saved profile (school name + default
+  // duration / cover instructions) so new papers print with the school
+  // header without re-typing it. Runs once, only after the draft
   // restore has settled and only on an untouched paper — so it never
   // overwrites a restored draft or anything the teacher has started.
   const schoolDefaultsAppliedRef = useRef(false)
@@ -1103,7 +1097,7 @@ export default function AssessmentStudio() {
       setParts(prev => [...prev, ...newParts])
     }
     // Fill paper metadata the teacher hasn't set yet — including their school
-    // name/logo from the saved School Profile (falling back to the most recent
+    // name from the saved School Profile (falling back to the most recent
     // saved paper), so AI-created papers print with the school header without
     // re-typing it each time.
     const typeMap = {
@@ -1112,11 +1106,8 @@ export default function AssessmentStudio() {
     }
     setForm(f => {
       const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
-      const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
       const recentBranding = {
         schoolName: lastWithSchool?.schoolName || '',
-        schoolLogoUrl: lastWithLogo?.schoolLogoUrl || '',
-        schoolLogoTransform: lastWithLogo?.schoolLogoTransform || null,
       }
       const branding = brandingForAiPaper(f, schoolProfile, recentBranding)
       return {
@@ -1131,8 +1122,6 @@ export default function AssessmentStudio() {
         coverInstructions: f.coverInstructions ||
           String(assessment?.header?.instructions || ''),
         schoolName: branding.schoolName,
-        schoolLogoUrl: branding.schoolLogoUrl,
-        schoolLogoTransform: f.schoolLogoTransform || branding.schoolLogoTransform,
       }
     })
     setCreatePaperOpen(false)
@@ -1229,26 +1218,6 @@ export default function AssessmentStudio() {
     window.setTimeout(() => setAutoDiagram(null), 4000)
   }
 
-  async function uploadSchoolLogo(file) {
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      showToast('Only JPG, PNG, and WEBP images are allowed.', true)
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Logo must be under 10 MB.', true)
-      return
-    }
-    try {
-      const compressed = await compressImage(file, 600, 0.9)
-      const path = `assessment-images/${currentUser.uid}/logo-${Date.now()}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
-      const url = await getDownloadURL(snapshot.ref)
-      setF('schoolLogoUrl', url)
-      showToast('School logo uploaded.')
-    } catch (error) {
-      showToast(`Upload failed: ${getErrorMessage(error)}`, true)
-    }
-  }
 
   /* ------------ AI generation ------------ */
   async function handleGenerateQuestions(topicOverride) {
@@ -1596,8 +1565,8 @@ export default function AssessmentStudio() {
       })
       const finalTitle = form.title.trim() || autoTitle
       // Shared payload for both create and update so an edited paper round-trips
-      // every field the builder sets — cover toggles, logo transform, page
-      // breaks, MCQ layout and import metadata included.
+      // every field the builder sets — cover toggles, page breaks, MCQ layout
+      // and import metadata included.
       const assessmentPayload = {
         title: finalTitle,
         subject: form.subject,
@@ -1612,8 +1581,6 @@ export default function AssessmentStudio() {
         paperName: form.paperName,
         assessmentDate: form.assessmentDate,
         coverInstructions: form.coverInstructions,
-        schoolLogoUrl: form.schoolLogoUrl,
-        schoolLogoTransform: form.schoolLogoTransform ?? null,
         showNameField: form.showNameField,
         showDateField: form.showDateField,
         showMarksField: form.showMarksField,
@@ -2043,8 +2010,6 @@ export default function AssessmentStudio() {
           onUpdatePart={updatePart}
           onRemovePart={removePart}
           onAssignSectionToPart={assignSectionToPart}
-          onUploadLogo={uploadSchoolLogo}
-          onRemoveLogo={() => setF('schoolLogoUrl', '')}
           onImportDocument={handleImportDocument}
           onScan={() => setScanOpen(true)}
           importing={importingDocument}
@@ -2498,7 +2463,7 @@ function BuilderView(props) {
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
-    onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo, onRemoveLogo,
+    onUpdatePart, onRemovePart, onAssignSectionToPart,
     onImportDocument, onScan, importing, importSummary,
     onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
     onSave, saving = false, errorCount = 0, onShowChecklist,
@@ -2594,7 +2559,7 @@ function BuilderView(props) {
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
-        <HeaderBlock form={form} setF={setF} onUploadLogo={onUploadLogo} onRemoveLogo={onRemoveLogo} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} />
+        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} />
 
         {emptyPaper && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, margin: '12px 0' }}>
@@ -2784,137 +2749,7 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
 /* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-// Defaults applied to renderers when schoolLogoTransform is null/missing.
-// Width matches the existing un-resized logo (.sv-paper-logo / .logo CSS).
-// Offsets are 0,0 — i.e. the logo sits at its banner-slot's natural center.
-const DEFAULT_LOGO_TRANSFORM = { width: 80, offsetX: 0, offsetY: 0 }
-const LOGO_MIN_WIDTH = 40
-const LOGO_MAX_WIDTH = 160
-const LOGO_OFFSET_LIMIT = 30 // px in any direction inside the banner slot
-
-function clampLogoTransform(t) {
-  if (!t) return null
-  return {
-    width: Math.max(LOGO_MIN_WIDTH, Math.min(LOGO_MAX_WIDTH, Math.round(Number(t.width) || DEFAULT_LOGO_TRANSFORM.width))),
-    offsetX: Math.max(-LOGO_OFFSET_LIMIT, Math.min(LOGO_OFFSET_LIMIT, Math.round(Number(t.offsetX) || 0))),
-    offsetY: Math.max(-LOGO_OFFSET_LIMIT, Math.min(LOGO_OFFSET_LIMIT, Math.round(Number(t.offsetY) || 0))),
-  }
-}
-
-// Logo size + position adjuster. The teacher clicks "Adjust" to reveal a
-// small panel with a width slider and a draggable position pad. Width is
-// applied across all three renderers (preview, PDF, DOCX). Offset only
-// applies in preview + PDF; DOCX doesn't support inline image positioning
-// cleanly, so the rendered Word file uses the unshifted logo. We surface
-// that limitation in the UI with a small hint.
-function LogoAdjuster({ transform, onChange }) {
-  const [open, setOpen] = useState(false)
-  const padRef = useRef(null)
-  const draggingRef = useRef(false)
-  const t = transform || DEFAULT_LOGO_TRANSFORM
-
-  function update(next) {
-    onChange(clampLogoTransform({ ...t, ...next }))
-  }
-
-  function onPadMouseDown(e) {
-    if (!padRef.current) return
-    draggingRef.current = true
-    onPadMouseMove(e)
-  }
-  function onPadMouseMove(e) {
-    if (!draggingRef.current && e.type !== 'mousedown') return
-    if (!padRef.current) return
-    const rect = padRef.current.getBoundingClientRect()
-    // Map mouse position inside the pad to offsetX/Y in our coordinate
-    // space (-LIMIT..+LIMIT, 0 = centered). The pad is square so X and Y
-    // share the same scale.
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2 * LOGO_OFFSET_LIMIT
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2 * LOGO_OFFSET_LIMIT
-    update({ offsetX: x, offsetY: y })
-  }
-  function onPadMouseUp() {
-    draggingRef.current = false
-  }
-
-  // Convert offset to a position-marker style inside the pad.
-  const markerLeft = `${((t.offsetX / LOGO_OFFSET_LIMIT) / 2 + 0.5) * 100}%`
-  const markerTop = `${((t.offsetY / LOGO_OFFSET_LIMIT) / 2 + 0.5) * 100}%`
-
-  return (
-    <div style={{ marginTop: 6 }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        style={{ background: 'transparent', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '2px 8px', fontSize: 11, cursor: 'pointer', color: 'var(--sv-muted)' }}
-        title="Resize and reposition the logo"
-      >
-        ⚙ Adjust logo {open ? '▾' : '▸'}
-      </button>
-      {open && (
-        <div
-          onMouseUp={onPadMouseUp}
-          onMouseLeave={onPadMouseUp}
-          style={{ marginTop: 8, padding: 10, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-paper)', display: 'flex', gap: 16, alignItems: 'flex-start' }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
-            <label style={{ color: 'var(--sv-muted)' }}>Position (drag)</label>
-            <div
-              ref={padRef}
-              onMouseDown={onPadMouseDown}
-              onMouseMove={onPadMouseMove}
-              style={{
-                position: 'relative', width: 90, height: 90,
-                background: 'repeating-linear-gradient(45deg, #fafafa, #fafafa 4px, #f0f0f0 4px, #f0f0f0 8px)',
-                border: '1px solid var(--sv-border)', borderRadius: 4, cursor: 'crosshair',
-                userSelect: 'none',
-              }}
-            >
-              <div style={{ position: 'absolute', top: 0, left: '50%', bottom: 0, width: 1, background: '#ddd' }} />
-              <div style={{ position: 'absolute', left: 0, top: '50%', right: 0, height: 1, background: '#ddd' }} />
-              <div
-                style={{
-                  position: 'absolute', left: markerLeft, top: markerTop,
-                  width: 12, height: 12, marginLeft: -6, marginTop: -6,
-                  borderRadius: '50%', background: 'var(--sv-primary)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)', pointerEvents: 'none',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: 10, color: 'var(--sv-muted)', marginTop: 2 }}>
-              <span>x: {Math.round(t.offsetX)}</span>
-              <span>y: {Math.round(t.offsetY)}</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
-            <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Size: {t.width}px</label>
-            <input
-              type="range"
-              min={LOGO_MIN_WIDTH}
-              max={LOGO_MAX_WIDTH}
-              value={t.width}
-              onChange={e => update({ width: Number(e.target.value) })}
-            />
-            <div style={{ fontSize: 10, color: 'var(--sv-muted)' }}>
-              Width applies everywhere. Position applies in Preview + PDF (Word fixes the logo in place).
-            </div>
-            <button
-              type="button"
-              onClick={() => onChange(null)}
-              style={{ alignSelf: 'flex-start', marginTop: 4, padding: '2px 8px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImportDocument, onScan }) {
-  const fileInputRef = useRef(null)
+function HeaderBlock({ form, setF, importing, onImportDocument, onScan }) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -2930,49 +2765,6 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
       </div>
 
       <div className="sv-identity-row">
-        <div style={{ position: 'relative' }}>
-          <button
-            type="button"
-            className="sv-logo-drop"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Upload school logo"
-          >
-            {form.schoolLogoUrl
-              ? <img src={form.schoolLogoUrl} alt="School logo" />
-              : <>🖼<small>School<br />logo</small></>}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) onUploadLogo(file)
-                e.target.value = ''
-              }}
-            />
-          </button>
-          {form.schoolLogoUrl && onRemoveLogo && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onRemoveLogo() }}
-              aria-label="Remove logo"
-              style={{
-                position: 'absolute', top: -6, right: -6,
-                width: 22, height: 22, borderRadius: '50%',
-                background: 'var(--sv-primary)', color: 'white',
-                border: '2px solid white', fontSize: 12, lineHeight: 1,
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
-              }}
-            >×</button>
-          )}
-          {form.schoolLogoUrl && (
-            <LogoAdjuster
-              transform={form.schoolLogoTransform}
-              onChange={t => setF('schoolLogoTransform', t)}
-            />
-          )}
-        </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--sv-s3)' }}>
           <div className="sv-field">
             <label>School name <span className="sv-req">*</span></label>
@@ -5482,29 +5274,14 @@ function PaperBlock({ block }) {
 }
 
 function PaperHeaderBlock({ block }) {
-  // Apply the teacher's logo transform if set. Width changes the box;
-  // offsets shift the box (not the image inside) so the surrounding
-  // banner layout reflows around the logo naturally.
-  const t = block.logoTransform || DEFAULT_LOGO_TRANSFORM
-  const logoStyle = {
-    width: t.width,
-    height: t.width,
-    transform: (t.offsetX || t.offsetY) ? `translate(${t.offsetX}px, ${t.offsetY}px)` : undefined,
-  }
   return (
     <div className="sv-paper-banner">
-      <div className="sv-banner-left">
-        <div className="sv-paper-logo" style={logoStyle}>
-          {block.logoUrl ? <img src={block.logoUrl} alt="School logo" /> : <span>📚</span>}
-        </div>
-      </div>
       <div className="sv-paper-banner-text">
         <div className="sv-pbn-school">{(block.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
         <div className="sv-pbn-title">{block.title}</div>
         {block.subject && <div className="sv-pbn-subject">{block.subject}</div>}
         {block.paperName && <div className="sv-pbn-paper">{block.paperName}</div>}
       </div>
-      <div className="sv-banner-right" aria-hidden="true" />
     </div>
   )
 }

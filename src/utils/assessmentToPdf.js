@@ -2,7 +2,7 @@
  * Print an assessment as a PDF via the browser's native print dialog.
  *
  * The output mirrors the in-studio Preview pixel-for-pixel: marble banner,
- * subject + optional paper name, school logo, comprehension passages,
+ * subject + optional paper name, comprehension passages,
  * image-MCQ option grids, etc. The shared `buildPaperLayout` helper is the
  * single source of truth — preview, PDF, and DOCX all walk the same blocks.
  *
@@ -126,8 +126,8 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
     }
   }
 
-  // Wait for every <img> (school logo, question/diagram pictures, MCQ
-  // option images) to finish loading before opening the print dialog.
+  // Wait for every <img> (question/diagram pictures, MCQ option images)
+  // to finish loading before opening the print dialog.
   // Previously we printed after a fixed 200ms, which fires before remote
   // Firebase Storage images have loaded — so pictures that showed fine in
   // the preview came out blank in the printed/saved PDF. We now resolve
@@ -293,14 +293,11 @@ body {
   border: 1px solid #c8c8c8;
   padding: 14pt 18pt;
   margin-bottom: 14pt;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12pt;
+  display: flex;
+  justify-content: center;
   align-items: center;
   page-break-inside: avoid;
 }
-.banner-left { justify-self: start; min-width: 0; }
-.banner-right { justify-self: end; min-width: 0; }
 .banner-text {
   text-align: center;
   font-family: 'Arial', 'Helvetica', sans-serif;
@@ -328,18 +325,6 @@ body {
   margin-top: 2pt;
   letter-spacing: 0.4pt;
 }
-.logo {
-  width: 56pt; height: 56pt;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #7d3aa8, #4a1d6e 70%, #2d0e47);
-  display: grid; place-items: center;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
-  color: white;
-  font-size: 22pt;
-}
-.logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 
 .learner-row {
   display: flex; justify-content: space-between;
@@ -728,31 +713,13 @@ function renderHeader(b) {
   const paperLine = b.paperName
     ? `<div class="paper-name">${escapeHtml(b.paperName)}</div>`
     : ''
-  // Apply teacher-set transform if any. Width converts directly to the
-  // .logo box size; offsets become a CSS translate so the surrounding
-  // banner reflows around the (now-shifted) logo box naturally.
-  const t = b.logoTransform
-  const logoStyleParts = []
-  if (t?.width) {
-    const px = `${Math.round(t.width)}pt`
-    logoStyleParts.push(`width: ${px}`, `height: ${px}`)
-  }
-  if (t && (t.offsetX || t.offsetY)) {
-    logoStyleParts.push(`transform: translate(${Math.round(t.offsetX)}pt, ${Math.round(t.offsetY)}pt)`)
-  }
-  const logoStyle = logoStyleParts.length ? ` style="${logoStyleParts.join('; ')}"` : ''
-  const logoHtml = b.logoUrl
-    ? `<div class="logo"${logoStyle}><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
-    : `<div class="logo"${logoStyle}>📚</div>`
   return `<div class="banner">
-  <div class="banner-left">${logoHtml}</div>
   <div class="banner-text">
     <div class="school">${escapeHtml(school).toUpperCase()}</div>
     <div class="title">${escapeHtml(b.title)}</div>
     ${subjectLine}
     ${paperLine}
   </div>
-  <div class="banner-right"></div>
 </div>`
 }
 
