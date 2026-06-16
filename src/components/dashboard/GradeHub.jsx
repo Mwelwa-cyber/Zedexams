@@ -50,6 +50,7 @@ import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
 import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
+import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import AssignmentsCard          from './AssignmentsCard'
 import ClassesQuickCard         from './ClassesQuickCard'
 import StudyPlanCard            from './StudyPlanCard'
@@ -1119,6 +1120,10 @@ export default function GradeHub() {
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={User} size="sm" strokeWidth={2.1} /> My Profile
                     </Link>
+                    <Link to="/my-subscription" onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
+                      <Icon as={Sparkles} size="sm" strokeWidth={2.1} /> My Subscription
+                    </Link>
                     {!isAdmin && !isTeacher && (
                       <Link to="/classes" onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
@@ -1251,6 +1256,10 @@ export default function GradeHub() {
             </div>
           </div>
         </section>
+
+        {/* Subscription reminder — Free/Expired learners get an upgrade card
+            listing their Pro benefits; self-hides once they're Pro/Trial. */}
+        <SubscriptionReminderCard audience="learner" />
 
         {/* Audit A8 — verify-email reminder. Self-hides for already-
             verified accounts (incl. Google sign-in) and dismissed sessions. */}

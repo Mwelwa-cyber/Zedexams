@@ -1,0 +1,177 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
+import { upgradePortal, SUB_STATUS } from '../../utils/subscriptionStatus'
+import { PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
+import UpgradeModal from './UpgradeModal'
+import SeoHelmet from '../seo/SeoHelmet'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import { ArrowLeft, CheckCircleIcon, Lock, Sparkles, ShieldCheck } from '../ui/icons'
+
+const STATUS_META = {
+  [SUB_STATUS.PRO]:     { label: 'Pro',     tone: 'bg-green-100 text-green-700',  emoji: '⭐' },
+  [SUB_STATUS.TRIAL]:   { label: 'Trial',   tone: 'bg-blue-100 text-blue-700',    emoji: '🎁' },
+  [SUB_STATUS.EXPIRED]: { label: 'Expired', tone: 'bg-red-100 text-red-700',      emoji: '⏳' },
+  [SUB_STATUS.FREE]:    { label: 'Free',    tone: 'bg-amber-100 text-amber-800',  emoji: '✨' },
+}
+
+function formatDate(value) {
+  if (!value) return null
+  const d = typeof value?.toDate === 'function' ? value.toDate() : new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+/**
+ * My Subscription — every user's home for their plan, benefits, payment status,
+ * and the upgrade/renew button. Audience-aware: learners and teachers see their
+ * own Pro benefits and check out against the right plan portal.
+ */
+export default function MySubscriptionPage() {
+  const { userProfile } = useAuth()
+  const navigate = useNavigate()
+  const {
+    status, audience, isPro, isTrial, benefits, expiry, daysLeft,
+  } = useSubscriptionReminder()
+  const [showUpgrade, setShowUpgrade] = useState(false)
+
+  const meta = STATUS_META[status] || STATUS_META[SUB_STATUS.FREE]
+  const hasAccess = isPro || isTrial
+  const expiryLabel = formatDate(expiry)
+  const portal = upgradePortal(audience)
+
+  // Payment status line, derived from the same fields the backend writes.
+  const paymentStatus = hasAccess
+    ? 'Active'
+    : status === SUB_STATUS.EXPIRED
+      ? 'Lapsed — renew to reactivate'
+      : 'No active subscription'
+
+  const ctaLabel = status === SUB_STATUS.EXPIRED ? 'Renew Pro' : 'Upgrade to Pro'
+
+  return (
+    <div className="min-h-screen theme-bg">
+      <SeoHelmet title="My Subscription" path="/my-subscription" noIndex />
+      <div className="mx-auto max-w-2xl px-4 py-5 space-y-5">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 bg-transparent px-0 text-sm font-black theme-text-muted shadow-none min-h-0 hover:theme-text"
+        >
+          <Icon as={ArrowLeft} size="sm" /> Back
+        </button>
+
+        <header className="space-y-1">
+          <h1 className="text-2xl font-black theme-text">My Subscription</h1>
+          <p className="text-sm font-bold theme-text-muted">
+            {audience === 'teacher'
+              ? 'Your ZedExams Pro plan for teacher tools.'
+              : 'Your ZedExams Pro plan for learning.'}
+          </p>
+        </header>
+
+        {/* Current plan card */}
+        <section className="zx-card rounded-3xl border theme-border theme-card p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest theme-text-muted">Current plan</p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-2xl font-black theme-text">{meta.label}</span>
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black uppercase ${meta.tone}`}>
+                  <span aria-hidden="true">{meta.emoji}</span> {meta.label}
+                </span>
+              </div>
+            </div>
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white ${
+                hasAccess ? 'bg-green-500' : status === SUB_STATUS.EXPIRED ? 'bg-red-500' : 'bg-amber-500'
+              }`}
+            >
+              <Icon as={hasAccess ? ShieldCheck : Lock} size="lg" strokeWidth={2.1} />
+            </div>
+          </div>
+
+          <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl theme-bg-subtle px-3 py-2.5">
+              <dt className="text-[11px] font-black uppercase tracking-wide theme-text-muted">Payment status</dt>
+              <dd className="mt-0.5 text-sm font-black theme-text">{paymentStatus}</dd>
+            </div>
+            <div className="rounded-2xl theme-bg-subtle px-3 py-2.5">
+              <dt className="text-[11px] font-black uppercase tracking-wide theme-text-muted">
+                {hasAccess ? 'Renews / expires' : 'Access'}
+              </dt>
+              <dd className="mt-0.5 text-sm font-black theme-text">
+                {hasAccess && expiryLabel
+                  ? `${expiryLabel}${daysLeft != null ? ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : ''}`
+                  : hasAccess
+                    ? 'Active'
+                    : 'Demo / free content only'}
+              </dd>
+            </div>
+          </dl>
+
+          {!hasAccess && (
+            <div className="mt-4">
+              <Button variant="primary" size="lg" onClick={() => setShowUpgrade(true)}>
+                {ctaLabel}
+              </Button>
+            </div>
+          )}
+          {hasAccess && status === SUB_STATUS.TRIAL && (
+            <div className="mt-4">
+              <Button variant="primary" size="lg" onClick={() => setShowUpgrade(true)}>
+                Upgrade to full Pro
+              </Button>
+            </div>
+          )}
+        </section>
+
+        {/* Benefits */}
+        <section className="zx-card rounded-3xl border theme-border theme-card p-5 shadow-sm">
+          <h2 className="flex items-center gap-1.5 text-base font-black theme-text">
+            <Icon as={Sparkles} size="sm" strokeWidth={2.1} className="theme-accent-text" />
+            {hasAccess
+              ? "What's included in your plan"
+              : audience === 'teacher'
+                ? 'What ZedExams Pro unlocks for teachers'
+                : 'What ZedExams Pro unlocks for learners'}
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {benefits.map((b) => (
+              <li key={b} className="flex items-start gap-2 text-sm font-bold theme-text">
+                <Icon
+                  as={hasAccess ? CheckCircleIcon : Lock}
+                  size="sm"
+                  strokeWidth={2.1}
+                  className={`mt-0.5 flex-shrink-0 ${hasAccess ? 'text-green-500' : 'theme-text-muted'}`}
+                />
+                <span className={hasAccess ? '' : 'theme-text-muted'}>{b}</span>
+              </li>
+            ))}
+          </ul>
+
+          {!hasAccess && (
+            <p className="mt-4 rounded-2xl theme-bg-subtle px-3 py-2.5 text-xs font-bold theme-text-muted">
+              This is part of ZedExams Pro. Upgrade to continue — pay with{' '}
+              {PAYMENT_DETAILS.mobileMoney.providers} on{' '}
+              {PAYMENT_DETAILS.mobileMoney.displayNumber}. Cancel anytime.
+            </p>
+          )}
+        </section>
+      </div>
+
+      {showUpgrade && (
+        <UpgradeModal
+          portal={portal.portal}
+          planIds={portal.planIds}
+          defaultPlanId={userProfile?.subscriptionPlan && userProfile.subscriptionPlan !== 'free'
+            ? userProfile.subscriptionPlan
+            : portal.defaultPlanId}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+    </div>
+  )
+}
