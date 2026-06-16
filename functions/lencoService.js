@@ -218,7 +218,28 @@ function computeWebhookSignature(rawBody, hashKey) {
 }
 
 /**
+ * Candidate HMAC keys to try when verifying a webhook. Lenco's spec
+ * ("webhook_hash_key ... a SHA256 hash of your API token") is ambiguous
+ * about whether the key is the SHA256 *hex string* or its *raw bytes*, so
+ * we accept either derivation (plus an explicit dashboard-provided key).
+ * Trying multiple valid derivations can't admit a forgery — an attacker
+ * still needs the token to produce any of them.
+ */
+function candidateHashKeys({apiToken, webhookKey}) {
+  const keys = [];
+  if (webhookKey) keys.push(webhookKey);
+  if (apiToken) {
+    const hex = crypto.createHash("sha256").update(String(apiToken)).digest("hex");
+    keys.push(hex); // SHA256 hex string as the HMAC key (most common)
+    keys.push(Buffer.from(hex, "hex")); // SHA256 raw bytes as the HMAC key
+  }
+  return keys;
+}
+
+/**
  * Verify the `x-lenco-signature` header against the raw request body.
+ * Accepts a signature matching ANY supported key derivation (see
+ * candidateHashKeys) via a timing-safe compare.
  *
  * @param {Object} args
  * @param {Buffer|string} args.rawBody   Exact bytes Lenco signed.
@@ -226,23 +247,22 @@ function computeWebhookSignature(rawBody, hashKey) {
  * @param {string} [args.apiToken]       API token — used to derive the
  *                                        hash key when webhookKey absent.
  * @param {string} [args.webhookKey]     Explicit webhook_hash_key (e.g.
- *                                        from the dashboard). Takes
- *                                        precedence over apiToken.
+ *                                        from the dashboard).
  * @returns {boolean}
  */
 function verifyWebhookSignature({rawBody, signature, apiToken, webhookKey}) {
   if (!signature) return false;
-  const hashKey = webhookKey || webhookHashKey(apiToken);
-  if (!hashKey) return false;
-  const expected = computeWebhookSignature(rawBody, hashKey);
-  const a = Buffer.from(String(signature), "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (a.length !== b.length) return false;
-  try {
-    return crypto.timingSafeEqual(a, b);
-  } catch (err) {
-    return false;
+  const sigBuf = Buffer.from(String(signature), "utf8");
+  for (const key of candidateHashKeys({apiToken, webhookKey})) {
+    const expBuf = Buffer.from(computeWebhookSignature(rawBody, key), "utf8");
+    if (expBuf.length !== sigBuf.length) continue;
+    try {
+      if (crypto.timingSafeEqual(sigBuf, expBuf)) return true;
+    } catch (err) {
+      // length already guarded; ignore and try the next candidate
+    }
   }
+  return false;
 }
 
 module.exports = {
