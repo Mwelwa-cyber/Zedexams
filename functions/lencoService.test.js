@@ -166,6 +166,16 @@ test("verifyWebhookSignature rejects a tampered body", () => {
   assert.strictEqual(lenco.verifyWebhookSignature({rawBody: tampered, signature: sig, apiToken: token}), false);
 });
 
+test("verifyWebhookSignature accepts the raw-bytes SHA256 key derivation", () => {
+  // Lenco's spec is ambiguous (hex string vs raw bytes of the SHA256);
+  // a signature keyed by the RAW bytes must also verify.
+  const token = "tok_live_123";
+  const body = JSON.stringify({event: "collection.successful", data: {reference: "r2", status: "successful"}});
+  const rawKey = crypto.createHash("sha256").update(token).digest(); // Buffer, not hex
+  const sig = crypto.createHmac("sha512", rawKey).update(body).digest("hex");
+  assert.strictEqual(lenco.verifyWebhookSignature({rawBody: body, signature: sig, apiToken: token}), true);
+});
+
 test("verifyWebhookSignature rejects missing / wrong-length signature", () => {
   const token = "tok";
   assert.strictEqual(lenco.verifyWebhookSignature({rawBody: "x", signature: "", apiToken: token}), false);
