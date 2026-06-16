@@ -337,8 +337,8 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   {method === 'mobile_money'
-                    ? 'Check your phone for a Mobile Money prompt and enter your PIN. This page updates automatically.'
-                    : 'Hang tight — this updates automatically once your bank confirms.'}
+                    ? 'Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute — keep this page open and your access unlocks automatically.'
+                    : 'Hang tight — this can take up to a minute. Keep this page open and your access unlocks automatically once your bank confirms.'}
                 </p>
                 {timedOut && (
                   <p className="text-xs text-gray-500 mt-3">
