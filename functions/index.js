@@ -17,9 +17,11 @@ const {
   buildImportStructureMessages,
   buildQuizMessages,
   callAnthropic,
-  callAnthropicStream,
+  callOpenAI,
+  callOpenAIStream,
   cleanString: cleanAiString,
   getAnthropicApiKey,
+  getApiKey,
   getUserRole,
   isEditQuestionAction,
   isStaffRole,
@@ -747,9 +749,13 @@ exports.sendPasswordResetEmail = onCall(
   },
 );
 
+// Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
+// the OPENAI_MODEL runtime env var). buildAnthropicChat returns a provider-
+// neutral {systemPrompt, messages[]} shape that callOpenAI folds into the
+// OpenAI system role.
 exports.aiChat = onCall(
   {
-    secrets: [anthropicApiKey],
+    secrets: [openaiApiKey],
     region: "us-central1",
     timeoutSeconds: 30,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
@@ -779,7 +785,7 @@ exports.aiChat = onCall(
       role,
       customSystemPrompt: request.data?.systemPrompt,
     });
-    const reply = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+    const reply = await callOpenAI(getApiKey(openaiApiKey), {
       systemPrompt,
       messages,
       maxTokens: 1000,
@@ -1034,8 +1040,9 @@ exports.sendExpiryReminders = onCall({
   };
 });
 
+// Zed chat SSE transport — OpenAI-backed (see aiChat above for the model note).
 exports.apiAiChat = onRequest(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
+  {secrets: [openaiApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
     // Browser CORS via the shared origin allow-list. The default header
     // set already includes X-Firebase-AppCheck (Audit B3).
@@ -1080,7 +1087,7 @@ exports.apiAiChat = onRequest(
         role,
         customSystemPrompt: req.body?.systemPrompt,
       }));
-      apiKey = getAnthropicApiKey(anthropicApiKey);
+      apiKey = getApiKey(openaiApiKey);
     } catch (error) {
       console.error("apiAiChat auth/validation error", {
         code: error?.code,
@@ -1102,7 +1109,7 @@ exports.apiAiChat = onRequest(
     res.write(": connected\n\n");
 
     try {
-      await callAnthropicStream(
+      await callOpenAIStream(
         apiKey,
         {
           systemPrompt,
