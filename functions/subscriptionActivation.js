@@ -111,6 +111,20 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     if (pay.phoneNumber) {
       userUpdate.subscriptionPhoneNumber = pay.phoneNumber;
     }
+    // Teacher studio quotas are gated by a SEPARATE field that the usage
+    // meter reads (functions/teacherTools/usageMeter.js → users.teacherPlan),
+    // NOT by subscriptionPlan/premium. Without this, a teacher who buys
+    // Pro/Max gets premium content access but stays on Free studio caps.
+    // Map the purchased teacher plan onto the canonical pro/max tier.
+    const teacherTier =
+      (pay.planId === "pro_monthly" || pay.planId === "pro_yearly") ? "pro" :
+      (pay.planId === "max_monthly" || pay.planId === "max_yearly") ? "max" :
+      null;
+    if (teacherTier) {
+      userUpdate.teacherPlan = teacherTier;
+      userUpdate.teacherPlanExpiresAt = admin.firestore.Timestamp.fromDate(expiry);
+      userUpdate.teacherPlanActivatedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
     tx.update(userRef, userUpdate);
 
     activated = true;
