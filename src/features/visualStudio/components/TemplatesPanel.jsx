@@ -3,6 +3,8 @@
    so the teacher gets an editable diagram in one click. Every result is fully
    editable on the canvas afterward. */
 
+import { useState } from 'react'
+import { LIBRARY_TEMPLATES, loadLibraryTemplate } from '../lib/visualTemplates'
 import { IconTemplate } from './VsIcons'
 
 export const TEMPLATES = [
@@ -25,16 +27,53 @@ export const TEMPLATES = [
   { id: 'comprehension', title: 'Comprehension picture', subject: 'English', topic: 'A busy market scene for comprehension', styleId: 'colour_illustration', useCase: 'worksheet' },
 ]
 
-export default function TemplatesPanel({ onUseTemplate }) {
+export default function TemplatesPanel({ onUseTemplate, onEdit }) {
+  const [loadingId, setLoadingId] = useState('')
+  const [error, setError] = useState('')
+
+  async function openLibrary(t) {
+    setLoadingId(t.id)
+    setError('')
+    try {
+      const visual = await loadLibraryTemplate(t)
+      onEdit?.(visual)
+    } catch (e) {
+      setError(e?.message || 'Could not open that template.')
+    } finally {
+      setLoadingId('')
+    }
+  }
+
   return (
     <div>
+      <div className="section-h" style={{ margin: '4px 0 8px' }}>
+        <h3 style={{ margin: 0, fontSize: 14 }}>Editable diagrams</h3>
+      </div>
       <p className="vs-sub" style={{ marginBottom: 12 }}>
-        Pick a starting point — it pre-fills the AI generator with a topic and style. You can edit
-        everything afterwards.
+        These open straight on the canvas — add labels and arrows on top, then make learner and
+        answer-key versions.
+      </p>
+      {error && <p className="vs-hint vs-note-warn" style={{ marginBottom: 12 }}>⚠ {error}</p>}
+      <div className="vs-cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))' }}>
+        {LIBRARY_TEMPLATES.map((t) => (
+          <button key={t.id} type="button" className="vs-card" onClick={() => openLibrary(t)} disabled={!!loadingId} style={{ minHeight: 96 }}>
+            <span className="vs-card__icon">{loadingId === t.id ? <span className="vs-spinner" /> : <IconTemplate size={20} />}</span>
+            <p className="vs-card__title" style={{ fontSize: 14 }}>{t.title}</p>
+            <p className="vs-card__text">{t.subject}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="section-h" style={{ margin: '22px 0 8px' }}>
+        <h3 style={{ margin: 0, fontSize: 14 }}>AI starters</h3>
+      </div>
+      <p className="vs-sub" style={{ marginBottom: 12 }}>
+        Subject illustrations the diagram library doesn’t carry — these pre-fill the AI generator
+        with a topic and style.
       </p>
       <div className="vs-cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))' }}>
         {TEMPLATES.map((t) => (
-          <button key={t.id} type="button" className="vs-card" onClick={() => onUseTemplate(t)} style={{ minHeight: 104 }}>
+          <button key={t.id} type="button" className="vs-card" onClick={() => onUseTemplate(t)} style={{ minHeight: 96 }}>
             <span className="vs-card__icon"><IconTemplate size={20} /></span>
             <p className="vs-card__title" style={{ fontSize: 14 }}>{t.title}</p>
             <p className="vs-card__text">{t.subject}</p>
