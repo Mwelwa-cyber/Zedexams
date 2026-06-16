@@ -114,6 +114,7 @@
     "test:storage-cleanup": "node functions/storageCleanup/helpers.test.js",
     "test:pdf-export-window": "node scripts/test-pdf-export-window.test.js",
     "test:studio-downloads": "node scripts/test-studio-downloads.test.js",
+    "test:html-to-pdf-pagination": "node scripts/test-html-to-pdf-pagination.test.js",
     "test:past-papers-index": "node functions/pastPapersIndex.test.js",
     "test:past-paper-import": "node functions/teacherTools/pastPaperImport.test.js",
     "test:monitor": "node functions/agents/runners/monitor.test.js",
