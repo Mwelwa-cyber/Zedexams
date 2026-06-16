@@ -6,10 +6,12 @@ name: Security Review
 # filtering. Complements agent-pr-review.yml (general review) — this one is
 # security-specialised.
 #
-# Uses the existing ANTHROPIC_API_KEY Actions secret (already wired into
-# agent-bug-fixer.yml / agent-pr-review.yml / agent-release-notes.yml), so no
-# new secret is required. The key must be enabled for both the Claude API and
-# Claude Code usage.
+# Uses the dedicated ANTHROPIC_AGENTS_KEY Actions secret shared by the
+# GitHub-agent workflows (agent-bug-fixer.yml / agent-pr-review.yml /
+# agent-release-notes.yml), so Console spend separates agent/Opus from the app
+# runtime. Falls back to ANTHROPIC_API_KEY when unset, so this is safe to run
+# before the dedicated key is provisioned. The key must be enabled for both the
+# Claude API and Claude Code usage.
 #
 # SECURITY NOTE: this action is not hardened against prompt injection, so it
 # should only review trusted PRs. `main` is branch-protected and merges are
@@ -43,7 +45,7 @@ jobs:
       # replace @main with a specific commit SHA and bump it deliberately.
       - uses: anthropics/claude-code-security-review@main
         with:
-          claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-api-key: ${{ secrets.ANTHROPIC_AGENTS_KEY || secrets.ANTHROPIC_API_KEY }}
           # Pin the model: the action otherwise defaults to Opus, which on a
           # per-PR agentic scan dominated the API bill (≈2M Opus tokens during
           # the June PR burst). Haiku 4.5 is ~15x cheaper per token and is
