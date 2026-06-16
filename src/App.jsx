@@ -6,6 +6,7 @@ import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
+import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -96,6 +97,9 @@ const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
+const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
+const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
+const MySubscriptionPage = lazy(() => import('./components/subscription/MySubscriptionPage'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
@@ -364,6 +368,10 @@ export default function App() {
       <MaintenanceBanner />
       <AnnouncementBanner />
       <AndroidUpdateBanner />
+      {/* Subscription status strip — "Free Plan" / "Expired Subscription"
+          for users who still need to upgrade. Self-hides for Pro/Trial and
+          on marketing/auth/immersive routes. */}
+      <SubscriptionStatusBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -488,6 +496,9 @@ export default function App() {
           <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
+          {/* My Subscription — shared learner/teacher plan, benefits, payment
+              status, and upgrade/renew. Audience-aware copy inside. */}
+          <Route path="/my-subscription"   element={<ProtectedRoute><MySubscriptionPage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
           {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
               floating launcher in App handles the in-context entry
@@ -604,6 +615,10 @@ export default function App() {
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />
+          {/* Locked-feature modal — listens for lockedFeature.show({feature,audience}) */}
+          <LockedFeatureModal />
+          {/* Once-a-day upgrade/renew popup for Free & Expired users */}
+          <SubscriptionReminderPopup />
         </Suspense>
       </div>
       </PlatformSettingsProvider>

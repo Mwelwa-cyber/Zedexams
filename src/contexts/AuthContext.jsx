@@ -82,6 +82,16 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     subscriptionExpiry: null,
     subscriptionActivatedBy: null,
     premiumActivatedAt: null,
+    // Plain-language plan type surfaced by the subscription-reminder system
+    // (Free / Trial / Pro / Expired is derived in utils/subscriptionStatus.js;
+    // this stores the catalogue planType, 'free' on a fresh account).
+    planType: 'free',
+    // Reminder-system UX state. Both are self-writable (not on the Firestore
+    // subscription blocklist) so the once-a-day popup snooze persists across
+    // devices without a Cloud Function. lastPaymentReminderShownAt records the
+    // most recent nudge; reminderDismissedUntil snoozes it for the day.
+    lastPaymentReminderShownAt: null,
+    reminderDismissedUntil: null,
     dailyAttempts: 0,
     lastAttemptDate: '',
     // Audit C7 — referrals foundation. referralCode is minted at

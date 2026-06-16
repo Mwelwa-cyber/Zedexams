@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { useSubscription } from '../../hooks/useSubscription'
 import {
   listMyGenerations,
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
-import UpgradeModal from '../subscription/UpgradeModal'
+import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
@@ -394,7 +393,6 @@ function formatSubject(s) {
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
   const { getMyQuizzes } = useFirestore()
-  const { isPremium } = useSubscription()
 
   // "Current plan" reflects the teacher's actual studio entitlement
   // (users.teacherPlan, same field the usage meter + server gate on), not the
@@ -405,7 +403,6 @@ export default function TeacherDashboard() {
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
     if (!currentUser) return
@@ -474,26 +471,9 @@ export default function TeacherDashboard() {
     <div className="teacher-dashboard-surface">
       <SeoHelmet title="Teacher dashboard" noIndex />
       <TeacherOnboardingTour />
-      {!isPremium && (
-        <div
-          className="teacher-subscription-banner"
-        >
-          <div>
-            <p className="teacher-subscription-banner__title">
-              Activate your teacher subscription
-            </p>
-            <p className="teacher-subscription-banner__text">
-              Pay with MTN MoMo and unlock AI lesson plan tools automatically.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowUpgrade(true)}
-            className="teacher-subscription-banner__button"
-          >
-            Pay with MTN
-          </button>
-        </div>
-      )}
+      {/* Subscription reminder — Free/Expired teachers get an upgrade card
+          listing their Pro toolkit; self-hides once they're on Pro/Max. */}
+      <SubscriptionReminderCard audience="teacher" />
 
       <section className="teacher-dashboard-hero">
         <div className="teacher-dashboard-hero__content">
@@ -624,8 +604,6 @@ export default function TeacherDashboard() {
           })}
         </div>
       )}
-
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
     </div>
   )
 }
