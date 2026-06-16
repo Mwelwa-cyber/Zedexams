@@ -17,6 +17,8 @@ import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
+import { generateDiagram } from '../../../utils/generateDiagram'
+import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 import StudioPageHeader from '../StudioPageHeader'
 import LessonPlanView from '../views/LessonPlanView'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -61,6 +63,11 @@ export default function LessonPlanGenerator() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [progress, setProgress] = useState(null) // {phase, approxOutputTokens?, elapsedMs}
+  // Black-and-white lesson drawing (generateDiagram). The diagram itself lives
+  // on lessonPlan.lessonDiagram so it flows into the preview + PDF/DOCX exports.
+  const [diagramPrompt, setDiagramPrompt] = useState('')
+  const [diagramStatus, setDiagramStatus] = useState('idle') // idle | generating | error
+  const [diagramError, setDiagramError] = useState('')
   const cancelRef = useRef(null)
 
   // Cancel any in-flight stream when the component unmounts.
@@ -105,6 +112,9 @@ export default function LessonPlanGenerator() {
     setErrorDetail('')
     setWarning('')
     setLessonPlan(null)
+    setDiagramStatus('idle')
+    setDiagramError('')
+    setDiagramPrompt('')
     setProgress({ phase: 'queued', elapsedMs: 0 })
 
     cancelRef.current = generateLessonPlanStream(form, {
@@ -115,6 +125,14 @@ export default function LessonPlanGenerator() {
         setUsage(data.usage)
         setWarning(data.warning || '')
         setStatus('success')
+        // Auto-suggest a drawing prompt from the lesson's topic (teacher can
+        // edit it and regenerate before generating the black-and-white image).
+        setDiagramPrompt(buildLessonDiagramPrompt({
+          topic: data.lessonPlan?.header?.topic || form.topic,
+          subtopic: data.lessonPlan?.header?.subtopic || form.subtopic,
+          subject: form.subject,
+          grade: form.grade,
+        }))
         cancelRef.current = null
         if (data.generationId) {
           attachLibraryToGeneration(data.generationId, {
@@ -139,6 +157,48 @@ export default function LessonPlanGenerator() {
     cancelRef.current = null
     setStatus('idle')
     setProgress(null)
+  }
+
+  // Generate (or regenerate) the black-and-white lesson drawing. Routes through
+  // the existing generateDiagram callable (Recraft line-art → OpenAI fallback,
+  // both B&W) and stores the stable Storage URL on the plan so the preview and
+  // the PDF/Word downloads all pick it up.
+  async function onGenerateDiagram() {
+    const prompt = diagramPrompt.trim()
+    if (!prompt) {
+      setDiagramError('Add a short description of the drawing first.')
+      setDiagramStatus('error')
+      return
+    }
+    setDiagramStatus('generating')
+    setDiagramError('')
+    try {
+      const result = await generateDiagram({ prompt, style: 'line_art', size: '1365x1024' })
+      setLessonPlan((prev) => (prev ? {
+        ...prev,
+        lessonDiagram: {
+          url: result.url,
+          prompt,
+          size: result.size,
+          provider: result.provider,
+        },
+      } : prev))
+      setDiagramStatus('idle')
+    } catch (err) {
+      setDiagramStatus('error')
+      setDiagramError(err?.message || 'Could not generate the drawing. Please try again.')
+    }
+  }
+
+  function onRemoveDiagram() {
+    setLessonPlan((prev) => {
+      if (!prev) return prev
+      const next = { ...prev }
+      delete next.lessonDiagram
+      return next
+    })
+    setDiagramStatus('idle')
+    setDiagramError('')
   }
 
   function onExportDocx() {
@@ -371,6 +431,15 @@ export default function LessonPlanGenerator() {
                     ⚠️ {warning}
                   </div>
                 )}
+                <DiagramPanel
+                  prompt={diagramPrompt}
+                  onPromptChange={setDiagramPrompt}
+                  status={diagramStatus}
+                  error={diagramError}
+                  diagram={lessonPlan.lessonDiagram}
+                  onGenerate={onGenerateDiagram}
+                  onRemove={onRemoveDiagram}
+                />
                 <LessonPlanView plan={lessonPlan} />
                 {generationId && (
                   <div className="mt-6 text-xs theme-text-secondary">
@@ -465,6 +534,65 @@ function FieldSelect({ label, value, options, onChange }) {
           )
         }
       </select>
+    </div>
+  )
+}
+
+/* ── Lesson drawing (black & white) ─────────────────────────────── */
+
+function DiagramPanel({ prompt, onPromptChange, status, error, diagram, onGenerate, onRemove }) {
+  const busy = status === 'generating'
+  return (
+    <div className="studio-card p-4 mb-5" style={{ background: '#fffdf7' }}>
+      <h3 className="studio-display" style={{ fontSize: 16, color: '#0e2a32', margin: 0 }}>
+        ✏️ Black &amp; white lesson drawing
+      </h3>
+      <p className="text-xs" style={{ color: '#566f76', margin: '2px 0 10px' }}>
+        Auto-suggested from your topic. Generate a clean line drawing — it appears in the plan below and in the PDF &amp; Word downloads.
+      </p>
+      <textarea
+        value={prompt}
+        onChange={(e) => onPromptChange(e.target.value)}
+        rows={2}
+        maxLength={400}
+        placeholder="Describe the drawing to illustrate this lesson…"
+        className="studio-input resize-none"
+        disabled={busy}
+      />
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={busy || !prompt.trim()}
+          className="studio-btn-primary inline-flex items-center gap-1.5"
+        >
+          {busy ? 'Drawing…' : diagram ? '↻ Regenerate drawing' : '✏️ Generate drawing'}
+        </button>
+        {diagram && !busy && (
+          <button type="button" onClick={onRemove} className="studio-btn-ghost">
+            Remove
+          </button>
+        )}
+      </div>
+      {busy && (
+        <div className="mt-3 text-xs flex items-center gap-2" style={{ color: '#566f76' }}>
+          <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          Generating a black-and-white drawing… this can take up to a minute.
+        </div>
+      )}
+      {error && (
+        <p className="mt-2 text-xs" style={{ color: '#b91c1c' }}>⚠️ {error}</p>
+      )}
+      {diagram?.url && !busy && (
+        <figure className="mt-3 rounded-xl border bg-white p-3 text-center" style={{ borderColor: '#e3dcc9' }}>
+          <img
+            src={diagram.url}
+            alt={diagram.prompt || 'Lesson illustration'}
+            loading="lazy"
+            className="mx-auto max-h-56 w-auto rounded-lg"
+          />
+        </figure>
+      )}
     </div>
   )
 }
