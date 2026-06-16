@@ -2602,7 +2602,10 @@ exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubs
 // can pick a plan id but never dictate the price charged.
 
 function lencoApiKeyValue() {
-  return lencoApiKey.value() || process.env.LENCO_API_KEY || "";
+  // Trim — a stray trailing newline/space pasted into
+  // `functions:secrets:set` would otherwise corrupt the Bearer header
+  // and surface as a confusing 401 Unauthorized from Lenco.
+  return (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
 }
 
 function lencoEmailSecrets() {
