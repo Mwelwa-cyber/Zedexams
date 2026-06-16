@@ -101,6 +101,8 @@ const {
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Visual Studio — on-demand AI safety/accuracy check for generated images.
+const {createCheckVisualSafety} = require("./visualSafety");
 // Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
 const {
   createGenerateNotePictures,
@@ -2097,6 +2099,7 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 // bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
 exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.checkVisualSafety = createCheckVisualSafety(anthropicApiKey);
 
 // Picture bank — admin-only: auto-name bulk-uploaded teaching figures.
 // Reads staged pictureBank docs, downloads each image from Storage, asks

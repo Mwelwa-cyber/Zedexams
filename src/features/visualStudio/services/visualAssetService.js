@@ -131,3 +131,33 @@ export async function deleteVisualAsset(asset) {
     return false
   }
 }
+
+/**
+ * Admin: list recent visuals across all teachers (newest first) for the
+ * moderation view. firestore.rules grants admins read/list of every doc.
+ */
+export async function listAllVisualAssets({ max = 200 } = {}) {
+  try {
+    const snap = await getDocs(query(
+      collection(db, COLLECTION),
+      orderBy('createdAt', 'desc'),
+      limit(max),
+    ))
+    return snap.docs.map((d) => coerceVisualAsset({ id: d.id, ...d.data() })).filter(Boolean)
+  } catch (err) {
+    console.error('listAllVisualAssets failed', err)
+    return []
+  }
+}
+
+/**
+ * Admin moderation action on a shared visual. 'approve' makes it publicly
+ * readable (the read rule's public path); 'reject' marks it rejected; 'hide'
+ * returns it to a private draft.
+ */
+export async function moderateVisualAsset(id, action) {
+  if (action === 'approve') return updateVisualAsset(id, { status: 'approved', visibility: 'public' })
+  if (action === 'reject') return updateVisualAsset(id, { status: 'rejected', visibility: 'private' })
+  if (action === 'hide') return updateVisualAsset(id, { status: 'draft', visibility: 'private' })
+  throw new Error(`Unknown moderation action: ${action}`)
+}

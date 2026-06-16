@@ -83,6 +83,7 @@ const QUICK_ACTIONS = [
   { to: '/admin/content',                 icon: '📁',  label: 'Manage Content',    sub: 'Edit or delete existing content',        tone: 'tone-orange' },
   { to: '/admin/learners',                icon: '👥',  label: 'View Learners',     sub: 'Monitor learner activity and progress',  tone: 'tone-purple' },
   { to: '/admin/cbc-kb',                  icon: '📚',  label: 'CBC Knowledge Base',sub: 'Add custom curriculum topics',           tone: 'tone-blue'   },
+  { to: '/admin/visuals',                 icon: '🖼️',  label: 'Visual Studio',     sub: 'Moderate visuals & AI image costs',      tone: 'tone-orange' },
 ]
 
 export default function AdminDashboard() {

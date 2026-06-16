@@ -8,6 +8,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, SUBJECT_MAP } from '../../../config/curriculum'
 import { useSyllabusTopicOptions } from '../../../components/teacher/syllabusTopicOptions'
 import { generateDiagram } from '../../../utils/generateDiagram'
+import { checkVisualSafety } from '../../../utils/visualSafety'
 import {
   VISUAL_STYLES, USE_CASES, ORIENTATIONS, IMAGE_SIZES, OUTPUT_TYPES,
   resolveGenerationParams, clampImageCount, MAX_IMAGES_PER_BATCH,
@@ -43,6 +44,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
   const [error, setError] = useState('')
   const [results, setResults] = useState([])
   const [savingIdx, setSavingIdx] = useState(-1)
+  const [safety, setSafety] = useState({}) // keyed by image url → { loading | result | error }
 
   const subjectLabel = SUBJECT_MAP[subjectId]?.label || subjectId
   const { topics, subtopics, loading: syllabusLoading } =
@@ -75,6 +77,16 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
       sourceType: 'ai',
       aiModel: result.provider || '',
       aiPrompt: result.prompt || promptText,
+    }
+  }
+
+  async function runSafetyCheck(result) {
+    setSafety((s) => ({ ...s, [result.url]: { loading: true } }))
+    try {
+      const res = await checkVisualSafety({ imageUrl: result.url, grade, subject: subjectLabel, topic, style: styleId })
+      setSafety((s) => ({ ...s, [result.url]: { result: res } }))
+    } catch (e) {
+      setSafety((s) => ({ ...s, [result.url]: { error: e?.message || 'Check failed.' } }))
     }
   }
 
@@ -293,6 +305,28 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
                       {savingIdx === i ? <span className="vs-spinner" /> : 'Save'}
                     </button>
                   </div>
+                  <div className="vs-result__bar" style={{ borderTop: 'none', paddingTop: 0 }}>
+                    <button type="button" className="vs-iconbtn" style={{ flex: 1, justifyContent: 'center' }}
+                      disabled={safety[r.url]?.loading} onClick={() => runSafetyCheck(r)}>
+                      {safety[r.url]?.loading ? <span className="vs-spinner" /> : '🛡 Check image'}
+                    </button>
+                  </div>
+                  {safety[r.url]?.error && (
+                    <p className="vs-hint vs-note-warn" style={{ margin: 8 }}>⚠ {safety[r.url].error}</p>
+                  )}
+                  {safety[r.url]?.result && (
+                    <div className="vs-hint" style={{ margin: 8, ...(safety[r.url].result.safetyStatus === 'ok' ? {} : { background: '#fff7ed', borderColor: '#f3d6ad', color: '#92400e' }) }}>
+                      {safety[r.url].result.safetyStatus === 'ok'
+                        ? <b>✓ Looks suitable.</b>
+                        : <b>⚠ This image may need review.</b>}
+                      <div style={{ marginTop: 4 }}>{safety[r.url].result.summary}</div>
+                      {Array.isArray(safety[r.url].result.issues) && safety[r.url].result.issues.length > 0 && (
+                        <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                          {safety[r.url].result.issues.map((iss, k) => <li key={k}>{iss}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
