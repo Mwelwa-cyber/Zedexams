@@ -30,6 +30,22 @@ import { normalizeSubject } from '../config/curriculum.js'
 import { normaliseImageWidth } from '../utils/imageWidth.js'
 import { PLANS } from '../utils/subscriptionConfig.js'
 
+// Map a granted/confirmed plan id onto the teacher studio tier the usage
+// meter reads (users.teacherPlan — see functions/teacherTools/usageMeter.js),
+// which is a SEPARATE axis from subscriptionPlan/premium. Mirrors the
+// server-side Lenco activation (functions/subscriptionActivation.js) so an
+// admin-granted Pro/Max teacher gets studio quotas, not just premium content
+// access. Returns {} for learner plans (which carry no `tier`).
+function teacherTierFields(planId, expiryDate) {
+  const tier = PLANS[planId]?.tier
+  if (tier !== 'pro' && tier !== 'max') return {}
+  return {
+    teacherPlan: tier,
+    teacherPlanExpiresAt: expiryDate ? Timestamp.fromDate(expiryDate) : null,
+    teacherPlanActivatedAt: serverTimestamp(),
+  }
+}
+
 /**
  * The rich-text write pipeline — `migrateContent` (HTML/legacy → Tiptap JSON)
  * and `normalizeRichTextPayload` (sanitised canonical HTML) — lives in the
@@ -780,6 +796,7 @@ export function useFirestore() {
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_override',
       subscriptionPaymentId: paymentId,
+      ...teacherTierFields(plan, expiry),
     })
     batch.update(doc(db, 'payments', paymentId), {
       status: 'confirmed',
@@ -816,6 +833,7 @@ export function useFirestore() {
       subscriptionActivatedBy: adminId,
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_grant',
+      ...teacherTierFields(plan, durationDays === 0 ? null : expiry),
     })
   }
 
@@ -911,6 +929,7 @@ export function useFirestore() {
       // Reset the reminder cooldown so the next near-expiry window is
       // eligible to send a renewal nudge to this customer.
       expiryReminderSentAt: null,
+      ...teacherTierFields(planId, expiry),
     }
     if (cleanPhone) {
       userUpdate.subscriptionPhoneNumber = cleanPhone
