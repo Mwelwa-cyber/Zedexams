@@ -8,6 +8,7 @@ import {
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
+import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
 import UpgradeModal from '../subscription/UpgradeModal'
 import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -391,9 +392,15 @@ function formatSubject(s) {
 }
 
 export default function TeacherDashboard() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const { getMyQuizzes } = useFirestore()
   const { isPremium } = useSubscription()
+
+  // "Current plan" reflects the teacher's actual studio entitlement
+  // (users.teacherPlan, same field the usage meter + server gate on), not the
+  // learner-style isPremium flag — otherwise a premium learner with no Pro
+  // teacher plan would falsely read "Pro" while the meter still showed Free.
+  const teacherPlanLabel = PLAN_LABELS[resolveTeacherPlan(userProfile)] || 'Free'
 
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
@@ -547,7 +554,7 @@ export default function TeacherDashboard() {
             <p>Recent items</p>
           </div>
           <div>
-            <span>{isPremium ? 'Pro' : 'Free'}</span>
+            <span>{teacherPlanLabel}</span>
             <p>Current plan</p>
           </div>
         </div>
