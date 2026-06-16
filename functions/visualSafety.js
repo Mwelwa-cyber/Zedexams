@@ -27,17 +27,25 @@ const {
 const ALLOWED_IMAGE_HOST = /^https:\/\/firebasestorage\.googleapis\.com\//i;
 const ALLOWED_MEDIA = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB cap on what we base64 to the model
+
 async function fetchImageAsBase64(imageUrl) {
   const resp = await fetch(imageUrl);
   if (!resp.ok) {
     throw new HttpsError("invalid-argument", `Could not load the image (${resp.status}).`);
   }
+  // Reject oversized objects BEFORE buffering them into memory. Firebase
+  // Storage always returns Content-Length, so this catches the OOM/timeout case
+  // up front; the post-read check below is a backstop for chunked responses.
+  const declaredLen = Number(resp.headers.get("content-length") || 0);
+  if (declaredLen > MAX_IMAGE_BYTES) {
+    throw new HttpsError("invalid-argument", "Image is too large to check (over 5 MB).");
+  }
   const declared = String(resp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   const mediaType = ALLOWED_MEDIA.has(declared) ? declared : "image/png";
   const buf = Buffer.from(await resp.arrayBuffer());
   if (!buf.length) throw new HttpsError("invalid-argument", "The image was empty.");
-  // ~5 MB cap on what we'll base64 to the model.
-  if (buf.length > 5 * 1024 * 1024) {
+  if (buf.length > MAX_IMAGE_BYTES) {
     throw new HttpsError("invalid-argument", "Image is too large to check (over 5 MB).");
   }
   return {data: buf.toString("base64"), mediaType};

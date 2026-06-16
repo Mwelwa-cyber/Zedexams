@@ -62,6 +62,17 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
 
   const styleMeta = VISUAL_STYLES.find((s) => s.id === styleId)
 
+  // If "Check image" was run for this result, carry the verdict onto the saved
+  // asset so the admin moderation view shows the Flagged badge + notes.
+  function safetyFieldsFor(url) {
+    const res = safety[url]?.result
+    if (!res) return { safetyStatus: 'unreviewed', reviewNotes: '' }
+    return {
+      safetyStatus: res.safetyStatus === 'ok' ? 'ok' : 'flagged',
+      reviewNotes: [res.summary, ...(Array.isArray(res.issues) ? res.issues : [])].filter(Boolean).join(' • ').slice(0, 2000),
+    }
+  }
+
   function buildVisual(result) {
     return {
       imageUrl: result.url,
@@ -77,6 +88,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
       sourceType: 'ai',
       aiModel: result.provider || '',
       aiPrompt: result.prompt || promptText,
+      ...safetyFieldsFor(result.url),
     }
   }
 
@@ -138,7 +150,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
         sourceType: 'ai',
         aiModel: result.provider || '',
         aiPrompt: result.prompt || promptText,
-        safetyStatus: 'unreviewed',
+        ...safetyFieldsFor(result.url),
         status: 'draft',
         visibility: 'private',
       })
