@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
+import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
 
 /**
  * Topic + sub-topic picker for the teacher generation studios.
@@ -35,48 +36,66 @@ import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
  *     onChangeSubtopic={(v) => set('subtopic', v)} />
  */
 
-// Module-scope cache so flipping between studios doesn't re-fetch the
-// merged syllabi every mount. getMergedSyllabi() also caches internally,
-// but this layer skips the recomputation of the lookup index too.
-let _lookupCache = null
-let _lookupPromise = null
+// Module-scope cache, keyed by curriculum framework ('2023' new CBC /
+// '2013' old OBC), so flipping between studios doesn't re-fetch the syllabi
+// every mount and the two frameworks don't trample each other.
+const _cacheByFw = new Map()   // framework → Map<"grade|subject", Map<topic, Set<subtopic>>>
+const _promiseByFw = new Map() // framework → in-flight Promise
 
-async function loadLookup() {
-  if (_lookupCache) return _lookupCache
-  if (_lookupPromise) return _lookupPromise
-  _lookupPromise = (async () => {
+async function build2023Lookup() {
+  const merged = await getMergedSyllabi()
+  const topics = syllabiToKbTopics(merged)
+  const byKey = new Map() // key = "grade|subject" → Map<topic, Set<subtopic>>
+  for (const t of topics) {
+    const k = `${t.grade}|${t.subject}`
+    let inner = byKey.get(k)
+    if (!inner) { inner = new Map(); byKey.set(k, inner) }
+    let subs = inner.get(t.topic)
+    if (!subs) { subs = new Set(); inner.set(t.topic, subs) }
+    for (const s of t.subtopics || []) {
+      const name = typeof s === 'string' ? s : s?.name
+      if (name) subs.add(String(name))
+    }
+  }
+  return byKey
+}
+
+// 2013 OBC topics live in a static file next to the 2023 one, parsed by the
+// shared extractor so the picker agrees with the server's 2013 grounding.
+async function build2013Lookup() {
+  const response = await fetch('/syllabi/curriculum-data-2013.json')
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return extract2013TopicLookup(await response.json())
+}
+
+async function loadLookup(framework = '2023') {
+  if (_cacheByFw.has(framework)) return _cacheByFw.get(framework)
+  if (_promiseByFw.has(framework)) return _promiseByFw.get(framework)
+  const promise = (async () => {
     try {
-      const merged = await getMergedSyllabi()
-      const topics = syllabiToKbTopics(merged)
-      const byKey = new Map() // key = "grade|subject" → Map<topic, Set<subtopic>>
-      for (const t of topics) {
-        const k = `${t.grade}|${t.subject}`
-        let inner = byKey.get(k)
-        if (!inner) { inner = new Map(); byKey.set(k, inner) }
-        let subs = inner.get(t.topic)
-        if (!subs) { subs = new Set(); inner.set(t.topic, subs) }
-        for (const s of t.subtopics || []) {
-          const name = typeof s === 'string' ? s : s?.name
-          if (name) subs.add(String(name))
-        }
-      }
-      _lookupCache = byKey
+      const byKey = framework === '2013' ? await build2013Lookup() : await build2023Lookup()
+      _cacheByFw.set(framework, byKey)
       return byKey
     } catch (err) {
       console.warn('TopicSubtopicPicker: syllabi load failed', err)
-      _lookupCache = new Map()
-      return _lookupCache
+      const empty = new Map()
+      _cacheByFw.set(framework, empty)
+      return empty
     } finally {
-      _lookupPromise = null
+      _promiseByFw.delete(framework)
     }
   })()
-  return _lookupPromise
+  _promiseByFw.set(framework, promise)
+  return promise
 }
 
 export default function TopicSubtopicPicker({
   grade, subject,
   topic, subtopic,
   onChangeTopic, onChangeSubtopic,
+  // Curriculum framework to draw topics from: '2023' new CBC (default) or
+  // '2013' old OBC syllabus (used by the SBA Studio).
+  framework = '2023',
   topicLabel = 'Topic *',
   subtopicLabel = 'Sub-topic (optional)',
   topicPlaceholder = 'e.g. Fractions',
@@ -92,19 +111,21 @@ export default function TopicSubtopicPicker({
   warnClassName = 'text-xs text-amber-700 mt-1',
   fieldWrapperClassName = '',
 }) {
-  const [lookup, setLookup] = useState(_lookupCache)
+  const [lookup, setLookup] = useState(() => _cacheByFw.get(framework) || null)
   // 'pick' = choose from the syllabus drop-down, 'write' = free text.
   const [topicMode, setTopicMode] = useState('pick')
   const [subtopicMode, setSubtopicMode] = useState('pick')
 
   useEffect(() => {
-    if (_lookupCache) { setLookup(_lookupCache); return undefined }
+    const cached = _cacheByFw.get(framework)
+    if (cached) { setLookup(cached); return undefined }
     let cancelled = false
-    loadLookup()
+    setLookup(null)
+    loadLookup(framework)
       .then((v) => { if (!cancelled) setLookup(v) })
       .catch(() => { /* loadLookup already swallows + logs; setLookup stays null */ })
     return () => { cancelled = true }
-  }, [])
+  }, [framework])
 
   // null until the merged syllabi resolve — lets us tell "still loading"
   // apart from "genuinely no rows" so a drop-down can wait rather than

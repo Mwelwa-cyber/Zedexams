@@ -262,6 +262,12 @@ const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // friendly worksheet illustrations. When unset, the toggle is hidden and the
 // other providers (Recraft line-art / OpenAI photoreal) handle everything.
 const kieApiKey = defineSecret("KIE_API_KEY");
+// Lenco (lenco.co) automated payments — ZMW mobile money + card
+// collections. The webhook signing key is derived from this token
+// (SHA256) per Lenco's spec, so no separate webhook secret is needed
+// unless you set a custom one (LENCO_WEBHOOK_KEY) on the Lenco
+// dashboard.
+const lencoApiKey = defineSecret("LENCO_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -2586,6 +2592,346 @@ exports.backfillReferralCodes = backfillReferralCodes;
 // server-only (firestore rules block self-update on subscription
 // fields). Used by the Cancel/Reactivate buttons on ProfilePage.
 exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubscriptionCancellation;
+
+// ── Lenco automated payments ────────────────────────────────────────
+// User-facing checkout: the SPA calls initiateLencoPayment, optionally
+// submitLencoOtp, then polls getLencoPaymentStatus. The authoritative
+// activation signal is the signed lencoWebhook; the poll is a fallback
+// so the buyer sees "success" even if the webhook is delayed. All three
+// activation paths funnel through the idempotent
+// activateSubscriptionFromPayment, so whoever wins, the rest no-op.
+//
+// Amounts are resolved server-side from functions/plans.js — a client
+// can pick a plan id but never dictate the price charged.
+
+function lencoApiKeyValue() {
+  // Trim — a stray trailing newline/space pasted into
+  // `functions:secrets:set` would otherwise corrupt the Bearer header
+  // and surface as a confusing 401 Unauthorized from Lenco.
+  return (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
+}
+
+function lencoEmailSecrets() {
+  return {
+    senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+    senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+  };
+}
+
+exports.initiateLencoPayment = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const lenco = require("./lencoService");
+  const {getPlan} = require("./plans");
+
+  const planId = cleanString(request.data?.planId, 60);
+  const method = cleanString(request.data?.method, 20) === "card" ? "card" : "mobile_money";
+  const plan = getPlan(planId);
+  if (!plan) throw new HttpsError("invalid-argument", "Unknown plan.");
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) {
+    throw new HttpsError("failed-precondition", "Payments are not configured yet. Please try again later.");
+  }
+
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(uid).get();
+  const user = userSnap.exists ? (userSnap.data() || {}) : {};
+  const amount = Number(plan.priceZMW);
+  const bearer = process.env.LENCO_FEE_BEARER === "customer" ? "customer" : "merchant";
+
+  // Create the pending payment doc first; its id IS the Lenco reference,
+  // so the webhook resolves the doc by a direct lookup (no query/index).
+  const payRef = await db.collection("payments").add({
+    userId: uid,
+    displayName: user.displayName || "",
+    email: user.email || "",
+    userRole: user.role || "learner",
+    planId,
+    planName: plan.name,
+    amountZMW: amount,
+    currency: "ZMW",
+    provider: "lenco",
+    method,
+    paymentReference: "",
+    status: "pending",
+    lencoStatus: "pending",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  const reference = payRef.id;
+
+  try {
+    let resp;
+    let phoneNumber = null;
+    let operator = null;
+
+    if (method === "mobile_money") {
+      const rawPhone = cleanString(request.data?.phone, 20);
+      phoneNumber = lenco.normalizePhone(rawPhone);
+      if (!phoneNumber) {
+        throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
+      }
+      operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
+      if (!operator) {
+        throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
+      }
+      resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
+    } else {
+      const card = request.data?.card || {};
+      if (!card.number || !card.cvv || !card.expiryMonth || !card.expiryYear) {
+        throw new HttpsError("invalid-argument", "Card number, expiry and CVV are required.");
+      }
+      resp = await lenco.initiateCardCollection({
+        apiKey, amount, reference, bearer,
+        card: {
+          number: String(card.number || ""),
+          cvv: String(card.cvv || ""),
+          expiryMonth: String(card.expiryMonth || ""),
+          expiryYear: String(card.expiryYear || ""),
+          name: String(card.name || user.displayName || ""),
+        },
+      });
+    }
+
+    const data = resp?.data || {};
+    const lencoStatus = String(data.status || "pending");
+    await payRef.update({
+      lencoStatus,
+      lencoCollectionId: data.id || null,
+      ...(phoneNumber ? {phoneNumber} : {}),
+      ...(operator ? {operator} : {}),
+    });
+
+    if (lencoStatus === "successful") {
+      const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+      await activateSubscriptionFromPayment({paymentId: reference, lencoStatus, emailSecrets: lencoEmailSecrets()})
+          .catch((err) => console.error("[initiateLencoPayment] activation failed", err));
+    } else if (lencoStatus === "failed") {
+      const {markPaymentFailed} = require("./subscriptionActivation");
+      await markPaymentFailed({paymentId: reference, lencoStatus, reason: data.reasonForFailure || data.message || ""})
+          .catch(() => {});
+    }
+
+    return {
+      paymentId: reference,
+      reference,
+      status: lencoStatus,
+      requiresOtp: lencoStatus === "otp-required",
+      message: data.message || resp?.message || null,
+      // Card 3-D Secure / hosted-auth redirect, when Lenco returns one.
+      authorization: data.authorization || data.threeDSecure || null,
+    };
+  } catch (err) {
+    await payRef.update({
+      status: "failed",
+      lencoStatus: "failed",
+      failureReason: String(err?.message || err).slice(0, 300),
+    }).catch(() => {});
+    if (err instanceof HttpsError) throw err;
+    // Surface Lenco's actual rejection reason (auth, operator, phone,
+    // amount, account-not-enabled, …) so the buyer and support see WHY
+    // instead of an opaque "try again". err.body holds Lenco's JSON.
+    console.error("[initiateLencoPayment] Lenco error", {
+      code: err?.code, message: err?.message, body: err?.body,
+    });
+    const detail = typeof err?.message === "string" && err.message ?
+      `: ${err.message.slice(0, 160)}` :
+      ".";
+    throw new HttpsError("internal", `Could not start the payment${detail}`);
+  }
+});
+
+exports.submitLencoOtp = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const paymentId = cleanString(request.data?.paymentId, 60);
+  const otp = cleanString(request.data?.otp, 12);
+  if (!paymentId || !otp) {
+    throw new HttpsError("invalid-argument", "Payment reference and OTP are required.");
+  }
+
+  const db = admin.firestore();
+  const payRef = db.collection("payments").doc(paymentId);
+  const snap = await payRef.get();
+  if (!snap.exists || (snap.data() || {}).userId !== uid) {
+    throw new HttpsError("permission-denied", "This payment is not yours.");
+  }
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  let resp;
+  try {
+    resp = await lenco.submitMobileMoneyOtp({apiKey, reference: paymentId, otp});
+  } catch (err) {
+    throw new HttpsError("invalid-argument", err?.message || "The code could not be verified. Please try again.");
+  }
+
+  const data = resp?.data || {};
+  const lencoStatus = String(data.status || "pending");
+  await payRef.update({lencoStatus}).catch(() => {});
+
+  if (lencoStatus === "successful") {
+    const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+        .catch((err) => console.error("[submitLencoOtp] activation failed", err));
+  } else if (lencoStatus === "failed") {
+    const {markPaymentFailed} = require("./subscriptionActivation");
+    await markPaymentFailed({paymentId, lencoStatus, reason: data.reasonForFailure || ""}).catch(() => {});
+  }
+
+  return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
+});
+
+exports.getLencoPaymentStatus = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const paymentId = cleanString(request.data?.paymentId, 60);
+  if (!paymentId) throw new HttpsError("invalid-argument", "Payment reference is required.");
+
+  const db = admin.firestore();
+  const payRef = db.collection("payments").doc(paymentId);
+  const snap = await payRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Payment not found.");
+  const pay = snap.data() || {};
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
+  const isAdmin = callerRole === "admin" || callerRole === "superAdmin";
+  if (pay.userId !== uid && !isAdmin) {
+    throw new HttpsError("permission-denied", "This payment is not yours.");
+  }
+
+  // Already activated — short-circuit without hitting Lenco.
+  if (pay.status === "successful" || pay.status === "confirmed") {
+    return {status: "successful"};
+  }
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  let resp;
+  try {
+    resp = await lenco.getCollectionStatus({apiKey, reference: paymentId});
+  } catch (err) {
+    // Transient lookup failure — report the last known status so the
+    // client keeps polling rather than erroring out.
+    console.warn("[getLencoPaymentStatus] lookup failed", err?.message);
+    return {status: pay.lencoStatus || "pending"};
+  }
+
+  const data = resp?.data || {};
+  const lencoStatus = String(data.status || pay.lencoStatus || "pending");
+  await payRef.update({lencoStatus}).catch(() => {});
+
+  if (lencoStatus === "successful") {
+    const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+        .catch((err) => console.error("[getLencoPaymentStatus] activation failed", err));
+    return {status: "successful"};
+  }
+  if (lencoStatus === "failed") {
+    const {markPaymentFailed} = require("./subscriptionActivation");
+    await markPaymentFailed({paymentId, lencoStatus, reason: data.reasonForFailure || ""}).catch(() => {});
+  }
+  return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
+});
+
+// Server-to-server webhook. No CORS / App Check — security is the
+// x-lenco-signature HMAC over the raw body. We process fully (the
+// activation transaction is fast and the receipt is best-effort) and
+// only then respond: a non-200 makes Lenco retry, and our activation is
+// idempotent, so a retry can never double-grant.
+exports.lencoWebhook = onRequest({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).send("Use POST.");
+    return;
+  }
+
+  const lenco = require("./lencoService");
+  const signature = req.get("x-lenco-signature") || req.get("X-Lenco-Signature");
+  const ok = lenco.verifyWebhookSignature({
+    rawBody: req.rawBody,
+    signature,
+    apiToken: lencoApiKeyValue(),
+    webhookKey: process.env.LENCO_WEBHOOK_KEY || "",
+  });
+  if (!ok) {
+    console.warn("[lencoWebhook] rejected: bad or missing signature");
+    res.status(401).send("invalid signature");
+    return;
+  }
+
+  try {
+    const event = req.body || {};
+    const type = String(event.event || event.type || "");
+    const data = event.data || {};
+    const reference = data.reference || null;
+    const collectionId = data.id || null;
+    const status = String(data.status || "");
+
+    const db = admin.firestore();
+    let paymentId = reference;
+    let paySnap = paymentId ? await db.collection("payments").doc(paymentId).get() : null;
+
+    // Fall back to resolving by Lenco's own collection id if the
+    // reference didn't map (e.g. a card flow that minted its own ref).
+    if ((!paySnap || !paySnap.exists) && collectionId) {
+      const q = await db.collection("payments")
+          .where("lencoCollectionId", "==", collectionId).limit(1).get();
+      if (!q.empty) {
+        paySnap = q.docs[0];
+        paymentId = paySnap.id;
+      }
+    }
+
+    if (!paySnap || !paySnap.exists) {
+      console.warn("[lencoWebhook] no matching payment", {reference, collectionId, type});
+      res.status(200).send("ignored");
+      return;
+    }
+
+    if (status === "successful" || type.endsWith("successful")) {
+      const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+      await activateSubscriptionFromPayment({paymentId, lencoStatus: status || "successful", emailSecrets: lencoEmailSecrets()});
+    } else if (status === "failed" || type.endsWith("failed")) {
+      const {markPaymentFailed} = require("./subscriptionActivation");
+      await markPaymentFailed({paymentId, lencoStatus: status || "failed", reason: data.reasonForFailure || ""});
+    } else {
+      await db.collection("payments").doc(paymentId).update({lencoStatus: status || "pending"}).catch(() => {});
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.error("[lencoWebhook] processing error", err);
+    // 500 → Lenco retries; activation is idempotent so this is safe.
+    res.status(500).send("processing error");
+  }
+});
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
