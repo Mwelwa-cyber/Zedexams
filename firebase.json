@@ -108,6 +108,13 @@
         }
       },
       {
+        "source": "/api/payments/lenco/webhook",
+        "function": {
+          "functionId": "lencoWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
