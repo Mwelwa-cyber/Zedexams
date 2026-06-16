@@ -31,6 +31,7 @@ import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/te
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
+import SbaWorkflowNote from '../SbaWorkflowNote'
 import { useToast } from '../../ui/Toast'
 
 const DRAFT_PREFIX = 'examprep:sba-tracker:draft:'
@@ -226,6 +227,8 @@ export default function SbaMarkTracker() {
           subtitle="Enter each pupil's task marks against the official ECZ blueprint. The converted SBA mark is calculated for you, ready for the OMES portal."
           emoji="🧮"
         />
+
+        <SbaWorkflowNote current="tracker" />
 
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
           <Link to="/teacher/generate/sba" className="studio-btn-ghost">🏫 Create SBA tasks →</Link>

@@ -24,6 +24,7 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaPlanGeneration } from '../../../utils/teacherLibraryService'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import SbaWorkflowNote from '../SbaWorkflowNote'
 import { useToast } from '../../ui/Toast'
 
 const DRAFT_PREFIX = 'examprep:sba-planner:draft:'
@@ -178,6 +179,8 @@ export default function SbaYearPlanner() {
           subtitle="See the exact tasks SBA requires this year, and move each through Planned → Administered → Marked. Nothing missed, nothing over-assessed."
           emoji="🗂️"
         />
+
+        <SbaWorkflowNote current="planner" />
 
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
           <Link to="/teacher/generate/sba" className="studio-btn-ghost">🏫 Create SBA tasks →</Link>
