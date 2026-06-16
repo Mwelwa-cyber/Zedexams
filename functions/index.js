@@ -749,10 +749,16 @@ exports.sendPasswordResetEmail = onCall(
   },
 );
 
+// Zed chat model. Tune Zed independently of the shared OPENAI_MODEL default:
+// set ZED_CHAT_MODEL (e.g. "gpt-4o") to upgrade just the study assistant
+// without touching any other OpenAI call. When unset, callOpenAI/
+// callOpenAIStream fall back to OPENAI_MODEL, then "gpt-4o-mini".
+const ZED_CHAT_MODEL = process.env.ZED_CHAT_MODEL || undefined;
+
 // Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
-// the OPENAI_MODEL runtime env var). buildAnthropicChat returns a provider-
-// neutral {systemPrompt, messages[]} shape that callOpenAI folds into the
-// OpenAI system role.
+// ZED_CHAT_MODEL). buildAnthropicChat returns a provider-neutral
+// {systemPrompt, messages[]} shape that callOpenAI folds into the OpenAI
+// system role.
 exports.aiChat = onCall(
   {
     secrets: [openaiApiKey],
@@ -788,6 +794,7 @@ exports.aiChat = onCall(
     const reply = await callOpenAI(getApiKey(openaiApiKey), {
       systemPrompt,
       messages,
+      model: ZED_CHAT_MODEL,
       maxTokens: 1000,
       temperature: 0.35,
       track: {uid: request.auth.uid, tool: "aiChat"},
@@ -1114,6 +1121,7 @@ exports.apiAiChat = onRequest(
         {
           systemPrompt,
           messages,
+          model: ZED_CHAT_MODEL,
           maxTokens: 1000,
           temperature: 0.35,
           track: {uid: decoded.uid, tool: "apiAiChat"},
