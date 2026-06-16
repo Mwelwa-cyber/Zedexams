@@ -113,6 +113,20 @@ export const OUTPUT_TYPE_MAP = Object.fromEntries(
   OUTPUT_TYPES.map((o) => [o.id, o]),
 )
 
+// Map a generator output-type onto the editor's version toggle, so a teacher
+// who picks "Learner version" lands in the editor already showing P/Q/R.
+const OUTPUT_TYPE_TO_VERSION = {
+  teacher_labelled: 'teacher',
+  learner_blank: 'learner',
+  answer_key: 'answerKey',
+  picture_only: 'picture',
+}
+
+/** @returns {('teacher'|'learner'|'answerKey'|'picture')} */
+export function outputTypeToVersion(outputType) {
+  return OUTPUT_TYPE_TO_VERSION[outputType] || 'teacher'
+}
+
 // Display-size preset stored on the asset / question (matches the studio's
 // imageWidth presets so a Visual Studio image sizes the same in a paper).
 export const IMAGE_SIZES = [

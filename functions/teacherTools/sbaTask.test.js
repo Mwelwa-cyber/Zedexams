@@ -7,7 +7,9 @@
 
 const assert = require("node:assert");
 const {validateSbaTask} = require("./sbaTaskSchema");
-const {resolveSbaTaskMeta, isSbaSubject, isSbaGrade} = require("./sbaTaxonomy");
+const {
+  resolveSbaTaskMeta, isSbaSubject, isSbaGrade, ctsComponentToKbSubject,
+} = require("./sbaTaxonomy");
 
 let passed = 0;
 function ok(name, cond) {
@@ -49,6 +51,15 @@ console.log("sbaTaxonomy — grade/subject guards");
   ok("G4 is not an SBA grade", !isSbaGrade("G4"));
   ok("english is an SBA subject", isSbaSubject("english"));
   ok("history is not an SBA subject", !isSbaSubject("history"));
+}
+
+console.log("sbaTaxonomy — CTS component → 2013 KB subject");
+{
+  // The 2013 OBC names the technical strand "Design & Technology".
+  ok("technology_studies → design_and_technology",
+    ctsComponentToKbSubject("technology_studies") === "design_and_technology");
+  ok("home_economics maps 1:1", ctsComponentToKbSubject("home_economics") === "home_economics");
+  ok("expressive_arts maps 1:1", ctsComponentToKbSubject("expressive_arts") === "expressive_arts");
 }
 
 console.log("sbaTaskSchema — answer-key task validates + totals from questions");

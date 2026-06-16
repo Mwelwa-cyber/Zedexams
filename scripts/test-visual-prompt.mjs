@@ -7,7 +7,7 @@ import {
   composeVisualPrompt, buildVisualTitle, deriveKeywords,
 } from '../src/features/visualStudio/lib/visualPrompt.js'
 import {
-  resolveGenerationParams, clampImageCount,
+  resolveGenerationParams, clampImageCount, outputTypeToVersion,
 } from '../src/features/visualStudio/lib/visualStudioMeta.js'
 
 // composeVisualPrompt grounds the prompt in topic + grade + subject + use case.
@@ -56,6 +56,13 @@ assert.equal(clampImageCount(0), 1)
 assert.equal(clampImageCount(99), 4)
 assert.equal(clampImageCount(3), 3)
 assert.equal(clampImageCount('2'), 2)
+
+// Output-type → editor version mapping.
+assert.equal(outputTypeToVersion('teacher_labelled'), 'teacher')
+assert.equal(outputTypeToVersion('learner_blank'), 'learner')
+assert.equal(outputTypeToVersion('answer_key'), 'answerKey')
+assert.equal(outputTypeToVersion('picture_only'), 'picture')
+assert.equal(outputTypeToVersion('nonsense'), 'teacher')
 
 // Title + keyword derivation.
 assert.ok(buildVisualTitle({ topic: 'Water cycle', grade: 5, subject: 'Science' }).startsWith('Water cycle'))

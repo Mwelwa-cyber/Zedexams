@@ -146,3 +146,76 @@ export function buildQuestionPatch({
 
   return patch
 }
+
+/**
+ * Suggest follow-up question texts for an assessment diagram, based on the
+ * labelled parts — the classic "function of part Q / importance of part R"
+ * scaffold. Pure; the "name the parts" question is added by the handoff
+ * builder, so this returns only the function/importance style questions.
+ * @returns {string[]}
+ */
+export function defaultFollowUps(labels = []) {
+  const lettered = assignLetters(labels)
+  if (!lettered.length) return []
+  const out = []
+  const second = lettered[1] || lettered[0]
+  out.push(`State the function of the part labelled ${second.letter}.`)
+  if (lettered.length > 2) {
+    const third = lettered[2]
+    out.push(`Give one importance of the part labelled ${third.letter}.`)
+  }
+  return out
+}
+
+/**
+ * Build the Assessment-Studio handoff for the full "Assessment Diagram" mode:
+ * an instruction + image question (no answer space) followed by scaffolded
+ * follow-up questions BELOW the diagram (brief item 3). The image stays a
+ * separate element from the questions.
+ *
+ * Returns the main question patch (top-level fields, so the existing
+ * writeVisualHandoff imageUrl guard is satisfied) plus a `followUps` array of
+ * question patches the studio appends as separate questions.
+ *
+ * @returns {object}
+ */
+export function buildAssessmentDiagramHandoff({
+  imageUrl,
+  imageAlt = '',
+  imageWidth = 'full',
+  labels = [],
+  instruction = DEFAULT_DIAGRAM_INSTRUCTION,
+  followUps = [],
+} = {}) {
+  const lettered = assignLetters(labels)
+  const questions = []
+
+  // A. Name the parts — driven by the labels, with blank "P: ___" rows and the
+  // answer key travelling in the marking copy.
+  if (lettered.length) {
+    questions.push({
+      text: `Name the parts labelled ${lettered.map((l) => l.letter).join(', ')}.`,
+      answerFormat: 'labelled_blanks',
+      blankLabels: lettered.map((l) => l.letter),
+      explanation: answerKeyLines(lettered).join('; '),
+      marks: lettered.length,
+    })
+  }
+
+  // B, C… the teacher's free-text follow-ups as ruled short-answer questions.
+  for (const q of followUps) {
+    const text = String(q || '').trim()
+    if (!text) continue
+    questions.push({ text, answerFormat: 'lines', answerLines: 2, marks: 2 })
+  }
+
+  return {
+    imageUrl: String(imageUrl || ''),
+    imageAlt: String(imageAlt || '').slice(0, 300),
+    imageWidth: imageWidth || 'full',
+    text: String(instruction || DEFAULT_DIAGRAM_INSTRUCTION),
+    diagramText: '',
+    answerFormat: 'none',
+    followUps: questions,
+  }
+}

@@ -102,6 +102,26 @@ export async function bakeVisual({ imageUrl, objects = [], version = 'teacher' }
       continue
     }
 
+    if (obj.type === 'ellipse') {
+      const x1 = px(obj.x); const y1 = py(obj.y)
+      const x2 = px(obj.x2 == null ? obj.x : obj.x2); const y2 = py(obj.y2 == null ? obj.y : obj.y2)
+      ctx.beginPath()
+      ctx.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2)
+      ctx.stroke()
+      continue
+    }
+
+    if (obj.type === 'answerline') {
+      // A blank answer line is always horizontal — write-on rule for learners.
+      const x1 = px(obj.x); const y1 = py(obj.y)
+      const x2 = px(obj.x2 == null ? obj.x : obj.x2)
+      ctx.beginPath()
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x2, y1)
+      ctx.stroke()
+      continue
+    }
+
     if (obj.type === 'text' || obj.type === 'label') {
       const text = obj.type === 'label' ? labelTextForVersion(obj, version) : String(obj.text || '')
       if (!text) continue

@@ -16,19 +16,28 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { bakeVisual, downloadBlob } from '../lib/visualCanvasRaster'
 import {
   LETTER_SEQUENCE, labelTextForVersion, assignLetters, answerKeyLines,
-  buildQuestionPatch, DEFAULT_DIAGRAM_INSTRUCTION,
+  buildAssessmentDiagramHandoff, defaultFollowUps, DEFAULT_DIAGRAM_INSTRUCTION,
 } from '../lib/visualVersions'
 import { uploadVisualImage, saveVisualAsset } from '../services/visualAssetService'
 import { writeVisualHandoff } from '../../../utils/studioHandoff'
 import { runExportPreflight } from '../../../utils/exportPreflight'
 import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
+import { submitPictureToBank } from '../../../utils/pictureBankService'
+import { deriveKeywords } from '../lib/visualPrompt'
+import { outputTypeToVersion } from '../lib/visualStudioMeta'
+import ImageEditorModal from '../../../components/teacher/ImageEditorModal'
 import ExportPreflightModal from './ExportPreflightModal'
 import {
   IconCursor, IconTag, IconText, IconArrow, IconBox, IconUndo, IconRedo,
   IconLock, IconTrash, IconCopy, IconDownload, IconSend, IconBack, IconSaved,
+  IconCircle, IconLine, IconBlankLine, IconAdjust, IconBank,
 } from './VsIcons'
 
 const COLORS = ['#111111', '#1e6b5c', '#c0392b', '#2563eb', '#7c3aed', '#b7791f']
+// Object types defined by two points (created by drag, moved/reshaped via
+// endpoint handles) — as opposed to single-point label/text objects.
+const SEGMENT_TYPES = ['arrow', 'line', 'box', 'ellipse', 'answerline']
+const isSeg = (t) => SEGMENT_TYPES.includes(t)
 const VERSION_LABELS = [
   { id: 'teacher', label: 'Teacher (words)' },
   { id: 'learner', label: 'Learner (P,Q,R)' },
@@ -76,10 +85,18 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
   const [selectedId, setSelectedId] = useState(null)
   const [tool, setTool] = useState('select')
   const [color, setColor] = useState('#111111')
-  const [version, setVersion] = useState('teacher')
+  const [version, setVersion] = useState(visual?.outputType ? outputTypeToVersion(visual.outputType) : 'teacher')
   const [locked, setLocked] = useState(false)
   const [title, setTitle] = useState(visual?.title || 'Untitled visual')
   const [instruction, setInstruction] = useState(DEFAULT_DIAGRAM_INSTRUCTION)
+  // Assessment Diagram mode: free-text follow-up questions printed BELOW the
+  // diagram ("State the function of part Q." …). The "Name the parts P, Q, R"
+  // question is generated from the labels by buildAssessmentDiagramHandoff.
+  const [followUps, setFollowUps] = useState([])
+  // The working image. Starts as the generated/selected picture; "Adjust image"
+  // (crop/rotate/B&W via the shared ImageEditorModal) replaces it in place.
+  const [imageUrl, setImageUrl] = useState(visual?.imageUrl || '')
+  const [adjusting, setAdjusting] = useState(false)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -177,7 +194,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
       addPoint(tool, r)
       return
     }
-    if (tool === 'arrow' || tool === 'line' || tool === 'box') {
+    if (isSeg(tool)) {
       const obj = { id: `${tool}-${uid8()}`, type: tool, x: r.x, y: r.y, x2: r.x, y2: r.y, color }
       setPast((p) => [...p.slice(-49), objects])
       setFuture([])
@@ -216,7 +233,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
       if (d.mode === 'create' || d.mode === 'end') return { ...o, x2: r.x, y2: r.y }
       if (d.mode === 'segstart') return { ...o, x: r.x, y: r.y }
       // point / move whole
-      if (o.type === 'arrow' || o.type === 'line' || o.type === 'box') {
+      if (isSeg(o.type)) {
         const dx = (r.x - (d.grab?.dx ?? 0)) - d.start.x
         const dy = (r.y - (d.grab?.dy ?? 0)) - d.start.y
         return {
@@ -263,7 +280,21 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
   const imageAlt = `${title}${version === 'learner' ? ' (learner version)' : version === 'answerKey' ? ' (answer key)' : ''}`
 
   async function bake(forVersion) {
-    return bakeVisual({ imageUrl: visual.imageUrl, objects: lettered, version: forVersion })
+    return bakeVisual({ imageUrl, objects: lettered, version: forVersion })
+  }
+
+  // Replace the working image with the crop/rotate/enhanced result from the
+  // shared ImageEditorModal (it returns a baked JPEG File, or null if only the
+  // size preset changed — in which case there is nothing to swap).
+  async function applyImageEdit({ file }) {
+    setAdjusting(false)
+    if (!file) return
+    try {
+      const dataUrl = await blobToDataUrl(file)
+      setImageUrl(String(dataUrl))
+    } catch {
+      setError('Could not apply the image edit.')
+    }
   }
 
   /* ----- actions ----- */
@@ -392,15 +423,15 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
           visibility: 'private',
           usedIn: ['assessment'],
         })
-        writeVisualHandoff(buildQuestionPatch({
+        writeVisualHandoff(buildAssessmentDiagramHandoff({
           imageUrl: url,
           imageAlt,
           imageWidth: 'full',
           labels: labelObjs,
-          version: 'learner',
           instruction,
+          followUps,
         }))
-        onToast?.('Diagram ready — opening Assessment Studio…')
+        onToast?.('Diagram + questions ready — opening Assessment Studio…')
         navigate('/teacher/assessments/new?from=visual-studio')
       }
       if (!pre.ok) {
@@ -415,12 +446,38 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
     }
   }
 
+  async function addToBank() {
+    if (!uid) { setError('Please sign in.'); return }
+    setBusy('bank'); setError('')
+    try {
+      const { blob } = await bake(version)
+      const { url, storagePath } = await uploadVisualImage(blob, { uid, suffix: 'bank' })
+      await submitPictureToBank({
+        url,
+        storagePath,
+        name: title,
+        keywords: deriveKeywords({ topic: visual.topic, subtopic: visual.subtopic, subject: visual.subject, grade: visual.grade }),
+        subject: visual.subject || '',
+        gradeBand: visual.grade ? `G${visual.grade}` : '',
+        uid,
+      })
+      onToast?.('Submitted to the shared Picture Bank — pending admin review')
+    } catch (e) {
+      setError(e?.message || 'Could not submit to the Picture Bank.')
+    } finally {
+      setBusy('')
+    }
+  }
+
   const toolButtons = [
     { id: 'select', Icon: IconCursor, label: 'Select' },
     { id: 'label', Icon: IconTag, label: 'Label' },
     { id: 'text', Icon: IconText, label: 'Text' },
     { id: 'arrow', Icon: IconArrow, label: 'Arrow' },
+    { id: 'line', Icon: IconLine, label: 'Line' },
+    { id: 'ellipse', Icon: IconCircle, label: 'Circle' },
     { id: 'box', Icon: IconBox, label: 'Box' },
+    { id: 'answerline', Icon: IconBlankLine, label: 'Blank line' },
   ]
 
   return (
@@ -438,8 +495,11 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
         />
         <button type="button" className="vs-iconbtn" disabled={!past.length} onClick={undo}><IconUndo size={15} /> Undo</button>
         <button type="button" className="vs-iconbtn" disabled={!future.length} onClick={redo}><IconRedo size={15} /> Redo</button>
-        <button type="button" className={`vs-iconbtn ${locked ? '' : ''}`} onClick={() => setLocked((v) => !v)} style={locked ? { background: '#dcebe6', borderColor: '#bcd9cf' } : null}>
+        <button type="button" className="vs-iconbtn" onClick={() => setLocked((v) => !v)} style={locked ? { background: '#dcebe6', borderColor: '#bcd9cf' } : null}>
           <IconLock size={15} /> {locked ? 'Image locked' : 'Lock image'}
+        </button>
+        <button type="button" className="vs-iconbtn" disabled={!imageUrl || !!busy} onClick={() => setAdjusting(true)}>
+          <IconAdjust size={15} /> Adjust image
         </button>
         <div className="vs-spacer" />
         <div className="vs-versions">
@@ -471,17 +531,24 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
             onPointerUp={onCanvasPointerUp}
             style={{ cursor: tool === 'select' ? 'default' : 'crosshair' }}
           >
-            <img className="vs-bg" src={visual.imageUrl} alt={imageAlt} crossOrigin="anonymous" draggable={false} />
+            <img className="vs-bg" src={imageUrl} alt={imageAlt} crossOrigin="anonymous" draggable={false} />
             <div className="vs-overlay">
               {/* segments (arrows/lines/boxes) */}
               {size.w > 0 && (
                 <svg className="vs-ov-svg" width={size.w} height={size.h}>
-                  {lettered.filter((o) => o.type === 'arrow' || o.type === 'line' || o.type === 'box').map((o) => {
+                  {lettered.filter((o) => isSeg(o.type)).map((o) => {
                     const x1 = o.x * size.w; const y1 = o.y * size.h
                     const x2 = (o.x2 ?? o.x) * size.w; const y2 = (o.y2 ?? o.y) * size.h
                     const sw = Math.max(2, size.w / 350)
                     if (o.type === 'box') {
                       return <rect key={o.id} x={Math.min(x1, x2)} y={Math.min(y1, y2)} width={Math.abs(x2 - x1)} height={Math.abs(y2 - y1)} rx={6} fill="none" stroke={o.color} strokeWidth={sw} />
+                    }
+                    if (o.type === 'ellipse') {
+                      return <ellipse key={o.id} cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} rx={Math.abs(x2 - x1) / 2} ry={Math.abs(y2 - y1) / 2} fill="none" stroke={o.color} strokeWidth={sw} />
+                    }
+                    if (o.type === 'answerline') {
+                      // Always horizontal — a write-on rule for learners.
+                      return <line key={o.id} x1={x1} y1={y1} x2={x2} y2={y1} stroke={o.color} strokeWidth={sw} strokeLinecap="round" />
                     }
                     return (
                       <g key={o.id}>
@@ -497,7 +564,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
               )}
 
               {/* segment endpoint handles (select tool only) */}
-              {tool === 'select' && lettered.filter((o) => o.type === 'arrow' || o.type === 'line' || o.type === 'box').map((o) => ([
+              {tool === 'select' && lettered.filter((o) => isSeg(o.type)).map((o) => ([
                 <div key={`${o.id}-s`} data-ov-item className={`vs-hit ${selectedId === o.id ? 'selected' : ''}`}
                   style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%` }}
                   onPointerDown={(e) => startItemDrag(e, o, 'segstart')} />,
@@ -582,6 +649,27 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
                 <label>Instruction (above the diagram)</label>
                 <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} />
               </div>
+              <div className="vs-field">
+                <label>Follow-up questions (below the diagram)</label>
+                {followUps.map((q, i) => (
+                  <div key={`fu-${i}`} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input type="text" value={q} placeholder="e.g. State the function of part Q."
+                      onChange={(e) => setFollowUps(followUps.map((x, j) => (j === i ? e.target.value : x)))} />
+                    <button type="button" className="vs-iconbtn danger" aria-label="Remove question"
+                      onClick={() => setFollowUps(followUps.filter((_, j) => j !== i))}><IconTrash size={14} /></button>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" className="vs-chip" onClick={() => setFollowUps([...followUps, ''])}>+ Add question</button>
+                  <button type="button" className="vs-chip" disabled={!labelObjs.length}
+                    onClick={() => setFollowUps(defaultFollowUps(labelObjs))}>Suggest from labels</button>
+                </div>
+                {labelObjs.length > 0 && (
+                  <p className="vs-sub" style={{ marginTop: 6 }}>
+                    Sending to Assessment Studio adds “Name the parts labelled {labelObjs.map((l) => l.letter).join(', ')}” plus these questions below the diagram.
+                  </p>
+                )}
+              </div>
               <p className="vs-sub">{labelObjs.length} label{labelObjs.length === 1 ? '' : 's'} placed.</p>
             </>
           )}
@@ -599,6 +687,9 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
           style={{ background: '#1e6b5c', color: '#fff', border: 'none' }}>
           {busy === 'send' ? <span className="vs-spinner" /> : <IconSend size={15} />} Send to Assessment Studio
         </button>
+        <button type="button" className="vs-iconbtn" disabled={!!busy} onClick={addToBank}>
+          {busy === 'bank' ? <span className="vs-spinner" /> : <IconBank size={15} />} Add to Picture Bank
+        </button>
         <button type="button" className="vs-iconbtn" disabled={!!busy} onClick={downloadPng}>
           {busy === 'png' ? <span className="vs-spinner" /> : <IconDownload size={15} />} PNG
         </button>
@@ -606,6 +697,15 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
           {busy === 'pdf' ? <span className="vs-spinner" /> : <IconDownload size={15} />} PDF
         </button>
       </div>
+
+      {adjusting && imageUrl && (
+        <ImageEditorModal
+          imageUrl={imageUrl}
+          imageWidth="full"
+          onApply={applyImageEdit}
+          onClose={() => setAdjusting(false)}
+        />
+      )}
 
       {preflight && (
         <ExportPreflightModal

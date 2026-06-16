@@ -1,8 +1,16 @@
-import { useState } from 'react'
-import { ArrowLeft, Check, Sparkles, X } from '../ui/icons'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Check, CreditCard, Loader2, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
+import { PLANS } from '../../utils/subscriptionConfig'
 import { capture } from '../../utils/analytics'
+import {
+  OPERATORS,
+  detectOperator,
+  initiateLencoPayment,
+  looksLikeZambianPhone,
+  pollLencoStatus,
+  submitLencoOtp,
+} from '../../utils/lenco'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 
@@ -39,27 +47,7 @@ const PORTAL_COPY = {
   },
 }
 
-function buildWhatsAppLink({ plan, email, displayName, customerPhone }) {
-  const lines = [
-    `Hi, I just paid K${plan.priceZMW} for the ${plan.name} plan 🙏`,
-    email ? `Email: ${email}` : null,
-    displayName ? `Name: ${displayName}` : null,
-    customerPhone ? `My WhatsApp: ${customerPhone}` : null,
-    'Sending screenshot now.',
-  ].filter(Boolean)
-  const number = PAYMENT_DETAILS.contact.whatsapp.replace(/[^\d]/g, '')
-  return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`
-}
-
-// Loose Zambian phone validator. Accepts 09…, 07…, +260…, 260…, and
-// bare 9-digit nationals. We're permissive here — the admin can fix
-// typos on the grant form; the normalisation happens server-side
-// (functions/metaWhatsApp.js → normalizeToWhatsApp).
-function looksLikePhone(value) {
-  const digits = String(value || '').replace(/[^\d]/g, '')
-  return digits.length >= 9 && digits.length <= 15
-}
-
+// payState machine: idle → starting → (otp | processing) → success | failed
 export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
   const { userProfile, currentUser } = useAuth()
@@ -73,21 +61,35 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   const [selectedPlanId, setSelectedPlanId] = useState(
     defaultPlanId && visiblePlanIds.includes(defaultPlanId) ? defaultPlanId : null
   )
-  // Customer-supplied WhatsApp number. Optional, but pre-filling it
-  // saves the admin from having to ask once the chat thread opens —
-  // and lets the bulk expiry-reminder cron reach this learner later.
-  const [customerPhone, setCustomerPhone] = useState('')
-  const phoneValid = customerPhone === '' || looksLikePhone(customerPhone)
+
+  // ── Checkout state ──────────────────────────────────────────────
+  const [method, setMethod] = useState('mobile_money') // 'mobile_money' | 'card'
+  const [phone, setPhone] = useState('')
+  const [operator, setOperator] = useState('')
+  const [operatorTouched, setOperatorTouched] = useState(false)
+  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' })
+  const [otp, setOtp] = useState('')
+  const [paymentId, setPaymentId] = useState(null)
+  const [payState, setPayState] = useState('idle')
+  const [error, setError] = useState('')
+  const [timedOut, setTimedOut] = useState(false)
+
+  // Abort token so an in-flight poll stops if the modal unmounts.
+  const pollAbortRef = useRef({ aborted: false })
+  useEffect(() => {
+    const token = pollAbortRef.current
+    return () => { token.aborted = true }
+  }, [])
 
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
   const userEmail = userProfile?.email || currentUser?.email || ''
+  const phoneValid = looksLikeZambianPhone(phone)
+  const detectedOperator = operatorTouched ? operator : (detectOperator(phone) || operator)
+  const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
 
   function handleContinue() {
     if (!plan) return
-    setStep('instructions')
-    // Audit B2 — capture the intent so we can measure conversion from
-    // pricing → instructions page (separate from actual activation,
-    // which now happens manually in /admin/payments).
+    setStep('checkout')
     capture('subscription_intent', {
       planId: selectedPlanId,
       amountZmw: plan.priceZMW ?? null,
@@ -95,19 +97,117 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
     })
   }
 
-  function handleOpenWhatsApp() {
-    if (!plan) return
-    capture('subscription_whatsapp_opened', {
-      planId: selectedPlanId,
-      hasPhone: customerPhone.trim() !== '',
+  function resolveTerminal(status) {
+    if (status === 'successful') {
+      setPayState('success')
+      capture('lenco_payment_succeeded', { planId: selectedPlanId, method })
+      return true
+    }
+    if (status === 'failed') {
+      setPayState('failed')
+      setError('The payment did not go through. No money was taken — please try again.')
+      capture('lenco_payment_failed', { planId: selectedPlanId, method })
+      return true
+    }
+    return false
+  }
+
+  async function beginPolling(ref) {
+    setPayState('processing')
+    setTimedOut(false)
+    const final = await pollLencoStatus(ref, {
+      signal: pollAbortRef.current,
+      onTick: (status) => { if (status === 'successful' || status === 'failed') resolveTerminal(status) },
     })
-    const url = buildWhatsAppLink({
-      plan,
-      customerPhone: customerPhone.trim(),
-      email: userEmail,
-      displayName: userProfile?.displayName || '',
-    })
-    window.open(url, '_blank', 'noopener,noreferrer')
+    if (pollAbortRef.current.aborted) return
+    if (!resolveTerminal(final)) {
+      // Still pending after the poll window — the webhook will finish it.
+      setTimedOut(true)
+    }
+  }
+
+  async function handlePay() {
+    if (!plan || busy) return
+    setError('')
+    const operatorToSend = detectedOperator
+
+    if (method === 'mobile_money') {
+      if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
+      if (!operatorToSend) { setError('Please choose your mobile money operator.'); return }
+    } else {
+      const digits = card.number.replace(/\s+/g, '')
+      const [mm, yy] = card.expiry.split('/').map((s) => (s || '').trim())
+      if (digits.length < 12 || !mm || !yy || card.cvv.length < 3) {
+        setError('Enter a valid card number, expiry (MM/YY) and CVV.'); return
+      }
+    }
+
+    setPayState('starting')
+    capture('lenco_payment_initiated', { planId: selectedPlanId, method })
+    try {
+      const payload = method === 'mobile_money'
+        ? { planId: selectedPlanId, method, phone, operator: operatorToSend }
+        : (() => {
+          const [mm, yy] = card.expiry.split('/').map((s) => (s || '').trim())
+          return {
+            planId: selectedPlanId,
+            method,
+            card: {
+              number: card.number.replace(/\s+/g, ''),
+              expiryMonth: mm,
+              expiryYear: yy,
+              cvv: card.cvv.trim(),
+              name: card.name.trim(),
+            },
+          }
+        })()
+
+      const res = await initiateLencoPayment(payload)
+      setPaymentId(res.paymentId)
+
+      // Card 3-D Secure / hosted-auth redirect, when present.
+      if (res.authorization?.url || res.authorization?.redirectUrl) {
+        window.open(res.authorization.url || res.authorization.redirectUrl, '_blank', 'noopener,noreferrer')
+      }
+
+      if (resolveTerminal(res.status)) return
+      if (res.requiresOtp || res.status === 'otp-required') {
+        setPayState('otp')
+        return
+      }
+      await beginPolling(res.paymentId)
+    } catch (err) {
+      setPayState('failed')
+      setError(err?.message || 'Could not start the payment. Please try again.')
+      capture('lenco_payment_failed', { planId: selectedPlanId, method, reason: 'initiate_error' })
+    }
+  }
+
+  async function handleSubmitOtp() {
+    if (!paymentId || !otp.trim() || busy) return
+    setError('')
+    setPayState('verifying')
+    try {
+      const res = await submitLencoOtp({ paymentId, otp: otp.trim() })
+      if (resolveTerminal(res.status)) return
+      if (res.requiresOtp || res.status === 'otp-required') {
+        setPayState('otp')
+        setError('That code was not accepted. Please re-enter it.')
+        return
+      }
+      await beginPolling(paymentId)
+    } catch (err) {
+      setPayState('otp')
+      setError(err?.message || 'The code could not be verified. Please try again.')
+    }
+  }
+
+  function resetCheckout() {
+    setPayState('idle')
+    setError('')
+    setOtp('')
+    setPaymentId(null)
+    setTimedOut(false)
   }
 
   return (
@@ -140,8 +240,8 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                   🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals
                 </p>
                 <p className="text-xs mt-1 text-emerald-800/90">
-                  Mention your email when you message us and we'll add
-                  {' '}{pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} when activating.
+                  We add {pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} automatically
+                  when your payment completes.
                 </p>
               </div>
             )}
@@ -181,7 +281,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               })}
             </div>
             <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">
-              Pay via Mobile Money, then confirm on WhatsApp. We activate within 30 minutes.
+              Pay instantly with Mobile Money or card. Access unlocks the moment your payment confirms.
             </div>
             <Button
               variant="primary"
@@ -194,13 +294,14 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
             </Button>
           </>}
 
-          {step === 'instructions' && plan && <>
+          {step === 'checkout' && plan && <>
             <Button
               variant="ghost"
               size="sm"
               leadingIcon={<Icon as={ArrowLeft} size="xs" />}
-              onClick={() => setStep('plans')}
+              onClick={() => { if (!busy) { resetCheckout(); setStep('plans') } }}
               className="mb-4 -ml-2"
+              disabled={busy}
             >
               Back
             </Button>
@@ -211,84 +312,216 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               <p className="text-xs text-white/70 mt-1">{plan.tagline}</p>
             </div>
 
-            <h3 className="text-base font-black text-gray-800 mb-3">How to pay</h3>
-            <ol className="space-y-3 mb-5">
-              {[
-                <>Send <strong>K{plan.priceZMW}</strong> via {PAYMENT_DETAILS.mobileMoney.providers} to the number below</>,
-                <>Use your <strong>email address</strong> as the reference</>,
-                <>Tap the WhatsApp button to send us your confirmation</>,
-                <>Receive access within <strong>30 minutes</strong></>,
-              ].map((line, i) => (
-                <li key={i} className="flex gap-3 text-sm text-gray-700">
-                  <span className="flex-shrink-0 grid place-items-center w-7 h-7 rounded-full bg-[#B8860B] text-white text-xs font-black">
-                    {i + 1}
-                  </span>
-                  <span className="leading-relaxed pt-0.5">{line}</span>
-                </li>
-              ))}
-            </ol>
-
-            <div className="bg-[#FAF6EE] border-2 border-dashed border-[#B8860B] rounded-2xl p-4 text-center mb-4">
-              <p className="text-[11px] uppercase tracking-wider text-gray-500 font-bold">
-                {PAYMENT_DETAILS.mobileMoney.providers}
-              </p>
-              <p className="text-2xl font-black text-[#0B1A2C] tracking-wider mt-1">
-                {PAYMENT_DETAILS.mobileMoney.displayNumber}
-              </p>
-              <p className="text-sm font-bold text-[#B8860B] mt-1">
-                Amount: K{plan.priceZMW}.00
-              </p>
-            </div>
-
-            <div className="bg-yellow-50 border-l-4 border-[#B8860B] rounded-r-lg p-3 mb-4 text-sm text-gray-700">
-              <strong className="text-gray-900">Reference:</strong>{' '}
-              your email{userEmail ? ` (${userEmail})` : ' (e.g. parent@gmail.com)'} so we can activate the right account.
-            </div>
-
-            <div className="mb-5">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                Your WhatsApp number <span className="text-gray-400 normal-case font-normal">(optional · we'll confirm to this number)</span>
-              </label>
-              <input
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="0977 740 465"
-                className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
-                  phoneValid
-                    ? 'border-gray-200 focus:border-[#B8860B]'
-                    : 'border-red-300 focus:border-red-500'
-                }`}
-              />
-              {!phoneValid && (
-                <p className="text-xs text-red-600 mt-1">
-                  Use a Zambian number like 0977 740 465 or +260 977 740 465.
+            {/* ── Success ─────────────────────────────────────────── */}
+            {payState === 'success' && (
+              <div className="text-center py-4">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+                  <Icon as={Check} size="lg" strokeWidth={2.6} />
+                </div>
+                <h3 className="text-xl font-black text-gray-800">Payment confirmed 🎉</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your {plan.name} plan is active for {plan.durationDays} days. A receipt is on its way to your email.
                 </p>
-              )}
-            </div>
+                <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={onClose}>
+                  Start learning
+                </Button>
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={handleOpenWhatsApp}
-              disabled={!phoneValid}
-              className="w-full bg-[#25D366] hover:bg-[#1FBE5C] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
-            >
-              <Icon as={Check} size="sm" strokeWidth={2.4} />
-              Confirm payment on WhatsApp
-            </button>
-            <p className="text-center text-xs text-gray-500 mt-3">
-              We respond within 30 minutes · 7 days a week
-            </p>
+            {/* ── Processing / waiting ────────────────────────────── */}
+            {payState === 'processing' && (
+              <div className="text-center py-6">
+                <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-[#B8860B]" />
+                <h3 className="text-base font-black text-gray-800 mt-3">
+                  {method === 'mobile_money' ? 'Approve the prompt on your phone' : 'Processing your card…'}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {method === 'mobile_money'
+                    ? 'Check your phone for a Mobile Money prompt and enter your PIN. This page updates automatically.'
+                    : 'Hang tight — this updates automatically once your bank confirms.'}
+                </p>
+                {timedOut && (
+                  <p className="text-xs text-gray-500 mt-3">
+                    Still waiting… you can safely close this — we’ll unlock your access and email a receipt as soon as
+                    the payment confirms.
+                  </p>
+                )}
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
-            >
-              I'll do this later
-            </button>
+            {/* ── OTP entry ───────────────────────────────────────── */}
+            {payState === 'otp' && (
+              <div>
+                <h3 className="text-base font-black text-gray-800 mb-2">Enter the verification code</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  We sent a one-time code to your phone. Enter it to authorise the payment.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ''))}
+                  placeholder="123456"
+                  className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-lg tracking-widest text-center focus:outline-none mb-3"
+                />
+                {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+                <Button variant="primary" size="lg" fullWidth disabled={!otp.trim()} onClick={handleSubmitOtp}>
+                  Verify & pay K{plan.priceZMW}
+                </Button>
+              </div>
+            )}
+
+            {payState === 'verifying' && (
+              <div className="text-center py-6">
+                <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-[#B8860B]" />
+                <p className="text-sm text-gray-600 mt-3">Verifying your code…</p>
+              </div>
+            )}
+
+            {/* ── Failed ──────────────────────────────────────────── */}
+            {payState === 'failed' && (
+              <div className="text-center py-4">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+                  <Icon as={X} size="lg" strokeWidth={2.4} />
+                </div>
+                <h3 className="text-lg font-black text-gray-800">Payment not completed</h3>
+                <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
+                <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={resetCheckout}>
+                  Try again
+                </Button>
+              </div>
+            )}
+
+            {/* ── Payment form (idle / starting) ──────────────────── */}
+            {(payState === 'idle' || payState === 'starting') && (
+              <>
+                <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-gray-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setMethod('mobile_money')}
+                    className={`py-2.5 rounded-lg text-sm font-bold transition-colors ${method === 'mobile_money' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                  >
+                    📱 Mobile Money
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethod('card')}
+                    className={`py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${method === 'card' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                  >
+                    <Icon as={CreditCard} size="xs" /> Card
+                  </button>
+                </div>
+
+                {method === 'mobile_money' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                        Mobile money number
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="0977 740 465"
+                        className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
+                          phone === '' || phoneValid ? 'border-gray-200 focus:border-[#B8860B]' : 'border-red-300 focus:border-red-500'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                        Network
+                      </label>
+                      <select
+                        value={detectedOperator || ''}
+                        onChange={(e) => { setOperator(e.target.value); setOperatorTouched(true) }}
+                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none bg-white"
+                      >
+                        <option value="">Select your network…</option>
+                        {OPERATORS.map((op) => (
+                          <option key={op.id} value={op.id}>{op.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                        Card number
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                        value={card.number}
+                        onChange={(e) => setCard((c) => ({ ...c, number: e.target.value }))}
+                        placeholder="1234 5678 9012 3456"
+                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Expiry</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-exp"
+                          value={card.expiry}
+                          onChange={(e) => setCard((c) => ({ ...c, expiry: e.target.value }))}
+                          placeholder="MM/YY"
+                          className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">CVV</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="cc-csc"
+                          value={card.cvv}
+                          onChange={(e) => setCard((c) => ({ ...c, cvv: e.target.value.replace(/[^\d]/g, '') }))}
+                          placeholder="123"
+                          className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Name on card</label>
+                      <input
+                        type="text"
+                        autoComplete="cc-name"
+                        value={card.name}
+                        onChange={(e) => setCard((c) => ({ ...c, name: e.target.value }))}
+                        placeholder="As shown on the card"
+                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  className="mt-4"
+                  disabled={busy}
+                  onClick={handlePay}
+                >
+                  {payState === 'starting'
+                    ? <span className="flex items-center justify-center gap-2"><Icon as={Loader2} size="sm" className="animate-spin" /> Starting…</span>
+                    : `Pay K${plan.priceZMW}`}
+                </Button>
+                <p className="text-center text-[11px] text-gray-400 mt-3">
+                  Secured by Lenco · {userEmail || 'your account'} will receive a receipt
+                </p>
+              </>
+            )}
           </>}
         </div>
       </div>

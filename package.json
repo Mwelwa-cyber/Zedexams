@@ -105,6 +105,7 @@
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:cors": "node functions/cors.test.js",
+    "test:lenco": "node functions/lencoService.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
     "test:scheme-schema": "node functions/teacherTools/schemeOfWorkSchema.test.js",
     "test:scheme-outline": "node functions/teacherTools/schemeCurriculumOutline.test.js",

@@ -35,6 +35,7 @@ const {
   isSbaSubject,
   isSbaGrade,
   resolveSbaTaskMeta,
+  ctsComponentToKbSubject,
 } = require("./sbaTaxonomy");
 
 const SBA_MODEL = process.env.SBA_MODEL || "claude-sonnet-4-6";
@@ -78,6 +79,10 @@ function sanitizeInputs(raw = {}) {
     bloomLevel: BLOOM_LEVELS.has(bloomLevel) ? bloomLevel : "",
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: s(raw.instructions, 500),
+    // SBA is the Grade 5–7 School Based Assessment instrument, which sits on
+    // the 2013 outcome-based (OBC) curriculum — NOT the 2023 CBC. Always
+    // ground on the 2013 framework.
+    framework: "2013",
   };
 }
 
@@ -112,20 +117,20 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
   const componentLabel = inputs.component ?
     CTS_COMPONENT_LABELS[inputs.component] : "";
 
-  // Ground on the syllabus for the topic so tasks aren't invented from thin
-  // air. SBA is an upper-primary (OBC) instrument — resolveCbcContext still
-  // supplies grade+subject grounding for these grades. CTS has no syllabus of
-  // its own; its three components (Expressive Arts / Home Economics /
-  // Technology Studies) are the KB subjects, so ground on the chosen
-  // component — matching the topic/outcome the studio's picker drew from it.
+  // Ground on the 2013 OBC syllabus for the topic so tasks aren't invented
+  // from thin air. CTS has no syllabus of its own; its components (Expressive
+  // Arts / Home Economics / Design & Technology) are the KB subjects, so
+  // ground on the chosen component — matching the topic/outcome the studio's
+  // 2013 picker drew from it.
   const groundingSubject = inputs.subject === "creative_and_technology_studies" &&
-    inputs.component ? inputs.component : inputs.subject;
+    inputs.component ? ctsComponentToKbSubject(inputs.component) : inputs.subject;
   const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
       subject: groundingSubject,
       topic: inputs.topic || meta.label,
       subtopic: inputs.outcome,
+      framework: inputs.framework,
       ownerUid: uid,
     }),
     assertAndIncrement(uid, "sba_task"),
