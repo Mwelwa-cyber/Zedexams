@@ -62,6 +62,30 @@ const PRICE_PER_MTOK = {
     cacheCreation5m: 3.75,
     cacheRead: 0.30,
   },
+  // OpenAI (Zed chat + short-answer marking). recordAiUsage maps OpenAI's
+  // {prompt_tokens, completion_tokens} onto {input_tokens, output_tokens};
+  // we don't forward OpenAI cached-token counts, so the cache fields stay 0.
+  // The longest-prefix lookup keeps "gpt-4o-mini" off the "gpt-4o" rate.
+  "gpt-4o-mini": {
+    input: 0.15,
+    output: 0.60,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  "gpt-4o": {
+    input: 2.50,
+    output: 10.00,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  // Catch-all so an unrecognised gpt-* model never falls back to the
+  // (Anthropic Sonnet) default rates and overstates spend.
+  "gpt": {
+    input: 0.50,
+    output: 1.50,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
 };
 
 function pickRates(model) {

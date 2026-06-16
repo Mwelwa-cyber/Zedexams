@@ -160,12 +160,45 @@ async function assertAiBudget() {
   }
 }
 
+// Normalise an OpenAI usage block ({prompt_tokens, completion_tokens}) into
+// the Anthropic-shaped {input_tokens, output_tokens} that recordAiUsage reads,
+// so OpenAI spend lands on the same /admin/ai-costs rollup. Cost is priced by
+// the gpt-* entries in aiCostTracking's price table.
+function recordOpenAiUsage(track, model, usage) {
+  if (!track || !usage) return;
+  try {
+    const {recordAiUsage} = require("./aiCostTracking");
+    recordAiUsage({
+      uid: track.uid || null,
+      tool: track.tool || null,
+      model,
+      usage: {
+        input_tokens: usage.prompt_tokens || 0,
+        output_tokens: usage.completion_tokens || 0,
+      },
+    });
+  } catch (err) {
+    console.warn("[aiService] openai cost track failed", err);
+  }
+}
+
 async function callOpenAI(apiKey, {
+  systemPrompt,
   messages,
   maxTokens = 500,
   temperature = 0.3,
   json = false,
+  model,
+  // Audit B4 — same opt-in usage tracking as callAnthropic.
+  track = null,
 }) {
+  await assertAiBudget();
+  // Accept an Anthropic-shaped {systemPrompt, messages[]} call and fold the
+  // system prompt into OpenAI's system role, unless the caller already put a
+  // system message first.
+  const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
+    [{role: "system", content: systemPrompt}, ...messages] :
+    messages;
   let res;
   try {
     res = await fetch(OPENAI_URL, {
@@ -175,8 +208,8 @@ async function callOpenAI(apiKey, {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
-        messages,
+        model: model || MODEL,
+        messages: finalMessages,
         temperature,
         max_tokens: maxTokens,
         ...(json && {response_format: {type: "json_object"}}),
@@ -195,6 +228,12 @@ async function callOpenAI(apiKey, {
       status: res.status,
       message: body?.error?.message,
     });
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "AI is busy right now. Please wait a moment and try again.",
+      );
+    }
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -202,7 +241,108 @@ async function callOpenAI(apiKey, {
   }
 
   const data = await res.json();
+  recordOpenAiUsage(track, data?.model || model || MODEL, data?.usage);
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
+}
+
+/**
+ * Streams an OpenAI chat completion token-by-token. Calls onToken(text) for
+ * each content delta, then returns the full concatenated text. Mirrors the
+ * SSE contract of callAnthropicStream so the chat endpoints stay symmetric.
+ *
+ * `stream_options.include_usage` makes OpenAI emit a final chunk carrying the
+ * cumulative usage block (empty choices) — captured for cost tracking.
+ */
+async function callOpenAIStream(apiKey, {
+  systemPrompt,
+  messages,
+  maxTokens = 1000,
+  temperature = 0.35,
+  model,
+  track = null,
+}, onToken) {
+  await assertAiBudget();
+  const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
+    [{role: "system", content: systemPrompt}, ...messages] :
+    messages;
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || MODEL,
+        messages: finalMessages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+        stream_options: {include_usage: true},
+      }),
+    });
+  } catch (err) {
+    console.error("callOpenAIStream fetch failed", err);
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error("callOpenAIStream API error", {
+      status: res.status,
+      message: body?.error?.message,
+    });
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "AI is busy. Please wait a moment and try again.",
+      );
+    }
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let usage = null;
+  let streamModel = model || MODEL;
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw || raw === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.model) streamModel = parsed.model;
+        const token = parsed.choices?.[0]?.delta?.content;
+        if (typeof token === "string" && token) {
+          fullText += token;
+          onToken(token);
+        }
+        // The include_usage chunk arrives with empty choices + a usage block.
+        if (parsed.usage) usage = parsed.usage;
+      } catch {
+        // ignore malformed SSE lines
+      }
+    }
+  }
+
+  recordOpenAiUsage(track, streamModel, usage);
+  return fullText;
 }
 
 // Strip markdown code fences (```json ... ```) that Claude sometimes emits
@@ -1405,6 +1545,7 @@ module.exports = {
   callAnthropic,
   callAnthropicStream,
   callOpenAI,
+  callOpenAIStream,
   cleanContext,
   cleanChatHistory,
   cleanString,

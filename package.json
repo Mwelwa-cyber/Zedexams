@@ -101,6 +101,7 @@
     "test:exam-paper-library": "node functions/teacherTools/examPaperLibraryHelpers.test.js",
     "test:ai-prompt-policy": "node functions/aiPromptPolicy.test.js",
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
+    "test:ai-cost-openai": "node functions/aiCostOpenAi.test.js",
     "test:edit-question": "node functions/editQuizQuestion.test.js",
     "test:revise-question": "node functions/teacherTools/reviseQuestion.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
