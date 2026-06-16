@@ -114,11 +114,16 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
 
   // Ground on the syllabus for the topic so tasks aren't invented from thin
   // air. SBA is an upper-primary (OBC) instrument — resolveCbcContext still
-  // supplies grade+subject grounding for these grades.
+  // supplies grade+subject grounding for these grades. CTS has no syllabus of
+  // its own; its three components (Expressive Arts / Home Economics /
+  // Technology Studies) are the KB subjects, so ground on the chosen
+  // component — matching the topic/outcome the studio's picker drew from it.
+  const groundingSubject = inputs.subject === "creative_and_technology_studies" &&
+    inputs.component ? inputs.component : inputs.subject;
   const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
-      subject: inputs.subject,
+      subject: groundingSubject,
       topic: inputs.topic || meta.label,
       subtopic: inputs.outcome,
       ownerUid: uid,

@@ -33,6 +33,7 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import SbaTaskView from '../views/SbaTaskView'
 import SbaWorkflowNote from '../SbaWorkflowNote'
+import TopicSubtopicPicker from './TopicSubtopicPicker'
 
 const TERMS = [
   { value: '', label: '— Term (optional) —' },
@@ -66,6 +67,16 @@ export default function SbaTaskStudio() {
   const taskTypeOptions = useMemo(() => getSbaTaskTypes(form.subject), [form.subject])
   const currentTaskType = getSbaTaskType(form.subject, form.taskType)
   const needsComponent = Boolean(currentTaskType?.needsComponent)
+
+  // Which syllabus to draw topics/outcomes from. CTS has no upper-primary
+  // syllabus of its own — its three components (Expressive Arts, Home
+  // Economics, Technology Studies) are the KB subjects, so route the picker
+  // through the chosen component. Every other SBA subject maps 1:1 to a KB
+  // subject key. (Where the syllabus has no rows — e.g. Grade 7, English G5/6
+  // — TopicSubtopicPicker degrades to free text on its own.)
+  const syllabusSubject = form.subject === 'creative_and_technology_studies' && form.component
+    ? form.component
+    : form.subject
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -156,13 +167,17 @@ export default function SbaTaskStudio() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="studio-label">Grade</label>
-                <select value={form.grade} onChange={(e) => set('grade', e.target.value)} className="studio-input">
+                <select value={form.grade}
+                  onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value, topic: '', outcome: '' }))}
+                  className="studio-input">
                   {SBA_GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="studio-label">Subject</label>
-                <select value={form.subject} onChange={(e) => set('subject', e.target.value)} className="studio-input">
+                <select value={form.subject}
+                  onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value, topic: '', outcome: '' }))}
+                  className="studio-input">
                   {SBA_SUBJECTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
@@ -182,7 +197,9 @@ export default function SbaTaskStudio() {
             {needsComponent && (
               <div>
                 <label className="studio-label">CTS component</label>
-                <select value={form.component} onChange={(e) => set('component', e.target.value)} className="studio-input">
+                <select value={form.component}
+                  onChange={(e) => setForm((f) => ({ ...f, component: e.target.value, topic: '', outcome: '' }))}
+                  className="studio-input">
                   {SBA_CTS_COMPONENTS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
@@ -204,21 +221,20 @@ export default function SbaTaskStudio() {
               </div>
             </div>
 
-            <div>
-              <label className="studio-label">Topic / focus</label>
-              <input type="text" value={form.topic} maxLength={160}
-                onChange={(e) => set('topic', e.target.value)}
-                placeholder="e.g. The environment, Fractions, The human body"
-                className="studio-input" />
-            </div>
-
-            <div>
-              <label className="studio-label">Syllabus outcome(s) <span className="font-normal opacity-70">(optional)</span></label>
-              <input type="text" value={form.outcome} maxLength={200}
-                onChange={(e) => set('outcome', e.target.value)}
-                placeholder="e.g. 5.7.2 — add fractions"
-                className="studio-input" />
-            </div>
+            <TopicSubtopicPicker
+              grade={form.grade}
+              subject={syllabusSubject}
+              topic={form.topic}
+              subtopic={form.outcome}
+              onChangeTopic={(v) => set('topic', v)}
+              onChangeSubtopic={(v) => set('outcome', v)}
+              topicLabel="Topic / focus"
+              subtopicLabel={<>Syllabus outcome <span className="font-normal opacity-70">(optional)</span></>}
+              topicPlaceholder="e.g. The environment, Fractions, The human body"
+              subtopicPlaceholder="e.g. Add fractions with the same denominator"
+              topicMaxLength={160}
+              subtopicMaxLength={200}
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <div>
