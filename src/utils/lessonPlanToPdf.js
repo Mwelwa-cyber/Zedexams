@@ -128,6 +128,9 @@ function buildPrintableHtmlV3(plan, title) {
   td.stage{width:15%;font-size:9pt}
   .cl{margin:0 0 5px}
   .rule{border-bottom:1px solid #000;height:1.3em;margin:0 0 6px}
+  .illus{margin:8px 0 12px;text-align:center;page-break-inside:avoid}
+  .illus img{max-width:80%;max-height:260px;height:auto;border:1px solid #000}
+  .illus figcaption{font-size:9pt;font-style:italic;margin-top:4px}
   @media print{ body{padding:14mm 16mm;max-width:none} table{page-break-inside:auto} tr{page-break-inside:avoid} }
 </style>
 </head>
@@ -157,6 +160,7 @@ function buildPrintableHtmlV3(plan, title) {
   ${plan.materials?.length ? `<p class="fl"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></p>${list(plan.materials)}` : ''}
   ${line('EXPECTED STANDARD', plan.expectedStandard)}
   ${plan.keyVocabulary?.length ? `<p class="fl"><strong>KEY VOCABULARY:</strong></p>${list(plan.keyVocabulary)}` : ''}
+  ${plan.lessonDiagram?.url ? `<p class="fl"><strong>TEACHING ILLUSTRATION:</strong></p>${diagramFigureHtml(plan, safe)}` : ''}
 
   <p class="pt">LESSON PROGRESSION</p>
   <table>
@@ -275,6 +279,9 @@ function buildPrintableHtmlLegacy(plan, title) {
   .brand-sub{font-size:9pt;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-top:2px}
   .masthead-meta{font-size:9pt;color:#64748b;text-align:right}
   .reflection{font-style:italic;color:#64748b}
+  .illus{margin:10px 0 14px;text-align:center;page-break-inside:avoid}
+  .illus img{max-width:80%;max-height:260px;height:auto;border:1px solid #cbd5e1;border-radius:6px}
+  .illus figcaption{font-size:9pt;font-style:italic;color:#64748b;margin-top:4px}
   @media print{
     body{padding:14mm 16mm;max-width:none}
     h2{page-break-after:avoid}
@@ -329,6 +336,8 @@ function buildPrintableHtmlLegacy(plan, title) {
     </div>
   </div>
 
+  ${plan.lessonDiagram?.url ? `<h2>Teaching Illustration</h2>${diagramFigureHtml(plan, safe)}` : ''}
+
   <h2>Lesson Development</h2>
   ${phase('Introduction', plan.lessonDevelopment?.introduction)}
   ${development}
@@ -365,6 +374,18 @@ function buildPrintableHtmlLegacy(plan, title) {
 
 </body>
 </html>`
+}
+
+// A centred figure for the (black-and-white) lesson illustration. `safe` is
+// the caller's HTML escaper — escaping the Storage URL is fine because the
+// `&` query separators become `&amp;`, which browsers decode back in attribute
+// context. `crossorigin` lets html2canvas read the pixels for the real-PDF
+// path; the print fallback only needs to display it, so it works either way.
+function diagramFigureHtml(plan, safe) {
+  const d = plan && plan.lessonDiagram
+  if (!d || !d.url) return ''
+  const caption = d.prompt ? `<figcaption>${safe(d.prompt)}</figcaption>` : ''
+  return `<figure class="illus"><img src="${safe(d.url)}" alt="${safe(d.prompt || 'Lesson illustration')}" crossorigin="anonymous" />${caption}</figure>`
 }
 
 function escapeHtml(value) {

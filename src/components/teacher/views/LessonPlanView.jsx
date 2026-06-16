@@ -37,6 +37,8 @@ function LessonPlanViewV3({ plan }) {
     <article className="space-y-6 print:space-y-4">
       <HeaderBlock header={plan.header} />
 
+      <LessonIllustration diagram={plan.lessonDiagram} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MiniSection title="General Competences" items={plan.generalCompetences} />
         <div className="rounded-xl border theme-border p-3">
@@ -139,6 +141,8 @@ function LessonPlanViewV2({ plan }) {
   return (
     <article className="space-y-6 print:space-y-4">
       <HeaderBlock header={plan.header} />
+
+      <LessonIllustration diagram={plan.lessonDiagram} />
 
       {plan.lessonGoal && (
         <Section title="Lesson Goal (SMART)">
@@ -310,6 +314,7 @@ function LessonPlanViewV1({ plan }) {
         ℹ️ This plan was generated with the older template. New plans use the full CBC 5E format.
       </div>
       <HeaderBlock header={plan.header} />
+      <LessonIllustration diagram={plan.lessonDiagram} />
       <Section title="Specific Outcomes">
         <OrderedList items={plan.specificOutcomes} />
       </Section>
@@ -416,6 +421,31 @@ function HeaderBlock({ header = {} }) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Black-and-white drawing generated for the lesson (see the Lesson Plan
+// Studio's illustration panel). Rendered here so it shows in the preview and,
+// because the same `plan.lessonDiagram` is read by the PDF/DOCX exporters, in
+// the downloads too.
+function LessonIllustration({ diagram }) {
+  if (!diagram?.url) return null
+  return (
+    <Section title="Lesson Illustration">
+      <figure className="rounded-xl border theme-border p-3 text-center">
+        <img
+          src={diagram.url}
+          alt={diagram.prompt || 'Lesson illustration'}
+          loading="lazy"
+          className="mx-auto max-h-80 w-auto rounded-lg"
+        />
+        {diagram.prompt && (
+          <figcaption className="mt-2 text-xs theme-text-secondary italic">
+            {diagram.prompt}
+          </figcaption>
+        )}
+      </figure>
+    </Section>
   )
 }
 
