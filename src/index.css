@@ -3230,7 +3230,10 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 .zx-hero-bg {
   position: absolute;
   right: -12px;
-  bottom: 0;
+  /* Lifted off the banner floor so the characters sit higher in the hero
+     (per design feedback). Width/height unchanged so the art stays the
+     same size — only its vertical anchor moves up. */
+  bottom: 10%;
   width: 64%;
   height: 112%;
   object-fit: contain;
@@ -3270,6 +3273,7 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   .zx-hero-bg {
     width: 60%;
     right: -18px;
+    bottom: 12%;
     opacity: 0.94;
   }
   .zx-hero-wash {
