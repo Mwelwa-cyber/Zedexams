@@ -759,7 +759,16 @@ service cloud.firestore {
     match /pictureBank/{picId} {
       allow read: if isAdmin() ||
         (isAuthed() && resource.data.get('status', '') == 'active');
-      allow write: if isAdmin();
+      // Teachers may SUBMIT a new picture as 'staged' (awaiting admin review)
+      // from Visual Studio; they cannot activate, edit or delete bank pictures.
+      // Admins do everything (upload / activate / tag / delete).
+      allow create: if isAdmin()
+        || (isTeacherOrAbove()
+            && incoming().createdBy == request.auth.uid
+            && incoming().get('status', '') == 'staged'
+            && incoming().get('source', '') == 'teacher'
+            && (!('url' in incoming()) || (incoming().url is string && incoming().url.size() <= 2000)));
+      allow update, delete: if isAdmin();
     }
 
     // ── visualAssets (Visual Studio — teacher-owned pictures) ─

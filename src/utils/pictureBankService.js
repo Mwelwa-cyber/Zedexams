@@ -334,3 +334,37 @@ export async function generateBankPicture({ prompt, name, keywords, subject, gra
   })
   return { id: ref.id, url }
 }
+
+/**
+ * Teacher submission: send a finished Visual Studio picture into the shared
+ * bank as STAGED, awaiting admin review/tagging. firestore.rules lets a teacher
+ * CREATE a staged doc (source:'teacher', createdBy == uid) but not activate,
+ * edit or delete bank pictures — the admin does that via the existing
+ * "Needs tagging" queue in PictureBankAdmin.
+ */
+export async function submitPictureToBank({ url, storagePath = '', name, keywords, subject, gradeBand, uid }) {
+  if (!url) throw new Error('Nothing to submit — generate or open a picture first.')
+  if (!uid) throw new Error('Please sign in.')
+  const cleanName = String(name || 'Untitled picture').trim().slice(0, 120)
+  const kw = normaliseKeywords(keywords?.length ? keywords : cleanName)
+
+  const ref = doc(collection(db, 'pictureBank'))
+  await setDoc(ref, {
+    id: ref.id,
+    name: cleanName,
+    nameLower: cleanName.toLowerCase(),
+    subject: String(subject || PICTURE_BANK_SUBJECTS_GENERIC).toLowerCase(),
+    gradeBand: String(gradeBand || ''),
+    keywords: kw,
+    storagePath: storagePath || '',
+    url,
+    contentType: 'image/png',
+    source: 'teacher',
+    status: 'staged',
+    sourceNote: `Submitted from Visual Studio${uid ? ` by ${uid}` : ''}`,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
+}

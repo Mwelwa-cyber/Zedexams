@@ -35,3 +35,7 @@ export const IconCheck = (p) => <S {...p}><path d="M20 6L9 17l-5-5" /></S>
 export const IconSearch = (p) => <S {...p}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></S>
 export const IconBack = (p) => <S {...p}><path d="M15 18l-6-6 6-6" /></S>
 export const IconImage = (p) => <S {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>
+export const IconCircle = (p) => <S {...p}><circle cx="12" cy="12" r="9" /></S>
+export const IconLine = (p) => <S {...p}><path d="M4 20L20 4" /></S>
+export const IconBlankLine = (p) => <S {...p}><path d="M3 17h18" /><path d="M7 7h6" opacity="0.5" /></S>
+export const IconAdjust = (p) => <S {...p}><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" fill="currentColor" /><circle cx="15" cy="12" r="2" fill="currentColor" /><circle cx="8" cy="18" r="2" fill="currentColor" /></S>

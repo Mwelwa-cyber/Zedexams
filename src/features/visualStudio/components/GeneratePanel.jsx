@@ -9,7 +9,7 @@ import { GRADES, SUBJECTS, SUBJECT_MAP } from '../../../config/curriculum'
 import { useSyllabusTopicOptions } from '../../../components/teacher/syllabusTopicOptions'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import {
-  VISUAL_STYLES, USE_CASES, ORIENTATIONS, IMAGE_SIZES,
+  VISUAL_STYLES, USE_CASES, ORIENTATIONS, IMAGE_SIZES, OUTPUT_TYPES,
   resolveGenerationParams, clampImageCount, MAX_IMAGES_PER_BATCH,
 } from '../lib/visualStudioMeta'
 import { composeVisualPrompt, buildVisualTitle } from '../lib/visualPrompt'
@@ -32,6 +32,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
   const [useCase, setUseCase] = useState(seed?.useCase || (assessmentMode ? 'assessment' : 'worksheet'))
   const [orientation, setOrientation] = useState('landscape')
   const [sizeId, setSizeId] = useState('medium')
+  const [outputType, setOutputType] = useState(assessmentMode ? 'learner_blank' : 'teacher_labelled')
   const [count, setCount] = useState(2)
 
   const [promptText, setPromptText] = useState('')
@@ -69,6 +70,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
       subtopic,
       style: styleId,
       useCase,
+      outputType,
       isBlackAndWhite: Boolean(styleMeta?.blackAndWhite),
       sourceType: 'ai',
       aiModel: result.provider || '',
@@ -221,6 +223,16 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="vs-field">
+          <label>Output type</label>
+          <select value={outputType} onChange={(e) => setOutputType(e.target.value)}>
+            {OUTPUT_TYPES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+          <p className="vs-sub" style={{ marginTop: 5 }}>
+            The editor opens on this version. Learner shows P, Q, R; answer key adds the legend.
+          </p>
         </div>
 
         <div className="vs-field">
