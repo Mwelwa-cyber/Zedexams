@@ -68,14 +68,15 @@ export default function SbaTaskStudio() {
   const currentTaskType = getSbaTaskType(form.subject, form.taskType)
   const needsComponent = Boolean(currentTaskType?.needsComponent)
 
-  // Which syllabus to draw topics/outcomes from. CTS has no upper-primary
-  // syllabus of its own — its three components (Expressive Arts, Home
-  // Economics, Technology Studies) are the KB subjects, so route the picker
-  // through the chosen component. Every other SBA subject maps 1:1 to a KB
-  // subject key. (Where the syllabus has no rows — e.g. Grade 7, English G5/6
-  // — TopicSubtopicPicker degrades to free text on its own.)
+  // Which 2013 syllabus to draw topics/outcomes from. SBA is the Grade 5–7
+  // School Based Assessment instrument, which sits on the 2013 OBC curriculum.
+  // CTS has no syllabus of its own — its components are the KB subjects, so
+  // route the picker through the chosen component. The 2013 OBC names the
+  // technical strand "Design & Technology" (not "Technology Studies"); the
+  // other components map 1:1. (Where the syllabus has no rows, the picker
+  // degrades to free text on its own.)
   const syllabusSubject = form.subject === 'creative_and_technology_studies' && form.component
-    ? form.component
+    ? (form.component === 'technology_studies' ? 'design_and_technology' : form.component)
     : form.subject
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
@@ -224,6 +225,7 @@ export default function SbaTaskStudio() {
             <TopicSubtopicPicker
               grade={form.grade}
               subject={syllabusSubject}
+              framework="2013"
               topic={form.topic}
               subtopic={form.outcome}
               onChangeTopic={(v) => set('topic', v)}
@@ -235,6 +237,9 @@ export default function SbaTaskStudio() {
               topicMaxLength={160}
               subtopicMaxLength={200}
             />
+            <p className="text-[11px] -mt-2" style={{ color: '#7a8e94' }}>
+              Topics come from the <strong>2013 (OBC)</strong> syllabus — the curriculum SBA is assessed against.
+            </p>
 
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -129,6 +129,17 @@ function resolveSbaTaskMeta(subject, taskType) {
   };
 }
 
+/**
+ * Map an SBA CTS component to the KB subject that holds its 2013 OBC syllabus.
+ * CTS has no syllabus of its own; the 2013 OBC names the technical strand
+ * "Design & Technology" (not "Technology Studies"), while Expressive Arts and
+ * Home Economics map 1:1. Used to ground CTS tasks (and feed the studio's
+ * topic picker) on the right 2013 syllabus.
+ */
+function ctsComponentToKbSubject(component) {
+  return component === "technology_studies" ? "design_and_technology" : component;
+}
+
 module.exports = {
   SUBJECT_LABELS,
   GRADE_LABELS,
@@ -138,4 +149,5 @@ module.exports = {
   isSbaSubject,
   isSbaGrade,
   resolveSbaTaskMeta,
+  ctsComponentToKbSubject,
 };
