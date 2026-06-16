@@ -16,7 +16,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { bakeVisual, downloadBlob } from '../lib/visualCanvasRaster'
 import {
   LETTER_SEQUENCE, labelTextForVersion, assignLetters, answerKeyLines,
-  buildQuestionPatch, DEFAULT_DIAGRAM_INSTRUCTION,
+  buildAssessmentDiagramHandoff, defaultFollowUps, DEFAULT_DIAGRAM_INSTRUCTION,
 } from '../lib/visualVersions'
 import { uploadVisualImage, saveVisualAsset } from '../services/visualAssetService'
 import { writeVisualHandoff } from '../../../utils/studioHandoff'
@@ -89,6 +89,10 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
   const [locked, setLocked] = useState(false)
   const [title, setTitle] = useState(visual?.title || 'Untitled visual')
   const [instruction, setInstruction] = useState(DEFAULT_DIAGRAM_INSTRUCTION)
+  // Assessment Diagram mode: free-text follow-up questions printed BELOW the
+  // diagram ("State the function of part Q." …). The "Name the parts P, Q, R"
+  // question is generated from the labels by buildAssessmentDiagramHandoff.
+  const [followUps, setFollowUps] = useState([])
   // The working image. Starts as the generated/selected picture; "Adjust image"
   // (crop/rotate/B&W via the shared ImageEditorModal) replaces it in place.
   const [imageUrl, setImageUrl] = useState(visual?.imageUrl || '')
@@ -419,15 +423,15 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
           visibility: 'private',
           usedIn: ['assessment'],
         })
-        writeVisualHandoff(buildQuestionPatch({
+        writeVisualHandoff(buildAssessmentDiagramHandoff({
           imageUrl: url,
           imageAlt,
           imageWidth: 'full',
           labels: labelObjs,
-          version: 'learner',
           instruction,
+          followUps,
         }))
-        onToast?.('Diagram ready — opening Assessment Studio…')
+        onToast?.('Diagram + questions ready — opening Assessment Studio…')
         navigate('/teacher/assessments/new?from=visual-studio')
       }
       if (!pre.ok) {
@@ -644,6 +648,27 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
               <div className="vs-field">
                 <label>Instruction (above the diagram)</label>
                 <textarea value={instruction} onChange={(e) => setInstruction(e.target.value)} rows={2} />
+              </div>
+              <div className="vs-field">
+                <label>Follow-up questions (below the diagram)</label>
+                {followUps.map((q, i) => (
+                  <div key={`fu-${i}`} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input type="text" value={q} placeholder="e.g. State the function of part Q."
+                      onChange={(e) => setFollowUps(followUps.map((x, j) => (j === i ? e.target.value : x)))} />
+                    <button type="button" className="vs-iconbtn danger" aria-label="Remove question"
+                      onClick={() => setFollowUps(followUps.filter((_, j) => j !== i))}><IconTrash size={14} /></button>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" className="vs-chip" onClick={() => setFollowUps([...followUps, ''])}>+ Add question</button>
+                  <button type="button" className="vs-chip" disabled={!labelObjs.length}
+                    onClick={() => setFollowUps(defaultFollowUps(labelObjs))}>Suggest from labels</button>
+                </div>
+                {labelObjs.length > 0 && (
+                  <p className="vs-sub" style={{ marginTop: 6 }}>
+                    Sending to Assessment Studio adds “Name the parts labelled {labelObjs.map((l) => l.letter).join(', ')}” plus these questions below the diagram.
+                  </p>
+                )}
               </div>
               <p className="vs-sub">{labelObjs.length} label{labelObjs.length === 1 ? '' : 's'} placed.</p>
             </>

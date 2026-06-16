@@ -100,7 +100,7 @@ export default function VisualStudioPage() {
 
         {view === 'home' && <VisualStudioHome onPick={(id) => { if (id === 'generate') setSeed(null); setView(id) }} />}
         {view === 'generate' && <GeneratePanel key={`gen-${seedKey}`} seed={seed} onEdit={openEditor} onToast={notify} />}
-        {view === 'templates' && <TemplatesPanel onUseTemplate={useTemplate} />}
+        {view === 'templates' && <TemplatesPanel onUseTemplate={useTemplate} onEdit={openEditor} />}
         {view === 'bank' && <MyVisualsGrid mode="shared" onEdit={openEditor} onToast={notify} />}
         {view === 'saved' && <MyVisualsGrid mode="mine" onEdit={openEditor} onToast={notify} />}
         {view === 'blank' && <BlankPanel onEdit={openEditor} onToast={notify} />}

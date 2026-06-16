@@ -559,14 +559,33 @@ export default function AssessmentStudio() {
     const ALLOWED = ['imageUrl', 'imageAlt', 'imageWidth', 'diagramText', 'text', 'explanation', 'answerFormat', 'blankLabels']
     const patch = {}
     for (const k of ALLOWED) { if (payload[k] != null) patch[k] = payload[k] }
+    // Assessment Diagram mode: the diagram is question 1 (image + instruction);
+    // the scaffolded follow-up questions are appended as separate questions
+    // BELOW it, so they're never trapped inside the picture.
+    const followUps = Array.isArray(payload.followUps) ? payload.followUps : []
     setSections((prev) => {
       const base = (prev && prev.length) ? prev : [createStandaloneSection()]
       const next = [...base]
       next[0] = { ...next[0], question: { ...next[0].question, ...patch } }
+      for (const fu of followUps) {
+        if (!fu || !fu.text) continue
+        next.push(createStandaloneSection({
+          type: 'short_answer',
+          detectedType: 'short_answer',
+          options: [],
+          correctAnswer: '',
+          text: String(fu.text),
+          marks: Number(fu.marks) || 2,
+          answerFormat: fu.answerFormat || 'lines',
+          answerLines: fu.answerLines != null ? fu.answerLines : null,
+          blankLabels: Array.isArray(fu.blankLabels) ? fu.blankLabels : [],
+          explanation: fu.explanation || '',
+        }))
+      }
       return next
     })
     setView('builder')
-    showToast('Diagram added from Visual Studio')
+    showToast(followUps.length ? 'Diagram + questions added from Visual Studio' : 'Diagram added from Visual Studio')
     const sp = new URLSearchParams(searchParams)
     sp.delete('from')
     setSearchParams(sp, { replace: true })

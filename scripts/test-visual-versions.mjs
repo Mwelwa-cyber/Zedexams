@@ -6,6 +6,7 @@ import assert from 'node:assert'
 import {
   assignLetters, labelTextForVersion, answerKeyLines, blankLabelsFor,
   buildQuestionPatch, LETTER_SEQUENCE,
+  defaultFollowUps, buildAssessmentDiagramHandoff,
 } from '../src/features/visualStudio/lib/visualVersions.js'
 
 const labels = [
@@ -51,5 +52,31 @@ assert.equal(patch2.imageUrl, 'u')
 // Default instruction used when none given.
 const patch3 = buildQuestionPatch({ imageUrl: 'u', labels })
 assert.ok(/Study the diagram/i.test(patch3.text))
+
+// Assessment Diagram mode: follow-up suggestions from labels.
+const fu = defaultFollowUps(labels)
+assert.ok(fu.length >= 1, 'at least one follow-up suggested')
+assert.ok(/function of the part labelled Q/.test(fu[0]), 'function-of-part question')
+assert.ok(fu.some((t) => /importance of the part labelled R/.test(t)), 'importance question')
+assert.deepEqual(defaultFollowUps([]), [], 'no labels → no suggestions')
+
+// Assessment Diagram handoff: image question (no answer space) + scaffolded
+// follow-ups, with "Name the parts" auto-built from the labels.
+const handoff = buildAssessmentDiagramHandoff({
+  imageUrl: 'u', labels, instruction: 'Study it.', followUps: ['Why is part P important?'],
+})
+assert.equal(handoff.imageUrl, 'u')
+assert.equal(handoff.text, 'Study it.')
+assert.equal(handoff.answerFormat, 'none')
+assert.ok(Array.isArray(handoff.followUps))
+assert.equal(handoff.followUps[0].answerFormat, 'labelled_blanks')
+assert.deepEqual(handoff.followUps[0].blankLabels, ['P', 'Q', 'R'])
+assert.ok(handoff.followUps[0].explanation.includes('P = Nose'))
+assert.equal(handoff.followUps[handoff.followUps.length - 1].text, 'Why is part P important?')
+
+// No labels → no "name the parts" question, but free-text follow-ups remain.
+const handoff2 = buildAssessmentDiagramHandoff({ imageUrl: 'u', labels: [], followUps: ['Describe the picture.'] })
+assert.equal(handoff2.followUps.length, 1)
+assert.equal(handoff2.followUps[0].answerFormat, 'lines')
 
 console.log('✓ visual-versions tests passed')
