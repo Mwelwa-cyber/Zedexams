@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useSubscription } from '../../hooks/useSubscription'
+import { useTeacherUsage } from '../../hooks/useTeacherUsage'
 import {
   listMyGenerations,
   titleForGeneration,
@@ -394,6 +395,13 @@ export default function TeacherDashboard() {
   const { currentUser } = useAuth()
   const { getMyQuizzes } = useFirestore()
   const { isPremium } = useSubscription()
+  // The hero "Current plan" badge must reflect the *teacher* plan tier, not
+  // the learner `isPremium` gate — a teacher can hold a learner premium
+  // subscription (isPremium=true) while their teacher studio tier is still
+  // Free. Reading the same source the UsageMeter does (the server-written
+  // usageMeters doc plan, mirrored from users.teacherPlan) keeps the two
+  // badges from contradicting each other ("Pro" up top, "Free" in the meter).
+  const { data: usage } = useTeacherUsage(currentUser?.uid)
 
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
@@ -547,7 +555,7 @@ export default function TeacherDashboard() {
             <p>Recent items</p>
           </div>
           <div>
-            <span>{isPremium ? 'Pro' : 'Free'}</span>
+            <span>{usage?.planLabel ?? '—'}</span>
             <p>Current plan</p>
           </div>
         </div>
