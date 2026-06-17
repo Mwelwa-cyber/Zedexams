@@ -22223,6 +22223,206 @@
           }
         }
       ]
+    },
+    "Grade 5": {
+      "title": "GRADE 5",
+      "columns": [
+        "5.1.1 The Heart",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "KNOWLEDGE",
+        "SKILLS",
+        "VALUES"
+      ],
+      "rows": [
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.1.1 The Heart",
+            "TOPIC": "5.1.0 The human body",
+            "SPECIFIC OUTCOMES": "5.1.1.1 State the function of the heart. 5.1.1.2 Describe the structure of the heart. 5.1.1.3 Demonstrate how to take the pulse.",
+            "KNOWLEDGE": "• Function of the heart: pumping blood • Structure of the heart • How to take the pulse",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.1.2 Puberty",
+            "TOPIC": "5.1.0 The human body",
+            "SPECIFIC OUTCOMES": "5.1.2.1 Identify male and female parts of the body. 5.1.2.2 Describe changes that occur at puberty in human beings.",
+            "KNOWLEDGE": "• Male and female parts of the body (private and non-private parts) • Changes at puberty — Physical: pubic hair, beards, breaking of voice, pimples, pelvic girdle, enlargement of breasts • Emotional: moods, sexual feelings",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.1 Fresh Air",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.1.1 Explain the importance of good ventilation. 5.2.1.2 Explain ways of providing good ventilation in buildings. 5.2.1.3 Demonstrate ways of treating a suffocated person.",
+            "KNOWLEDGE": "• Ventilation is good for health • Ways of providing good ventilation: air conditioners, air vents, windows, fans • Treating a suffocated person: removing the source of suffocation, artificial breathing, First Aid",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.2 Air and water borne diseases",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.2.1 Name common airborne and water borne diseases in Zambia. 5.2.2.2 Describe symptoms of common airborne and water borne diseases. 5.2.2.3 Describe how to prevent air and water borne diseases.",
+            "KNOWLEDGE": "• Common airborne and waterborne diseases: Tuberculosis, pneumonia, cholera, typhoid, dysentery, measles, bilharzia • Symptoms (TB: prolonged cough, sweating at night, fever, loss of weight and appetite; Dysentery: bloody stool) • Ways of preventing airborne and waterborne diseases",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.3 Malaria",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.3.1 Identify causes of malaria. 5.2.3.2 State the symptoms of malaria. 5.2.3.3 Describe ways of preventing and treating malaria.",
+            "KNOWLEDGE": "• Causes of malaria: Anopheles mosquito bite (plasmodium) • Symptoms: fever, vomiting, headache, body pains, loss of appetite • Ways of preventing malaria: sleeping under Insecticide Treated Nets, spraying and clearing mosquito breeding places",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.6 HIV and AIDS and STIs",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.6.1 Describe ways in which STIs and HIV are transmitted. 5.2.6.2 Identify ways of preventing the spread of HIV and STIs. 5.2.6.3 Describe the care and treatment for AIDS patients.",
+            "KNOWLEDGE": "• Ways of STIs and HIV transmission: unprotected sexual activities, contaminated blood, breast milk, sharp instruments • Ways of prevention: abstinence, use of condoms • Care and treatment of AIDS patients: good nutrition, good hygiene, love and support, ART",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.7 Harmful Substances",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.7.1 Mention the substances which are harmful to the human body. 5.2.7.2 State the harmful effects of substance abuse on the body. 5.2.7.3 Explain the effects of drinking alcohol.",
+            "KNOWLEDGE": "• Harmful substances: cocaine, mandrax, heroin, petrol, alcohol, dagga • Harmful effects: aggressiveness, brain damage, unconsciousness, restlessness, nausea, addiction • Effects of alcohol: poor health, violence, accidents",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.3.1 Soil",
+            "TOPIC": "5.3.0 The Environment",
+            "SPECIFIC OUTCOMES": "5.3.1.1 Explain the importance of water in the soil. 5.3.1.2 Mention ways in which water can be retained in the soil. 5.3.1.3 Demonstrate the drainage rates of soils.",
+            "KNOWLEDGE": "• Importance of water: seed germination and photosynthesis • Retention of water in soil: mulching, shading, terracing, weeding and intercropping • Drainage rates of clay, loamy and sandy soils",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.3.2 Fertilizers",
+            "TOPIC": "5.3.0 The Environment",
+            "SPECIFIC OUTCOMES": "5.3.2.1 Explain what organic and inorganic fertilizers are. 5.3.2.2 Demonstrate how to prepare compost manure. 5.3.2.3 Explain the importance of maintaining a supply of compost materials. 5.3.2.4 Explain the advantages and disadvantages of chemical fertilizers in agriculture.",
+            "KNOWLEDGE": "• Organic (natural) and inorganic (man-made) fertilizers • Preparing compost manure: layers under the shade • Advantages: required plant nutrients, quick absorption • Disadvantages: spoil soil, leaching, cost",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.1 Non Flowering Plants",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Identify different types of non-flowering plants. 5.4.1.2 Identify the use of ferns and fungi.",
+            "KNOWLEDGE": "• Types of non-flowering plants: algae, ferns, moss, fungi (e.g. mushroom) • Uses of fungi: baking, beer brewing, food, medicine (e.g. penicillin)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.2 Invertebrate Animals",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.2.1 Identify the different types of invertebrate animals. 5.4.2.2 Investigate the basic structure of insects. 5.4.2.3 Explain the difference between insects and spiders. 5.4.2.4 State ways in which insects are useful.",
+            "KNOWLEDGE": "• Invertebrate animals: insects (bees, ants, grasshoppers, beetles, butterflies), worms, spiders, crabs, lobsters, snails • Basic structure of insects: head, thorax, abdomen, antennae, six legs, wings; spider: eight legs, two body sections • Usefulness of insects: source of food, assist in pollination",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.3 Pest and Parasites",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.3.1 Identify common pests and parasites in the local environment. 5.4.3.2 Describe the harm caused by pests and parasites on plants and animals. 5.4.3.3 Explain how pests and parasites can be controlled using local plant materials and commercial chemicals. 5.4.3.4 Explain how chemical pesticides can cause harm to the environment.",
+            "KNOWLEDGE": "• Common pests and parasites: aphids, locusts, caterpillars, ticks, beetles, worms, weevils, termites, tsetse fly, lice • Harm caused: suck nutrients, cause diseases, affect growth of the host • Control: local (garlic, red pepper, ash); commercial (Doom, Boom, Rogor) • Harm to the environment from chemical pesticides: contamination, killing beneficial living things",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.1 Electricity",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.1.1 State what electricity can do. 5.5.1.2 Identify sources of electricity. 5.5.1.3 Identify electrical appliances used at home, school and in the community. 5.5.1.4 Identify good and bad conductors of electricity. 5.5.1.5 Describe the uses of good and bad conductors. 5.5.1.6 Explain methods of conserving electricity in homes and schools.",
+            "KNOWLEDGE": "• What electricity does: powers up appliances and lights • Sources of electricity: battery, hydroelectric and thermal power stations, generator, solar cells • Electrical appliances: heater, stove, iron, fridge, fan • Good conductors: copper wire, iron sheets, carbon; Bad conductors: wood, plastic, rubber • Conserving electricity: energy saver bulbs, switch off and save, alternative sources of energy",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.2 Heat Conductors",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.2.1 Describe what heat is. 5.5.2.2 Determine the temperature of the human body, boiling water and air inside and outside the classroom. 5.5.2.3 Distinguish good and bad conductors of heat. 5.5.2.4 Identify materials which are good insulators.",
+            "KNOWLEDGE": "• Heat: the flow of thermal energy from warm to cooler objects • Temperature measurement of human body, boiling water and air • Good conductors: metals; Bad conductors / insulators: wood, rubber, wool, plastic • Uses: good conductors for cooking utensils; bad conductors for handles",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.3 Measuring Matter",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.3.1 Identify instruments used to compare how heavy objects are. 5.5.3.2 Demonstrate the effect of gravity on objects. 5.5.3.3 Distinguish between mass and weight.",
+            "KNOWLEDGE": "• Measuring mass and weight: beam balance, spring balance • Effect of gravity: pulling objects towards the centre of the earth • Difference between mass (amount of matter) and weight (pull of gravity, measured in newtons)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.4 Volume",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.4.1 Identify various instruments and apparatus used to measure volume. 5.5.4.2 Measure the volume of liquids. 5.5.4.3 Measure the volume of various regular and irregular solid objects.",
+            "KNOWLEDGE": "• Instruments for measuring volume: beaker, measuring cylinder • Measuring volume of given liquids • Measuring volume of regular (l × b × h) and irregular (displacement method) solid objects",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.5 Simple Machines",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.5.1 Explain what a simple machine is. 5.5.5.2 Identify six kinds of simple machines used in the home and school. 5.5.5.3 Demonstrate the use of simple machines in doing work.",
+            "KNOWLEDGE": "• A simple machine makes work easier by allowing us to push or pull over increased distances • Six kinds of simple machines: Lever, Wheel and Axle, Inclined Plane, Wedge, Screw • Application: pulling, cutting, transportation, watering, digging",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        }
+      ]
     }
   },
   "Mathematics Syllabus (Grades 1-7, 2013)": {
@@ -23036,8 +23236,9 @@
       ]
     },
     "Grade 6": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 6",
+      "title": "GRADE 6",
       "columns": [
+        "6.1 INDEX NOTATION",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -23048,161 +23249,133 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "6.1 INDEX NOTATION",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.1.1 Describe index notation. 6.1.2 Change a number in index form to expanded notation and vice versa. 6.1.3 Evaluate numbers in index notation with positive bases and indices.",
-            "SKILLS": "• Describing Index notation as the repetition of multiplication of numbers with the same base (2x2x2 = 23). • Expanded notation with positive bases and powers ranging from 1 to 5. • Evaluating numbers in index notation with positive bases and indices.",
-            "VALUES": "• Interpretation of the meaning of index notation • Computation of numbers in index notation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.2 SETS",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.2.1 Describe the intersection, union in a Venn diagram. 6.2.2 Use symbols of intersection \"∩\", union \"U\" (and subset “⊂” as recap). 6.2.3 Find number of subsets of a given set using the formula 2n. 6.2.4 Apply the knowledge of sets in real life situations.",
-            "SKILLS": "• The intersection (includes the set within a set-subset and disjoint sets) and union set in a Venn diagrams. • Intersection, union sets and subset including. Symbolisation (intersection \"∩\", union \"U\" (and subset “⊂” as recap). • Subsets of a given set by listing and using the formula 2n. • Applying the knowledge of sets in real life situations (i.e. intersection, union, and subset).",
-            "VALUES": "• Interpretation of intersection and union sets. • Communication through the use of correct intersection and union symbols. • Illustration of intersection and union on a Venn diagram • Computation of subsets in given set."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.3 PRIME FACTORS",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.3.1 Describe and list prime and composite numbers. 6.3.2 Identify prime factors of given numbers",
-            "SKILLS": "• Prime and composite numbers • Prime factors of given numbers • Express a number as a product",
-            "VALUES": "• Identification of prime factors • Representation of a number as a"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
+            "6.1 INDEX NOTATION": "6.1 INDEX NOTATION",
             "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "SKILLS": "of its prime factors",
-            "VALUES": "product of its prime factors"
+            "SPECIFIC OUTCOMES": "6.1.1 Describe index notation. 6.1.2 Change a number in index form to standard notation and vice versa. 6.1.3 Evaluate numbers in index notation with positive base and indices.",
+            "KNOWLEDGE": "• Describing index notation as the repetition of multiplication of numbers with the same base (2x2x2 = 2³) • Expanded notation with positive bases and powers ranging from 1 to 5 • Evaluating numbers in index notation with positive base and indices",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "6.4 FRACTIONS",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.4.1 Multiply fractions by whole numbers 6.4.2 Multiply a fraction by another fraction. 6.4.3 Divide fractions by whole numbers 6.4.4 Divide whole numbers by fractions 6.4.5 Divide a fraction by another fraction 6.4.6 Apply fractions to solve problems in real life",
-            "SKILLS": "• Understanding the concept of multiplication of fractions • Multiplying fractions by whole numbers • Multiplying a fraction by another fraction. • Understanding the concept of division of fractions • Dividing fractions by whole numbers • Dividing whole numbers by fractions • Dividing a fraction by another fraction • Applying multiplication and division of fractions to solve problems in real life",
-            "VALUES": "• Multiplication and Division of fractions • Application of multiplication and division of fractions in real life"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.5 DECIMALS",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.5.1 Describe decimal numbers by their names (up to 3 decimal places) 6.5.2 Add and subtract decimal numbers up to 3 decimal places 6.5.3 Multiply decimal numbers by decimal numbers 6.5.4 Divide decimal numbers by decimal numbers (up to 3 decimal places (INCLUDING REMAINDER)",
-            "SKILLS": "• Describing decimal numbers by their names (up to 3 decimal places) • Adding and subtracting decimal numbers up to 3 decimal places • Multiplication and division of decimals up to 3 decimal places",
-            "VALUES": "• Accuracy in Computation of problems involving decimal numbers • Problem solving in real life situations."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.6 APPROXIMATION",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.6.1 Round off to the nearest unit.",
-            "SKILLS": "• Rounding off to the nearest",
-            "VALUES": "• Estimation of"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
+            "6.1 INDEX NOTATION": "6.2 SETS",
             "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.6.2 Round off to the nearest decimal places 6.6.3 Solve simple problems involving rounding off quantities to required number of decimal places",
-            "SKILLS": "ten, hundred, thousand • Rounding off to the given decimal places (1, 2 and 3 decimal places) • Applying approximation in real life situations involving rounding off to required number of decimal places. • Relating approximation with measurements",
-            "VALUES": "quantities in real life • Application of rounding off in real life"
+            "SPECIFIC OUTCOMES": "6.2.1 Describe the intersection and union in a Venn diagram. 6.2.2 Use symbols of intersection, union and subset. 6.2.3 Find number of subsets of a given set using the formula 2ⁿ. 6.2.4 Apply the knowledge of sets in real life situations.",
+            "KNOWLEDGE": "• Intersection (including subset and disjoint sets) and union set in a Venn diagram • Symbolisation of intersection, union and subset • Subsets of a given set by listing and using the formula 2ⁿ • Applying the knowledge of sets in real life situations (intersection, union and subset)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "6.7 RATIO AND PROPORTION",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.7.1 Describe ratio and direct proportion 6.7.2 Differentiate between ratio and direct proportion 6.7.3 Express a given ratio in its lowest term 6.7.4 Solve problems involving ratio and direct proportion.",
-            "SKILLS": "• Describing ratio and direct proportion • Relating ratio and direct proportion with number patterns, relations and mappings. • Relationship between ratio and direct proportion • Reduction of ratio to lowest term • Unitary and proportional methods • Real life problems involving direct proportion (e.g. exchange rates, measures)",
-            "VALUES": "• Interpretation of the meaning of proportional parts • Computation of problems involving ratio and direct proportion • Application of ratio and proportion in solving real life problems"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.8 SOCIAL AND COMMERCIAL ARITHMETIC",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.8.1 Describe cost price, selling price, profit and loss 6.8.2 Calculate cost price, selling price, profit and loss 6.8.3 Calculate simple interest, discount, and profit and loss percentage. 6.8.4 Carry out calculations",
-            "SKILLS": "• Cost price (CP) and Selling price • Profit and loss • Calculations involving cost price, selling price, profit and loss in real life situations. • Time tabling in transportation, Fare chart (Bus, train, marine",
-            "VALUES": "• Computation of cost price, selling price, profit and loss, and simple interest • Application in transportation, entrepreneurship"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
+            "6.1 INDEX NOTATION": "6.3 PRIME FACTORS",
             "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "involving transportation",
-            "SKILLS": "and air) • Distance charts (ready reckoner)",
-            "VALUES": "and banks. • Interpretation of transportation charts."
+            "SPECIFIC OUTCOMES": "6.3.1 Identify prime and composite numbers. 6.3.2 Identify prime factors of given numbers.",
+            "KNOWLEDGE": "• Prime and composite numbers • Prime factors of given numbers • Express a number as a product of its prime factors",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "6.9 STATISTICS",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.9.1 Describe averages or measures of central tendency 6.9.2 Solve problems involving averages",
-            "SKILLS": "• Averages or measures of central tendency (Mean, mode and median) • Problems involving averages",
-            "VALUES": "• Interpretation of measures of central tendency • Computation of average or mean. • Analysis of measures to find mode and median."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.10 LINEAR EQUATIONS IN ONE VARIABLE",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.10.1 Describe an open sentences 6.10.2 Solve linear equations in one variable",
-            "SKILLS": "• Open sentences • Linear equations in one variable • Applying linear equations in one variable in real life situations",
-            "VALUES": "• Interpretation of open sentences. • Representation of problems into linear equations in one variable. • Solving linear equations in one variable."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.11 PLANE SHAPES",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.11.1 Identify regular polygons up to six sides 6.11.2 Draw pentagon and hexagon.",
-            "SKILLS": "• Identifying regular polygons up to six sides. • Drawing pentagon and hexagon using set square, protractor and compass",
-            "VALUES": "• Identification of regular polygons up to six sides • Construction of pentagon and hexagon."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.12 MEASUREMENT",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "6.12.1 Find the total length of edges of cube and cuboid 6.12.2 Find the total surface area of cube and cuboid 6.12.3 Describe the meaning of",
-            "SKILLS": "• Faces, vertices and edges of solids • Total length of edges of cube and cuboid",
-            "VALUES": "• Computation of total surface area of cube and cuboid. • Interpretation of"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
+            "6.1 INDEX NOTATION": "6.4 FRACTIONS",
             "TOPIC": "",
-            "SPECIFIC OUTCOMES": "speed 6.12.4 Calculate speed using distance and time",
-            "KNOWLEDGE": "• Total surface area of cube and cuboid • Meaning of speed (at this level avoid use of average speed) • Calculating speed using distance and time • Calculating distance using speed and time • Calculating time using speed and distance (refer to the relationship between division and multiplication i.e. sxt = d or t = d÷ s or s = d÷ t)",
-            "SKILLS": "speed. • Computation of speed using distance and time.",
-            "VALUES": "related to distance and time"
+            "SPECIFIC OUTCOMES": "6.4.1 Multiply fractions by whole numbers. 6.4.2 Multiply a fraction by another fraction. 6.4.3 Divide fractions by whole numbers. 6.4.4 Divide whole numbers by fractions. 6.4.5 Divide fractions by fractions. 6.4.6 Apply fractions to solve problems in real life.",
+            "KNOWLEDGE": "• Understanding the concept of multiplication of fractions • Multiplying fractions by whole numbers and a fraction by another fraction • Understanding the concept of division of fractions • Dividing fractions by whole numbers, whole numbers by fractions, and a fraction by another fraction • Applying multiplication and division of fractions to solve problems in real life",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.5 DECIMALS",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.5.1 Describe decimal numbers by their names (up to 3 decimal places). 6.5.2 Add and subtract decimal numbers up to 3 decimal places. 6.5.3 Multiply decimal numbers. 6.5.4 Divide decimal numbers by decimal numbers (up to 3 decimal places, including remainder).",
+            "KNOWLEDGE": "• Describing decimal numbers by their names (up to 3 decimal places) • Adding and subtracting decimal numbers up to 3 decimal places • Multiplication and division of decimals up to 3 decimal places",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.6 APPROXIMATION",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.6.1 Round off to the nearest unit. 6.6.2 Round off to the nearest decimal places. 6.6.3 Solve simple problems involving required number of decimal places.",
+            "KNOWLEDGE": "• Rounding off to the nearest ten, hundred and thousand • Rounding off to the given decimal places (1, 2 and 3 decimal places) • Applying approximation in real life situations • Relating approximation with measurements",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.7 RATIO AND PROPORTION",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.7.1 Describe ratio and direct proportion. 6.7.2 Differentiate between ratio and direct proportion. 6.7.3 Express a given ratio in its lowest term. 6.7.4 Solve problems involving ratio and direct proportion.",
+            "KNOWLEDGE": "• Describing ratio and direct proportion • Relating ratio and direct proportion with number patterns and mappings • Reduction of ratio to lowest term • Unitary and proportional methods • Real life problems involving direct proportion (e.g. exchange rates, measures)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.8 SOCIAL AND COMMERCIAL ARITHMETIC",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.8.1 Describe cost price, selling price, profit and loss. 6.8.2 Calculate cost price, selling price, profit and loss. 6.8.3 Calculate simple interest, discount, and profit and loss percentage. 6.8.4 Carry out calculations involving transportation.",
+            "KNOWLEDGE": "• Cost price (CP) and Selling price • Profit and loss • Calculations involving cost price, selling price, profit and loss in real life • Time tabling in transportation; Fare chart (bus, train, marine and air) • Distance charts (ready reckoner)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.9 STATISTICS",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.9.1 Describe averages or measures of central tendency. 6.9.2 Solve problems involving averages.",
+            "KNOWLEDGE": "• Averages or measures of central tendency (mean, mode and median) • Problems involving averages",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.10 LINEAR EQUATIONS IN ONE VARIABLE",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.10.1 Describe an open sentence. 6.10.2 Solve linear equations in one variable.",
+            "KNOWLEDGE": "• Open sentences • Linear equations in one variable • Applying linear equations in one variable in real life situations",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.11 PLANE SHAPES",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.11.1 Identify regular polygons up to six sides. 6.11.2 Draw pentagon and hexagon.",
+            "KNOWLEDGE": "• Identifying regular polygons up to six sides • Drawing pentagon and hexagon using set square, protractor and compass",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1 INDEX NOTATION": "6.12 MEASUREMENT",
+            "TOPIC": "",
+            "SPECIFIC OUTCOMES": "6.12.1 Find the total length of edges of cube and cuboid. 6.12.2 Find the total surface area of cube and cuboid. 6.12.3 Describe the meaning of speed. 6.12.4 Calculate speed using distance and time.",
+            "KNOWLEDGE": "• Faces, vertices and edges of cube and cuboid • Total length of edges of cube and cuboid • Total surface area of cube and cuboid • Meaning of speed (at this level avoid use of average speed) • Calculating speed, distance and time using their relationship (s × t = d)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and accuracy"
           }
         }
       ]
