@@ -63,6 +63,7 @@
     "test:csv-import": "node scripts/test-csv-import.mjs",
     "test:roster-import": "node scripts/test-roster-import.mjs",
     "test:class-record": "node scripts/test-class-record.mjs",
+    "test:class-progress": "node scripts/test-class-progress.mjs",
     "test:download-filename": "node scripts/test-download-filename.mjs",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",

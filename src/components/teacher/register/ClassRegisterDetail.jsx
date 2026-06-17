@@ -19,6 +19,7 @@ import MarkSchedulesTab from './MarkSchedulesTab'
 import ReportsTab from './ReportsTab'
 import SbaTab from './SbaTab'
 import AssessmentResultsTab from './AssessmentResultsTab'
+import ProgressTab from './ProgressTab'
 
 const TABS = [
   { key: 'class-list', label: 'Class List' },
@@ -28,19 +29,6 @@ const TABS = [
   { key: 'reports', label: 'Reports' },
   { key: 'progress', label: 'Progress' },
 ]
-
-function ComingSoonPanel({ label }) {
-  return (
-    <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
-      <div className="text-4xl mb-3">🚧</div>
-      <h2 className="theme-text font-black text-lg">{label} — coming soon</h2>
-      <p className="theme-text-muted text-sm mt-2 max-w-md mx-auto">
-        Your class list is the foundation. This tab will load every learner
-        from it automatically — no retyping — in an upcoming update.
-      </p>
-    </div>
-  )
-}
 
 export default function ClassRegisterDetail() {
   const { classId, tab } = useParams()
@@ -144,9 +132,7 @@ export default function ClassRegisterDetail() {
       {activeTab === 'results' && <AssessmentResultsTab register={reg} />}
       {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
       {activeTab === 'reports' && <ReportsTab register={reg} />}
-      {activeTab === 'progress' && (
-        <ComingSoonPanel label={TABS.find((t) => t.key === activeTab)?.label || 'This view'} />
-      )}
+      {activeTab === 'progress' && <ProgressTab register={reg} />}
 
       <ConfirmDialog
         open={confirmArchive}
