@@ -10,9 +10,9 @@
 
 import assert from 'node:assert'
 import {
-  PAPER_TYPES, PAPER_GRADE_OPTIONS, isPaperGrade, maxTopicsFor,
-  isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
-  FALLBACK_SUBJECT_KEYS,
+  PAPER_TYPES, PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
+  maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
+  studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
 } from '../src/components/teacher/paperTaxonomy.js'
 
 let passed = 0
@@ -50,6 +50,17 @@ ok(isPaperGrade('ECE_N') && isPaperGrade('1') && !isPaperGrade('99'), 'isPaperGr
 eq(studioGradeToKbGrade('ECE_N'), 'ECE_N', 'ECE_N passes through')
 eq(studioGradeToKbGrade('4'), 'G4', 'bare number → G-prefixed')
 eq(studioGradeToKbGrade('g7'), 'G7', 'already-prefixed normalised to upper')
+
+// Grade 7 was abolished from primary in the 2023 curriculum (3-6-4-2):
+// not selectable under 2023, still available under 2013.
+const grades2023 = paperGradeOptions('2023').map((g) => g.value)
+const grades2013 = paperGradeOptions('2013').map((g) => g.value)
+ok(!grades2023.includes('7'), '2023 framework drops Grade 7')
+ok(grades2013.includes('7'), '2013 framework keeps Grade 7')
+ok(grades2023.includes('6') && grades2023.includes('1'), '2023 keeps G1–G6')
+ok(grades2023.includes('ECE_N') && grades2023.includes('ECE_R'), '2023 keeps ECE bands')
+ok(grades2023.includes('8') && grades2023.includes('12'),
+  '2023 keeps secondary grades (only primary G7 removed)')
 
 // ── Test types ───────────────────────────────────────────────────────────
 const typeValues = PAPER_TYPES.map((t) => t.value)

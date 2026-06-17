@@ -34,6 +34,17 @@ export function isPaperGrade(value) {
   return PAPER_GRADE_VALUES.has(String(value || ''))
 }
 
+// Grade 7 was removed from primary in the 2023 curriculum: the system
+// restructured from 4-7-2-3 to 3-6-4-2, so primary now ends at Grade 6
+// (lower primary G1–G3, upper primary G4–G6). Grade 7 remains valid under
+// the 2013 framework, which is still being phased out grade by grade.
+export function paperGradeOptions(framework = '2023') {
+  if (String(framework) === '2023') {
+    return PAPER_GRADE_OPTIONS.filter((g) => g.value !== '7')
+  }
+  return PAPER_GRADE_OPTIONS
+}
+
 // Studio grade value ('4', 'ECE_N') → KB grade code ('G4', 'ECE_N'). The ECE
 // family + already-prefixed G/F codes pass through unchanged; bare numbers
 // get the G-prefix.

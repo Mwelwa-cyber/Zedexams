@@ -12,7 +12,7 @@ import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
 import {
-  PAPER_TYPES, PAPER_GRADE_OPTIONS, isPaperGrade, maxTopicsFor,
+  PAPER_TYPES, paperGradeOptions, isPaperGrade, maxTopicsFor,
   isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
   FALLBACK_SUBJECT_KEYS,
 } from './paperTaxonomy'
@@ -124,6 +124,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
   const maxTopics = maxTopicsFor(form.assessmentType)
   const cumulative = isCumulativeType(form.assessmentType)
+  const gradeOptions = useMemo(() => paperGradeOptions(form.framework), [form.framework])
+
+  // Keep the selected grade valid for the framework — e.g. Grade 7 doesn't
+  // exist under the 2023 curriculum, so switching to it snaps back to a
+  // valid grade (and drops the now-stale topics).
+  useEffect(() => {
+    if (!paperGradeOptions(form.framework).some((g) => g.value === form.grade)) {
+      setForm((f) => ({
+        ...f, grade: '4',
+        topics: [], topicInput: '', subtopics: [], subtopicInput: '',
+      }))
+    }
+  }, [form.framework, form.grade])
 
   // Subjects actually present in the syllabus for this grade + framework.
   // Falls back to a static list only after the fetch settles (so the
@@ -343,7 +356,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                 <label style={fieldLabel}>Grade</label>
                 <select style={inputStyle} value={form.grade}
                   onChange={(e) => setMeta('grade', e.target.value)}>
-                  {PAPER_GRADE_OPTIONS.map((g) => (
+                  {gradeOptions.map((g) => (
                     <option key={g.value} value={g.value}>{g.label}</option>
                   ))}
                 </select>
