@@ -19,6 +19,7 @@ const TOOL_TO_FEATURE = {
   quiz:           'assessments',
   exam_paper:     'exams',
   scheme_of_work: 'schemes',
+  sba_task:       'sba',
 }
 
 // High finite cap stands in for "unlimited" so the meter widget's

@@ -113,6 +113,9 @@ export default function ClassTimetableStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  // Grade pending a confirm — changing grade reseeds subjects and clears the
+  // grid, so we ask first when the teacher has lessons placed.
+  const [pendingGrade, setPendingGrade] = useState(null)
   const loadedRef = useRef(false)
   const lastGradeRef = useRef(initialGrade)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
@@ -273,6 +276,15 @@ export default function ClassTimetableStudio() {
     toast.info('Grid cleared.')
   }
 
+  /* Changing grade reseeds subjects + wipes placed lessons (the reseed effect).
+   * Confirm first if the teacher has lessons on the grid so a hand-built week
+   * isn't lost to a stray dropdown change. */
+  function handleGradeChange(value) {
+    if (value === header.grade) return
+    if (filled > 0) { setPendingGrade(value); return }
+    setH('grade', value)
+  }
+
   /* Apply an uploaded/photographed timetable into the editable grid. Subjects
    * reset to the grade's curriculum allocation so the curriculum check can
    * tell the teacher whether the upload matches the requirements. */
@@ -372,7 +384,7 @@ export default function ClassTimetableStudio() {
                   placeholder="School name" className="studio-input" />
               </Field>
               <Field label="Grade">
-                <select value={header.grade} onChange={(e) => setH('grade', e.target.value)} className="studio-input">
+                <select value={header.grade} onChange={(e) => handleGradeChange(e.target.value)} className="studio-input">
                   {GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
                 </select>
               </Field>
@@ -783,6 +795,15 @@ export default function ClassTimetableStudio() {
         variant="danger"
         onConfirm={onClearGrid}
         onCancel={() => setConfirmClear(false)}
+      />
+      <ConfirmDialog
+        open={pendingGrade !== null}
+        title="Change grade and reset the grid?"
+        message="Switching grade reseeds the subject list and clears every placed lesson on the timetable. This can't be undone."
+        confirmLabel="Change grade"
+        variant="danger"
+        onConfirm={() => { if (pendingGrade !== null) setH('grade', pendingGrade); setPendingGrade(null) }}
+        onCancel={() => setPendingGrade(null)}
       />
     </div>
   )
