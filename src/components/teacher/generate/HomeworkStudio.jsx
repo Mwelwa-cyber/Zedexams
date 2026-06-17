@@ -93,15 +93,18 @@ export default function HomeworkStudio() {
     }
   }
 
-  function onExport() {
+  function onExport(includeAnswers) {
     if (!homework) return
     const name = buildDownloadName({
-      docType: 'Homework',
+      docType: includeAnswers ? 'Homework' : 'Homework (pupil)',
       grade: form.grade,
       subject: form.subject,
       topic: homework.header?.topic || form.topic,
     })
-    downloadHomeworkDocx(homework, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    downloadHomeworkDocx(homework, name, {
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      includeAnswers,
+    })
   }
 
   return (
@@ -206,8 +209,11 @@ export default function HomeworkStudio() {
                         style={{ accentColor: '#ff7a2e' }} />
                       Show answers
                     </label>
-                    <button onClick={onExport} className="studio-btn-primary">
-                      📄 Export .docx
+                    <button onClick={() => onExport(false)} className="studio-btn-ghost">
+                      📄 Pupil sheet .docx
+                    </button>
+                    <button onClick={() => onExport(true)} className="studio-btn-primary">
+                      🔑 With answer key .docx
                     </button>
                   </div>
                 </div>
