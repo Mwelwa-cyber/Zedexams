@@ -27,7 +27,7 @@ import {
   classRecordUpdateSchema,
   coerceClassRecord,
 } from '../schemas/classRecord'
-import { snapshotFromRoster, computeRecord } from './classRecordMath'
+import { snapshotFromRoster, computeRecord, addLearnerToRecord } from './classRecordMath'
 
 function recordsCol(classId) {
   return collection(db, 'classRegisters', classId, 'records')
@@ -94,4 +94,57 @@ export async function updateRecordMeta(classId, recordId, fields) {
 
 export async function deleteRecord(classId, recordId) {
   await deleteDoc(recordDoc(classId, recordId))
+}
+
+/**
+ * Records in the class's CURRENT term/year that don't yet include a given
+ * learner — i.e. the records a newly-added learner could be synced into.
+ * Used to decide whether to prompt the teacher at all.
+ */
+export async function recordsMissingLearner(classId, rosterId, { term, year }) {
+  const all = await listRecords(classId)
+  return all.filter((r) =>
+    r.term === term
+    && Number(r.year) === Number(year)
+    && !(r.rosterSnapshot || []).some((s) => s.rosterId === rosterId),
+  )
+}
+
+/**
+ * Sync a newly-added learner into existing records so old marks stay intact
+ * while the current term picks the learner up. The learner is appended to each
+ * target record's snapshot (with no marks → counts as zero) and stats recompute.
+ *
+ *   scope 'all-term'  → every current term+year record missing the learner
+ *   scope 'this-only' → just `recordId`
+ *   scope 'none'      → no-op
+ *
+ * `entry` is the roster entry { id, learnerNumber, fullName, gender }.
+ * Returns the number of records updated.
+ */
+export async function reconcileNewLearner(classId, entry, { scope, recordId = null, term, year } = {}) {
+  if (scope === 'none' || !scope) return 0
+  const snapshotEntry = {
+    rosterId: entry.id,
+    learnerNumber: entry.learnerNumber || '',
+    fullName: entry.fullName || '',
+    gender: entry.gender ?? null,
+  }
+
+  let targets = []
+  if (scope === 'this-only' && recordId) {
+    const rec = await getRecord(classId, recordId)
+    if (rec) targets = [rec]
+  } else if (scope === 'all-term') {
+    targets = await recordsMissingLearner(classId, entry.id, { term, year })
+  }
+
+  let updated = 0
+  for (const rec of targets) {
+    const { rosterSnapshot, stats, changed } = addLearnerToRecord(rec, snapshotEntry)
+    if (!changed) continue
+    await updateDoc(recordDoc(classId, rec.id), { rosterSnapshot, stats, updatedAt: serverTimestamp() })
+    updated += 1
+  }
+  return updated
 }

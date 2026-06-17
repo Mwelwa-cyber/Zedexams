@@ -8,7 +8,7 @@
 
 const { CBC_GRADE_BANDS, PASS_THRESHOLD, gradeLabelForPercent, isPass } =
   await import('../src/config/grading.js')
-const { snapshotFromRoster, maxTotalOf, computeRecordRows, computeRecordStats, computeRecord } =
+const { snapshotFromRoster, maxTotalOf, computeRecordRows, computeRecordStats, computeRecord, addLearnerToRecord } =
   await import('../src/utils/classRecordMath.js')
 
 let pass = 0
@@ -142,6 +142,35 @@ test('missing marks count as zero', () => {
   eq(mary.total, 50)
   const john = rows.find((r) => r.rosterId === 'b')
   eq(john.total, 0)
+})
+
+// ── add learner to existing record (new-learner sync) ────────────
+
+console.log('\naddLearnerToRecord')
+
+test('appends a learner and recomputes stats; old marks untouched', () => {
+  const record = {
+    columns,
+    rosterSnapshot: [...snapshot],
+    marks: { ...marks },
+  }
+  const before = computeRecord({ snapshot: record.rosterSnapshot, columns, marks: record.marks }).stats
+  eq(before.count, 3)
+  const { rosterSnapshot, stats, changed } = addLearnerToRecord(record, { rosterId: 'd', fullName: 'New Pupil', learnerNumber: '4', gender: 'M' })
+  eq(changed, true)
+  eq(rosterSnapshot.length, 4)
+  eq(stats.count, 4)
+  // New learner has no marks → lowest becomes 0, pass rate drops (2 of 4 = 50).
+  eq(stats.lowest, 0)
+  eq(stats.passRate, 50)
+  // Existing marks are unchanged in the snapshot/marks we passed in.
+  eq(record.marks.a.maths, 45)
+})
+
+test('is idempotent — re-adding the same learner changes nothing', () => {
+  const record = { columns, rosterSnapshot: [...snapshot], marks: { ...marks } }
+  const { changed } = addLearnerToRecord(record, { rosterId: 'a', fullName: 'Mary', learnerNumber: '1', gender: 'F' })
+  eq(changed, false)
 })
 
 // ── summary ──────────────────────────────────────────────────────

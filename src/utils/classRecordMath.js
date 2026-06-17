@@ -105,3 +105,23 @@ export function computeRecord({ snapshot, columns, marks }) {
   const rows = computeRecordRows({ snapshot, columns, marks })
   return { rows, stats: computeRecordStats(rows) }
 }
+
+/**
+ * Add a learner (snapshot entry) to an existing record and recompute its stats.
+ * Idempotent — if the learner is already in the snapshot, nothing changes.
+ * Returns { rosterSnapshot, stats, changed }. The new learner starts with no
+ * marks (counts as zero) until the teacher enters them.
+ */
+export function addLearnerToRecord(record, snapshotEntry) {
+  const existing = record?.rosterSnapshot || []
+  if (existing.some((s) => s.rosterId === snapshotEntry.rosterId)) {
+    return { rosterSnapshot: existing, stats: record?.stats || {}, changed: false }
+  }
+  const rosterSnapshot = [...existing, snapshotEntry]
+  const { stats } = computeRecord({
+    snapshot: rosterSnapshot,
+    columns: record?.columns || [],
+    marks: record?.marks || {},
+  })
+  return { rosterSnapshot, stats, changed: true }
+}
