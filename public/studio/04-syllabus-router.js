@@ -119,6 +119,16 @@ function classToCbcGrade(klass) {
 // hardcoded syllabus, so an inexact alias is strictly better than missing.
 const SUBJECT_ALIAS = {
   'Mathematics': 'mathematics',
+  // Lower-Primary / ECE store the combined "Maths & Science" sheet under the
+  // `numeracy` slug, but the subject dropdown shows the 2023 learning-area
+  // label "Mathematics and Science" (see STUDIO_SUBJECT_LABELS in
+  // LessonPlanStudio.jsx + TEACHER_SUBJECTS). Without this explicit alias the
+  // generic slugify below turns the label into `mathematics_and_science`,
+  // which matches no curriculum-data.json rows — so the KB bridge fell through
+  // to a stale Firestore copy whose topic/sub-topic names were truncated
+  // ("2.1 EXPLORING MY" instead of "2.1 EXPLORING MY WORLD"). Mapping the
+  // label back to `numeracy` lets the merged source serve the full names.
+  'Mathematics and Science': 'numeracy',
   'Additional Mathematics': 'mathematics',
   'Advanced Mathematics': 'mathematics',
   'Further Mathematics': 'mathematics',
