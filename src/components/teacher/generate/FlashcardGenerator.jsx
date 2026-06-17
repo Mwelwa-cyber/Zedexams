@@ -1,14 +1,13 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   generateFlashcards,
   TEACHER_GRADES,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
   FLASHCARD_COUNTS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -49,16 +48,13 @@ export default function FlashcardGenerator() {
   const [studyIndex, setStudyIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))

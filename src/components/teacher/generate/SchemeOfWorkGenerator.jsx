@@ -6,10 +6,9 @@ import {
   TEACHER_LANGUAGES,
   SCHEME_TERMS,
   SCHEME_WEEK_COUNTS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
@@ -55,10 +54,7 @@ export default function SchemeOfWorkGenerator() {
   const [timetables, setTimetables] = useState([])
   const [timetableId, setTimetableId] = useState('')
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
     let cancelled = false
@@ -87,10 +83,10 @@ export default function SchemeOfWorkGenerator() {
   }, [timetables, form.grade])
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))

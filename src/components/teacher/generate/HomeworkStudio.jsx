@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   generateHomework,
   TEACHER_GRADES,
@@ -7,10 +7,9 @@ import {
   TOTAL_LESSONS_OPTIONS,
   LESSON_NUMBER_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -53,14 +52,12 @@ export default function HomeworkStudio() {
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade), [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 

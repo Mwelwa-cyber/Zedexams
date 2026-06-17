@@ -31,9 +31,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
-  getSubjectsForGrade, isSubjectValidForGrade, defaultSubjectForGrade,
+  defaultSubjectForGrade,
   getTermModuleOutline,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
@@ -235,14 +236,18 @@ export default function WeeklyForecastStudio() {
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
   // ── Smart, grade-aware option lists ──
+  // Subjects come from the Syllabi Studio for the chosen grade (with the
+  // curriculum-valid fall-back); the forecast header stores the printed
+  // *label*, so we map the slug options to label-valued ones.
+  const { subjectOptions: curriculumSubjectOptions, subjectValues } = useCurriculumOptions(header.grade)
   const subjectOptions = useMemo(() => {
-    const opts = getSubjectsForGrade(header.grade).map((o) =>
+    const opts = curriculumSubjectOptions.map((o) =>
       o.group !== undefined ? o : { value: o.label, label: o.label })
     if (header.subject && !opts.some((o) => o.value === header.subject)) {
       return [{ value: header.subject, label: header.subject }, ...opts]
     }
     return opts
-  }, [header.grade, header.subject])
+  }, [curriculumSubjectOptions, header.subject])
 
   const subjectSlug = subjectSlugFor(header.subject)
   const competenceOptions = useMemo(
@@ -294,10 +299,10 @@ export default function WeeklyForecastStudio() {
   // default and forget any module-fallback flag.
   useEffect(() => {
     const slug = subjectSlugFor(header.subject)
-    if (slug && !isSubjectValidForGrade(slug, header.grade)) {
+    if (slug && !subjectValues.has(slug)) {
       setHeader((h) => ({ ...h, subject: defaultSubjectLabel(h.grade) }))
     }
-  }, [header.grade, header.subject])
+  }, [header.grade, header.subject, subjectValues])
 
   // Apply the timetable's teaching days for this subject — once per
   // timetable+subject combo, so manual day edits afterwards still stick.
