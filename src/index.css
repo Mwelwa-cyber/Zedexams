@@ -2883,6 +2883,56 @@ select option {
   .dev-tools.expanded .chev { transform: rotate(180deg); }
 }
 
+/* ── Marketing / public landing contrast pass ──────────────────────────
+ * The public landing pages (Marketing, Plans, TeachersLanding,
+ * GradePackLanding) are pinned to the oatmeal brand theme — a cream
+ * background. Oatmeal's default --text-muted (#78716C warm stone) and
+ * near-white --card (#FFFDF7) wash out on that cream: body copy reads
+ * faint and cards barely separate from the page. Applied via
+ * .marketing-page on each landing root, this scope strengthens the text
+ * ramp (main #1F1F1F / secondary #4B5563 / help #6B7280), makes cards
+ * true-white with a firmer border + shadow, and bolds the orange CTA to a
+ * high-contrast amber-on-ink fill. The learner app's oatmeal theme is
+ * untouched because nothing else carries .marketing-page. Kept unlayered
+ * (outside @layer) so it wins over the themed utility/component classes. */
+.marketing-page {
+  --text:         #1F1F1F;   /* main text — was #1C1917 */
+  --text-muted:   #4B5563;   /* secondary copy — was #78716C (too faint) */
+  --border:       #E2D6C0;   /* firmer hairline on cream */
+  --card:         #FFFFFF;   /* true-white cards, not the cream #FFFDF7 */
+  --card-hover:   #FFFBF3;
+  --accent:       #F59E0B;   /* amber-500 CTA fill */
+  --accent-text:  #111827;   /* dark ink on the orange fill */
+  --input-bg:     #FFFFFF;
+  --input-border: #D8C9AE;
+  /* Cooler, deeper shadows so white cards lift cleanly off the cream bg. */
+  --shadow-sm:    0 1px 2px rgba(28,25,23,0.06), 0 1px 3px rgba(28,25,23,0.10);
+  --shadow-md:    0 2px 6px rgba(28,25,23,0.08), 0 10px 24px rgba(28,25,23,0.12);
+  --shadow-lg:    0 8px 18px rgba(28,25,23,0.12), 0 22px 48px rgba(28,25,23,0.16);
+}
+
+/* Muted/help fine print — the one tier lighter than secondary copy. */
+.marketing-page .theme-text-help { color: #6B7280; }
+
+/* Flat feature/pricing cards ship with no shadow; give them a subtle one
+ * so they still read as cards on cream. Elevated/hero cards already carry
+ * a shadow-elev-* utility and are excluded so they keep their stronger lift
+ * (which now resolves through the strengthened --shadow-* above). */
+.marketing-page .theme-card:not([class*="shadow-elev"]) {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Primary CTAs: max weight so the amber fill reads as the strong action
+ * (covers the newsletter Subscribe button, which ships at font-bold). */
+.marketing-page .theme-accent-fill { font-weight: 900; }
+
+/* Form inputs (newsletter, contact) render solid white, never the faded
+ * transparent fill that disappears into the cream footer. */
+.marketing-page input,
+.marketing-page textarea {
+  background-color: var(--input-bg);
+}
+
 /* ── No scrollbar (for horizontal filter rows) ──────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

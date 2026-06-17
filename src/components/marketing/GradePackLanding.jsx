@@ -109,7 +109,7 @@ function Section({ children, className = '' }) {
 
 function ComingSoon({ pack }) {
   return (
-    <div className="min-h-screen theme-bg theme-text font-body">
+    <div className="marketing-page min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
         title={`${pack.title} — Coming soon`}
         description={`The ${pack.title} is in production — message us on WhatsApp to be first in line when it launches.`}
@@ -184,7 +184,7 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
         description={`Grade ${pack.grade} ECZ revision pack — notes, past papers, practice quizzes & exam strategy. Pay K${monthly.priceZMW} via Mobile Money, confirm on WhatsApp, activated in 30 minutes.`}
         path={`/grade-${pack.grade}`}
       />
-      <div className="min-h-screen theme-bg theme-text font-body">
+      <div className="marketing-page min-h-screen theme-bg theme-text font-body">
         {/* Nav */}
         <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
           <Section className="flex items-center justify-between py-3">

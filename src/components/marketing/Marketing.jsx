@@ -348,7 +348,7 @@ function WorksheetPreview() {
             <span className="font-bold">K117</span>. Calculate the percentage increase.
           </li>
         </ol>
-        <p className="theme-text-muted text-xs italic">…3 more questions on the printable page</p>
+        <p className="theme-text-help text-xs italic">…3 more questions on the printable page</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -376,7 +376,7 @@ export default function Marketing() {
     setContactOpen(true)
   }
   return (
-    <div className="min-h-screen theme-bg theme-text font-body">
+    <div className="marketing-page min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
         title="Zambian CBC exam prep that fits the classroom"
         description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 4–7 learners. Printable lesson tools for Zambian teachers, all in one place."
@@ -636,7 +636,7 @@ export default function Marketing() {
                 ))}
               </ul>
               {tier.upgradeIncludes && (
-                <p className="mb-5 text-xs leading-relaxed theme-text-muted/90 italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
+                <p className="mb-5 text-xs leading-relaxed theme-text-muted italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
                   {tier.upgradeIncludes}
                 </p>
               )}
@@ -777,9 +777,13 @@ export default function Marketing() {
       {/* Footer with visible contact */}
       <footer className="border-t theme-border">
         <Section className="py-10">
-          {/* Newsletter signup — audit C6, list builder. */}
-          <div className="mb-10 pb-8 border-b theme-border">
-            <NewsletterSignup source="marketing-footer" />
+          {/* Newsletter signup — audit C6, list builder. White card on the
+              cream footer so it reads as a sharp, deliberate surface rather
+              than fading into the background band. */}
+          <div className="mb-10">
+            <div className="theme-card border theme-border rounded-2xl shadow-elev-sm p-5 sm:p-6">
+              <NewsletterSignup source="marketing-footer" />
+            </div>
           </div>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -846,7 +850,7 @@ export default function Marketing() {
                     Contact form
                   </button>
                 </li>
-                <li className="theme-text-muted/80">
+                <li className="theme-text-muted">
                   <span className="inline-flex items-center gap-2">
                     <Icon as={ShieldCheck} size="sm" />
                     Schools & admins welcome
@@ -855,7 +859,7 @@ export default function Marketing() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-muted flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-help flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ZedExams. All rights reserved.</span>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <Link to="/privacy" className="hover:theme-text">Privacy</Link>
