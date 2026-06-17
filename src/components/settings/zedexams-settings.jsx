@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getSchoolProfile,
   saveSchoolProfile,
-  uploadSchoolLogo,
   getBrandingFromRecentPapers,
 } from '../../utils/schoolProfileService';
 import { isEmptySchoolProfile } from '../../utils/schoolProfile';
@@ -1085,25 +1084,19 @@ function TeacherSchoolProfilePanel({ pushToast }) {
   const { currentUser } = useAuth();
   const [form, setForm] = useState({
     schoolName: '',
-    schoolLogoUrl: '',
-    schoolLogoTransform: null,
     defaultDuration: '',
     defaultCoverInstructions: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   // True when we pre-filled the form from the teacher's recent papers because
   // no saved profile existed yet (the one-time migration nudge).
   const [prefilled, setPrefilled] = useState(false);
-  const fileRef = useRef(null);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const fromProfile = (p) => ({
     schoolName: p.schoolName || '',
-    schoolLogoUrl: p.schoolLogoUrl || '',
-    schoolLogoTransform: p.schoolLogoTransform || null,
     defaultDuration: p.defaultDuration ? String(p.defaultDuration) : '',
     defaultCoverInstructions: p.defaultCoverInstructions || '',
   });
@@ -1133,28 +1126,11 @@ function TeacherSchoolProfilePanel({ pushToast }) {
     return () => { cancelled = true; };
   }, [currentUser?.uid]);
 
-  const handleLogo = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await uploadSchoolLogo(currentUser.uid, file);
-      set('schoolLogoUrl', url);
-      pushToast('success', 'Logo uploaded — remember to save.');
-    } catch (err) {
-      console.error('school logo upload failed', err);
-      pushToast('error', err?.message || 'Could not upload the logo.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleSave = async () => {
     setSaving(true);
     try {
       await saveSchoolProfile(currentUser.uid, {
         schoolName: form.schoolName,
-        schoolLogoUrl: form.schoolLogoUrl,
-        schoolLogoTransform: form.schoolLogoTransform,
         defaultDuration: form.defaultDuration ? Number(form.defaultDuration) : null,
         defaultCoverInstructions: form.defaultCoverInstructions,
       });
@@ -1181,7 +1157,7 @@ function TeacherSchoolProfilePanel({ pushToast }) {
   return (
     <SectionCard
       title="School details"
-      description="Set your logo, school name, and paper defaults once. New exam papers, tests, and mocks fill these in automatically — you can still change them per paper."
+      description="Set your school name and paper defaults once. New exam papers, tests, and mocks fill these in automatically — you can still change them per paper."
       footer={<Button onClick={handleSave} loading={saving}>Save school details</Button>}
     >
       {prefilled && (
@@ -1194,43 +1170,6 @@ function TeacherSchoolProfilePanel({ pushToast }) {
           {' '}<strong style={{ color: T.text }}>Save</strong> to keep them as your defaults.
         </div>
       )}
-
-      {/* Logo uploader */}
-      <FieldLabel hint="Shown at the top-left of every printed paper">School logo</FieldLabel>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <div style={{
-          width: 72, height: 72, flexShrink: 0,
-          borderRadius: 10, overflow: 'hidden',
-          border: `1px solid ${T.border}`, background: T.surface,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {form.schoolLogoUrl
-            ? <img src={form.schoolLogoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            : <span style={{ fontSize: 22 }} aria-hidden="true">🏫</span>}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleLogo(file);
-              e.target.value = '';
-            }}
-          />
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="soft" onClick={() => fileRef.current?.click()} loading={uploading}>
-              {form.schoolLogoUrl ? 'Replace logo' : 'Upload logo'}
-            </Button>
-            {form.schoolLogoUrl && !uploading && (
-              <Button variant="ghost" onClick={() => set('schoolLogoUrl', '')}>Remove</Button>
-            )}
-          </div>
-          <div style={{ fontSize: 12, color: T.muted }}>JPG, PNG or WEBP, up to 10 MB.</div>
-        </div>
-      </div>
 
       <div className="zx-grid-2">
         <TextField

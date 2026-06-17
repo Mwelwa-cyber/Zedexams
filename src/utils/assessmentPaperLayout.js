@@ -347,8 +347,6 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
     title: buildPaperTitle(assessment),
     subject: String(assessment.subject || '').trim().toUpperCase(),
     paperName: String(assessment.paperName || '').trim().toUpperCase(),
-    logoUrl: assessment.schoolLogoUrl || '',
-    logoTransform: assessment.schoolLogoTransform || null,
     mode,
   })
 

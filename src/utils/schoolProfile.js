@@ -1,14 +1,13 @@
 // School Profile — pure helpers (no Firebase, unit-testable).
 //
-// A teacher's saved school branding lives in schoolProfiles/{uid}: the logo,
-// school name, and the default paper duration + cover instructions. These
-// helpers normalise the stored shape and apply it as DEFAULTS onto a fresh
-// paper's header so new papers print pre-branded. The Firestore + Storage IO
-// lives in ./schoolProfileService; everything here is pure so it can be
-// covered by the plain-node test suite (schoolProfile.test.js).
+// A teacher's saved school branding lives in schoolProfiles/{uid}: the school
+// name and the default paper duration + cover instructions. These helpers
+// normalise the stored shape and apply it as DEFAULTS onto a fresh paper's
+// header so new papers print pre-branded. The Firestore IO lives in
+// ./schoolProfileService; everything here is pure so it can be covered by the
+// plain-node test suite (schoolProfile.test.js).
 
 const MAX_NAME = 200
-const MAX_URL = 2000
 const MAX_INSTRUCTIONS = 2000
 
 function hasText(v) {
@@ -29,11 +28,6 @@ export function normalizeSchoolProfile(data = {}) {
   const d = data && typeof data === 'object' ? data : {}
   return {
     schoolName: trimStr(d.schoolName, MAX_NAME),
-    schoolLogoUrl: trimStr(d.schoolLogoUrl, MAX_URL),
-    schoolLogoTransform:
-      d.schoolLogoTransform && typeof d.schoolLogoTransform === 'object'
-        ? d.schoolLogoTransform
-        : null,
     defaultDuration: positiveIntOrNull(d.defaultDuration),
     // Instructions keep their internal whitespace (multi-line block) — only
     // the length is capped.
@@ -49,7 +43,6 @@ export function isEmptySchoolProfile(profile) {
   const p = normalizeSchoolProfile(profile)
   return (
     !p.schoolName &&
-    !p.schoolLogoUrl &&
     !p.defaultDuration &&
     !p.defaultCoverInstructions
   )
@@ -66,8 +59,6 @@ export function applySchoolProfileDefaults(form, profile) {
   return {
     ...f,
     schoolName: p.schoolName || f.schoolName || '',
-    schoolLogoUrl: p.schoolLogoUrl || f.schoolLogoUrl || '',
-    schoolLogoTransform: p.schoolLogoTransform || f.schoolLogoTransform || null,
     duration: p.defaultDuration || f.duration,
     coverInstructions: p.defaultCoverInstructions || f.coverInstructions || '',
   }
@@ -85,26 +76,20 @@ export function brandingForAiPaper(form, profile, recentBranding) {
     hasText(formVal) ? formVal : (p?.[key] || r?.[key] || formVal || '')
   return {
     schoolName: pick(f.schoolName, 'schoolName'),
-    schoolLogoUrl: pick(f.schoolLogoUrl, 'schoolLogoUrl'),
-    schoolLogoTransform:
-      f.schoolLogoTransform || p?.schoolLogoTransform || r?.schoolLogoTransform || null,
   }
 }
 
 // Derive a branding profile from the teacher's recent papers — the one-time
-// migration source so existing teachers don't lose their logo/name when they
+// migration source so existing teachers don't lose their school name when they
 // first open the School Profile form. `papers` must be newest-first; the most
 // recent paper carrying each field wins.
 export function brandingFromPapers(papers = []) {
   const list = Array.isArray(papers) ? papers : []
   const withSchool = list.find(p => p && hasText(p.schoolName))
-  const withLogo = list.find(p => p && hasText(p.schoolLogoUrl))
   const withDuration = list.find(p => p && positiveIntOrNull(p.duration))
-  if (!withSchool && !withLogo) return null
+  if (!withSchool) return null
   return normalizeSchoolProfile({
     schoolName: withSchool?.schoolName || '',
-    schoolLogoUrl: withLogo?.schoolLogoUrl || '',
-    schoolLogoTransform: withLogo?.schoolLogoTransform || null,
     defaultDuration: withDuration ? withDuration.duration : null,
     defaultCoverInstructions: '',
   })

@@ -489,16 +489,6 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}
   }
 }
 
-async function logoParagraph(url, transform = null) {
-  if (!url) return null
-  // Width applies; offset doesn't translate cleanly to inline Word images,
-  // so we clamp to width-only. The studio surfaces this limitation in the
-  // LogoAdjuster's hint text.
-  const box = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
-  const run = await loadImageRun(url, { width: box, height: box })
-  return run ? centeredPara([run]) : null
-}
-
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
   // A width preset scales the fit-box down from the full-width default so a
@@ -569,8 +559,6 @@ async function renderBlock(block) {
 
 async function renderHeader(b) {
   const out = []
-  const logo = await logoParagraph(b.logoUrl, b.logoTransform)
-  if (logo) out.push(logo)
   out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 })))
   out.push(centeredPara(runText(b.title, { bold: true, size: 22 })))
   if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 })))
