@@ -196,6 +196,7 @@ const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio
 const SbaTaskStudio = lazy(() => import('./components/teacher/generate/SbaTaskStudio'))
 const SbaMarkTracker = lazy(() => import('./components/teacher/generate/SbaMarkTracker'))
 const SbaYearPlanner = lazy(() => import('./components/teacher/generate/SbaYearPlanner'))
+const SbaHub = lazy(() => import('./components/teacher/SbaHub'))
 // Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
 // feature module under src/features/visualStudio/.
 const VisualStudioPage = lazy(() => import('./features/visualStudio').then(m => ({ default: m.VisualStudioPage })))
@@ -597,7 +598,7 @@ export default function App() {
           <Route path="/teacher/generate/sba"             element={<TeacherRoute><SbaTaskStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><SbaMarkTracker /></TeacherRoute>} />
           <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><SbaYearPlanner /></TeacherRoute>} />
-          <Route path="/teacher/sba"                      element={<TeacherRoute><SbaTaskStudio /></TeacherRoute>} />
+          <Route path="/teacher/sba"                      element={<TeacherRoute><SbaHub /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
