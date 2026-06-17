@@ -90,6 +90,7 @@
     "test:assessment-prompt-v6": "node functions/teacherTools/assessmentPromptV6.test.js",
     "test:assessment-schema": "node functions/teacherTools/assessmentSchema.test.js",
     "test:assessment-shapes": "node scripts/test-assessment-shapes.mjs",
+    "test:paper-taxonomy": "node scripts/test-paper-taxonomy.mjs",
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
     "test:assessment-mcq-layout": "node scripts/test-assessment-mcq-layout.mjs",

@@ -19,14 +19,24 @@
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 
 const ASSESSMENT_TYPES = [
-  "exercise", "topic_test", "mid_term", "end_of_term", "mock_exam",
+  "exercise", "topic_test", "monthly_test", "mid_term", "end_of_term",
+  "mock_exam",
 ];
 const ASSESSMENT_TYPE_LABELS = {
   exercise: "Exercise",
   topic_test: "Topic Test",
+  monthly_test: "Monthly Test",
   mid_term: "Mid-Term Test",
   end_of_term: "End of Term Test",
   mock_exam: "Mock Examination",
+};
+
+// Types that have no dedicated format seeds yet borrow another type's paper
+// structure when resolving the format context. A monthly test is a short
+// cumulative check, so it reuses the mid-term layout until purpose-built
+// monthly seeds are authored.
+const FORMAT_TYPE_ALIASES = {
+  monthly_test: "mid_term",
 };
 const GRADE_BANDS = [
   "lower_primary", "upper_primary", "junior_secondary", "senior_secondary",
@@ -421,12 +431,16 @@ function invalidateFormatCache() {
 async function resolveAssessmentFormatContext({grade, subject, assessmentType} = {}) {
   const type = ASSESSMENT_TYPES.includes(assessmentType) ?
     assessmentType : "topic_test";
+  // Resolve format seeds under an aliased type when this type has none of its
+  // own (e.g. monthly_test → mid_term). The generated paper is still labelled
+  // with the real type via ASSESSMENT_TYPE_LABELS.
+  const formatType = FORMAT_TYPE_ALIASES[type] || type;
   const band = gradeToBand(grade);
   let match = null;
   try {
     const profiles = await getAllFormatProfiles();
     match = matchFormatProfile(profiles,
-      {gradeBand: band, subject, assessmentType: type});
+      {gradeBand: band, subject, assessmentType: formatType});
   } catch (err) {
     console.error("resolveAssessmentFormatContext failed; using default", err);
   }
@@ -441,6 +455,7 @@ async function resolveAssessmentFormatContext({grade, subject, assessmentType} =
 module.exports = {
   ASSESSMENT_TYPES,
   ASSESSMENT_TYPE_LABELS,
+  FORMAT_TYPE_ALIASES,
   GRADE_BANDS,
   GENERIC_SUBJECT,
   DEFAULT_PROFILE,
