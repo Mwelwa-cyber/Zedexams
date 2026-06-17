@@ -83,6 +83,7 @@ import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
   CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
+import { subjectLabel as kbSubjectLabel } from './paperTaxonomy'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -1101,8 +1102,13 @@ export default function AssessmentStudio() {
     // re-typing it each time.
     const typeMap = {
       mid_term: 'mid_term', end_of_term: 'end_of_term',
-      topic_test: 'topic', mock_exam: 'mock',
+      topic_test: 'topic', mock_exam: 'mock', monthly_test: 'monthly',
     }
+    // The modal now emits a canonical subject KEY ('numeracy',
+    // 'integrated_science'); the studio form carries a display label, so map
+    // it back to something human-readable for the header/exports.
+    const aiSubjectLabel = aiPaperForm.subject
+      ? kbSubjectLabel(aiPaperForm.subject) : ''
     setForm(f => {
       const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
       const recentBranding = {
@@ -1114,7 +1120,7 @@ export default function AssessmentStudio() {
         // Grade/subject were chosen explicitly in the modal — the paper
         // follows them (unlike the fields below, which only backfill).
         grade: aiPaperForm.grade || f.grade,
-        subject: aiPaperForm.subject || f.subject,
+        subject: aiSubjectLabel || f.subject,
         term: f.term || aiPaperForm.term,
         duration: f.duration || String(aiPaperForm.durationMinutes),
         assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,

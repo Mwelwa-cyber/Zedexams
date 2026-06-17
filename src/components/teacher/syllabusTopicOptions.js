@@ -1,14 +1,16 @@
-// Syllabus-backed topic/sub-topic suggestions for the Assessment Studio's
-// AI tools. Same data source as TopicSubtopicPicker (merged syllabi:
-// curriculum-data.json + admin KB overrides — covers both the 2023 CBC
-// and the older syllabus rows), but exposed as a hook that returns plain
-// option arrays so the studio can feed its own <datalist> inputs.
+// Syllabus-backed subject / topic / sub-topic suggestions for the Assessment
+// Studio's AI tools. Same data source as TopicSubtopicPicker (merged syllabi:
+// curriculum-data.json + admin KB overrides — covers both the 2023 CBC and
+// the older 2013 syllabus rows), exposed as hooks that return plain option
+// arrays so the studio can feed its own <select>/<datalist> inputs.
 
 import { useEffect, useState } from 'react'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../utils/syllabus2013Topics'
-import { normalizeSubject } from '../../config/curriculum.js'
+import {
+  studioGradeToKbGrade, toKbSubjectKey, subjectLabel,
+} from './paperTaxonomy'
 
 // Curriculum frameworks the pickers can suggest from. Values match the
 // server's normalizeFramework whitelist (resolveCbcContext grounds the
@@ -18,26 +20,14 @@ export const CURRICULUM_FRAMEWORKS = [
   { value: '2013', label: 'Old syllabus (2013)' },
 ]
 
-// Studio form values → KB keys. The studio stores grade as '4' and
-// subject as a display label ('Integrated Science').
-export function studioGradeToKbGrade(grade) {
-  const g = String(grade || '').trim().toUpperCase()
-  if (!g) return ''
-  // Pass through grade/form codes and the ECE family (ECE, ECE_N, ECE_R)
-  // unchanged; only bare numbers ("4") get the G-prefix.
-  return g.startsWith('G') || g.startsWith('F') || g.startsWith('ECE') ? g : `G${g}`
-}
+// Re-exported from the pure taxonomy module so existing importers
+// (AssessmentStudio, GeneratePanel) keep working unchanged.
+export { studioGradeToKbGrade }
 
-const SUBJECT_FIXES = {
-  expressive_art: 'expressive_arts',
-  science: 'integrated_science',
-}
-
+// Back-compat alias: callers historically imported `studioSubjectToKey` from
+// here. It now delegates to the shared, idempotent canonical-key resolver.
 export function studioSubjectToKey(subject) {
-  const norm = normalizeSubject(String(subject || ''))
-  const key = String(norm || subject || '')
-    .toLowerCase().trim().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '')
-  return SUBJECT_FIXES[key] || key
+  return toKbSubjectKey(subject)
 }
 
 let _lookupCache = null
@@ -103,13 +93,9 @@ async function load2013Lookup() {
   return _lookup2013Promise
 }
 
-/**
- * Hook: topic + sub-topic suggestion lists for a studio grade/subject from
- * the chosen curriculum framework ('2023' new CBC default, '2013' old
- * syllabus). Degrades to empty arrays when the syllabi can't load —
- * callers keep their inputs as plain free text.
- */
-export function useSyllabusTopicOptions(grade, subject, topic = '', framework = '2023') {
+// Shared loader hook: returns the merged lookup Map for the chosen framework
+// plus a `loading` flag. Both the subject and topic hooks build on it.
+function useSyllabusLookup(framework = '2023') {
   const is2013 = framework === '2013'
   const [lookup, setLookup] = useState(is2013 ? _lookup2013Cache : _lookupCache)
   useEffect(() => {
@@ -122,14 +108,62 @@ export function useSyllabusTopicOptions(grade, subject, topic = '', framework = 
       .catch(() => { if (!cancelled) setLookup(new Map()) })
     return () => { cancelled = true }
   }, [is2013])
+  return { lookup, loading: lookup == null }
+}
 
-  const key = `${studioGradeToKbGrade(grade)}|${studioSubjectToKey(subject)}`
+/**
+ * Hook: the subjects that actually have syllabus rows for a grade in the
+ * chosen framework, as { key, label } pairs. This is what fixes "Grade 1 has
+ * no syllabus" — lower-primary/ECE bundle their subjects under keys
+ * (numeracy, zambian_language, creative_and_technology_studies) that a fixed
+ * upper-grade subject list never matched. Returns `loading` so callers can
+ * fall back to a static list only after the fetch settles.
+ */
+export function useSyllabusSubjectOptions(grade, framework = '2023') {
+  const { lookup, loading } = useSyllabusLookup(framework)
+  const g = studioGradeToKbGrade(grade)
+  const prefix = `${g}|`
+  const keys = new Set()
+  if (lookup && g) {
+    for (const k of lookup.keys()) {
+      if (k.startsWith(prefix)) keys.add(k.slice(prefix.length))
+    }
+  }
+  const subjects = Array.from(keys)
+    .map((key) => ({ key, label: subjectLabel(key) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  return { subjects, loading }
+}
+
+/**
+ * Hook: topic + sub-topic suggestion lists for a studio grade/subject from
+ * the chosen curriculum framework ('2023' new CBC default, '2013' old
+ * syllabus). `topic` may be a single topic string or an array of topics —
+ * sub-topics are the UNION across all of them (so a multi-topic monthly test
+ * can pick sub-topics from every topic it covers). Degrades to empty arrays
+ * when the syllabi can't load — callers keep their inputs as plain free text.
+ */
+export function useSyllabusTopicOptions(grade, subject, topic = '', framework = '2023') {
+  const { lookup, loading } = useSyllabusLookup(framework)
+
+  const key = `${studioGradeToKbGrade(grade)}|${toKbSubjectKey(subject)}`
   const inner = lookup?.get(key)
   const topics = inner ? Array.from(inner.keys()).sort() : []
-  const subs = inner?.get(String(topic || '').trim())
-  const subtopics = subs ? Array.from(subs).sort() : []
+
+  const requested = (Array.isArray(topic) ? topic : [topic])
+    .map((t) => String(t || '').trim())
+    .filter(Boolean)
+  const subSet = new Set()
+  if (inner) {
+    for (const t of requested) {
+      const subs = inner.get(t)
+      if (subs) for (const s of subs) subSet.add(s)
+    }
+  }
+  const subtopics = Array.from(subSet).sort()
+
   // `loading` lets callers distinguish "syllabi still fetching" (empty for
   // now) from "genuinely no rows for this grade/subject" so a drop-down can
   // wait rather than prematurely falling back to free text.
-  return { topics, subtopics, loading: lookup == null }
+  return { topics, subtopics, loading }
 }

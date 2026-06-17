@@ -11,6 +11,8 @@ const {
   buildFormatId,
   validateFormatProfile,
   renderFormatContextBlock,
+  ASSESSMENT_TYPES,
+  FORMAT_TYPE_ALIASES,
   DEFAULT_PROFILE,
   GENERIC_SUBJECT,
 } = require("./assessmentFormats");
@@ -124,6 +126,28 @@ console.log("assessmentFormats");
   const derived = validateFormatProfile({...good, id: ""});
   assert.strictEqual(derived.value.id, buildFormatId(good));
   ok("missing id is derived from type-band-subject", true);
+}
+
+// ── monthly_test type + format alias ──────────────────────────────────────
+{
+  assert.ok(ASSESSMENT_TYPES.includes("monthly_test"),
+    "monthly_test is a recognised assessment type");
+  assert.ok(ASSESSMENT_TYPES.includes("exercise"),
+    "exercise type kept on the backend for back-compat");
+  ok("ASSESSMENT_TYPES includes monthly_test (and still exercise)", true);
+
+  // monthly_test has no dedicated seeds, so it borrows the mid_term layout.
+  assert.strictEqual(FORMAT_TYPE_ALIASES.monthly_test, "mid_term",
+    "monthly_test aliases to mid_term for format resolution");
+  // The alias target must actually resolve to a real profile.
+  const aliased = matchFormatProfile(FORMAT_PROFILES, {
+    gradeBand: "upper_primary",
+    subject: "mathematics",
+    assessmentType: FORMAT_TYPE_ALIASES.monthly_test,
+  });
+  assert.ok(aliased && aliased.assessmentType === "mid_term",
+    "alias target resolves to a mid_term profile");
+  ok("monthly_test borrows the mid_term format profile", true);
 }
 
 console.log(`assessmentFormats: ${passed} checks passed`);

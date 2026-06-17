@@ -67,8 +67,8 @@ function sanitizeInputs(raw = {}) {
   return {
     grade,
     subject,
-    topic: str(raw.topic, 160),
-    subtopic: str(raw.subtopic, 200),
+    topic: str(raw.topic, 240),
+    subtopic: str(raw.subtopic, 300),
     term: term >= 1 && term <= 3 ? term : null,
     lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
     totalLessons: totalLessons >= 1 ? totalLessons : null,
