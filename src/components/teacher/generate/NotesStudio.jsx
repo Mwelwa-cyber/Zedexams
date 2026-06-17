@@ -25,6 +25,7 @@ import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import { FieldLabel, FieldText, FieldTextarea, FieldSelect } from './studioFields'
 
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
@@ -469,71 +470,6 @@ function SelectedPlanSummary({ plan }) {
 }
 
 /* ── Form fields ──────────────────────────────────────────────── */
-
-function FieldLabel({ children }) {
-  return <label className="studio-label">{children}</label>
-}
-
-function FieldText({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        className="studio-input"
-      />
-    </div>
-  )
-}
-
-function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        rows={3}
-        className="studio-input resize-none"
-      />
-    </div>
-  )
-}
-
-function FieldSelect({ label, value, options, onChange }) {
-  const groups = []
-  let cur = null
-  for (const o of options) {
-    if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
-    else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
-  }
-  if (cur) groups.push(cur)
-  const flat = groups.length === 1 && !groups[0].label
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="studio-input"
-      >
-        {flat
-          ? groups[0].items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
-          : groups.map((g, i) => g.label
-              ? <optgroup key={i} label={g.label}>{g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
-              : g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
-          )
-        }
-      </select>
-    </div>
-  )
-}
 
 /* ── State views ──────────────────────────────────────────────── */
 
