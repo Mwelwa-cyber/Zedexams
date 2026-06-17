@@ -1,0 +1,162 @@
+/**
+ * MarkEntryGrid — enter marks for one Class Register record.
+ *
+ * The roster is pre-loaded from the record's snapshot, so the teacher only
+ * types marks — never names. Totals, percentage, CBC grade, position and the
+ * class stats (average, highest, lowest, pass rate) recompute live as marks
+ * are entered (src/utils/classRecordMath.js), then persist on Save.
+ *
+ * Wide by nature — uses overflow-x-auto so it scrolls horizontally on phones.
+ */
+
+import { useMemo, useState } from 'react'
+import { computeRecord } from '../../../utils/classRecordMath'
+import { saveRecordMarks } from '../../../utils/classRecords'
+import { useToast } from '../../ui/Toast'
+import Button from '../../ui/Button'
+
+const GRADE_TONE = {
+  Excellent: 'text-emerald-600',
+  'Very Good': 'text-emerald-600',
+  Good: 'text-blue-600',
+  Developing: 'text-amber-600',
+  'Needs Improvement': 'text-red-500',
+}
+
+function Stat({ label, value, suffix = '' }) {
+  return (
+    <div className="theme-card border theme-border rounded-radius-md px-3 py-2 text-center">
+      <p className="theme-text font-display font-black text-lg leading-none">{value}{suffix}</p>
+      <p className="theme-text-muted text-[10px] uppercase tracking-wider mt-1">{label}</p>
+    </div>
+  )
+}
+
+export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
+  const toast = useToast()
+  const columns = useMemo(() => record.columns || [], [record.columns])
+  const snapshot = useMemo(() => record.rosterSnapshot || [], [record.rosterSnapshot])
+  const [marks, setMarks] = useState(() => ({ ...(record.marks || {}) }))
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const { rows, stats } = useMemo(
+    () => computeRecord({ snapshot, columns, marks }),
+    [snapshot, columns, marks],
+  )
+  const rowByRoster = useMemo(() => new Map(rows.map((r) => [r.rosterId, r])), [rows])
+
+  function setMark(rosterId, colKey, raw, max) {
+    setDirty(true)
+    setMarks((prev) => {
+      const next = { ...prev, [rosterId]: { ...(prev[rosterId] || {}) } }
+      if (raw === '') {
+        delete next[rosterId][colKey]
+      } else {
+        let n = Number(raw)
+        if (!Number.isFinite(n)) return prev
+        n = Math.max(0, Math.min(Number(max) || 0, n))
+        next[rosterId][colKey] = n
+      }
+      return next
+    })
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const savedStats = await saveRecordMarks(classId, record.id, { marks, snapshot, columns })
+      setDirty(false)
+      toast.success('Marks saved.')
+      if (onSaved) onSaved(savedStats)
+    } catch (err) {
+      toast.error(`Could not save marks: ${err.message || 'unexpected error'}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const cellInput = 'w-16 rounded border theme-border theme-card theme-text px-1.5 py-1 text-sm text-center'
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <button type="button" onClick={onClose} className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text">
+            ← Back to mark schedules
+          </button>
+          <h3 className="theme-text font-display font-black text-xl mt-1">{record.title}</h3>
+        </div>
+        <Button onClick={handleSave} loading={saving} disabled={!dirty}>
+          {dirty ? 'Save marks' : 'Saved'}
+        </Button>
+      </div>
+
+      {/* Live class stats */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        <Stat label="Learners" value={stats.count} />
+        <Stat label="Class avg" value={stats.classAverage} suffix="%" />
+        <Stat label="Highest" value={stats.highest} />
+        <Stat label="Lowest" value={stats.lowest} />
+        <Stat label="Pass rate" value={stats.passRate} suffix="%" />
+      </div>
+
+      {snapshot.length === 0 ? (
+        <div className="theme-card border theme-border rounded-radius-md p-6 text-center theme-text-muted text-sm">
+          This record has no learners. Add learners to the class list, then create a new schedule.
+        </div>
+      ) : (
+        <div className="overflow-x-auto theme-card border theme-border rounded-radius-md">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="theme-text-muted text-[11px] uppercase tracking-wider text-left border-b theme-border">
+                <th className="px-2 py-2 w-10">#</th>
+                <th className="px-2 py-2 min-w-[140px]">Learner</th>
+                {columns.map((c) => (
+                  <th key={c.key} className="px-2 py-2 text-center whitespace-nowrap">
+                    {c.label}<span className="theme-text-muted font-normal"> /{c.max}</span>
+                  </th>
+                ))}
+                <th className="px-2 py-2 text-center">Total</th>
+                <th className="px-2 py-2 text-center">%</th>
+                <th className="px-2 py-2 text-center">Grade</th>
+                <th className="px-2 py-2 text-center">Pos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshot.map((s, i) => {
+                const r = rowByRoster.get(s.rosterId) || {}
+                return (
+                  <tr key={s.rosterId} className="border-b theme-border last:border-0">
+                    <td className="px-2 py-1.5 theme-text-muted">{s.learnerNumber || i + 1}</td>
+                    <td className="px-2 py-1.5 theme-text font-bold whitespace-nowrap">{s.fullName}</td>
+                    {columns.map((c) => (
+                      <td key={c.key} className="px-2 py-1.5 text-center">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={c.max}
+                          value={marks[s.rosterId]?.[c.key] ?? ''}
+                          onChange={(e) => setMark(s.rosterId, c.key, e.target.value, c.max)}
+                          className={cellInput}
+                          aria-label={`${c.label} mark for ${s.fullName}`}
+                        />
+                      </td>
+                    ))}
+                    <td className="px-2 py-1.5 text-center theme-text font-black">{r.total}</td>
+                    <td className="px-2 py-1.5 text-center theme-text-muted">{r.percentage}%</td>
+                    <td className={`px-2 py-1.5 text-center text-xs font-black ${GRADE_TONE[r.gradeLabel] || 'theme-text-muted'}`}>
+                      {r.gradeLabel}
+                    </td>
+                    <td className="px-2 py-1.5 text-center theme-text font-black">{r.position}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
