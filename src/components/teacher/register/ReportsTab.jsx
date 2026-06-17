@@ -1,0 +1,119 @@
+/**
+ * Reports tab — export a Class Register record as the documents schools keep:
+ * an Excel mark schedule, a Word mark schedule, or per-learner report cards.
+ *
+ * Reuses the existing exporters (markScheduleToXlsx / markScheduleToDocx /
+ * reportCardsToDocx) by adapting a record into the `schedule` artifact they
+ * expect. buildSchedule() (markSchedule.js) supplies totals, dense-ranked
+ * positions and teacher-voice comments, so the cards carry comments too.
+ */
+
+import { useEffect, useState } from 'react'
+import { listRecords } from '../../../utils/classRecords'
+import { buildSchedule } from '../../../utils/markSchedule'
+import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
+import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
+import { useToast } from '../../ui/Toast'
+import Button from '../../ui/Button'
+import Skeleton from '../../ui/Skeleton'
+
+/** Adapt a stored record + its class into the exporters' `schedule` shape. */
+export function recordToSchedule(record, register) {
+  const subjects = (record.columns || []).map((c) => ({ key: c.key, label: c.label, max: Number(c.max) || 0 }))
+  const pupilsIn = (record.rosterSnapshot || []).map((s, i) => ({
+    sn: i + 1,
+    name: s.fullName || '',
+    marks: (record.marks && record.marks[s.rosterId]) || {},
+  }))
+  const pupils = buildSchedule(pupilsIn, subjects) // adds total, position, comment
+  return {
+    header: {
+      school: register.school || '',
+      grade: register.grade || '',
+      term: record.term || register.term || '',
+      year: record.year || register.year || '',
+    },
+    subjects,
+    pupils,
+  }
+}
+
+function safeName(s) {
+  return String(s || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'class'
+}
+
+export default function ReportsTab({ register }) {
+  const classId = register.id
+  const toast = useToast()
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    listRecords(classId)
+      .then((recs) => { if (!cancelled) setRecords(recs) })
+      .catch((err) => console.warn('[ReportsTab] load failed', err))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [classId])
+
+  async function run(record, kind) {
+    setBusyId(`${record.id}:${kind}`)
+    try {
+      const schedule = recordToSchedule(record, register)
+      const base = `${safeName(register.className)}-${safeName(record.title)}`
+      if (kind === 'xlsx') await downloadMarkScheduleXlsx(schedule, `${base}.xlsx`)
+      else if (kind === 'docx') await downloadMarkScheduleDocx(schedule, `${base}.docx`)
+      else if (kind === 'cards') await downloadReportCardsDocx(schedule, `${base}-report-cards.docx`)
+    } catch (err) {
+      console.warn('[ReportsTab] export failed', err)
+      toast.error(`Export failed: ${err.message || 'unexpected error'}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading) return <Skeleton className="h-24 rounded-radius-md" />
+
+  if (records.length === 0) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
+        <div className="text-4xl mb-2">📄</div>
+        <p className="theme-text font-black">Nothing to report yet</p>
+        <p className="theme-text-muted text-sm mt-1">
+          Create a mark schedule and enter marks — then export it here as Excel, Word, or report cards.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="theme-text-muted text-sm">Export any record as the documents your school keeps.</p>
+      <ul className="space-y-2">
+        {records.map((rec) => (
+          <li key={rec.id} className="theme-card border theme-border rounded-radius-md p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="theme-text font-black text-sm truncate">{rec.title}</p>
+                <p className="theme-text-muted text-xs mt-0.5">
+                  {rec.type.replace('_', ' ')}
+                  {` · ${rec.rosterSnapshot?.length || 0} learners`}
+                  {rec.stats?.count ? ` · avg ${rec.stats.classAverage}%` : ''}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" loading={busyId === `${rec.id}:xlsx`} onClick={() => run(rec, 'xlsx')}>Excel</Button>
+                <Button size="sm" variant="secondary" loading={busyId === `${rec.id}:docx`} onClick={() => run(rec, 'docx')}>Word</Button>
+                <Button size="sm" variant="ghost" loading={busyId === `${rec.id}:cards`} onClick={() => run(rec, 'cards')}>Report cards</Button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}

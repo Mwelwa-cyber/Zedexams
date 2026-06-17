@@ -15,6 +15,8 @@ import ConfirmDialog from '../../ui/ConfirmDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import ClassListTab from './ClassListTab'
+import MarkSchedulesTab from './MarkSchedulesTab'
+import ReportsTab from './ReportsTab'
 
 const TABS = [
   { key: 'class-list', label: 'Class List' },
@@ -133,9 +135,14 @@ export default function ClassRegisterDetail() {
         })}
       </nav>
 
-      {activeTab === 'class-list'
-        ? <ClassListTab register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
-        : <ComingSoonPanel label={TABS.find((t) => t.key === activeTab)?.label || 'This view'} />}
+      {activeTab === 'class-list' && (
+        <ClassListTab register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
+      )}
+      {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
+      {activeTab === 'reports' && <ReportsTab register={reg} />}
+      {['sba', 'results', 'progress'].includes(activeTab) && (
+        <ComingSoonPanel label={TABS.find((t) => t.key === activeTab)?.label || 'This view'} />
+      )}
 
       <ConfirmDialog
         open={confirmArchive}
