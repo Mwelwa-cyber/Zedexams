@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   generateWorksheetStream,
   TEACHER_GRADES,
@@ -10,10 +10,9 @@ import {
   LESSON_NUMBER_OPTIONS,
   TOTAL_LESSONS_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -66,16 +65,13 @@ export default function WorksheetGenerator() {
     }
   }, [])
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))

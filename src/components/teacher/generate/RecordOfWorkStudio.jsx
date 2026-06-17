@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -113,6 +114,30 @@ export default function RecordOfWorkStudio() {
   useEffect(() => { setDirtySinceSave(true) }, [header, weeks])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+
+  // Subjects come from the Syllabi Studio for the chosen grade (with the
+  // curriculum-valid fall-back). The record stores the printed subject label,
+  // so we map the slug options to label-valued ones and keep any custom value
+  // already on the record (e.g. an older draft) selectable.
+  const { subjectOptions: curriculumSubjectOptions } = useCurriculumOptions(header.grade)
+  const subjectOptions = useMemo(() => {
+    const opts = curriculumSubjectOptions.map((o) =>
+      (o.group !== undefined ? o : { value: o.label, label: o.label }))
+    if (header.subject && !opts.some((o) => o.value === header.subject)) {
+      return [{ value: header.subject, label: header.subject }, ...opts]
+    }
+    return opts
+  }, [curriculumSubjectOptions, header.subject])
+  const subjectGroups = useMemo(() => {
+    const groups = []
+    let cur = null
+    for (const o of subjectOptions) {
+      if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
+      else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
+    }
+    if (cur) groups.push(cur)
+    return groups
+  }, [subjectOptions])
 
   const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
 
@@ -261,7 +286,13 @@ export default function RecordOfWorkStudio() {
               </div>
               <div>
                 <label className="studio-label">Subject</label>
-                <input type="text" value={header.subject} maxLength={60} onChange={(e) => setH('subject', e.target.value)} placeholder="e.g. Integrated Science" className="studio-input" />
+                <select value={header.subject} onChange={(e) => setH('subject', e.target.value)} className="studio-input">
+                  <option value="">Choose a subject…</option>
+                  {subjectGroups.map((g, i) => (g.label
+                    ? <optgroup key={i} label={g.label}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+                    : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="studio-label">Term</label>

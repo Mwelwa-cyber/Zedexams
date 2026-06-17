@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import {
   generateRubric,
   TEACHER_GRADES,
@@ -6,10 +6,9 @@ import {
   RUBRIC_TASK_TYPES,
   RUBRIC_TOTAL_MARKS,
   RUBRIC_CRITERIA_COUNTS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -43,16 +42,13 @@ export default function RubricGenerator() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))

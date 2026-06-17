@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   generateLessonPlanStream,
@@ -9,10 +9,9 @@ import {
   LESSON_NUMBER_OPTIONS,
   TOTAL_LESSONS_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -80,19 +79,16 @@ export default function LessonPlanGenerator() {
   // Subjects taught at the current grade in the Zambian CBC. Recomputed
   // when the teacher changes grade so a Grade-1 teacher never sees Biology
   // and a Grade-12 teacher never sees Literacy.
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   // If the teacher switches to a grade where their previously-picked
   // subject isn't taught (e.g. G5 Mathematics → ECE, where it's Numeracy),
   // snap the subject to the first valid one for that grade.
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))

@@ -6,10 +6,9 @@ import {
   TEACHER_GRADES,
   TEACHER_LANGUAGES,
   DURATION_PRESETS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -83,16 +82,13 @@ export default function NotesStudio() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   const selectedPlan = useMemo(
     () => plans.find((p) => p.id === form.lessonPlanId) || null,
