@@ -234,7 +234,7 @@ export default function Plans() {
         description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
         path="/pricing"
       />
-      <div className="min-h-screen theme-bg theme-text font-body">
+      <div className="marketing-page min-h-screen theme-bg theme-text font-body">
         {/* Top nav */}
         <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
           <Section className="flex items-center justify-between py-3">

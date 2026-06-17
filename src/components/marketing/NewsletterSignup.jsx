@@ -108,7 +108,7 @@ export default function NewsletterSignup({ source = 'marketing-footer' }) {
           required
           maxLength={254}
           disabled={submitting}
-          className="flex-1 min-w-0 rounded-radius-md border theme-border bg-transparent px-3 py-2 text-sm theme-text placeholder:theme-text-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="flex-1 min-w-0 rounded-radius-md border theme-border bg-[color:var(--input-bg)] px-3 py-2 text-sm theme-text placeholder:theme-text-muted focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
         />
         <button
           type="submit"
@@ -136,7 +136,7 @@ export default function NewsletterSignup({ source = 'marketing-footer' }) {
       {error && (
         <p className="mt-2 text-xs text-rose-700" role="alert">{error}</p>
       )}
-      <p className="mt-2 text-xs theme-text-muted/80">
+      <p className="mt-2 text-xs theme-text-help">
         We never share your email. Unsubscribe any time by replying to a message.
       </p>
     </form>
