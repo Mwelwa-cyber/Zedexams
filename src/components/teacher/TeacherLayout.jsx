@@ -7,7 +7,6 @@ import {
   LogOut,
   Settings,
   Sparkles,
-  Users,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -22,7 +21,6 @@ const NAV = [
   { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
-  { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
   { to: '/my-subscription',          icon: Sparkles,        label: 'My Subscription'         },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
 ]
