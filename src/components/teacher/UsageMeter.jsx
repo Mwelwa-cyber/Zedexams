@@ -146,7 +146,7 @@ export default function UsageMeter() {
             Today: <strong>{data.today}</strong> of <strong>{data.daily}</strong> generations
           </span>
           <div className="zum-daily-bar">
-            <div className="zum-daily-fill" style={{ width: `${Math.min(100, (data.today / data.daily) * 100)}%` }} />
+            <div className="zum-daily-fill" style={{ width: `${data.daily > 0 ? Math.min(100, (data.today / data.daily) * 100) : 0}%` }} />
           </div>
         </div>
 

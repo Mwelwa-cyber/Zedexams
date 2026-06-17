@@ -635,9 +635,6 @@ function ErrorState({ message, detail, onDismiss }) {
       <button onClick={onDismiss} className="studio-btn-ghost">
         Try again
       </button>
-      <p className="text-[10px] mt-4 max-w-md" style={{ color: '#8a9aa1' }}>
-        See DEBUG_LESSON_PLAN.md in your project root for the diagnostic checklist.
-      </p>
     </div>
   )
 }

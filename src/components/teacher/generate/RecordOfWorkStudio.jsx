@@ -78,6 +78,9 @@ export default function RecordOfWorkStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
+  // Skip the mount + draft-restore runs of the dirty-marking effect so a
+  // freshly-loaded saved record isn't flagged "Update in library".
+  const dirtySkipRef = useRef(1)
 
   // Saved schemes for the picker — quietly degrades to manual entry.
   useEffect(() => {
@@ -95,9 +98,11 @@ export default function RecordOfWorkStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-    if (Array.isArray(draft.weeks) && draft.weeks.length) setWeeks(draft.weeks)
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
+    if (Array.isArray(draft.weeks) && draft.weeks.length) { setWeeks(draft.weeks); restoredDirtyState = true }
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   // Debounced autosave.
@@ -111,7 +116,10 @@ export default function RecordOfWorkStudio() {
     return () => clearTimeout(t)
   }, [uid, header, weeks, generationId])
 
-  useEffect(() => { setDirtySinceSave(true) }, [header, weeks])
+  useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
+    setDirtySinceSave(true)
+  }, [header, weeks])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 

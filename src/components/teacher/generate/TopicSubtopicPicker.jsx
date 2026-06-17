@@ -160,16 +160,20 @@ export default function TopicSubtopicPicker({
 
   const topicPickEmpty = !loading && topicOptions.length === 0
 
-  // On first settle, start in "write" for any value the syllabus doesn't
-  // know — so a pre-filled custom topic/sub-topic shows instead of looking
-  // blank in the drop-down. Only runs once, before the teacher interacts.
-  const autoModeApplied = useRef(false)
+  // Start in "write" for any value the syllabus doesn't know — so a custom
+  // topic/sub-topic shows instead of looking blank in the drop-down. This
+  // re-evaluates whenever the grade/subject changes underneath the picker:
+  // otherwise a topic picked for one grade stays in form state (and gets
+  // submitted) while the drop-down silently renders it blank against the new
+  // grade's options. Only ever flips 'pick'→'write', so it never interrupts
+  // free-text typing.
+  const lastEvalKey = useRef(null)
   useEffect(() => {
-    if (loading || autoModeApplied.current) return
-    autoModeApplied.current = true
+    if (loading || lastEvalKey.current === innerKey) return
+    lastEvalKey.current = innerKey
     if (topic && !topicOptions.includes(topic)) setTopicMode('write')
     if (subtopic && !subtopicOptions.includes(subtopic)) setSubtopicMode('write')
-  }, [loading, topic, subtopic, topicOptions, subtopicOptions])
+  }, [loading, innerKey, topic, subtopic, topicOptions, subtopicOptions])
 
   // No syllabus rows at all → the drop-down would be a dead end.
   useEffect(() => {

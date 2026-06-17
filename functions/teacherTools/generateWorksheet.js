@@ -74,7 +74,18 @@ const WORKSHEET_TOOL_SCHEMA = {
         },
       },
     },
-    answerKey: {type: "array", items: {type: "object", additionalProperties: true}},
+    // answerKey is a single object — the prompt and validator both treat it as
+    // { markingNotes, totalMarks }. (It was previously declared as an array,
+    // which steered Claude toward the wrong shape and silently dropped the
+    // marking guidance whenever the model obeyed the schema over the prose.)
+    answerKey: {
+      type: "object",
+      properties: {
+        markingNotes: {type: "string"},
+        totalMarks: {type: "number"},
+      },
+      additionalProperties: true,
+    },
   },
   required: ["header", "sections"],
 };

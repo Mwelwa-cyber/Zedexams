@@ -115,6 +115,9 @@ export default function ClassTimetableStudio() {
   const [confirmClear, setConfirmClear] = useState(false)
   const loadedRef = useRef(false)
   const lastGradeRef = useRef(initialGrade)
+  // Skip the mount + draft-restore runs of the dirty-marking effect so a
+  // freshly-loaded saved timetable isn't flagged "Update in library".
+  const dirtySkipRef = useRef(1)
 
   const periods = useMemo(() => buildPeriods(timing), [timing])
   const capacity = useMemo(() => lessonCapacity(periods, days), [periods, days])
@@ -155,12 +158,14 @@ export default function ClassTimetableStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); lastGradeRef.current = draft.header.grade || lastGradeRef.current }
-    if (Array.isArray(draft.days) && draft.days.length) setDays(draft.days)
-    if (draft.timing) setTiming((t) => ({ ...t, ...draft.timing }))
-    if (Array.isArray(draft.subjects) && draft.subjects.length) setSubjects(draft.subjects)
-    if (draft.slots && typeof draft.slots === 'object') setSlots(draft.slots)
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); lastGradeRef.current = draft.header.grade || lastGradeRef.current; restoredDirtyState = true }
+    if (Array.isArray(draft.days) && draft.days.length) { setDays(draft.days); restoredDirtyState = true }
+    if (draft.timing) { setTiming((t) => ({ ...t, ...draft.timing })); restoredDirtyState = true }
+    if (Array.isArray(draft.subjects) && draft.subjects.length) { setSubjects(draft.subjects); restoredDirtyState = true }
+    if (draft.slots && typeof draft.slots === 'object') { setSlots(draft.slots); restoredDirtyState = true }
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   /* Reseed the subject list — and right-size the grid — from the curriculum
@@ -188,7 +193,10 @@ export default function ClassTimetableStudio() {
   }, [uid, header, days, timing, subjects, slots, generationId])
 
   /* Any data edit marks the library copy stale. */
-  useEffect(() => { setDirtySinceSave(true) }, [header, days, timing, subjects, slots])
+  useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
+    setDirtySinceSave(true)
+  }, [header, days, timing, subjects, slots])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
   const setT = (field, value) => setTiming((t) => ({ ...t, [field]: value }))

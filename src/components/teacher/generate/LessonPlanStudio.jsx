@@ -504,10 +504,10 @@ export default function LessonPlanStudio() {
                   </div>
                   <div className="field"><label>Subject</label><select id="f-subject"></select></div>
                   <div className="field-row">
-                    <div className="field"><label>Term</label><select id="f-term"><option>1</option><option defaultValue="2">2</option><option>3</option></select></div>
-                    <div className="field"><label>Week</label><select id="f-week">
+                    <div className="field"><label>Term</label><select id="f-term" defaultValue="2"><option>1</option><option>2</option><option>3</option></select></div>
+                    <div className="field"><label>Week</label><select id="f-week" defaultValue="5">
                       <option>1</option><option>2</option><option>3</option><option>4</option>
-                      <option defaultValue="5">5</option><option>6</option><option>7</option><option>8</option>
+                      <option>5</option><option>6</option><option>7</option><option>8</option>
                       <option>9</option><option>10</option><option>11</option><option>12</option><option>13</option>
                     </select></div>
                   </div>
