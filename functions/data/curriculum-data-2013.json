@@ -30349,6 +30349,208 @@
           }
         }
       ]
+    },
+    "Grade 5": {
+      "title": "GRADE 5",
+      "columns": [
+        "5.1.1 District",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "KNOWLEDGE",
+        "SKILLS",
+        "VALUES"
+      ],
+      "rows": [
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.1.1 District",
+            "TOPIC": "5.1 Living Together in the Community",
+            "SPECIFIC OUTCOMES": "5.1.1.1 Locate on the map of Zambia the position of the district. 5.1.1.2 Identify the main physical features on a map of the district. 5.1.1.3 Describe social, economic, cultural and political structures of the district in the past. 5.1.1.4 Mention the cultural composition of the people in the district. 5.1.1.5 Describe the economic activities in the district. 5.1.1.6 List names of historical and cultural sites in the district. 5.1.1.7 State the significance of each historical/cultural site.",
+            "KNOWLEDGE": "• Location of the district • Physical features: hills/mountains, rivers, plains, valleys • Social, economic, cultural and political structures • Races, ethnic groups, chiefdoms • Economic activities: farming, construction, trading, manufacturing, mining • Historical and cultural sites; identity, tourist attraction",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.2.1 Sex and Gender Roles",
+            "TOPIC": "5.2 Governance",
+            "SPECIFIC OUTCOMES": "5.2.1.1 Explain sex and gender roles. 5.2.1.2 Explain gender discrimination. 5.2.1.3 Discuss effects of gender discrimination. 5.2.1.4 Promote gender equality.",
+            "KNOWLEDGE": "• Sex roles: women getting pregnant, breast-feeding • Gender roles: cooking, watering, teaching, washing, sweeping • Disadvantaging someone on the basis of sex • Conflict, gender based violence • Institutions that promote gender equality",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.2.3 Threats to Human Rights",
+            "TOPIC": "5.2 Governance",
+            "SPECIFIC OUTCOMES": "5.2.3.1 State factors that hinder citizens from enjoying their rights. 5.2.3.2 Identify organisations that protect and promote human rights.",
+            "KNOWLEDGE": "• Corruption, poverty, poor governance, conflicts, ignorance • Human rights violations such as child abuse • Police Service, Human Rights Commission and other organisations",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.3.1 Discipline and Punishment",
+            "TOPIC": "5.3 Christian Living",
+            "SPECIFIC OUTCOMES": "5.3.1.1 Describe the importance of child discipline. 5.3.1.2 Identify ways of discipline. 5.3.1.3 Describe punishment. 5.3.1.4 Identify different types of punishment.",
+            "KNOWLEDGE": "• Ways of discipline: counselling, confessing, scolding • Denying privileges • Types of punishment: physical, emotional, economic, social",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.4.1 Rural-urban Migration",
+            "TOPIC": "5.4 Environment",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Describe migration. 5.4.1.2 Explain rural-urban migration and its effects. 5.4.1.3 Suggest possible solutions to rural-urban migration.",
+            "KNOWLEDGE": "• Movement from one place to another • Movement of people from rural to urban areas • Reasons: search for employment, social amenities, disputes • Effects on rural areas: depopulation, underdevelopment • Effects on urban areas: overpopulation, crime, prostitution, poor sanitation • Solutions: improving social and economic amenities in rural areas",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.5.1 Personal financial goal setting",
+            "TOPIC": "5.5 Learning About Money",
+            "SPECIFIC OUTCOMES": "5.5.1.1 Describe basic personal financial goals. 5.5.1.2 Describe the links between earning, spending and saving. 5.5.1.3 Explain the importance of financial security.",
+            "KNOWLEDGE": "• Goals people have: education, buying property, food • Links between earning, spending and saving • Financial security: employment, savings, income covering expenditure",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.6.1 Wealth Generation",
+            "TOPIC": "5.6 Entrepreneurship",
+            "SPECIFIC OUTCOMES": "5.6.1.1 Explain entrepreneurship. 5.6.1.2 Explain how wealth can be generated.",
+            "KNOWLEDGE": "• Small scale business ventures (legal), government ventures, national and multi-national corporations",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 District": "5.7.1 Transport and Communication in the District",
+            "TOPIC": "5.7 Transport and Communication",
+            "SPECIFIC OUTCOMES": "5.7.1.1 Describe the development of transport and communication services.",
+            "KNOWLEDGE": "• Transport: from walking to scotch-carts to cycling to riding motor vehicles • Communication: from messenger to drum to letter to telex to land phone to cell-phone",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        }
+      ]
+    },
+    "Grade 6": {
+      "title": "GRADE 6",
+      "columns": [
+        "6.1.1 Province",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "KNOWLEDGE",
+        "SKILLS",
+        "VALUES"
+      ],
+      "rows": [
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.1.1 Province",
+            "TOPIC": "6.1 Living Together in the Community",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Locate on the map of Zambia the position of the province. 6.1.1.2 Identify the main physical features on a map of the province. 6.1.1.3 Describe social, economic, cultural and political structures of the province in the past. 6.1.1.4 Mention the cultural composition of the people in the province. 6.1.1.5 Describe the economic activities in the province.",
+            "KNOWLEDGE": "• Location of the province • Hills/mountains, rivers, plains, valleys • Social, economic, cultural and political structures • Races, ethnic groups, villages, chiefdoms • Farming, construction, trading, manufacturing, mining",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.2.1 Leadership",
+            "TOPIC": "6.2 Governance",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Identify leadership qualities that promote development.",
+            "KNOWLEDGE": "• Leadership qualities: openness, integrity, honesty, accountability",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.2.2 Local Government",
+            "TOPIC": "6.2 Governance",
+            "SPECIFIC OUTCOMES": "6.2.2.1 Describe the functions of local government.",
+            "KNOWLEDGE": "• Functions: street lighting, water supply, waste management, housing, land administration",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.3.1 Keeping money safe",
+            "TOPIC": "6.3 Learning About Money",
+            "SPECIFIC OUTCOMES": "6.3.1.1 Identify the different ways of saving. 6.3.1.2 Explain the benefits of keeping money safe. 6.3.1.3 Identify the main features of saving and borrowing. 6.3.1.4 Identify the relationship between risk and reward in different financial contexts.",
+            "KNOWLEDGE": "• Different ways of saving: bank, cell phone (mobile money), community accounts • Features of saving and borrowing: interest rates, paying back what you borrow, terms and conditions • Risks and rewards in savings, borrowing and gambling/betting",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.4.1 Religious Faith (Martyrdom)",
+            "TOPIC": "6.4 Religion",
+            "SPECIFIC OUTCOMES": "6.4.1.1 Identify Africans killed for their religious faith. 6.4.1.2 Describe the encounter between David and Goliath. 6.4.1.3 State the role of faith in helping people to be brave.",
+            "KNOWLEDGE": "• Charles Lwanga and Kizito • 1 Samuel 17 • Faith promotes courage to face situations",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.5.1 Elements of Weather and Climate",
+            "TOPIC": "6.5 Weather and Climate",
+            "SPECIFIC OUTCOMES": "6.5.1.1 Outline elements of weather and climate.",
+            "KNOWLEDGE": "• Elements: temperature, rainfall, pressure, sunshine, humidity",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.6.1 Protection of the Environment",
+            "TOPIC": "6.6 Environment",
+            "SPECIFIC OUTCOMES": "6.6.1.1 Identify ways of disposing waste. 6.6.1.2 Identify communal places that need protection from waste. 6.6.1.3 Describe the role of the community in environmental protection and waste management.",
+            "KNOWLEDGE": "• Ways of disposing waste: recycling, burying • Communal places: markets, schools, clinics, churches, bus stations, drainages • Community participation, sensitisation and advocacy",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "6.1.1 Province": "6.7.1 Road Safety",
+            "TOPIC": "6.7 Transport and Communication",
+            "SPECIFIC OUTCOMES": "6.7.1.1 Explain factors that influence road safety.",
+            "KNOWLEDGE": "• Factors: visibility of road signs, state of the road, availability of road signs, vandalism, corruption",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        }
+      ]
     }
   },
   "Technology Studies Syllabus (Grades 4-6)": {
