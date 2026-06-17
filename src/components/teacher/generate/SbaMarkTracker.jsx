@@ -122,14 +122,27 @@ export default function SbaMarkTracker() {
     return () => clearTimeout(t)
   }, [uid, subject, grade, header, pupils, generationId])
 
-  // Any data edit marks the saved library copy stale.
-  useEffect(() => {
-    setDirtySinceSave(true)
-  }, [header, pupils])
+  // Mark the saved library copy stale on a genuine *user* edit. (Driven from
+  // the mutators below rather than a [header, pupils] effect: that effect also
+  // fired on mount and on every draft-restore / profile back-fill, so a
+  // freshly-loaded sheet always read "Update in library" instead of "Saved".)
+  const markDirty = () => setDirtySinceSave(true)
 
-  const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+  // Back-fill the school once the profile resolves (it's often null on first
+  // render, so the lazy initializer leaves it blank). Fills only an empty field
+  // and writes setHeader directly, so it never marks the sheet dirty.
+  useEffect(() => {
+    if (!userProfile) return
+    setHeader((h) => {
+      const school = h.school || userProfile.school || userProfile.schoolName || ''
+      return school === h.school ? h : { ...h, school }
+    })
+  }, [userProfile])
+
+  const setH = (field, value) => { markDirty(); setHeader((h) => ({ ...h, [field]: value })) }
 
   function updatePupil(id, updater) {
+    markDirty()
     setPupils((list) => list.map((p) => (p.id === id ? updater(p) : p)))
   }
   function setMark(id, colKey, raw, max) {
@@ -141,8 +154,8 @@ export default function SbaMarkTracker() {
       return { ...p, marks }
     })
   }
-  const addPupils = (n) => setPupils((list) => [...list, ...blankPupils(n)])
-  const removePupil = (id) => setPupils((list) => list.filter((p) => p.id !== id))
+  const addPupils = (n) => { markDirty(); setPupils((list) => [...list, ...blankPupils(n)]) }
+  const removePupil = (id) => { markDirty(); setPupils((list) => list.filter((p) => p.id !== id)) }
 
   const named = useMemo(() => pupils.filter((p) => p.name.trim()), [pupils])
 
@@ -165,6 +178,7 @@ export default function SbaMarkTracker() {
   }), [header, subjectMeta, subject, grade, columns, total, named])
 
   function clearAll() {
+    markDirty()
     setPupils(blankPupils(5))
     try { localStorage.removeItem(draftKey(uid, subject, grade)) } catch { /* ignore */ }
     setConfirmClear(false)
