@@ -10,7 +10,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listRecords } from '../../../utils/classRecords'
 import { buildClassProgress, overallGrade } from '../../../utils/classProgress'
+import { filterRecordsByPeriod } from '../../../utils/classTerms'
 import Skeleton from '../../ui/Skeleton'
+import TermPeriodFilter from './TermPeriodFilter'
 
 function toneFor(pct) {
   if (pct == null) return 'theme-text-muted'
@@ -33,6 +35,7 @@ export default function ProgressTab({ register }) {
   const classId = register.id
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
+  const [viewPeriod, setViewPeriod] = useState('current')
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +47,12 @@ export default function ProgressTab({ register }) {
     return () => { cancelled = true }
   }, [classId])
 
-  const progress = useMemo(() => buildClassProgress(records), [records])
+  const currentPeriod = { term: register.term, year: register.year }
+  const filtered = useMemo(
+    () => filterRecordsByPeriod(records, viewPeriod, currentPeriod),
+    [records, viewPeriod, currentPeriod.term, currentPeriod.year], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const progress = useMemo(() => buildClassProgress(filtered), [filtered])
   const classAverage = useMemo(() => {
     const avgs = progress.learners.map((l) => progress.averages[l.rosterId] || 0)
     return avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) : 0
@@ -52,7 +60,7 @@ export default function ProgressTab({ register }) {
 
   if (loading) return <Skeleton className="h-40 rounded-radius-md" />
 
-  if (progress.records.length === 0) {
+  if (records.length === 0) {
     return (
       <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
         <div className="text-4xl mb-2">📈</div>
@@ -67,6 +75,16 @@ export default function ProgressTab({ register }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <TermPeriodFilter records={records} value={viewPeriod} onChange={setViewPeriod} currentPeriod={currentPeriod} />
+      </div>
+
+      {progress.records.length === 0 ? (
+        <div className="theme-card border theme-border rounded-radius-md p-6 text-center theme-text-muted text-sm">
+          No marked records for the selected term. Switch the view to “All terms” to see other periods.
+        </div>
+      ) : (
+      <>
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Records" value={progress.records.length} />
         <Stat label="Learners" value={progress.learners.length} />
@@ -118,6 +136,8 @@ export default function ProgressTab({ register }) {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   )
 }

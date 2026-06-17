@@ -8,14 +8,16 @@
  * type collects different metadata.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { listRoster } from '../../../utils/classRoster'
 import { listRecords, getRecord, deleteRecord } from '../../../utils/classRecords'
+import { filterRecordsByPeriod } from '../../../utils/classTerms'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import Skeleton from '../../ui/Skeleton'
 import MarkEntryGrid from './MarkEntryGrid'
+import TermPeriodFilter from './TermPeriodFilter'
 
 export default function ClassRecordsPanel({
   register,
@@ -36,6 +38,13 @@ export default function ClassRecordsPanel({
   const [creating, setCreating] = useState(false)
   const [openRecord, setOpenRecord] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [viewPeriod, setViewPeriod] = useState('current')
+
+  const currentPeriod = { term: register.term, year: register.year }
+  const visibleRecords = useMemo(
+    () => filterRecordsByPeriod(records, viewPeriod, currentPeriod),
+    [records, viewPeriod, currentPeriod.term, currentPeriod.year], // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   async function refresh() {
     setLoading(true)
@@ -92,9 +101,14 @@ export default function ClassRecordsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="theme-text-muted text-sm">{intro}</p>
-        {!creating && <Button size="sm" onClick={() => setCreating(true)}>{newLabel}</Button>}
+        <div className="flex items-center gap-3">
+          {records.length > 0 && (
+            <TermPeriodFilter records={records} value={viewPeriod} onChange={setViewPeriod} currentPeriod={currentPeriod} />
+          )}
+          {!creating && <Button size="sm" onClick={() => setCreating(true)}>{newLabel}</Button>}
+        </div>
       </div>
 
       {creating && renderCreate({
@@ -112,9 +126,13 @@ export default function ClassRecordsPanel({
           <p className="theme-text font-black">{emptyTitle}</p>
           <p className="theme-text-muted text-sm mt-1">{emptyText}</p>
         </div>
+      ) : visibleRecords.length === 0 && !creating ? (
+        <div className="theme-card border theme-border rounded-radius-md p-6 text-center theme-text-muted text-sm">
+          Nothing for the selected term. Switch the view to “All terms” to see other periods.
+        </div>
       ) : (
         <ul className="theme-card border theme-border rounded-radius-md divide-y divide-current/10 overflow-hidden">
-          {records.map((rec) => (
+          {visibleRecords.map((rec) => (
             <li key={rec.id} className="flex items-center gap-3 p-4">
               <button type="button" onClick={() => openGrid(rec.id)} className="flex-1 min-w-0 text-left">
                 <p className="theme-text font-black text-sm truncate">{rec.title}</p>

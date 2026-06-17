@@ -8,8 +8,9 @@
  * positions and teacher-voice comments, so the cards carry comments too.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { listRecords } from '../../../utils/classRecords'
+import { filterRecordsByPeriod } from '../../../utils/classTerms'
 import { buildSchedule } from '../../../utils/markSchedule'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
@@ -17,6 +18,7 @@ import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import Skeleton from '../../ui/Skeleton'
+import TermPeriodFilter from './TermPeriodFilter'
 
 /** Adapt a stored record + its class into the exporters' `schedule` shape. */
 export function recordToSchedule(record, register) {
@@ -49,6 +51,13 @@ export default function ReportsTab({ register }) {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
+  const [viewPeriod, setViewPeriod] = useState('current')
+
+  const currentPeriod = { term: register.term, year: register.year }
+  const visibleRecords = useMemo(
+    () => filterRecordsByPeriod(records, viewPeriod, currentPeriod),
+    [records, viewPeriod, currentPeriod.term, currentPeriod.year], // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -92,9 +101,17 @@ export default function ReportsTab({ register }) {
 
   return (
     <div className="space-y-3">
-      <p className="theme-text-muted text-sm">Export any record as the documents your school keeps.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="theme-text-muted text-sm">Export any record as the documents your school keeps.</p>
+        <TermPeriodFilter records={records} value={viewPeriod} onChange={setViewPeriod} currentPeriod={currentPeriod} />
+      </div>
+      {visibleRecords.length === 0 ? (
+        <div className="theme-card border theme-border rounded-radius-md p-6 text-center theme-text-muted text-sm">
+          Nothing for the selected term. Switch the view to “All terms” to see other periods.
+        </div>
+      ) : (
       <ul className="space-y-2">
-        {records.map((rec) => (
+        {visibleRecords.map((rec) => (
           <li key={rec.id} className="theme-card border theme-border rounded-radius-md p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
@@ -114,6 +131,7 @@ export default function ReportsTab({ register }) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }
