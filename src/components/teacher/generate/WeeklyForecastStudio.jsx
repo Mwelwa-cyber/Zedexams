@@ -73,9 +73,23 @@ const SUBJECT_LABEL = Object.fromEntries(
 const SUBJECT_SLUG_BY_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label, s.value]),
 )
+// Case-insensitive fall-back map. A scheme's header subject is whatever the
+// model emitted (often UPPERCASED, e.g. "MATHEMATICS"), which an exact-label
+// lookup misses — leaving subjectSlug empty and the competence/topic pickers
+// blank after "Build from scheme". Normalising rescues those.
+const SUBJECT_SLUG_BY_NORM_LABEL = Object.fromEntries(
+  TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label.toLowerCase(), s.value]),
+)
 
 const subjectLabelFor = (slug) => SUBJECT_LABEL[slug] || ''
-const subjectSlugFor = (label) => SUBJECT_SLUG_BY_LABEL[label] || ''
+const subjectSlugFor = (label) =>
+  SUBJECT_SLUG_BY_LABEL[label] ||
+  SUBJECT_SLUG_BY_NORM_LABEL[String(label || '').trim().toLowerCase()] ||
+  ''
+// Map an arbitrary subject string back to its canonical drop-down label, so a
+// scheme's free-form subject lands on a real <option> (and powers the slug).
+const canonicalSubjectLabel = (raw, fallbackSlug) =>
+  subjectLabelFor(subjectSlugFor(raw) || fallbackSlug) || raw || ''
 const defaultSubjectLabel = (grade) => subjectLabelFor(defaultSubjectForGrade(grade))
 
 const YEARS = getCalendarYears()
@@ -388,7 +402,7 @@ export default function WeeklyForecastStudio() {
       setHeader((h) => ({
         ...h,
         grade: selectedScheme.inputs?.grade || h.grade,
-        subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
+        subject: canonicalSubjectLabel(out.header?.subject, selectedScheme.inputs?.subject) || h.subject,
         term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
         weekNumber: Number(picked.value) || h.weekNumber,
       }))

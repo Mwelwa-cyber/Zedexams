@@ -11,6 +11,7 @@ const FEATURES = [
   { key: 'notes',       label: 'Teacher notes',   icon: '🦉' },
   { key: 'assessments', label: 'Assessments',     icon: '🦅' },
   { key: 'schemes',     label: 'Schemes of work', icon: '🦁' },
+  { key: 'sba',         label: 'SBA tasks',       icon: '🦓' },
 ]
 
 const FEATURE_LABEL = {
@@ -19,6 +20,7 @@ const FEATURE_LABEL = {
   notes: 'teacher notes',
   assessments: 'assessments',
   schemes: 'schemes of work',
+  sba: 'SBA tasks',
 }
 
 function barClassFor(pct) {
