@@ -179,7 +179,11 @@ export default function PdfScrollViewer({ url, title }) {
     <div
       ref={containerRef}
       className="w-full flex flex-col items-stretch gap-3"
-      style={{ touchAction: 'pinch-zoom' }}
+      // `pan-y` is essential: the canvases fill the viewport, so without it
+      // `touch-action: pinch-zoom` would block single-finger vertical scroll
+      // and the page becomes un-scrollable on touch. Keep pinch-zoom for
+      // readability on small phones.
+      style={{ touchAction: 'pan-y pinch-zoom' }}
       aria-label={title ? `${title} viewer` : 'PDF viewer'}
     >
       {loading && (
