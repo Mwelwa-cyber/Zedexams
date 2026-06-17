@@ -58,6 +58,7 @@ export default function NotesStudio() {
 
   const [plans, setPlans] = useState([])
   const [plansLoading, setPlansLoading] = useState(true)
+  const [plansError, setPlansError] = useState(false)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -66,14 +67,30 @@ export default function NotesStudio() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
 
+  // Back-fill teacher name + school once the profile resolves. The lazy
+  // initializer above runs before the async profile loads, so on a cold load
+  // these stay blank; fill them in when the profile arrives, but only if the
+  // teacher hasn't already typed something (never clobber an edit or a URL
+  // default).
+  useEffect(() => {
+    if (!userProfile) return
+    setForm((f) => {
+      const teacherName = f.teacherName || userProfile.displayName || userProfile.fullName || ''
+      const school = f.school || userProfile.school || userProfile.schoolName || ''
+      if (teacherName === f.teacherName && school === f.school) return f
+      return { ...f, teacherName, school }
+    })
+  }, [userProfile])
+
   // Load the user's lesson plans for the from-plan picker.
   useEffect(() => {
     if (!currentUser) return
     let cancelled = false
     setPlansLoading(true)
+    setPlansError(false)
     listMyGenerations({ uid: currentUser.uid, tool: 'lesson_plan' })
       .then((rows) => { if (!cancelled) setPlans(rows) })
-      .catch(() => { if (!cancelled) setPlans([]) })
+      .catch(() => { if (!cancelled) { setPlans([]); setPlansError(true) } })
       .finally(() => { if (!cancelled) setPlansLoading(false) })
     return () => { cancelled = true }
   }, [currentUser])
@@ -206,6 +223,7 @@ export default function NotesStudio() {
               <PlanPicker
                 plans={plans}
                 loading={plansLoading}
+                error={plansError}
                 selectedId={form.lessonPlanId}
                 onSelect={(id) => updateField('lessonPlanId', id)}
                 onBrowseLibrary={() => navigate('/teacher/library?tool=lesson_plan')}
@@ -372,11 +390,23 @@ function ModeTab({ active, onClick, children }) {
   )
 }
 
-function PlanPicker({ plans, loading, selectedId, onSelect, onBrowseLibrary }) {
+function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibrary }) {
   if (loading) {
     return (
       <div className="rounded-xl border-2 border-dashed p-4 text-center text-sm" style={{ borderColor: '#d9cfb8', color: '#566f76' }}>
         Loading your lesson plans…
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="rounded-xl border-2 border-dashed p-4 text-center" style={{ borderColor: '#e6b8b8' }}>
+        <p className="text-sm mb-2" style={{ color: '#0e2a32' }}>
+          Couldn't load your lesson plans.
+        </p>
+        <p className="text-xs" style={{ color: '#566f76' }}>
+          Check your connection and try again, or switch to <strong>Standalone</strong> to write notes without a plan.
+        </p>
       </div>
     )
   }

@@ -108,24 +108,29 @@ export function buildHomeworkDocument(hw, opts = {}) {
     children.push(bodyPara(hw.parentNote))
   }
 
-  children.push(h2('Answer Key (teacher)'))
-  ;(hw.questions || []).forEach((q, i) => {
-    children.push(new Paragraph({
-      children: [
-        text(`${q.number || i + 1}. `, { bold: true, size: 20 }),
-        text(q.answer || '—', { size: 20 }),
-      ],
-      spacing: { after: q.workingNotes ? 20 : 60 },
-    }))
-    if (q.workingNotes) {
+  // The teacher answer key is omitted for the pupil sheet (includeAnswers:
+  // false) so a take-home copy doesn't ship the answers. Defaults to true so
+  // existing callers keep the full document.
+  if (opts.includeAnswers !== false) {
+    children.push(h2('Answer Key (teacher)'))
+    ;(hw.questions || []).forEach((q, i) => {
       children.push(new Paragraph({
-        children: [text(q.workingNotes, { italics: true, size: 18 })],
-        indent: { left: 360 }, spacing: { after: 60 },
+        children: [
+          text(`${q.number || i + 1}. `, { bold: true, size: 20 }),
+          text(q.answer || '—', { size: 20 }),
+        ],
+        spacing: { after: q.workingNotes ? 20 : 60 },
       }))
+      if (q.workingNotes) {
+        children.push(new Paragraph({
+          children: [text(q.workingNotes, { italics: true, size: 18 })],
+          indent: { left: 360 }, spacing: { after: 60 },
+        }))
+      }
+    })
+    if (hw.answerKey?.markingNotes) {
+      children.push(bodyPara(hw.answerKey.markingNotes))
     }
-  })
-  if (hw.answerKey?.markingNotes) {
-    children.push(bodyPara(hw.answerKey.markingNotes))
   }
 
   return new Document({
