@@ -25,6 +25,23 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 // instead of serving the cached old file.
 const STUDIO_ASSET_VERSION = 'v20'
 
+// Canonical display names for KB subject slugs whose naive title-case would be
+// wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
+// combined "Maths & Science" sheet under the `numeracy` slug; teachers expect
+// the real 2023 learning-area name, "Mathematics and Science" — not the raw
+// slug "Numeracy", which isn't a subject in the Syllabi Studio. Keep in sync
+// with the same relabel in src/config/teacherTaxonomy.js (TEACHER_SUBJECTS).
+const STUDIO_SUBJECT_LABELS = { numeracy: 'Mathematics and Science' }
+
+// Resolve a KB subject slug to its dropdown label: a canonical override wins,
+// then any admin-set display name, else a title-cased version of the slug.
+function studioSubjectLabel(slug, subjectDisplay) {
+  if (STUDIO_SUBJECT_LABELS[slug]) return STUDIO_SUBJECT_LABELS[slug]
+  const display = subjectDisplay && String(subjectDisplay).trim()
+  if (display) return display
+  return String(slug).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
 function loadScriptsSequentially(srcs) {
@@ -302,7 +319,7 @@ export default function LessonPlanStudio() {
         for (const t of kbTopics) {
           if (t.grade !== grade || !t.subject || seen.has(t.subject)) continue
           seen.add(t.subject)
-          out.push(String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+          out.push(studioSubjectLabel(t.subject))
         }
         if (out.length === 0) {
           // Merged source had nothing for this grade — try direct Firestore.
@@ -314,8 +331,7 @@ export default function LessonPlanStudio() {
           snap.forEach((d) => {
             const t = d.data()
             if (!t || !t.subject) return
-            const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
-              || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            const display = studioSubjectLabel(t.subject, t.subjectDisplay)
             if (seen.has(display)) return
             seen.add(display)
             out.push(display)

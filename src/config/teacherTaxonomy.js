@@ -52,7 +52,12 @@ export const TEACHER_SUBJECTS = [
   { value: 'zambian_language', label: 'Zambian Language (other)' },
   { group: 'STEM' },
   { value: 'mathematics',          label: 'Mathematics' },
-  { value: 'numeracy',             label: 'Numeracy' },
+  // Lower Primary (Grades 1–3) carries one combined "Maths & Science" syllabus
+  // sheet, stored under the `numeracy` slug. Teachers expect the real learning-
+  // area name, "Mathematics and Science" — "Numeracy" isn't a 2023-curriculum
+  // subject and confused authors picking it from the studio dropdowns. The ECE
+  // bands keep their own "Pre-Maths & Science" label via ECE_SUBJECTS below.
+  { value: 'numeracy',             label: 'Mathematics and Science' },
   { value: 'integrated_science',   label: 'Integrated Science' },
   { value: 'environmental_science',label: 'Environmental Science' },
   { value: 'biology',              label: 'Biology' },

@@ -103,4 +103,18 @@ check('ECE_GRADE_CODES export is the expected set', () => {
   assert.deepEqual(ECE_GRADE_CODES, ['ECE', 'ECE_N', 'ECE_R'])
 })
 
+check('Lower Primary numeracy is labelled "Mathematics and Science", not "Numeracy"', () => {
+  // The combined Lower-Primary "Maths & Science" sheet is stored under the
+  // `numeracy` slug; the studio dropdowns must show the real learning-area
+  // name. "Numeracy" is not a 2023-curriculum subject and confused authors.
+  for (const grade of ['G1', 'G2', 'G3']) {
+    const opts = getSubjectsForGrade(grade)
+    assert.ok(valuesOf(opts).includes('numeracy'), `${grade} offers the combined maths/science area`)
+    assert.equal(labelOf(opts, 'numeracy'), 'Mathematics and Science', `${grade} numeracy label`)
+  }
+  // The ECE bands keep their own, more age-appropriate "Pre-Maths & Science"
+  // label via ECE_SUBJECTS — the relabel above must not bleed into them.
+  assert.equal(labelOf(getSubjectsForGrade('ECE_N'), 'numeracy'), 'Pre-Maths & Science')
+})
+
 console.log(`\n✅ teacher-subjects: ${passed} checks passed`)
