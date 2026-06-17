@@ -316,6 +316,38 @@ test('aiGenerations client create stays locked to the client-side tools', () => 
   )
 })
 
+test('feedback box is owner-create / admin-read', () => {
+  // The learner/teacher suggestion box. Submissions must be pinned to the
+  // caller (uid == auth.uid) and only readable by admins (private inbox).
+  // The type/role allowlists mirror src/components/feedback/feedbackOptions.js
+  // (pinned by that module's own node test) — if they drift, valid
+  // submissions are silently rejected by Firestore.
+  const block = rules.match(/match \/feedback\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'feedback match block not found')
+  assert(
+    /allow read, update, delete:\s*if isAdmin\(\)/.test(block[1]),
+    'feedback must be admin-only for read/update/delete (private inbox)',
+  )
+  assert(
+    block[1].includes('incoming().uid == request.auth.uid'),
+    'feedback create must pin uid to the caller',
+  )
+  assert(
+    block[1].includes("incoming().status == 'new'"),
+    'feedback create must pin status to new',
+  )
+  for (const t of ['suggestion', 'content', 'feature', 'bug', 'other']) {
+    assert(
+      block[1].includes(`'${t}'`),
+      `feedback type allowlist is missing '${t}' — UI offers it but the rule rejects it`,
+    )
+  }
+  assert(
+    block[1].includes('incoming().createdAt == request.time'),
+    'feedback create must use server time',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

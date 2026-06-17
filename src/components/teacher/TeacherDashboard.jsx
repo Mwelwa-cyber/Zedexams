@@ -12,6 +12,7 @@ import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
+import FeedbackButton from '../feedback/FeedbackButton'
 import Icon from '../ui/Icon'
 import {
   ArrowRight,
@@ -552,6 +553,10 @@ export default function TeacherDashboard() {
         {STUDIOS.map(s => (
           <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
         ))}
+      </div>
+
+      <div className="mt-6">
+        <FeedbackButton source="teacher-dashboard" />
       </div>
 
       <SectionLabel>Recents</SectionLabel>

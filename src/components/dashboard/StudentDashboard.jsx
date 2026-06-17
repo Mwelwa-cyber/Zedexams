@@ -26,6 +26,7 @@ import {
 import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
 import StudyPlanCard from './StudyPlanCard'
+import FeedbackButton from '../feedback/FeedbackButton'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',
@@ -243,6 +244,9 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Suggestion & request box */}
+      <FeedbackButton source="learner-dashboard" />
 
       {/* Weakness analysis (premium) */}
       <PremiumGate feature="weaknessAnalysis">

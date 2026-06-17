@@ -128,6 +128,7 @@ const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
 const ManageContent = lazy(() => import('./components/admin/ManageContent'))
 const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
+const FeedbackInbox = lazy(() => import('./components/admin/FeedbackInbox'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
 const BulkGrantTrialsPanel = lazy(() => import('./components/admin/BulkGrantTrialsPanel'))
 const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
@@ -517,6 +518,7 @@ export default function App() {
           <Route path="/admin/import/csv"               element={<AdminRoute><AdminCsvImport /></AdminRoute>} />
           <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
           <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
+          <Route path="/admin/feedback"                 element={<AdminRoute><FeedbackInbox /></AdminRoute>} />
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
