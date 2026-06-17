@@ -64,6 +64,7 @@
     "test:roster-import": "node scripts/test-roster-import.mjs",
     "test:class-record": "node scripts/test-class-record.mjs",
     "test:class-progress": "node scripts/test-class-progress.mjs",
+    "test:class-terms": "node scripts/test-class-terms.mjs",
     "test:download-filename": "node scripts/test-download-filename.mjs",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",

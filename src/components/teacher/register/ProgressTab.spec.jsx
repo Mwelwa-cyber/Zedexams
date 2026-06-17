@@ -6,12 +6,12 @@ import ProgressTab from './ProgressTab'
 const cols = [{ key: 't', label: 'Test', max: 100 }]
 const records = [
   {
-    id: 'r2', title: 'Term 1 Exam', term: 'Term 1', type: 'assessment', columns: cols,
+    id: 'r2', title: 'Term 1 Exam', term: 'Term 1', year: 2026, type: 'assessment', columns: cols,
     rosterSnapshot: [{ rosterId: 'a', fullName: 'Mary Banda' }, { rosterId: 'b', fullName: 'John Phiri' }],
     marks: { a: { t: 80 }, b: { t: 40 } },
   },
   {
-    id: 'r1', title: 'Term 1 Test', term: 'Term 1', type: 'mark_schedule', columns: cols,
+    id: 'r1', title: 'Term 1 Test', term: 'Term 1', year: 2026, type: 'mark_schedule', columns: cols,
     rosterSnapshot: [{ rosterId: 'a', fullName: 'Mary Banda' }, { rosterId: 'b', fullName: 'John Phiri' }],
     marks: { a: { t: 60 }, b: { t: 50 } },
   },
@@ -23,7 +23,7 @@ vi.mock('../../../utils/classRecords', () => ({
 
 describe('ProgressTab', () => {
   it('shows each learner with their average across records', async () => {
-    render(<ProgressTab register={{ id: 'c1' }} />)
+    render(<ProgressTab register={{ id: 'c1', term: 'Term 1', year: 2026 }} />)
     expect(await screen.findByText('Mary Banda')).toBeInTheDocument()
     expect(screen.getByText('John Phiri')).toBeInTheDocument()
     // Mary: (60+80)/2 = 70% average appears.

@@ -8,8 +8,9 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getRegister, archiveRegister } from '../../../utils/classRegister'
+import { getRegister, archiveRegister, updateRegister } from '../../../utils/classRegister'
 import { SUBJECTS } from '../../../config/curriculum'
+import { TERMS, nextPeriod, formatPeriod } from '../../../utils/classTerms'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -50,6 +51,21 @@ export default function ClassRegisterDetail() {
     return () => { cancelled = true }
   }, [classId])
 
+  // Switch the class's current term/year. New marking records file under the
+  // new period; existing records keep the period they were created in, so past
+  // terms stay intact. The record/report/progress views default to this period.
+  async function savePeriod(term, year) {
+    const prev = { term: reg.term, year: reg.year }
+    setReg((r) => ({ ...r, term, year })) // optimistic
+    try {
+      await updateRegister(classId, { term, year })
+      toast.success(`Now in ${formatPeriod({ term, year })}.`)
+    } catch (err) {
+      setReg((r) => ({ ...r, ...prev })) // roll back
+      toast.error(`Could not switch term: ${err.message || 'unexpected error'}`)
+    }
+  }
+
   async function handleArchive() {
     try {
       await archiveRegister(classId)
@@ -75,6 +91,11 @@ export default function ClassRegisterDetail() {
   }
 
   const subjectMeta = SUBJECTS.find((s) => s.id === reg.subject || s.label === reg.subject)
+  // A small window of academic years around now + whatever the class is set to.
+  const thisYear = new Date().getFullYear()
+  const yearOptions = [...new Set([thisYear - 1, thisYear, thisYear + 1, thisYear + 2, Number(reg.year) || thisYear])]
+    .filter(Boolean)
+    .sort((a, b) => a - b)
 
   return (
     <div className="space-y-5">
@@ -88,8 +109,6 @@ export default function ClassRegisterDetail() {
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1 truncate">{reg.className}</h1>
           <p className="theme-text-muted text-sm mt-1">
             Grade {reg.grade}
-            {reg.term ? ` · ${reg.term}` : ''}
-            {reg.year ? ` · ${reg.year}` : ''}
             {subjectMeta ? ` · ${subjectMeta.label}` : ''}
             {reg.school ? ` · ${reg.school}` : ''}
             {` · ${reg.learnerCount || 0} learner${reg.learnerCount === 1 ? '' : 's'}`}
@@ -105,6 +124,36 @@ export default function ClassRegisterDetail() {
             Archive
           </button>
         </div>
+      </div>
+
+      {/* Current term/year — new records file under this period; switching
+          here never touches records already saved in other terms. */}
+      <div className="theme-card border theme-border rounded-radius-md p-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-black theme-text-muted uppercase tracking-wider">Current term</span>
+        <select
+          value={reg.term || ''}
+          onChange={(e) => savePeriod(e.target.value, reg.year)}
+          className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1.5 text-sm font-bold"
+          aria-label="Term"
+        >
+          {!TERMS.includes(reg.term) && <option value={reg.term || ''}>{reg.term || 'No term'}</option>}
+          {TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select
+          value={reg.year || ''}
+          onChange={(e) => savePeriod(reg.term, Number(e.target.value))}
+          className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1.5 text-sm font-bold"
+          aria-label="Year"
+        >
+          {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <button
+          type="button"
+          onClick={() => { const np = nextPeriod({ term: reg.term, year: reg.year }); savePeriod(np.term, np.year) }}
+          className="theme-accent-text text-xs font-black px-2 py-1.5"
+        >
+          Advance to next term ▸
+        </button>
       </div>
 
       {/* Tab nav — horizontally scrollable on small screens */}
