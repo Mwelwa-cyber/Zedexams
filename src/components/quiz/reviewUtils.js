@@ -27,13 +27,18 @@ function optionImagesMissingAlt(question) {
 
 /**
  * Build the review jump-list. Returns { items, total } where each item is
- * { localId, number, inPassage, issues: string[] } for a question that needs
- * attention, and `total` is every question (for an "N of M" readout).
+ * { localId, number, inPassage, issues: string[], notes: string[] } for a
+ * question that needs attention, and `total` is every question (for an
+ * "N of M" readout).
  *
  * Issues reported:
  *   - 'No answer'        — an MCQ/TF with no correct option set
  *   - 'Flagged'          — question.requiresReview is true
  *   - 'Missing alt text' — a picture option with no alt text
+ *
+ * `notes` carries the specific reasons a question was flagged (from
+ * question.reviewNotes, falling back to importWarnings) so the panel can
+ * tell the teacher *why* it needs a look, not just *that* it does.
  */
 export function collectReviewItems(sections = []) {
   const items = []
@@ -54,7 +59,11 @@ export function collectReviewItems(sections = []) {
     if (optionImagesMissingAlt(question)) issues.push('Missing alt text')
 
     if (issues.length && question.localId) {
-      items.push({ localId: question.localId, number, inPassage: Boolean(inPassage), issues })
+      const noteSource = Array.isArray(question.reviewNotes) && question.reviewNotes.length
+        ? question.reviewNotes
+        : (Array.isArray(question.importWarnings) ? question.importWarnings : [])
+      const notes = noteSource.map(note => String(note ?? '').trim()).filter(Boolean)
+      items.push({ localId: question.localId, number, inPassage: Boolean(inPassage), issues, notes })
     }
   }
 
