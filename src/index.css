@@ -3279,7 +3279,7 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
    so every theme is honoured. */
 .zx-hero-art {
   flex: none;
-  width: 104px;
+  width: 144px;
   height: auto;
   object-fit: contain;
   border-radius: 1rem;
@@ -3291,7 +3291,7 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 
 @media (min-width: 640px) {
   .zx-hero-art {
-    width: 136px;
+    width: 188px;
   }
 }
 
