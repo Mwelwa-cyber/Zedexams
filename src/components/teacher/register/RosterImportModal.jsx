@@ -217,7 +217,7 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
               <p className="theme-text-muted text-sm py-4 text-center">Loading accounts…</p>
             ) : accounts.length === 0 ? (
               <p className="theme-text-muted text-sm py-4 text-center">
-                No linkable accounts found. Learners join an invite-code class first (under My Classes → Classes).
+                No linkable accounts found. Learners join an invite-code class first.
               </p>
             ) : (
               <div className="max-h-56 overflow-y-auto border theme-border rounded-radius-md divide-y divide-current/10">
