@@ -15,12 +15,14 @@ import {
   setRosterStatus,
   removeRosterEntry,
 } from '../../../utils/classRoster'
+import { recordsMissingLearner } from '../../../utils/classRecords'
 import { GENDERS, ROSTER_STATUSES } from '../../../utils/rosterImport'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { Users } from '../../ui/icons'
 import RosterImportModal from './RosterImportModal'
+import NewLearnerSyncModal from './NewLearnerSyncModal'
 
 const GENDER_LABEL = { M: 'Male', F: 'Female', other: 'Other' }
 const STATUS_LABEL = { active: 'Active', transferred: 'Transferred', inactive: 'Inactive' }
@@ -68,6 +70,7 @@ export default function ClassListTab({ register, onRosterChange }) {
   const [saving, setSaving] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
+  const [syncTarget, setSyncTarget] = useState(null) // { learner, records }
 
   useEffect(() => {
     setLoading(true)
@@ -89,13 +92,24 @@ export default function ClassListTab({ register, onRosterChange }) {
     if (!draft.fullName.trim()) { toast.error('Enter the learner\'s full name.'); return }
     setSaving(true)
     try {
-      await addRosterEntry(classId, currentUser.uid, {
+      const entry = {
         learnerNumber: draft.learnerNumber.trim(),
         fullName: draft.fullName.trim(),
         gender: draft.gender || null,
         parentPhone: draft.parentPhone.trim() || null,
-      })
+      }
+      const newId = await addRosterEntry(classId, currentUser.uid, entry)
       setDraft(EMPTY_DRAFT)
+      // If this class already has records in the current term, offer to sync
+      // the new learner in (existing marks untouched).
+      try {
+        const missing = await recordsMissingLearner(classId, newId, { term: register.term, year: register.year })
+        if (missing.length > 0) {
+          setSyncTarget({ learner: { id: newId, ...entry }, records: missing })
+        }
+      } catch (err) {
+        console.warn('[ClassListTab] sync check failed', err)
+      }
     } catch (err) {
       toast.error(`Could not add learner: ${err.message || 'unexpected error'}`)
     } finally {
@@ -272,6 +286,16 @@ export default function ClassListTab({ register, onRosterChange }) {
             setShowImport(false)
             toast.success(`Added ${added} learner${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped}` : ''}.`)
           }}
+        />
+      )}
+
+      {syncTarget && (
+        <NewLearnerSyncModal
+          register={register}
+          learner={syncTarget.learner}
+          records={syncTarget.records}
+          onClose={() => setSyncTarget(null)}
+          onDone={() => setSyncTarget(null)}
         />
       )}
 

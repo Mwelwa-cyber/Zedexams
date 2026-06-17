@@ -1,0 +1,140 @@
+/**
+ * ClassRecordsPanel — shared list/create/open/delete shell for Class Register
+ * marking records, used by the Mark Schedules, SBA and Assessment Results tabs.
+ *
+ * Loads the live roster (for snapshotting at create) and the class's records of
+ * one `type`, lists them, and opens MarkEntryGrid for marking. The create form
+ * is supplied per-tab via the `renderCreate` render prop, since each record
+ * type collects different metadata.
+ */
+
+import { useEffect, useState } from 'react'
+import { listRoster } from '../../../utils/classRoster'
+import { listRecords, getRecord, deleteRecord } from '../../../utils/classRecords'
+import { useToast } from '../../ui/Toast'
+import Button from '../../ui/Button'
+import ConfirmDialog from '../../ui/ConfirmDialog'
+import Skeleton from '../../ui/Skeleton'
+import MarkEntryGrid from './MarkEntryGrid'
+
+export default function ClassRecordsPanel({
+  register,
+  type,
+  newLabel = '+ New record',
+  intro = 'Records for this class.',
+  emptyIcon = '📊',
+  emptyTitle = 'Nothing here yet',
+  emptyText = 'Create one — every learner on the class list is added automatically.',
+  describeRecord,
+  renderCreate,
+}) {
+  const classId = register.id
+  const toast = useToast()
+  const [roster, setRoster] = useState([])
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [openRecord, setOpenRecord] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  async function refresh() {
+    setLoading(true)
+    try {
+      const [r, recs] = await Promise.all([listRoster(classId), listRecords(classId, { type })])
+      setRoster(r)
+      setRecords(recs)
+    } catch (err) {
+      console.warn('[ClassRecordsPanel] load failed', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { refresh() }, [classId, type]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function openGrid(recordId) {
+    try {
+      const rec = await getRecord(classId, recordId)
+      if (rec) setOpenRecord(rec)
+    } catch (err) {
+      toast.error(`Could not open record: ${err.message || 'unexpected error'}`)
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deleteRecord(classId, deleteTarget.id)
+      toast.success('Deleted.')
+      refresh()
+    } catch (err) {
+      toast.error(`Could not delete: ${err.message || 'unexpected error'}`)
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
+  function defaultDescribe(rec) {
+    return `${rec.rosterSnapshot?.length || 0} learners`
+      + ` · ${(rec.columns?.length || 0)} column${rec.columns?.length === 1 ? '' : 's'}`
+      + (rec.stats?.count ? ` · avg ${rec.stats.classAverage}% · pass ${rec.stats.passRate}%` : ' · not marked yet')
+  }
+
+  if (openRecord) {
+    return (
+      <MarkEntryGrid
+        classId={classId}
+        record={openRecord}
+        onClose={() => { setOpenRecord(null); refresh() }}
+        onSaved={() => refresh()}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="theme-text-muted text-sm">{intro}</p>
+        {!creating && <Button size="sm" onClick={() => setCreating(true)}>{newLabel}</Button>}
+      </div>
+
+      {creating && renderCreate({
+        register,
+        roster,
+        onCreated: (id) => { setCreating(false); openGrid(id) },
+        onCancel: () => setCreating(false),
+      })}
+
+      {loading ? (
+        <Skeleton className="h-24 rounded-radius-md" />
+      ) : records.length === 0 && !creating ? (
+        <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
+          <div className="text-4xl mb-2">{emptyIcon}</div>
+          <p className="theme-text font-black">{emptyTitle}</p>
+          <p className="theme-text-muted text-sm mt-1">{emptyText}</p>
+        </div>
+      ) : (
+        <ul className="theme-card border theme-border rounded-radius-md divide-y divide-current/10 overflow-hidden">
+          {records.map((rec) => (
+            <li key={rec.id} className="flex items-center gap-3 p-4">
+              <button type="button" onClick={() => openGrid(rec.id)} className="flex-1 min-w-0 text-left">
+                <p className="theme-text font-black text-sm truncate">{rec.title}</p>
+                <p className="theme-text-muted text-xs mt-1">{(describeRecord || defaultDescribe)(rec)}</p>
+              </button>
+              <button type="button" onClick={() => openGrid(rec.id)} className="theme-accent-text text-xs font-black whitespace-nowrap">Enter marks →</button>
+              <button type="button" onClick={() => setDeleteTarget(rec)} className="theme-text-muted hover:text-red-500 text-xs font-black">Delete</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete this record?"
+        message={deleteTarget ? `"${deleteTarget.title}" and its marks will be permanently deleted.` : ''}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  )
+}

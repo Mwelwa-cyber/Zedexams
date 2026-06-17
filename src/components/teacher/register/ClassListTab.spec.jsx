@@ -21,6 +21,14 @@ vi.mock('../../../utils/classRoster', () => ({
   parseRosterFile: vi.fn(async () => ({ rows: [], summary: { total: 0, ok: 0, warning: 0, error: 0 } })),
 }))
 
+// ClassListTab + NewLearnerSyncModal pull in classRecords (→ firebase/config),
+// which can't initialise in jsdom — stub it. No current-term records, so the
+// new-learner sync prompt never opens.
+vi.mock('../../../utils/classRecords', () => ({
+  recordsMissingLearner: vi.fn(async () => []),
+  reconcileNewLearner: vi.fn(async () => 0),
+}))
+
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'teacher-1' } }),
 }))

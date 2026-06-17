@@ -17,6 +17,8 @@ import Skeleton from '../../ui/Skeleton'
 import ClassListTab from './ClassListTab'
 import MarkSchedulesTab from './MarkSchedulesTab'
 import ReportsTab from './ReportsTab'
+import SbaTab from './SbaTab'
+import AssessmentResultsTab from './AssessmentResultsTab'
 
 const TABS = [
   { key: 'class-list', label: 'Class List' },
@@ -138,9 +140,11 @@ export default function ClassRegisterDetail() {
       {activeTab === 'class-list' && (
         <ClassListTab register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
       )}
+      {activeTab === 'sba' && <SbaTab register={reg} />}
+      {activeTab === 'results' && <AssessmentResultsTab register={reg} />}
       {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
       {activeTab === 'reports' && <ReportsTab register={reg} />}
-      {['sba', 'results', 'progress'].includes(activeTab) && (
+      {activeTab === 'progress' && (
         <ComingSoonPanel label={TABS.find((t) => t.key === activeTab)?.label || 'This view'} />
       )}
 
