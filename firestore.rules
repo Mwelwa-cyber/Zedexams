@@ -1402,6 +1402,73 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ── classRegisters (Class Register — official class lists) ───────
+    //
+    // A NEW teacher-owned collection, separate from `classes` above. A
+    // register is one official class whose roster (subcollection) is the
+    // single source of learner names for SBA, mark schedules, results,
+    // reports and progress. Schema:
+    //   classRegisters/{classId} {
+    //     className, grade ('4'|'5'|'6'|'7'), term, year (int),
+    //     school?, subject?, teacherUid (owner),
+    //     status: 'active'|'archived', learnerCount (int),
+    //     createdAt, updatedAt
+    //   }
+    //   classRegisters/{classId}/roster/{rosterId} {
+    //     classId, teacherUid, learnerNumber, fullName,
+    //     gender ('M'|'F'|'other'|null), parentPhone?, linkedUid?,
+    //     status ('active'|'transferred'|'inactive'), order, ...
+    //   }
+    //   classRegisters/{classId}/records/{recordId}  (marking records +
+    //     roster snapshots — built out in a later phase)
+    //
+    // Owner-only across the board. Every roster/record doc carries
+    // teacherUid so the rule needs no parent lookup, and a query for
+    // another teacher's class returns docs that fail the rule (rejected).
+    function _validRegGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
+    function validClassRegisterFields() {
+      return (!('className' in incoming()) || (incoming().className is string && incoming().className.size() >= 1 && incoming().className.size() <= 120))
+        && (!('grade' in incoming()) || _validRegGrade(incoming().grade))
+        && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 40))
+        && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 2000 && incoming().year <= 2100))
+        && (!('school' in incoming()) || incoming().school == null || (incoming().school is string && incoming().school.size() <= 200))
+        && (!('subject' in incoming()) || incoming().subject == null || (incoming().subject is string && incoming().subject.size() <= 100))
+        && (!('status' in incoming()) || (incoming().status is string && incoming().status in ['active', 'archived']))
+        && (!('learnerCount' in incoming()) || (incoming().learnerCount is int && incoming().learnerCount >= 0));
+    }
+    match /classRegisters/{classId} {
+      allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isTeacherOrAbove()
+        && validClassRegisterFields()
+        && incoming().teacherUid == request.auth.uid;
+      allow update: if isAuthed()
+        && resource.data.teacherUid == request.auth.uid
+        && validClassRegisterFields()
+        && incoming().teacherUid == resource.data.teacherUid;
+      allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+
+      match /roster/{rosterId} {
+        allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove()
+          && incoming().teacherUid == request.auth.uid
+          && incoming().fullName is string
+          && incoming().fullName.size() >= 1 && incoming().fullName.size() <= 120;
+        allow update: if isAuthed()
+          && resource.data.teacherUid == request.auth.uid
+          && incoming().teacherUid == resource.data.teacherUid;
+        allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      }
+
+      match /records/{recordId} {
+        allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove() && incoming().teacherUid == request.auth.uid;
+        allow update: if isAuthed()
+          && resource.data.teacherUid == request.auth.uid
+          && incoming().teacherUid == resource.data.teacherUid;
+        allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      }
+    }
+
     // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────
     //
     // A learner can practise any published past paper under a timer.
