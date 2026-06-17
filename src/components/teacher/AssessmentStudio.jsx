@@ -91,7 +91,6 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
-import { downloadAssessmentPdf, downloadAnswerSheetPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
@@ -1641,7 +1640,10 @@ export default function AssessmentStudio() {
     }
   }
 
-  /* ------------ export (PDF / DOCX / Print) ------------ */
+  /* ------------ export (Word / Print) ------------ */
+  // PDF export was removed — html2canvas-based PDFs mangled the paper layout
+  // too often. Teachers download Word (.docx) and can "Save as PDF" from Word
+  // or the browser Print dialog if they need a PDF.
   async function handleExport(kind, mode = 'paper') {
     if (questionCount === 0) {
       showToast('Add at least one question to export.', true)
@@ -1662,19 +1664,11 @@ export default function AssessmentStudio() {
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
-        if (kind === 'pdf') {
-          await downloadAnswerSheetPdf(assessmentDoc, serializedPreview.questions, { filename: docName('Answer Sheet', 'pdf') })
-          showToast('Answer sheet PDF downloaded.')
-        } else if (kind === 'docx') {
-          await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, docName('Answer Sheet'), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
-          showToast('Answer sheet download started.')
-        }
+        await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, docName('Answer Sheet'), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+        showToast('Answer sheet download started.')
         return
       }
-      if (kind === 'pdf') {
-        await downloadAssessmentPdf(assessmentDoc, serializedPreview.questions, { mode, filename: docName(mode === 'scheme' ? 'Marking Key' : undefined, 'pdf') })
-        showToast('PDF downloaded.')
-      } else if (kind === 'docx') {
+      if (kind === 'docx') {
         await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
       } else if (kind === 'print') {
@@ -5208,21 +5202,18 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExp
         </div>
 
         <div style={{ maxWidth: 720, margin: 'var(--sv-s4) auto 0', display: 'flex', gap: 'var(--sv-s2)', flexWrap: 'wrap' }}>
-          <button className="sv-btn sv-btn-primary" onClick={() => onExport('pdf')} disabled={exporting}>
-            {exporting ? '⏳ Working…' : `📄 ${isKey ? 'Download key PDF' : 'Download PDF'}`}
+          <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting}>
+            {exporting ? '⏳ Working…' : `📝 ${isKey ? 'Download key (Word)' : 'Download Word'}`}
           </button>
-          <button className="sv-btn sv-btn-dark" onClick={() => onExport('docx')} disabled={exporting}>
-            📝 {isKey ? 'Download key Word' : 'Download Word'}
-          </button>
-          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')}>
-            🖨 Print
+          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} title="Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF">
+            🖨 Print / Save as PDF
           </button>
           {onExportAnswerSheet && (
             <button
               className="sv-btn sv-btn-outline"
-              onClick={() => onExportAnswerSheet('pdf')}
+              onClick={() => onExportAnswerSheet('docx')}
               disabled={exporting}
-              title="A bubble answer sheet (PDF) students fill in instead of writing on the paper"
+              title="A bubble answer sheet (Word) students fill in instead of writing on the paper"
             >
               🫧 Answer sheet
             </button>

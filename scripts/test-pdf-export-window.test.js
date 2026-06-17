@@ -28,9 +28,10 @@ const root = join(__dirname, '..')
 
 // Files that open a blank window (window.open('', ...)) and write a document
 // into the returned handle. These MUST keep a usable handle.
+// Note: the assessment exporter no longer ships a PDF path (Word-only), so
+// it's intentionally absent here.
 const FILES = [
   'src/utils/lessonPlanToPdf.js',
-  'src/utils/assessmentToPdf.js',
   'src/utils/classTimetableToPdf.js',
 ]
 

@@ -5,7 +5,6 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
-import { downloadAssessmentPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -103,16 +102,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
-          {exporting === 'docx-paper' ? 'Building…' : '📄 Paper (DOCX)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf', 'paper')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
-        >
-          {exporting === 'pdf-paper' ? 'Opening…' : '📄 Paper (PDF)'}
+          {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
         </button>
         <button
           type="button"
@@ -121,16 +111,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
-          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (DOCX)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf', 'scheme')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
-        >
-          {exporting === 'pdf-scheme' ? 'Opening…' : '🗒️ Scheme (PDF)'}
+          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (Word)'}
         </button>
         <button
           type="button"
@@ -200,11 +181,9 @@ export default function AssessmentList() {
     // Fetch the full question set on-demand so the list view stays cheap.
     const questions = await getAssessmentQuestions(assessment.id)
     const variant = mode === 'paper' ? undefined : 'Marking Key'
-    if (format === 'docx') {
-      await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
-    } else {
-      await downloadAssessmentPdf(assessment, questions, { mode, filename: assessmentFileName(assessment, variant, 'pdf') })
-    }
+    // Word (.docx) is the only download format. PDF export was removed — its
+    // html2canvas rendering mangled papers; teachers "Save as PDF" from Word.
+    await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   if (loading) {
@@ -260,10 +239,10 @@ export default function AssessmentList() {
             My assessments
           </h1>
           <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Tests and exam papers you've created for your class — private to you, never shown to learners. Print, download as DOCX or PDF, or open the marking scheme.
+            Tests and exam papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme.
           </p>
           <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📄 DOCX + PDF export</span>
+            <span>📝 Word (.docx) export</span>
             <span>🗒️ Marking scheme</span>
             <span>🔒 Teacher-private</span>
           </div>

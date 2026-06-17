@@ -1,17 +1,22 @@
 /**
  * Regression tests for the Assessment Studio Word (.docx) export.
  *
- * Guards the bug where question pictures showed in the studio preview but
- * were missing from the downloaded Word paper: docx v9 requires
- * `ImageRun.type`, and an undefined type makes Word silently drop the
- * embedded image (the media part is written as `<hash>.undefined`).
+ * Guards two bugs:
+ *   1. Question pictures showed in the studio preview but were missing from
+ *      the downloaded Word paper: docx v9 requires `ImageRun.type`, and an
+ *      undefined type makes Word silently drop the embedded image (the media
+ *      part is written as `<hash>.undefined`).
+ *   2. The whole Word download produced a file Word couldn't open ("unreadable
+ *      content") when any question carried characters XML 1.0 forbids — stray
+ *      control bytes from imported/pasted/OCR'd papers. sanitizeXmlText strips
+ *      them at the single run-text funnel.
  *
  * Run: node src/utils/assessmentToDocx.test.js
  */
 
 import { Document, ImageRun, Packer, Paragraph } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildAssessmentDocument, detectImageType } from './assessmentToDocx.js'
+import { buildAssessmentDocument, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
 
 let failures = 0
 function assert(cond, msg) {
@@ -105,6 +110,40 @@ try {
 } finally {
   globalThis.fetch = realFetch
 }
+
+console.log('\nXML-illegal control characters are stripped (the corrupt-.docx bug)')
+// Word reports "unreadable content" and refuses to open a .docx whose XML
+// carries characters XML 1.0 forbids. Imported papers (scanned PDFs, pasted
+// Word, OCR) routinely smuggle in stray control bytes, so a single one
+// silently broke the whole Word download. The control bytes are built via
+// fromCharCode so this source file stays free of raw control characters.
+const NUL = String.fromCharCode(0)
+const BS = String.fromCharCode(8)
+const US = String.fromCharCode(31)
+const NONCHAR = String.fromCharCode(0xfffe) + String.fromCharCode(0xffff)
+// eslint-disable-next-line no-control-regex
+const CONTROL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/
+
+assert(sanitizeXmlText(`a${NUL}b${BS}c${US}d`) === 'abcd', 'control chars (NUL / BS / US) are removed')
+assert(sanitizeXmlText('keep\tthese\nlegal\rchars') === 'keep\tthese\nlegal\rchars', 'tab / newline / CR are kept (legal XML)')
+assert(sanitizeXmlText('emoji 🦅 stays') === 'emoji 🦅 stays', 'surrogate pairs (emoji) survive')
+assert(sanitizeXmlText(`non${NONCHAR}char`) === 'nonchar', 'the two XML non-characters are removed')
+
+// End-to-end: a question whose title / text / options carry control bytes
+// must still pack into a well-formed document.xml (no raw control char leaks).
+const dirtyDoc = await buildAssessmentDocument(
+  { title: `Dirty${US}Paper`, subject: 'Science', showNameField: true },
+  [{
+    id: 'q1', order: 1, type: 'mcq',
+    text: `Pick the${BS} right one`,
+    options: [`good${NUL}`, 'bad', 'ugly', 'fine'],
+    correctAnswer: 0, marks: 1,
+  }],
+  { mode: 'paper' },
+)
+const dirtyXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(dirtyDoc)))['word/document.xml'])
+assert(!CONTROL_RE.test(dirtyXml), 'packed document.xml contains no raw XML-illegal control characters')
+assert(dirtyXml.includes('right one'), 'sanitised question text still renders')
 
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)

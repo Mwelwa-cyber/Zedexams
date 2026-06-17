@@ -555,9 +555,9 @@
 /* ══════════════════════════════════════════════════════════════
    GRADE-7 MATH BLOCKS
    Used everywhere the editor + viewer + preview cards render
-   authored rich content. The PDF print pipeline ships its own
-   copy of these rules (assessmentToPdf.js) so the printed paper
-   matches the editor preview exactly.
+   authored rich content. The Word exporter (assessmentToDocx.js)
+   reconstructs these blocks as docx runs so the downloaded paper
+   matches the editor preview.
    ══════════════════════════════════════════════════════════════ */
 
 /* ── Vertical arithmetic ── */
