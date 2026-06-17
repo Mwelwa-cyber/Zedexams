@@ -32,9 +32,20 @@ import {
   PencilLine,
   Sparkles,
   Target,
+  Users,
 } from '../ui/icons'
 
 const STUDIOS = [
+  {
+    icon: Users,
+    tone: 'green',
+    badge: 'NEW',
+    libraryKey: null,
+    title: 'Class Register',
+    tagline: 'Build one class list per class — then SBA, marks and reports load every learner for you.',
+    to: '/teacher/register',
+    meta: 'Class lists',
+  },
   {
     icon: ImageIcon,
     tone: 'orange',

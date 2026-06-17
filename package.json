@@ -61,6 +61,7 @@
     "test:game-feel": "node scripts/test-game-feel.mjs",
     "test:game-progress": "node scripts/test-game-progress.mjs",
     "test:csv-import": "node scripts/test-csv-import.mjs",
+    "test:roster-import": "node scripts/test-roster-import.mjs",
     "test:download-filename": "node scripts/test-download-filename.mjs",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",

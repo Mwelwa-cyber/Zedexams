@@ -159,6 +159,9 @@ const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDet
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
 const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
+const ClassRegisterList = lazy(() => import('./components/teacher/register/ClassRegisterList'))
+const ClassRegisterEditor = lazy(() => import('./components/teacher/register/ClassRegisterEditor'))
+const ClassRegisterDetail = lazy(() => import('./components/teacher/register/ClassRegisterDetail'))
 // Audit A10 PR 2 — learner-side join + view classes.
 const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
 const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
@@ -611,6 +614,14 @@ export default function App() {
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />
           <Route path="/teacher/classes/new"             element={<TeacherRoute><TeacherClassEditor /></TeacherRoute>} />
           <Route path="/teacher/classes/:classId"        element={<TeacherRoute><TeacherClassDetail /></TeacherRoute>} />
+          {/* Class Register — official class lists that feed SBA, mark
+              schedules, results, reports and progress (one roster, no
+              retyping). Separate from the invite-code classes above. */}
+          <Route path="/teacher/register"                element={<TeacherRoute><ClassRegisterList /></TeacherRoute>} />
+          <Route path="/teacher/register/new"            element={<TeacherRoute><ClassRegisterEditor /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId"       element={<TeacherRoute><ClassRegisterDetail /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId/edit"  element={<TeacherRoute><ClassRegisterEditor /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId/:tab"  element={<TeacherRoute><ClassRegisterDetail /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
