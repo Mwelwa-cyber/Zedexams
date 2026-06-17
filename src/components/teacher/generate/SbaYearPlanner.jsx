@@ -96,10 +96,22 @@ export default function SbaYearPlanner() {
     return () => clearTimeout(t)
   }, [uid, subject, grade, header, statuses, generationId])
 
-  // Any edit marks the saved library copy stale.
+  // Mark the saved library copy stale on a genuine *user* edit. (Driven from
+  // the mutators below rather than a [header, statuses] effect: that effect
+  // also fired on mount and on every draft-restore / profile back-fill, so a
+  // freshly-loaded plan always read "Update in library" instead of "Saved".)
+  const markDirty = () => setDirtySinceSave(true)
+
+  // Back-fill the school once the profile resolves (it's often null on first
+  // render). Fills only an empty field and writes setHeader directly, so it
+  // never marks the plan dirty.
   useEffect(() => {
-    setDirtySinceSave(true)
-  }, [header, statuses])
+    if (!userProfile) return
+    setHeader((h) => {
+      const school = h.school || userProfile.school || userProfile.schoolName || ''
+      return school === h.school ? h : { ...h, school }
+    })
+  }, [userProfile])
 
   // The saved artifact: header (with raw subject/grade + labels) + statuses.
   // The library detail view rebuilds the plan from these.
@@ -115,16 +127,19 @@ export default function SbaYearPlanner() {
     statuses,
   }), [header, subject, grade, subjectMeta, statuses])
 
-  const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+  const setH = (field, value) => { markDirty(); setHeader((h) => ({ ...h, [field]: value })) }
 
   function advance(colKey) {
+    markDirty()
     setStatuses((s) => ({ ...s, [colKey]: nextSbaStatus(s[colKey]) }))
   }
   function setStatus(colKey, value) {
+    markDirty()
     setStatuses((s) => ({ ...s, [colKey]: value }))
   }
   function markAll(value) {
     if (!plan) return
+    markDirty()
     const next = {}
     for (const g of plan.groups) for (const c of g.columns) next[c.key] = value
     setStatuses(next)
