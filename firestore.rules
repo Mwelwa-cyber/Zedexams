@@ -1551,6 +1551,34 @@ service cloud.firestore {
         && (!('role'  in incoming()) || (incoming().role  is string && incoming().role  in ['parent', 'teacher', 'school', 'learner', 'other']));
     }
 
+    // ── feedback (learner/teacher suggestion & request box) ───────────
+    //
+    // Signed-in learners/teachers submit suggestions, content requests,
+    // feature requests, and bug reports here. It's a PRIVATE inbox: only
+    // admins read it (no submitter sees another's request), and only
+    // admins update status (new → planned → done / declined). The create
+    // validator mirrors src/components/feedback/feedbackOptions.js — the
+    // type + role allowlists must stay in sync with that module, which is
+    // pinned by scripts/test-firestore-rules-text.mjs.
+    match /feedback/{feedbackId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAuthed()
+        && incoming().keys().hasOnly([
+              'uid', 'role', 'type', 'message', 'status', 'source', 'context', 'name', 'email', 'createdAt'
+            ])
+        && incoming().keys().hasAll(['uid', 'role', 'type', 'message', 'status', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().role is string && incoming().role in ['parent', 'teacher', 'school', 'learner', 'admin', 'other']
+        && incoming().type is string && incoming().type in ['suggestion', 'content', 'feature', 'bug', 'other']
+        && incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 2000
+        && incoming().status == 'new'
+        && incoming().createdAt == request.time
+        && (!('source'  in incoming()) || (incoming().source  is string && incoming().source.size() <= 60))
+        && (!('context' in incoming()) || (incoming().context is string && incoming().context.size() <= 200))
+        && (!('name'    in incoming()) || (incoming().name    is string && incoming().name.size() <= 100))
+        && (!('email'   in incoming()) || (incoming().email   is string && incoming().email.size() <= 200));
+    }
+
     // ── newsletterSubscribers (audit C6 — list builder) ───────────────
     //
     // Writes are routed exclusively through the subscribeToNewsletter
