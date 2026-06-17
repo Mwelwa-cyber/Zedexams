@@ -266,7 +266,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                         <div className="text-xs text-gray-500">ZMW</div>
                       </div>
                     </div>
-                    {active && (
+                    {item.features?.length > 0 && (
                       <ul className="mt-3 space-y-1">
                         {item.features.map((feature) => (
                           <li key={feature} className="text-sm text-gray-700 flex items-center gap-2">
