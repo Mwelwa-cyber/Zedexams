@@ -55,19 +55,28 @@ export default function ReviewPanel({ items = [], total = 0, onJump }) {
             <button
               type="button"
               onClick={() => onJump?.(item.localId)}
-              className="theme-card theme-border flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-black/5"
+              className="theme-card theme-border flex w-full flex-col gap-1.5 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-black/5"
             >
-              <span className="theme-text w-12 shrink-0 text-xs font-black tabular-nums">
-                {item.inPassage ? '↳ ' : ''}Q{item.number}
+              <span className="flex w-full items-center gap-3">
+                <span className="theme-text w-12 shrink-0 text-xs font-black tabular-nums">
+                  {item.inPassage ? '↳ ' : ''}Q{item.number}
+                </span>
+                <span className="flex flex-wrap gap-1">
+                  {item.issues.map(issue => (
+                    <span key={issue} className={`rounded px-1.5 py-0.5 text-[10px] font-black ${ISSUE_STYLES[issue] || 'bg-gray-100 text-gray-800'}`}>
+                      {issue}
+                    </span>
+                  ))}
+                </span>
+                <span className="theme-text-muted ml-auto text-xs font-bold">Jump →</span>
               </span>
-              <span className="flex flex-wrap gap-1">
-                {item.issues.map(issue => (
-                  <span key={issue} className={`rounded px-1.5 py-0.5 text-[10px] font-black ${ISSUE_STYLES[issue] || 'bg-gray-100 text-gray-800'}`}>
-                    {issue}
-                  </span>
-                ))}
-              </span>
-              <span className="theme-text-muted ml-auto text-xs font-bold">Jump →</span>
+              {item.notes?.length > 0 && (
+                <ul className="theme-text-muted ml-12 list-disc space-y-0.5 pl-4 text-[11px] font-semibold leading-relaxed">
+                  {item.notes.slice(0, 3).map((note, index) => (
+                    <li key={`${note}-${index}`}>{note}</li>
+                  ))}
+                </ul>
+              )}
             </button>
           </li>
         ))}
