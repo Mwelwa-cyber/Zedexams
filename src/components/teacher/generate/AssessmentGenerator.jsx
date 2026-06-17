@@ -349,18 +349,26 @@ function AssessmentView({ a, showAnswers }) {
                 <span className="font-black theme-text shrink-0">{q.number}.</span>
                 <div className="flex-1">
                   <p className="theme-text">{q.prompt}</p>
-                  {q.diagram && (
+                  {(q.diagram || q.visual?.prompt) && (
                     <div className="mt-2 rounded-lg border-2 border-dashed p-3 text-sm"
                       style={{ borderColor: '#d9cfb8', color: '#566f76' }}>
-                      🖼 <span className="font-bold">Diagram needed: </span>
-                      {q.diagram}
+                      🖼 <span className="font-bold">Figure needed: </span>
+                      {q.diagram || q.visual?.prompt}
                       <span className="block text-xs italic mt-1">
                         Attach or draw this figure before printing.
                       </span>
                     </div>
                   )}
-                  {(q.type === 'multiple_choice' || q.type === 'true_false') &&
-                    q.options?.length > 0 && (
+                  {q.type === 'true_false' && q.options?.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {q.options.map((opt, i) => (
+                        <li key={i} className="text-sm theme-text">
+                          <span className="mr-2">○</span>{opt}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {q.type === 'multiple_choice' && q.options?.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
                       {q.options.map((opt, i) => (
                         <li key={i} className="text-sm theme-text">
@@ -387,6 +395,16 @@ function AssessmentView({ a, showAnswers }) {
                   )}
                   {showAnswers && (
                     <div className="mt-2 pt-2 border-t theme-border">
+                      {q.type === 'matching' && q.matching?.pairs?.length > 0 && (
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-1">
+                          <span className="font-bold">✓ Correct pairs: </span>
+                          {q.matching.left.map((item, i) => {
+                            const j = q.matching.pairs[i]
+                            const rightLabel = Number.isInteger(j) ? (LETTERS[j] || '•') : '?'
+                            return `${i + 1}→${rightLabel}`
+                          }).join(', ')}
+                        </p>
+                      )}
                       <p className="text-sm text-emerald-700 dark:text-emerald-400">
                         <span className="font-bold">✓ Answer: </span>{q.answer}
                       </p>

@@ -80,6 +80,10 @@ export default function MarkScheduleStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
+  // The dirty-marking effect below fires on the initial mount and again on the
+  // re-render the draft-restore triggers. Skip those runs so a freshly-loaded
+  // saved sheet shows "✓ Saved" rather than "Update in library".
+  const dirtySkipRef = useRef(1)
 
   // Restore a saved draft once per mount.
   useEffect(() => {
@@ -87,11 +91,13 @@ export default function MarkScheduleStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-    if (Array.isArray(draft.subjects) && draft.subjects.length) setSubjects(draft.subjects)
-    if (Array.isArray(draft.pupils) && draft.pupils.length) setPupils(draft.pupils)
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
+    if (Array.isArray(draft.subjects) && draft.subjects.length) { setSubjects(draft.subjects); restoredDirtyState = true }
+    if (Array.isArray(draft.pupils) && draft.pupils.length) { setPupils(draft.pupils); restoredDirtyState = true }
     if (draft.mode) setMode(draft.mode)
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   // Debounced autosave (the library doc id rides along so "Update in
@@ -106,8 +112,10 @@ export default function MarkScheduleStudio() {
     return () => clearTimeout(t)
   }, [uid, header, subjects, pupils, mode, generationId])
 
-  // Any data edit marks the library copy stale.
+  // Any data edit marks the library copy stale. (Skips the mount + restore
+  // runs via dirtySkipRef so a just-loaded saved sheet isn't flagged dirty.)
   useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
     setDirtySinceSave(true)
   }, [header, subjects, pupils])
 

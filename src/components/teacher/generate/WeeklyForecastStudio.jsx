@@ -183,6 +183,9 @@ export default function WeeklyForecastStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
+  // Skip the mount + draft-restore runs of the dirty-marking effect so a
+  // freshly-loaded saved forecast isn't flagged "Update in library".
+  const dirtySkipRef = useRef(1)
   const autoTimetableRef = useRef('')
 
   // Saved schemes + timetables for the pickers — quietly degrade to manual.
@@ -214,10 +217,12 @@ export default function WeeklyForecastStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-    if (Array.isArray(draft.days) && draft.days.length) setDays(migrateDayWeekdays(draft.days))
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
+    if (Array.isArray(draft.days) && draft.days.length) { setDays(migrateDayWeekdays(draft.days)); restoredDirtyState = true }
     if (draft.timetableId) setTimetableId(draft.timetableId)
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   // Debounced autosave.
@@ -231,7 +236,10 @@ export default function WeeklyForecastStudio() {
     return () => clearTimeout(t)
   }, [uid, header, days, timetableId, generationId])
 
-  useEffect(() => { setDirtySinceSave(true) }, [header, days])
+  useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
+    setDirtySinceSave(true)
+  }, [header, days])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
