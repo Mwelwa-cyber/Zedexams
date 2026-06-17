@@ -1170,37 +1170,43 @@ export default function GradeHub() {
           }`}
           data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
-          {/* Large character art blended into the hero as a background layer.
-              Skipped in data-saver so the image never downloads on metered
-              connections. The wash re-paints the themed gradient over the text
-              column for contrast, then fades out so the art melts into the
-              card on the right instead of looking pasted on top. */}
+          {/* Ambient sparkle. The big character art used to be a half-card
+              background layer here (with a gradient "wash" for text contrast),
+              which forced the welcome content into a narrow left column so the
+              stats, buttons and pills each wrapped onto their own line and made
+              the hero very tall. The art now lives as a compact top-right
+              thumbnail (see below) and the content spans the full width, so it
+              collapses onto far fewer rows. Skipped in data-saver. */}
           {!dataSaver && (
             <>
-              <img
-                src={DASHBOARD_CHARACTERS.hero.src}
-                alt=""
-                aria-hidden="true"
-                width={DASHBOARD_CHARACTERS.hero.width}
-                height={DASHBOARD_CHARACTERS.hero.height}
-                loading="eager"
-                decoding="async"
-                className="zx-hero-bg"
-              />
-              <div className="zx-hero-wash" aria-hidden="true" />
-              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s', zIndex: 2 }} />
+              <FloatingStar style={{ top: '16%', left: '8%',  fontSize: 14, animationDelay: '0s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '64%', left: '4%',  fontSize: 10, animationDelay: '1s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '34%', left: '58%', fontSize: 9,  animationDelay: '2s',   zIndex: 2 }} />
             </>
           )}
 
-          <div className="relative z-10 max-w-[58%] min-w-0">
-            <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-              Welcome back
-            </p>
-            <h1 className="text-display-xl text-white">{firstName}!</h1>
-            <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="mb-1 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  Welcome back
+                </p>
+                <h1 className="text-display-xl text-white">{firstName}!</h1>
+                <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
+              </div>
+              {!dataSaver && (
+                <img
+                  src={DASHBOARD_CHARACTERS.hero.src}
+                  alt=""
+                  aria-hidden="true"
+                  width={DASHBOARD_CHARACTERS.hero.width}
+                  height={DASHBOARD_CHARACTERS.hero.height}
+                  loading="eager"
+                  decoding="async"
+                  className="zx-hero-art"
+                />
+              )}
+            </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-4">
               <div>
