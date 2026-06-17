@@ -49,14 +49,13 @@ check(/export async function saveBlob/.test(saveBlob), 'saveBlob exports saveBlo
 check(/file-saver/.test(saveBlob) && /a\.download/.test(saveBlob), 'saveBlob uses file-saver with an <a download> fallback')
 
 // 3. Each ToPdf util has a real-download wrapper AND keeps the print fallback.
+//    The assessment exporter is intentionally NOT here: PDF export was removed
+//    from the Assessment Studio + list (html2canvas mangled the paper), leaving
+//    Word (.docx) as the only download. See section 9 for the Word-only guard.
 const pdfUtils = {
   'src/utils/lessonPlanToPdf.js': {
     download: /export async function downloadLessonPlanPdf/,
     print: /export function printLessonPlanAsPdf/,
-  },
-  'src/utils/assessmentToPdf.js': {
-    download: /export async function downloadAssessmentPdf/,
-    print: /export function printAssessmentAsPdf/,
   },
   'src/utils/classTimetableToPdf.js': {
     download: /export async function downloadClassTimetablePdf/,
@@ -70,14 +69,12 @@ for (const [rel, { download, print }] of Object.entries(pdfUtils)) {
   check(/downloadHtmlAsPdf/.test(src), `${rel} routes through the shared real-PDF helper`)
 }
 
-// 4. PDF buttons in components call the async download wrapper, not the bare
-//    print function (which only opened a dialog).
+// 4. PDF buttons in the remaining PDF surfaces call the async download wrapper,
+//    not the bare print function (which only opened a dialog).
 const componentNoBarePrint = {
   'src/components/teacher/generate/LessonPlanGenerator.jsx': /downloadLessonPlanPdf/,
   'src/components/teacher/generate/ClassTimetableStudio.jsx': /downloadClassTimetablePdf/,
   'src/components/teacher/library/LibraryItemDetail.jsx': /downloadClassTimetablePdf/,
-  'src/components/teacher/AssessmentStudio.jsx': /downloadAssessmentPdf/,
-  'src/components/teacher/AssessmentList.jsx': /downloadAssessmentPdf/,
 }
 for (const [rel, re] of Object.entries(componentNoBarePrint)) {
   check(re.test(read(rel)), `${rel} calls the async PDF download wrapper`)
@@ -106,6 +103,24 @@ const viteConfig = read('vite.config.js')
 check(
   /jspdf/.test(viteConfig) && /html2canvas/.test(viteConfig) && /pdf-vendor/.test(viteConfig),
   'vite.config splits jspdf + html2canvas into a lazy pdf-vendor chunk',
+)
+
+// 9. The Assessment Studio + list are Word-only: they export via
+//    downloadAssessmentDocx and must NOT reintroduce a PDF download path
+//    (the assessmentToPdf util was deleted). Guards the "remove PDF, keep
+//    Word" change from silently regressing.
+const wordOnlySurfaces = [
+  'src/components/teacher/AssessmentStudio.jsx',
+  'src/components/teacher/AssessmentList.jsx',
+]
+for (const rel of wordOnlySurfaces) {
+  const src = read(rel)
+  check(/downloadAssessmentDocx/.test(src), `${rel} exports assessments as Word (.docx)`)
+  check(!/assessmentToPdf|downloadAssessmentPdf|downloadAnswerSheetPdf/.test(src), `${rel} has no PDF assessment download path`)
+}
+check(
+  !existsSync(join(root, 'src/utils/assessmentToPdf.js')),
+  'assessmentToPdf util is gone (assessment PDF export removed)',
 )
 
 if (failures) {
