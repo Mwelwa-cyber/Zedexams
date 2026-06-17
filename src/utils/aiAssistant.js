@@ -19,6 +19,11 @@ const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // the client giving up first. Claude Sonnet can easily take 15–25s on a
 // cold start with a long CBC system prompt and ~1000-token output.
 const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
+// Watchdog for the streaming read loop: if the SSE connection goes quiet for
+// this long (no token, no [DONE], no close — common on flaky mobile / Android
+// WebView where a dropped connection just hangs), abort and surface an error
+// instead of leaving Zed's chat input disabled forever on "thinking…".
+const AI_CHAT_STREAM_STALL_MS = 30000
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
@@ -252,6 +257,10 @@ export function sendAIChatStream({
   if (systemPrompt) payload.systemPrompt = systemPrompt
 
   let cancelled = false
+  // Hoisted so the returned cancel() can abort an in-flight fetch — otherwise
+  // a cancel while reader.read() is blocked wouldn't take effect until the
+  // next chunk (which may never come on a stalled connection).
+  let activeController = null
 
   async function run() {
     let token
@@ -289,6 +298,20 @@ export function sendAIChatStream({
     }
 
     let fullText = ''
+    // AbortController lets the stall watchdog (and the caller's cancel) tear
+    // the connection down even while it's blocked inside reader.read().
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    activeController = controller
+    let stalled = false
+    let stallTimer = null
+    const armStallTimer = () => {
+      if (!controller) return
+      if (stallTimer) clearTimeout(stallTimer)
+      stallTimer = setTimeout(() => {
+        stalled = true
+        controller.abort()
+      }, AI_CHAT_STREAM_STALL_MS)
+    }
     try {
       const response = await withTimeout(
         fetch(apiUrl('/api/ai/chat'), {
@@ -298,6 +321,7 @@ export function sendAIChatStream({
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(payload),
+          signal: controller?.signal,
         }),
         AI_CHAT_TIMEOUT_MS,
         'Zed is taking too long to reply. Please try again in a moment.',
@@ -312,8 +336,11 @@ export function sendAIChatStream({
       const decoder = new TextDecoder()
       let buffer = ''
 
+      armStallTimer()
       while (true) {
         const { done, value } = await reader.read()
+        // Each chunk (or close) is a sign of life — reset the watchdog.
+        armStallTimer()
         if (done || cancelled) break
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
@@ -348,14 +375,25 @@ export function sendAIChatStream({
       // Stream ended without [DONE] — treat accumulated text as complete.
       if (!cancelled) onDone?.(fullText)
     } catch (err) {
-      if (!cancelled) onError?.(new Error(err?.message || messageFromError(err)))
+      if (cancelled) return
+      // A stall-triggered abort surfaces as an AbortError — translate it into
+      // a friendly timeout message rather than the raw "aborted" string.
+      const message = stalled
+        ? 'Zed lost connection mid-reply. Please try again.'
+        : (err?.message || messageFromError(err))
+      onError?.(new Error(message))
+    } finally {
+      if (stallTimer) clearTimeout(stallTimer)
     }
   }
 
   run()
 
   // Return a cancel function so the component can stop the stream on unmount.
-  return () => { cancelled = true }
+  return () => {
+    cancelled = true
+    try { activeController?.abort() } catch { /* already settled */ }
+  }
 }
 
 export async function sendAIChat({
