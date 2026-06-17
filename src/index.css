@@ -3271,76 +3271,27 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 }
 
 /* ── Learner dashboard welcome card art ──────────────────────────────────
-   The welcome/hero card keeps its existing themed background and border
-   untouched. The character art is enlarged into a background-style
-   illustration anchored to the card's bottom-right; the text and buttons stay
-   above it via z-index. The optional wash repaints the card's *own*
-   var(--hero-gradient) over the text column so the copy stays readable and the
-   art blends in — no fixed colours are introduced, so every theme is honoured. */
-.zx-hero-bg {
-  position: absolute;
-  right: -12px;
-  /* Lifted off the banner floor so the characters sit higher in the hero
-     (per design feedback). Width/height unchanged so the art stays the
-     same size — only its vertical anchor moves up. */
-  bottom: 10%;
-  width: 64%;
-  height: 112%;
+   The character art used to be a half-card background illustration anchored to
+   the bottom-right, which squeezed the welcome copy into a narrow left column
+   and made the hero very tall. It's now a compact thumbnail that floats at the
+   top-right of the card, letting the stats/buttons/pills use the full width and
+   sit on far fewer rows. The card's own themed background/border are untouched,
+   so every theme is honoured. */
+.zx-hero-art {
+  flex: none;
+  width: 104px;
+  height: auto;
   object-fit: contain;
-  object-position: bottom right;
-  opacity: 0.96;
-  z-index: 1;
+  border-radius: 1rem;
+  opacity: 0.98;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.zx-hero-wash {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: var(--hero-gradient);
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    #000 0%,
-    #000 40%,
-    rgba(0, 0, 0, 0.55) 60%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    #000 0%,
-    #000 40%,
-    rgba(0, 0, 0, 0.55) 60%,
-    transparent 100%
-  );
-}
-
-@media (max-width: 640px) {
-  /* Very small screens: keep the art large and nudge it further right so it
-     never fights the copy. Stays within ~55-60% so the text column breathes. */
-  .zx-hero-bg {
-    width: 60%;
-    right: -18px;
-    bottom: 12%;
-    opacity: 0.94;
-  }
-  .zx-hero-wash {
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      #000 0%,
-      #000 46%,
-      rgba(0, 0, 0, 0.6) 64%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      #000 0%,
-      #000 46%,
-      rgba(0, 0, 0, 0.6) 64%,
-      transparent 100%
-    );
+@media (min-width: 640px) {
+  .zx-hero-art {
+    width: 136px;
   }
 }
 
