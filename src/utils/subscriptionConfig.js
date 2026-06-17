@@ -329,6 +329,15 @@ export function getActivePlan(userProfile) {
   return PLANS[userProfile.subscriptionPlan] ?? PLANS.monthly
 }
 
+// Plain tier name for display: 'free' | 'pro' | 'max'.
+// Premium learner plans (legacy monthly/termly/yearly, grade7_*, etc. — which
+// have no `tier` field) count as 'max' per product naming.
+export function getPlanTier(userProfile) {
+  if (!hasPremiumAccess(userProfile)) return 'free'
+  const plan = getActivePlan(userProfile)
+  return plan?.tier === 'pro' ? 'pro' : 'max'
+}
+
 export function daysUntilExpiry(userProfile) {
   if (!hasPremiumAccess(userProfile) || !userProfile?.subscriptionExpiry) return null
   const expiry = toDateValue(userProfile.subscriptionExpiry)

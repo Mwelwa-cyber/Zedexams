@@ -1,12 +1,17 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useFirestore } from './useFirestore'
-import { getActivePlan, ACCESS_LEVELS } from '../utils/subscriptionConfig'
+import { getActivePlan, getPlanTier, ACCESS_LEVELS } from '../utils/subscriptionConfig'
 
 export function useSubscription() {
   const { currentUser, userProfile, isPremium, isAdmin, isPaidTeacher } = useAuth()
   const { checkAndConsumeAttempt } = useFirestore()
 
   const plan = getActivePlan(userProfile)
+
+  // Plain tier name for display on the profile: 'Free' | 'Pro' | 'Max'.
+  // Premium learner plans map to 'Max' (see getPlanTier).
+  const planTier = getPlanTier(userProfile)
+  const tierLabel = planTier === 'pro' ? 'Pro' : planTier === 'max' ? 'Max' : 'Free'
 
   // Access level: admins, paid teachers, and premium learners get full content.
   const canAccessFullContent = isAdmin || isPaidTeacher || isPremium
@@ -43,6 +48,8 @@ export function useSubscription() {
     plan,
     planId: plan.id,
     planName: plan.name,
+    planTier,
+    tierLabel,
     canUseExamMode,
     canUseWeaknessAnalysis,
     tryStartQuiz,

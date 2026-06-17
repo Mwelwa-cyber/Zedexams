@@ -81,7 +81,7 @@ export default function ProfilePage() {
   const { currentUser, userProfile, updateProfileFields, logout } = useAuth()
   const { getUserResults }                                         = useFirestore()
   const { earned: earnedBadges }                                   = useBadges(currentUser?.uid)
-  const { accessBadge, isPremium, planName }                       = useSubscription()
+  const { accessBadge, isPremium, tierLabel }                      = useSubscription()
   const navigate                                                   = useNavigate()
 
   // form state
@@ -219,7 +219,7 @@ export default function ProfilePage() {
                   accessBadge.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-white/20 text-white'
                 }`}>
-                  <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
+                  <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {isAdmin ? accessBadge.label : tierLabel}
                 </span>
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function ProfilePage() {
               <Icon as={isPremium ? Sparkles : LockClosedIcon} size="lg" strokeWidth={2.1} className={`flex-shrink-0 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`} />
               <div className="flex-1 min-w-0">
                 <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
-                  {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
+                  {tierLabel}
                   {/* Audit D4 — cancellation badge. Tells the user at a
                       glance the plan won't auto-renew (and gives them
                       somewhere to undo from). */}
