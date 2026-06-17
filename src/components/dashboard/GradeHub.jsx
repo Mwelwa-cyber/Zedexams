@@ -52,7 +52,6 @@ import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import AssignmentsCard          from './AssignmentsCard'
-import ClassesQuickCard         from './ClassesQuickCard'
 import StudyPlanCard            from './StudyPlanCard'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
@@ -1124,12 +1123,6 @@ export default function GradeHub() {
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={Sparkles} size="sm" strokeWidth={2.1} /> My Subscription
                     </Link>
-                    {!isAdmin && !isTeacher && (
-                      <Link to="/classes" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-                        <Icon as={GraduationCap} size="sm" strokeWidth={2.1} /> My Classes
-                      </Link>
-                    )}
                     <Link to="/my-results" onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={BarChart3} size="sm" strokeWidth={2.1} /> My Results
@@ -1274,9 +1267,6 @@ export default function GradeHub() {
             Self-hides when the learner has no classes or no active
             assignments yet. */}
         <AssignmentsCard />
-        {/* "My classes" surface — exposes /classes/join from the
-            dashboard so learners can paste a teacher invite code. */}
-        <ClassesQuickCard />
         <StudyPlanCard
           results={recentResults}
           weakTopics={weakTopics}
