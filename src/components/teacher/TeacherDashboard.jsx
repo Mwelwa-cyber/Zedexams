@@ -35,175 +35,197 @@ import {
   Users,
 } from '../ui/icons'
 
-const STUDIOS = [
+// Tiles are grouped into the three teacher workflows (plan → make → assess) that
+// the dashboard renders as labelled sections. `NEW` is reserved for genuinely
+// recent tools so the badge keeps its signal; every other tile shows either its
+// saved-count or no badge. Keep each group's items in their display order.
+const STUDIO_GROUPS = [
   {
-    icon: Users,
-    tone: 'green',
-    badge: 'NEW',
-    libraryKey: null,
-    title: 'Class Register',
-    tagline: 'Build one class list per class — then SBA, marks and reports load every learner for you.',
-    to: '/teacher/register',
-    meta: 'Class lists',
+    label: 'Planning',
+    items: [
+      {
+        icon: CalendarDays,
+        tone: 'amber',
+        badge: null,
+        libraryKey: 'scheme-of-work',
+        title: 'Schemes of Work',
+        tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
+        to: '/teacher/generate/scheme-of-work',
+        meta: 'Term planning',
+      },
+      {
+        icon: Clock,
+        tone: 'blue',
+        badge: null,
+        libraryKey: 'weekly-forecast',
+        title: 'Weekly Forecast',
+        tagline: "Plan the week day by day from your scheme, syllabus and timetable.",
+        to: '/teacher/generate/weekly-forecast',
+        meta: 'Weekly prep',
+      },
+      {
+        icon: PencilLine,
+        tone: 'orange',
+        badge: null,
+        libraryKey: 'lesson-plan',
+        title: 'Lesson Plans',
+        tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
+        to: '/teacher/generate/lesson-plan',
+        meta: 'Daily prep',
+      },
+      {
+        icon: ClipboardList,
+        tone: 'cyan',
+        badge: null,
+        libraryKey: 'record-of-work',
+        title: 'Record of Work',
+        tagline: 'Log what you actually taught each week, checked against your scheme.',
+        to: '/teacher/generate/record-of-work',
+        meta: 'Weekly log',
+      },
+      {
+        icon: CalendarDays,
+        tone: 'indigo',
+        badge: null,
+        title: 'School Calendar',
+        tagline: 'Check MoE terms, public holidays, and working days.',
+        to: '/teacher/calendar',
+        meta: 'Academic year',
+      },
+      {
+        icon: BookOpen,
+        tone: 'sky',
+        badge: null,
+        title: 'Syllabus Studio',
+        tagline: 'Browse CBC subjects, topics, competences, and standards.',
+        to: '/teacher/syllabi',
+        meta: 'Curriculum reference',
+      },
+      {
+        icon: Users,
+        tone: 'green',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Class Register',
+        tagline: 'Build one class list per class — then SBA, marks and reports load every learner for you.',
+        to: '/teacher/register',
+        meta: 'Class lists',
+      },
+      {
+        icon: CalendarDays,
+        tone: 'violet',
+        badge: null,
+        libraryKey: 'class-timetable',
+        title: 'Class Timetable',
+        tagline: 'Auto-fill a balanced week from the curriculum subjects.',
+        to: '/teacher/generate/class-timetable',
+        meta: 'Term planning',
+      },
+    ],
   },
   {
-    icon: ImageIcon,
-    tone: 'orange',
-    badge: 'NEW',
-    libraryKey: null,
-    title: 'Visual Studio',
-    tagline: 'Make labelled diagrams & test pictures — AI, templates, then send to a studio.',
-    to: '/teacher/visual-studio',
-    meta: 'Pictures & diagrams',
+    label: 'Teaching Materials',
+    items: [
+      {
+        icon: DocumentTextIcon,
+        tone: 'blue',
+        badge: null,
+        libraryKey: 'notes',
+        title: 'Notes Studio',
+        tagline: 'Turn a lesson plan into delivery notes and examples.',
+        to: '/teacher/generate/notes',
+        meta: 'Instruction support',
+      },
+      {
+        icon: FileText,
+        tone: 'green',
+        badge: null,
+        libraryKey: 'worksheet',
+        title: 'Worksheets',
+        tagline: 'Create classroom practice, exercises, and consolidation tasks.',
+        to: '/teacher/generate/worksheet',
+        meta: 'Practice material',
+      },
+      {
+        icon: Layers,
+        tone: 'yellow',
+        badge: null,
+        libraryKey: 'flashcards',
+        title: 'Flashcards',
+        tagline: 'Build short revision prompts for recall and practice.',
+        to: '/teacher/generate/flashcards',
+        meta: 'Revision',
+      },
+      {
+        icon: ImageIcon,
+        tone: 'orange',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Visual Studio',
+        tagline: 'Make labelled diagrams & test pictures — AI, templates, then send to a studio.',
+        to: '/teacher/visual-studio',
+        meta: 'Pictures & diagrams',
+      },
+    ],
   },
   {
-    icon: CalendarDays,
-    tone: 'amber',
-    badge: 'NEW',
-    libraryKey: 'scheme-of-work',
-    title: 'Schemes of Work',
-    tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
-    to: '/teacher/generate/scheme-of-work',
-    meta: 'Term planning',
-  },
-  {
-    icon: Clock,
-    tone: 'blue',
-    badge: 'NEW',
-    libraryKey: 'weekly-forecast',
-    title: 'Weekly Forecast',
-    tagline: "Plan the week day by day from your scheme, syllabus and timetable.",
-    to: '/teacher/generate/weekly-forecast',
-    meta: 'Weekly prep',
-  },
-  {
-    icon: ClipboardList,
-    tone: 'cyan',
-    badge: 'NEW',
-    libraryKey: 'record-of-work',
-    title: 'Record of Work',
-    tagline: 'Log what you actually taught each week, checked against your scheme.',
-    to: '/teacher/generate/record-of-work',
-    meta: 'Weekly log',
-  },
-  {
-    icon: Calculator,
-    tone: 'green',
-    badge: 'NEW',
-    libraryKey: 'mark-schedule',
-    title: 'Mark Schedule',
-    tagline: 'Marks in — totals, class positions and report comments out.',
-    to: '/teacher/generate/mark-schedule',
-    meta: 'After tests',
-  },
-  {
-    icon: CalendarDays,
-    tone: 'violet',
-    badge: 'NEW',
-    libraryKey: 'class-timetable',
-    title: 'Class Timetable',
-    tagline: 'Auto-fill a balanced week from the curriculum subjects.',
-    to: '/teacher/generate/class-timetable',
-    meta: 'Term planning',
-  },
-  {
-    icon: PencilLine,
-    tone: 'orange',
-    badge: null,
-    libraryKey: 'lesson-plan',
-    title: 'Lesson Plans',
-    tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
-    to: '/teacher/generate/lesson-plan',
-    meta: 'Daily prep',
-  },
-  {
-    icon: DocumentTextIcon,
-    tone: 'blue',
-    badge: 'NEW',
-    libraryKey: 'notes',
-    title: 'Notes Studio',
-    tagline: 'Turn a lesson plan into delivery notes and examples.',
-    to: '/teacher/generate/notes',
-    meta: 'Instruction support',
-  },
-  {
-    icon: FileText,
-    tone: 'green',
-    badge: 'NEW',
-    libraryKey: 'worksheet',
-    title: 'Worksheets',
-    tagline: 'Create classroom practice, exercises, and consolidation tasks.',
-    to: '/teacher/generate/worksheet',
-    meta: 'Practice material',
-  },
-  {
-    icon: Layers,
-    tone: 'yellow',
-    badge: 'NEW',
-    libraryKey: 'flashcards',
-    title: 'Flashcards',
-    tagline: 'Build short revision prompts for recall and practice.',
-    to: '/teacher/generate/flashcards',
-    meta: 'Revision',
-  },
-  {
-    icon: ClipboardCheckList,
-    tone: 'rose',
-    badge: 'NEW',
-    libraryKey: 'rubric',
-    title: 'Rubrics',
-    tagline: 'Define criteria, levels, and marking guidance.',
-    to: '/teacher/generate/rubric',
-    meta: 'Marking guide',
-  },
-  {
-    icon: BarChart3,
-    tone: 'violet',
-    badge: 'NEW',
-    title: 'Assessments',
-    tagline: 'Manage topic, monthly, mid-term, and end-of-term assessments.',
-    to: '/teacher/assessments',
-    meta: 'Assessment bank',
-  },
-  {
-    icon: GraduationCap,
-    tone: 'sky',
-    badge: 'NEW',
-    libraryKey: 'sba',
-    title: 'SBA Studio',
-    tagline: 'ECZ School Based Assessment, end to end — create tasks, record marks, and track coverage.',
-    to: '/teacher/sba',
-    meta: 'Grades 5–7',
-  },
-  {
-    icon: FolderOpen,
-    tone: 'slate',
-    badge: null,
-    isLibrary: true,
-    title: 'Library',
-    tagline: 'Browse saved plans, notes, worksheets, rubrics, and assessments.',
-    to: '/teacher/library',
-    meta: 'Saved work',
-  },
-  {
-    icon: CalendarDays,
-    tone: 'indigo',
-    badge: 'NEW',
-    title: 'School Calendar',
-    tagline: 'Check MoE terms, public holidays, and working days.',
-    to: '/teacher/calendar',
-    meta: 'Academic year',
-  },
-  {
-    icon: BookOpen,
-    tone: 'sky',
-    badge: 'NEW',
-    title: 'Syllabi Studio',
-    tagline: 'Browse CBC subjects, topics, competences, and standards.',
-    to: '/teacher/syllabi',
-    meta: 'Curriculum reference',
+    label: 'Assessment & SBA',
+    items: [
+      {
+        icon: BarChart3,
+        tone: 'violet',
+        badge: null,
+        title: 'Assessments',
+        tagline: 'Manage topic, monthly, mid-term, and end-of-term assessments.',
+        to: '/teacher/assessments',
+        meta: 'Assessment bank',
+      },
+      {
+        icon: ClipboardCheckList,
+        tone: 'rose',
+        badge: null,
+        libraryKey: 'rubric',
+        title: 'Rubrics',
+        tagline: 'Define criteria, levels, and marking guidance.',
+        to: '/teacher/generate/rubric',
+        meta: 'Marking guide',
+      },
+      {
+        icon: Calculator,
+        tone: 'green',
+        badge: null,
+        libraryKey: 'mark-schedule',
+        title: 'Mark Schedule',
+        tagline: 'Marks in — totals, class positions and report comments out.',
+        to: '/teacher/generate/mark-schedule',
+        meta: 'After tests',
+      },
+      {
+        icon: GraduationCap,
+        tone: 'sky',
+        badge: null,
+        libraryKey: 'sba',
+        title: 'SBA Studio',
+        tagline: 'ECZ School Based Assessment, end to end — create tasks, record marks, and track coverage.',
+        to: '/teacher/sba',
+        meta: 'Grades 5–7',
+      },
+    ],
   },
 ]
+
+// "My Library" sits on its own below the workflow groups (matches the design),
+// and surfaces the total-saved count via the isLibrary branch in StudioCard.
+const LIBRARY_TILE = {
+  icon: FolderOpen,
+  tone: 'slate',
+  badge: null,
+  isLibrary: true,
+  title: 'My Library',
+  tagline: 'Browse saved plans, notes, worksheets, rubrics, and assessments.',
+  to: '/teacher/library',
+  meta: 'Saved work',
+}
 
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
@@ -241,6 +263,10 @@ function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, 
     : isLibrary
     ? (librarySummary?.total ?? 0)
     : null
+  // Only show a badge when there's something real to show: an explicit badge
+  // (NEW/FREE/SOON) or a saved-count for library-backed tiles. Without this
+  // guard, a badge-less tile with no count would render the literal "null saved".
+  const showBadge = badge !== null || count !== null
   const badgeText = badge !== null ? badge : `${count} saved`
   const badgeClass = badge === 'FREE'
     ? 'teacher-studio-card__badge--success'
@@ -261,9 +287,11 @@ function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, 
         <span className="teacher-studio-card__icon">
           <Icon as={icon} size="lg" />
         </span>
-        <span className={`teacher-studio-card__badge ${badgeClass}`}>
-          {badgeText}
-        </span>
+        {showBadge && (
+          <span className={`teacher-studio-card__badge ${badgeClass}`}>
+            {badgeText}
+          </span>
+        )}
       </div>
       <p className="teacher-studio-card__title">
         {title}
@@ -542,10 +570,20 @@ export default function TeacherDashboard() {
       <h2 className="teacher-dashboard-heading">
         Choose a workspace
       </h2>
+      {STUDIO_GROUPS.map(group => (
+        <section key={group.label}>
+          <SectionLabel>{group.label}</SectionLabel>
+          <div className="teacher-studio-grid">
+            {group.items.map(s => (
+              <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <SectionLabel>My Library</SectionLabel>
       <div className="teacher-studio-grid">
-        {STUDIOS.map(s => (
-          <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
-        ))}
+        <StudioCard {...LIBRARY_TILE} librarySummary={librarySummary} />
       </div>
 
       <div className="mt-6">
