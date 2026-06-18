@@ -27,13 +27,30 @@ import {
   FileText,
   FolderOpen,
   GraduationCap,
-  ImageIcon,
   Layers,
   PencilLine,
   Sparkles,
   Target,
-  Users,
 } from '../ui/icons'
+// 3D studio tile icons (optimised WebP, ~2KB each). Replaces the flat line
+// icons on the workspace grid; one per tile, keyed to each studio below.
+import iconClassRegister from '../../assets/teacher-icons/class-register.webp'
+import iconVisualStudio from '../../assets/teacher-icons/visual-studio.webp'
+import iconSchemeOfWork from '../../assets/teacher-icons/scheme-of-work.webp'
+import iconWeeklyForecast from '../../assets/teacher-icons/weekly-forecast.webp'
+import iconRecordOfWork from '../../assets/teacher-icons/record-of-work.webp'
+import iconMarkSchedule from '../../assets/teacher-icons/mark-schedule.webp'
+import iconClassTimetable from '../../assets/teacher-icons/class-timetable.webp'
+import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
+import iconNotesStudio from '../../assets/teacher-icons/notes-studio.webp'
+import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
+import iconFlashcards from '../../assets/teacher-icons/flashcards.webp'
+import iconRubric from '../../assets/teacher-icons/rubric.webp'
+import iconAssessments from '../../assets/teacher-icons/assessments.webp'
+import iconSbaStudio from '../../assets/teacher-icons/sba-studio.webp'
+import iconLibrary from '../../assets/teacher-icons/library.webp'
+import iconSchoolCalendar from '../../assets/teacher-icons/school-calendar.webp'
+import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
 
 // Tiles are grouped into the three teacher workflows (plan → make → assess) that
 // the dashboard renders as labelled sections. `NEW` is reserved for genuinely
@@ -44,7 +61,7 @@ const STUDIO_GROUPS = [
     label: 'Planning',
     items: [
       {
-        icon: CalendarDays,
+        img: iconSchemeOfWork,
         tone: 'amber',
         badge: null,
         libraryKey: 'scheme-of-work',
@@ -54,7 +71,7 @@ const STUDIO_GROUPS = [
         meta: 'Term planning',
       },
       {
-        icon: Clock,
+        img: iconWeeklyForecast,
         tone: 'blue',
         badge: null,
         libraryKey: 'weekly-forecast',
@@ -64,7 +81,7 @@ const STUDIO_GROUPS = [
         meta: 'Weekly prep',
       },
       {
-        icon: PencilLine,
+        img: iconLessonPlan,
         tone: 'orange',
         badge: null,
         libraryKey: 'lesson-plan',
@@ -74,7 +91,7 @@ const STUDIO_GROUPS = [
         meta: 'Daily prep',
       },
       {
-        icon: ClipboardList,
+        img: iconRecordOfWork,
         tone: 'cyan',
         badge: null,
         libraryKey: 'record-of-work',
@@ -84,7 +101,7 @@ const STUDIO_GROUPS = [
         meta: 'Weekly log',
       },
       {
-        icon: CalendarDays,
+        img: iconSchoolCalendar,
         tone: 'indigo',
         badge: null,
         title: 'School Calendar',
@@ -93,7 +110,7 @@ const STUDIO_GROUPS = [
         meta: 'Academic year',
       },
       {
-        icon: BookOpen,
+        img: iconSyllabiStudio,
         tone: 'sky',
         badge: null,
         title: 'Syllabus Studio',
@@ -102,7 +119,7 @@ const STUDIO_GROUPS = [
         meta: 'Curriculum reference',
       },
       {
-        icon: Users,
+        img: iconClassRegister,
         tone: 'green',
         badge: 'NEW',
         libraryKey: null,
@@ -112,7 +129,7 @@ const STUDIO_GROUPS = [
         meta: 'Class lists',
       },
       {
-        icon: CalendarDays,
+        img: iconClassTimetable,
         tone: 'violet',
         badge: null,
         libraryKey: 'class-timetable',
@@ -127,7 +144,7 @@ const STUDIO_GROUPS = [
     label: 'Teaching Materials',
     items: [
       {
-        icon: DocumentTextIcon,
+        img: iconNotesStudio,
         tone: 'blue',
         badge: null,
         libraryKey: 'notes',
@@ -137,7 +154,7 @@ const STUDIO_GROUPS = [
         meta: 'Instruction support',
       },
       {
-        icon: FileText,
+        img: iconWorksheet,
         tone: 'green',
         badge: null,
         libraryKey: 'worksheet',
@@ -147,7 +164,7 @@ const STUDIO_GROUPS = [
         meta: 'Practice material',
       },
       {
-        icon: Layers,
+        img: iconFlashcards,
         tone: 'yellow',
         badge: null,
         libraryKey: 'flashcards',
@@ -157,7 +174,7 @@ const STUDIO_GROUPS = [
         meta: 'Revision',
       },
       {
-        icon: ImageIcon,
+        img: iconVisualStudio,
         tone: 'orange',
         badge: 'NEW',
         libraryKey: null,
@@ -172,7 +189,7 @@ const STUDIO_GROUPS = [
     label: 'Assessment & SBA',
     items: [
       {
-        icon: BarChart3,
+        img: iconAssessments,
         tone: 'violet',
         badge: null,
         title: 'Assessments',
@@ -181,7 +198,7 @@ const STUDIO_GROUPS = [
         meta: 'Assessment bank',
       },
       {
-        icon: ClipboardCheckList,
+        img: iconRubric,
         tone: 'rose',
         badge: null,
         libraryKey: 'rubric',
@@ -191,7 +208,7 @@ const STUDIO_GROUPS = [
         meta: 'Marking guide',
       },
       {
-        icon: Calculator,
+        img: iconMarkSchedule,
         tone: 'green',
         badge: null,
         libraryKey: 'mark-schedule',
@@ -201,7 +218,7 @@ const STUDIO_GROUPS = [
         meta: 'After tests',
       },
       {
-        icon: GraduationCap,
+        img: iconSbaStudio,
         tone: 'sky',
         badge: null,
         libraryKey: 'sba',
@@ -217,7 +234,7 @@ const STUDIO_GROUPS = [
 // "My Library" sits on its own below the workflow groups (matches the design),
 // and surfaces the total-saved count via the isLibrary branch in StudioCard.
 const LIBRARY_TILE = {
-  icon: FolderOpen,
+  img: iconLibrary,
   tone: 'slate',
   badge: null,
   isLibrary: true,
@@ -253,7 +270,7 @@ function SectionLabel({ children }) {
   )
 }
 
-function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
+function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
   const isSoon = badge === 'SOON'
   // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
   // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
@@ -284,8 +301,17 @@ function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, 
   const inner = (
     <>
       <div className="teacher-studio-card__top">
-        <span className="teacher-studio-card__icon">
-          <Icon as={icon} size="lg" />
+        <span className="teacher-studio-card__icon teacher-studio-card__icon--img">
+          <img
+            className="teacher-studio-card__icon-img"
+            src={img}
+            alt=""
+            aria-hidden="true"
+            width="50"
+            height="50"
+            loading="lazy"
+            decoding="async"
+          />
         </span>
         {showBadge && (
           <span className={`teacher-studio-card__badge ${badgeClass}`}>
