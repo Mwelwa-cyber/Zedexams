@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 import ClassListTab from './ClassListTab'
 
@@ -8,8 +8,17 @@ import ClassListTab from './ClassListTab'
 // in the component, not the network.
 const addRosterEntry = vi.fn(async () => 'new-id')
 let rosterRows = []
+// Tracks how many times subscribeRoster has been called (used by the
+// onRosterChange stability regression test).
+let subscribeCallCount = 0
+const capturedOnData = { current: null }
 vi.mock('../../../utils/classRoster', () => ({
-  subscribeRoster: (_classId, onData) => { onData(rosterRows); return () => {} },
+  subscribeRoster: (_classId, onData) => {
+    subscribeCallCount += 1
+    capturedOnData.current = onData
+    onData(rosterRows)
+    return () => {}
+  },
   addRosterEntry: (...args) => addRosterEntry(...args),
   updateRosterEntry: vi.fn(async () => {}),
   setRosterStatus: vi.fn(async () => {}),
@@ -43,6 +52,8 @@ describe('ClassListTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     rosterRows = []
+    subscribeCallCount = 0
+    capturedOnData.current = null
   })
 
   it('renders existing roster learners', () => {
@@ -76,5 +87,40 @@ describe('ClassListTab', () => {
       'teacher-1',
       expect.objectContaining({ fullName: 'Grace Mwale' }),
     )
+  })
+
+  it('does not re-subscribe when the onRosterChange prop reference changes (regression: infinite loading bug)', async () => {
+    // Regression test: the parent (ClassRegisterDetail) passes an inline arrow
+    // function as onRosterChange. Before the fix, that new reference on each
+    // re-render was in the useEffect dependency array, causing the subscription
+    // to tear down + restart → setLoading(true) → "Loading roster…" forever.
+    //
+    // The fix holds onRosterChange in a ref so the subscription is bound only
+    // to classId. We verify: (a) the roster renders after initial load, and
+    // (b) subscribeRoster is NOT called a second time when the prop changes.
+    rosterRows = [
+      { id: 'r1', fullName: 'Alice Phiri', learnerNumber: '1', gender: 'F', parentPhone: null, status: 'active' },
+    ]
+
+    // Simulate a parent component that creates a new onRosterChange arrow each render.
+    const { rerender } = render(
+      <ClassListTab register={register} onRosterChange={() => {}} />,
+    )
+
+    // Roster should be visible after first render.
+    expect(screen.queryByText(/Loading roster/i)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Alice Phiri').length).toBeGreaterThan(0)
+    const callsAfterMount = subscribeCallCount
+
+    // Re-render with a brand-new function reference (simulating parent state change).
+    act(() => {
+      rerender(<ClassListTab register={register} onRosterChange={() => {}} />)
+    })
+
+    // The subscription must NOT have been restarted — subscribeCallCount unchanged.
+    expect(subscribeCallCount).toBe(callsAfterMount)
+    // Roster must still be visible, not back to "Loading roster…".
+    expect(screen.queryByText(/Loading roster/i)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Alice Phiri').length).toBeGreaterThan(0)
   })
 })
