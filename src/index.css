@@ -822,6 +822,21 @@ body.theme-midnight .moe-calendar {
     color: var(--studio-tone-fg);
   }
 
+  /* 3D image icons ship with their own rounded tile + shadow, so the tinted
+     tone square would clash — render the artwork edge to edge instead. */
+  .studio-theme .teacher-studio-card__icon--img {
+    background: transparent;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .studio-theme .teacher-studio-card__icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
   .studio-theme .teacher-studio-card__badge {
     display: inline-flex;
     align-items: center;
