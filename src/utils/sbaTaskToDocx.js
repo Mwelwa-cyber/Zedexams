@@ -1,17 +1,23 @@
 /**
- * Export one ECZ School Based Assessment task as a Word document: the metadata
- * block, the teacher's administration instructions, the stimulus (passage /
- * data / method), the numbered sub-tasks, and the marking scheme in whatever
- * shape the task's marking style requires (answer key, observation sheet,
- * method marks, or a rubric/criteria table).
+ * Export one ECZ School Based Assessment task as a Word document.
+ *
+ * The task sheet itself is rendered through the SAME paper-layout blocks the
+ * Assessment Studio uses (buildSbaPaperBlocks → renderPaperBlocksToDocx), so a
+ * downloaded SBA paper looks like the in-studio preview and a real exam paper —
+ * marble-style banner, NAME/DATE/CLASS, instructions, numbered tasks with ruled
+ * answer space, "END OF PAPER" and a footer code.
+ *
+ * The teacher copy (`includeAnswers`) appends the marking scheme on a new page:
+ * model answers + per-step mark allocation, the rubric/criteria table, and the
+ * teacher-only metadata (task type, Bloom levels, syllabus outcomes).
  */
 
 import {
   AlignmentType,
   BorderStyle,
   Document,
-  HeadingLevel,
   Packer,
+  PageBreak,
   Paragraph,
   Table,
   TableCell,
@@ -20,6 +26,18 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { buildSbaPaperBlocks } from './sbaTaskToPaper.js'
+import { renderPaperBlocksToDocx, sanitizeXmlText } from './assessmentToDocx.js'
+
+const STYLE_LABELS = {
+  answer_key: 'Answer key',
+  oral_observation: 'Oral observation sheet',
+  method_marks: 'Method & accuracy marks',
+  experiment_rubric: 'Experiment rubric',
+  project_rubric: 'Project rubric',
+  competence_rubric: 'Competence rubric',
+  criteria_rubric: 'Marking criteria',
+}
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -29,7 +47,7 @@ const CELL_BORDER = {
 }
 
 function text(str, opts = {}) {
-  return new TextRun({ text: str == null ? '' : String(str), ...opts })
+  return new TextRun({ text: sanitizeXmlText(str == null ? '' : String(str)), ...opts })
 }
 
 function para(runs, opts = {}) {
@@ -40,18 +58,9 @@ function para(runs, opts = {}) {
   })
 }
 
-function h1(str) {
-  return new Paragraph({
-    children: [text(str, { bold: true, size: 30 })],
-    heading: HeadingLevel.HEADING_1,
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 160 },
-  })
-}
-
 function sectionHeading(str) {
   return new Paragraph({
-    children: [text(str, { bold: true, size: 22, color: '0e2a32' })],
+    children: [text(str, { bold: true, size: 24, color: '0e2a32' })],
     spacing: { before: 200, after: 80 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cccccc' } },
   })
@@ -67,31 +76,28 @@ function cell(content, { width, shading, bold, size = 18 } = {}) {
   })
 }
 
-function metadataTable(header = {}) {
+// Teacher-only metadata that doesn't belong on the learner's paper.
+function teacherMetaTable(header = {}) {
   const rows = [
-    ['Grade', header.grade],
-    ['Subject', header.subject],
     ['Task type', header.taskType],
     ['CTS component', header.component],
     ['Language skill', header.skill],
-    ['Term', header.term],
-    ['Duration', header.duration],
     ['Bloom level(s)', (header.bloomLevels || []).join(', ')],
     ['Syllabus outcome(s)', (header.outcomeRefs || []).join(', ')],
-    ['Total marks', header.totalMarks != null ? String(header.totalMarks) : ''],
   ].filter(([, v]) => v)
+  if (!rows.length) return null
   return new Table({
-    width: { size: 70, type: WidthType.PERCENTAGE },
+    width: { size: 80, type: WidthType.PERCENTAGE },
     rows: rows.map(([k, v]) => new TableRow({
       children: [
-        cell(para(text(k, { bold: true, size: 18 })), { width: 32, shading: 'F3F4F6' }),
-        cell(para(text(v, { size: 18 })), { width: 68 }),
+        cell(para(text(k, { bold: true, size: 18 })), { width: 34, shading: 'F3F4F6' }),
+        cell(para(text(v, { size: 18 })), { width: 66 }),
       ],
     })),
   })
 }
 
-function questionBlocks(questions = [], { includeAnswers = true } = {}) {
+function questionMarkingBlocks(questions = []) {
   const out = []
   questions.forEach((q) => {
     out.push(new Paragraph({
@@ -102,7 +108,7 @@ function questionBlocks(questions = [], { includeAnswers = true } = {}) {
         text(q.marks ? `   [${q.marks}]` : '', { bold: true, size: 18, color: '6b7280' }),
       ],
     }))
-    if (includeAnswers && q.answer) {
+    if (q.answer) {
       out.push(new Paragraph({
         spacing: { after: 40 },
         indent: { left: 360 },
@@ -112,7 +118,7 @@ function questionBlocks(questions = [], { includeAnswers = true } = {}) {
         ],
       }))
     }
-    if (includeAnswers && Array.isArray(q.markAllocation) && q.markAllocation.length) {
+    if (Array.isArray(q.markAllocation) && q.markAllocation.length) {
       q.markAllocation.forEach((m) => {
         out.push(new Paragraph({
           spacing: { after: 20 },
@@ -159,54 +165,70 @@ function criteriaTable(criteria = []) {
   })
 }
 
-export function buildSbaTaskDocument(task, opts = {}) {
-  const { includeAnswers = true } = opts
+// The marking scheme (teacher copy) — appended on its own page after the paper.
+function markingSchemeChildren(task) {
   const header = task.header || {}
   const ms = task.markingScheme || {}
-  const children = []
+  const questions = Array.isArray(task.questions) ? task.questions : []
+  const hasAnswers = questions.some((q) => q.answer || (q.markAllocation || []).length > 0)
+  const hasCriteria = Array.isArray(ms.criteria) && ms.criteria.length > 0
+  const meta = teacherMetaTable(header)
+  if (!hasAnswers && !hasCriteria && !ms.notes && !meta) return []
 
-  children.push(h1(header.title || 'School Based Assessment Task'))
-  children.push(para(text('School Based Assessment (SBA) — Examinations Council of Zambia', {
-    italics: true, size: 16, color: '6b7280',
-  }), { alignment: AlignmentType.CENTER, spacing: { after: 160 } }))
-  children.push(metadataTable(header))
+  const out = [
+    new Paragraph({ children: [new PageBreak()] }),
+    new Paragraph({
+      children: [text(`Marking scheme — ${STYLE_LABELS[ms.style] || 'Marking'}`, { bold: true, size: 28, color: '0e2a32' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+    }),
+    new Paragraph({
+      children: [text('Teacher copy — School Based Assessment (ECZ)', { italics: true, size: 16, color: '6b7280' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 160 },
+    }),
+  ]
 
-  if (task.instructions) {
-    children.push(sectionHeading('Teacher’s instructions'))
-    children.push(para(text(task.instructions, { size: 20 })))
+  if (meta) out.push(meta)
+
+  if (hasAnswers) {
+    out.push(sectionHeading('Model answers & mark allocation'))
+    questionMarkingBlocks(questions).forEach((p) => out.push(p))
   }
 
-  if (task.stimulus) {
-    children.push(sectionHeading('Stimulus'))
-    task.stimulus.split(/\n+/).forEach((line) => {
-      if (line.trim()) children.push(para(text(line.trim(), { size: 20 })))
-    })
-  }
-
-  if (Array.isArray(task.questions) && task.questions.length) {
-    children.push(sectionHeading(includeAnswers ? 'Tasks and marking' : 'Tasks'))
-    questionBlocks(task.questions, { includeAnswers }).forEach((p) => children.push(p))
-  }
-
-  // The marking scheme: criteria table for rubric/observation styles, plus the
-  // overall notes. (Method/answer-key marks already render under each task.)
-  if (includeAnswers) {
-    const hasCriteria = Array.isArray(ms.criteria) && ms.criteria.length
-    if (hasCriteria || ms.notes) {
-      children.push(sectionHeading('Marking scheme'))
-      if (ms.notes) children.push(para(text(ms.notes, { size: 18 })))
-      if (hasCriteria) {
-        children.push(para(text(' ', { size: 8 })))
-        children.push(criteriaTable(ms.criteria))
-      }
+  if (hasCriteria || ms.notes) {
+    out.push(sectionHeading('How to award the marks'))
+    if (ms.notes) out.push(para(text(ms.notes, { size: 18 })))
+    if (hasCriteria) {
+      out.push(para(text(' ', { size: 8 })))
+      out.push(criteriaTable(ms.criteria))
     }
   }
 
+  return out
+}
+
+/**
+ * Build the full ordered list of docx children for an SBA task: the printable
+ * paper (always) plus the marking scheme (teacher copy only).
+ */
+export async function buildSbaTaskChildren(task, { includeAnswers = true } = {}) {
+  const blocks = buildSbaPaperBlocks(task)
+  const children = await renderPaperBlocksToDocx(blocks)
+  if (includeAnswers) children.push(...markingSchemeChildren(task))
+  return children
+}
+
+export async function buildSbaTaskDocument(task, opts = {}) {
+  const { includeAnswers = true } = opts
+  const header = task.header || {}
+  const children = await buildSbaTaskChildren(task, { includeAnswers })
+
   return new Document({
     creator: 'zedexams.com',
-    title: header.title || 'SBA Task',
+    title: sanitizeXmlText(header.title || 'SBA Task'),
     description: 'Generated by ZedExams Teacher Tools',
-    styles: { default: { document: { run: { font: 'Calibri', size: 20 } } } },
+    styles: { default: { document: { run: { font: 'Times New Roman', size: 22 } } } },
     sections: [{
       ...attributionSection(opts),
       children,
@@ -215,7 +237,7 @@ export function buildSbaTaskDocument(task, opts = {}) {
 }
 
 export async function downloadSbaTaskDocx(task, filename = 'sba-task.docx', opts = {}) {
-  const doc = buildSbaTaskDocument(task, opts)
+  const doc = await buildSbaTaskDocument(task, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')
