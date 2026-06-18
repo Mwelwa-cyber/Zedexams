@@ -50,8 +50,19 @@ export default defineConfig({
         'src/main.jsx',
         'src/**/*.d.ts',
       ],
-      // No thresholds yet — this first lands as a measurement tool. Add
-      // `thresholds: { lines: N }` here once a baseline is agreed.
+      // Ratchet gate. Thresholds sit just beneath the current measured
+      // totals (run `npm run test:coverage` to see them) so coverage can
+      // only ever go UP: any change that drops below these fails CI. When
+      // you add tests and the totals rise, bump these numbers to lock the
+      // gain in. Numbers are low because `all: true` instruments every src
+      // file, including the hundreds still untested — that's the gap this
+      // exists to close, one ratchet at a time.
+      thresholds: {
+        lines: 2.3,
+        statements: 2.3,
+        functions: 13.5,
+        branches: 39,
+      },
     },
   },
 })
