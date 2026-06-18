@@ -548,6 +548,22 @@ function imageFallbackBlock(alt = '') {
   })
 }
 
+/**
+ * Walk a list of paper-layout blocks (from buildPaperLayout or any adapter
+ * that emits the same shapes, e.g. buildSbaPaperBlocks) into a flat array of
+ * docx children. Shared so the SBA Word export renders the exam paper through
+ * the exact same block renderer as the Assessment Studio download.
+ */
+export async function renderPaperBlocksToDocx(blocks = []) {
+  const children = []
+  for (const block of blocks) {
+    const rendered = await renderBlock(block)
+    if (Array.isArray(rendered)) children.push(...rendered)
+    else if (rendered) children.push(rendered)
+  }
+  return children
+}
+
 async function renderBlock(block) {
   switch (block.kind) {
     case 'header': return renderHeader(block)
@@ -1030,12 +1046,7 @@ async function renderQuestion(b) {
 
 export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
-  const children = []
-  for (const block of blocks) {
-    const rendered = await renderBlock(block)
-    if (Array.isArray(rendered)) children.push(...rendered)
-    else if (rendered) children.push(rendered)
-  }
+  const children = await renderPaperBlocksToDocx(blocks)
 
   const title = sanitizeXmlText(mode === 'scheme'
     ? `${assessment.title || 'Assessment'} — Marking Key`
