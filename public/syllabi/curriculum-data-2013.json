@@ -18483,397 +18483,217 @@
     "Grade 5": {
       "title": "HOME ECONOMICS SYLLABUS  —  GRADE 5",
       "columns": [
-        "COLUMN 1",
         "TOPIC",
         "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "CONTENT",
-        "COLUMN 6",
-        "COLUMN 7"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.1Measuring and weighing",
-            "TOPIC": "",
+            "TOPIC": "5.1Measuring and weighing",
             "SUB-TOPIC": "5.1.1 Measuring and weighing ingredients",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.1.1.1 Measure and weigh ingredients",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Importance of measuring and weighing (Helps obtain good results, avoid unnecessary wastage, buy required amount) • Measuring and weighing equipment: Balance Scales, Spoons, and cups. • Measure and weigh liquids and solids"
+            "SPECIFIC OUTCOMES": "5.1.1.1 Measure and weigh ingredients",
+            "CONTENT": "• Importance of measuring and weighing (Helps obtain good results, avoid unnecessary wastage, buy required amount) • Measuring and weighing equipment: Balance Scales, Spoons, and cups. • Measure and weigh liquids and solids"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.2 Food",
-            "TOPIC": "",
+            "TOPIC": "5.2 Food",
             "SUB-TOPIC": "5.2.1 Food groups",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.1.1Describe food groups",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Food groups: food pyramid- grains and grain products, vegetables and fruits, meat/poultry/fish/beans /nuts, milk and milk products fat and oils/sweets."
+            "SPECIFIC OUTCOMES": "5.2.1.1Describe food groups",
+            "CONTENT": "• Food groups: food pyramid- grains and grain products, vegetables and fruits, meat/poultry/fish/beans /nuts, milk and milk products fat and oils/sweets."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.2. Food preparation",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.2.1 Prepare raw vegetables and fruits",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Foods that can be eaten raw: fruits and vegetables (Vegetable and fruit salads)"
+            "SPECIFIC OUTCOMES": "5.2.2.1 Prepare raw vegetables and fruits",
+            "CONTENT": "• Foods that can be eaten raw: fruits and vegetables (Vegetable and fruit salads)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.2.2 Demonstrate boiling and roasting methods of cooking",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Importance of cooking food: easy digestion, improve taste, kill germs, make it appetizing • Methods of cooking: dry and moist methods • Boiling: eggs, fresh cassava, sweet potatoes, • Roasting: dry ground nuts and cassava."
+            "SPECIFIC OUTCOMES": "5.2.2.2 Demonstrate boiling and roasting methods of cooking",
+            "CONTENT": "• Importance of cooking food: easy digestion, improve taste, kill germs, make it appetizing • Methods of cooking: dry and moist methods • Boiling: eggs, fresh cassava, sweet potatoes, • Roasting: dry ground nuts and cassava."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.3 Table Manners",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.3.1 Practice table Manners.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Table manners: do not- speak with food in the mouth, open the mouth when chewing, and play when eating."
+            "SPECIFIC OUTCOMES": "5.2.3.1 Practice table Manners.",
+            "CONTENT": "• Table manners: do not- speak with food in the mouth, open the mouth when chewing, and play when eating."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.3Flour mixtures",
-            "TOPIC": "",
+            "TOPIC": "5.3Flour mixtures",
             "SUB-TOPIC": "5.3.1Flour mixtures and yeast",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.3.1.1 Prepare flour mixtures using yeast",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Sources of flour: wheat, maize, cassava, sorghum, millet, soya. • Flour mixtures using yeast: bun and fritters"
+            "SPECIFIC OUTCOMES": "5.3.1.1 Prepare flour mixtures using yeast",
+            "CONTENT": "• Sources of flour: wheat, maize, cassava, sorghum, millet, soya. • Flour mixtures using yeast: bun and fritters"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.4 Hospitality",
-            "TOPIC": "",
+            "TOPIC": "5.4 Hospitality",
             "SUB-TOPIC": "5.4.1 Non- verbal communication",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.4.1.1 Use non-verb and written communication in different situations",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Non-verbal: gestures (sign language), body language, facial expressions. • Written: hand written or typed."
+            "SPECIFIC OUTCOMES": "5.4.1.1 Use non-verb and written communication in different situations",
+            "CONTENT": "• Non-verbal: gestures (sign language), body language, facial expressions. • Written: hand written or typed."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.1 The Kitchen",
-            "TOPIC": "",
+            "TOPIC": "5.1 The Kitchen",
             "SUB-TOPIC": "5.1.1 Types of kitchens and utensils",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.1.1.1 Describe types of Kitchens. 5.1.1.2 Use kitchen utensils",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Types of kitchens: kitchen inside and outside the house. • Kitchen utensils: measuring jars, kitchen scales, cutlery, tin openers, sieves, colanders/strainer, saucepans, baking tins, chopping boards, winnowing."
+            "SPECIFIC OUTCOMES": "5.1.1.1 Describe types of Kitchens. 5.1.1.2 Use kitchen utensils",
+            "CONTENT": "• Types of kitchens: kitchen inside and outside the house. • Kitchen utensils: measuring jars, kitchen scales, cutlery, tin openers, sieves, colanders/strainer, saucepans, baking tins, chopping boards, winnowing."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.2 Home",
-            "TOPIC": "",
+            "TOPIC": "5.2 Home",
             "SUB-TOPIC": "5.2.1 1Household cleaning equipment and materials",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.1.1 Use different household cleaning equipment and materials 5.2.1.2 Clean various household ware",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Cleaning equipment: Brooms, dusters, brushes, dust pan, hoover, floor polishers, dish washers. • Cleaning materials: Scouring powder, floor and furniture children polish • Cleaning household ware: metals (aluminum, stainless steel, and enamel), wood, and plastics. • Order of washing up: non-grease items first,"
+            "SPECIFIC OUTCOMES": "5.2.1.1 Use different household cleaning equipment and materials 5.2.1.2 Clean various household ware",
+            "CONTENT": "• Cleaning equipment: Brooms, dusters, brushes, dust pan, hoover, floor polishers, dish washers. • Cleaning materials: Scouring powder, floor and furniture children polish • Cleaning household ware: metals (aluminum, stainless steel, and enamel), wood, and plastics. • Order of washing up: non-grease items first, cutlery, sauce pans and bake ware."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "cutlery, sauce pans and bake ware."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.2 Care of a Home.",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.2.1. Remove dust and dirt.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Ways of removing dust and dirt: gathering, dusting, wiping, sucking, mopping."
+            "SPECIFIC OUTCOMES": "5.2.2.1. Remove dust and dirt.",
+            "CONTENT": "• Ways of removing dust and dirt: gathering, dusting, wiping, sucking, mopping."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.3 Laundry",
-            "TOPIC": "",
+            "TOPIC": "5.3 Laundry",
             "SUB-TOPIC": "5.3.1 Laundry equipment and materials",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.3.1.1 Use laundry Equipment and materials. 5.3.1.2 Interpret laundry symbols. 5.3.1.3 Launder small articles",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Laundry equipment: plastic basins, enamel basins, and baths drying lines, pegs, brushes, iron and ironing board. • Laundry materials: blue, salt, vinegar, soap, detergents. • Laundry symbols: do not –iron, bleach, dry clean, and wash separate. • Reasons for washing clothes: kill germs, look smart, last longer, removal of excess moisture • Laundering small articles: remove tea and mucus stains e.g. hand kerchief, tray cloth, table cloth, pillow case."
+            "SPECIFIC OUTCOMES": "5.3.1.1 Use laundry Equipment and materials. 5.3.1.2 Interpret laundry symbols. 5.3.1.3 Launder small articles",
+            "CONTENT": "• Laundry equipment: plastic basins, enamel basins, and baths drying lines, pegs, brushes, iron and ironing board. • Laundry materials: blue, salt, vinegar, soap, detergents. • Laundry symbols: do not –iron, bleach, dry clean, and wash separate. • Reasons for washing clothes: kill germs, look smart, last longer, removal of excess moisture • Laundering small articles: remove tea and mucus stains e.g. hand kerchief, tray cloth, table cloth, pillow case."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 6": "SKILLS",
-            "COLUMN 7": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.1 Human Development",
-            "TOPIC": "",
+            "TOPIC": "5.1 Human Development",
             "SUB-TOPIC": "5.1.1Uniqueness of the body",
             "SPECIFIC OUTCOMES": "5.1.1.1 Identify body uniqueness in different Individuals.",
-            "CONTENT": "• Uniqueness in individuals: physical appearance e.g. Small/big breasts, small/big buttocks, pimples/clear faces, small/big shoulders.",
-            "COLUMN 6": "• Identification of body uniqueness",
-            "COLUMN 7": "• Awareness of physical appearances • Appreciation of oneself"
+            "CONTENT": "• Uniqueness in individuals: physical appearance e.g. Small/big breasts, small/big buttocks, pimples/clear faces, small/big shoulders. • Identification of body uniqueness • Awareness of physical appearances • Appreciation of oneself"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.1.2 Grooming and self- respect",
             "SPECIFIC OUTCOMES": "5.1.2.1 Demonstrate good grooming and self- respect",
-            "CONTENT": "• Appropriate dressing, sitting and walking posture, body language.",
-            "COLUMN 6": "• Dressing and sitting appropriately",
-            "COLUMN 7": "• Appreciating decent dressing, sitting, walking and body language"
+            "CONTENT": "• Appropriate dressing, sitting and walking posture, body language. • Dressing and sitting appropriately • Appreciating decent dressing, sitting, walking and body language"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.2 Hygiene",
-            "TOPIC": "",
+            "TOPIC": "5.2 Hygiene",
             "SUB-TOPIC": "5.2.1 The body",
             "SPECIFIC OUTCOMES": "5.2.1.1 Clean various body parts",
-            "CONTENT": "• Cleaning body parts: hands and feet-cut nails regularly, teeth- brush three times a day, hair-comb always, ears-, use ear buds, eyes- avoid rubbing.",
-            "COLUMN 6": "• Cleaning and caring for hair, eyes, ears, teeth, hands and feet",
-            "COLUMN 7": "• Cleanliness"
+            "CONTENT": "• Cleaning body parts: hands and feet-cut nails regularly, teeth- brush three times a day, hair-comb always, ears-, use ear buds, eyes- avoid rubbing. • Cleaning and caring for hair, eyes, ears, teeth, hands and feet • Cleanliness"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.2 Ventilation",
             "SPECIFIC OUTCOMES": "5.2.2.1 Identify methods of ventilation",
-            "CONTENT": "• Methods of ventilation: natural and artificial Importance of fresh air- good respiration / avoid colds. • Dangers of poor ventilation- short supply of clean air, transmission of diseases. • Good ventilation: Open windows early in the",
-            "COLUMN 6": "• Identification of methods of ventilation",
-            "COLUMN 7": "• Appreciating fresh air • Safety consciousnes s"
+            "CONTENT": "• Methods of ventilation: natural and artificial Importance of fresh air- good respiration / avoid colds. • Dangers of poor ventilation- short supply of clean air, transmission of diseases. • Good ventilation: Open windows early in the • Identification of methods of ventilation • Appreciating fresh air • Safety consciousnes s morning, avoid-braziers and overcrowding."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 6": "SKILLS",
-            "COLUMN 7": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "morning, avoid-braziers and overcrowding.",
-            "COLUMN 6": "",
-            "COLUMN 7": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.3 Sanitation",
             "SPECIFIC OUTCOMES": "5.2.3.1 Dispose different Wastes",
-            "CONTENT": "• Importance of good sanitation: good health/ prevention of diseases. • Disposal of wet refuse: burying (compost heap) and dry refuse: burning. • Cleaning a kitchen bin",
-            "COLUMN 6": "• Disposing wet and dry refuse • Cleaning a kitchen bin",
-            "COLUMN 7": "• Appreciating good sanitation"
+            "CONTENT": "• Importance of good sanitation: good health/ prevention of diseases. • Disposal of wet refuse: burying (compost heap) and dry refuse: burning. • Cleaning a kitchen bin • Disposing wet and dry refuse • Cleaning a kitchen bin • Appreciating good sanitation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.4 Water",
             "SPECIFIC OUTCOMES": "5.2.4.1 Describe uses of Water in the home 5.2.4.2 Purify water 5.2.4.3 Store water appropriately",
-            "CONTENT": "• Uses of water in the home: washing, bathing, ironing, cooking. • Methods of water purification: filtration, boiling, chlorination and decanting • Safe storage of water (in clean containers / buckets)",
-            "COLUMN 6": "• Water purification",
-            "COLUMN 7": "• Appreciating water in the home"
+            "CONTENT": "• Uses of water in the home: washing, bathing, ironing, cooking. • Methods of water purification: filtration, boiling, chlorination and decanting • Safe storage of water (in clean containers / buckets) • Water purification • Appreciating water in the home"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.3 Safety in the home",
-            "TOPIC": "",
+            "TOPIC": "5.3 Safety in the home",
             "SUB-TOPIC": "5.3.1 Prevention of accidents in the home",
             "SPECIFIC OUTCOMES": "5.3.1.1Demonstrate safety rules in the home.",
-            "CONTENT": "• Causes of accidents ( e xposing medicines and other poisonous substances) • Safety rules in the Kitchen (turn pan handles away from edge when cooking, don’t play with match stick and lighted fire, mop spilled water, • Keep needles, pills, coins out of reach of children.",
-            "COLUMN 6": "• Application of safety rules",
-            "COLUMN 7": "• Safety consciousness"
+            "CONTENT": "• Causes of accidents ( e xposing medicines and other poisonous substances) • Safety rules in the Kitchen (turn pan handles away from edge when cooking, don’t play with match stick and lighted fire, mop spilled water, • Keep needles, pills, coins out of reach of children. • Application of safety rules • Safety consciousness TOPIC SUB-TOPIC SPECIFIC OUTCOMES"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "TOPIC",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "SUB-TOPIC",
-            "CONTENT": "",
-            "COLUMN 6": "SPECIFIC",
-            "COLUMN 7": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "",
-            "COLUMN 6": "OUTCOMES",
-            "COLUMN 7": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.1 Needlework",
-            "TOPIC": "",
+            "TOPIC": "5.1 Needlework",
             "SUB-TOPIC": "5.1.1 Tools",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.1.1.1 Use needlework tools correctly. 5.1.1.2 Make a measuring card",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Needlework tools: needles- sewing, thimble- protecting middle finger, stiletto- eyelet making, measuring card- measuring hems, measuring tape- taking body measurements, tailor’s tacking- transferring pattern markings. • Making a measuring card- cut and shape thin boxes, mark 1cm, 2cm."
+            "SPECIFIC OUTCOMES": "5.1.1.1 Use needlework tools correctly. 5.1.1.2 Make a measuring card",
+            "CONTENT": "• Needlework tools: needles- sewing, thimble- protecting middle finger, stiletto- eyelet making, measuring card- measuring hems, measuring tape- taking body measurements, tailor’s tacking- transferring pattern markings. • Making a measuring card- cut and shape thin boxes, mark 1cm, 2cm."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.2 Processes",
-            "TOPIC": "",
+            "TOPIC": "5.2 Processes",
             "SUB-TOPIC": "5.2.1 Stitches",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.1.1 Make samples and articles using different stiches.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Stitches: permanent, neatening and decorative stitches • Articles: fringed mats, table napkins, tray cloth, bags, pin cushion."
+            "SPECIFIC OUTCOMES": "5.2.1.1 Make samples and articles using different stiches.",
+            "CONTENT": "• Stitches: permanent, neatening and decorative stitches • Articles: fringed mats, table napkins, tray cloth, bags, pin cushion."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.2.2 Seams",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.2.2.1 Sew samples of",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Classes of seams- flat ridged and flannel."
+            "SPECIFIC OUTCOMES": "5.2.2.1 Sew samples of",
+            "CONTENT": "• Classes of seams- flat ridged and flannel. TOPIC SUB-TOPIC SPECIFIC OUTCOMES different seams • Choice depends on - materials being used, garment being made, position of the seam. • Rules for working out seams: threads must be suitable, width depends on material, seams of the same type must be of similar width. • Sewing samples of an open seam, French, run and fell, overlaid seams."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "TOPIC",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "SUB-TOPIC",
-            "CONTENT": "",
-            "COLUMN 6": "SPECIFIC",
-            "COLUMN 7": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "",
-            "COLUMN 6": "OUTCOMES",
-            "COLUMN 7": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "different seams",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Choice depends on - materials being used, garment being made, position of the seam. • Rules for working out seams: threads must be suitable, width depends on material, seams of the same type must be of similar width. • Sewing samples of an open seam, French, run and fell, overlaid seams."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.3 Craft work",
-            "TOPIC": "",
+            "TOPIC": "5.3 Craft work",
             "SUB-TOPIC": "5.3.1 Plaiting",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.3.1.1 Plait table mats.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Equipment used in plaiting: blunt wire, darning needle Materials: strips of fabric, grass, sisal fiber • Plait table coasters"
+            "SPECIFIC OUTCOMES": "5.3.1.1 Plait table mats.",
+            "CONTENT": "• Equipment used in plaiting: blunt wire, darning needle Materials: strips of fabric, grass, sisal fiber • Plait table coasters"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "TOPIC": "",
             "SUB-TOPIC": "5.3.2 Toy making",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "5.3.2.1 Make toys using various materials.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Making toys such as rag dolls, plastic balls using various materials"
+            "SPECIFIC OUTCOMES": "5.3.2.1 Make toys using various materials.",
+            "CONTENT": "• Making toys such as rag dolls, plastic balls using various materials"
           }
         }
       ]
@@ -18884,31 +18704,25 @@
         "TOPIC",
         "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "CONTENT",
-        "COLUMN 5",
-        "COLUMN 6"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.1 The Kitchen",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.1.1 Kitchen Equipment",
-            "CONTENT": "",
-            "COLUMN 5": "6.1.1.1 Identify kitchen Equipment.",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.1.1 Kitchen Equipment",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Identify kitchen Equipment.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.2 Food",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.2.1 Mixed diet 6.2.2 Food Presentation 6.2.3 Food Budgeting",
-            "CONTENT": "",
-            "COLUMN 5": "6.2.1.1 Identify causes of deficiency diseases. 6.2.1.2 Plan and prepare a mixed diet 6.2.2.1 Garnish different dishes 6.2.2.2 Demonstrate table laying",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.2.1 Mixed diet 6.2.2 Food Presentation 6.2.3 Food Budgeting",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Identify causes of deficiency diseases. 6.2.1.2 Plan and prepare a mixed diet 6.2.2.1 Garnish different dishes 6.2.2.2 Demonstrate table laying",
+            "CONTENT": ""
           }
         },
         {
@@ -18916,120 +18730,89 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "",
-            "COLUMN 5": "6.2.3.1 Plan and prepare a simple budget",
-            "COLUMN 6": ""
+            "SPECIFIC OUTCOMES": "6.2.3.1 Plan and prepare a simple budget",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.2.4 Meal Planning",
-            "CONTENT": "",
-            "COLUMN 5": "6.2.4.1 Describe meal patterns 6.2.4.2 Prepare meals for different needs.",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.2.4 Meal Planning",
+            "SPECIFIC OUTCOMES": "6.2.4.1 Describe meal patterns 6.2.4.2 Prepare meals for different needs.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.3 Food preparation",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.3.1 Stewing and Frying",
-            "CONTENT": "",
-            "COLUMN 5": "6.3.1.1 Stew and fry different foods.",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.3.1 Stewing and Frying",
+            "SPECIFIC OUTCOMES": "6.3.1.1 Stew and fry different foods.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.3.2 Left over foods.",
-            "CONTENT": "",
-            "COLUMN 5": "6.3.2.1 Prepare different dishes from left over foods.",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.3.2 Left over foods.",
+            "SPECIFIC OUTCOMES": "6.3.2.1 Prepare different dishes from left over foods.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.4 Preservation",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.4.1 Food Preservation",
-            "CONTENT": "",
-            "COLUMN 5": "6.4.1.1 Preserve different foods",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.4.1 Food Preservation",
+            "SPECIFIC OUTCOMES": "6.4.1.1 Preserve different foods",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.5 Hospitality",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.5.1 Facilities and services",
-            "CONTENT": "",
-            "COLUMN 5": "6.5.1.1 Describe facilities in hospitality. 6.5.1.2 Identify services in hospitality",
-            "COLUMN 6": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 5": "SKILLS",
-            "COLUMN 6": "VALUES"
+            "SUB-TOPIC": "6.5.1 Facilities and services",
+            "SPECIFIC OUTCOMES": "6.5.1.1 Describe facilities in hospitality. 6.5.1.2 Identify services in hospitality",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.1 Pests",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.1.1 Household Pests",
-            "CONTENT": "",
-            "COLUMN 5": "6.1.1.1 Explain dangers of Household pests. 6.1.1.2 Explain prevention and control of household pests",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.1.1 Household Pests",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Explain dangers of Household pests. 6.1.1.2 Explain prevention and control of household pests",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.2 Home",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.2.1 Floors and walls",
-            "CONTENT": "",
-            "COLUMN 5": "6.2.1.1 Clean different types of walls and floors",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.2.1 Floors and walls",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Clean different types of walls and floors",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.2.2 Rooms in the house",
-            "CONTENT": "",
-            "COLUMN 5": "6.2.2.1 Clean different rooms in a house.",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.2.2 Rooms in the house",
+            "SPECIFIC OUTCOMES": "6.2.2.1 Clean different rooms in a house.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "6.3 Laundry",
+            "TOPIC": "6.3 Laundry 6.3.Laundry",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.3.Laundry",
-            "CONTENT": "",
-            "COLUMN 5": "6.3.1.1 Wash different coloured fabrics.",
-            "COLUMN 6": ""
+            "SPECIFIC OUTCOMES": "6.3.1.1 Wash different coloured fabrics.",
+            "CONTENT": ""
           }
         },
         {
@@ -19037,21 +18820,8 @@
           "cells": {
             "TOPIC": "6.4 Gardening",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6 .4.1 Kitchen Garden",
-            "CONTENT": "",
-            "COLUMN 5": "6.4.1.1. Grow different types of vegetables.",
-            "COLUMN 6": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 5": "SKILLS",
-            "COLUMN 6": "VALUES"
+            "SPECIFIC OUTCOMES": "6.4.1.1. Grow different types of vegetables.",
+            "CONTENT": "6 .4.1 Kitchen Garden"
           }
         },
         {
@@ -19060,9 +18830,7 @@
             "TOPIC": "6.1 Human Development",
             "SUB-TOPIC": "6.1.1 Body image",
             "SPECIFIC OUTCOMES": "6.1.1.1 Identify factors influencing physical appearance. 6.1.1.2 Describe the effect of physical appearance on others.",
-            "CONTENT": "• Factors influencing physical appearance: heredity, environmental e.g. diet, climate, economic status, locality • Effects of physical appearance on others: attraction, repulsion, pity, sexual abuse, respect.",
-            "COLUMN 5": "• Identification of factors that influence appearance",
-            "COLUMN 6": "• Appreciating ones physical appearance"
+            "CONTENT": "• Factors influencing physical appearance: heredity, environmental e.g. diet, climate, economic status, locality • Effects of physical appearance on others: attraction, repulsion, pity, sexual abuse, respect. • Identification of factors that influence appearance • Appreciating ones physical appearance"
           }
         },
         {
@@ -19071,9 +18839,7 @@
             "TOPIC": "6.2 Safety in the home/school",
             "SUB-TOPIC": "6.2.1 First-Aid",
             "SPECIFIC OUTCOMES": "6.2.1.1 Apply First Aid on various accidents.",
-            "CONTENT": "• Treatment of falls, cuts and simple sprains",
-            "COLUMN 5": "• Treating simple accidents.",
-            "COLUMN 6": "• Appreciating First Aid"
+            "CONTENT": "• Treatment of falls, cuts and simple sprains • Treating simple accidents. • Appreciating First Aid"
           }
         },
         {
@@ -19082,42 +18848,16 @@
             "TOPIC": "6.3 Sanitation",
             "SUB-TOPIC": "6.3.1 Toilets",
             "SPECIFIC OUTCOMES": "6.3.1.1 Clean toilets and latrines",
-            "CONTENT": "• Types of toilets: water-bone toilets and pit latrines • Cleaning toilets (by using environmentally friendly cleaning materials.",
-            "COLUMN 5": "• Cleaning of toilets and latrines.",
-            "COLUMN 6": "• Appreciating clean toilets"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "TOPIC",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "SUB-TOPIC",
-            "COLUMN 5": "",
-            "COLUMN 6": "SPECIFIC"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "OUTCOMES"
+            "CONTENT": "• Types of toilets: water-bone toilets and pit latrines • Cleaning toilets (by using environmentally friendly cleaning materials. • Cleaning of toilets and latrines. • Appreciating clean toilets TOPIC SUB-TOPIC SPECIFIC OUTCOMES"
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "6.1 Processes in Needlework 6.2 Crafts work",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.1.1 Edge finishes 6.1.2 Fasteners 6.1.3 Openings 6.2.1 Weaving",
-            "CONTENT": "",
-            "COLUMN 5": "6.1.1.1 Sew Edge finishes. 6.1.2.1 Sew simple fasteners. 6.1.3.1 Sew simple openings 6.2.1.1 Weave simple items",
-            "COLUMN 6": ""
+            "SUB-TOPIC": "6.1.1 Edge finishes 6.1.2 Fasteners 6.1.3 Openings 6.2.1 Weaving",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Sew Edge finishes. 6.1.2.1 Sew simple fasteners. 6.1.3.1 Sew simple openings 6.2.1.1 Weave simple items",
+            "CONTENT": ""
           }
         }
       ]
@@ -19125,528 +18865,127 @@
     "Grade 7": {
       "title": "HOME ECONOMICS SYLLABUS  —  GRADE 7",
       "columns": [
-        "COLUMN 1",
         "TOPIC",
-        "KNOWLEDGE",
         "SUB-TOPIC",
-        "VALUES",
         "SPECIFIC OUTCOMES",
-        "COLUMN 7",
-        "CONTENT",
-        "COLUMN 9",
-        "COLUMN 10",
-        "COLUMN 11",
-        "COLUMN 12"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "SUB-TOPIC": "SKILLS",
-            "VALUES": "VALUES",
+            "TOPIC": "7.1 Sanitation",
+            "SUB-TOPIC": "7.1.1Kitchen sink",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Identify parts of a kitchen sink and their functions. 7.1.1.2 Unblock the kitchen sink",
+            "CONTENT": "• Parts of the kitchen sink and their use: draining board-drying utensils, tap- water supply, overflow pipe-prevent flooding, u- bend-traps smells. • Unblocking the kitchen sink: open the u-bend, pour hot water and use bicarbonate of soda or use suction pump • Identification of parts of a kitchen sink • Unblocking of the kitchen sink • Awareness on how to unblock the sink"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.2 Home",
+            "SUB-TOPIC": "7.3.1 Floor coverings",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Care for and clean floor coverings",
+            "CONTENT": "• Caring and cleaning of carpet/mat/traditional mat. • Cleaning floor coverings • Appreciating clean floor coverings"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.3 Hospitality",
+            "SUB-TOPIC": "7.3.1 Colour and Décor.",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Make decorations according to the background",
+            "CONTENT": "• Decorations: flower arrangement, linen, and other accessories. • Decorating rooms according to occasion • Appreciating colour and décor."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.4 Time Management",
+            "SUB-TOPIC": "7.4.1 Time plan",
+            "SPECIFIC OUTCOMES": "7.4.1.1 Make a time plan",
+            "CONTENT": "• Time plan: Ingredients, work tasks and time allocation, equipment • Time management. • Appreciating time management"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.5 Laundry",
+            "SUB-TOPIC": "7.5.1 White cotton garments",
+            "SPECIFIC OUTCOMES": "7.5.1.1 Launder white garments",
+            "CONTENT": "• Care of white cotton: wash separately; blue, the article, dry in the sun. • Laundering white garments: sorting, washing, starching to stiffen, blue to whiten, ironing, and storing articles. • Laundering articles • Appreciating laundered articles"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.6Gardening",
+            "SUB-TOPIC": "7.6.1 Kitchen garden",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "7. 6.1.1 Maintain kitchen garden by practicing effective control of pests and diseases. • Maintaining a kitchen garden: spray pesticides, sprinkle ashes. • Pest control . • Appreciating own crops"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
+            "TOPIC": "7.1 Personal Hygiene",
+            "SUB-TOPIC": "7.1.1 The Skin",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Caring for the skin",
+            "CONTENT": "• Importance of the skin- remove surface grease and dirt, open pores, remove bacteria, remove dead skin • Function of the skin- protects the body from germs, heat, and cold, to remove sweat, to form vitamin D from sunshine. • Care for the skin- do not use skin bleaches or damage the skin, wash the skin with good toilet soap, and eat a mixed diet for health skin. • Skin care • Appreciating the skin"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.2 Health education",
+            "SUB-TOPIC": "7.2.1 Puberty",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Outline ways of maintaining personal hygiene during puberty and menstruation 7.2.1.2 Make a home-made sanitary towel",
+            "CONTENT": "• Personal hygiene during puberty: wash the pubic area twice a day, do not wear tight pants, and keep the pubic area dry, use mild soap, shave regularly. • Personal during menstruation: (Change sanitary towels regularly and dispose pads correctly, bath at least twice a day). • Making a homemade sanitary towel • Cleanliness • Materials for making a homemade sanitary towel: Pieces of material, various stuffing"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.3 Human Development",
+            "SUB-TOPIC": "7.3.1 Privacy and bodily integrity",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Identify ways of promoting privacy and bodily integrity in both girls and boys",
+            "CONTENT": "• Ways of promoting privacy and bodily integrity: separable /locked toilets /bathrooms/bedrooms • Identification of ways of promoting privacy and bodily integrity • Appreciating privacy and bodily integrity TOPIC SUB-TOPIC SPECIFIC CONTENT OUTCOMES KNOWLEDGE SKILLS VALUES"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.1 Needlework",
+            "SUB-TOPIC": "7.1.1 Needlework processes",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Arrange fullness. 7.1.1.2 Mending damaged clothes. 7.1.1.3 Sew simple shirts and dress",
+            "CONTENT": "• Arranging of fullness: gathers, tucks, pleats and elastic. • Mending different clothes • Sewing simple dresses and shirts • Arranging fullness • Mending damaged clothes • Sewing dresses and shirts • Appreciating own made articles"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "7.2 Craftwork",
+            "SUB-TOPIC": "7.2.1 Knitting and crocheting",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Make articles by knitting and crocheting",
+            "CONTENT": "• Knitting: K-knit, P-purl, Patt-pattern, Inc- increase, dec-decrease • Crocheting: Chain stitch (ch),slip stitch (s.s), double (d.c), treble (tr). • Making articles • knitting and crocheting simple articles • Appreciating knitting and crocheting simple articles"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
             "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "KNOWLEDGE",
-            "CONTENT": "",
-            "COLUMN 9": "SKILLS",
-            "COLUMN 10": "",
-            "COLUMN 11": "VALUES",
-            "COLUMN 12": ""
+            "SUB-TOPIC": "7.3.1",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Dye materials using various dyes",
+            "CONTENT": "• Dyes: sweet potato leaves, mukoyo roots. • Dyeing • Appreciating dyes"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.1 Sanitation",
-            "TOPIC": "7.1.1Kitchen sink",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7.1.1.1 Identify parts of a kitchen sink and their functions. 7.1.1.2 Unblock the kitchen sink",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Parts of the kitchen sink and their use: draining board-drying utensils, tap- water supply, overflow pipe-prevent flooding, u- bend-traps smells. • Unblocking the kitchen sink: open the u-bend, pour hot water and use bicarbonate of soda or use suction pump",
-            "COLUMN 7": "",
-            "CONTENT": "• Identification of parts of a kitchen sink • Unblocking of the kitchen sink",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Awareness on how to unblock the sink",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.2 Home",
-            "TOPIC": "7.3.1 Floor coverings",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7.3.1.1 Care for and clean floor coverings",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Caring and cleaning of carpet/mat/traditional mat.",
-            "COLUMN 7": "",
-            "CONTENT": "• Cleaning floor coverings",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Appreciating clean floor coverings",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.3 Hospitality",
-            "TOPIC": "7.3.1 Colour and Décor.",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7.3.1.1 Make decorations according to the background",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Decorations: flower arrangement, linen, and other accessories.",
-            "COLUMN 7": "",
-            "CONTENT": "• Decorating rooms according to occasion",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Appreciating colour and décor.",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.4 Time Management",
-            "TOPIC": "7.4.1 Time plan",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7.4.1.1 Make a time plan",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Time plan: Ingredients, work tasks and time allocation, equipment",
-            "COLUMN 7": "",
-            "CONTENT": "• Time management.",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Appreciating time management",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.5 Laundry",
-            "TOPIC": "7.5.1 White cotton garments",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7.5.1.1 Launder white garments",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Care of white cotton: wash separately; blue, the article, dry in the sun. • Laundering white garments: sorting, washing, starching to stiffen, blue to whiten, ironing, and storing articles.",
-            "COLUMN 7": "",
-            "CONTENT": "• Laundering articles",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Appreciating laundered articles",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "KNOWLEDGE",
-            "CONTENT": "",
-            "COLUMN 9": "SKILLS",
-            "COLUMN 10": "",
-            "COLUMN 11": "VALUES",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.6Gardening",
-            "TOPIC": "7.6.1 Kitchen garden",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "7. 6.1.1 Maintain kitchen garden by practicing effective control of pests and diseases.",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "• Maintaining a kitchen garden: spray pesticides, sprinkle ashes.",
-            "COLUMN 7": "",
-            "CONTENT": "• Pest control .",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Appreciating own crops",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "COLUMN 10": "SKILLS",
-            "COLUMN 11": "",
-            "COLUMN 12": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.1 Personal Hygiene",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.1.1 The Skin",
-            "SUB-TOPIC": "",
-            "VALUES": "7.1.1.1 Caring for the skin",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Importance of the skin- remove surface grease and dirt, open pores, remove bacteria, remove dead skin • Function of the skin- protects the body from germs, heat, and cold, to remove sweat, to form vitamin D from sunshine. • Care for the skin- do not use skin bleaches or damage the skin, wash the skin with good toilet soap, and eat a mixed diet for health skin.",
-            "CONTENT": "",
-            "COLUMN 9": "• Skin care",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating the skin",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.2 Health education",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.2.1 Puberty",
-            "SUB-TOPIC": "",
-            "VALUES": "7.2.1.1 Outline ways of maintaining personal hygiene during puberty and menstruation 7.2.1.2 Make a home-made sanitary towel",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Personal hygiene during puberty: wash the pubic area twice a day, do not wear tight pants, and keep the pubic area dry, use mild soap, shave regularly. • Personal during menstruation: (Change sanitary towels regularly and dispose pads correctly, bath at least twice a day).",
-            "CONTENT": "",
-            "COLUMN 9": "• Making a homemade sanitary towel",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Cleanliness",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "COLUMN 10": "SKILLS",
-            "COLUMN 11": "",
-            "COLUMN 12": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Materials for making a homemade sanitary towel: Pieces of material, various stuffing",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.3 Human Development",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.3.1 Privacy and bodily integrity",
-            "SUB-TOPIC": "",
-            "VALUES": "7.3.1.1 Identify ways of promoting privacy and bodily integrity in both girls and boys",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Ways of promoting privacy and bodily integrity: separable /locked toilets /bathrooms/bedrooms",
-            "CONTENT": "",
-            "COLUMN 9": "• Identification of ways of promoting privacy and bodily integrity",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating privacy and bodily integrity",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "TOPIC",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "SUB-TOPIC",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "SPECIFIC",
-            "COLUMN 7": "",
-            "CONTENT": "CONTENT",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "OUTCOMES",
-            "COLUMN 7": "",
-            "CONTENT": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "COLUMN 10": "SKILLS",
-            "COLUMN 11": "",
-            "COLUMN 12": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.1 Needlework",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.1.1 Needlework processes",
-            "SUB-TOPIC": "",
-            "VALUES": "7.1.1.1 Arrange fullness. 7.1.1.2 Mending damaged clothes. 7.1.1.3 Sew simple shirts and dress",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Arranging of fullness: gathers, tucks, pleats and elastic. • Mending different clothes • Sewing simple dresses and shirts",
-            "CONTENT": "",
-            "COLUMN 9": "• Arranging fullness • Mending damaged clothes • Sewing dresses and shirts",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating own made articles",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.2 Craftwork",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.2.1 Knitting and crocheting",
-            "SUB-TOPIC": "",
-            "VALUES": "7.2.1.1 Make articles by knitting and crocheting",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Knitting: K-knit, P-purl, Patt-pattern, Inc- increase, dec-decrease • Crocheting: Chain stitch (ch),slip stitch (s.s), double (d.c), treble (tr). • Making articles",
-            "CONTENT": "",
-            "COLUMN 9": "• knitting and crocheting simple articles",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating knitting and crocheting simple articles",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.3.1",
-            "SUB-TOPIC": "",
-            "VALUES": "7.3.1.1 Dye materials using various dyes",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Dyes: sweet potato leaves, mukoyo roots.",
-            "CONTENT": "",
-            "COLUMN 9": "• Dyeing",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating dyes",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.3Entrepreneurship",
-            "TOPIC": "",
-            "KNOWLEDGE": "7.3.1 Home Economics projects",
-            "SUB-TOPIC": "",
-            "VALUES": "7.3.1.1 Identify entrepreneurial opportunities in, Home Economics",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Food and nutrition: baking scones and cakes, beverage making, menu planners. • Home management Interior decoration, laundry business. flower arrangement, gardening. • Needlework: simple shirts and dresses • Crafts: weaving,",
-            "CONTENT": "",
-            "COLUMN 9": "• Identific ation of home economics projects.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating home economics projects",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "TOPIC",
-            "TOPIC": "SUB-TOPIC",
-            "KNOWLEDGE": "SPECIFIC",
-            "SUB-TOPIC": "",
-            "VALUES": "CONTENT",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "OUTCOMES",
-            "SUB-TOPIC": "",
-            "VALUES": "KNOWLEDGE",
-            "SPECIFIC OUTCOMES": "SKILLS",
-            "COLUMN 7": "VALUES",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "",
-            "KNOWLEDGE": "",
-            "SUB-TOPIC": "plaiting, knitting, crocheting, dyes.",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "GRADE",
-            "TOPIC": "PROCESSES",
-            "KNOWLEDGE": "ARTICLES",
-            "SUB-TOPIC": "MATERIALS",
-            "VALUES": "NEEDLES",
-            "SPECIFIC OUTCOMES": "THREAD",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "V",
-            "TOPIC": "- Neatening and decorative stitches: - Run and fell seam",
-            "KNOWLEDGE": "Chair backs, Elasticated skirt Tray cloth Toys Plaited table mats Food covers decorated with beads",
-            "SUB-TOPIC": "- Cotton - Linen materials with weft and warp threads clearly defined - maize husks - banana stems - beads",
-            "VALUES": "Crewel Nos. 7 and 8 Sharps Nos 7 and 8",
-            "SPECIFIC OUTCOMES": "Matching cottons And sheens",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "VI",
-            "TOPIC": "- French seam - Gathering - Faced opening - Button and worked loop - Button hole",
-            "KNOWLEDGE": "- Sleeveless blouse - Gathered Skirt - Door mats (plaited) - Wall hanging (decorated with beads) - Toys - Children’s dresses",
-            "SUB-TOPIC": "As for grade 5 Plus non-slip man-made fibres",
-            "VALUES": "Crewel Nos. 8 and 9 Sharps Nos 8 and 9",
-            "SPECIFIC OUTCOMES": "Matching cottons and sheen",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "VII",
-            "TOPIC": "- Open seam - Perfection of stitches already learnt. - Laying out of patterns - Cutting out articles or garments made using machine if available - Continuous warp",
-            "KNOWLEDGE": "- Simple shift dress - Skirt on a waistband With a continuous wrap opening - Petticoat (half) - Blouse - Calico patch - Baskets - Bootees - Baby bonnet",
-            "SUB-TOPIC": "As for Grade 6",
-            "VALUES": "As for Grade 6",
-            "SPECIFIC OUTCOMES": "As for Grade 6",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "GRADE",
-            "TOPIC": "PROCESSES",
-            "KNOWLEDGE": "ARTICLES",
-            "SUB-TOPIC": "MATERIALS",
-            "VALUES": "NEEDLES",
-            "SPECIFIC OUTCOMES": "THREAD",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "TOPIC": "opening - Press studs - Calico darts",
-            "KNOWLEDGE": "- Shawl (crotcheting) - Various items decorated with beads (crotcheting)",
-            "SUB-TOPIC": "",
-            "VALUES": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "CONTENT": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "7.3Entrepreneurship",
+            "SUB-TOPIC": "7.3.1 Home Economics projects",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Identify entrepreneurial opportunities in, Home Economics",
+            "CONTENT": "• Food and nutrition: baking scones and cakes, beverage making, menu planners. • Home management Interior decoration, laundry business. flower arrangement, gardening. • Needlework: simple shirts and dresses • Crafts: weaving, • Identific ation of home economics projects. • Appreciating home economics projects TOPIC SUB-TOPIC SPECIFIC CONTENT OUTCOMES KNOWLEDGE SKILLS VALUES plaiting, knitting, crocheting, dyes. GRADE PROCESSES ARTICLES MATERIALS NEEDLES THREAD V - Neatening and decorative stitches: - Run and fell seam Chair backs, Elasticated skirt Tray cloth Toys Plaited table mats Food covers decorated with beads - Cotton - Linen materials with weft and warp threads clearly defined - maize husks - banana stems - beads Crewel Nos. 7 and 8 Sharps Nos 7 and 8 Matching cottons And sheens VI - French seam - Gathering - Faced opening - Button and worked loop - Button hole - Sleeveless blouse - Gathered Skirt - Door mats (plaited) - Wall hanging (decorated with beads) - Toys - Children’s dresses As for grade 5 Plus non-slip man-made fibres Crewel Nos. 8 and 9 Sharps Nos 8 and 9 Matching cottons and sheen VII - Open seam - Perfection of stitches already learnt. - Laying out of patterns - Cutting out articles or garments made using machine if available - Continuous warp - Simple shift dress - Skirt on a waistband With a continuous wrap opening - Petticoat (half) - Blouse - Calico patch - Baskets - Bootees - Baby bonnet As for Grade 6 As for Grade 6 As for Grade 6 GRADE PROCESSES ARTICLES MATERIALS NEEDLES THREAD opening - Press studs - Calico darts - Shawl (crotcheting) - Various items decorated with beads (crotcheting)"
           }
         }
       ]

@@ -371,10 +371,14 @@ function rows2013WithPropagatedTopic(rows, topicColumn) {
 }
 
 // Split a "4.1.1 Foo. 4.1.2 Bar. 4.1.3 Baz" string into discrete outcomes.
+// Codes have 2–4 dotted segments (e.g. "10.1.1" or the primary "5.1.1.1").
+// The code must start at the beginning or right after whitespace, otherwise
+// a 4-segment code like "5.1.1.1" would itself be split on its inner ".1.1"
+// boundaries into "5.", "1.", "1.1 …" fragments.
 function splitNumberedOutcomes(s) {
   const str = String(s || "").trim();
   if (!str) return [];
-  const parts = str.split(/(?=\b\d+\.\d+(?:\.\d+)?\s)/g)
+  const parts = str.split(/(?=(?:^|(?<=\s))\d+(?:\.\d+){1,3}\.?\s)/g)
       .map((p) => p.trim()).filter(Boolean);
   return parts.length ? parts : [str];
 }
