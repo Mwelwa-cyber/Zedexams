@@ -1436,6 +1436,18 @@ service cloud.firestore {
         && (!('status' in incoming()) || (incoming().status is string && incoming().status in ['active', 'archived']))
         && (!('learnerCount' in incoming()) || (incoming().learnerCount is int && incoming().learnerCount >= 0));
     }
+    // Ownership of a register by its parent doc — used for the roster/records
+    // SUBCOLLECTION reads. A `list` query over a subcollection evaluates the
+    // rule against the collection, where `resource.data.<field>` is undefined
+    // (empty collection → rule ERRORS, not just false → permission denied), so
+    // a doc-level `resource.data.teacherUid` check cannot authorise an
+    // unconstrained list. Gating on the parent register's teacherUid is defined
+    // regardless of whether the subcollection has any docs, so list works for a
+    // brand-new (empty) class. get() is a privileged read (rules-exempt) and is
+    // cached per request, so this costs one lookup per query.
+    function _registerOwner(classId) {
+      return get(/databases/$(database)/documents/classRegisters/$(classId)).data.teacherUid;
+    }
     match /classRegisters/{classId} {
       allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
       allow create: if isTeacherOrAbove()
@@ -1448,7 +1460,9 @@ service cloud.firestore {
       allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
 
       match /roster/{rosterId} {
-        allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+        // Parent-owned: works for both single-doc get and unconstrained list
+        // (including an empty roster — the first-learner case).
+        allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
         allow create: if isTeacherOrAbove()
           && incoming().teacherUid == request.auth.uid
           && incoming().fullName is string
@@ -1460,7 +1474,8 @@ service cloud.firestore {
       }
 
       match /records/{recordId} {
-        allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+        // Parent-owned — see roster read above (unconstrained/empty list).
+        allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
         allow create: if isTeacherOrAbove() && incoming().teacherUid == request.auth.uid;
         allow update: if isAuthed()
           && resource.data.teacherUid == request.auth.uid

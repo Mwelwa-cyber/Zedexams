@@ -64,6 +64,7 @@ export default function ClassListTab({ register, onRosterChange }) {
 
   const [roster, setRoster] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState(EMPTY_DRAFT)
@@ -74,14 +75,19 @@ export default function ClassListTab({ register, onRosterChange }) {
 
   useEffect(() => {
     setLoading(true)
+    setLoadError(false)
     const unsub = subscribeRoster(
       classId,
       (rows) => {
         setRoster(rows)
         setLoading(false)
+        setLoadError(false)
         if (onRosterChange) onRosterChange(rows.filter((r) => r.status === 'active').length)
       },
-      (err) => { console.warn('[ClassListTab] subscribe failed', err); setLoading(false) },
+      // Surface the failure instead of swallowing it — a silently-dropped
+      // permission error here is indistinguishable from an empty class and
+      // hid a real roster-rules bug.
+      (err) => { console.warn('[ClassListTab] subscribe failed', err); setLoading(false); setLoadError(true) },
     )
     return unsub
   }, [classId, onRosterChange])
@@ -180,6 +186,13 @@ export default function ClassListTab({ register, onRosterChange }) {
 
       {loading ? (
         <p className="theme-text-muted text-sm py-6 text-center">Loading roster…</p>
+      ) : loadError ? (
+        <div className="theme-card border border-red-300 rounded-radius-md p-6 text-center">
+          <p className="theme-text font-black">Couldn’t load this class list</p>
+          <p className="theme-text-muted text-sm mt-1">
+            Something went wrong reading the roster. Refresh the page, and if it keeps happening let support know.
+          </p>
+        </div>
       ) : roster.length === 0 ? (
         <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
           <div className="text-4xl mb-2">🧑‍🏫</div>
