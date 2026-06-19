@@ -458,6 +458,28 @@ service cloud.firestore {
       }
     }
 
+    // ── quizSummaries (read-only library mirror) ──────────────
+    // Lightweight mirror of quizzes/{id} (minus passages/parts/description),
+    // maintained by the onQuizWritten Cloud Function so the learner library can
+    // list metadata cheaply. Reads mirror the parent quizzes rule exactly —
+    // the mirror carries the same isPublished / publicAccess / quizType /
+    // createdBy fields the rule keys on. ALL client writes are blocked: only
+    // the admin-SDK trigger (and the one-time backfill) maintain it, and they
+    // bypass these rules.
+    match /quizSummaries/{quizId} {
+      allow read: if (
+        resource.data.get('publicAccess', false) == true
+        && resource.data.get('isPublished', false) == true
+      );
+      allow read: if isAuthed() && (
+        resource.data.isPublished == true
+        || resource.data.get('quizType', '') == 'daily_exam'
+        || resource.data.createdBy == request.auth.uid
+        || isAdmin()
+      );
+      allow create, update, delete: if false;
+    }
+
     // ── results ───────────────────────────────────────────────
     match /results/{resultId} {
       allow read: if isAuthed() && (

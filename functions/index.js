@@ -2497,6 +2497,13 @@ exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated
 exports.onUserDeleted = storageCleanup.onUserDeleted;
 exports.orphanStorageReaper = storageCleanup.orphanStorageReaper;
 
+// Quiz library mirror. Keeps quizSummaries/{id} (quiz doc minus the heavy
+// passages[]/parts[]/description) in sync on every write to quizzes/{id}, so
+// the learner library can list metadata without downloading dead weight.
+// See functions/quizSummary/index.js.
+const quizSummary = require("./quizSummary");
+exports.onQuizWritten = quizSummary.onQuizWritten;
+
 // Past-papers published-list index. Maintains pastPapersIndex/published —
 // a single lightweight doc the /papers hub reads instead of fetching the
 // whole archive (heavy assets[] arrays and all) on every visit.
