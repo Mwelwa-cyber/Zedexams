@@ -52,9 +52,11 @@ export const PLAN_LIMITS = {
     notes: 25,
     full_lesson: 20,
     homework: 30,
-    assessment: 15,
+    // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): Pro
+    // and Free get a single monthly taster, then the Max paywall.
+    assessment: 1,
     sba_task: 15,
-    exam_paper: 10,
+    exam_paper: 1,
     diagram: 30,
     slide_notes: 5,
     slide_notes_images: 60,
@@ -94,6 +96,16 @@ export const DAILY_LIMITS = {
   free: 2,
   pro: 10,
   max: 30,
+}
+
+// Studios reserved for the Max plan — the two most compute-heavy generations.
+// Free and Pro get a single monthly taster (PLAN_LIMITS.{free,pro}.{...} = 1);
+// the next attempt routes to the "Upgrade to Max" paywall. Mirror of
+// functions/teacherTools/teacherPlans.js MAX_ONLY_TOOLS — keep in sync.
+export const MAX_ONLY_TOOLS = ['assessment', 'exam_paper']
+
+export function isMaxOnlyTool(tool) {
+  return MAX_ONLY_TOOLS.includes(tool)
 }
 
 // users.teacherPlan values written before the 2026-06 pro/max rename.

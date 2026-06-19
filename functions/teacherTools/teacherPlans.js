@@ -54,9 +54,13 @@ const PLAN_LIMITS = {
     notes: 25,
     full_lesson: 20,
     homework: 30,
-    assessment: 15,
+    // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): the
+    // most expensive generations on the platform. Pro (and Free) get a single
+    // taster per month so teachers can feel the quality before upgrading to
+    // Max for unlimited use — the 2nd generation hits the Max paywall.
+    assessment: 1,
     sba_task: 15,
-    exam_paper: 10,
+    exam_paper: 1,
     diagram: 30,
     slide_notes: 5,
     slide_notes_images: 60,
@@ -127,6 +131,19 @@ function isDailyCountedTool(tool) {
   return DAILY_COUNTED_TOOLS.includes(tool);
 }
 
+// Studios reserved for the Max plan. These are the two most compute-heavy
+// generations (Assessment ~250s/60+ items, Exam Paper ~185s), so they anchor
+// the Max tier rather than being sold purely on volume. Free and Pro keep a
+// single monthly taster (PLAN_LIMITS.{free,pro}.{assessment,exam_paper} = 1)
+// so a teacher can try the studio once; the next attempt routes to the Max
+// paywall instead of the generic monthly-limit copy. Keep this list in sync
+// with the client mirror in src/utils/teacherPlans.js.
+const MAX_ONLY_TOOLS = ["assessment", "exam_paper"];
+
+function isMaxOnlyTool(tool) {
+  return MAX_ONLY_TOOLS.includes(tool);
+}
+
 // users.teacherPlan values written before the 2026-06 pro/max rename.
 const LEGACY_PLAN_ALIASES = {
   individual: "pro",
@@ -152,7 +169,9 @@ module.exports = {
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,
+  MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
   isDailyCountedTool,
+  isMaxOnlyTool,
 };

@@ -15,9 +15,11 @@ const {
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,
+  MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
   isDailyCountedTool,
+  isMaxOnlyTool,
 } = require("./teacherPlans");
 
 let passed = 0;
@@ -117,8 +119,40 @@ test("pro limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.pro.lesson_plan, 40); // "40 lesson plans / month"
   assert.strictEqual(PLAN_LIMITS.pro.worksheet, 25); // "25 worksheets & teacher notes"
   assert.strictEqual(PLAN_LIMITS.pro.notes, 25);
-  assert.strictEqual(PLAN_LIMITS.pro.quiz, 8); // "8 assessments / month"
+  assert.strictEqual(PLAN_LIMITS.pro.quiz, 8); // formative quiz studio
   assert.strictEqual(PLAN_LIMITS.pro.scheme_of_work, 2); // "2 schemes of work / term"
+});
+
+// ── Max-only studios (assessment + exam paper) ───────────────────────
+test("MAX_ONLY_TOOLS lists exactly the assessment + exam paper studios", () => {
+  assert.deepStrictEqual([...MAX_ONLY_TOOLS].sort(), ["assessment", "exam_paper"]);
+});
+
+test("isMaxOnlyTool flags only the Max studios", () => {
+  assert.ok(isMaxOnlyTool("assessment"));
+  assert.ok(isMaxOnlyTool("exam_paper"));
+  assert.ok(!isMaxOnlyTool("lesson_plan"));
+  assert.ok(!isMaxOnlyTool("worksheet"));
+});
+
+test("free + pro get a single monthly taster of each Max studio", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    assert.strictEqual(PLAN_LIMITS.free[tool], 1, `free.${tool} taster`);
+    assert.strictEqual(PLAN_LIMITS.pro[tool], 1, `pro.${tool} taster`);
+  }
+});
+
+test("max unlocks the Max studios well beyond the taster", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    assert.ok(PLAN_LIMITS.max[tool] > 1, `max.${tool} must exceed the taster`);
+  }
+});
+
+test("every Max-only tool is a registered, daily-counted tool", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    assert.ok(tool in PLAN_LIMITS.free, `${tool} must exist in PLAN_LIMITS`);
+    assert.ok(isDailyCountedTool(tool), `${tool} should count daily`);
+  }
 });
 
 test("free limits match the published marketing numbers", () => {

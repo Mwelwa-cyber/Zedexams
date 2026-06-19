@@ -762,6 +762,9 @@ export async function generateAssessment(inputs) {
       error: messageFromError(error),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
+      // Structured quota context (e.g. { reason: 'max-only' }) so studios can
+      // route the right paywall — see functions/teacherTools/usageMeter.js.
+      details: error?.details || null,
     }
   }
 }
@@ -870,6 +873,9 @@ export async function generateExamPaper(inputs) {
       error: messageFromError(error),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
+      // Structured quota context (e.g. { reason: 'max-only' }) so studios can
+      // route the right paywall — see functions/teacherTools/usageMeter.js.
+      details: error?.details || null,
     }
   }
 }
