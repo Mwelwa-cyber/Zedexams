@@ -20,6 +20,18 @@ export const TERMINAL_AUTH_ERRORS = new Set([
   'auth/requires-recent-login',
 ])
 
+// Firebase auth codes that look like `auth/*` but are transient / retryable.
+// A forced token refresh failing with one of these does NOT mean the session
+// is gone — the next resume or `online` event should retry without disrupting
+// the user. Never expire the session on these.
+//
+// auth/too-many-requests  — Firebase is rate-limiting; back off, don't log out.
+// auth/internal-error     — Transient Firebase backend hiccup; not a dead session.
+export const TRANSIENT_AUTH_ERRORS = new Set([
+  'auth/too-many-requests',
+  'auth/internal-error',
+])
+
 /**
  * Decide whether a failed token refresh means the session is truly dead.
  *
@@ -27,14 +39,17 @@ export const TERMINAL_AUTH_ERRORS = new Set([
  * @param {boolean} online navigator.onLine at the time of failure.
  * @returns {boolean} true → expire the session and redirect to login.
  *
- * Returns false for offline / network blips (the `online` listener retries on
- * reconnect) and for empty/unknown codes (don't nuke a session we can't
- * positively classify). Any explicit `auth/*` code that survives those guards
- * is treated as terminal — a stale or revoked token won't fix itself.
+ * Returns false for:
+ *   • offline / network blips (the `online` listener retries on reconnect)
+ *   • empty/unknown codes (don't nuke a session we can't positively classify)
+ *   • transient/retryable auth codes (rate-limiting, backend hiccups)
+ * Any explicit `auth/*` code that survives those guards is treated as terminal
+ * — a stale or revoked token won't fix itself on its own.
  */
 export function shouldExpireSession(code, online) {
   if (!code) return false
   if (code === 'auth/network-request-failed') return false
   if (online === false) return false
+  if (TRANSIENT_AUTH_ERRORS.has(code)) return false
   return TERMINAL_AUTH_ERRORS.has(code) || code.startsWith('auth/')
 }
