@@ -24,6 +24,7 @@ import {
 } from '../../../utils/classRoster'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
+import { saveBlob } from '../../../utils/saveBlob.js'
 
 const MODES = [
   { key: 'paste', label: 'Paste' },
@@ -35,12 +36,7 @@ const STATUS_DOT = { ok: 'bg-emerald-500', warning: 'bg-amber-500', error: 'bg-r
 
 function downloadTemplate() {
   const blob = new Blob([buildRosterCsvTemplate()], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'class-list-template.csv'
-  a.click()
-  URL.revokeObjectURL(url)
+  saveBlob(blob, 'class-list-template.csv')
 }
 
 function PreviewTable({ parsed }) {

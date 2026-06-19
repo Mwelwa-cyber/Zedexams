@@ -4,6 +4,7 @@
  * parent note, then a teacher answer key.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -145,17 +146,5 @@ export function buildHomeworkDocument(hw, opts = {}) {
 export async function downloadHomeworkDocx(hw, filename = 'homework.docx', opts = {}) {
   const doc = buildHomeworkDocument(hw, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

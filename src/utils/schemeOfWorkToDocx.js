@@ -8,6 +8,7 @@
  * schemes already saved in teachers' libraries keep exporting.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -351,17 +352,5 @@ export async function downloadSchemeOfWorkDocx(scheme, filename = 'scheme-of-wor
     ? buildOfficialSchemeOfWorkDocument(scheme, opts)
     : buildSchemeOfWorkDocument(scheme, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

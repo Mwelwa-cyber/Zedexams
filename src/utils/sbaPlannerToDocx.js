@@ -5,6 +5,7 @@
  * HOD signs off when checking SBA coverage.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -108,17 +109,5 @@ export function buildSbaPlannerDocument(plan, header = {}, opts = {}) {
 export async function downloadSbaPlannerDocx(plan, header = {}, filename = 'sba-year-plan.docx', opts = {}) {
   const doc = buildSbaPlannerDocument(plan, header, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }
