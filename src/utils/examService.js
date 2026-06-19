@@ -171,6 +171,41 @@ export async function checkDailyLock(userId, subject) {
   }
 }
 
+/**
+ * Batch variant of checkDailyLock: all of today's locks for a user in ONE
+ * query, keyed by the lock's stored `subject` field. The dashboards (GradeHub,
+ * DailyExamsHub) render a card per CBC subject and previously fired a
+ * checkDailyLock() per subject — 7+ point reads on every mount. Today's locks
+ * for a user are a handful of docs, so a single
+ * (userId == uid, date == today) query fetches them all.
+ *
+ * The stored `subject` field equals the string the lock was created with — the
+ * same value in the doc id's middle segment — so a caller looking a subject up
+ * by the same label it would have passed to checkDailyLock() gets identical
+ * results (including the same legacy slug-vs-label misses). Subjects with no
+ * lock are simply absent; callers treat a missing key as "not locked" (null),
+ * exactly as checkDailyLock returns null. On error the Map is empty, so every
+ * card degrades to unlocked — same direction as checkDailyLock's own catch.
+ */
+export async function checkTodaysLocks(userId) {
+  const out = new Map()
+  if (!userId) return out
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'daily_exam_locks'),
+      where('userId', '==', userId),
+      where('date', '==', todayString()),
+    ))
+    for (const d of snap.docs) {
+      const data = { id: d.id, ...d.data() }
+      if (data.subject) out.set(data.subject, data)
+    }
+  } catch (e) {
+    console.error('checkTodaysLocks:', e)
+  }
+  return out
+}
+
 // ── Exam lifecycle ────────────────────────────────────────────────────────────
 
 /**

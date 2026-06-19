@@ -4,7 +4,7 @@ import { usePlatformSettings } from '../contexts/PlatformSettingsContext'
 import { useFirestore } from './useFirestore'
 import { SUBJECTS } from '../config/curriculum'
 import { computeStreak } from '../utils/streak'
-import { getTodaysExam, checkDailyLock } from '../utils/examService'
+import { getTodaysExamsBySubject, checkTodaysLocks } from '../utils/examService'
 
 /**
  * Loads everything the Study Plan needs (results + streak, weak topics,
@@ -76,14 +76,15 @@ export function useStudyPlanData() {
     }
     let cancelled = false
     const g = userProfile?.grade || '5'
-    Promise.all(SUBJECTS.map(async subject => {
-      const [exam, lock] = await Promise.all([
-        getTodaysExam(subject.label, g),
-        checkDailyLock(currentUser.uid, subject.label),
-      ])
-      return { exam, lock }
-    })).then(rows => {
+    Promise.all([
+      getTodaysExamsBySubject(g),
+      checkTodaysLocks(currentUser.uid),
+    ]).then(([examMap, lockMap]) => {
       if (cancelled) return
+      const rows = SUBJECTS.map(subject => ({
+        exam: examMap.get(subject.label) || null,
+        lock: lockMap.get(subject.label) || null,
+      }))
       const scheduled = rows.filter(r => r.exam)
       const submitted = scheduled.filter(r => r.lock?.status === 'submitted')
       setDailyGoal({ done: submitted.length, total: scheduled.length })
