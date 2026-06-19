@@ -12,6 +12,7 @@ import DiagramSvg from '../diagrams/DiagramSvg'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
 import { numericMatches, hotspotMatches } from '../../utils/examService'
+import { isTextAnswerType, isNumericType, isHotspotType, scoreQuizAttempt } from '../../utils/quizScoring.js'
 // RichContent renders legacy HTML strings AND Tiptap JSON; getRichPlainText
 // extracts plain text from either format. Legacy richTextToPlainText is
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
@@ -21,18 +22,6 @@ import SeoHelmet from '../seo/SeoHelmet'
 
 function fmt(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-}
-
-function isTextAnswerType(type) {
-  return type === 'short_answer' || type === 'diagram'
-}
-
-function isNumericType(type) {
-  return type === 'numeric'
-}
-
-function isHotspotType(type) {
-  return type === 'hotspot'
 }
 
 // Gathers every learner-facing image URL in a display section (passage
@@ -500,31 +489,10 @@ export default function QuizRunnerV2() {
     setSubmitting(true)
     try {
       const timeSpent = startTime ? Math.round((Date.now() - startTime) / 1000) : 0
-      let score = 0
-      let total = 0
-      const topicScores = {}
-
-      questions.forEach(question => {
-        const correct = isTextAnswerType(question.type)
-          ? answers[question.id]?.correct === true
-          : isNumericType(question.type)
-            // Server-authoritative re-grade — never trust the client's stored
-            // `correct` flag; recompute from persisted correctAnswer + tolerance.
-            ? numericMatches(answers[question.id], question.correctAnswer, question.tolerance)
-            : isHotspotType(question.type)
-              // Same server-authoritative principle for hotspot: re-derive
-              // from persisted correctRegion + the learner's stored (x, y).
-              ? hotspotMatches(answers[question.id], question.correctRegion)
-              : answers[question.id] === question.correctAnswer
-        total += question.marks || 1
-        if (correct) score += question.marks || 1
-        const topic = question.topic || 'General'
-        topicScores[topic] ??= { correct: 0, total: 0 }
-        topicScores[topic].total += question.marks || 1
-        if (correct) topicScores[topic].correct += question.marks || 1
-      })
-
-      const percentage = total > 0 ? Math.round((score / total) * 100) : 0
+      // Server-authoritative re-grade lives in scoreQuizAttempt: numeric +
+      // hotspot answers are recomputed from the persisted correct answer
+      // rather than trusting the client's stored `correct` flag.
+      const { score, total, percentage, topicScores } = scoreQuizAttempt(questions, answers)
       const resultId = await saveResult({
         userId: currentUser.uid,
         quizId,
