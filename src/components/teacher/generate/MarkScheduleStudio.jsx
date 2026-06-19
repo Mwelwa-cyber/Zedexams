@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { SUBJECTS } from '../../../config/curriculum'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
@@ -43,6 +44,19 @@ const DEFAULT_SUBJECTS = [
   { key: 's4', label: 'SOCIAL STUDIES', max: 26 },
   { key: 's5', label: 'C.T.S', max: 25 },
 ]
+
+// Combobox suggestions for the "Subjects and maximum marks" row. Both fields
+// stay free-text (rendered as inputs backed by a <datalist>), so a teacher can
+// pick a value from the dropdown OR type their own — picking is faster than
+// typing, but nothing is locked to the list.
+//
+// The subject suggestions are exactly the CBC syllabus learning areas
+// (uppercased to match the schedule's house style); a teacher who runs a
+// subject that isn't in the syllabus just types it in.
+const SUBJECT_SUGGESTIONS = SUBJECTS.map((s) => s.label.toUpperCase())
+// Common out-of marks teachers set per subject. Not exhaustive — the field
+// still accepts any 1–300 value typed by hand.
+const MAX_MARK_SUGGESTIONS = [10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 100]
 
 let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {}, comment: '' })
@@ -288,26 +302,39 @@ export default function MarkScheduleStudio() {
             {/* Subjects + max marks */}
             <div>
               <label className="studio-label">Subjects and maximum marks</label>
+              <p className="text-xs mb-1.5" style={{ color: '#566f76' }}>
+                Pick a subject and an out-of mark from the dropdowns, or type your own.
+              </p>
+              {/* Shared option lists for the comboboxes below — a teacher chooses
+                  from the dropdown or keeps typing (both fields stay free-text). */}
+              <datalist id="markschedule-subject-options">
+                {SUBJECT_SUGGESTIONS.map((label) => <option key={label} value={label} />)}
+              </datalist>
+              <datalist id="markschedule-marks-options">
+                {MAX_MARK_SUGGESTIONS.map((m) => <option key={m} value={m} />)}
+              </datalist>
               <div className="flex flex-wrap gap-2">
                 {subjects.map((s) => (
                   <div key={s.key} className="flex items-center gap-1.5 rounded-xl border theme-border bg-white px-2 py-1.5">
                     <input
                       type="text"
+                      list="markschedule-subject-options"
                       value={s.label}
                       maxLength={20}
                       aria-label="Subject name"
                       onChange={(e) => updateSubject(s.key, 'label', e.target.value.toUpperCase())}
-                      className="w-28 text-xs font-bold outline-none"
+                      className="w-28 text-xs font-bold outline-none bg-transparent"
                     />
                     <span className="text-xs theme-text-secondary">/</span>
                     <input
                       type="number"
+                      list="markschedule-marks-options"
                       min={1}
                       max={300}
                       value={s.max}
                       aria-label="Maximum marks"
                       onChange={(e) => updateSubject(s.key, 'max', clampInt(e.target.value, 1, 300))}
-                      className="w-14 text-xs font-bold outline-none text-center"
+                      className="w-14 text-xs font-bold outline-none text-center bg-transparent"
                     />
                     <button
                       type="button"
