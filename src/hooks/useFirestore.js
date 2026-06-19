@@ -342,16 +342,38 @@ async function normalizeQuestionPayload(q, order) {
   return parsed.data
 }
 
+// One-shot, process-cached read of the quiz-library cutover flag. getQuizzes
+// reads the lightweight `quizSummaries` mirror (quiz docs minus the heavy
+// passages[]/parts[]/description — maintained by the onQuizWritten Cloud
+// Function) only once an operator flips `settings/quizLibrary.useSummaries` to
+// true. The backfill script (scripts/backfill-quiz-summaries.mjs) sets it after
+// it populates existing docs, so the cutover is atomic and operator-controlled:
+// until then — and on any mirror read error — the library keeps reading the
+// full `quizzes` collection, so the migration can never blank the catalogue.
+// Cached for the session because the flag only flips once, at cutover.
+let _useQuizSummariesPromise
+function shouldUseQuizSummaries() {
+  if (!_useQuizSummariesPromise) {
+    _useQuizSummariesPromise = getDoc(doc(db, 'settings', 'quizLibrary'))
+      .then(s => (s.exists() ? s.data()?.useSummaries === true : false))
+      .catch(() => false)
+  }
+  return _useQuizSummariesPromise
+}
+
 export function useFirestore() {
 
   // ── Quizzes ──────────────────────────────────────────────────
   async function getQuizzes(filters = {}) {
-    try {
-      // Only quizzes explicitly assigned as practice by admin are visible to students.
-      // `isPublished == true` is required to stay inside firestore.rules: without it,
-      // a single orphan (practice but unpublished — e.g. after EditQuizV2's
-      // handleTogglePublish) would cause Firestore to deny the whole query and
-      // blank the library for every learner.
+    // Build the constraint list fresh per source so the mirror query and the
+    // source-of-truth query stay byte-for-byte identical.
+    //
+    // Only quizzes explicitly assigned as practice by admin are visible to
+    // students. `isPublished == true` is required to stay inside
+    // firestore.rules: without it, a single orphan (practice but unpublished —
+    // e.g. after EditQuizV2's handleTogglePublish) would cause Firestore to
+    // deny the whole query and blank the library for every learner.
+    const constraints = () => {
       const c = [
         where('isPublished', '==', true),
         where('quizType', '==', 'practice'),
@@ -362,7 +384,24 @@ export function useFirestore() {
       if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
       c.push(orderBy('createdAt', 'desc'))
       c.push(limit(LEARNER_QUIZ_LIMIT))
-      const snap = await getDocs(query(collection(db, 'quizzes'), ...c))
+      return c
+    }
+    // Prefer the lightweight mirror once cut over. coerceQuiz still defaults a
+    // missing passages[] to [], so a runner that somehow received a summary
+    // object would degrade gracefully — but the runner reads quizzes/{id}
+    // directly via getQuizById, so it always gets the full doc.
+    if (await shouldUseQuizSummaries()) {
+      try {
+        const snap = await getDocs(query(collection(db, 'quizSummaries'), ...constraints()))
+        return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
+      } catch (e) {
+        // Index still building, rules race, etc. — fall through to the full
+        // collection so the library is never empty because of the mirror.
+        console.warn('getQuizzes: quizSummaries read failed, using quizzes', e)
+      }
+    }
+    try {
+      const snap = await getDocs(query(collection(db, 'quizzes'), ...constraints()))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzes:', e); return [] }
   }

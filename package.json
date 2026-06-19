@@ -129,6 +129,7 @@
     "test:scheme-advisories": "node functions/teacherTools/schemeAdvisories.test.js",
     "test:teacher-plans": "node functions/teacherTools/teacherPlans.test.js",
     "test:storage-cleanup": "node functions/storageCleanup/helpers.test.js",
+    "test:quiz-summary": "node functions/quizSummary/index.test.js",
     "test:pdf-export-window": "node scripts/test-pdf-export-window.test.js",
     "test:studio-downloads": "node scripts/test-studio-downloads.test.js",
     "test:html-to-pdf-pagination": "node scripts/test-html-to-pdf-pagination.test.js",
