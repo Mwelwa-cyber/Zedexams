@@ -14,6 +14,18 @@ const ALLOWED_TYPES = new Set([
   "essay",
 ]);
 
+// Section layouts. "standard" is the original one-question-per-row stack.
+// "grid" packs short drill items (fraction→decimal, column sums, comparative
+// fill-ins) into 2-4 compact columns so a 24-item practice sheet fits a page.
+const ALLOWED_LAYOUTS = new Set(["standard", "grid"]);
+
+// Per-question working-space hint for the printable/DOCX output. "" lets the
+// renderer pick a sensible default from the question type.
+//   lines   → a few ruled answer lines
+//   box     → a single bordered answer box
+//   columns → tall vertical working space for column ×/÷ (long division etc.)
+const ALLOWED_WORKING_STYLES = new Set(["", "lines", "box", "columns"]);
+
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
 }
@@ -77,6 +89,9 @@ function validateWorksheet(input) {
                 q.options.filter(isNonEmptyString) :
                 null;
 
+              const workingStyle = ALLOWED_WORKING_STYLES.has(q.workingStyle) ?
+                q.workingStyle : "";
+
               return {
                 number,
                 type,
@@ -85,15 +100,28 @@ function validateWorksheet(input) {
                   (options && options.length >= 2 ? options : null) :
                   null,
                 marks,
+                workingStyle,
                 answer: isNonEmptyString(q.answer) ? q.answer : "",
                 workingNotes: isNonEmptyString(q.workingNotes) ? q.workingNotes : "",
               };
             }) :
           [];
 
+        // Grid layout only makes sense with a column count; clamp to 2-4 and
+        // default to 3. Ignored entirely for the standard stacked layout.
+        const layout = ALLOWED_LAYOUTS.has(s.layout) ? s.layout : "standard";
+        const rawCols = Math.round(Number(s.columns));
+        const columns = layout === "grid" ?
+          (Number.isFinite(rawCols) ? Math.min(4, Math.max(2, rawCols)) : 3) :
+          0;
+
         return {
           title: isNonEmptyString(s.title) ? s.title : `Section ${sIdx + 1}`,
           instructions: isNonEmptyString(s.instructions) ? s.instructions : "",
+          passageTitle: isNonEmptyString(s.passageTitle) ? s.passageTitle : "",
+          passage: isNonEmptyString(s.passage) ? s.passage : "",
+          layout,
+          columns,
           questions,
         };
       }) :
@@ -132,5 +160,8 @@ function validateWorksheet(input) {
 
 module.exports = {
   SCHEMA_VERSION,
+  ALLOWED_TYPES,
+  ALLOWED_LAYOUTS,
+  ALLOWED_WORKING_STYLES,
   validateWorksheet,
 };
