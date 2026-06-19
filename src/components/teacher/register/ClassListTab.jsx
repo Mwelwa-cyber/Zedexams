@@ -6,7 +6,7 @@
  * a table on ≥sm screens, stacked cards below.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   subscribeRoster,
@@ -73,6 +73,14 @@ export default function ClassListTab({ register, onRosterChange }) {
   const [removeTarget, setRemoveTarget] = useState(null)
   const [syncTarget, setSyncTarget] = useState(null) // { learner, records }
 
+  // Keep a stable ref to onRosterChange so the subscription effect doesn't
+  // tear down and restart every time the parent re-renders (which would
+  // happen on every snapshot delivery, since the parent passes an inline
+  // arrow that creates a new reference each render, causing "Loading roster…"
+  // to flash indefinitely).
+  const onRosterChangeRef = useRef(onRosterChange)
+  useEffect(() => { onRosterChangeRef.current = onRosterChange })
+
   useEffect(() => {
     setLoading(true)
     setLoadError(false)
@@ -82,7 +90,7 @@ export default function ClassListTab({ register, onRosterChange }) {
         setRoster(rows)
         setLoading(false)
         setLoadError(false)
-        if (onRosterChange) onRosterChange(rows.filter((r) => r.status === 'active').length)
+        if (onRosterChangeRef.current) onRosterChangeRef.current(rows.filter((r) => r.status === 'active').length)
       },
       // Surface the failure instead of swallowing it — a silently-dropped
       // permission error here is indistinguishable from an empty class and
@@ -90,7 +98,7 @@ export default function ClassListTab({ register, onRosterChange }) {
       (err) => { console.warn('[ClassListTab] subscribe failed', err); setLoading(false); setLoadError(true) },
     )
     return unsub
-  }, [classId, onRosterChange])
+  }, [classId])
 
   const activeCount = useMemo(() => roster.filter((r) => r.status === 'active').length, [roster])
 
