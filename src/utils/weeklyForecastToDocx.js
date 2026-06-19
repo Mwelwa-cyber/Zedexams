@@ -6,6 +6,7 @@
  * mirroring src/components/teacher/views/WeeklyForecastView.jsx.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -132,17 +133,5 @@ export function buildWeeklyForecastDocument(forecast, opts = {}) {
 export async function downloadWeeklyForecastDocx(forecast, filename = 'weekly-forecast.docx', opts = {}) {
   const doc = buildWeeklyForecastDocument(forecast, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through to the manual anchor */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

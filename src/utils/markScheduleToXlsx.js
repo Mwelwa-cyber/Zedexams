@@ -21,6 +21,8 @@
  * pure and DOM-free so plain node can unit-test the XML.
  */
 
+import { saveBlob } from './saveBlob.js'
+
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 
 const esc = (v) => String(v == null ? '' : v)
@@ -378,17 +380,5 @@ export async function downloadMarkScheduleXlsx(schedule, filename = 'mark-schedu
   const blob = new Blob([bytes], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through to the manual anchor */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

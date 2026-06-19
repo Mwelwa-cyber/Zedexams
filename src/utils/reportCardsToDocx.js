@@ -10,6 +10,7 @@
  * signature lines for the parts schools fill in by hand.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -154,17 +155,5 @@ export function buildReportCardsDocument(schedule, opts = {}) {
 export async function downloadReportCardsDocx(schedule, filename = 'report-cards.docx', opts = {}) {
   const doc = buildReportCardsDocument(schedule, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through to the manual anchor */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

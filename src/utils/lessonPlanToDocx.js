@@ -11,6 +11,7 @@
  *   (optional) npm install file-saver
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -774,19 +775,5 @@ export async function downloadLessonPlanDocx(plan, filename = 'lesson-plan.docx'
   const blob = await Packer.toBlob(doc)
 
   // Try file-saver first (nicer cross-browser UX), fall back to anchor click.
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch {
-    // fall through
-  }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

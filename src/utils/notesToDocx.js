@@ -3,6 +3,7 @@
  * matching the school-printed handout style head teachers expect.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -252,17 +253,5 @@ export function buildNotesDocument(notes, opts = {}) {
 export async function downloadNotesDocx(notes, filename = 'teacher-notes.docx', opts = {}) {
   const doc = buildNotesDocument(notes, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

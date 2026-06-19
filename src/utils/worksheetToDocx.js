@@ -9,6 +9,7 @@
  * Uses the `docx` package. Same pattern as lessonPlanToDocx.js.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -234,17 +235,5 @@ export function buildWorksheetDocument(worksheet, {mode = 'worksheet', attributi
 export async function downloadWorksheetDocx(worksheet, filename = 'worksheet.docx', opts = {}) {
   const doc = buildWorksheetDocument(worksheet, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

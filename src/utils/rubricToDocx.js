@@ -3,6 +3,7 @@
  * matrix table — the standard format Zambian head teachers sign off on.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -200,17 +201,5 @@ export function buildRubricDocument(rubric, opts = {}) {
 export async function downloadRubricDocx(rubric, filename = 'rubric.docx', opts = {}) {
   const doc = buildRubricDocument(rubric, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

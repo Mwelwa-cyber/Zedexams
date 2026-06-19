@@ -6,6 +6,8 @@
  * row become the column headers.
  */
 
+import { saveBlob } from './saveBlob.js'
+
 export function toCSV(rows) {
   if (!rows.length) return ''
   const headers = Object.keys(rows[0])
@@ -20,10 +22,7 @@ export function toCSV(rows) {
 export function downloadCSV(filename, rows) {
   const csv = toCSV(rows)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  // saveBlob keeps `filename` on Android, where a bare blob-URL download saves
+  // the file under the blob's random UUID instead.
+  return saveBlob(blob, filename)
 }

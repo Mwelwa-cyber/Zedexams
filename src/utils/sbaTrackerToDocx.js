@@ -5,6 +5,7 @@
  * for verification and the figure entered on the ECZ OMES portal.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -115,17 +116,5 @@ export function buildSbaTrackerDocument(artifact, opts = {}) {
 export async function downloadSbaTrackerDocx(artifact, filename = 'sba-mark-schedule.docx', opts = {}) {
   const doc = buildSbaTrackerDocument(artifact, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

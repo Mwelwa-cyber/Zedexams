@@ -5,6 +5,7 @@
  * TIME × days grid with break/lunch rows spanning every day column.
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -137,17 +138,5 @@ export function buildClassTimetableDocument(timetable, opts = {}) {
 export async function downloadClassTimetableDocx(timetable, filename = 'class-timetable.docx', opts = {}) {
   const doc = buildClassTimetableDocument(timetable, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through to the manual anchor */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }
