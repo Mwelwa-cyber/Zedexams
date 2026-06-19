@@ -23,6 +23,7 @@
     "test:visual-versions": "node scripts/test-visual-versions.mjs",
     "test:visual-asset": "node scripts/test-visual-asset-schema.mjs",
     "test:export-preflight": "node scripts/test-export-preflight.mjs",
+    "test:export-watermark": "node scripts/test-export-watermark.mjs",
     "test:studio-handoff": "node scripts/test-studio-handoff.mjs",
     "test:visual-cost": "node scripts/test-visual-cost.mjs",
     "test:quiz-import-order": "node scripts/test-quiz-import-order.mjs",

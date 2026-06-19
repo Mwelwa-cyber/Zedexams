@@ -697,9 +697,10 @@ export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
 }
 
 /**
- * Should this viewer's studio exports carry the "Made with ZedExams"
- * page footer? Free plan only — paid (and admin) documents stay clean.
- * Consumed by the studios together with docxAttribution.js.
+ * Should this viewer's studio exports carry the free-plan ZedExams branding
+ * (the diagonal page watermark + "Made with ZedExams" footer)? Free plan
+ * only — paid (and admin) documents stay clean. Consumed by the studios
+ * together with docxAttribution.js (DOCX) and exportWatermark.js (PDF/HTML).
  */
 export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
   return getLibraryAccessLevel({ userProfile, isAdmin }) === LIBRARY_ACCESS.FREE

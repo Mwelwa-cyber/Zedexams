@@ -22,12 +22,41 @@ window.__studioRebinders.push(__studioInitExport);
 function gatherStyles() {
   return Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
 }
+
+// Free-plan watermark. LessonPlanStudio.jsx sets window.__zxExportWatermark to
+// the brand text for free teachers (empty/undefined for paid + admin). We paint
+// it as a tiled, semi-transparent SVG body background so it lands on every page
+// of the PDF and shows behind the plan text — mirrors the DOCX/PDF watermark in
+// src/utils/exportWatermark.js (kept in sync; this vanilla studio isn't bundled).
+function watermarkCss() {
+  const text = window.__zxExportWatermark;
+  if (!text) return '';
+  const label = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">' +
+    '<text x="160" y="100" transform="rotate(-30 160 100)" text-anchor="middle" ' +
+    'font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="700" ' +
+    'fill="#000000" fill-opacity="0.07">' + label + '</text></svg>';
+  const uri = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  // background-image only (not the shorthand) so the white background-color stays.
+  return 'body{background-image:url("' + uri + '");background-repeat:repeat;background-position:top left;}';
+}
+
+// Inject the watermark style last so it overrides the document's own body
+// background. No-op when no watermark is set.
+function withWatermark(html) {
+  const css = watermarkCss();
+  if (!css) return html;
+  const style = '<style>' + css + '</style>';
+  if (html.indexOf('</head>') !== -1) return html.replace('</head>', style + '</head>');
+  return html.replace(/(<body[^>]*>)/i, '$1' + style);
+}
 // Build the clean, print-ready HTML for the rendered plan ALONE (no sidebar /
 // form / format cards), with the studio styles + print overrides inlined.
 // Shared by the real-PDF path and the print fallback.
 function buildExportHtml() {
   const styles = gatherStyles();
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+  return withWatermark('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
     currentFilename() + '</title>' +
     '<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet">' +
     '<style>' + styles +
@@ -38,7 +67,7 @@ function buildExportHtml() {
     '.doc-wrap::before{display:none}' +
     '.doc{padding:0;min-height:0}' +
     '</style></head><body><div class="doc-wrap"><div class="doc">' +
-    doc.innerHTML + '</div></div></body></html>';
+    doc.innerHTML + '</div></div></body></html>');
 }
 
 // Print fallback: open a clean popup with ONLY the plan and call print(), so
@@ -88,14 +117,14 @@ async function exportPDF() {
 }
 function exportHTML() {
   const styles = gatherStyles();
-  const body = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lesson Plan</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet"><style>${styles}</style></head><body><div class="doc-wrap" style="max-width:794px;margin:24px auto"><div class="doc">${doc.innerHTML}</div></div></body></html>`;
+  const body = withWatermark(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lesson Plan</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet"><style>${styles}</style></head><body><div class="doc-wrap" style="max-width:794px;margin:24px auto"><div class="doc">${doc.innerHTML}</div></div></body></html>`);
   download(body, currentFilename() + '.html', 'text/html');
 }
 
 // Build the Word-flavoured HTML document (inline print styles + Office
 // namespaces) that the HTML→docx converter turns into a .docx.
 function buildWordHtml() {
-  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Lesson Plan</title>
 <style>
 @page WordSection1 { size: 21cm 29.7cm; margin: 18mm 16mm 18mm 16mm; }
@@ -127,7 +156,7 @@ ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
 li { margin: 2pt 0; }
 strong { font-weight: 700; }
 </style>
-</head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`;
+</head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`);
 }
 
 // Lazy-load the HTML→docx converter. Served locally from /studio/vendor (NOT a
@@ -173,7 +202,7 @@ async function exportWord() {
 // Legacy .doc fallback (HTML-as-Word) used if html-docx-js fails to load
 function exportWordLegacy() {
   const styles = gatherStyles();
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plan</title><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${doc.innerHTML}</div></body></html>`;
+  const html = withWatermark(`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plan</title><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${doc.innerHTML}</div></body></html>`);
   download(html, currentFilename() + '.doc', 'application/msword');
 }
 // Human-readable download name — "Reception Pre-Mathematics and Science Lesson
