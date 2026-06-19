@@ -67,6 +67,14 @@ i18next
     },
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: ALL_LANGUAGES.map((l) => l.code),
+    // Treat an empty string in a locale file as "not translated yet" so it
+    // falls back to English instead of rendering blank. i18next defaults this
+    // to `true` (empty string counts as a valid translation), which would
+    // silently break the contract the per-file `_TODO` notes promise
+    // translators — "Empty values fall back to English". With `false`, a
+    // partially-translated locale (real strings for some keys, "" for the
+    // rest) degrades to English per-key instead of showing gaps.
+    returnEmptyString: false,
     defaultNS: 'common',
     ns: ['common', 'dashboard'],
     interpolation: {
