@@ -14,7 +14,6 @@ import {
   User,
   Settings,
   LogOut,
-  GraduationCap,
 } from '../ui/icons'
 
 function useClickAway(ref, onAway) {
@@ -210,13 +209,6 @@ export default function TeacherGlassHeader() {
                     className="theme-text hover:theme-bg-subtle flex items-center gap-2 px-4 py-2 text-sm font-bold no-underline"
                   >
                     <Icon as={User} size="sm" strokeWidth={2.1} /> My Profile
-                  </Link>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setAccountOpen(false)}
-                    className="theme-text hover:theme-bg-subtle flex items-center gap-2 px-4 py-2 text-sm font-bold no-underline"
-                  >
-                    <Icon as={GraduationCap} size="sm" strokeWidth={2.1} /> Student View
                   </Link>
                   <Link
                     to="/settings"
