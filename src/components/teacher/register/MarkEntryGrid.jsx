@@ -9,7 +9,7 @@
  * Wide by nature — uses overflow-x-auto so it scrolls horizontally on phones.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { computeRecord } from '../../../utils/classRecordMath'
 import { saveRecordMarks } from '../../../utils/classRecords'
 import { useToast } from '../../ui/Toast'
@@ -45,6 +45,15 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
     [snapshot, columns, marks],
   )
   const rowByRoster = useMemo(() => new Map(rows.map((r) => [r.rosterId, r])), [rows])
+
+  // Marks live only in local state until Save, so warn before a tab close /
+  // reload / external navigation discards typed-but-unsaved marks.
+  useEffect(() => {
+    if (!dirty) return undefined
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
 
   function setMark(rosterId, colKey, raw, max) {
     setDirty(true)

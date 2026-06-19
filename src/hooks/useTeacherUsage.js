@@ -10,15 +10,22 @@ import {
   resolveTeacherPlan,
 } from '../utils/teacherPlans'
 
-// Maps live tool keys (functions/teacherTools/usageMeter.js) onto the
-// dashboard-widget feature keys.
-const TOOL_TO_FEATURE = {
+// Maps live server tool keys (functions/teacherTools/teacherPlans.js PLAN_LIMITS)
+// onto the dashboard-widget feature keys. Each feature row in UsageMeter.jsx
+// reads the counter for the tool mapped here, so this MUST use the exact tool
+// id each studio increments — e.g. the Test Paper studio writes `assessment`
+// (not `quiz`, which is the retired quiz creator), and the Exam studio writes
+// `exam_paper`. Keep this 1:1 with UsageMeter's FEATURES list.
+export const TOOL_TO_FEATURE = {
   lesson_plan:    'plans',
   worksheet:      'worksheets',
+  flashcards:     'flashcards',
   notes:          'notes',
-  quiz:           'assessments',
-  exam_paper:     'exams',
+  homework:       'homework',
+  rubric:         'rubric',
   scheme_of_work: 'schemes',
+  assessment:     'assessments',
+  exam_paper:     'exams',
   sba_task:       'sba',
 }
 

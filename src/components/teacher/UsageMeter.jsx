@@ -1,15 +1,22 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTeacherUsage } from '../../hooks/useTeacherUsage'
+import { useTeacherUsage, TOOL_TO_FEATURE } from '../../hooks/useTeacherUsage'
 import { paywall } from '../../utils/paywall'
+import { MAX_ONLY_TOOLS } from '../../utils/teacherPlans'
 import { ensureProFonts } from '../../utils/proFonts'
 import { useEffect } from 'react'
 
+// One row per metered studio the teacher can reach. Keys map 1:1 to
+// TOOL_TO_FEATURE in useTeacherUsage.js so each bar reads the right counter.
 const FEATURES = [
   { key: 'plans',       label: 'Lesson plans',    icon: '🦊' },
   { key: 'worksheets',  label: 'Worksheets',      icon: '🐢' },
+  { key: 'flashcards',  label: 'Flashcards',      icon: '🦒' },
   { key: 'notes',       label: 'Teacher notes',   icon: '🦉' },
-  { key: 'assessments', label: 'Assessments',     icon: '🦅' },
+  { key: 'homework',    label: 'Homework',        icon: '🦝' },
+  { key: 'rubric',      label: 'Rubrics',         icon: '🦔' },
+  { key: 'assessments', label: 'Test papers',     icon: '🦅' },
+  { key: 'exams',       label: 'Exam papers',     icon: '🦬' },
   { key: 'schemes',     label: 'Schemes of work', icon: '🦁' },
   { key: 'sba',         label: 'SBA tasks',       icon: '🦓' },
 ]
@@ -17,11 +24,22 @@ const FEATURES = [
 const FEATURE_LABEL = {
   plans: 'lesson plans',
   worksheets: 'worksheets',
+  flashcards: 'flashcards',
   notes: 'teacher notes',
-  assessments: 'assessments',
+  homework: 'homework',
+  rubric: 'rubrics',
+  assessments: 'test papers',
+  exams: 'exam papers',
   schemes: 'schemes of work',
   sba: 'SBA tasks',
 }
+
+// Feature keys whose studio is Max-only — hitting their cap routes to the
+// "Upgrade to Max" paywall, not the generic Pro upsell. Derived from the
+// canonical MAX_ONLY_TOOLS so it can't drift from the server gate.
+const MAX_ONLY_FEATURE_KEYS = new Set(
+  MAX_ONLY_TOOLS.map((tool) => TOOL_TO_FEATURE[tool]).filter(Boolean)
+)
 
 function barClassFor(pct) {
   if (pct >= 100) return 'zum-bar zum-bar-full'
@@ -93,6 +111,12 @@ export default function UsageMeter() {
   }
 
   function openMonthlyLimit(featureKey) {
+    // Max-only studios (test papers, exam papers) can't be unlocked by Pro —
+    // their monthly-taster ceiling routes to the "Upgrade to Max" paywall.
+    if (MAX_ONLY_FEATURE_KEYS.has(featureKey) && data.plan !== 'max') {
+      paywall.show('max-feature', { feature: FEATURE_LABEL[featureKey] })
+      return
+    }
     paywall.show('monthly-limit', {
       feature: FEATURE_LABEL[featureKey],
       resetDays: data.resetDays,

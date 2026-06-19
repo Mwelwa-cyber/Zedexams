@@ -658,6 +658,8 @@ export default function AssessmentStudio() {
       if (draft.form) setForm(current => ({ ...current, ...draft.form }))
       if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
       if (Array.isArray(draft.parts)) setParts(draft.parts)
+      // Restored draft is the new undo baseline — not the empty starter.
+      resetUndoBaseline()
       if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
       showToast(source === 'remote'
         ? 'Restored your draft from another device.'
@@ -738,6 +740,8 @@ export default function AssessmentStudio() {
         setSections(hydrated.sections)
         setParts(hydrated.parts)
         setDeletedIds([])
+        // The loaded paper is the new undo baseline — not the empty starter.
+        resetUndoBaseline()
         setView('builder')
         // The loaded paper is already in the library and not yet edited.
         setSavedToLibrary(true)
@@ -774,13 +778,42 @@ export default function AssessmentStudio() {
   // edits — add/remove/reorder questions & parts, header fields, type
   // switches — over the whole paper's form + sections + parts.
   const undoableValue = useMemo(() => ({ form, sections, parts }), [form, sections, parts])
+  // Latest snapshot, read by the baseline-reset effect below without making it
+  // depend on (and re-run for) every keystroke.
+  const undoableValueRef = useRef(undoableValue)
+  undoableValueRef.current = undoableValue
   const applyUndoable = useCallback((snap) => {
     if (!snap) return
     setForm(snap.form)
     setSections(snap.sections)
     setParts(snap.parts)
   }, [])
-  const { undo, redo, canUndo, canRedo } = useUndoRedo(undoableValue, applyUndoable)
+  const { undo, redo, canUndo, canRedo, reset: resetUndo } = useUndoRedo(undoableValue, applyUndoable)
+
+  // Wholesale paper replacements (edit-mode load, AI "create paper", document
+  // import, cross-device draft restore) must re-seed the undo baseline to the
+  // NEW content. Without this the hook's baseline stays the empty starter, so
+  // the first Ctrl+Z on a loaded/imported/AI paper silently wipes it back to a
+  // single blank question. Each replace site bumps this token; the effect then
+  // reseeds from the post-update value.
+  const [undoBaselineToken, setUndoBaselineToken] = useState(0)
+  const resetUndoBaseline = useCallback(() => setUndoBaselineToken((n) => n + 1), [])
+  useEffect(() => {
+    if (undoBaselineToken === 0) return
+    resetUndo(undoableValueRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoBaselineToken])
+
+  // Guard against losing unsaved work to a tab close / reload / external
+  // navigation. The autosave covers new papers across devices, but edit-mode
+  // papers have no draft, so a stray reload would otherwise discard every
+  // change with no warning.
+  useEffect(() => {
+    if (!dirty) return undefined
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
 
   // Global keyboard shortcuts. We deliberately let the browser/TipTap handle
   // Ctrl+Z while focus is in a text field so typing-level undo keeps working;
@@ -1136,6 +1169,8 @@ export default function AssessmentStudio() {
     setCreatePaperOpen(false)
     closeSlide()
     changeView('builder')
+    // The applied AI paper is the new undo baseline — not the empty starter.
+    resetUndoBaseline()
     const flagged = blocks.warnings.length
     showToast(
       `AI paper ${mode === 'replace' ? 'created' : 'added'} — ` +
@@ -1422,6 +1457,8 @@ export default function AssessmentStudio() {
         ? imported.sections
         : imported.questions.map(q => buildStandaloneSection(q)))
       setParts(Array.isArray(imported.parts) ? imported.parts : [])
+      // The imported paper is the new undo baseline — not the empty starter.
+      resetUndoBaseline()
       setImportSummary({
         ...imported.summary,
         fileName: file.name,

@@ -303,9 +303,13 @@ export default function ClassListTab({ register, onRosterChange }) {
           classId={classId}
           teacherUid={currentUser.uid}
           onClose={() => setShowImport(false)}
-          onImported={({ added, skipped }) => {
+          onImported={({ added, skipped, duplicates = 0 }) => {
             setShowImport(false)
-            toast.success(`Added ${added} learner${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped}` : ''}.`)
+            const extra = [
+              skipped ? `skipped ${skipped}` : '',
+              duplicates ? `${duplicates} already on the list` : '',
+            ].filter(Boolean).join(', ')
+            toast.success(`Added ${added} learner${added === 1 ? '' : 's'}${extra ? ` — ${extra}` : ''}.`)
           }}
         />
       )}

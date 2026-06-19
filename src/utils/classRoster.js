@@ -37,7 +37,7 @@ import {
   coerceRosterEntry,
 } from '../schemas/rosterEntry'
 import { listTeacherClasses } from './classes'
-import { parseRosterText, rowsToRoster } from './rosterImport'
+import { parseRosterText, rowsToRoster, partitionNewRosterEntries } from './rosterImport'
 
 function rosterCol(classId) {
   return collection(db, 'classRegisters', classId, 'roster')
@@ -117,19 +117,30 @@ export async function removeRosterEntry(classId, rosterId) {
 
 /**
  * Add many entries at once (CSV / paste / Excel import). Validates each row,
- * skips any that fail the schema, assigns sequential order from the current
- * max, and commits in chunks (Firestore batch cap is 500). Returns
- * { added, skipped }.
+ * skips any that fail the schema, drops learners already on the roster (same
+ * account or same name) so a re-import / double-tap doesn't silently double the
+ * class list, assigns sequential order from the current max, and commits in
+ * chunks (Firestore batch cap is 500). Returns { added, skipped, duplicates }.
  */
 export async function bulkAddRoster(classId, teacherUid, entries) {
-  const start = await nextOrder(classId)
+  // One roster read up front, reused for both duplicate detection and the
+  // starting `order` (avoids a second getDocs via nextOrder).
+  const existingSnap = await getDocs(rosterCol(classId))
+  const existingDocs = existingSnap.docs.map((d) => d.data() || {})
+  const existing = existingDocs.map((data) => ({
+    fullName: data.fullName,
+    linkedUid: data.linkedUid || null,
+  }))
+  const { fresh, duplicates } = partitionNewRosterEntries(entries, existing)
+  const start = existingDocs.reduce((max, data) => Math.max(max, Number(data.order) || 0), 0) + 1
+
   const now = serverTimestamp()
   let added = 0
   let skipped = 0
 
   // Chunk to stay under the 500-write batch limit (one write per entry).
-  for (let i = 0; i < entries.length; i += 450) {
-    const chunk = entries.slice(i, i + 450)
+  for (let i = 0; i < fresh.length; i += 450) {
+    const chunk = fresh.slice(i, i + 450)
     const batch = writeBatch(db)
     chunk.forEach((entry, j) => {
       let payload
@@ -156,7 +167,7 @@ export async function bulkAddRoster(classId, teacherUid, entries) {
   }
 
   await recountRegister(classId)
-  return { added, skipped }
+  return { added, skipped, duplicates }
 }
 
 // ── Import from existing learner accounts ────────────────────────

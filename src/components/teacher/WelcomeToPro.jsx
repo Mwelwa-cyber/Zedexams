@@ -155,7 +155,7 @@ export default function WelcomeToPro() {
 
           <p className="zwp-small-print">
             A receipt has been sent to your email.<br />
-            Manage or cancel anytime in <Link to="/teacher">Billing</Link>.
+            Manage or cancel anytime in <Link to="/my-subscription">Billing</Link>.
           </p>
         </div>
       </div>
