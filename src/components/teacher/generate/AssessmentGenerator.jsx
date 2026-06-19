@@ -273,6 +273,7 @@ const ASSESSMENT_TEMPLATES = [
 const ASSESSMENT_TYPE_OPTIONS = [
   { value: 'exercise', label: 'Exercise (short practice)' },
   { value: 'topic_test', label: 'Topic test' },
+  { value: 'monthly_test', label: 'Monthly test' },
   { value: 'mid_term', label: 'Mid-term test' },
   { value: 'end_of_term', label: 'End of term test' },
   { value: 'mock_exam', label: 'Mock examination' },
