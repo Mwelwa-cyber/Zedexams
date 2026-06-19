@@ -2,8 +2,9 @@
  * AnalyticsConsentToggle — change the cookie / analytics consent
  * decision after the first-visit banner (audit D2).
  *
- * Lives on /profile. Reflects the localStorage decision in real
- * time and re-emits the change event so the analytics bootstrap
+ * Lives on /profile (signed-in users) and the public /preferences
+ * page (everyone, no auth). Reflects the localStorage decision in
+ * real time and re-emits the change event so the analytics bootstrap
  * flips on/off without a reload.
  */
 

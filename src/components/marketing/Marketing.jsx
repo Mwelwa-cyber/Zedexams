@@ -812,6 +812,7 @@ export default function Marketing() {
               <ul className="space-y-2 text-sm theme-text-muted">
                 <li><Link to="/privacy" className="hover:theme-text">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="hover:theme-text">Terms &amp; Conditions</Link></li>
+                <li><Link to="/preferences" className="hover:theme-text">Privacy preferences</Link></li>
                 <li><Link to="/status" className="hover:theme-text">Service Status</Link></li>
               </ul>
             </div>
@@ -862,9 +863,10 @@ export default function Marketing() {
           <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-help flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ZedExams. All rights reserved.</span>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <Link to="/privacy" className="hover:theme-text">Privacy</Link>
-              <Link to="/terms"   className="hover:theme-text">Terms</Link>
-              <Link to="/status"  className="hover:theme-text">Status</Link>
+              <Link to="/privacy"     className="hover:theme-text">Privacy</Link>
+              <Link to="/terms"       className="hover:theme-text">Terms</Link>
+              <Link to="/preferences" className="hover:theme-text">Preferences</Link>
+              <Link to="/status"      className="hover:theme-text">Status</Link>
               <span aria-hidden="true">·</span>
               <span>Made in Zambia.</span>
             </nav>

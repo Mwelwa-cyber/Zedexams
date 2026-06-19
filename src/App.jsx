@@ -31,7 +31,7 @@ import ScrollToTop from './components/ui/ScrollToTop'
 // resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
-  '/pricing', '/teachers', '/privacy', '/terms', '/status',
+  '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
   '/papers',
 ])
 function isPublicThemePath(pathname) {
@@ -107,6 +107,9 @@ const TeachersLanding = lazy(() => import('./components/marketing/TeachersLandin
 const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
+// Public consent/preferences page — no auth, so the cookie banner can link
+// signed-out visitors somewhere they can actually change their decision.
+const CookiePreferences = lazy(() => import('./components/marketing/CookiePreferences'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
@@ -425,6 +428,10 @@ export default function App() {
           <Route path="/grade-12" element={<GradePackLanding gradeSlug="12" />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
+          {/* Public consent/preferences — where the cookie banner sends people
+              who want to change their analytics decision. No auth, so it works
+              for the signed-out visitors the banner actually targets. */}
+          <Route path="/preferences" element={<CookiePreferences />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
               search engines and signed-out visitors can browse; the actual
               PDF viewer at /papers/:id requires sign-in to download. */}
