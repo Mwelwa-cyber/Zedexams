@@ -6,7 +6,7 @@
 // re-sequences the survivors' order.
 
 const assert = require('node:assert/strict');
-const {dedupeExtractedQuestions} = require('./pastPaperImportHelpers');
+const {dedupeExtractedQuestions, canWriteQuiz} = require('./pastPaperImportHelpers');
 
 function q(prompt, options, order) {
   return {prompt, options, correctAnswer: 0, explanation: '', order, requiresReview: true};
@@ -59,4 +59,20 @@ function q(prompt, options, order) {
   assert.equal(out.length, 2, 'same stem with different options stays distinct');
 }
 
-console.log('pastPaperImport dedupe test passed');
+// 5. Quiz-write authorisation (IDOR guard for the clear+overwrite path).
+{
+  const mine = {createdBy: 'teacher-1'};
+  const other = {createdBy: 'teacher-2'};
+  // Owner can write their own quiz.
+  assert.equal(canWriteQuiz(mine, 'teacher-1', false), true);
+  // Non-owner, non-admin cannot — this is the IDOR that wiped other quizzes.
+  assert.equal(canWriteQuiz(other, 'teacher-1', false), false);
+  // Admin can write any quiz (past papers are admin-curated).
+  assert.equal(canWriteQuiz(other, 'teacher-1', true), true);
+  // Missing quiz doc is not writable for a non-admin.
+  assert.equal(canWriteQuiz(null, 'teacher-1', false), false);
+  // A quiz with no createdBy is not writable for a non-admin.
+  assert.equal(canWriteQuiz({}, 'teacher-1', false), false);
+}
+
+console.log('pastPaperImport dedupe + auth test passed');
