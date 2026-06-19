@@ -1116,7 +1116,10 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
 
   function setOptionMedia(optionIndex, mediaPatch) {
     const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
-    const next = (question.options.length ? question.options : QUESTION_LETTERS).map((_, i) => existing[i] ?? null)
+    // Index-align with the real options[] (NOT the fixed A–F letter list) so an
+    // image attached to option 4 of a 4-option question lands on the right slot
+    // instead of being padded onto a phantom 5th/6th option.
+    const next = question.options.map((_, i) => existing[i] ?? null)
     if (mediaPatch === null) {
       next[optionIndex] = null
     } else {
@@ -1227,7 +1230,12 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
             ? 'Sentence-ordering — paste each candidate paragraph variant as one option'
             : 'Answer choices'}
         </p>
-        {QUESTION_LETTERS.map((letter, optionIndex) => {
+        {question.options.map((_, optionIndex) => {
+          // Render one row per real option — NOT a fixed A–F list. A passage
+          // MCQ with 4 options must show 4 slots; iterating QUESTION_LETTERS
+          // painted 6 rows, where the extra two wrote `undefined` into options[]
+          // and corrupted the option count on edit.
+          const letter = QUESTION_LETTERS[optionIndex]
           const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
           const optionUploading = question.optionImageUploadingIndex === optionIndex
           const optionUploadStep = optionUploading ? question.optionImageUploadStep : null
@@ -1235,7 +1243,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
           // Passage cards use a default theme; we fall back to THEMES.create when none provided.
           const cardTheme = theme || THEMES.create
           return (
-            <div key={`${question.localId}-${letter}`} className="space-y-2">
+            <div key={`${question.localId}-${optionIndex}`} className="space-y-2">
               {/* Wrapper is a <div>, not <label> — clicking inside the
                   rich option editor must NOT auto-toggle the radio
                   (which is what a label would do with its first input

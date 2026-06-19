@@ -293,6 +293,15 @@ function runStructuralChecks(questions) {
     if (type !== "mcq") return;
 
     const options = Array.isArray(q?.options) ? q.options : [];
+    const optionMedia = Array.isArray(q?.optionMedia) ? q.optionMedia : [];
+    // A picture-answer option carries its content in an image, not in the
+    // option text, so an empty text string is legitimate when the matching
+    // optionMedia slot has an image. Treating these as empty produced false
+    // "empty option" blockers on every image-based MCQ.
+    const optionHasImage = (idx) => {
+      const m = optionMedia[idx];
+      return Boolean(m && typeof m === "object" && (m.imageUrl || m.imageAssetId));
+    };
 
     if (options.length < 2) {
       blockers.push({
@@ -306,7 +315,7 @@ function runStructuralChecks(questions) {
       return;
     }
 
-    if (options.some((o) => !extractPlainText(o).trim())) {
+    if (options.some((o, idx) => !extractPlainText(o).trim() && !optionHasImage(idx))) {
       blockers.push({
         questionIndex: i,
         severity: "blocker",
@@ -420,6 +429,33 @@ function buildUserContent({input}) {
     imageCount += 1;
   });
 
+  // Attach picture-answer option images. For these questions the answer
+  // choices ARE images (the option text is intentionally blank), so without
+  // the pictures Vex sees empty options and flags the question as broken or
+  // unanswerable. Label each with its option letter so the model can reason
+  // about which choice is correct.
+  const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
+  questions.forEach((q, idx) => {
+    const media = Array.isArray(q?.optionMedia) ? q.optionMedia : [];
+    media.forEach((m, optIdx) => {
+      if (imageCount >= MAX_IMAGES) return;
+      const url = typeof m?.imageUrl === "string" ? m.imageUrl.trim() : "";
+      if (!/^https:\/\//i.test(url)) return;
+      const letter = OPTION_LETTERS[optIdx] || `#${optIdx + 1}`;
+      blocks.push({
+        type: "text",
+        text: `The next image is option ${letter} of question ${idx + 1} ` +
+          (m?.alt ? `(described as "${clampStr(m.alt, 160)}"). ` : ". ") +
+          "It is one of the answer choices the learner picks from.",
+      });
+      blocks.push({
+        type: "image",
+        source: {type: "url", url},
+      });
+      imageCount += 1;
+    });
+  });
+
   const passageSummary = passages.map((p) => ({
     id: p.id,
     title: clampStr(p.title, 200),
@@ -453,7 +489,10 @@ function buildUserContent({input}) {
     "Quiz questions (0-indexed). For MCQ, correctAnswer is the 0-based",
     "index of the option marked correct. A non-null passageId means the",
     "learner sees the matching passage (and its image, if any) alongside",
-    "the question.",
+    "the question. When a question has optionMedia, the answer choices are",
+    "images (attached above, labelled by option letter); an empty option",
+    "text string is expected there — judge those options by their picture,",
+    "not by the blank text, and never flag them as missing.",
     JSON.stringify(input.questions || [], null, 2).slice(0, 28000),
   ].join("\n");
 

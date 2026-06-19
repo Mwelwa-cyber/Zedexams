@@ -14,7 +14,17 @@
 const ANSWERABLE_TYPES = new Set(['mcq', 'truefalse', 'tf'])
 
 function hasAnswer(question) {
-  return Number.isInteger(question?.correctAnswer)
+  const answer = question?.correctAnswer
+  if (Number.isInteger(answer)) return true
+  // Legacy / imported quizzes sometimes store the option index as a numeric
+  // string ("2") rather than a number. Treat those as answered too — otherwise
+  // a question with a perfectly valid key gets flagged "No answer" for no
+  // reason. An empty string / blank still counts as unanswered.
+  if (typeof answer === 'string') {
+    const trimmed = answer.trim()
+    return trimmed !== '' && Number.isInteger(Number(trimmed))
+  }
+  return false
 }
 
 function optionImagesMissingAlt(question) {

@@ -40,6 +40,20 @@ function buildVerifyPayload(sections, parts) {
     options: Array.isArray(q.options)
       ? q.options.map(o => extractRichTextPlain(o).slice(0, 400))
       : [],
+    // Picture-answer options carry their choice in an image, not in the option
+    // text. Without this, every image-option MCQ reaches Vex as a list of empty
+    // strings and gets a false "empty option" blocker. Pass the per-option image
+    // url + alt so the verifier can both attach the picture and skip the blocker.
+    optionMedia: Array.isArray(q.optionMedia)
+      ? q.optionMedia.map(m => (
+        m && typeof m === 'object' && (m.imageUrl || m.imageAssetId)
+          ? {
+            imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : null,
+            alt: typeof m.alt === 'string' ? m.alt.slice(0, 200) : '',
+          }
+          : null
+      ))
+      : undefined,
     correctAnswer: q.correctAnswer,
     marks: q.marks ?? 1,
     expectedAnswer: q.expectedAnswer
