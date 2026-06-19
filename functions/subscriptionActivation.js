@@ -78,11 +78,17 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     }
     const user = userSnap.data() || {};
 
-    // Stack onto an existing active subscription: an early renewal keeps
-    // the days already paid for. Otherwise start from today.
-    const days = Number(plan.durationDays || 30);
-    const currentExpiry = toDate(user.subscriptionExpiry);
-    const baseDate = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
+    // Expiry policy:
+    //  • Tier upgrade (Pro → Max, pay.isUpgrade): keep the SAME renewal date.
+    //    The buyer only paid the prorated difference for the days they had
+    //    left, so we must NOT add a fresh period — just flip the tier.
+    //  • Early renewal of an active sub: stack onto the days already paid for.
+    //  • Otherwise (new / expired): start a fresh period from today.
+    const currentExpiry = toDate(user.subscriptionExpiry) || toDate(user.teacherPlanExpiresAt);
+    const hasActiveExpiry = !!currentExpiry && currentExpiry > new Date();
+    const isUpgrade = pay.isUpgrade === true && hasActiveExpiry;
+    const days = isUpgrade ? 0 : Number(plan.durationDays || 30);
+    const baseDate = hasActiveExpiry ? currentExpiry : new Date();
     const expiry = new Date(baseDate);
     expiry.setDate(expiry.getDate() + days);
 
@@ -128,7 +134,9 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     tx.update(userRef, userUpdate);
 
     activated = true;
-    planForInvoice = {id: pay.planId, name: plan.name, durationDays: days};
+    // An upgrade adds 0 days, but the receipt should still read the plan's
+    // nominal length rather than "0 days".
+    planForInvoice = {id: pay.planId, name: plan.name, durationDays: isUpgrade ? Number(plan.durationDays || 30) : days};
     payloadForInvoice = {
       id: paymentId,
       amount: pay.amountZMW,

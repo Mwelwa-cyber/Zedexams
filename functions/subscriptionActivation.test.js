@@ -197,6 +197,36 @@ async function rejects(promise, re) {
   ok("expired subscription restarts from today (~30)",
       daysFromNow(store["users/u3"].subscriptionExpiry._date) === 30);
 
+  // ── Tier upgrade keeps the SAME renewal date (no stacking) ────────────────
+  reset();
+  store["payments/pu"] = {planId: "max_monthly", userId: "u5", isUpgrade: true};
+  store["users/u5"] = {
+    subscriptionPlan: "pro_monthly",
+    teacherPlan: "pro",
+    subscriptionExpiry: firestoreFn.Timestamp.fromDate(new Date(Date.now() + 100 * DAY)),
+    teacherPlanExpiresAt: firestoreFn.Timestamp.fromDate(new Date(Date.now() + 100 * DAY)),
+  };
+  await activateSubscriptionFromPayment({paymentId: "pu"});
+  ok("upgrade does NOT add days — expiry stays ~100 (not 130)",
+      daysFromNow(store["users/u5"].subscriptionExpiry._date) === 100);
+  ok("upgrade flips the tier to max", store["users/u5"].teacherPlan === "max");
+  ok("upgrade keeps teacherPlanExpiresAt on the same date",
+      daysFromNow(store["users/u5"].teacherPlanExpiresAt._date) === 100);
+  ok("upgrade stamps the new subscriptionPlan", store["users/u5"].subscriptionPlan === "max_monthly");
+
+  // An upgrade flag on an EXPIRED sub can't keep a dead date — it falls back to
+  // a fresh period so the buyer isn't left with no access.
+  reset();
+  store["payments/pux"] = {planId: "max_monthly", userId: "u6", isUpgrade: true};
+  store["users/u6"] = {
+    subscriptionPlan: "pro_monthly",
+    teacherPlan: "pro",
+    subscriptionExpiry: firestoreFn.Timestamp.fromDate(new Date(Date.now() - 2 * DAY)),
+  };
+  await activateSubscriptionFromPayment({paymentId: "pux"});
+  ok("upgrade on an expired sub starts a fresh ~30-day period",
+      daysFromNow(store["users/u6"].subscriptionExpiry._date) === 30);
+
   // ── Side-effect resilience: a failed invoice/referral never undoes access ──
   reset();
   sideEffectsThrow = true;
