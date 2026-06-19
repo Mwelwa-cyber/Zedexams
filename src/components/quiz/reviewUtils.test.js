@@ -34,6 +34,12 @@ test('does NOT flag an MCQ that has an answer and is not flagged', () => {
   assert.equal(items.length, 0)
 })
 
+test('does NOT flag an MCQ whose answer index is a numeric string', () => {
+  // Legacy/imported quizzes can store the index as "2"; it is still answered.
+  const { items } = collectReviewItems([standalone(mcq({ localId: 'a', correctAnswer: '2' }))])
+  assert.equal(items.length, 0)
+})
+
 test('flags a requiresReview question even when answered', () => {
   const { items } = collectReviewItems([standalone(mcq({ correctAnswer: 1, requiresReview: true }))])
   assert.deepEqual(items[0].issues, ['Flagged'])

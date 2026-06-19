@@ -904,6 +904,13 @@ export default function EditQuizV2() {
       return
     }
 
+    // Capture the existing image so a failed upload can restore it instead of
+    // silently dropping the diagram the teacher already had. We clear the
+    // preview while uploading, but on error the old image must come back.
+    const prevQuestion = sectionsRef.current?.[sectionIndex]?.question || {}
+    const prevImageUrl = prevQuestion.imageUrl || ''
+    const prevImageAssetId = prevQuestion.imageAssetId || ''
+
     updateSection(sectionIndex, section => ({
       ...section,
       question: {
@@ -938,6 +945,9 @@ export default function EditQuizV2() {
         ...section,
         question: {
           ...section.question,
+          // Restore the prior image — a failed upload must not erase it.
+          imageUrl: prevImageUrl,
+          imageAssetId: prevImageAssetId,
           imageUploading: false,
           imageUploadStep: '',
         },
@@ -966,6 +976,10 @@ export default function EditQuizV2() {
       show('Image must be under 15 MB.', true)
       return
     }
+
+    // Preserve the existing passage image so a failed upload restores it
+    // rather than dropping the diagram/map the teacher already attached.
+    const prevPassageImageUrl = sectionsRef.current?.[sectionIndex]?.passage?.imageUrl || ''
 
     updateSection(sectionIndex, section => ({
       ...section,
@@ -1005,6 +1019,8 @@ export default function EditQuizV2() {
         ...section,
         passage: {
           ...section.passage,
+          // Restore the prior image — a failed upload must not erase it.
+          imageUrl: prevPassageImageUrl,
           imageUploading: false,
           imageUploadStep: '',
         },
