@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { generateAssessment } from '../../utils/teacherTools'
+import { paywall } from '../../utils/paywall'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, CURRICULUM_FRAMEWORKS,
@@ -364,6 +365,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       instructions: buildInstructions(),
     })
     if (!res.ok) {
+      // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
+      // paywall rather than dumping the raw quota error (the server marks this
+      // with details.reason === 'max-only'), matching ExamPaperGenerator.
+      if (res.details?.reason === 'max-only') {
+        paywall.show('max-feature', { feature: 'Test papers' })
+        setStatus('idle')
+        return
+      }
       setStatus('error')
       setError(res.error || 'Generation failed. Please try again.')
       return

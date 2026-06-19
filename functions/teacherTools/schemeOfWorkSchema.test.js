@@ -141,5 +141,19 @@ test("missing grade and subject are reported", () => {
   assert.ok(res.errors.some((e) => /subject/.test(e)));
 });
 
+test("null/garbage payload returns a usable value, never crashes the runner", () => {
+  // generateSchemeOfWork stamps scheme.header.* unconditionally before the
+  // ok-check, so a missing `value` here would throw and strand the generation
+  // doc in status:"generating". Every malformed shape must still carry a value.
+  for (const bad of [null, undefined, "a string", 42, true, []]) {
+    const res = validateSchemeOfWork(bad);
+    assert.equal(res.ok, false, `ok should be false for ${JSON.stringify(bad)}`);
+    assert.ok(res.value, `value must be present for ${JSON.stringify(bad)}`);
+    assert.ok(res.value.header, "value.header must exist so the runner can stamp it");
+    assert.deepEqual(res.value.weeks, []);
+    assert.equal(res.value.schemaVersion, SCHEMA_VERSION);
+  }
+});
+
 console.log(`\n─── ${passed + failed} tests · ${passed} passed · ${failed} failed ───`);
 if (failed > 0) process.exit(1);

@@ -23,12 +23,17 @@ function cleanStringArray(v) {
 function validateSchemeOfWork(input) {
   const errors = [];
 
-  if (!input || typeof input !== "object") {
-    return {ok: false, errors: ["Top-level payload must be an object."]};
-  }
+  // Never bail out early: always fall through to a normalised `value` so the
+  // caller (generateSchemeOfWork) can safely stamp header fields onto the
+  // result even when the model returned null/garbage. A bad payload is
+  // *flagged* (ok:false with a usable value), never crashed — a thrown error
+  // here would escape the runner's AI try/catch and leave the generation doc
+  // stuck in status:"generating" with the usage quota already consumed.
+  const obj = (input && typeof input === "object") ? input : null;
+  if (!obj) errors.push("Top-level payload must be an object.");
 
   // ── header ─────────────────────────────────────────────────
-  const h = input.header || {};
+  const h = (obj && obj.header) || {};
   const header = {
     school: cleanString(h.school),
     teacherName: cleanString(h.teacherName),
@@ -46,7 +51,7 @@ function validateSchemeOfWork(input) {
   if (!header.subject) errors.push("header.subject is required");
 
   // ── weeks ─────────────────────────────────────────────────
-  const rawWeeks = Array.isArray(input.weeks) ? input.weeks : [];
+  const rawWeeks = Array.isArray(obj && obj.weeks) ? obj.weeks : [];
   const weeks = rawWeeks
     .filter((w) => w && typeof w === "object")
     .map((w, idx) => ({

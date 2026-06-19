@@ -80,7 +80,11 @@ describe('useTeacherUsage', () => {
     expect(data.used.plans).toBe(2)
     expect(data.used.worksheets).toBe(1)
     expect(data.caps.plans).toBe(5) // free lesson_plan
-    expect(data.caps.assessments).toBe(0) // quiz locked on free
+    // 'assessments' reads the `assessment` tool (the Test Paper studio), NOT
+    // the retired `quiz` creator. assessment + exam_paper are Max-only, so Free
+    // gets a single monthly taster (cap 1), then the Upgrade-to-Max paywall.
+    expect(data.caps.assessments).toBe(1) // free assessment taster
+    expect(data.caps.exams).toBe(1) // free exam_paper taster (now surfaced)
     expect(data.daily).toBe(2)
   })
 
@@ -122,12 +126,12 @@ describe('useTeacherUsage', () => {
   it('bypasses the meter for super-admins (admin caps, no Free chip)', () => {
     setPlan({ role: 'admin' })
     const { result } = renderHook(() => useTeacherUsage('t1'))
-    act(() => nextCb(snap({ counters: { quiz: 3 } })))
+    act(() => nextCb(snap({ counters: { assessment: 3 } })))
 
     const { data } = result.current
     expect(data.plan).toBe('max')
     expect(data.planLabel).toBe('Admin')
-    expect(data.used.assessments).toBe(3) // real count still surfaced
+    expect(data.used.assessments).toBe(3) // assessment counter feeds the Test Papers row
     expect(data.caps.assessments).toBe(99999) // admin unlimited cap
     expect(data.daily).toBe(99999)
   })
