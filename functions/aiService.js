@@ -112,7 +112,12 @@ function cleanChatHistory(history = []) {
 async function assertDailyLimit(uid, role, action) {
   const day = new Date().toISOString().slice(0, 10);
   const limit = isStaffRole(role) ? 150 : 60;
-  const ref = admin.firestore().doc(`aiUsage/${uid}_${day}`);
+  // Per-user daily call counter. Deliberately in its OWN collection, NOT
+  // in aiUsage: the /admin/ai-costs dashboard lists aiUsage with
+  // `where('__name__', '>=', since)`, so a `{uid}_{day}` doc id (letter-
+  // leading) sorts after the date ids and used to surface as a bogus
+  // daily row / chart axis label. Same reasoning as aiUsageMonthly.
+  const ref = admin.firestore().doc(`aiDailyLimits/${uid}_${day}`);
 
   await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);

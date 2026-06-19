@@ -101,7 +101,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
   // with only a global pause kill-switch. Without this, one teacher
   // account could queue unlimited chains and run up unbounded Anthropic
   // spend. Count each chain against the same daily AI budget as
-  // chat/explain/etc. (aiUsage/{uid}_{day}); fail-closed so a metering
+  // chat/explain/etc. (aiDailyLimits/{uid}_{day}); fail-closed so a metering
   // outage can't be used to bypass the cap. createdBy is server-trusted
   // (pinned by the create rule).
   const ownerUid = typeof jobData.createdBy === "string" ? jobData.createdBy : "";

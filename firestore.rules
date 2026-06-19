@@ -1222,6 +1222,16 @@ service cloud.firestore {
       }
     }
 
+    // ── aiDailyLimits (per-user daily AI call counter) ───────────────
+    // {uid}_{day} counter docs written exclusively by
+    // aiService.assertDailyLimit (Cloud Functions, admin SDK) to gate
+    // the per-day call cap. Kept OUT of aiUsage so its letter-leading
+    // doc ids don't leak into the /admin/ai-costs daily chart. Internal
+    // rate-limit bookkeeping — no client read or write.
+    match /aiDailyLimits/{id} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,
