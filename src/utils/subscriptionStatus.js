@@ -230,7 +230,12 @@ export function reminderCopy(status, audience) {
 // Which UpgradeModal portal + plan list an audience should open.
 export function upgradePortal(audience) {
   if (audience === AUDIENCE.TEACHER) {
-    return { portal: 'teacher', planIds: ['pro_monthly', 'pro_yearly'], defaultPlanId: 'pro_monthly' }
+    // Offer both tiers so a teacher can choose Pro or step straight up to Max.
+    return {
+      portal: 'teacher',
+      planIds: ['pro_monthly', 'pro_yearly', 'max_monthly', 'max_yearly'],
+      defaultPlanId: 'pro_monthly',
+    }
   }
   return { portal: 'learner', planIds: ['grade7_monthly', 'grade7_termly'], defaultPlanId: 'grade7_monthly' }
 }

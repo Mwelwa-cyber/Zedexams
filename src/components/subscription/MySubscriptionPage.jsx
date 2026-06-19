@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
 import { upgradePortal, SUB_STATUS } from '../../utils/subscriptionStatus'
-import { PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
 import UpgradeModal from './UpgradeModal'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
@@ -70,7 +69,8 @@ export default function MySubscriptionPage() {
       ? 'Lapsed — renew to reactivate'
       : 'No active subscription'
 
-  const ctaLabel = status === SUB_STATUS.EXPIRED ? 'Renew Pro' : 'Upgrade to Pro'
+  // Both Pro and Max are offered in the modal, so keep the button tier-neutral.
+  const ctaLabel = status === SUB_STATUS.EXPIRED ? 'Renew' : 'Upgrade'
 
   return (
     <div className="min-h-screen theme-bg">
@@ -143,7 +143,7 @@ export default function MySubscriptionPage() {
           {hasAccess && status === SUB_STATUS.TRIAL && (
             <div className="mt-4">
               <Button variant="primary" size="lg" onClick={() => setShowUpgrade(true)}>
-                Upgrade to full Pro
+                Upgrade
               </Button>
             </div>
           )}
@@ -172,14 +172,6 @@ export default function MySubscriptionPage() {
               </li>
             ))}
           </ul>
-
-          {!hasAccess && (
-            <p className="mt-4 rounded-2xl theme-bg-subtle px-3 py-2.5 text-xs font-bold theme-text-muted">
-              This is part of ZedExams Pro. Upgrade to continue — pay with{' '}
-              {PAYMENT_DETAILS.mobileMoney.providers} on{' '}
-              {PAYMENT_DETAILS.mobileMoney.displayNumber}. Cancel anytime.
-            </p>
-          )}
         </section>
 
         {/* Pro → Max upsell (teachers on Pro only) */}
