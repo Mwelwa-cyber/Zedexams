@@ -58,10 +58,10 @@ export default defineConfig({
       // file, including the hundreds still untested — that's the gap this
       // exists to close, one ratchet at a time.
       thresholds: {
-        lines: 2.3,
-        statements: 2.3,
-        functions: 13.5,
-        branches: 39,
+        lines: 2.4,
+        statements: 2.4,
+        functions: 14.5,
+        branches: 43,
       },
     },
   },
