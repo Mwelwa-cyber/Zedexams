@@ -320,7 +320,6 @@ function runRealWorldLayoutTest() {
 }
 
 runRealWorldLayoutTest()
-console.log('documentQuizParserCore real-world ECZ layout test passed')
 
 // ─── Bare "Story N" comprehension passages ────────────────────────────────
 // Real ECZ G7 English papers head each reading passage with just "Story 1",
@@ -399,7 +398,6 @@ function runBareStoryLabelTest() {
 }
 
 runBareStoryLabelTest()
-console.log('documentQuizParserCore bare "Story N" comprehension test passed')
 
 /**
  * Past-paper regression: G7 Mathematics 2023 (and any docx that opens
@@ -1087,7 +1085,6 @@ function runGarbageSymbolCleanTest() {
 }
 
 runGarbageSymbolCleanTest()
-console.log('documentQuizParserCore garbage-symbol cleaning test passed')
 
 // ── Duplicate-question collapse ──────────────────────────────────────────────
 // Reproduces the "a 60-question paper imports as 64, with some questions
@@ -1152,6 +1149,5 @@ function runDuplicateImportTest() {
 }
 
 runDuplicateImportTest()
-console.log('documentQuizParserCore duplicate-question collapse test passed')
 
-console.log('documentQuizParserCore regression test passed')
+console.log('All documentQuizParserCore tests passed.')
