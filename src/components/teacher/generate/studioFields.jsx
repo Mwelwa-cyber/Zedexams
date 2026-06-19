@@ -8,6 +8,8 @@
  * from `src/index.css`, so they look identical wherever they're used.
  */
 
+import { useEffect, useId, useState } from 'react'
+
 export function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>
 }
@@ -54,6 +56,62 @@ export function FieldTextarea({ label, value, onChange, placeholder, maxLength }
         rows={3}
         className="studio-input resize-none"
       />
+    </div>
+  )
+}
+
+// A numeric combobox: a number input wired to a <datalist> of presets, so a
+// teacher can PICK a common value from the dropdown or TYPE their own. Unlike
+// FieldSelect (which locks the value to its options), this stays free-text
+// within [min, max]. `onChange` always receives a clamped number.
+//
+// The input keeps its own text state so a partial entry (e.g. "1" on the way to
+// "100") isn't clobbered or prematurely clamped while typing — the value is
+// normalised to [min, max] on blur, and the parent value is mirrored back in
+// only while the field is unfocused (so an external reset/clear still shows).
+export function FieldNumberCombo({ label, value, options, onChange, min = 1, max = 999 }) {
+  const listId = useId()
+  const [text, setText] = useState(value == null ? '' : String(value))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (focused) return
+    setText(value == null ? '' : String(value))
+  }, [value, focused])
+
+  const handleChange = (raw) => {
+    const digits = raw.replace(/[^\d]/g, '')
+    setText(digits)
+    if (digits === '') return
+    onChange(Math.min(max, Math.max(min, Number(digits))))
+  }
+  const handleBlur = () => {
+    setFocused(false)
+    const n = text === '' ? min : Math.min(max, Math.max(min, Number(text)))
+    setText(String(n))
+    onChange(n)
+  }
+
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="number"
+        inputMode="numeric"
+        list={listId}
+        min={min}
+        max={max}
+        value={text}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        className="studio-input"
+      />
+      <datalist id={listId}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </datalist>
     </div>
   )
 }

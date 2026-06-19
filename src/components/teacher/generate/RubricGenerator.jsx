@@ -19,7 +19,7 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
-import { FieldTextarea, FieldSelect } from './studioFields'
+import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 
 export default function RubricGenerator() {
   const { userProfile, isAdmin } = useAuth()
@@ -148,11 +148,13 @@ export default function RubricGenerator() {
               maxLength={500}
             />
             <div className="grid grid-cols-2 gap-3">
-              <FieldSelect
+              <FieldNumberCombo
                 label="Total marks"
-                value={String(form.totalMarks)}
-                options={RUBRIC_TOTAL_MARKS.map((m) => ({ value: String(m.value), label: m.label }))}
-                onChange={(v) => updateField('totalMarks', Number(v))}
+                value={form.totalMarks}
+                min={5}
+                max={100}
+                options={RUBRIC_TOTAL_MARKS.map((m) => ({ value: m.value, label: m.label }))}
+                onChange={(v) => updateField('totalMarks', v)}
               />
               <FieldSelect
                 label="# of criteria"

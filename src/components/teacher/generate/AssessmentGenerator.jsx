@@ -20,7 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
-import { FieldTextarea, FieldSelect } from './studioFields'
+import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 
 /**
  * Assessment Generator — a formal graded test grounded on the stored
@@ -147,11 +147,12 @@ export default function AssessmentGenerator() {
               value={form.learningEnvironment}
               options={LEARNING_ENVIRONMENT_OPTIONS}
               onChange={(v) => set('learningEnvironment', v)} />
-            <FieldSelect label="Total marks" value={String(form.totalMarks)}
-              options={[10, 15, 20, 25, 30, 40, 50].map((n) => ({
-                value: String(n), label: `${n} marks`,
+            <FieldNumberCombo label="Total marks" value={form.totalMarks}
+              min={5} max={100}
+              options={[10, 15, 20, 25, 30, 40, 50, 60, 75, 100].map((n) => ({
+                value: n, label: `${n} marks`,
               }))}
-              onChange={(v) => set('totalMarks', Number(v))} />
+              onChange={(v) => set('totalMarks', v)} />
             <FieldSelect label="Duration"
               value={String(form.durationMinutes)}
               options={[20, 30, 40, 60, 90, 120].map((m) => ({
