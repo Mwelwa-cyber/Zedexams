@@ -581,13 +581,19 @@ export default function App() {
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-          {/* Assessment Studio — teacher-only, private. Replaces the old
+          {/* Test Paper Studio — teacher-only, private. Replaces the old
               teacher-side quiz creator and `/teacher/content` workflow.
               Both create and edit run through the same studio so a saved paper
               reopens in the full, type-complete builder. */}
+          <Route path="/teacher/test-papers"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
+          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          {/* Legacy /teacher/assessments/* paths — kept as functional aliases
+              so existing bookmarks and saved links keep resolving after the
+              rename to the Test Paper Studio. */}
           <Route path="/teacher/assessments"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
           <Route path="/teacher/assessments/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
-          <Route path="/teacher/assessments/:assessmentId/edit"       element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />

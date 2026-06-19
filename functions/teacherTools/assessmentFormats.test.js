@@ -12,6 +12,7 @@ const {
   validateFormatProfile,
   renderFormatContextBlock,
   ASSESSMENT_TYPES,
+  ASSESSMENT_TYPE_LABELS,
   FORMAT_TYPE_ALIASES,
   DEFAULT_PROFILE,
   GENERIC_SUBJECT,
@@ -148,6 +149,28 @@ console.log("assessmentFormats");
   assert.ok(aliased && aliased.assessmentType === "mid_term",
     "alias target resolves to a mid_term profile");
   ok("monthly_test borrows the mid_term format profile", true);
+}
+
+// ── weekly_test type + format alias (Test Paper Studio) ────────────────────
+{
+  assert.ok(ASSESSMENT_TYPES.includes("weekly_test"),
+    "weekly_test is a recognised assessment type");
+  assert.strictEqual(ASSESSMENT_TYPE_LABELS.weekly_test, "Weekly Test",
+    "weekly_test renders as 'Weekly Test'");
+  ok("ASSESSMENT_TYPES includes weekly_test", true);
+
+  // weekly_test has no dedicated seeds, so it borrows the topic_test layout
+  // (a weekly test is a narrow recap, like a topic test).
+  assert.strictEqual(FORMAT_TYPE_ALIASES.weekly_test, "topic_test",
+    "weekly_test aliases to topic_test for format resolution");
+  const aliasedWeekly = matchFormatProfile(FORMAT_PROFILES, {
+    gradeBand: "upper_primary",
+    subject: "mathematics",
+    assessmentType: FORMAT_TYPE_ALIASES.weekly_test,
+  });
+  assert.ok(aliasedWeekly && aliasedWeekly.assessmentType === "topic_test",
+    "weekly alias target resolves to a topic_test profile");
+  ok("weekly_test borrows the topic_test format profile", true);
 }
 
 console.log(`assessmentFormats: ${passed} checks passed`);

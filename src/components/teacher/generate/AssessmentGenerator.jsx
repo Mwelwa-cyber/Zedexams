@@ -27,7 +27,7 @@ import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 /**
  * Assessment Generator — a formal graded test grounded on the stored
  * curriculum module. Distinct from the quiz-editor Assessment Studio
- * (/teacher/assessments); this produces a saved, exportable assessment
+ * (/teacher/test-papers); this produces a saved, exportable assessment
  * document like the other curriculum studios.
  */
 export default function AssessmentGenerator() {

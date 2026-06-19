@@ -5,7 +5,7 @@ import Icon from '../ui/Icon'
 const TEACHER_NAV_ITEMS = [
   { to: '/teacher',             icon: Home,       label: 'Home',        end: true  },
   { to: '/teacher/library',     icon: FolderOpen, label: 'Library',     end: false },
-  { to: '/teacher/assessments', icon: PencilLine, label: 'Assessments', end: false },
+  { to: '/teacher/test-papers', icon: PencilLine, label: 'Test Papers', end: false },
 ]
 
 const PILL_STYLE = { width: 38, height: 30, borderRadius: 12 }

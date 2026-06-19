@@ -19,23 +19,26 @@
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 
 const ASSESSMENT_TYPES = [
-  "exercise", "topic_test", "monthly_test", "mid_term", "end_of_term",
-  "mock_exam",
+  "exercise", "topic_test", "weekly_test", "monthly_test", "mid_term",
+  "end_of_term", "mock_exam",
 ];
 const ASSESSMENT_TYPE_LABELS = {
   exercise: "Exercise",
   topic_test: "Topic Test",
+  weekly_test: "Weekly Test",
   monthly_test: "Monthly Test",
   mid_term: "Mid-Term Test",
-  end_of_term: "End of Term Test",
+  end_of_term: "End-of-Term Test",
   mock_exam: "Mock Examination",
 };
 
 // Types that have no dedicated format seeds yet borrow another type's paper
 // structure when resolving the format context. A monthly test is a short
-// cumulative check, so it reuses the mid-term layout until purpose-built
-// monthly seeds are authored.
+// cumulative check, so it reuses the mid-term layout; a weekly test is a
+// narrow recap, so it reuses the topic-test layout — until purpose-built
+// seeds are authored.
 const FORMAT_TYPE_ALIASES = {
+  weekly_test: "topic_test",
   monthly_test: "mid_term",
 };
 const GRADE_BANDS = [

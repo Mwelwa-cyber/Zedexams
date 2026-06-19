@@ -1,4 +1,4 @@
-// "Create paper with AI" — full-paper generation inside the Assessment
+// "Create paper with AI" — full-paper generation inside the Test Paper
 // Studio. Wraps the existing generateAssessment Cloud Function (which is
 // grounded on the CBC knowledge base AND the Zambian assessment format
 // profiles), then converts the returned paper into editable studio

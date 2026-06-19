@@ -62,9 +62,9 @@ export function buildReminders({ generations = [], quizzes = [] }) {
     out.push({
       id: `draft-${draftQuiz.id}`,
       tone: 'warn',
-      title: 'Draft assessment ready to publish',
-      body: `“${draftQuiz.title || draftQuiz.topic || 'Untitled assessment'}” is still a draft.`,
-      to: `/teacher/assessments/${draftQuiz.id}/edit`,
+      title: 'Draft test paper ready to publish',
+      body: `“${draftQuiz.title || draftQuiz.topic || 'Untitled test paper'}” is still a draft.`,
+      to: `/teacher/test-papers/${draftQuiz.id}/edit`,
       cta: 'Finish it',
     })
   }

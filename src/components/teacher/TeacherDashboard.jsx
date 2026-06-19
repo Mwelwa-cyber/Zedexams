@@ -186,16 +186,16 @@ const STUDIO_GROUPS = [
     ],
   },
   {
-    label: 'Assessment & SBA',
+    label: 'Test Papers & SBA',
     items: [
       {
         img: iconAssessments,
         tone: 'violet',
         badge: null,
-        title: 'Assessments',
-        tagline: 'Manage topic, monthly, mid-term, and end-of-term assessments.',
-        to: '/teacher/assessments',
-        meta: 'Assessment bank',
+        title: 'Test Papers',
+        tagline: 'Build topic, weekly, mid-term, and end-of-term test papers.',
+        to: '/teacher/test-papers',
+        meta: 'Test paper bank',
       },
       {
         img: iconAssessments,
@@ -272,7 +272,7 @@ const TOOL_META = {
   flashcards: { icon: Layers, accent: '#fde9b8', label: 'Flashcards' },
   rubric: { icon: ClipboardCheckList, accent: '#f0d6e0', label: 'Rubric' },
   notes: { icon: DocumentTextIcon, accent: '#dbe7f4', label: 'Teacher Notes' },
-  assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Assessment' },
+  assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Test Paper' },
   // 'quiz' stays for generations saved before the studio was retired (#909).
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
   full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
@@ -430,7 +430,7 @@ function ProgressWidget({ generations, quizzes }) {
       <div className="flex flex-wrap gap-3">
         <StatPill value={stats.lessonsThisMonth} label="Lesson plans · 30 days" accent="#ff7a2e" />
         <StatPill value={stats.notesThisMonth}   label="Notes · 30 days"        accent="#16505d" />
-        <StatPill value={stats.assessmentsThisMonth} label="Assessments · 30 days" accent="#10864e" />
+        <StatPill value={stats.assessmentsThisMonth} label="Test papers · 30 days" accent="#10864e" />
         <StatPill value={stats.itemsThisWeek}    label="New this week"          accent="#b8651a" />
         <StatPill value={stats.totalSaved}       label="Total in library"       accent="#0e2a32" />
       </div>
@@ -522,7 +522,7 @@ export default function TeacherDashboard() {
         timestamp: q.createdAt,
         kind: 'assessment',
         tool: 'assessments',
-        to: `/teacher/assessments/${q.id}/edit`,
+        to: `/teacher/test-papers/${q.id}/edit`,
       })),
     ]
     const toMs = (t) => {

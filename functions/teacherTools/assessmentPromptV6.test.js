@@ -73,7 +73,7 @@ ok("system prompt surfaces the clockface + protractor keys",
   ok("user prompt reminds the model to write \\frac fractions",
     prompt.includes("\\frac{a}{b}"));
   ok("user prompt names the assessment type",
-    prompt.includes("- Assessment type: End of Term Test"));
+    prompt.includes("- Assessment type: End-of-Term Test"));
 }
 
 console.log(`assessmentPromptV6: ${passed} checks passed`);

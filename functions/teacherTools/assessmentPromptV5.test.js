@@ -60,7 +60,7 @@ console.log("assessmentPromptV5");
     prompt.includes("\"left\": [string, ...]") &&
     prompt.includes("\"pairs\": [number, ...]"));
   ok("user prompt names the assessment type",
-    prompt.includes("- Assessment type: End of Term Test"));
+    prompt.includes("- Assessment type: End-of-Term Test"));
 }
 
 // ── Schema ────────────────────────────────────────────────────────────────

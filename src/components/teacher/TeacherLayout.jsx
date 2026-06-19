@@ -18,7 +18,7 @@ import TeacherBottomNav from './TeacherBottomNav'
 const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
   { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
-  { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
+  { to: '/teacher/test-papers',      icon: PencilLine,      label: 'Test Papers'             },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
   { to: '/my-subscription',          icon: Sparkles,        label: 'My Subscription'         },
