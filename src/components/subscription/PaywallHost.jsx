@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { paywall } from '../../utils/paywall'
+import { capture } from '../../utils/analytics'
 import { ensureProFonts } from '../../utils/proFonts'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
@@ -110,6 +111,15 @@ const COMPARE = {
   },
 }
 
+// Which plan the scenario sells — segments the conversion funnel so the
+// Max upsell (max-feature) can be measured separately from the Pro paywalls
+// and the learner Grade-7 pack. Mirrors the UpgradeModal routing below.
+function paywallPlanTarget(reason) {
+  if (reason === 'quiz-preview-limit') return 'grade7'
+  if (reason === 'max-feature') return 'max'
+  return 'pro'
+}
+
 function CompareCol({ data, recommended }) {
   return (
     <div className={`pwh-col${recommended ? ' pwh-col-rec' : ''}`}>
@@ -166,8 +176,27 @@ export default function PaywallHost() {
   const scenario = state ? SCENARIOS[state.reason] : null
   const ctx = state?.ctx || {}
 
+  // Funnel analytics — one event when a paywall is shown. Self-contained on
+  // [state] (reads state.reason/state.ctx) so it fires once per show without
+  // refiring on unrelated re-renders. capture() no-ops when analytics is
+  // disabled or unconsented. Pairs with paywall_upgrade_clicked below.
+  useEffect(() => {
+    if (!state || !SCENARIOS[state.reason]) return
+    capture('paywall_shown', {
+      reason: state.reason,
+      feature: state.ctx?.feature || null,
+      plan_target: paywallPlanTarget(state.reason),
+    })
+  }, [state])
+
   function handlePrimary() {
     if (scenario?.primaryAction === 'upgrade') {
+      capture('paywall_upgrade_clicked', {
+        reason: state?.reason || null,
+        feature: ctx.feature || null,
+        plan_target: paywallPlanTarget(state?.reason),
+        via: 'primary',
+      })
       setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
@@ -178,6 +207,12 @@ export default function PaywallHost() {
     const action = scenario?.secondaryAction
     if (action === 'one-off') {
       // K5 one-off credit purchase isn't wired yet — fall through to upgrade.
+      capture('paywall_upgrade_clicked', {
+        reason: state?.reason || null,
+        feature: ctx.feature || null,
+        plan_target: paywallPlanTarget(state?.reason),
+        via: 'secondary',
+      })
       setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
