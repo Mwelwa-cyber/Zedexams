@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { listRecords } from '../../../utils/classRecords'
+import { classGradeShortLabel } from '../../../schemas/classRegister'
 import { filterRecordsByPeriod } from '../../../utils/classTerms'
 import { buildSchedule } from '../../../utils/markSchedule'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
@@ -32,7 +33,7 @@ export function recordToSchedule(record, register) {
   return {
     header: {
       school: register.school || '',
-      grade: register.grade || '',
+      grade: register.grade ? classGradeShortLabel(register.grade) : '',
       term: record.term || register.term || '',
       year: record.year || register.year || '',
     },

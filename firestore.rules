@@ -1457,7 +1457,12 @@ service cloud.firestore {
     // Owner-only across the board. Every roster/record doc carries
     // teacherUid so the rule needs no parent lookup, and a query for
     // another teacher's class returns docs that fail the rule (rejected).
-    function _validRegGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
+    // The Class Register is an organisational tool (roster/marks/reports), so
+    // it spans the full school ladder — early-childhood through lower-secondary
+    // — not just the CBC Upper-Primary band (4-7) the learner app ships content
+    // for. Keep this list in sync with CLASS_REGISTER_GRADE_OPTIONS in
+    // src/schemas/classRegister.js.
+    function _validRegGrade(value) { return value is string && value in ['baby', 'middle', 'reception', '1', '2', '3', '4', '5', '6', '7', 'form-1', 'form-2', 'form-3', 'form-4']; }
     function validClassRegisterFields() {
       return (!('className' in incoming()) || (incoming().className is string && incoming().className.size() >= 1 && incoming().className.size() <= 120))
         && (!('grade' in incoming()) || _validRegGrade(incoming().grade))

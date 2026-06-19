@@ -17,7 +17,64 @@ import { z } from 'zod'
 import { normalizeSubject } from '../config/curriculum.js'
 
 const CLASS_STATUSES = ['active', 'archived']
-const GRADES = ['4', '5', '6', '7']
+
+/**
+ * Grade levels the Class Register can organise — the full Zambian school
+ * ladder from early-childhood through lower-secondary, NOT just the CBC
+ * Upper-Primary band the learner-facing app ships content for.
+ *
+ * The register is an organisational tool (roster, marks, reports), so a
+ * teacher must be able to register any class they teach even where the
+ * platform has no quizzes/lessons for that grade yet. Each option carries:
+ *  - value  the stored wire value. Numeric grades stay as bare digit strings
+ *           ('4'..'7') so existing registers remain valid unchanged.
+ *  - label  full display label for register UI ("Grade 4", "Form 1").
+ *  - short  label minus the redundant "Grade " prefix, for surfaces that
+ *           already print their own "GRADE:" caption (the report cards).
+ */
+export const CLASS_REGISTER_GRADE_OPTIONS = [
+  { value: 'baby',      label: 'Baby Class',    short: 'Baby Class' },
+  { value: 'middle',    label: 'Middle Class',  short: 'Middle Class' },
+  { value: 'reception', label: 'Reception',     short: 'Reception' },
+  { value: '1', label: 'Grade 1', short: '1' },
+  { value: '2', label: 'Grade 2', short: '2' },
+  { value: '3', label: 'Grade 3', short: '3' },
+  { value: '4', label: 'Grade 4', short: '4' },
+  { value: '5', label: 'Grade 5', short: '5' },
+  { value: '6', label: 'Grade 6', short: '6' },
+  { value: '7', label: 'Grade 7', short: '7' },
+  { value: 'form-1', label: 'Form 1', short: 'Form 1' },
+  { value: 'form-2', label: 'Form 2', short: 'Form 2' },
+  { value: 'form-3', label: 'Form 3', short: 'Form 3' },
+  { value: 'form-4', label: 'Form 4', short: 'Form 4' },
+]
+
+const GRADES = CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.value)
+const GRADE_LABELS = Object.fromEntries(
+  CLASS_REGISTER_GRADE_OPTIONS.map((o) => [o.value, o.label]),
+)
+const GRADE_SHORT = Object.fromEntries(
+  CLASS_REGISTER_GRADE_OPTIONS.map((o) => [o.value, o.short]),
+)
+
+/**
+ * Full display label for a stored register grade value ("4" → "Grade 4",
+ * "form-1" → "Form 1"). Unknown values fall back to "Grade {value}" so a
+ * legacy/odd value still renders something sensible.
+ */
+export function formatClassGrade(grade) {
+  const key = grade == null ? '' : String(grade)
+  return GRADE_LABELS[key] ?? `Grade ${key}`
+}
+
+/**
+ * Grade label without the "Grade " prefix, for report headers that already
+ * caption the field themselves ("4", "Form 1", "Baby Class").
+ */
+export function classGradeShortLabel(grade) {
+  const key = grade == null ? '' : String(grade)
+  return GRADE_SHORT[key] ?? key
+}
 
 export const classRegisterWriteSchema = z
   .object({
