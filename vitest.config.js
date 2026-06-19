@@ -57,11 +57,17 @@ export default defineConfig({
       // gain in. Numbers are low because `all: true` instruments every src
       // file, including the hundreds still untested — that's the gap this
       // exists to close, one ratchet at a time.
+      //
+      // Recalibrated for Vitest 4: its v8 provider now maps coverage with
+      // AST accuracy (ast-v8-to-istanbul), so branch/function counts reflect
+      // every branch/function in the untested files rather than the inflated
+      // figures the old remapper reported. Line coverage is unchanged (~3.5%);
+      // branches/functions simply read true now, hence the lower thresholds.
       thresholds: {
         lines: 3.5,
-        statements: 3.5,
-        functions: 18.5,
-        branches: 51,
+        statements: 3.4,
+        functions: 2.6,
+        branches: 2.7,
       },
     },
   },
