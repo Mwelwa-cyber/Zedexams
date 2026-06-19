@@ -92,7 +92,9 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
-import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
+// assessmentToDocx (and the heavy `docx` library behind it) is loaded on
+// demand inside the export handler, so the Studio's initial route chunk
+// stays lean for teachers who are only editing, not exporting.
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { PaperBlock } from './views/PaperBlocks'
@@ -1668,6 +1670,16 @@ export default function AssessmentStudio() {
         variant,
         ext,
       })
+      // Print uses the browser's own dialog and needs nothing from the docx
+      // assembler, so short-circuit before loading it. (answersheet mode always
+      // builds a .docx — even on a 'print' kind — matching prior behaviour.)
+      if (kind === 'print' && mode !== 'answersheet') {
+        window.print()
+        return
+      }
+      // Loaded on demand so the docx assembler stays out of the Studio's
+      // initial chunk — it only arrives when a teacher actually exports.
+      const { downloadAssessmentDocx, downloadAnswerSheetDocx } = await import('../../utils/assessmentToDocx')
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
@@ -1678,8 +1690,6 @@ export default function AssessmentStudio() {
       if (kind === 'docx') {
         await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
-      } else if (kind === 'print') {
-        window.print()
       }
     } catch (error) {
       console.error(error)
