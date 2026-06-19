@@ -1,5 +1,5 @@
-// Assessment Studio v2 — block-based, parchment + oxblood design.
-// Backs BOTH /teacher/assessments/new and /teacher/assessments/:id/edit:
+// Test Paper Studio v2 — block-based, parchment + oxblood design.
+// Backs BOTH /teacher/test-papers/new and /teacher/test-papers/:id/edit:
 // sections[] + parts[] flow through serializeQuizSections /
 // saveAssessmentQuestions on create and through hydrateQuizSections /
 // updateAssessmentWithQuestions on edit, so a saved paper reopens here in the
@@ -141,17 +141,18 @@ const GRADE_WORDS = {
 }
 const TERMS = ['1', '2', '3']
 
-const ASSESSMENT_TYPES = [
-  'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
-  'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
-  'continuous', 'summative', 'practical', 'oral', 'project',
-]
+// The Test Paper Studio offers exactly four test types in the picker.
+const ASSESSMENT_TYPES = ['topic', 'weekly', 'mid_term', 'end_of_term']
+// Labels stay comprehensive: the four selectable types use the studio's
+// "Test" wording, while the legacy keys are retained so papers saved before
+// the type list was trimmed still render a readable label rather than a bare
+// "Assessment" fallback.
 const ASSESSMENT_TYPE_LABELS = {
-  weekly: 'Weekly test',
+  topic: 'Topic Test',
+  weekly: 'Weekly Test',
+  mid_term: 'Mid-Term Test',
+  end_of_term: 'End-of-Term Test',
   monthly: 'Monthly test',
-  mid_term: 'Mid-term test',
-  end_of_term: 'End-of-term test',
-  topic: 'Topic test',
   mock: 'Mock exam',
   diagnostic: 'Diagnostic / baseline',
   pre_test: 'Pre-test',
@@ -352,7 +353,7 @@ export default function AssessmentStudio() {
   } = useFirestore()
   const { currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
-  const { assessmentId: editId } = useParams()
+  const { paperId: editId } = useParams()
   // Edit mode: the same studio now backs both /assessments/new and
   // /assessments/:id/edit so a saved paper reopens in the full, type-complete
   // builder instead of the older EditAssessment workflow.
@@ -542,7 +543,7 @@ export default function AssessmentStudio() {
   }, [])
 
   // Visual Studio handoff (src/features/visualStudio): when this studio is
-  // opened via "Send to Assessment Studio" (?from=visual-studio), pull the
+  // opened via "Send to Test Paper Studio" (?from=visual-studio), pull the
   // pending diagram out of sessionStorage and drop it onto the first question
   // — image above, blank "P: ___" rows + answer key as real question fields,
   // so the questions are never trapped inside the picture. Runs once on mount.
@@ -1102,8 +1103,8 @@ export default function AssessmentStudio() {
     // saved paper), so AI-created papers print with the school header without
     // re-typing it each time.
     const typeMap = {
+      topic_test: 'topic', weekly_test: 'weekly',
       mid_term: 'mid_term', end_of_term: 'end_of_term',
-      topic_test: 'topic', mock_exam: 'mock', monthly_test: 'monthly',
     }
     // The modal now emits a canonical subject KEY ('numeracy',
     // 'integrated_science'); the studio form carries a display label, so map
@@ -1639,7 +1640,7 @@ export default function AssessmentStudio() {
       setDirty(false)
       setSavedToLibrary(true)
       showToast(isEditing ? 'Changes saved.' : 'Saved to your library!')
-      setTimeout(() => navigate('/teacher/assessments'), 900)
+      setTimeout(() => navigate('/teacher/test-papers'), 900)
     } catch (error) {
       console.error(error)
       showToast(`Failed to save: ${getErrorMessage(error)}`, true)
@@ -1907,7 +1908,7 @@ export default function AssessmentStudio() {
   if (isEditing && editLoading) {
     return (
       <div className="studio-v2">
-        <SeoHelmet title="Edit assessment" noIndex />
+        <SeoHelmet title="Edit test paper" noIndex />
         <div style={{ padding: '48px 16px' }} className="space-y-4">
           {[1, 2, 3].map(item => (
             <Skeleton key={item} height={96} className="!rounded-2xl" />
@@ -1921,21 +1922,21 @@ export default function AssessmentStudio() {
     const notFound = editError === 'notfound'
     return (
       <div className="studio-v2">
-        <SeoHelmet title="Edit assessment" noIndex />
+        <SeoHelmet title="Edit test paper" noIndex />
         <div className="theme-text py-20 text-center">
           <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
-          <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Assessment not found' : 'Access denied'}</h2>
+          <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Test paper not found' : 'Access denied'}</h2>
           <p className="theme-text-muted text-body mb-5">
             {notFound
-              ? 'This assessment does not exist or has been deleted.'
-              : 'You can only edit assessments you created.'}
+              ? 'This test paper does not exist or has been deleted.'
+              : 'You can only edit test papers you created.'}
           </p>
           <button
             type="button"
-            onClick={() => navigate('/teacher/assessments')}
+            onClick={() => navigate('/teacher/test-papers')}
             className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md"
           >
-            ← Back to assessments
+            ← Back to test papers
           </button>
         </div>
       </div>
@@ -1944,7 +1945,7 @@ export default function AssessmentStudio() {
 
   return (
     <div className="studio-v2">
-      <SeoHelmet title={isEditing ? 'Edit assessment' : 'Assessment Studio'} noIndex />
+      <SeoHelmet title={isEditing ? 'Edit test paper' : 'Test Paper Studio'} noIndex />
 
       <TopBar
         title={autoTitle}
@@ -1956,7 +1957,7 @@ export default function AssessmentStudio() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        onBack={() => navigate('/teacher/assessments')}
+        onBack={() => navigate('/teacher/test-papers')}
         onAi={() => openSlide('ai')}
       />
 
@@ -1969,9 +1970,9 @@ export default function AssessmentStudio() {
             setParts([])
             changeView('builder')
           }}
-          onOpenPaper={(paperId) => navigate(`/teacher/assessments/${paperId}/edit`)}
+          onOpenPaper={(paperId) => navigate(`/teacher/test-papers/${paperId}/edit`)}
           onAi={() => openSlide('ai')}
-          onLibrary={() => navigate('/teacher/assessments')}
+          onLibrary={() => navigate('/teacher/test-papers')}
           questionCount={questionCount}
         />
       )}
@@ -2061,7 +2062,7 @@ export default function AssessmentStudio() {
         // While editing a saved paper, "Home" leaves the studio rather than
         // dropping into the new-paper home view (whose "New paper" reset would
         // otherwise let a save overwrite the loaded assessment with a blank).
-        onHome={() => (isEditing ? navigate('/teacher/assessments') : changeView('home'))}
+        onHome={() => (isEditing ? navigate('/teacher/test-papers') : changeView('home'))}
         onBuilder={() => changeView('builder')}
         onAdd={() => openSlide('blocks')}
         onPreview={() => changeView('preview')}
@@ -2340,7 +2341,7 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
     <section className="sv-view">
       <div className="sv-canvas-area">
         <div className="sv-welcome">
-          <div className="sv-welcome-eyebrow">📄 Teacher-only · Examination Studio</div>
+          <div className="sv-welcome-eyebrow">📄 Teacher-only · Test Paper Studio</div>
           <h1 className="serif">
             Build school-ready <em>papers</em> the way teachers think.
           </h1>

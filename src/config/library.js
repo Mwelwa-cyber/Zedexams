@@ -110,14 +110,18 @@ export const LIBRARY_SECTIONS = [
   },
   {
     id:        LIBRARY_TYPES.ASSESSMENTS,
-    label:     'Assessments',
+    label:     'Test Papers',
+    // `folder` feeds the persisted `path` breadcrumb on saved docs — keep it
+    // as 'Assessments' so papers saved before the Test Paper Studio rename
+    // group together with new ones (the library keys off libraryType, not the
+    // path string, so this is the stable choice).
     folder:    'Assessments',
     icon:      '🦅',
     accent:    '#e8d8f0',
     hasTerm:   true,
-    hasAssessmentType: true,    // extra leaf level: Topic / Monthly / Mid / End
-    createTo:  '/teacher/assessments/new',
-    emptyHint: 'Create a topic, monthly, midterm or end-of-term assessment.',
+    hasAssessmentType: true,    // extra leaf level: Topic / Weekly / Mid / End
+    createTo:  '/teacher/test-papers/new',
+    emptyHint: 'Create a topic, weekly, mid-term or end-of-term test paper.',
   },
   {
     id:        LIBRARY_TYPES.SBA_TASKS,

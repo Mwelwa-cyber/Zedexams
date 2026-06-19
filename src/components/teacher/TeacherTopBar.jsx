@@ -23,7 +23,7 @@ import Icon from '../ui/Icon'
 const QUICK_CREATE = [
   { to: '/teacher/generate/lesson-plan', icon: BookOpen,    label: 'Lesson Plan',    accent: '#fde2c4' },
   { to: '/teacher/generate/notes',       icon: FileText,    label: 'Teacher Notes',  accent: '#dbe7f4' },
-  { to: '/teacher/assessments/new',      icon: PencilLine,  label: 'Assessment',     accent: '#e8d8f0' },
+  { to: '/teacher/test-papers/new',      icon: PencilLine,  label: 'Test Paper',     accent: '#e8d8f0' },
   { to: '/teacher/generate/flashcards',  icon: Sparkles,    label: 'Flashcards',     accent: '#fde9b8' },
 ]
 
@@ -156,12 +156,12 @@ export default function TeacherTopBar() {
       }))
     const fromQuizzes = quizzes.map(q => ({
       id: `q-${q.id}`,
-      kind: 'assessment',
-      title: q.title || q.topic || 'Untitled assessment',
+      kind: 'test-paper',
+      title: q.title || q.topic || 'Untitled test paper',
       subtitle: [q.grade || q.targetGrade, q.subject ? String(q.subject).replace(/_/g, ' ') : ''].filter(Boolean).join(' · '),
-      meta: { emoji: '🦅', label: 'Assessment' },
-      to: `/teacher/assessments/${q.id}/edit`,
-      haystack: [q.title, q.topic, q.subject, q.grade, 'assessment'].filter(Boolean).join(' ').toLowerCase(),
+      meta: { emoji: '🦅', label: 'Test Paper' },
+      to: `/teacher/test-papers/${q.id}/edit`,
+      haystack: [q.title, q.topic, q.subject, q.grade, 'test paper assessment'].filter(Boolean).join(' ').toLowerCase(),
     }))
     return [...fromGens, ...fromQuizzes]
       .filter(r => r.haystack.includes(term))
@@ -194,7 +194,7 @@ export default function TeacherTopBar() {
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSearchOpen(true) }}
               onFocus={() => setSearchOpen(true)}
-              placeholder="Search lessons, notes, assessments…"
+              placeholder="Search lessons, notes, test papers…"
               className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
               aria-label="Search your teaching materials"
             />

@@ -90,7 +90,7 @@ function makeSWContext({ hasActiveWorker = true } = {}) {
   function makeClient(id) {
     return {
       id,
-      url: `https://zedexams.com/teacher/assessments/new`,
+      url: `https://zedexams.com/teacher/test-papers/new`,
       postMessage(data) {
         messages.push({ clientId: id, data })
         return Promise.resolve()

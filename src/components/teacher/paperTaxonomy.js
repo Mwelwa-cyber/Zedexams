@@ -55,27 +55,27 @@ export function studioGradeToKbGrade(grade) {
 }
 
 // ── Test types ───────────────────────────────────────────────────────────
-// 'exercise' deliberately omitted here — short practice belongs in the
-// Worksheet studio. 'monthly_test' is new (grounded on the mid-term paper
-// format server-side until dedicated seeds exist). Order = increasing scope.
+// The Test Paper Studio offers exactly four test types: a narrow topic
+// recap, a weekly check, the mid-term and the end-of-term paper. 'exercise'
+// belongs in the Worksheet studio; 'weekly_test' is grounded on the topic-test
+// paper format server-side (FORMAT_TYPE_ALIASES) until dedicated weekly seeds
+// exist. Order = increasing scope.
 export const PAPER_TYPES = [
-  { value: 'topic_test', label: 'Topic test' },
-  { value: 'monthly_test', label: 'Monthly test' },
-  { value: 'mid_term', label: 'Mid-term test' },
-  { value: 'end_of_term', label: 'End of term test' },
-  { value: 'mock_exam', label: 'Mock examination' },
+  { value: 'topic_test', label: 'Topic Test' },
+  { value: 'weekly_test', label: 'Weekly Test' },
+  { value: 'mid_term', label: 'Mid-Term Test' },
+  { value: 'end_of_term', label: 'End-of-Term Test' },
 ]
 
-// How many topics each test type may cover. A topic test is narrow; an
-// end-of-term or mock paper is cumulative and should span everything the
-// class has learned, so the caps are large and the modal offers an
-// "Add all topics" shortcut for them.
+// How many topics each test type may cover. Topic and weekly tests are
+// narrow; an end-of-term paper is cumulative and should span everything the
+// class has learned, so its cap is large and the modal offers an
+// "Add all topics" shortcut for it.
 const TOPIC_CAPS = {
   topic_test: 3,
-  monthly_test: 4,
+  weekly_test: 3,
   mid_term: 6,
   end_of_term: 15,
-  mock_exam: 30,
 }
 const DEFAULT_TOPIC_CAP = 3
 

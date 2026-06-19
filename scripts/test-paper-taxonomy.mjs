@@ -6,7 +6,8 @@
 //     actually stores them under (numeracy, zambian_language, …),
 //   - ECE Nursery/Reception must be selectable grades,
 //   - topic caps must scale by test type (cumulative tests cover many),
-//   - 'exercise' must be gone from the AI paper UI and 'monthly_test' present.
+//   - the Test Paper Studio exposes exactly four test types
+//     (topic / weekly / mid-term / end-of-term).
 
 import assert from 'node:assert'
 import {
@@ -63,24 +64,27 @@ ok(grades2023.includes('8') && grades2023.includes('12'),
   '2023 keeps secondary grades (only primary G7 removed)')
 
 // ── Test types ───────────────────────────────────────────────────────────
+// The studio exposes exactly four types, in increasing scope.
 const typeValues = PAPER_TYPES.map((t) => t.value)
+eq(typeValues.length, 4, 'exactly four test types')
 ok(!typeValues.includes('exercise'), 'exercise removed from AI paper UI')
-ok(typeValues.includes('monthly_test'), 'monthly_test added')
-ok(typeValues.includes('end_of_term') && typeValues.includes('mock_exam'),
-  'end_of_term + mock_exam present')
+ok(!typeValues.includes('monthly_test') && !typeValues.includes('mock_exam'),
+  'monthly_test + mock_exam removed from the studio')
+ok(typeValues.includes('topic_test') && typeValues.includes('weekly_test') &&
+  typeValues.includes('mid_term') && typeValues.includes('end_of_term'),
+  'topic / weekly / mid-term / end-of-term present')
 
 // ── Topic caps scale by type ─────────────────────────────────────────────
 eq(maxTopicsFor('topic_test'), 3, 'topic test narrow')
-ok(maxTopicsFor('monthly_test') >= maxTopicsFor('topic_test'), 'monthly ≥ topic')
-ok(maxTopicsFor('mid_term') >= maxTopicsFor('monthly_test'), 'mid-term ≥ monthly')
+eq(maxTopicsFor('weekly_test'), 3, 'weekly test narrow')
+ok(maxTopicsFor('mid_term') >= maxTopicsFor('weekly_test'), 'mid-term ≥ weekly')
 ok(maxTopicsFor('end_of_term') >= maxTopicsFor('mid_term'), 'end of term ≥ mid-term')
-ok(maxTopicsFor('mock_exam') >= maxTopicsFor('end_of_term'), 'mock ≥ end of term')
 ok(maxTopicsFor('end_of_term') >= 10, 'end of term covers many topics')
 eq(maxTopicsFor('unknown_type'), 3, 'unknown type → safe default')
 
 // Cumulative types expose the "Add all topics" affordance.
-ok(isCumulativeType('end_of_term') && isCumulativeType('mock_exam'), 'cumulative types')
-ok(!isCumulativeType('topic_test') && !isCumulativeType('monthly_test'),
+ok(isCumulativeType('end_of_term') && isCumulativeType('mid_term'), 'cumulative types')
+ok(!isCumulativeType('topic_test') && !isCumulativeType('weekly_test'),
   'narrow types are not cumulative')
 
 console.log(`✓ paper-taxonomy: ${passed} assertions passed`)
