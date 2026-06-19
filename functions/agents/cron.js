@@ -26,6 +26,10 @@
  *     stuck at awaiting_approval that pass a strict bar (Cala aligned, no
  *     gaps, Reva "approve"), which fires the existing Pubo trigger and
  *     publishes them. OFF unless agentControl/content.autoPublish === true.
+ *   - weeklyProductSignal (Compass) — Mondays 06:00. Aggregates recent quiz
+ *     and exam attempts into a ranked "what to build next" backlog (which
+ *     grade/subject areas have demand but weak mastery). Deterministic, no
+ *     LLM. Writes an agentJobs rollup the dashboard + Dawn surface.
  */
 
 const admin = require("firebase-admin");
@@ -38,6 +42,7 @@ const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/moni
 const {reconcilePendingPayments} = require("./runners/till");
 const {runEchoTriage, templateReply} = require("./runners/echo");
 const {runContentGate} = require("./runners/gate");
+const {runCompass} = require("./runners/compass");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -499,6 +504,53 @@ const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
   }
 });
 
+// Compass — weekly product signal (Mondays 06:00 Africa/Lusaka). Aggregates
+// the last two weeks of quiz/exam attempts into a ranked build backlog. Pure
+// arithmetic over bounded reads — no LLM, no secrets, ~free.
+const PRODUCT_SIGNAL_OPTS = {
+  schedule: "every monday 06:00",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+};
+
+const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let summary;
+  try {
+    summary = await runCompass({db});
+  } catch (err) {
+    console.error("Compass failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "compass",
+      department: "content",
+      status: "failed",
+      input: {runType: "weekly-product-signal"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  // A backlog (or an error) is something to act on; an empty week is just logged.
+  const notable = summary.backlog.length > 0 || summary.errors.length > 0;
+  await db.collection("agentJobs").add({
+    agentId: "compass",
+    department: "content",
+    status: notable ? "awaiting_approval" : "done",
+    input: {runType: "weekly-product-signal", windowDays: summary.windowDays},
+    output: {compass: summary},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
@@ -506,4 +558,5 @@ module.exports = {
   hourlyRevenueReconcile,
   supportTriage,
   contentAutoPublish,
+  weeklyProductSignal,
 };

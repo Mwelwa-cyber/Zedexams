@@ -201,6 +201,7 @@ const {
   hourlyRevenueReconcile: hourlyRevenueReconcileCron,
   supportTriage: supportTriageCron,
   contentAutoPublish: contentAutoPublishCron,
+  weeklyProductSignal: weeklyProductSignalCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2544,6 +2545,11 @@ exports.supportTriage = supportTriageCron;
 // existing Pubo publish trigger). OFF unless agentControl/content.autoPublish
 // is true — shipping it changes nothing until you opt in.
 exports.contentAutoPublish = contentAutoPublishCron;
+
+// Compass — weekly product signal (Mondays 06:00). Aggregates recent quiz/exam
+// attempts into a ranked "what to build next" backlog (grade/subject areas with
+// demand but weak mastery). Deterministic, no LLM. Writes an agentJobs rollup.
+exports.weeklyProductSignal = weeklyProductSignalCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
