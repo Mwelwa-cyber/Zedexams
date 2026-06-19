@@ -652,10 +652,18 @@ export default function GradeHub() {
   // "still loading" apart from "genuinely zero (coming soon)".
   const [quizCounts, setQuizCounts] = useState({})
 
+  // One results read drives the streak count, the recent-results strip, AND
+  // (when not pre-aggregated) the per-subject performance bars. These were two
+  // separate effects firing getUserResults(30) + getUserResults(50) on every
+  // mount; merged into a single getUserResults(50). The first 30 are sliced off
+  // for the streak/recent count so those numbers stay identical to before, and
+  // the full 50 feed the per-subject averages exactly as the old derived path
+  // did.
   useEffect(() => {
     if (!currentUser) {
       setRecentResults([])
       setStats({ quizzes: 0, streak: 0 })
+      setPerfBySubject({})
       setLoading(false)
       return undefined
     }
@@ -663,43 +671,14 @@ export default function GradeHub() {
     let cancelled = false
     setLoading(true)
 
-    // Fetch 30 most recent so the streak count is accurate up to a 30-day
-    // run; the recent-results section below slices to the first 5 for
-    // display. The total payload is still small (~30 result docs).
-    getUserResults(currentUser.uid, 30).then(results => {
-      if (cancelled) return
-      setRecentResults(results)
-      // Streak is computed client-side from the loaded attempt timestamps;
-      // userProfile.currentStreak isn't written by the app today, so this
-      // replaces the previous always-0 fallback. Once a Cloud Function /
-      // user document field is added (audit A5), prefer that and keep this
-      // as the offline / first-load fallback.
-      const streak = computeStreak(results.map(r => r.completedAt ?? r.createdAt))
-      setStats({ quizzes: results.length, streak })
-      setLoading(false)
-    }).catch(err => {
-      if (cancelled) return
-      console.error('GradeHub results:', err)
-      setRecentResults([])
-      setStats({ quizzes: 0, streak: 0 })
-      setLoading(false)
-    })
-
-    return () => { cancelled = true }
-  }, [currentUser, userProfile, getUserResults])
-
-  // Per-subject performance: prefer pre-aggregated userProfile.performance
-  // when available, otherwise derive from the last 50 results. One extra
-  // Firestore read per session in the derived path.
-  useEffect(() => {
-    if (!currentUser) {
-      setPerfBySubject({})
-      return undefined
-    }
-    // Always re-key onto the canonical subject label so the subject cards
-    // (which read perfBySubject[subject.label]) line up no matter whether the
-    // source keyed by id, label, or a legacy spelling.
-    if (userProfile?.performance && typeof userProfile.performance === 'object') {
+    // Prefer pre-aggregated userProfile.performance when present; re-key onto
+    // the canonical subject label so the subject cards (which read
+    // perfBySubject[subject.label]) line up no matter whether the source keyed
+    // by id, label, or a legacy spelling. When absent, we derive it from the
+    // fetched results below.
+    const haveAggregatedPerf =
+      userProfile?.performance && typeof userProfile.performance === 'object'
+    if (haveAggregatedPerf) {
       const norm = {}
       Object.entries(userProfile.performance).forEach(([s, v]) => {
         if (typeof v !== 'number') return
@@ -707,28 +686,46 @@ export default function GradeHub() {
         norm[key] = v
       })
       setPerfBySubject(norm)
-      return undefined
     }
 
-    let cancelled = false
     getUserResults(currentUser.uid, 50).then(results => {
       if (cancelled) return
-      const acc = {}
-      results.forEach(r => {
-        if (!r.subject || typeof r.percentage !== 'number') return
-        const key = resolveSubject(r.subject)?.label ?? r.subject
-        acc[key] ??= { sum: 0, n: 0 }
-        acc[key].sum += r.percentage
-        acc[key].n   += 1
-      })
-      const out = {}
-      Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
-      setPerfBySubject(out)
+      // First 30 → streak + count (identical to the old getUserResults(30)).
+      const recent = results.slice(0, 30)
+      setRecentResults(recent)
+      // Streak is computed client-side from the loaded attempt timestamps;
+      // userProfile.currentStreak isn't written by the app today, so this
+      // replaces the previous always-0 fallback. Once a Cloud Function /
+      // user document field is added (audit A5), prefer that and keep this
+      // as the offline / first-load fallback.
+      const streak = computeStreak(recent.map(r => r.completedAt ?? r.createdAt))
+      setStats({ quizzes: recent.length, streak })
+      setLoading(false)
+
+      // Full 50 → per-subject averages (identical to the old derived path).
+      if (!haveAggregatedPerf) {
+        const acc = {}
+        results.forEach(r => {
+          if (!r.subject || typeof r.percentage !== 'number') return
+          const key = resolveSubject(r.subject)?.label ?? r.subject
+          acc[key] ??= { sum: 0, n: 0 }
+          acc[key].sum += r.percentage
+          acc[key].n   += 1
+        })
+        const out = {}
+        Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
+        setPerfBySubject(out)
+      }
     }).catch(err => {
       if (cancelled) return
-      console.error('GradeHub performance:', err)
-      setPerfBySubject({})
+      console.error('GradeHub results:', err)
+      setRecentResults([])
+      setStats({ quizzes: 0, streak: 0 })
+      // Leave a pre-aggregated perf map intact on a results-fetch failure.
+      if (!haveAggregatedPerf) setPerfBySubject({})
+      setLoading(false)
     })
+
     return () => { cancelled = true }
   }, [currentUser, userProfile, getUserResults])
 

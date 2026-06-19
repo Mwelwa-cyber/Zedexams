@@ -25,6 +25,13 @@ export const ADMIN_QUERY_LIMIT = 200
 // library; it only stops a runaway full-collection read. Ordered newest-first.
 export const LEARNER_QUIZ_LIMIT = 400
 
+// Same safety cap for the learner lesson library: getLessons reads every
+// published lesson for a grade/subject on each filter change, and a lesson doc
+// carries its full slide/content payload. 400 is well above any realistic
+// per-(grade, subject) lesson count, so it never trims the library — it only
+// stops an unbounded read as the catalogue grows. Newest-first.
+export const LEARNER_LESSON_LIMIT = 400
+
 // How far back the admin "recent activity" queries reach. 90 days is the
 // rolling window the dashboards visualise; reading the entire history on
 // every admin reload was a major Firestore read-amplifier.
@@ -1136,6 +1143,7 @@ export function useFirestore() {
       if (filters.grade)   c.push(where('grade',   '==', filters.grade))
       if (filters.subject) c.push(where('subject', '==', filters.subject))
       c.push(orderBy('createdAt', 'desc'))
+      c.push(limit(LEARNER_LESSON_LIMIT))
       const snap = await getDocs(query(collection(db, 'lessons'), ...c))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getLessons:', e); return [] }
