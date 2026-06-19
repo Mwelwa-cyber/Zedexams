@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveBlob } from './saveBlob.js'
 
+// `vi.mock` is hoisted to the top of the module by Vitest, so it must live at
+// the top level. It forces the dynamic `file-saver` import to throw, which lets
+// the desktop test below exercise saveBlob's anchor fallback. The Android tests
+// never reach the file-saver branch (they take the data:-URL path), so they are
+// unaffected.
+vi.mock('file-saver', () => { throw new Error('not available') })
+
 /**
  * The regression these cover: on Android, a bare `blob:` URL download ignores
  * the anchor `download` attribute and saves the file under the blob's random
@@ -64,8 +71,6 @@ describe('saveBlob', () => {
     const createObjectURL = vi.fn(() => 'blob:fake-url')
     const revokeObjectURL = vi.fn()
     vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
-    // Force the file-saver import to fail so we exercise the anchor fallback.
-    vi.mock('file-saver', () => { throw new Error('not available') })
 
     await saveBlob(new Blob(['x']), 'Worksheet (Answer Key).docx')
 
