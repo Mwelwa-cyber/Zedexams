@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { createRegister, getRegister, updateRegister } from '../../../utils/classRegister'
-import { GRADES, SUBJECTS } from '../../../config/curriculum'
+import { SUBJECTS } from '../../../config/curriculum'
+import { CLASS_REGISTER_GRADE_OPTIONS } from '../../../schemas/classRegister'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -116,7 +117,7 @@ export default function ClassRegisterEditor() {
           <div>
             <label className={labelCls} htmlFor="grade">Grade</label>
             <select id="grade" className={inputCls} value={form.grade} onChange={set('grade')}>
-              {GRADES.map((g) => <option key={g} value={String(g)}>Grade {g}</option>)}
+              {CLASS_REGISTER_GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </div>
           <div>

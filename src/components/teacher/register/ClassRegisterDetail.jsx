@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getRegister, archiveRegister, updateRegister } from '../../../utils/classRegister'
 import { SUBJECTS } from '../../../config/curriculum'
+import { formatClassGrade } from '../../../schemas/classRegister'
 import { TERMS, nextPeriod, formatPeriod } from '../../../utils/classTerms'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -108,7 +109,7 @@ export default function ClassRegisterDetail() {
           </Link>
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1 truncate">{reg.className}</h1>
           <p className="theme-text-muted text-sm mt-1">
-            Grade {reg.grade}
+            {formatClassGrade(reg.grade)}
             {subjectMeta ? ` · ${subjectMeta.label}` : ''}
             {reg.school ? ` · ${reg.school}` : ''}
             {` · ${reg.learnerCount || 0} learner${reg.learnerCount === 1 ? '' : 's'}`}

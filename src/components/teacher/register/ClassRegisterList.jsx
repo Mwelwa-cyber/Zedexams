@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { listTeacherRegisters } from '../../../utils/classRegister'
 import { SUBJECTS } from '../../../config/curriculum'
+import { formatClassGrade } from '../../../schemas/classRegister'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import { Users } from '../../ui/icons'
@@ -29,7 +30,7 @@ function RegisterRow({ klass }) {
         <div className="flex-1 min-w-0">
           <p className="theme-text font-black text-sm truncate">{klass.className}</p>
           <p className="theme-text-muted text-xs mt-1">
-            Grade {klass.grade}
+            {formatClassGrade(klass.grade)}
             {klass.term ? ` · ${klass.term}` : ''}
             {klass.year ? ` · ${klass.year}` : ''}
             {subjectMeta ? ` · ${subjectMeta.label}` : (klass.subject ? ` · ${klass.subject}` : '')}
