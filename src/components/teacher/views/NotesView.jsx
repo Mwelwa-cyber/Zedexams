@@ -153,33 +153,68 @@ export default function NotesView({ notes }) {
   )
 }
 
+// Document-style header that mirrors how a lesson plan opens: the school
+// name on top, a "<Subject> Teaching Notes" title, then a bordered meta strip
+// (Teacher · Date · Class · Topic …) laid out to the left — instead of the old
+// label/value table. Keeps the rest of the notes body untouched.
 function HeaderBlock({ header = {} }) {
-  const rows = [
-    ['Title', header.title],
+  const subjectLabel = formatSubject(header.subject)
+  const title = subjectLabel ? `${subjectLabel} Teaching Notes` : 'Teaching Notes'
+
+  // Subject is already in the title, so it's left out of the meta strip.
+  const meta = [
+    ['Teacher', header.teacherName],
+    ['Date', header.date],
+    ['Class', header.grade],
     ['Topic', header.topic],
     ['Sub-topic', header.subtopic],
-    ['Grade', header.grade],
-    ['Subject', formatSubject(header.subject)],
     ['Duration', header.durationMinutes ? `${header.durationMinutes} min` : ''],
     ['Medium', header.language],
-    ['School', header.school],
-    ['Teacher', header.teacherName],
   ].filter(([, v]) => v !== undefined && v !== null && v !== '')
 
-  if (rows.length === 0) return null
+  if (!header.school && !subjectLabel && meta.length === 0) return null
+
   return (
-    <div className="rounded-xl border theme-border overflow-hidden">
-      <table className="w-full text-sm">
-        <tbody>
-          {rows.map(([k, v], idx) => (
-            <tr key={k} className={idx % 2 === 0 ? 'bg-slate-50/50 dark:bg-slate-900/20' : ''}>
-              <th className="px-3 py-2 text-left font-bold theme-text w-1/3">{k}</th>
-              <td className="px-3 py-2 theme-text">{String(v)}</td>
-            </tr>
+    <header className="text-center">
+      {header.school && (
+        <div
+          className="font-black theme-text"
+          style={{ fontSize: 24, lineHeight: 1.1, letterSpacing: '-0.01em', margin: '0 0 4px' }}
+        >
+          {header.school}
+        </div>
+      )}
+      <div
+        className="inline-block mt-1 font-black uppercase theme-text"
+        style={{
+          fontSize: 15,
+          letterSpacing: '0.14em',
+          padding: '5px 2px',
+          borderTop: '1.5px solid currentColor',
+          borderBottom: '1.5px solid currentColor',
+        }}
+      >
+        {title}
+      </div>
+
+      {meta.length > 0 && (
+        <div
+          className="mt-4 text-left grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm theme-text"
+          style={{
+            borderTop: '1.5px solid currentColor',
+            borderBottom: '1.5px solid currentColor',
+            padding: '10px 0',
+          }}
+        >
+          {meta.map(([k, v]) => (
+            <div key={k} className="flex gap-1.5 items-baseline min-w-0">
+              <span className="font-bold whitespace-nowrap">{k}:</span>
+              <span className="theme-text-secondary truncate">{String(v)}</span>
+            </div>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </div>
+      )}
+    </header>
   )
 }
 
