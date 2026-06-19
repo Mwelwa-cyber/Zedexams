@@ -24,6 +24,16 @@ function formatDate(value) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+// What Max adds on top of teacher Pro — drives the "Upgrade to Max" upsell card.
+// Kept in sync with the max_monthly features in utils/subscriptionConfig.js.
+const MAX_UPGRADE_PERKS = [
+  'Unlimited lesson plans, notes & worksheets',
+  'Unlimited assessments & schemes of work',
+  '30 generations a day (up from 10)',
+  'Bulk export — a whole term in one click',
+  'Priority queue when servers are busy',
+]
+
 /**
  * My Subscription — every user's home for their plan, benefits, payment status,
  * and the upgrade/renew button. Audience-aware: learners and teachers see their
@@ -33,14 +43,19 @@ export default function MySubscriptionPage() {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   const {
-    status, audience, isPro, isTrial, benefits, expiry, daysLeft,
+    status, audience, isPro, isTrial, planType, benefits, expiry, daysLeft,
   } = useSubscriptionReminder()
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [showMaxUpgrade, setShowMaxUpgrade] = useState(false)
 
   const meta = STATUS_META[status] || STATUS_META[SUB_STATUS.FREE]
   const hasAccess = isPro || isTrial
   const expiryLabel = formatDate(expiry)
   const portal = upgradePortal(audience)
+
+  // A teacher on Pro can step up to Max for unlimited generations + bulk export.
+  // (Max users and learners — whose tiers don't ladder this way — never see it.)
+  const canUpgradeToMax = audience === 'teacher' && isPro && planType === 'pro'
 
   // Payment status line, derived from the same fields the backend writes.
   const paymentStatus = hasAccess
@@ -100,13 +115,13 @@ export default function MySubscriptionPage() {
             </div>
             <div className="rounded-2xl theme-bg-subtle px-3 py-2.5">
               <dt className="text-[11px] font-black uppercase tracking-wide theme-text-muted">
-                {hasAccess ? 'Renews / expires' : 'Access'}
+                {hasAccess && expiryLabel ? 'Renews / expires' : 'Access'}
               </dt>
               <dd className="mt-0.5 text-sm font-black theme-text">
                 {hasAccess && expiryLabel
                   ? `${expiryLabel}${daysLeft != null ? ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : ''}`
                   : hasAccess
-                    ? 'Active'
+                    ? 'Lifetime'
                     : 'Demo / free content only'}
               </dd>
             </div>
@@ -160,6 +175,39 @@ export default function MySubscriptionPage() {
             </p>
           )}
         </section>
+
+        {/* Pro → Max upsell (teachers on Pro only) */}
+        {canUpgradeToMax && (
+          <section className="zx-card rounded-3xl border-2 border-blue-300 bg-blue-50/70 p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-blue-700">Get more from ZedExams</p>
+                <h2 className="mt-1 flex items-center gap-2 text-lg font-black theme-text">
+                  <span aria-hidden="true">🦅</span> Upgrade to Max
+                </h2>
+                <p className="mt-1 text-sm font-bold theme-text-muted">
+                  You're on Pro. Step up to Max for the heaviest teaching weeks.
+                </p>
+              </div>
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-500 text-white">
+                <Icon as={Sparkles} size="lg" strokeWidth={2.1} />
+              </div>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {MAX_UPGRADE_PERKS.map((perk) => (
+                <li key={perk} className="flex items-start gap-2 text-sm font-bold theme-text">
+                  <Icon as={CheckCircleIcon} size="sm" strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-blue-500" />
+                  <span>{perk}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4">
+              <Button variant="primary" size="lg" onClick={() => setShowMaxUpgrade(true)}>
+                Upgrade to Max
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
 
       {showUpgrade && (
@@ -170,6 +218,15 @@ export default function MySubscriptionPage() {
             ? userProfile.subscriptionPlan
             : portal.defaultPlanId}
           onClose={() => setShowUpgrade(false)}
+        />
+      )}
+
+      {showMaxUpgrade && (
+        <UpgradeModal
+          portal="maxUpgrade"
+          planIds={['max_monthly', 'max_yearly']}
+          defaultPlanId="max_monthly"
+          onClose={() => setShowMaxUpgrade(false)}
         />
       )}
     </div>

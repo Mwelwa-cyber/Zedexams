@@ -41,6 +41,10 @@ const PORTAL_COPY = {
     title: 'Subscribe to Teacher Portal',
     subtitle: 'Unlock premium teacher tools',
   },
+  maxUpgrade: {
+    title: 'Upgrade to Max',
+    subtitle: 'Unlimited generations · bulk export · priority queue',
+  },
   generic: {
     title: 'Upgrade to Premium',
     subtitle: 'Unlock unlimited learning',
