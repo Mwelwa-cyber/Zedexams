@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
@@ -178,12 +177,26 @@ export default function AssessmentList() {
   }
 
   async function handleExport(assessment, format, mode) {
-    // Fetch the full question set on-demand so the list view stays cheap.
-    const questions = await getAssessmentQuestions(assessment.id)
-    const variant = mode === 'paper' ? undefined : 'Marking Key'
-    // Word (.docx) is the only download format. PDF export was removed — its
-    // html2canvas rendering mangled papers; teachers "Save as PDF" from Word.
-    await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    try {
+      // Fetch the full question set on-demand so the list view stays cheap.
+      const questions = await getAssessmentQuestions(assessment.id)
+      if (!questions || questions.length === 0) {
+        toast.error('This assessment has no questions to export yet.')
+        return
+      }
+      const variant = mode === 'paper' ? undefined : 'Marking Key'
+      // Word (.docx) is the only download format. PDF export was removed — its
+      // html2canvas rendering mangled papers; teachers "Save as PDF" from Word.
+      // Pulled in on demand so the heavy docx assembler never ships in the
+      // list's route chunk — it loads only when a teacher actually exports.
+      const { downloadAssessmentDocx } = await import('../../utils/assessmentToDocx')
+      await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+      toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')
+    } catch (err) {
+      // Previously this threw silently — the row spinner reset but the teacher
+      // got no signal the export had failed. Match the Studio's toast feedback.
+      toast.error(`Export failed: ${err.message || 'unexpected error'}`)
+    }
   }
 
   if (loading) {

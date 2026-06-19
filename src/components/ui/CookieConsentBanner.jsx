@@ -4,8 +4,11 @@
  *
  * Decline-by-default: until the user clicks Accept, the analytics
  * SDK never loads. The banner self-hides once a decision is recorded
- * (Accepted or Declined). The /profile preferences card lets the
- * user flip it later without hunting through cookies.
+ * (Accepted or Declined). The public /preferences page lets the user
+ * flip it later without hunting through cookies — and, unlike the old
+ * /profile link, it works for signed-out visitors (who are exactly
+ * the audience that sees this banner) instead of bouncing them to a
+ * login wall.
  *
  * No third-party library — vanilla-cookieconsent is overkill for
  * one toggle, and the design tokens here align with the rest of the
@@ -13,6 +16,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CONSENT_ACCEPTED,
   CONSENT_DECLINED,
@@ -56,9 +60,10 @@ export default function CookieConsentBanner() {
           </p>
           <p className="theme-text-muted text-xs mt-1 leading-snug">
             We&apos;d like to use a privacy-friendly product analytics tool to
-            see which lessons help most. We don&apos;t share your data and you
-            can change this any time on your{' '}
-            <a href="/profile" className="theme-accent-text font-bold underline">profile</a>.
+            see which lessons help most. We don&apos;t share your data — read our{' '}
+            <Link to="/privacy" className="theme-accent-text font-bold underline">Privacy Policy</Link>
+            {' '}or change this any time in your{' '}
+            <Link to="/preferences" className="theme-accent-text font-bold underline">privacy preferences</Link>.
           </p>
         </div>
         <div className="flex flex-shrink-0 gap-2">

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import LegalLayout from './LegalLayout'
 import SeoHelmet from '../seo/SeoHelmet'
 
@@ -188,9 +189,17 @@ export default function PrivacyPolicy() {
 
       <H2>9. Cookies & local storage</H2>
       <P>
-        We use cookies and your browser's local storage for essentials only — keeping you
+        We use cookies and your browser's local storage for essentials — keeping you
         signed in, remembering your theme preference, and storing draft work so you don't
         lose it on a refresh. We don't use third-party advertising trackers.
+      </P>
+      <P>
+        Separately, we ask for your consent to use a privacy-friendly product-analytics
+        tool that helps us see which lessons and features help most. It's off until you
+        opt in, we never use it for advertising, and you can turn it on or off at any time
+        — without signing in — on our{' '}
+        <Link className="underline theme-accent-text" to="/preferences">privacy preferences</Link>{' '}
+        page.
       </P>
 
       <H2>10. Changes to this policy</H2>
