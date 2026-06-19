@@ -691,6 +691,10 @@ async function renderPassage(b) {
     const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
     out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
   }
+  if (b.imageDiagram?.libraryKey) {
+    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    if (run) out.push(new Paragraph({ children: [run], alignment: AlignmentType.CENTER, spacing: { after: 80 } }))
+  }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
   return out
 }

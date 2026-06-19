@@ -13,6 +13,8 @@
  * payload rather than rejecting it, so a teacher always gets something to edit.
  */
 
+const {isAllowedSbaDiagram, clampDiagramParams} = require("./sbaDiagrams");
+
 const SCHEMA_VERSION = "1.0";
 
 const ALLOWED_MARKING_STYLES = new Set([
@@ -41,17 +43,32 @@ function normalizeMarkAllocation(raw) {
     .filter((m) => m.description);
 }
 
+// A question may carry a deterministic library figure ({libraryKey, params})
+// drawn from the shared diagram catalog — a maths shape, a science apparatus,
+// a graph the learner reads off, etc. Anything off the allowlist is dropped.
+function normalizeDiagram(raw) {
+  if (!raw || typeof raw !== "object" || !isAllowedSbaDiagram(raw.libraryKey)) {
+    return null;
+  }
+  return {libraryKey: raw.libraryKey, params: clampDiagramParams(raw.params)};
+}
+
 function normalizeQuestions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((q) => q && typeof q === "object")
-    .map((q, i) => ({
-      number: nonNegInt(q.number) || i + 1,
-      prompt: str(q.prompt),
-      marks: nonNegInt(q.marks),
-      answer: str(q.answer),
-      markAllocation: normalizeMarkAllocation(q.markAllocation),
-    }))
+    .map((q, i) => {
+      const out = {
+        number: nonNegInt(q.number) || i + 1,
+        prompt: str(q.prompt),
+        marks: nonNegInt(q.marks),
+        answer: str(q.answer),
+        markAllocation: normalizeMarkAllocation(q.markAllocation),
+      };
+      const diagram = normalizeDiagram(q.diagram);
+      if (diagram) out.diagram = diagram;
+      return out;
+    })
     .filter((q) => q.prompt);
 }
 
@@ -82,6 +99,7 @@ function validateSbaTask(input) {
 
   const header = {
     title: str(h.title),
+    schoolName: str(h.schoolName),
     subject: str(h.subject),
     grade: str(h.grade),
     taskType: str(h.taskType),
@@ -125,11 +143,18 @@ function validateSbaTask(input) {
   const value = {
     schemaVersion: SCHEMA_VERSION,
     header,
+    // `instructions` is LEARNER-facing — printed on the task paper.
     instructions: str(input.instructions),
+    // `administration` is TEACHER-facing — how to set up / run the task. It is
+    // NOT printed on the learner's paper; it lives in the marking scheme.
+    administration: str(input.administration),
     stimulus: str(input.stimulus),
     questions,
     markingScheme,
   };
+
+  const stimulusDiagram = normalizeDiagram(input.stimulusDiagram);
+  if (stimulusDiagram) value.stimulusDiagram = stimulusDiagram;
 
   return errors.length === 0 ?
     {ok: true, value} :

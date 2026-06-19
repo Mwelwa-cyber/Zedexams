@@ -173,8 +173,11 @@ function markingSchemeChildren(task) {
   const questions = Array.isArray(task.questions) ? task.questions : []
   const hasAnswers = questions.some((q) => q.answer || (q.markAllocation || []).length > 0)
   const hasCriteria = Array.isArray(ms.criteria) && ms.criteria.length > 0
+  // Teacher administration guidance — printed with the marking scheme, never on
+  // the learner's paper.
+  const administration = String(task.administration || '').trim()
   const meta = teacherMetaTable(header)
-  if (!hasAnswers && !hasCriteria && !ms.notes && !meta) return []
+  if (!hasAnswers && !hasCriteria && !ms.notes && !administration && !meta) return []
 
   const out = [
     new Paragraph({ children: [new PageBreak()] }),
@@ -191,6 +194,13 @@ function markingSchemeChildren(task) {
   ]
 
   if (meta) out.push(meta)
+
+  if (administration) {
+    out.push(sectionHeading('How to administer this task'))
+    administration.split(/\n\s*\n/).filter((p) => p.trim()).forEach((p) => {
+      out.push(para(text(p.replace(/\n/g, ' '), { size: 18 })))
+    })
+  }
 
   if (hasAnswers) {
     out.push(sectionHeading('Model answers & mark allocation'))
@@ -213,17 +223,17 @@ function markingSchemeChildren(task) {
  * Build the full ordered list of docx children for an SBA task: the printable
  * paper (always) plus the marking scheme (teacher copy only).
  */
-export async function buildSbaTaskChildren(task, { includeAnswers = true } = {}) {
-  const blocks = buildSbaPaperBlocks(task)
+export async function buildSbaTaskChildren(task, { includeAnswers = true, schoolName } = {}) {
+  const blocks = buildSbaPaperBlocks(task, { schoolName: schoolName || task?.header?.schoolName || '' })
   const children = await renderPaperBlocksToDocx(blocks)
   if (includeAnswers) children.push(...markingSchemeChildren(task))
   return children
 }
 
 export async function buildSbaTaskDocument(task, opts = {}) {
-  const { includeAnswers = true } = opts
+  const { includeAnswers = true, schoolName } = opts
   const header = task.header || {}
-  const children = await buildSbaTaskChildren(task, { includeAnswers })
+  const children = await buildSbaTaskChildren(task, { includeAnswers, schoolName })
 
   return new Document({
     creator: 'zedexams.com',

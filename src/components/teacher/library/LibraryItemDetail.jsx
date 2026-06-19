@@ -237,7 +237,10 @@ export default function LibraryItemDetail() {
       await downloadClassTimetableDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'sba_task') {
-      await downloadSbaTaskDocx(item.output, name(), { includeAnswers: true })
+      await downloadSbaTaskDocx(item.output, name(), {
+        includeAnswers: true,
+        schoolName: item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || '',
+      })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'sba_mark_sheet') {
       await downloadSbaTrackerDocx(item.output, name())
@@ -342,7 +345,7 @@ export default function LibraryItemDetail() {
   }
 
   // Edit-details is currently supported for tools with an editable `output.header`.
-  const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet']
+  const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet', 'sba_task']
     .includes(item.tool)
 
   if (status === 'loading') {
@@ -407,12 +410,6 @@ export default function LibraryItemDetail() {
               <span>{formatSubject(item.inputs?.subject || item.meta?.subject)}</span>
               <span>·</span>
               <span>{formatDate(item.createdAt)}</span>
-              {item.modelUsed && (
-                <>
-                  <span>·</span>
-                  <span className="font-mono">{item.modelUsed}</span>
-                </>
-              )}
             </div>
           </div>
 
@@ -643,7 +640,13 @@ export default function LibraryItemDetail() {
           {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
-          {item.tool === 'sba_task' && <SbaTaskView task={item.output} showAnswers />}
+          {item.tool === 'sba_task' && (
+            <SbaTaskView
+              task={item.output}
+              showAnswers
+              schoolName={item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || ''}
+            />
+          )}
           {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
           {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
@@ -702,6 +705,9 @@ const HEADER_FIELDS_BY_TOOL = {
     { key: 'title',        label: 'Title',        type: 'text' },
     { key: 'instructions', label: 'Instructions', type: 'textarea' },
     { key: 'duration',     label: 'Duration',     type: 'text', placeholder: '30 minutes' },
+  ],
+  sba_task: [
+    { key: 'schoolName', label: 'School name', type: 'text', placeholder: 'Your school name' },
   ],
 }
 

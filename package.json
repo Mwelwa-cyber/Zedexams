@@ -45,6 +45,7 @@
     "test:image-enhance": "node scripts/test-image-enhance.mjs",
     "test:schemas-domain": "node scripts/test-quiz-attempt-schemas.mjs",
     "test:sba-config": "node scripts/test-sba-config.mjs",
+    "test:sba-diagrams": "node scripts/test-sba-diagrams.mjs",
     "test:sba-task": "node functions/teacherTools/sbaTask.test.js",
     "test:sba-planner": "node scripts/test-sba-planner.mjs",
     "test:sba-tracker-xlsx": "node scripts/test-sba-tracker-xlsx.mjs",
