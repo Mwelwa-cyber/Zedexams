@@ -198,6 +198,7 @@ const {
   nightlyQaSmoke: nightlyQaSmokeCron,
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
   hourlyMonitor: hourlyMonitorCron,
+  hourlyRevenueReconcile: hourlyRevenueReconcileCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2523,6 +2524,12 @@ exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
 // on failure suggests fixes (Haiku) and escalates via email + GitHub bug
 // issue (which Mendi can pick up). Writes an agentJobs rollup each run.
 exports.hourlyMonitor = hourlyMonitorCron;
+
+// Till — hourly payment reconciliation. Re-queries Lenco for stale
+// "pending" payments and activates paid-but-stuck buyers a dropped webhook
+// left behind (via the existing idempotent activation path). Writes an
+// agentJobs rollup the /admin/agents dashboard surfaces under "revenue".
+exports.hourlyRevenueReconcile = hourlyRevenueReconcileCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly

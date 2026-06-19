@@ -12,6 +12,11 @@
  *   - hourlyMonitor (Vigil) — every hour. Checks pages, Firebase, images,
  *     and quizzes; on failure asks Haiku for fixes and escalates (email +
  *     GitHub bug issue → Mendi), de-duplicated to once per failure per 24h.
+ *   - hourlyRevenueReconcile (Till) — every hour. Re-queries Lenco for
+ *     stale "pending" payments and finishes what a dropped webhook missed:
+ *     activates paid-but-stuck buyers, closes failed ones. All writes go
+ *     through the existing idempotent activation path, so it can never
+ *     double-grant. Writes an agentJobs rollup the dashboard surfaces.
  */
 
 const admin = require("firebase-admin");
@@ -21,6 +26,7 @@ const {defineSecret} = require("firebase-functions/params");
 const {runQuill} = require("./runners/quill");
 const {runCala} = require("./runners/cala");
 const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/monitor");
+const {reconcilePendingPayments} = require("./runners/till");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -35,6 +41,11 @@ const githubBotToken = defineSecret("GITHUB_BOT_TOKEN");
 const githubAppId = defineSecret("GITHUB_APP_ID");
 const githubAppPrivateKey = defineSecret("GITHUB_APP_PRIVATE_KEY");
 const githubAppInstallationId = defineSecret("GITHUB_APP_INSTALLATION_ID");
+
+// Till needs the Lenco API token to query authoritative payment status, and
+// the SMTP secrets so a recovered activation can still send its receipt
+// (mirrors the secrets the Lenco webhook/poll already use in index.js).
+const lencoApiKey = defineSecret("LENCO_API_KEY");
 
 function getAdminEmails() {
   return (process.env.ADMIN_EMAILS || "")
@@ -266,4 +277,74 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
   });
 });
 
-module.exports = {nightlyQaSmoke, weeklyCbcAlignmentAudit, hourlyMonitor};
+// Till — hourly payment reconciliation. Cheap: most runs find no stale
+// pending payments and make zero Lenco calls. Only spends a Lenco lookup
+// per genuinely-stuck pending payment, and only writes through the existing
+// idempotent activation path (no double-grant possible). Hourly keeps a
+// paid-but-stuck buyer waiting at most ~1 hour instead of indefinitely.
+const HOURLY_RECONCILE_OPTS = {
+  schedule: "every 1 hours",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+};
+
+const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+  const apiKey = (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
+
+  let summary;
+  try {
+    const {getCollectionStatus} = require("../lencoService");
+    const {activateSubscriptionFromPayment, markPaymentFailed} =
+      require("../subscriptionActivation");
+    summary = await reconcilePendingPayments({
+      db,
+      apiKey,
+      getCollectionStatus,
+      activate: activateSubscriptionFromPayment,
+      markFailed: markPaymentFailed,
+      emailSecrets: {
+        senderEmail: String(emailSmtpUser.value() || "").trim(),
+        senderPassword: emailSmtpPassword.value(),
+      },
+    });
+  } catch (err) {
+    console.error("Till failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "till",
+      department: "revenue",
+      status: "failed",
+      input: {runType: "hourly-reconcile"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  // Surface notable runs (recovered money or errors needing a human) at the
+  // top of the dashboard; quiet "nothing to do" runs are just logged.
+  const notable = summary.recovered.length > 0 || summary.errors.length > 0;
+  await db.collection("agentJobs").add({
+    agentId: "till",
+    department: "revenue",
+    status: notable ? "awaiting_approval" : "done",
+    input: {runType: "hourly-reconcile"},
+    output: {till: summary},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
+module.exports = {
+  nightlyQaSmoke,
+  weeklyCbcAlignmentAudit,
+  hourlyMonitor,
+  hourlyRevenueReconcile,
+};
