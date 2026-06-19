@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, NOTE_FORMAT } from '../../../config/curriculum'
 import { createNote } from '../lib/firestore'
+import TopicSubtopicPicker from '../../../components/teacher/generate/TopicSubtopicPicker'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
@@ -192,23 +193,19 @@ export function AdminVisualNotesGenerator() {
             </select>
           </Field>
 
-          <Field label="Topic">
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. The Circulatory System"
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-            />
-          </Field>
-
-          <Field label="Sub-topic (optional)">
-            <input
-              value={subtopic}
-              onChange={(e) => setSubtopic(e.target.value)}
-              placeholder="e.g. How blood moves around the body"
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-            />
-          </Field>
+          <TopicSubtopicPicker
+            grade={`G${grade}`}
+            subject={subjectKey}
+            topic={topic}
+            subtopic={subtopic}
+            onChangeTopic={setTopic}
+            onChangeSubtopic={setSubtopic}
+            topicLabel="Topic *"
+            topicPlaceholder="e.g. The Circulatory System"
+            subtopicPlaceholder="e.g. How blood moves around the body"
+            inputClassName="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            labelClassName="text-xs font-medium text-neutral-600"
+          />
 
           <Field label="Language">
             <select
