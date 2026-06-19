@@ -28,22 +28,30 @@ test('no syllabi loaded → falls back to the plain taxonomy list', () => {
   assert.deepEqual(out2, getSubjectsForGrade('G5'))
 })
 
-test('syllabus subjects are grouped first under "From the syllabi"', () => {
-  const out = buildSubjectOptions('G5', new Set(['mathematics']))
-  assert.equal(out[0].group, 'From the syllabi')
-  // mathematics must appear before the "Other subjects" header.
-  const otherIdx = out.findIndex((o) => o.group === 'Other subjects')
-  const mathIdx = out.findIndex((o) => o.value === 'mathematics')
-  assert.ok(mathIdx > 0 && mathIdx < otherIdx, 'maths listed in the syllabi group')
-})
-
-test('curriculum-valid subjects not in the syllabi still appear under "Other subjects"', () => {
-  // civic_education is valid at G5 in the taxonomy; if the syllabi only carry
-  // mathematics it must still be selectable so teachers are never blocked.
+test('dropdown is restricted to the subjects the syllabi cover', () => {
+  // The syllabi only carry mathematics for the grade → that's all the
+  // dropdown should offer. No "Other subjects" fallback group.
   const out = buildSubjectOptions('G5', new Set(['mathematics']))
   const values = subjectValuesOf(out)
-  assert.ok(values.has('civic_education'), 'civic_education still selectable')
+  assert.deepEqual([...values], ['mathematics'], 'only the syllabus subject is listed')
+  assert.ok(!out.some((o) => o.group), 'no group headers when restricted to syllabi')
+})
+
+test('curriculum-valid subjects NOT in the syllabi are dropped', () => {
+  // civic_education is valid at G5 in the taxonomy, but if the syllabi don't
+  // carry it the dropdown must not offer it (only syllabus subjects show).
+  const out = buildSubjectOptions('G5', new Set(['mathematics']))
+  const values = subjectValuesOf(out)
+  assert.ok(!values.has('civic_education'), 'civic_education dropped (not in syllabi)')
   assert.ok(values.has('mathematics'), 'mathematics selectable')
+})
+
+test('subjects keep their canonical taxonomy order', () => {
+  // English sorts before Mathematics in the taxonomy; the restricted list
+  // preserves that order rather than alphabetising.
+  const out = buildSubjectOptions('G5', new Set(['mathematics', 'english']))
+  const values = [...subjectValuesOf(out)]
+  assert.deepEqual(values, ['english', 'mathematics'])
 })
 
 test('a syllabus subject the grade taxonomy omits is still surfaced', () => {
@@ -55,10 +63,13 @@ test('a syllabus subject the grade taxonomy omits is still surfaced', () => {
   const out = buildSubjectOptions('G6', new Set(['biology']))
   const values = subjectValuesOf(out)
   assert.ok(values.has('biology'), 'admin-added biology surfaced')
-  // and it sits in the syllabi group, before "Other subjects"
-  const otherIdx = out.findIndex((o) => o.group === 'Other subjects')
-  const bioIdx = out.findIndex((o) => o.value === 'biology')
-  assert.ok(bioIdx > 0 && (otherIdx === -1 || bioIdx < otherIdx))
+})
+
+test('grade with no syllabi falls back to the full taxonomy (never empty)', () => {
+  // G7 / G12 carry no syllabi sheets — the dropdown must not go empty, so it
+  // falls back to the curriculum-valid taxonomy list for that grade.
+  const out = buildSubjectOptions('G7', new Set())
+  assert.deepEqual(out, getSubjectsForGrade('G7'))
 })
 
 test('every built option keeps a label', () => {

@@ -207,6 +207,23 @@ function loadRawData(framework = DEFAULT_FRAMEWORK) {
   }
 }
 
+// Keep in lock-step with COLUMN_HEADER_NAMES / isHeaderEchoRow /
+// rowsWithPropagatedTopic in src/utils/syllabusMapping.js.
+const COLUMN_HEADER_NAMES = new Set([
+  "TOPIC", "SUB-TOPIC", "SUBTOPIC", "SPECIFIC COMPETENCES",
+  "LEARNING ACTIVITIES", "EXPECTED STANDARD",
+]);
+
+// True when a data row is just the sheet's column-header line repeated in the
+// body (captured at PDF page breaks). These would otherwise surface as a bogus
+// "TOPIC" topic with a "SUB-TOPIC" sub-topic.
+function isHeaderEchoRow(cells) {
+  const values = ["TOPIC", "SUB-TOPIC", "SPECIFIC COMPETENCES", "LEARNING ACTIVITIES", "EXPECTED STANDARD"]
+      .map((k) => String(cells[k] || cells[k.replace("-", "")] || "").trim().toUpperCase())
+      .filter(Boolean);
+  return values.length >= 2 && values.every((v) => COLUMN_HEADER_NAMES.has(v));
+}
+
 function rowsWithPropagatedTopic(rows) {
   const out = [];
   let topic = "";
@@ -218,6 +235,7 @@ function rowsWithPropagatedTopic(rows) {
     }
     if (row.type !== "data") continue;
     const cells = row.cells || {};
+    if (isHeaderEchoRow(cells)) continue;
     const raw = String(cells.TOPIC || "").trim();
     if (raw) topic = raw;
     out.push({
@@ -229,7 +247,17 @@ function rowsWithPropagatedTopic(rows) {
       expectedStandard: String(cells["EXPECTED STANDARD"] || "").trim(),
     });
   }
-  return out;
+
+  // Drop topics that never carry a sub-topic or any content — empty strand
+  // banners (READING / WRITING / …) mis-tagged as topics during ingestion.
+  const topicHasSubstance = new Map();
+  for (const r of out) {
+    if (topicHasSubstance.get(r.topic)) continue;
+    if (r.subtopic || r.specificCompetence || r.learningActivities || r.expectedStandard) {
+      topicHasSubstance.set(r.topic, true);
+    }
+  }
+  return out.filter((r) => !r.topic || topicHasSubstance.get(r.topic));
 }
 
 function buildTopicId(grade, subject, topic) {

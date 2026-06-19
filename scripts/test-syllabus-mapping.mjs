@@ -240,6 +240,49 @@ test("Section rows are not emitted as data rows", () => {
   eq(out.length, 1);
 });
 
+test("Header-echo rows (the repeated column header) are dropped", () => {
+  // The CDC PDFs repeat the column-header line at page breaks; ingestion
+  // captures it as a data row {TOPIC:"TOPIC", "SUB-TOPIC":"SUB-TOPIC", ...}.
+  // It must never surface as a "TOPIC" topic with a "SUB-TOPIC" sub-topic.
+  const out = rowsWithPropagatedTopic([
+    {type: "data", cells: {TOPIC: "1.1 Numbers", "SUB-TOPIC": "Counting"}},
+    {type: "data", cells: {
+      TOPIC: "TOPIC", "SUB-TOPIC": "SUB-TOPIC",
+      "SPECIFIC COMPETENCES": "SPECIFIC COMPETENCES",
+      "LEARNING ACTIVITIES": "LEARNING ACTIVITIES",
+      "EXPECTED STANDARD": "EXPECTED STANDARD",
+    }},
+    {type: "data", cells: {TOPIC: "1.2 Operations", "SUB-TOPIC": "Addition"}},
+  ]);
+  eq(out.length, 2);
+  eq(out.map((r) => r.topic), ["1.1 Numbers", "1.2 Operations"]);
+});
+
+test("Empty strand banners mis-tagged as topics are dropped", () => {
+  // "READING" / "WRITING" are strand headings captured as TOPIC rows with no
+  // sub-topic and no content — they aren't real topics and must be dropped.
+  const out = rowsWithPropagatedTopic([
+    {type: "data", cells: {TOPIC: "1.1 Conversation", "SUB-TOPIC": "Greetings"}},
+    {type: "data", cells: {TOPIC: "READING", "SUB-TOPIC": ""}},
+    {type: "data", cells: {TOPIC: "1.9 Sounds", "SUB-TOPIC": "Short Vowels"}},
+  ]);
+  eq(out.map((r) => r.topic), ["1.1 Conversation", "1.9 Sounds"]);
+});
+
+test("A topic with content but no sub-topic is kept (ICT/PE style)", () => {
+  // Some senior-secondary topics (ICT "Cybersecurity", PE "Nutrition") carry
+  // competences/activities but no separate SUB-TOPIC cell — those are real
+  // and must survive the banner filter.
+  const out = rowsWithPropagatedTopic([
+    {type: "data", cells: {
+      TOPIC: "Cybersecurity", "SUB-TOPIC": "",
+      "SPECIFIC COMPETENCES": "Explain common threats",
+    }},
+  ]);
+  eq(out.length, 1);
+  eq(out[0].topic, "Cybersecurity");
+});
+
 console.log("\nsyllabiToKbTopics");
 
 test("Collapses rows under the same topic into one entry", () => {
@@ -334,6 +377,32 @@ test("Every produced topic carries grade + subject + topic", async () => {
 test("getMergedStudioData passes data through when version=null", async () => {
   const merged = await getMergedStudioData(null);
   ok(Object.keys(merged).length >= 20, "merged shape preserved");
+});
+
+test("Real data: no ingestion-artifact topics leak into the KB", async () => {
+  // Guards the Notes/teacher-studio topic pickers: the repeated column-header
+  // line ("TOPIC") and the empty strand banners ("READING"/"WRITING"/…) must
+  // not appear as selectable topics.
+  const topics = await getCurriculumDataTopics(null);
+  const bad = topics.filter((t) =>
+    ["TOPIC", "SUB-TOPIC", "READING", "WRITING", "VOCABULARY", "COMPREHENSION", "PRE-READING", "PRE-WRITING"]
+        .includes(String(t.topic || "").trim().toUpperCase()),
+  );
+  if (bad.length) {
+    throw new Error(`leaked artifact topics: ${bad.map((t) => `${t.grade}/${t.subject}/${t.topic}`).join(", ")}`);
+  }
+});
+
+test("Real data: Grade 1 English topics are the 1.x list, banners stripped", () => {
+  const raw = loadRawData();
+  const topics = syllabiToKbTopics(raw)
+      .filter((t) => t.grade === "G1" && t.subject === "english")
+      .map((t) => t.topic);
+  ok(topics.includes("1.1 CONVERSATION"), "keeps 1.1 CONVERSATION");
+  ok(topics.includes("1.9 SOUNDS"), "keeps 1.9 SOUNDS");
+  ok(!topics.includes("READING"), "drops READING banner");
+  ok(!topics.includes("WRITING"), "drops WRITING banner");
+  ok(!topics.includes("TOPIC"), "drops TOPIC header echo");
 });
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

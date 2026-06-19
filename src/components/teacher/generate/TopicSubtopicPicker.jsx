@@ -140,7 +140,7 @@ export default function TopicSubtopicPicker({
 
   const topicOptions = useMemo(() => {
     if (!innerMap) return []
-    return Array.from(innerMap.keys()).sort((a, b) => a.localeCompare(b))
+    return Array.from(innerMap.keys()).sort(byNaturalOrder)
   }, [innerMap])
 
   const subtopicOptions = useMemo(() => {
@@ -152,10 +152,10 @@ export default function TopicSubtopicPicker({
     const exact = innerMap.get(topic) ||
       Array.from(innerMap.entries())
         .find(([t]) => t.toLowerCase() === String(topic || '').toLowerCase())?.[1]
-    if (exact) return Array.from(exact).sort((a, b) => a.localeCompare(b))
+    if (exact) return Array.from(exact).sort(byNaturalOrder)
     const all = new Set()
     for (const subs of innerMap.values()) for (const s of subs) all.add(s)
-    return Array.from(all).sort((a, b) => a.localeCompare(b))
+    return Array.from(all).sort(byNaturalOrder)
   }, [innerMap, topic])
 
   const topicPickEmpty = !loading && topicOptions.length === 0
@@ -322,4 +322,13 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
 
 function formatSubject(s) {
   return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+// Numbered syllabus codes ("1.1", "1.2", …, "1.10") must order by their
+// numeric parts, not lexically — a plain localeCompare puts "1.10" before
+// "1.2". The `numeric` collation compares embedded numbers as numbers, so
+// "1.2 Etiquette" sorts before "1.10 Sentences" while un-numbered topics
+// still fall back to a sensible alphabetical order.
+function byNaturalOrder(a, b) {
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' })
 }
