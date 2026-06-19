@@ -1593,43 +1593,6 @@ export default function GradeHub() {
             </div>
           </div>
 
-          {/* ── Past papers shortcut ────────────────────────────
-                ECZ only ships papers for Grades 7 and 12 (Grade 9 was
-                phased out). Of the GradeHub universe (4-7) that's just
-                Grade 7, so the contextual tile only renders for those
-                learners — the rest still reach /papers via the top-
-                level Past Papers action card and the navbar. Pre-
-                filtering the link with ?grade=7 lands them on a list
-                that's already scoped to their grade so they don't see
-                Grade 12 papers up top. */}
-          {userGrade === 7 && (
-            <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-violet-100 ring-1 ring-violet-200 text-violet-700">
-                  <Icon as={Files} size="lg" strokeWidth={2.2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-black theme-text text-sm">Past papers for Grade {userGrade}</p>
-                    <span className="rounded-full bg-violet-100 ring-1 ring-violet-200 px-2 py-0.5 text-[10px] font-black text-violet-700">
-                      ECZ
-                    </span>
-                  </div>
-                  <p className="theme-text-muted text-xs font-bold mt-0.5">
-                    Practise the questions from real ECZ exams · Timed mode · Mark schemes
-                  </p>
-                </div>
-                <Link
-                  to={`/papers?grade=${userGrade}`}
-                  className="min-h-0 inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-black shadow-sm bg-violet-600 text-white hover:opacity-90"
-                >
-                  Browse
-                  <Icon as={ChevronRight} size="xs" strokeWidth={2.4} />
-                </Link>
-              </div>
-            </div>
-          )}
-
           {/* ── Personalized For You (weak-topic chips) ──────── */}
           {weakTopics.length > 0 && (
             <div className="zx-card theme-card rounded-2xl border theme-border p-4">
