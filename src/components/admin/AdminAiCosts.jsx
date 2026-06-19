@@ -19,6 +19,7 @@ import {
   listDailyUsage,
   listToolsForDate,
   listTopUsersForDate,
+  resolveUserLabels,
 } from '../../utils/aiCosts'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -117,6 +118,7 @@ export default function AdminAiCosts() {
   const [today, setToday] = useState(null)
   const [tools, setTools] = useState([])
   const [topUsers, setTopUsers] = useState([])
+  const [userLabels, setUserLabels] = useState(() => new Map())
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
 
@@ -147,6 +149,17 @@ export default function AdminAiCosts() {
 
     return () => { cancelled = true }
   }, [])
+
+  // Resolve uids → names in a second pass so the list renders fast and a
+  // users-read hiccup never blanks the spend numbers.
+  useEffect(() => {
+    if (topUsers.length === 0) return undefined
+    let cancelled = false
+    resolveUserLabels(topUsers.map((u) => u.id))
+      .then((labels) => { if (!cancelled) setUserLabels(labels) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [topUsers])
 
   const sevenDayTotal = useMemo(() => {
     return daily.slice(-7).reduce((sum, d) => sum + (d.totalCostUsd || 0), 0)
@@ -250,11 +263,19 @@ export default function AdminAiCosts() {
                 <p className="theme-text-muted text-sm">No users have spent today.</p>
               ) : (
                 <ul className="divide-y divide-current/10">
-                  {topUsers.map((u) => (
+                  {topUsers.map((u) => {
+                    const label = userLabels.get(u.id)
+                    const name = label?.name || label?.email
+                    return (
                     <li key={u.id} className="flex items-center justify-between py-2">
                       <div className="min-w-0">
-                        <p className="theme-text font-bold text-sm truncate font-mono">{u.id}</p>
-                        <p className="theme-text-muted text-xs">
+                        <p className="theme-text font-bold text-sm truncate">
+                          {name || <span className="font-mono">{u.id}</span>}
+                        </p>
+                        <p className="theme-text-muted text-xs truncate">
+                          {name && (
+                            <span className="font-mono">{u.id} · </span>
+                          )}
                           {numFmt.format(u.callCount || 0)} call{u.callCount === 1 ? '' : 's'}
                         </p>
                       </div>
@@ -262,7 +283,8 @@ export default function AdminAiCosts() {
                         {usdFmt.format(u.costUsd || 0)}
                       </p>
                     </li>
-                  ))}
+                    )
+                  })}
                 </ul>
               )}
             </div>

@@ -55,7 +55,7 @@ exports.apiTextToSpeech = onRequest(
 
     // Per-user daily quota. Auth alone is not enough — a signed-in user
     // could otherwise call Studio TTS (~$160/1M chars, 3000/req) in an
-    // unbounded loop (financial DoS). Shares the same aiUsage/{uid}_{day}
+    // unbounded loop (financial DoS). Shares the same aiDailyLimits/{uid}_{day}
     // budget as chat/explain/etc. (house helper). Fail-closed: if the
     // meter can't be checked we refuse rather than synthesise uncapped.
     try {
