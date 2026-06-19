@@ -185,10 +185,10 @@ export default function NotesStudio() {
 
   return (
     <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
-      <SeoHelmet title="Notes studio" noIndex />
+      <SeoHelmet title="Teaching Notes Studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
-          eyebrow="Notes Studio"
+          eyebrow="Teaching Notes Studio"
           title="Write delivery notes"
           subtitle="Hooks, worked examples, common pupil questions, misconceptions, and discussion prompts — built from a saved plan or from scratch."
           emoji="🦉"
