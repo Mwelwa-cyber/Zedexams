@@ -17,6 +17,11 @@
  *     activates paid-but-stuck buyers, closes failed ones. All writes go
  *     through the existing idempotent activation path, so it can never
  *     double-grant. Writes an agentJobs rollup the dashboard surfaces.
+ *   - supportTriage (Echo) — every 2 hours. Sweeps new feedback AND the
+ *     otherwise-invisible public contactMessages, classifies + prioritises
+ *     each, and drafts a reply (Haiku when a key is set, a templated
+ *     acknowledgement otherwise). Drafts only — never sends. Writes the
+ *     triage back onto each doc + an agentJobs rollup.
  */
 
 const admin = require("firebase-admin");
@@ -27,6 +32,7 @@ const {runQuill} = require("./runners/quill");
 const {runCala} = require("./runners/cala");
 const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/monitor");
 const {reconcilePendingPayments} = require("./runners/till");
+const {runEchoTriage, templateReply} = require("./runners/echo");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -342,9 +348,96 @@ const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
   });
 });
 
+// Echo — support triage every 2 hours. Sweeps new feedback + the invisible
+// public contact form, classifies/prioritises, and drafts a reply (Haiku when
+// a key is set, free template otherwise). Drafts only — it never sends. Cheap:
+// it only touches items it hasn't processed yet (echoProcessedAt guards it), so
+// most runs after the first do little or nothing.
+const SUPPORT_TRIAGE_OPTS = {
+  schedule: "every 2 hours",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+  secrets: [anthropicApiKey],
+};
+
+const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+  const apiKey = anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "";
+
+  // Draft a short, on-brand reply with Haiku when a key is present; fall back
+  // to a templated acknowledgement otherwise (free, still useful).
+  async function draftReply({kind, item}) {
+    if (!apiKey) return templateReply({kind, item});
+    const {callAnthropic} = require("../aiService");
+    const data = item.data || {};
+    const systemPrompt =
+      "You are a warm, concise support agent for ZedExams, a CBC learning " +
+      "platform for Zambian learners, teachers and parents. Draft a reply " +
+      "(under 110 words) to the message below. Be specific to what they said, " +
+      "acknowledge their point, never promise refunds or timelines you can't " +
+      "be sure of, and sign off as 'The ZedExams Team'. Plain text only — no " +
+      "subject line, no preamble.";
+    const who = data.name ? `Name: ${data.name}\n` : "";
+    try {
+      const reply = await callAnthropic(apiKey, {
+        systemPrompt,
+        messages: [{
+          role: "user",
+          content: `${who}Category: ${kind}\nMessage:\n${String(data.message || "").slice(0, 1200)}`,
+        }],
+        model: "claude-haiku-4-5-20251001",
+        maxTokens: 300,
+        temperature: 0.3,
+        track: {tool: "supportTriage"},
+      });
+      return (reply && String(reply).trim()) || templateReply({kind, item});
+    } catch (err) {
+      // Surface the model error to runEchoTriage, which falls back to the
+      // template — a bad LLM call must never drop the support item.
+      throw err;
+    }
+  }
+
+  let summary;
+  try {
+    summary = await runEchoTriage({db, draftReply});
+  } catch (err) {
+    console.error("Echo failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "echo",
+      department: "support",
+      status: "failed",
+      input: {runType: "support-triage"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  // Anything triaged (or errored) is something a human should glance at and
+  // send; a quiet run with no new messages is just logged.
+  const notable = summary.processed > 0 || summary.errors.length > 0;
+  await db.collection("agentJobs").add({
+    agentId: "echo",
+    department: "support",
+    status: notable ? "awaiting_approval" : "done",
+    input: {runType: "support-triage"},
+    output: {echo: summary},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
   hourlyMonitor,
   hourlyRevenueReconcile,
+  supportTriage,
 };

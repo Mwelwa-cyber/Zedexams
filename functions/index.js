@@ -199,6 +199,7 @@ const {
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
   hourlyMonitor: hourlyMonitorCron,
   hourlyRevenueReconcile: hourlyRevenueReconcileCron,
+  supportTriage: supportTriageCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2530,6 +2531,12 @@ exports.hourlyMonitor = hourlyMonitorCron;
 // left behind (via the existing idempotent activation path). Writes an
 // agentJobs rollup the /admin/agents dashboard surfaces under "revenue".
 exports.hourlyRevenueReconcile = hourlyRevenueReconcileCron;
+
+// Echo — support triage every 2 hours. Sweeps new feedback + the otherwise
+// invisible public contactMessages, classifies + prioritises, and drafts a
+// reply (drafts only, never sends). Writes the triage onto each doc and an
+// agentJobs rollup under "support".
+exports.supportTriage = supportTriageCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
