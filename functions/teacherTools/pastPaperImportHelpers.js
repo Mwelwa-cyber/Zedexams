@@ -32,4 +32,16 @@ function dedupeExtractedQuestions(questions) {
   return out;
 }
 
-module.exports = {dedupeExtractedQuestions};
+/**
+ * Whether `uid` may overwrite the questions of a target quiz. Past-paper import
+ * clears + rewrites the entire `quizzes/{quizId}/questions` subcollection, so
+ * the caller must own that quiz (or be a true admin) — otherwise a staff user
+ * passing an arbitrary `quizId` could wipe another teacher's quiz (IDOR).
+ * `quizData` is the quiz doc's data (or null when the quiz doesn't exist).
+ */
+function canWriteQuiz(quizData, uid, isAdmin) {
+  if (isAdmin) return true;
+  return Boolean(quizData) && quizData.createdBy === uid;
+}
+
+module.exports = {dedupeExtractedQuestions, canWriteQuiz};
