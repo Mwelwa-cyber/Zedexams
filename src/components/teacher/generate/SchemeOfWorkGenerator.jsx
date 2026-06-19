@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateSchemeOfWork,
   TEACHER_GRADES,
@@ -43,6 +44,7 @@ export default function SchemeOfWorkGenerator() {
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [scheme, setScheme] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
@@ -119,6 +121,7 @@ export default function SchemeOfWorkGenerator() {
 
     const payload = { ...form, timetable: selectedTimetablePayload() }
     const res = await generateSchemeOfWork(payload)
+    if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)

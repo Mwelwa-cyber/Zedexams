@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
@@ -47,6 +48,8 @@ export default function HomeworkStudio() {
   }))
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [homework, setHomework] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
@@ -71,12 +74,19 @@ export default function HomeworkStudio() {
     }
     setStatus('generating')
     setErrorMessage('')
+    setErrorDetail('')
     setWarning('')
     setHomework(null)
     const res = await generateHomework(form)
+    if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
+      // Surface the diagnostic code/detail like the other studios do.
+      setErrorDetail(
+        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
+          .filter(Boolean).join(' · '),
+      )
       return
     }
     setHomework(res.data.homework)
@@ -186,7 +196,9 @@ export default function HomeworkStudio() {
             )}
             {status === 'error' && (
               <Centered emoji="⚠️" title="Something went wrong"
-                body={errorMessage}
+                body={errorDetail
+                  ? <>{errorMessage}<br /><span style={{ opacity: 0.6, fontSize: 12 }}>{errorDetail}</span></>
+                  : errorMessage}
                 action={<button onClick={() => setStatus('idle')}
                   className="studio-btn-ghost">Try again</button>} />
             )}
