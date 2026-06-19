@@ -165,8 +165,8 @@ const PLANS = [
     feats: [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>25</strong> worksheets &amp; teacher notes</>,
-      <><strong>8</strong> assessments / month</>,
       <><strong>2</strong> schemes of work / month</>,
+      <><strong>1</strong> free assessment + exam paper to try</>,
       <>Daily cap of <strong>10</strong> generations</>,
       'DOCX + PDF export',
       'Library kept forever',
@@ -177,12 +177,12 @@ const PLANS = [
     key: 'max', name: 'Max', mascot: '🦅', meta: 'For heavy users',
     note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
     feats: [
+      <><strong>Unlimited</strong> assessments &amp; exam papers</>,
+      <>The Assessment &amp; Exam Paper studios — <strong>Max only</strong></>,
       <><strong>Unlimited</strong> plans, notes &amp; worksheets*</>,
-      <><strong>Unlimited</strong> assessments &amp; schemes</>,
       <>Daily cap of <strong>30</strong> generations</>,
       'Bulk export (whole term in one click)',
-      'Priority queue when servers are busy',
-      'Early access to new studios',
+      'Priority queue + early access to new studios',
       'Email support, 24h reply',
       <><em>*Fair use ~200/month</em></>,
     ],
@@ -341,8 +341,11 @@ export default function Plans() {
                   <Row label="Lesson plans" cells={['5', '40', 'Unlimited']} />
                   <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
-                  <Row label="Assessments" cells={[null, '8', 'Unlimited']} />
                   <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />
+
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Max studios</td></tr>
+                  <Row label="Assessment studio" cells={['1 to try', '1 to try', 'Unlimited']} />
+                  <Row label="Exam Paper studio" cells={['1 to try', '1 to try', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />

@@ -43,6 +43,18 @@ const SCENARIOS = {
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
+  // Assessment + Exam Paper studios are reserved for Max — the most powerful
+  // (and expensive) generations. Free/Pro get one taster a month; the next
+  // one lands here. Routes to the Max plans, not Pro.
+  'max-feature': {
+    tag: '🦅 Max studio',
+    title: (ctx) => `${ctx.feature || 'Assessments'} are a Max studio`,
+    sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — our most powerful generation.`,
+    mascot: '🦅',
+    primary: 'Upgrade to Max · K199/mo',
+    primaryAction: 'upgrade',
+    compare: 'pro-vs-max',
+  },
 }
 
 const COMPARE = {
@@ -66,8 +78,33 @@ const COMPARE = {
       feats: [
         { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
         { ok: true, text: '10 generations per day' },
-        { ok: true, text: 'Assessments + schemes of work' },
+        { ok: true, text: '1 free assessment + exam paper / month' },
         { ok: true, text: 'DOCX + PDF export' },
+      ],
+    },
+  },
+  'pro-vs-max': {
+    left: {
+      name: 'Pro',
+      priceLabel: '/ month',
+      price: 'K79',
+      feats: [
+        { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
+        { ok: true, text: '10 generations per day' },
+        { ok: false, text: '1 assessment + 1 exam paper / month' },
+        { ok: false, text: 'No bulk export or priority queue' },
+      ],
+    },
+    right: {
+      name: 'Max',
+      priceLabel: '/ month',
+      price: 'K199',
+      recommended: true,
+      feats: [
+        { ok: true, text: 'Unlimited assessments & exam papers' },
+        { ok: true, text: '30 generations per day' },
+        { ok: true, text: 'Bulk export — a whole term in one click' },
+        { ok: true, text: 'Priority queue + early access to new studios' },
       ],
     },
   },
@@ -203,6 +240,13 @@ export default function PaywallHost() {
               portal="learner"
               planIds={['grade7_monthly', 'grade7_termly']}
               defaultPlanId="grade7_monthly"
+              onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
+            />
+          ) : upgradeReason === 'max-feature' ? (
+            <UpgradeModal
+              portal="teacher"
+              planIds={['max_monthly', 'max_yearly']}
+              defaultPlanId="max_monthly"
               onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
             />
           ) : (

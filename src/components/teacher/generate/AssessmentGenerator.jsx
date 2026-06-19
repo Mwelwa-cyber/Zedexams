@@ -15,6 +15,8 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import MaxStudioBanner from './MaxStudioBanner'
+import { paywall } from '../../../utils/paywall'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
@@ -77,6 +79,14 @@ export default function AssessmentGenerator() {
     setAssessment(null)
     const res = await generateAssessment(form)
     if (!res.ok) {
+      // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
+      // paywall instead of just showing the error text (the server marks
+      // this with details.reason === 'max-only').
+      if (res.details?.reason === 'max-only') {
+        paywall.show('max-feature', { feature: 'Assessments' })
+        setStatus('idle')
+        return
+      }
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
       return
@@ -117,6 +127,7 @@ export default function AssessmentGenerator() {
           subtitle="Grounded on the verified module — sections, marks and a full marking scheme."
           emoji="📝"
         />
+        <MaxStudioBanner feature="Assessment" templates={ASSESSMENT_TEMPLATES} />
         <div className="grid grid-cols-1 gap-6">
           <form onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto">
@@ -247,6 +258,15 @@ function Centered({ emoji, title, body, action }) {
     </div>
   )
 }
+
+// Sample template cards shown in the Max-studio banner to non-Max teachers —
+// a taste of what the studio produces. Illustrative only; clicking any card
+// opens the Max paywall (see MaxStudioBanner).
+const ASSESSMENT_TEMPLATES = [
+  { tag: 'Topic test', title: 'Fractions & Decimals', meta: 'Grade 5 Maths · 20 marks · marking scheme' },
+  { tag: 'Mid-term', title: 'Living Things', meta: 'Grade 6 Science · 40 marks · 5 sections' },
+  { tag: 'Mock exam', title: 'Composition & Grammar', meta: 'Grade 7 English · 60 marks · full paper' },
+]
 
 // Mirrors ASSESSMENT_TYPES in functions/teacherTools/assessmentFormats.js —
 // the server whitelists these values and falls back to topic_test.

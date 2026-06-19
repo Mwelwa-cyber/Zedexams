@@ -22,6 +22,7 @@ const {
   DAILY_LIMITS,
   normalizeTeacherPlan,
   isDailyCountedTool,
+  isMaxOnlyTool,
 } = require("./teacherPlans");
 
 function yyyymm(d = new Date()) {
@@ -112,11 +113,26 @@ async function assertAndIncrement(uid, tool) {
     const used = Number(counters[tool] || 0);
 
     if (used >= limit) {
-      throw new HttpsError(
-        "failed-precondition",
-        `You have used ${used}/${limit} ${tool.replace(/_/g, " ")}s on the ` +
-        `${PLAN_LABELS[plan] || plan} plan this month. Upgrade to continue.`,
-      );
+      // Assessment + Exam Paper are Max-only studios: Free/Pro get a single
+      // monthly taster, then must upgrade to Max (not Pro). Surface a
+      // Max-specific message + a structured `details.reason` so the client
+      // can open the "Upgrade to Max" paywall rather than the generic one.
+      const maxOnly = isMaxOnlyTool(tool) && plan !== "max";
+      const toolLabel = tool.replace(/_/g, " ");
+      const message = maxOnly ?
+        `${toolLabel.charAt(0).toUpperCase() + toolLabel.slice(1)}s are a ` +
+          `Max studio. You've used your ${limit} free ${toolLabel} this ` +
+          `month on the ${PLAN_LABELS[plan] || plan} plan — upgrade to Max ` +
+          `for unlimited.` :
+        `You have used ${used}/${limit} ${toolLabel}s on the ` +
+          `${PLAN_LABELS[plan] || plan} plan this month. Upgrade to continue.`;
+      throw new HttpsError("failed-precondition", message, {
+        reason: maxOnly ? "max-only" : "monthly-limit",
+        tool,
+        plan,
+        used,
+        limit,
+      });
     }
 
     // Rolling daily counter ({date, count}) — backs the "Daily cap of
