@@ -250,3 +250,48 @@ export function parseRosterText(text) {
 export function validRosterEntries(parsed) {
   return parsed.rows.filter((r) => r.status !== 'error').map((r) => r.entry)
 }
+
+// ── Duplicate detection ──────────────────────────────────────────
+
+/**
+ * Normalised key for duplicate detection: trimmed, inner whitespace collapsed,
+ * lower-cased — so "  Mary   Banda " and "mary banda" match.
+ */
+export function rosterNameKey(name) {
+  return String(name ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+/**
+ * Split incoming entries into the genuinely-new ones vs. duplicates of the
+ * existing roster (or of each other within the same import). A duplicate is an
+ * exact account match (same linkedUid) OR an exact normalised-name match.
+ * `existing` is the current roster as [{ fullName, linkedUid }].
+ *
+ * Name matching can in theory drop a legitimate namesake, but re-importing a
+ * class list silently DOUBLING every learner is the far more common and
+ * damaging failure — and the duplicate count is surfaced to the teacher, so a
+ * real namesake can be re-added by hand.
+ *
+ * Returns { fresh, duplicates } where `duplicates` is a count.
+ */
+export function partitionNewRosterEntries(entries, existing = []) {
+  const seenNames = new Set()
+  const seenUids = new Set()
+  for (const e of (Array.isArray(existing) ? existing : [])) {
+    const k = rosterNameKey(e?.fullName)
+    if (k) seenNames.add(k)
+    if (e?.linkedUid) seenUids.add(e.linkedUid)
+  }
+  const fresh = []
+  let duplicates = 0
+  for (const entry of (Array.isArray(entries) ? entries : [])) {
+    const uid = entry?.linkedUid || null
+    const nameKey = rosterNameKey(entry?.fullName)
+    const isDup = (uid && seenUids.has(uid)) || (nameKey && seenNames.has(nameKey))
+    if (isDup) { duplicates += 1; continue }
+    if (uid) seenUids.add(uid)
+    if (nameKey) seenNames.add(nameKey)
+    fresh.push(entry)
+  }
+  return { fresh, duplicates }
+}

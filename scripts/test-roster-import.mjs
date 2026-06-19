@@ -17,6 +17,8 @@ const {
   parseRosterText,
   rowsToRoster,
   validRosterEntries,
+  rosterNameKey,
+  partitionNewRosterEntries,
 } = await import('../src/utils/rosterImport.js')
 
 let pass = 0
@@ -189,6 +191,53 @@ test('rowsToRoster handles an empty grid', () => {
   const parsed = rowsToRoster([])
   eq(parsed.rows.length, 0)
   eq(parsed.summary.total, 0)
+})
+
+// ── duplicate detection ──────────────────────────────────────────
+
+console.log('\nduplicate detection')
+
+test('rosterNameKey collapses case + whitespace', () => {
+  eq(rosterNameKey('  Mary   Banda '), 'mary banda')
+  eq(rosterNameKey('MARY BANDA'), 'mary banda')
+  eq(rosterNameKey(null), '')
+})
+
+test('existing names are skipped, new ones kept', () => {
+  const existing = [{ fullName: 'Mary Banda', linkedUid: null }]
+  const { fresh, duplicates } = partitionNewRosterEntries(
+    [{ fullName: 'mary  banda' }, { fullName: 'John Phiri' }],
+    existing,
+  )
+  eq(duplicates, 1)
+  eq(fresh.length, 1)
+  eq(fresh[0].fullName, 'John Phiri')
+})
+
+test('linkedUid match is a duplicate even when names differ', () => {
+  const existing = [{ fullName: 'Old Name', linkedUid: 'uid-1' }]
+  const { fresh, duplicates } = partitionNewRosterEntries(
+    [{ fullName: 'New Name', linkedUid: 'uid-1' }, { fullName: 'Other', linkedUid: 'uid-2' }],
+    existing,
+  )
+  eq(duplicates, 1)
+  eq(fresh.length, 1)
+  eq(fresh[0].linkedUid, 'uid-2')
+})
+
+test('repeats WITHIN one import are de-duplicated', () => {
+  const { fresh, duplicates } = partitionNewRosterEntries(
+    [{ fullName: 'Grace Mwale' }, { fullName: 'grace mwale' }, { fullName: 'Grace Mwale' }],
+    [],
+  )
+  eq(duplicates, 2)
+  eq(fresh.length, 1)
+})
+
+test('empty / non-array inputs never throw', () => {
+  eq(partitionNewRosterEntries([], []).fresh.length, 0)
+  eq(partitionNewRosterEntries(undefined, undefined).duplicates, 0)
+  eq(partitionNewRosterEntries([{ fullName: 'A' }]).fresh.length, 1)
 })
 
 // ── summary ──────────────────────────────────────────────────────
