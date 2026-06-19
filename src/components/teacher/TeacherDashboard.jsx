@@ -148,7 +148,7 @@ const STUDIO_GROUPS = [
         tone: 'blue',
         badge: null,
         libraryKey: 'notes',
-        title: 'Notes Studio',
+        title: 'Teaching Notes Studio',
         tagline: 'Turn a lesson plan into delivery notes and examples.',
         to: '/teacher/generate/notes',
         meta: 'Instruction support',
