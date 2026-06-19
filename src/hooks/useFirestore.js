@@ -16,6 +16,15 @@ import {
 // load; admins who need a longer view should use the dedicated reports.
 export const ADMIN_QUERY_LIMIT = 200
 
+// Safety cap on the learner-facing quiz library query. Without it, getQuizzes
+// reads *every* published practice quiz for a grade on each load — and each
+// quiz doc carries its full embedded `passages[]` (comprehension text + image
+// URLs) that the list view never renders, so the payload (and the time-to-show
+// on a slow mobile connection) grows unbounded with the catalogue. 400 is far
+// above any realistic per-grade practice count, so it never trims the visible
+// library; it only stops a runaway full-collection read. Ordered newest-first.
+export const LEARNER_QUIZ_LIMIT = 400
+
 // How far back the admin "recent activity" queries reach. 90 days is the
 // rolling window the dashboards visualise; reading the entire history on
 // every admin reload was a major Firestore read-amplifier.
@@ -352,6 +361,7 @@ export function useFirestore() {
       if (filters.term)     c.push(where('term',    '==', filters.term))
       if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
       c.push(orderBy('createdAt', 'desc'))
+      c.push(limit(LEARNER_QUIZ_LIMIT))
       const snap = await getDocs(query(collection(db, 'quizzes'), ...c))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzes:', e); return [] }
