@@ -105,6 +105,25 @@ export const WORKSHEET_STYLES = [
   { value: 'grid', label: 'Practice grid — drills in columns (e.g. fractions → decimals)' },
   { value: 'comprehension', label: 'Reading comprehension — passage + questions' },
   { value: 'working', label: 'Show working — column maths (long division, multiplication)' },
+  { value: 'matching', label: 'Matching — match items to an answer bank' },
+  { value: 'word_problems', label: 'Word problems — real-life problems with working space' },
+  { value: 'true_false', label: 'True or False — quick true/false drill' },
+]
+
+// Optional grid column override (only matters for grid/practice layouts).
+export const WORKSHEET_GRID_COLUMNS = [
+  { value: 0, label: 'Auto' },
+  { value: 2, label: '2 columns' },
+  { value: 3, label: '3 columns' },
+  { value: 4, label: '4 columns' },
+]
+
+// Reading-passage length for comprehension worksheets.
+export const WORKSHEET_PASSAGE_LENGTHS = [
+  { value: '', label: 'Auto' },
+  { value: 'short', label: 'Short — 3-4 sentences' },
+  { value: 'medium', label: 'Medium — 6-8 sentences' },
+  { value: 'long', label: 'Long — 10-14 sentences' },
 ]
 
 export const WORKSHEET_QUESTION_COUNTS = [

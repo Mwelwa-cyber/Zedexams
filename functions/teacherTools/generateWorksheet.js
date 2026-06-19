@@ -130,7 +130,10 @@ const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard", "mixed"]);
 // topic; the rest force a specific layout (see worksheetPrompt styleDirective).
 const ALLOWED_STYLES = new Set([
   "auto", "standard", "grid", "comprehension", "working",
+  "matching", "word_problems", "true_false",
 ]);
+// Reading-passage length for comprehension worksheets; "" = let the model choose.
+const ALLOWED_PASSAGE_LENGTHS = new Set(["", "short", "medium", "long"]);
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 function sanitizeInputs(raw = {}) {
@@ -143,6 +146,9 @@ function sanitizeInputs(raw = {}) {
   const language = str(raw.language || "english", 20).toLowerCase();
   const difficulty = str(raw.difficulty || "mixed", 10).toLowerCase();
   const style = str(raw.style || "auto", 20).toLowerCase();
+  const passageLength = str(raw.passageLength, 10).toLowerCase();
+  // Grid column override; 0 (or out of range) means "let the model choose".
+  const gridColumns = Math.round(num(raw.gridColumns, 0));
 
   // Optional curriculum-module selectors. Absent/0 → null so behaviour is
   // unchanged from before this upgrade when they aren't supplied.
@@ -165,6 +171,8 @@ function sanitizeInputs(raw = {}) {
     count: Math.min(25, Math.max(3, Math.round(num(raw.count, 10)))),
     difficulty: ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : "mixed",
     style: ALLOWED_STYLES.has(style) ? style : "auto",
+    gridColumns: gridColumns >= 2 && gridColumns <= 4 ? gridColumns : 0,
+    passageLength: ALLOWED_PASSAGE_LENGTHS.has(passageLength) ? passageLength : "",
     durationMinutes: Math.min(120, Math.max(10, Math.round(num(raw.durationMinutes, 30)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     includeAnswerKey: raw.includeAnswerKey !== false,

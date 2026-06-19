@@ -5,6 +5,8 @@ import {
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
   WORKSHEET_STYLES,
+  WORKSHEET_GRID_COLUMNS,
+  WORKSHEET_PASSAGE_LENGTHS,
   WORKSHEET_QUESTION_COUNTS,
   WORKSHEET_DURATIONS,
   CURRICULUM_TERMS,
@@ -45,6 +47,8 @@ export default function WorksheetGenerator() {
     learningEnvironment: '',
     count: 10,
     style: 'auto',
+    gridColumns: 0,
+    passageLength: '',
     difficulty: 'mixed',
     durationMinutes: 30,
     language: 'english',
@@ -220,6 +224,24 @@ export default function WorksheetGenerator() {
               options={WORKSHEET_STYLES}
               onChange={(v) => updateField('style', v)}
             />
+            {(form.style === 'auto' || form.style === 'grid') && (
+              <FieldSelect
+                label="Grid columns (practice grids)"
+                value={String(form.gridColumns)}
+                options={WORKSHEET_GRID_COLUMNS.map((p) => ({
+                  value: String(p.value), label: p.label,
+                }))}
+                onChange={(v) => updateField('gridColumns', Number(v))}
+              />
+            )}
+            {(form.style === 'auto' || form.style === 'comprehension') && (
+              <FieldSelect
+                label="Reading passage length"
+                value={form.passageLength}
+                options={WORKSHEET_PASSAGE_LENGTHS}
+                onChange={(v) => updateField('passageLength', v)}
+              />
+            )}
             <FieldSelect
               label="Number of questions"
               value={String(form.count)}
