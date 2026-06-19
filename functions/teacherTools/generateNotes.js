@@ -65,6 +65,24 @@ const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
 
+// Turn an ISO date (YYYY-MM-DD) from the date picker into the "19 June 2026"
+// form Zambian teachers write on printed handouts. Anything that isn't a clean
+// ISO date is passed through untouched (or dropped if empty), mirroring the
+// lesson-plan studio's formatLessonDate.
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+function formatLessonDate(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s.slice(0, 40);
+  const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return s.slice(0, 40);
+  return `${d} ${MONTH_NAMES[mo - 1]} ${y}`;
+}
+
 function sanitizeInputs(raw = {}) {
   const str = (v, max) => (typeof v === "string" ?
     v.replace(/\u0000/g, "").trim().slice(0, max) : "");
@@ -87,6 +105,7 @@ function sanitizeInputs(raw = {}) {
     subject,
     topic: str(raw.topic, 160),
     subtopic: str(raw.subtopic, 200),
+    date: formatLessonDate(raw.date),
     term: term >= 1 && term <= 3 ? term : null,
     lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
     totalLessons: totalLessons >= 1 ? totalLessons : null,
@@ -255,6 +274,13 @@ async function runNotes({uid, rawInputs, apiKey}) {
   // the viewer can show "Built from lesson plan ↗" without an extra read.
   if (inputs.lessonPlanId && parsed && parsed.header) {
     parsed.header.lessonPlanId = inputs.lessonPlanId;
+  }
+
+  // The lesson date is teacher-supplied, not model-invented — stamp the
+  // formatted value straight onto the header so the viewer and the .docx
+  // header render it like a lesson plan.
+  if (inputs.date && parsed && parsed.header) {
+    parsed.header.date = inputs.date;
   }
 
   const validation = validateNotes(parsed);

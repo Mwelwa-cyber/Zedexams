@@ -34,6 +34,7 @@ function validateNotes(input) {
     subject: isNonEmptyString(h.subject) ? h.subject : "",
     topic: isNonEmptyString(h.topic) ? h.topic : "",
     subtopic: isNonEmptyString(h.subtopic) ? h.subtopic : "",
+    date: isNonEmptyString(h.date) ? h.date : "",
     durationMinutes: clampNumber(h.durationMinutes, 5, 240, 40),
     language: isNonEmptyString(h.language) ? h.language : "english",
     school: isNonEmptyString(h.school) ? h.school : "",

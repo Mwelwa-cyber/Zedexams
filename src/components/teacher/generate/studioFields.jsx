@@ -28,6 +28,20 @@ export function FieldText({ label, value, onChange, placeholder, maxLength }) {
   )
 }
 
+export function FieldDate({ label, value, onChange }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="date"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="studio-input"
+      />
+    </div>
+  )
+}
+
 export function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
   return (
     <div>
