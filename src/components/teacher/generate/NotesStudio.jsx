@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateNotes,
@@ -34,6 +35,7 @@ const MODE_STANDALONE = 'standalone'
 export default function NotesStudio() {
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
 
   // If a lessonPlanId is in the URL, default to the from-plan tab.
@@ -133,6 +135,7 @@ export default function NotesStudio() {
       }
     }
 
+    if (!ensureCanGenerate('notes')) return
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')

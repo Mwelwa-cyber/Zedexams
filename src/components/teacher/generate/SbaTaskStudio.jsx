@@ -28,6 +28,7 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
@@ -43,7 +44,8 @@ const TERMS = [
 ]
 
 export default function SbaTaskStudio() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const [form, setForm] = useState({
     grade: 'G5',
     subject: 'english',
@@ -110,6 +112,7 @@ export default function SbaTaskStudio() {
 
   async function onGenerate(e) {
     e.preventDefault()
+    if (!ensureCanGenerate('sba_task')) return
     setStatus('generating')
     setErrorMessage('')
     setWarning('')

@@ -132,6 +132,7 @@
     "test:scheme-timetable": "node functions/teacherTools/schemeTimetable.test.js",
     "test:scheme-advisories": "node functions/teacherTools/schemeAdvisories.test.js",
     "test:teacher-plans": "node functions/teacherTools/teacherPlans.test.js",
+    "test:usage-meter": "node functions/teacherTools/usageMeter.test.js",
     "test:storage-cleanup": "node functions/storageCleanup/helpers.test.js",
     "test:quiz-summary": "node functions/quizSummary/index.test.js",
     "test:pdf-export-window": "node scripts/test-pdf-export-window.test.js",

@@ -23,6 +23,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
@@ -34,7 +35,8 @@ import WorksheetView from '../views/WorksheetView'
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
  */
 export default function WorksheetGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -92,6 +94,9 @@ export default function WorksheetGenerator() {
       setStatus('error')
       return
     }
+    // Fail fast: out of quota (and no top-up credit) → open the pay/upgrade
+    // prompt now, before flipping into the "Generating…" state.
+    if (!ensureCanGenerate('worksheet')) return
     try { cancelRef.current?.() } catch { /* ignore */ }
     setStatus('generating')
     setErrorMessage('')

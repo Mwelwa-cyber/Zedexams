@@ -47,6 +47,7 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
   const payRef = db.collection("payments").doc(paymentId);
 
   let activated = false;
+  let isTopUp = false;
   let planForInvoice = null;
   let payloadForInvoice = null;
 
@@ -77,6 +78,39 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
       throw new Error(`user ${pay.userId} not found for payment ${paymentId}`);
     }
     const user = userSnap.data() || {};
+
+    // ── Pay-per-generation top-up ─────────────────────────────────────────
+    // A one-off purchase, NOT a subscription: grant `credits` extra
+    // generations (usable on any metered tool) and leave plan/premium/expiry
+    // untouched. Same status guard above makes the grant idempotent across
+    // the webhook + poll + immediate-success races, so a credit is never
+    // double-granted on a retry.
+    if (plan.kind === "topup") {
+      const credits = Math.max(1, Number(plan.credits || 1));
+      tx.update(payRef, {
+        status: "successful",
+        lencoStatus,
+        confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.update(userRef, {
+        generationCredits: admin.firestore.FieldValue.increment(credits),
+        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastTopUpAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      activated = true;
+      isTopUp = true;
+      planForInvoice = {id: pay.planId, name: plan.name, durationDays: 0};
+      payloadForInvoice = {
+        id: paymentId,
+        amount: pay.amountZMW,
+        currency: pay.currency || "ZMW",
+        planId: pay.planId,
+        phoneNumber: pay.phoneNumber || null,
+        provider: "lenco",
+        userId: pay.userId,
+      };
+      return;
+    }
 
     // Expiry policy:
     //  • Tier upgrade (Pro → Max, pay.isUpgrade): keep the SAME renewal date.
@@ -168,15 +202,19 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     console.error("[subscriptionActivation] invoice failed", err);
   }
 
-  try {
-    const {redeemReferralCredit, consumeReferralCredits} = require("./referralRedemption");
-    await redeemReferralCredit({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});
-    await consumeReferralCredits({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});
-  } catch (err) {
-    console.error("[subscriptionActivation] referral side effects failed", err);
+  // Referral credits reward subscriptions, not one-off top-ups — skip them
+  // for a top-up so a K25 credit purchase can't redeem/consume a free month.
+  if (!isTopUp) {
+    try {
+      const {redeemReferralCredit, consumeReferralCredits} = require("./referralRedemption");
+      await redeemReferralCredit({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});
+      await consumeReferralCredits({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});
+    } catch (err) {
+      console.error("[subscriptionActivation] referral side effects failed", err);
+    }
   }
 
-  return {ok: true, activated: true};
+  return {ok: true, activated: true, topUp: isTopUp};
 }
 
 /**

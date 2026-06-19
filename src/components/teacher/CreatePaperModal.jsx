@@ -8,6 +8,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { generateAssessment } from '../../utils/teacherTools'
 import { paywall } from '../../utils/paywall'
+import { useAuth } from '../../contexts/AuthContext'
+import { useGenerationGate } from '../../hooks/useGenerationGate'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, CURRICULUM_FRAMEWORKS,
@@ -126,6 +128,8 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
 const labelRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }
 
 export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
+  const { currentUser } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const [form, setForm] = useState(() => ({
     grade: isPaperGrade(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
     subject: toKbSubjectKey(paperMeta?.subject) || 'english',
@@ -350,6 +354,9 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       setStatus('error')
       return
     }
+    // Fail fast: assessments are a Max studio — a capped Free/Pro teacher gets
+    // the pay/upgrade prompt now, not after a wasted generation round-trip.
+    if (!ensureCanGenerate('assessment')) return
     setStatus('generating')
     setError('')
     const res = await generateAssessment({

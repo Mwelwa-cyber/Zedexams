@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import {
   generateLessonPlanStream,
   TEACHER_GRADES,
@@ -33,7 +34,8 @@ import { FieldLabel, FieldText, FieldTextarea, FieldSelect } from './studioField
  * On mobile the columns stack.
  */
 export default function LessonPlanGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -102,6 +104,7 @@ export default function LessonPlanGenerator() {
       setStatus('error')
       return
     }
+    if (!ensureCanGenerate('lesson_plan')) return
     // Abort any prior in-flight generation before kicking off a new one.
     try { cancelRef.current?.() } catch { /* ignore */ }
     setStatus('generating')

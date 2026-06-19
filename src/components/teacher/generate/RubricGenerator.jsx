@@ -17,13 +17,15 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 
 export default function RubricGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G9',
@@ -64,6 +66,7 @@ export default function RubricGenerator() {
       setStatus('error')
       return
     }
+    if (!ensureCanGenerate('rubric')) return
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')
