@@ -158,6 +158,16 @@ function PaperPassageBlock({ block }) {
           <img src={block.imageUrl} alt={block.imageAlt || ''} style={{ maxWidth: '100%' }} />
         </div>
       )}
+      {block.imageDiagram?.libraryKey && (
+        <div className="sv-paper-diagram" style={{ textAlign: 'center', margin: '8px 0 2px' }}>
+          <DiagramSvg
+            libraryKey={block.imageDiagram.libraryKey}
+            params={block.imageDiagram.params}
+            color="#1c1612"
+            alt=""
+          />
+        </div>
+      )}
     </div>
   )
 }

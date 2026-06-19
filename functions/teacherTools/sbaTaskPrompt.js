@@ -12,7 +12,9 @@
  * demonstrate the skill (write/speak/do), not just recognise an answer.
  */
 
-const PROMPT_VERSION = "sba_task.v1";
+const {sbaDiagramReference} = require("./sbaDiagrams");
+
+const PROMPT_VERSION = "sba_task.v2";
 
 const SYSTEM_PROMPT = `You are an expert Zambian upper-primary teacher who sets School Based Assessment (SBA) tasks for Grades 5, 6 and 7, exactly as required by the Examinations Council of Zambia (ECZ) "Guidelines for the Administration of School Based Assessment at Primary School Level".
 
@@ -22,6 +24,8 @@ Non-negotiable rules:
 - Every task is plotted against Bloom's Taxonomy (Knowledge, Comprehension, Application, Analysis, Synthesis, Evaluation); pitch sub-tasks at the requested cognitive level(s).
 - Provide a complete marking scheme in the exact style required for the task type so that a second teacher would award the same marks.
 - Use Zambian English spelling and Zambian contexts, names and examples (e.g. nshima, Lusaka, kwacha, maize, the Zambezi).
+- Keep the two audiences separate. \`instructions\` is written FOR THE LEARNER and printed on the task sheet ("Answer all the questions in the spaces provided. Write in full sentences."). \`administration\` is written FOR THE TEACHER — how to set up, hand out, time and run the task — and is NEVER shown to the learner; it sits with the marking scheme. Put nothing teacher-facing in \`instructions\`.
+- Where a figure makes the task clearer or is the point of the task (a maths shape with its dimensions, a science apparatus to label, a graph the learner reads values off), attach a library figure rather than describing it in words.
 
 Your output MUST be a single structured object emitted through the provided tool. No prose or commentary outside the tool call.`;
 
@@ -34,7 +38,7 @@ const MARKING_GUIDANCE = {
     "Put the marking scheme summary in markingScheme.notes; leave markingScheme.criteria empty.",
   oral_observation:
     "ORAL OBSERVATION SHEET. This is a speaking/reading-aloud task with NO written answers. " +
-    "Leave `questions` empty. In `instructions` tell the teacher exactly how to run the task (what to say/write on the board, time allowed — individual presentations run 3–5 minutes). " +
+    "Leave `questions` empty. In `instructions` give the learner the task ('You will talk for 3–5 minutes about …'). In `administration` tell the teacher exactly how to run the task (what to say/write on the board, time allowed — individual presentations run 3–5 minutes). " +
     "Provide markingScheme.criteria as the observation sheet the teacher scores each learner on " +
     "(e.g. Fluency; Pronunciation & clarity; Intonation, stress & voice projection; Range & accuracy of vocabulary/structures; Coherence & content), with marks summing to the total.",
   method_marks:
@@ -42,11 +46,11 @@ const MARKING_GUIDANCE = {
     "For each sub-task give the worked solution as the `answer` and a `markAllocation` that awards METHOD marks for correct stages/formulae and an ACCURACY mark for the correct final answer (and marks for correct diagrams/measurements where relevant). " +
     "Note in markingScheme.notes that omission of essential working loses marks and alternative correct methods are accepted.",
   experiment_rubric:
-    "EXPERIMENT (Integrated Science). In `stimulus` give the Materials and Method; in `instructions` tell the teacher how to administer it; record sheets and follow-up questions go in `questions` if needed. " +
+    "EXPERIMENT (Integrated Science). In `stimulus` give the Materials and Method the learner follows; in `instructions` tell the LEARNER what to do; in `administration` tell the teacher how to set up and administer it; record sheets and follow-up questions go in `questions` if needed. " +
     "markingScheme.criteria MUST be the ECZ experiment rubric (total 10): " +
     "Knowledge of materials to be used (1); Following instructions and procedures (2); Taking correct readings/observations (2); Recording correct readings/observations (2); Explaining the scientific meaning of readings/observations (2); Drawing correct conclusion based on findings (1).",
   project_rubric:
-    "PROJECT. In `instructions` set the project brief and expected report layout (Title, Aim, Materials, Method, Observations/Results, Explanation, Conclusion). " +
+    "PROJECT. In `instructions` give the learner the project brief and expected report layout (Title, Aim, Materials, Method, Observations/Results, Explanation, Conclusion); put any teacher set-up / timing / supervision notes in `administration`. " +
     "For Integrated Science use the ECZ project rubric (total 10): Knowledge of materials (2); Procedure (2); Recording correct readings/observations (2); Explaining of observations/results (2); Drawing correct conclusion (2). " +
     "For a CTS project, score against the relevant key competences (Creativity, Critical thinking, Problem-solving, Manipulation, Entrepreneurship) with marks summing to the total.",
   competence_rubric:
@@ -112,10 +116,13 @@ function buildUserPrompt(inputs) {
     '    "bloomLevels": [string],    // from: Knowledge, Comprehension, Application, Analysis, Synthesis, Evaluation',
     '    "outcomeRefs": [string]     // syllabus outcome codes you assessed, if known (e.g. "5.7.2")',
     "  },",
-    '  "instructions": string,       // how the teacher administers the task to learners',
+    '  "instructions": string,       // LEARNER-facing — printed on the task sheet (what the learner must do)',
+    '  "administration": string,     // TEACHER-facing — how to set up / hand out / time / run the task; NEVER shown to the learner',
     '  "stimulus": string,           // passage / data / dialogue / experiment method the learner works from, else ""',
+    '  "stimulusDiagram": { "libraryKey": string, "params": {object} },  // optional library figure shown with the stimulus, else omit',
     '  "questions": [',
     '    { "number": number, "prompt": string, "marks": number, "answer": string,',
+    '      "diagram": { "libraryKey": string, "params": {object} },  // optional library figure printed with this question, else omit',
     '      "markAllocation": [ { "description": string, "marks": number } ] }',
     "  ],",
     '  "markingScheme": {',
@@ -124,6 +131,11 @@ function buildUserPrompt(inputs) {
     '    "criteria": [ { "name": string, "maxMarks": number, "descriptor": string } ]',
     "  }",
     "}",
+    "",
+    "",
+    "DIAGRAMS — attach a deterministic library figure with \"libraryKey\" + \"params\" rather than describing it in words. Use it on a question (`questions[].diagram`) or with the stimulus (`stimulusDiagram`). Use ONLY these exact keys and the params listed; omit the field when no figure is needed. Never describe the figure inside the prompt text — write the question as if the figure is printed beside it (\"Study the diagram below.\"). Available figures:",
+    sbaDiagramReference(),
+    "Examples — label the parts of a plant cell: \"diagram\": {\"libraryKey\":\"plantcell\"}. Area of a parallelogram: \"diagram\": {\"libraryKey\":\"parallelogramh\", \"params\":{\"base\":\"12 cm\",\"height\":\"4 cm\"}}. Read a bar chart: \"diagram\": {\"libraryKey\":\"barchart\", \"params\":{\"labels\":\"Mon,Tue,Wed\",\"values\":\"12,18,9\"}}.",
     "",
     "Rules:",
     `- The marks available in the task MUST total exactly ${totalMarks}.`,

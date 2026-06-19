@@ -62,6 +62,16 @@ export default function SbaTaskStudio() {
   const [generationId, setGenerationId] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(true)
+  // School name on the task banner — pre-filled from the teacher's registration
+  // profile, but editable in case they set tasks for more than one school.
+  const [schoolName, setSchoolName] = useState(
+    userProfile?.school || userProfile?.schoolName || '',
+  )
+
+  // Keep the field in sync once the profile loads (it can arrive after mount).
+  useEffect(() => {
+    setSchoolName((prev) => prev || userProfile?.school || userProfile?.schoolName || '')
+  }, [userProfile?.school, userProfile?.schoolName])
 
   const subjectMeta = getSbaSubject(form.subject)
   const taskTypeOptions = useMemo(() => getSbaTaskTypes(form.subject), [form.subject])
@@ -136,6 +146,7 @@ export default function SbaTaskStudio() {
     })
     downloadSbaTaskDocx(task, name, {
       includeAnswers,
+      schoolName,
       attribution: isFreePlanTeacher({ userProfile, isAdmin }),
     })
   }
@@ -281,6 +292,20 @@ export default function SbaTaskStudio() {
 
             {task && (
               <div className="space-y-4">
+                <div>
+                  <label className="studio-label">School name</label>
+                  <input
+                    type="text"
+                    value={schoolName}
+                    maxLength={120}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    placeholder="Your school name"
+                    className="studio-input"
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: '#7a8e94' }}>
+                    Pulled from your profile — edit it here and it appears on the task sheet and the download.
+                  </p>
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-xs font-bold theme-text">
                     <input type="checkbox" checked={showAnswers} onChange={(e) => setShowAnswers(e.target.checked)} />
@@ -305,7 +330,7 @@ export default function SbaTaskStudio() {
                     Saved to your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
                   </p>
                 )}
-                <SbaTaskView task={task} showAnswers={showAnswers} />
+                <SbaTaskView task={task} showAnswers={showAnswers} schoolName={schoolName} />
               </div>
             )}
           </div>

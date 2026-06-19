@@ -22,12 +22,18 @@ const STYLE_LABELS = {
   criteria_rubric: 'Marking criteria',
 }
 
-export default function SbaTaskView({ task, showAnswers = true }) {
+export default function SbaTaskView({ task, showAnswers = true, schoolName }) {
   if (!task) return null
   const header = task.header || {}
   const ms = task.markingScheme || {}
   const questions = Array.isArray(task.questions) ? task.questions : []
-  const blocks = buildSbaPaperBlocks(task)
+  // The school name on the banner: an explicit prop (the studio's editable
+  // field / the teacher's profile) wins, else whatever was saved on the task.
+  const blocks = buildSbaPaperBlocks(task, { schoolName: schoolName || header.schoolName || '' })
+
+  // Teacher administration guidance — how to set up / run the task. Kept off
+  // the learner's paper; it belongs with the marking scheme.
+  const administration = String(task.administration || '').trim()
 
   // Teacher-only metadata that doesn't belong on the learner's paper.
   const meta = [
@@ -42,6 +48,7 @@ export default function SbaTaskView({ task, showAnswers = true }) {
     questions.some((q) => q.answer || (q.markAllocation || []).length) ||
     ms.notes ||
     (ms.criteria || []).length > 0 ||
+    administration ||
     meta.length > 0
   ))
 
@@ -73,6 +80,14 @@ export default function SbaTaskView({ task, showAnswers = true }) {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {administration && (
+            <Section title="How to administer this task">
+              {administration.split(/\n\s*\n/).filter((p) => p.trim()).map((p, i) => (
+                <p key={i} className="text-sm theme-text mb-2 whitespace-pre-line">{p}</p>
+              ))}
+            </Section>
           )}
 
           {questions.some((q) => q.answer || (q.markAllocation || []).length > 0) && (

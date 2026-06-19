@@ -78,7 +78,7 @@ function questionBlock(q, number) {
   const marks = Number(q.marks) || 0
   const isEssay = marks >= 8
   const answerLines = isEssay ? clamp(marks, 8, 16) : clamp(marks || 2, 2, 8)
-  return {
+  const block = {
     kind: 'question',
     number,
     text: String(q.prompt || ''),
@@ -89,6 +89,13 @@ function questionBlock(q, number) {
     blankLabels: [],
     showAnswer: false,
   }
+  // An exact library figure printed beside the question (a maths shape, a
+  // science apparatus, a graph to read off). Rendered by PaperQuestionBlock /
+  // renderPaperBlocksToDocx, which both already understand `imageDiagram`.
+  if (q.diagram && q.diagram.libraryKey) {
+    block.imageDiagram = { libraryKey: q.diagram.libraryKey, params: q.diagram.params || {} }
+  }
+  return block
 }
 
 /**
@@ -105,10 +112,12 @@ export function buildSbaPaperBlocks(task = {}, opts = {}) {
   const year = opts.year || new Date().getFullYear()
   const blocks = []
 
-  // 1. Banner
+  // 1. Banner — the school name comes from the caller (the studio's editable
+  // field / the teacher's profile) or, failing that, what was saved on the task
+  // header. PaperHeaderBlock shows the "YOUR SCHOOL NAME" placeholder when blank.
   blocks.push({
     kind: 'header',
-    schoolName: String(opts.schoolName || '').trim(),
+    schoolName: String(opts.schoolName || header.schoolName || '').trim(),
     title: paperTitle(header, year),
     subject: subjectLabel(header.subject).toUpperCase(),
     paperName: String(header.title || '').trim().toUpperCase(),
@@ -131,14 +140,19 @@ export function buildSbaPaperBlocks(task = {}, opts = {}) {
   if (instrLines.length === 0) instrLines.push('Answer all the tasks in the spaces provided.')
   blocks.push({ kind: 'instructions', text: instrLines.join('\n\n'), isMarkingKey: false })
 
-  // 4. Stimulus → a passage block the learner reads/studies
-  if (String(task.stimulus || '').trim()) {
+  // 4. Stimulus → a passage block the learner reads/studies, optionally with a
+  // library figure (e.g. the apparatus for a science experiment).
+  const stimulusDiagram = task.stimulusDiagram && task.stimulusDiagram.libraryKey
+    ? { libraryKey: task.stimulusDiagram.libraryKey, params: task.stimulusDiagram.params || {} }
+    : null
+  if (String(task.stimulus || '').trim() || stimulusDiagram) {
     blocks.push({
       kind: 'passage',
       title: 'Read / study the following carefully',
-      text: String(task.stimulus).trim(),
+      text: String(task.stimulus || '').trim(),
       imageUrl: '',
       imageAlt: '',
+      imageDiagram: stimulusDiagram,
     })
   }
 

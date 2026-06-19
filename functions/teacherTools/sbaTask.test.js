@@ -121,4 +121,48 @@ console.log("sbaTaskSchema — unknown marking style falls back to answer_key");
   ok("style normalised", value.markingScheme.style === "answer_key");
 }
 
+console.log("sbaTaskSchema — school name, learner vs teacher instructions, diagrams");
+{
+  const {ok: valid, value} = validateSbaTask({
+    header: {
+      title: "G5 Science — The Heart",
+      taskType: "Experiment",
+      schoolName: "Kamwala Primary School",
+    },
+    instructions: "Answer all the questions in the spaces provided.",
+    administration: "Hand out one sheet per learner. Allow 40 minutes.",
+    stimulus: "Study the diagram of the heart.",
+    stimulusDiagram: {libraryKey: "animalcell", params: {cap: "Cell"}},
+    questions: [
+      {
+        number: 1,
+        prompt: "Label the parts of the cell shown.",
+        marks: 10,
+        answer: "Nucleus; membrane.",
+        diagram: {libraryKey: "plantcell", params: {cap: "Plant cell"}},
+      },
+    ],
+    markingScheme: {style: "experiment_rubric", criteria: []},
+  });
+  ok("valid", valid);
+  ok("schoolName kept on header", value.header.schoolName === "Kamwala Primary School");
+  ok("learner instructions kept", /spaces provided/.test(value.instructions));
+  ok("teacher administration kept separately", /40 minutes/.test(value.administration));
+  ok("question diagram kept (allowlisted key)", value.questions[0].diagram.libraryKey === "plantcell");
+  ok("stimulus diagram kept", value.stimulusDiagram.libraryKey === "animalcell");
+}
+
+console.log("sbaTaskSchema — off-allowlist diagram keys are dropped");
+{
+  const {value} = validateSbaTask({
+    header: {title: "T", taskType: "t"},
+    instructions: "Do the task.",
+    stimulusDiagram: {libraryKey: "death_star"},
+    questions: [{number: 1, prompt: "Q", marks: 2, answer: "A", diagram: {libraryKey: "not_a_real_key"}}],
+    markingScheme: {style: "answer_key", criteria: []},
+  });
+  ok("bad question diagram dropped", value.questions[0].diagram === undefined);
+  ok("bad stimulus diagram dropped", value.stimulusDiagram === undefined);
+}
+
 console.log(`\n✓ sbaTask — all ${passed} assertions passed.`);
