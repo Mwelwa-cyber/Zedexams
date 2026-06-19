@@ -39,9 +39,20 @@ function buildUserPrompt(inputs) {
     includeAnswerKey = true,
     language = "English",
     instructions = "",
+    style = "auto",
   } = inputs;
 
   const leLabel = learningEnvironmentLabel(learningEnvironment);
+
+  // When the teacher explicitly picks a worksheet style, this authoritative
+  // directive overrides the model's "choose what suits the topic" judgement.
+  // "auto" (or anything unknown) leaves that judgement intact.
+  const styleDirective = {
+    standard: 'The teacher requires the "Question & answer" style: use layout "standard" for every section with normal numbered questions. Do NOT use grid layout and do NOT add a reading passage.',
+    grid: 'The teacher requires the "Practice grid" style: place the items in section(s) with layout "grid" and "columns" 3 or 4, using short "calculation" or "fill_in_blank" prompts, each worth 1 mark. Do NOT add a reading passage.',
+    comprehension: 'The teacher requires the "Reading comprehension" style: the first section MUST carry a "passage" (a grade-appropriate reading text of about 5-10 sentences) and a short "passageTitle", followed by "short_answer" questions about that passage. Keep its layout "standard".',
+    working: 'The teacher requires the "Show working" style: use layout "standard" and set "workingStyle":"columns" on the calculation questions so the printout leaves tall vertical working space for column methods (long division, multi-digit multiplication).',
+  }[style] || "";
 
   const diffGuidance = {
     easy: "All questions should be accessible recall / direct application — no multi-step reasoning.",
@@ -71,6 +82,7 @@ function buildUserPrompt(inputs) {
     `- Suggested pupil time: ${durationMinutes} minutes`,
     `- Language: ${language}`,
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
+    styleDirective ? `- IMPORTANT — required worksheet format: ${styleDirective}` : "",
     "",
     "Produce a single JSON object with EXACTLY these keys:",
     "",

@@ -97,6 +97,16 @@ export const WORKSHEET_DIFFICULTIES = [
   { value: 'mixed', label: 'Mixed — easy → hard progression (recommended)' },
 ]
 
+// Worksheet layout style. "auto" lets the AI pick from the topic; the rest
+// force a specific layout on the server (see functions worksheetPrompt).
+export const WORKSHEET_STYLES = [
+  { value: 'auto', label: 'Auto — let the AI choose (recommended)' },
+  { value: 'standard', label: 'Question & answer — numbered questions' },
+  { value: 'grid', label: 'Practice grid — drills in columns (e.g. fractions → decimals)' },
+  { value: 'comprehension', label: 'Reading comprehension — passage + questions' },
+  { value: 'working', label: 'Show working — column maths (long division, multiplication)' },
+]
+
 export const WORKSHEET_QUESTION_COUNTS = [
   { value: 5, label: '5 questions — quick check' },
   { value: 10, label: '10 questions — standard (recommended)' },

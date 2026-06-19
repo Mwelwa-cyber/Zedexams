@@ -4,6 +4,7 @@ import {
   TEACHER_GRADES,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
+  WORKSHEET_STYLES,
   WORKSHEET_QUESTION_COUNTS,
   WORKSHEET_DURATIONS,
   CURRICULUM_TERMS,
@@ -43,6 +44,7 @@ export default function WorksheetGenerator() {
     totalLessons: '',
     learningEnvironment: '',
     count: 10,
+    style: 'auto',
     difficulty: 'mixed',
     durationMinutes: 30,
     language: 'english',
@@ -211,6 +213,12 @@ export default function WorksheetGenerator() {
               value={form.learningEnvironment}
               options={LEARNING_ENVIRONMENT_OPTIONS}
               onChange={(v) => updateField('learningEnvironment', v)}
+            />
+            <FieldSelect
+              label="Worksheet style"
+              value={form.style}
+              options={WORKSHEET_STYLES}
+              onChange={(v) => updateField('style', v)}
             />
             <FieldSelect
               label="Number of questions"

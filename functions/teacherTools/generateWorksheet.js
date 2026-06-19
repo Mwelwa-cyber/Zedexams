@@ -126,6 +126,11 @@ const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard", "mixed"]);
+// Teacher-facing worksheet style. "auto" lets the model pick a layout from the
+// topic; the rest force a specific layout (see worksheetPrompt styleDirective).
+const ALLOWED_STYLES = new Set([
+  "auto", "standard", "grid", "comprehension", "working",
+]);
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 function sanitizeInputs(raw = {}) {
@@ -137,6 +142,7 @@ function sanitizeInputs(raw = {}) {
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
   const difficulty = str(raw.difficulty || "mixed", 10).toLowerCase();
+  const style = str(raw.style || "auto", 20).toLowerCase();
 
   // Optional curriculum-module selectors. Absent/0 → null so behaviour is
   // unchanged from before this upgrade when they aren't supplied.
@@ -158,6 +164,7 @@ function sanitizeInputs(raw = {}) {
       learningEnvironment : "",
     count: Math.min(25, Math.max(3, Math.round(num(raw.count, 10)))),
     difficulty: ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : "mixed",
+    style: ALLOWED_STYLES.has(style) ? style : "auto",
     durationMinutes: Math.min(120, Math.max(10, Math.round(num(raw.durationMinutes, 30)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     includeAnswerKey: raw.includeAnswerKey !== false,
