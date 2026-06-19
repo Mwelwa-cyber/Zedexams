@@ -25,7 +25,7 @@ import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
-import { FieldLabel, FieldText, FieldTextarea, FieldSelect } from './studioFields'
+import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
 
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
@@ -44,6 +44,7 @@ export default function NotesStudio() {
     subject: 'mathematics',
     topic: '',
     subtopic: '',
+    date: '',
     term: '',
     lessonNumber: '',
     totalLessons: '',
@@ -137,7 +138,7 @@ export default function NotesStudio() {
     setNotes(null)
 
     const payload = mode === MODE_FROM_PLAN
-      ? { lessonPlanId: form.lessonPlanId, instructions: form.instructions }
+      ? { lessonPlanId: form.lessonPlanId, instructions: form.instructions, date: form.date }
       : { ...form, lessonPlanId: '' }
 
     const res = await generateNotes(payload)
@@ -290,6 +291,12 @@ export default function NotesStudio() {
                 />
               </>
             )}
+
+            <FieldDate
+              label="Lesson date (optional)"
+              value={form.date}
+              onChange={(v) => updateField('date', v)}
+            />
 
             <FieldTextarea
               label="Extra instructions (optional)"
