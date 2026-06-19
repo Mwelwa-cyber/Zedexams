@@ -1,3 +1,29 @@
 {
-  "_TODO": "Chinyanja (Nyanja) translations need a Zambian native speaker. Empty values fall back to English. Mirror the keys in en/dashboard.json and fill in the strings without changing key names."
+  "_TODO": "Chinyanja (Nyanja) translations need a Zambian native speaker. Empty values fall back to English. Mirror the keys in en/dashboard.json and fill in the strings without changing key names.",
+  "hero": {
+    "greeting": "",
+    "greetingFallback": "",
+    "stats": {
+      "badges": "",
+      "quizzes": ""
+    }
+  },
+  "actions": {
+    "myResults": "",
+    "startQuiz": ""
+  },
+  "cards": {
+    "exams": {
+      "title": "",
+      "body": ""
+    },
+    "games": {
+      "title": "",
+      "body": ""
+    },
+    "notes": {
+      "title": "",
+      "body": ""
+    }
+  }
 }
