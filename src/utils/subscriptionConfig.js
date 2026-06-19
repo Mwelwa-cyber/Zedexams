@@ -305,17 +305,13 @@ export function hasPremiumAccess(userProfile) {
 // - Admins: always.
 // - Learners: their existing premium subscription IS their learner-portal
 //   subscription, so we fall back to hasPremiumAccess().
-// - Teachers: must have a SEPARATE active learner-portal subscription. Their
-//   teacher-portal premium does NOT grant learner access.
+// - Teachers: NEVER. The teacher and learner portals are fully separate — a
+//   teacher account cannot access the learner side (and there is no learner-
+//   portal subscription to buy from a teacher account).
 export function hasLearnerPortalAccess(userProfile) {
   if (!userProfile) return false
   if (isSuperAdmin(userProfile)) return true
-  if (userProfile.role === ROLES.TEACHER) {
-    if (userProfile.learnerPortalActive !== true) return false
-    const expiry = toDateValue(userProfile.learnerPortalExpiry)
-    if (!expiry) return true
-    return expiry > new Date()
-  }
+  if (userProfile.role === ROLES.TEACHER) return false
   // Learners (and anyone unknown) use the legacy premium gate so existing
   // free-tier rules (demo-only) still apply for non-premium learners.
   return hasPremiumAccess(userProfile)
