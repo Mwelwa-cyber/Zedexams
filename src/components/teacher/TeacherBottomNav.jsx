@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { FolderOpen, Home, PencilLine } from '../ui/icons'
+import { FolderOpen, Home, ClipboardCheckList, Users } from '../ui/icons'
 import Icon from '../ui/Icon'
 
 const TEACHER_NAV_ITEMS = [
-  { to: '/teacher',             icon: Home,       label: 'Home',        end: true  },
-  { to: '/teacher/library',     icon: FolderOpen, label: 'Library',     end: false },
-  { to: '/teacher/test-papers', icon: PencilLine, label: 'Test Papers', end: false },
+  { to: '/teacher',             icon: Home,               label: 'Home',        end: true  },
+  { to: '/teacher/library',     icon: FolderOpen,         label: 'Library',     end: false },
+  { to: '/teacher/test-papers', icon: ClipboardCheckList, label: 'Assessments', end: false },
+  { to: '/teacher/register',    icon: Users,              label: 'My Class',    end: false },
 ]
 
 const PILL_STYLE = { width: 38, height: 30, borderRadius: 12 }
