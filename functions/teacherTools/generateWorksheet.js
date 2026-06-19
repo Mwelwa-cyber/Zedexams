@@ -67,6 +67,11 @@ const WORKSHEET_TOOL_SCHEMA = {
         additionalProperties: true,
         properties: {
           title: {type: "string"},
+          instructions: {type: "string"},
+          passageTitle: {type: "string"},
+          passage: {type: "string"},
+          layout: {type: "string", enum: ["standard", "grid"]},
+          columns: {type: "number"},
           questions: {
             type: "array",
             items: {type: "object", additionalProperties: true},

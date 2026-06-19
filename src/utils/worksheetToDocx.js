@@ -121,6 +121,38 @@ function nameBlock() {
   })
 }
 
+// Pick the working space for a question: explicit workingStyle wins, otherwise
+// fall back to a sensible default derived from the question type.
+function effectiveWorkingStyle(q) {
+  if (q.workingStyle) return q.workingStyle
+  if (q.type === 'calculation') return 'columns'
+  if (q.type === 'essay') return 'lines'
+  if (q.type === 'fill_in_blank' || q.type === 'short_answer') return 'box'
+  return 'none'
+}
+
+function workingSpaceBlocks(q) {
+  const style = effectiveWorkingStyle(q)
+  const blocks = []
+  if (style === 'none') return blocks
+  if (style === 'columns') {
+    // Tall vertical room for column ×/÷ working (long division, multi-digit ×).
+    blocks.push(para(text('Working:', { bold: true, size: 20 })))
+    for (let i = 0; i < 5; i++) blocks.push(para(text(' ', { size: 20 })))
+    blocks.push(para(text('Answer: ______________________________________', { size: 20 })))
+  } else if (style === 'box') {
+    blocks.push(para(text('Answer: ______________________________________________________', { size: 20 })))
+  } else if (style === 'lines') {
+    // Essays want plenty of room (was 6 lines before working styles existed);
+    // short-answer prompts only need a couple.
+    const lineCount = q.type === 'essay' ? 6 : 4
+    for (let i = 0; i < lineCount; i++) {
+      blocks.push(para(text('______________________________________________________________________________', { size: 20 })))
+    }
+  }
+  return blocks
+}
+
 function renderQuestion(q, {includeAnswer}) {
   const blocks = []
   const marksTag = `  [${q.marks} mark${q.marks === 1 ? '' : 's'}]`
@@ -145,17 +177,9 @@ function renderQuestion(q, {includeAnswer}) {
         spacing: { after: 40 },
       }))
     })
-  } else if (q.type === 'fill_in_blank' || q.type === 'short_answer') {
-    blocks.push(para(text('Answer: ______________________________________________________', { size: 20 })))
-  } else if (q.type === 'calculation') {
-    blocks.push(para(text('Working:', { bold: true, size: 20 })))
-    blocks.push(para(text(' ', { size: 20 })))
-    blocks.push(para(text(' ', { size: 20 })))
-    blocks.push(para(text('Answer: ______________________________________', { size: 20 })))
-  } else if (q.type === 'essay') {
-    for (let i = 0; i < 6; i++) {
-      blocks.push(para(text('______________________________________________________________________________', { size: 20 })))
-    }
+  } else if (!includeAnswer) {
+    // Pupil copy: leave working room. The answer key skips this to stay compact.
+    blocks.push(...workingSpaceBlocks(q))
   }
 
   if (includeAnswer && q.answer) {
@@ -178,6 +202,65 @@ function renderQuestion(q, {includeAnswer}) {
   }
 
   return blocks
+}
+
+// A reading passage rendered in a single bordered cell above the questions.
+function passageBlocks(section) {
+  const blocks = []
+  if (section.passageTitle) {
+    blocks.push(new Paragraph({
+      children: [text(section.passageTitle, { bold: true, size: 22 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 80 },
+    }))
+  }
+  const paragraphs = String(section.passage).split(/\n{2,}/).map((chunk) =>
+    para(text(chunk.replace(/\n/g, ' '), { size: 21 })))
+  blocks.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [new TableRow({
+      children: [new TableCell({ children: paragraphs, borders: CELL_BORDER })],
+    })],
+  }))
+  blocks.push(para([]))
+  return blocks
+}
+
+// A compact drill grid: questions packed into an N-column borderless table.
+function gridSectionBlocks(section, {includeAnswer}) {
+  const cols = Math.min(4, Math.max(2, Number(section.columns) || 3))
+  const questions = section.questions || []
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'ffffff' }
+  const borders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
+
+  const rows = []
+  for (let i = 0; i < questions.length; i += cols) {
+    const slice = questions.slice(i, i + cols)
+    const cells = []
+    for (let c = 0; c < cols; c++) {
+      const q = slice[c]
+      const runs = q ? [
+        text(`${q.number}. `, { bold: true, size: 22 }),
+        text(`${q.prompt} `, { size: 22 }),
+        text('______', { size: 22 }),
+      ] : [text(' ', { size: 22 })]
+      const children = [new Paragraph({ children: runs, spacing: { after: 40 } })]
+      if (includeAnswer && q && q.answer) {
+        children.push(new Paragraph({
+          children: [text(`✓ ${q.answer}`, { size: 18, color: '059669' })],
+          spacing: { after: 80 },
+        }))
+      }
+      cells.push(new TableCell({
+        children,
+        width: { size: Math.round(100 / cols), type: WidthType.PERCENTAGE },
+        borders,
+        margins: { top: 60, bottom: 60, left: 80, right: 80 },
+      }))
+    }
+    rows.push(new TableRow({ children: cells }))
+  }
+  return [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows })]
 }
 
 /**
@@ -205,8 +288,15 @@ export function buildWorksheetDocument(worksheet, {mode = 'worksheet', attributi
     if (section.instructions) {
       children.push(para(text(section.instructions, { italics: true, size: 20 })))
     }
-    for (const q of section.questions || []) {
-      children.push(...renderQuestion(q, {includeAnswer}))
+    if (section.passage) {
+      children.push(...passageBlocks(section))
+    }
+    if (section.layout === 'grid') {
+      children.push(...gridSectionBlocks(section, {includeAnswer}))
+    } else {
+      for (const q of section.questions || []) {
+        children.push(...renderQuestion(q, {includeAnswer}))
+      }
     }
   }
 
