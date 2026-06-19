@@ -43,13 +43,19 @@ export default function MySubscriptionPage() {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   const {
-    status, audience, isPro, isTrial, planType, benefits, expiry, daysLeft,
+    status, audience, isPro, isTrial, planType, planLabel, benefits, expiry, daysLeft,
   } = useSubscriptionReminder()
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [showMaxUpgrade, setShowMaxUpgrade] = useState(false)
 
   const meta = STATUS_META[status] || STATUS_META[SUB_STATUS.FREE]
   const hasAccess = isPro || isTrial
+  // Show the REAL tier the user pays for — "Max" must not display as "Pro"
+  // just because both resolve to an active (PRO) status. planLabel already
+  // resolves to 'Max'/'Pro'/'Trial'/'Expired'/'Free'; STATUS_META only drives
+  // the colour + icon. Max gets its own badge emoji.
+  const displayLabel = planLabel || meta.label
+  const displayEmoji = isPro && planType === 'max' ? '🦅' : meta.emoji
   const expiryLabel = formatDate(expiry)
   const portal = upgradePortal(audience)
 
@@ -93,9 +99,9 @@ export default function MySubscriptionPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-widest theme-text-muted">Current plan</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-2xl font-black theme-text">{meta.label}</span>
+                <span className="text-2xl font-black theme-text">{displayLabel}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black uppercase ${meta.tone}`}>
-                  <span aria-hidden="true">{meta.emoji}</span> {meta.label}
+                  <span aria-hidden="true">{displayEmoji}</span> {displayLabel}
                 </span>
               </div>
             </div>

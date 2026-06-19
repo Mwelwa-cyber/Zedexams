@@ -1,0 +1,111 @@
+/**
+ * functions/subscriptionUpgrade.js
+ *
+ * Server-authoritative prorated tier-upgrade pricing (Pro → Max).
+ *
+ * Mirror of src/utils/subscriptionUpgrade.js — keep the maths identical. When
+ * a teacher steps up from Pro to Max mid-subscription we charge ONLY the
+ * difference in daily rate for the days they have left, and we DO NOT extend
+ * their renewal date (same model as Claude). The client copy drives what the
+ * modal shows; THIS copy is the source of truth for the amount actually
+ * charged and is recomputed in initiateLencoPayment — a client can pick a
+ * target plan but never dictate the prorated price.
+ *
+ * Dependency-light on purpose (require('./plans') only) so the repo-root node
+ * test suite can import it without firebase-admin — same pattern as plans.js.
+ */
+
+const {getPlan} = require("./plans");
+
+const DAY = 24 * 60 * 60 * 1000;
+
+// Lenco rejects zero/near-zero collections, so an upgrade that prorates down
+// to almost nothing still charges this floor.
+const MIN_UPGRADE_ZMW = 1;
+
+function toDate(value) {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// functions/plans.js has no `tier` field, so derive it from the id (same
+// mapping subscriptionActivation uses for the teacher studio tier).
+function planTier(planId) {
+  if (planId === "pro_monthly" || planId === "pro_yearly") return "pro";
+  if (planId === "max_monthly" || planId === "max_yearly") return "max";
+  return null;
+}
+
+function dailyRate(plan) {
+  const price = Number(plan?.priceZMW || 0);
+  const days = Number(plan?.durationDays || 0);
+  return days > 0 ? price / days : 0;
+}
+
+// Only the Pro → Max ladder is an "upgrade".
+function isUpgradePath(fromPlanId, toPlanId) {
+  return planTier(fromPlanId) === "pro" && planTier(toPlanId) === "max";
+}
+
+function computeUpgradeQuote({fromPlan, toPlan, expiry, now = new Date()}) {
+  const exp = toDate(expiry);
+  const daysRemaining = exp ?
+    Math.max(0, Math.ceil((exp.getTime() - now.getTime()) / DAY)) :
+    0;
+  const perDayDiff = Math.max(0, dailyRate(toPlan) - dailyRate(fromPlan));
+  const isUpgrade = daysRemaining > 0 && perDayDiff > 0;
+  const amountZMW = isUpgrade ?
+    Math.max(MIN_UPGRADE_ZMW, Math.round(perDayDiff * daysRemaining)) :
+    0;
+  return {isUpgrade, daysRemaining, amountZMW, perDayDiff, expiry: exp};
+}
+
+// The user's live tier, tolerant of the pre-2026-06 legacy teacherPlan ids
+// (individual→pro, school→max). Returns 'pro' | 'max' | null.
+function currentTier(user) {
+  const tp = user?.teacherPlan;
+  if (tp === "max" || tp === "school") return "max";
+  if (tp === "pro" || tp === "individual") return "pro";
+  return planTier(user?.subscriptionPlan);
+}
+
+// The exact Pro plan a teacher currently pays for, so we prorate against the
+// right daily rate. Only meaningful once the caller has confirmed the user is
+// actually on Pro; falls back to pro_monthly for a legacy/blank plan id.
+function resolveCurrentProPlanId(user) {
+  const id = user?.subscriptionPlan;
+  if (planTier(id) === "pro") return id;
+  return "pro_monthly";
+}
+
+/**
+ * Quote an upgrade for a user record + target plan id. Returns
+ * { isUpgrade:false } when it isn't a live Pro→Max step (the user isn't on
+ * Pro, is already on Max, the target isn't Max, or the sub is expired) so
+ * callers fall back to full-price checkout.
+ */
+function quoteUpgradeForUser(user, toPlanId, now = new Date()) {
+  const fromPlanId = resolveCurrentProPlanId(user);
+  const fromPlan = getPlan(fromPlanId);
+  const toPlan = getPlan(toPlanId);
+  const noop = {isUpgrade: false, daysRemaining: 0, amountZMW: 0, perDayDiff: 0, expiry: null, fromPlanId, toPlanId};
+  // Guard on the user's ACTUAL tier first — a Max user must never be treated
+  // as Pro by the pro_monthly fallback above.
+  if (currentTier(user) !== "pro") return noop;
+  if (!fromPlan || !toPlan || planTier(toPlanId) !== "max") return noop;
+  const expiry = user?.teacherPlanExpiresAt || user?.subscriptionExpiry;
+  return {...computeUpgradeQuote({fromPlan, toPlan, expiry, now}), fromPlanId, toPlanId};
+}
+
+module.exports = {
+  MIN_UPGRADE_ZMW,
+  planTier,
+  currentTier,
+  dailyRate,
+  isUpgradePath,
+  computeUpgradeQuote,
+  resolveCurrentProPlanId,
+  quoteUpgradeForUser,
+};

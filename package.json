@@ -122,6 +122,7 @@
     "test:visual-safety": "node functions/visualSafety.test.js",
     "test:lenco": "node functions/lencoService.test.js",
     "test:subscription-activation": "node functions/subscriptionActivation.test.js",
+    "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
     "test:worksheet-schema": "node functions/teacherTools/worksheetSchema.test.js",
     "test:worksheet-prompt": "node functions/teacherTools/worksheetPrompt.test.js",

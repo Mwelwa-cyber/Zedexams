@@ -2665,8 +2665,22 @@ exports.initiateLencoPayment = onCall({
   const db = admin.firestore();
   const userSnap = await db.collection("users").doc(uid).get();
   const user = userSnap.exists ? (userSnap.data() || {}) : {};
-  const amount = Number(plan.priceZMW);
   const bearer = process.env.LENCO_FEE_BEARER === "customer" ? "customer" : "merchant";
+
+  // Pro → Max upgrade: charge ONLY the prorated daily-rate difference for the
+  // days the teacher has left, and keep their existing renewal date (the
+  // activation step preserves the expiry when isUpgrade is set). Recomputed
+  // server-side from the user record so the client can never dictate the
+  // prorated amount.
+  const {quoteUpgradeForUser} = require("./subscriptionUpgrade");
+  const quote = quoteUpgradeForUser(user, planId);
+  const amount = quote.isUpgrade ? quote.amountZMW : Number(plan.priceZMW);
+  const upgradeFields = quote.isUpgrade ? {
+    isUpgrade: true,
+    upgradeFromPlanId: quote.fromPlanId,
+    fullPriceZMW: Number(plan.priceZMW),
+    proratedDaysRemaining: quote.daysRemaining,
+  } : {};
 
   // Create the pending payment doc first; its id IS the Lenco reference,
   // so the webhook resolves the doc by a direct lookup (no query/index).
@@ -2684,6 +2698,7 @@ exports.initiateLencoPayment = onCall({
     paymentReference: "",
     status: "pending",
     lencoStatus: "pending",
+    ...upgradeFields,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   const reference = payRef.id;

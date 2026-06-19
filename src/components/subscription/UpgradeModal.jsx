@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, CreditCard, Loader2, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS } from '../../utils/subscriptionConfig'
+import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
 import {
   OPERATORS,
@@ -86,6 +87,17 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   }, [])
 
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
+
+  // Pro → Max upgrade pricing: the server charges only the prorated difference
+  // for the days left and keeps the current renewal date. Mirror that here so
+  // the price the buyer sees matches what they're charged.
+  const upgradeQuote = selectedPlanId ? getUpgradeQuoteForProfile(userProfile, selectedPlanId) : null
+  const isUpgrade = !!upgradeQuote?.isUpgrade
+  const effectivePrice = isUpgrade ? upgradeQuote.amountZMW : (plan?.priceZMW ?? 0)
+  const renewalDateLabel = isUpgrade && upgradeQuote.expiry
+    ? upgradeQuote.expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    : null
+
   const userEmail = userProfile?.email || currentUser?.email || ''
   const phoneValid = looksLikeZambianPhone(phone)
   const detectedOperator = operatorTouched ? operator : (detectOperator(phone) || operator)
@@ -96,8 +108,9 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
     setStep('checkout')
     capture('subscription_intent', {
       planId: selectedPlanId,
-      amountZmw: plan.priceZMW ?? null,
+      amountZmw: effectivePrice ?? null,
       durationDays: plan.durationDays ?? null,
+      isUpgrade,
     })
   }
 
@@ -254,6 +267,8 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 const item = PLANS[planId]
                 const active = selectedPlanId === planId
                 const activeBorder = PLAN_BORDER[planId] || FALLBACK_BORDER
+                const cardQuote = getUpgradeQuoteForProfile(userProfile, planId)
+                const cardPrice = cardQuote.isUpgrade ? cardQuote.amountZMW : item.priceZMW
                 return (
                   <button
                     key={planId}
@@ -266,10 +281,18 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                         <span className="ml-2 text-gray-500 text-sm">{item.tagline}</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-black text-2xl text-gray-800">K{item.priceZMW}</div>
-                        <div className="text-xs text-gray-500">ZMW</div>
+                        <div className="font-black text-2xl text-gray-800">K{cardPrice}</div>
+                        <div className="text-xs text-gray-500">
+                          {cardQuote.isUpgrade ? <s>K{item.priceZMW}</s> : 'ZMW'}
+                        </div>
                       </div>
                     </div>
+                    {cardQuote.isUpgrade && (
+                      <p className="mt-2 text-xs font-bold text-emerald-700">
+                        Upgrade price — pay only the difference for your {cardQuote.daysRemaining} remaining day
+                        {cardQuote.daysRemaining === 1 ? '' : 's'}. Your renewal date stays the same.
+                      </p>
+                    )}
                     {item.features?.length > 0 && (
                       <ul className="mt-3 space-y-1">
                         {item.features.map((feature) => (
@@ -294,7 +317,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               disabled={!selectedPlanId}
               onClick={handleContinue}
             >
-              {selectedPlanId ? `Continue → Pay K${plan.priceZMW}` : 'Select a Plan'}
+              {selectedPlanId ? `Continue → Pay K${effectivePrice}` : 'Select a Plan'}
             </Button>
           </>}
 
@@ -311,9 +334,18 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
             </Button>
 
             <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-2xl p-5 mb-5">
-              <p className="text-sm text-white/80">{plan.name} · {plan.durationDays} days</p>
-              <p className="font-black text-4xl mt-1 text-[#F4E4BC]">K{plan.priceZMW}</p>
-              <p className="text-xs text-white/70 mt-1">{plan.tagline}</p>
+              <p className="text-sm text-white/80">
+                {isUpgrade ? `Upgrade to ${plan.name}` : `${plan.name} · ${plan.durationDays} days`}
+              </p>
+              <p className="font-black text-4xl mt-1 text-[#F4E4BC]">
+                K{effectivePrice}
+                {isUpgrade && <span className="ml-2 align-middle text-base font-bold text-white/50 line-through">K{plan.priceZMW}</span>}
+              </p>
+              <p className="text-xs text-white/70 mt-1">
+                {isUpgrade && renewalDateLabel
+                  ? `One-off charge for the ${upgradeQuote.daysRemaining} day${upgradeQuote.daysRemaining === 1 ? '' : 's'} left — renews ${renewalDateLabel}, no extra days added.`
+                  : plan.tagline}
+              </p>
             </div>
 
             {/* ── Success ─────────────────────────────────────────── */}
@@ -324,7 +356,9 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 </div>
                 <h3 className="text-xl font-black text-gray-800">Payment confirmed 🎉</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Your {plan.name} plan is active for {plan.durationDays} days. A receipt is on its way to your email.
+                  {isUpgrade
+                    ? `You're now on ${plan.name}${renewalDateLabel ? `, renewing ${renewalDateLabel} as before` : ''}. A receipt is on its way to your email.`
+                    : `Your ${plan.name} plan is active for ${plan.durationDays} days. A receipt is on its way to your email.`}
                 </p>
                 <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={onClose}>
                   Start learning
@@ -371,7 +405,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 />
                 {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
                 <Button variant="primary" size="lg" fullWidth disabled={!otp.trim()} onClick={handleSubmitOtp}>
-                  Verify & pay K{plan.priceZMW}
+                  Verify & pay K{effectivePrice}
                 </Button>
               </div>
             )}
@@ -519,7 +553,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 >
                   {payState === 'starting'
                     ? <span className="flex items-center justify-center gap-2"><Icon as={Loader2} size="sm" className="animate-spin" /> Starting…</span>
-                    : `Pay K${plan.priceZMW}`}
+                    : `Pay K${effectivePrice}`}
                 </Button>
                 <p className="text-center text-[11px] text-gray-400 mt-3">
                   Secured by Lenco · {userEmail || 'your account'} will receive a receipt
