@@ -199,16 +199,6 @@ const STUDIO_GROUPS = [
       },
       {
         img: iconAssessments,
-        tone: 'violet',
-        badge: null,
-        libraryKey: 'assessment',
-        title: 'Test Generator',
-        tagline: 'AI-write a graded topic, mid-term or end-of-term test with a full marking scheme.',
-        to: '/teacher/generate/assessment',
-        meta: 'Max studio',
-      },
-      {
-        img: iconAssessments,
         tone: 'indigo',
         badge: 'NEW',
         libraryKey: 'exam-paper',
