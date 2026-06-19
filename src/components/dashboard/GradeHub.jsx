@@ -62,7 +62,7 @@ import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
 import SeoHelmet                from '../seo/SeoHelmet'
 import { computeStreak }        from '../../utils/streak'
-import { getTodaysExamsBySubject, checkDailyLock } from '../../utils/examService'
+import { getTodaysExamsBySubject, checkTodaysLocks } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -765,14 +765,15 @@ export default function GradeHub() {
     }
     let cancelled = false
     const grade = userProfile?.grade || '5'
-    getTodaysExamsBySubject(grade).then(examMap => Promise.all(
-      SUBJECTS.map(async subject => {
-        const exam = examMap.get(subject.label) || null
-        const lock = await checkDailyLock(currentUser.uid, subject.label)
-        return { exam, lock }
-      }),
-    )).then(rows => {
+    Promise.all([
+      getTodaysExamsBySubject(grade),
+      checkTodaysLocks(currentUser.uid),
+    ]).then(([examMap, lockMap]) => {
       if (cancelled) return
+      const rows = SUBJECTS.map(subject => ({
+        exam: examMap.get(subject.label) || null,
+        lock: lockMap.get(subject.label) || null,
+      }))
       const scheduled = rows.filter(r => r.exam)
       const submitted = scheduled.filter(r => r.lock?.status === 'submitted')
       setDailyGoal({ done: submitted.length, total: scheduled.length })

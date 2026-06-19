@@ -181,6 +181,14 @@
       ]
     },
     {
+      "collectionGroup": "daily_exam_locks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "date",   "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "results",
       "queryScope": "COLLECTION",
       "fields": [
