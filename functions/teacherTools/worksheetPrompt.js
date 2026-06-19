@@ -40,6 +40,8 @@ function buildUserPrompt(inputs) {
     language = "English",
     instructions = "",
     style = "auto",
+    gridColumns = 0,
+    passageLength = "",
   } = inputs;
 
   const leLabel = learningEnvironmentLabel(learningEnvironment);
@@ -50,9 +52,22 @@ function buildUserPrompt(inputs) {
   const styleDirective = {
     standard: 'The teacher requires the "Question & answer" style: use layout "standard" for every section with normal numbered questions. Do NOT use grid layout and do NOT add a reading passage.',
     grid: 'The teacher requires the "Practice grid" style: place the items in section(s) with layout "grid" and "columns" 3 or 4, using short "calculation" or "fill_in_blank" prompts, each worth 1 mark. Do NOT add a reading passage.',
-    comprehension: 'The teacher requires the "Reading comprehension" style: the first section MUST carry a "passage" (a grade-appropriate reading text of about 5-10 sentences) and a short "passageTitle", followed by "short_answer" questions about that passage. Keep its layout "standard".',
+    comprehension: 'The teacher requires the "Reading comprehension" style: the first section MUST carry a "passage" (a grade-appropriate reading text) and a short "passageTitle", followed by "short_answer" questions about that passage. Keep its layout "standard".',
     working: 'The teacher requires the "Show working" style: use layout "standard" and set "workingStyle":"columns" on the calculation questions so the printout leaves tall vertical working space for column methods (long division, multi-digit multiplication).',
+    matching: 'The teacher requires a "Matching" worksheet: create a section whose "instructions" list a shuffled answer bank (A, B, C, …), and whose questions are "fill_in_blank" items that each begin with a blank for the pupil to write the matching letter (e.g. "____ The capital of Zambia"). Keep layout "standard".',
+    word_problems: 'The teacher requires a "Word problems" worksheet: every question is a real-life Zambian word problem (type "short_answer" or "calculation") with "workingStyle":"columns" so pupils can show their working. Use layout "standard".',
+    true_false: 'The teacher requires a "True or False" worksheet: every question is type "true_false" with options ["True","False"]. Use layout "standard".',
   }[style] || "";
+
+  // Optional fine-grained controls. Each is an extra rule appended only when the
+  // teacher sets it; absent/auto values keep the model's own judgement.
+  const gridColumnsDirective = (gridColumns >= 2 && gridColumns <= 4) ?
+    `When you use a grid layout, set "columns" to exactly ${gridColumns}.` : "";
+  const passageLengthDirective = {
+    short: "Any reading passage should be short — about 3-4 sentences.",
+    medium: "Any reading passage should be a medium length — about 6-8 sentences.",
+    long: "Any reading passage should be longer — about 10-14 sentences.",
+  }[passageLength] || "";
 
   const diffGuidance = {
     easy: "All questions should be accessible recall / direct application — no multi-step reasoning.",
@@ -83,6 +98,8 @@ function buildUserPrompt(inputs) {
     `- Language: ${language}`,
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
     styleDirective ? `- IMPORTANT — required worksheet format: ${styleDirective}` : "",
+    gridColumnsDirective ? `- ${gridColumnsDirective}` : "",
+    passageLengthDirective ? `- ${passageLengthDirective}` : "",
     "",
     "Produce a single JSON object with EXACTLY these keys:",
     "",

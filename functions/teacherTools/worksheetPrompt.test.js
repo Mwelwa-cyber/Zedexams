@@ -38,6 +38,9 @@ const base = {
     comprehension: /Reading comprehension.*"passage"/s,
     working: /Show working.*"workingStyle":"columns"/s,
     standard: /Question & answer.*layout "standard"/s,
+    matching: /Matching.*answer bank/s,
+    word_problems: /Word problems.*word problem/s,
+    true_false: /True or False.*"true_false"/s,
   };
   for (const [style, re] of Object.entries(cases)) {
     const prompt = buildUserPrompt({...base, style});
@@ -47,6 +50,41 @@ const base = {
     );
     assert.match(prompt, re, `style "${style}" directive text mismatch`);
   }
+}
+
+// ── grid column override is injected only for 2-4 ─────────────────────────
+{
+  assert.match(
+    buildUserPrompt({...base, style: "grid", gridColumns: 4}),
+    /set "columns" to exactly 4/,
+    "gridColumns:4 should pin the column count",
+  );
+  assert.ok(
+    !buildUserPrompt({...base, style: "grid", gridColumns: 0}).includes("set \"columns\" to exactly"),
+    "gridColumns:0 (auto) should not pin a column count",
+  );
+  assert.ok(
+    !buildUserPrompt({...base, style: "grid", gridColumns: 9}).includes("set \"columns\" to exactly"),
+    "out-of-range gridColumns should not pin a column count",
+  );
+}
+
+// ── passage length directive maps short/medium/long ───────────────────────
+{
+  assert.match(
+    buildUserPrompt({...base, style: "comprehension", passageLength: "short"}),
+    /short — about 3-4 sentences/,
+    "passageLength:short directive missing",
+  );
+  assert.match(
+    buildUserPrompt({...base, style: "comprehension", passageLength: "long"}),
+    /longer — about 10-14 sentences/,
+    "passageLength:long directive missing",
+  );
+  assert.ok(
+    !buildUserPrompt({...base, style: "comprehension"}).includes("reading passage should be"),
+    "no passageLength should not inject a length directive",
+  );
 }
 
 // ── unknown style behaves like auto (no directive) ────────────────────────
