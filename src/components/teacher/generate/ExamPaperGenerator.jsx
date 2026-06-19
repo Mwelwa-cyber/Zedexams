@@ -13,6 +13,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import MaxStudioBanner from './MaxStudioBanner'
 import { paywall } from '../../../utils/paywall'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
@@ -44,6 +45,8 @@ export default function ExamPaperGenerator() {
   }))
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [examPaper, setExamPaper] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
@@ -63,9 +66,11 @@ export default function ExamPaperGenerator() {
     e.preventDefault()
     setStatus('generating')
     setErrorMessage('')
+    setErrorDetail('')
     setWarning('')
     setExamPaper(null)
     const res = await generateExamPaper(form)
+    if (!isMounted.current) return
     if (!res.ok) {
       // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
       // paywall instead of just showing the error text (the server marks
@@ -77,6 +82,11 @@ export default function ExamPaperGenerator() {
       }
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
+      // Surface the diagnostic code/detail like the other studios do.
+      setErrorDetail(
+        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
+          .filter(Boolean).join(' · '),
+      )
       return
     }
     setExamPaper(res.data.examPaper)
@@ -178,7 +188,9 @@ export default function ExamPaperGenerator() {
             )}
             {status === 'error' && (
               <Centered emoji="⚠️" title="Something went wrong"
-                body={errorMessage}
+                body={errorDetail
+                  ? <>{errorMessage}<br /><span style={{ opacity: 0.6, fontSize: 12 }}>{errorDetail}</span></>
+                  : errorMessage}
                 action={<button onClick={() => setStatus('idle')}
                   className="studio-btn-ghost">Try again</button>} />
             )}

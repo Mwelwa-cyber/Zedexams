@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateNotes,
   TEACHER_GRADES,
@@ -64,6 +65,7 @@ export default function NotesStudio() {
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [notes, setNotes] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
@@ -142,6 +144,7 @@ export default function NotesStudio() {
       : { ...form, lessonPlanId: '' }
 
     const res = await generateNotes(payload)
+    if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)

@@ -66,7 +66,7 @@ const TOOL_DOC_TYPES = {
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
-import { publishShare } from '../../../utils/shareService'
+import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -84,7 +84,10 @@ export default function LibraryItemDetail() {
   const [editingHeader, setEditingHeader] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [sharing, setSharing] = useState(false)
-  const [shareInfo, setShareInfo] = useState(null)
+  // Live (non-revoked) share links for this item — loaded on open + updated on
+  // create/revoke, so a teacher can take down a previously-shared link.
+  const [activeShares, setActiveShares] = useState([])
+  const [revokingToken, setRevokingToken] = useState(null)
   const [shareError, setShareError] = useState('')
   // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -106,19 +109,19 @@ export default function LibraryItemDetail() {
     setSharing(true)
     setShareError('')
     try {
-      const title = item.output?.header?.topic
-        ? `Lesson plan — ${item.output.header.topic}`
-        : 'Shared lesson plan'
       const result = await publishShare({
+        // Title is derived from the actual tool (worksheet, scheme, rubric…),
+        // not hard-coded to "lesson plan".
         tool: item.tool,
         ownerUid: currentUser.uid,
-        title,
+        title: titleForGeneration(item).slice(0, 200),
         plan: item.output,
         subject: item.inputs?.subject || item.output?.header?.subject || null,
         grade: item.inputs?.grade || item.output?.header?.class || null,
         topic: item.inputs?.topic || item.output?.header?.topic || null,
+        generationId: item.id,
       })
-      setShareInfo(result)
+      setActiveShares((prev) => [{ token: result.token, url: result.url, createdAt: null }, ...prev])
     } catch (err) {
       setShareError(err?.message || 'Could not create share link.')
     } finally {
@@ -126,10 +129,23 @@ export default function LibraryItemDetail() {
     }
   }
 
-  function onCopyShare() {
-    if (!shareInfo?.url) return
+  function copyShareUrl(url) {
+    if (!url) return
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(shareInfo.url).catch(() => {})
+      navigator.clipboard.writeText(url).catch(() => {})
+    }
+  }
+
+  async function onRevokeShare(token) {
+    setRevokingToken(token)
+    setShareError('')
+    try {
+      await revokeShare(token)
+      setActiveShares((prev) => prev.filter((s) => s.token !== token))
+    } catch (err) {
+      setShareError(err?.message || 'Could not revoke that link.')
+    } finally {
+      setRevokingToken(null)
     }
   }
 
@@ -150,6 +166,17 @@ export default function LibraryItemDetail() {
         setStatus('notfound')
       })
   }, [id])
+
+  // Load any live share links the teacher already created for this item, so
+  // they can revoke a link shared in a previous session.
+  useEffect(() => {
+    if (status !== 'ready' || !id || !currentUser?.uid) return undefined
+    let cancelled = false
+    listSharesForGeneration(currentUser.uid, id)
+      .then((shares) => { if (!cancelled) setActiveShares(shares) })
+      .catch(() => { /* best-effort — listSharesForGeneration already swallows */ })
+    return () => { cancelled = true }
+  }, [status, id, currentUser?.uid])
 
   async function onResolveFailure() {
     if (!item) return
@@ -530,32 +557,47 @@ export default function LibraryItemDetail() {
           </div>
         </div>
 
-        {/* Share banner — shown once a share link has been created */}
-        {shareInfo && (
+        {/* Active share links — listed so each can be revoked individually. */}
+        {activeShares.length > 0 && (
           <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm">
-            <p className="font-black text-emerald-900 mb-1">Share link ready</p>
-            <p className="text-emerald-800 text-xs mb-2">Anyone with this link can view this plan (read-only). You can revoke it from the Library at any time.</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                value={shareInfo.url}
-                readOnly
-                onFocus={(e) => e.target.select()}
-                className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-emerald-300 bg-white text-emerald-900 text-xs font-mono"
-              />
-              <button onClick={onCopyShare} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
-                Copy
-              </button>
-              {/* WhatsApp is how Zambian teachers actually pass documents
-                  around — one tap beats copy-switch-paste. */}
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${shareInfo.url}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
-              >
-                <span aria-hidden="true">💬</span> WhatsApp
-              </a>
+            <p className="font-black text-emerald-900 mb-1">
+              {activeShares.length === 1 ? 'Share link active' : `${activeShares.length} share links active`}
+            </p>
+            <p className="text-emerald-800 text-xs mb-2">
+              Anyone with a link can view this (read-only). Revoke a link to stop it working immediately.
+            </p>
+            <div className="space-y-2">
+              {activeShares.map((s) => (
+                <div key={s.token} className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={s.url}
+                    readOnly
+                    onFocus={(e) => e.target.select()}
+                    className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-emerald-300 bg-white text-emerald-900 text-xs font-mono"
+                  />
+                  <button onClick={() => copyShareUrl(s.url)} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
+                    Copy
+                  </button>
+                  {/* WhatsApp is how Zambian teachers actually pass documents
+                      around — one tap beats copy-switch-paste. */}
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${s.url}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
+                  >
+                    <span aria-hidden="true">💬</span> WhatsApp
+                  </a>
+                  <button
+                    onClick={() => onRevokeShare(s.token)}
+                    disabled={revokingToken === s.token}
+                    className="px-3 py-2 rounded-lg text-xs font-black text-rose-700 border-2 border-rose-200 bg-white hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    {revokingToken === s.token ? 'Revoking…' : 'Revoke'}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
