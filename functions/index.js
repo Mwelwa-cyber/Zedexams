@@ -198,6 +198,11 @@ const {
   nightlyQaSmoke: nightlyQaSmokeCron,
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
   hourlyMonitor: hourlyMonitorCron,
+  hourlyRevenueReconcile: hourlyRevenueReconcileCron,
+  supportTriage: supportTriageCron,
+  contentAutoPublish: contentAutoPublishCron,
+  weeklyProductSignal: weeklyProductSignalCron,
+  weeklyRetentionScan: weeklyRetentionScanCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2523,6 +2528,34 @@ exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
 // on failure suggests fixes (Haiku) and escalates via email + GitHub bug
 // issue (which Mendi can pick up). Writes an agentJobs rollup each run.
 exports.hourlyMonitor = hourlyMonitorCron;
+
+// Till — hourly payment reconciliation. Re-queries Lenco for stale
+// "pending" payments and activates paid-but-stuck buyers a dropped webhook
+// left behind (via the existing idempotent activation path). Writes an
+// agentJobs rollup the /admin/agents dashboard surfaces under "revenue".
+exports.hourlyRevenueReconcile = hourlyRevenueReconcileCron;
+
+// Echo — support triage every 2 hours. Sweeps new feedback + the otherwise
+// invisible public contactMessages, classifies + prioritises, and drafts a
+// reply (drafts only, never sends). Writes the triage onto each doc and an
+// agentJobs rollup under "support".
+exports.supportTriage = supportTriageCron;
+
+// Content auto-publish gate — every 30 min. Auto-approves content jobs stuck
+// at awaiting_approval that pass a strict Cala+Reva bar (which fires the
+// existing Pubo publish trigger). OFF unless agentControl/content.autoPublish
+// is true — shipping it changes nothing until you opt in.
+exports.contentAutoPublish = contentAutoPublishCron;
+
+// Compass — weekly product signal (Mondays 06:00). Aggregates recent quiz/exam
+// attempts into a ranked "what to build next" backlog (grade/subject areas with
+// demand but weak mastery). Deterministic, no LLM. Writes an agentJobs rollup.
+exports.weeklyProductSignal = weeklyProductSignalCron;
+
+// Anchor — weekly retention scan (Mondays 07:00). Surfaces engaged learners
+// who went quiet 14–45 days ago, ranked by win-back value, with a drafted
+// nudge. Read-only — does not message learners. Writes an agentJobs rollup.
+exports.weeklyRetentionScan = weeklyRetentionScanCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
