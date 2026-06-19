@@ -55,6 +55,42 @@ const chipStyle = {
   background: 'var(--sv-tinted, #f3ead5)', borderRadius: 999,
   padding: '4px 10px', fontSize: 13, color: 'var(--sv-text, #0e2a32)',
 }
+const checkboxListStyle = {
+  display: 'flex', flexDirection: 'column', gap: 2,
+  maxHeight: 220, overflowY: 'auto',
+  border: '1px solid var(--sv-border, #d9cfb8)', borderRadius: 8,
+  padding: 6, background: '#fff',
+}
+const checkboxRowStyle = {
+  display: 'flex', alignItems: 'flex-start', gap: 8,
+  padding: '6px', borderRadius: 6, lineHeight: 1.4,
+}
+const hintStyle = { fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: '6px 0 0' }
+
+// A scrollable list of tickable options — far faster than a drop-down when a
+// teacher needs to pick several topics/sub-topics at once. Unchecked rows are
+// disabled once `disabledMore` is set (e.g. the topic cap is reached) so the
+// selection can't exceed the limit, while already-checked rows stay tickable
+// so a teacher can swap one out.
+function CheckboxList({ options, selected, onToggle, disabledMore = false }) {
+  return (
+    <div style={checkboxListStyle} role="group">
+      {options.map((opt) => {
+        const checked = selected.includes(opt)
+        const disabled = !checked && disabledMore
+        return (
+          <label key={opt}
+            style={{ ...checkboxRowStyle, opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+            <input type="checkbox" checked={checked} disabled={disabled}
+              onChange={() => onToggle(opt)}
+              style={{ accentColor: 'var(--sv-primary, #ff7a2e)', marginTop: 2 }} />
+            <span style={{ fontSize: 13, color: 'var(--sv-text, #0e2a32)' }}>{opt}</span>
+          </label>
+        )
+      })}
+    </div>
+  )
+}
 
 // Small "Pick from syllabus / Write my own" segmented toggle shown next to
 // the topic + sub-topic labels.
@@ -199,6 +235,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   function addTopic() {
     addTopicValue(form.topicInput)
   }
+  // Tick / untick a syllabus topic. Adds when there's room (respecting the
+  // per-test-type cap) and removes when already selected.
+  function toggleTopic(value) {
+    const t = String(value || '').trim()
+    if (!t) return
+    setForm((f) => {
+      if (f.topics.includes(t)) {
+        return { ...f, topics: f.topics.filter((x) => x !== t), topicInput: '' }
+      }
+      if (f.topics.length >= maxTopicsFor(f.assessmentType)) return f
+      return { ...f, topics: [...f.topics, t], topicInput: '' }
+    })
+  }
   // Cumulative papers (end of term / mock) cover everything learned — let the
   // teacher tick every syllabus topic in one click, up to the type's cap.
   function addAllTopics() {
@@ -229,6 +278,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   }
   function addSubtopic() {
     addSubtopicValue(form.subtopicInput)
+  }
+  // Tick / untick a syllabus sub-topic (no cap on sub-topics).
+  function toggleSubtopic(value) {
+    const s = String(value || '').trim()
+    if (!s) return
+    setForm((f) => (f.subtopics.includes(s)
+      ? { ...f, subtopics: f.subtopics.filter((x) => x !== s), subtopicInput: '' }
+      : { ...f, subtopics: [...f.subtopics, s], subtopicInput: '' }))
   }
   function changeSubtopicMode(mode) {
     if (mode === 'pick') set('subtopicInput', '')
@@ -433,33 +490,40 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                   ))}
                 </div>
               )}
-              {form.topics.length >= maxTopics ? (
+              {topicMode === 'pick' ? (
+                syllabiLoading ? (
+                  <p style={hintStyle}>Loading syllabus topics…</p>
+                ) : topicOptions.length === 0 ? (
+                  <p style={hintStyle}>No syllabus topics on file — switch to “Write my own”.</p>
+                ) : (
+                  <>
+                    <CheckboxList
+                      options={topicOptions}
+                      selected={form.topics}
+                      onToggle={toggleTopic}
+                      disabledMore={form.topics.length >= maxTopics}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      {showAddAll && (
+                        <button type="button" className="sv-btn" onClick={addAllTopics}>
+                          Select all {topicOptions.length}
+                        </button>
+                      )}
+                      {form.topics.length > 0 && (
+                        <button type="button" className="sv-btn" onClick={() => set('topics', [])}>
+                          Clear
+                        </button>
+                      )}
+                      <span style={{ ...hintStyle, margin: 0, marginLeft: 'auto' }}>
+                        {form.topics.length}/{maxTopics} selected
+                      </span>
+                    </div>
+                  </>
+                )
+              ) : form.topics.length >= maxTopics ? (
                 <p style={{ fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: 0 }}>
                   Maximum of {maxTopics} topics added — remove one to change it.
                 </p>
-              ) : topicMode === 'pick' ? (
-                <>
-                  <select
-                    style={inputStyle}
-                    value=""
-                    disabled={syllabiLoading}
-                    onChange={(e) => { addTopicValue(e.target.value); e.target.value = '' }}>
-                    <option value="" disabled>
-                      {syllabiLoading
-                        ? 'Loading syllabus topics…'
-                        : form.topics.length > 0 ? 'Add another topic from the syllabus…' : 'Choose a topic from the syllabus…'}
-                    </option>
-                    {topicOptions
-                      .filter((t) => !form.topics.includes(t))
-                      .map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  {showAddAll && (
-                    <button type="button" className="sv-btn" style={{ marginTop: 6 }}
-                      onClick={addAllTopics}>
-                      + Add all {topicOptions.length} topics
-                    </button>
-                  )}
-                </>
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input
@@ -505,20 +569,23 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                 </div>
               )}
               {subtopicMode === 'pick' ? (
-                <select
-                  style={inputStyle}
-                  value=""
-                  disabled={subtopicOptions.length === 0}
-                  onChange={(e) => { addSubtopicValue(e.target.value); e.target.value = '' }}>
-                  <option value="" disabled>
-                    {subtopicOptions.length === 0
-                      ? 'Add a topic first to see its sub-topics'
-                      : form.subtopics.length > 0 ? 'Add another sub-topic…' : 'Choose a sub-topic…'}
-                  </option>
-                  {subtopicOptions
-                    .filter((s) => !form.subtopics.includes(s))
-                    .map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                subtopicOptions.length === 0 ? (
+                  <p style={hintStyle}>Add a topic first to see its sub-topics.</p>
+                ) : (
+                  <>
+                    <CheckboxList
+                      options={subtopicOptions}
+                      selected={form.subtopics}
+                      onToggle={toggleSubtopic}
+                    />
+                    {form.subtopics.length > 0 && (
+                      <button type="button" className="sv-btn" style={{ marginTop: 6 }}
+                        onClick={() => set('subtopics', [])}>
+                        Clear
+                      </button>
+                    )}
+                  </>
+                )
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input style={{ ...inputStyle, flex: 1 }} list="cpm-subtopic-options"
