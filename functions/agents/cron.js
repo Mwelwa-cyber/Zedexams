@@ -22,6 +22,10 @@
  *     each, and drafts a reply (Haiku when a key is set, a templated
  *     acknowledgement otherwise). Drafts only — never sends. Writes the
  *     triage back onto each doc + an agentJobs rollup.
+ *   - contentAutoPublish (gate) — every 30 min. Auto-approves content jobs
+ *     stuck at awaiting_approval that pass a strict bar (Cala aligned, no
+ *     gaps, Reva "approve"), which fires the existing Pubo trigger and
+ *     publishes them. OFF unless agentControl/content.autoPublish === true.
  */
 
 const admin = require("firebase-admin");
@@ -33,6 +37,7 @@ const {runCala} = require("./runners/cala");
 const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/monitor");
 const {reconcilePendingPayments} = require("./runners/till");
 const {runEchoTriage, templateReply} = require("./runners/echo");
+const {runContentGate} = require("./runners/gate");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -434,10 +439,71 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
   });
 });
 
+// Content auto-publish gate — every 30 minutes. Publishes verified content
+// that's stuck waiting for a human approver. OFF by default: it only acts when
+// agentControl/content.autoPublish === true, and even then only on jobs that
+// clear the strict Cala+Reva bar. Writes a rollup only when it actually
+// publishes something (or errors) — quiet otherwise.
+const CONTENT_GATE_OPTS = {
+  schedule: "every 30 minutes",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+};
+
+const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let config = {};
+  try {
+    const snap = await db.collection("agentControl").doc("content").get();
+    if (snap.exists) config = snap.data() || {};
+  } catch (err) {
+    console.warn("[contentAutoPublish] could not read agentControl/content", err?.message);
+  }
+
+  let summary;
+  try {
+    summary = await runContentGate({db, config});
+  } catch (err) {
+    console.error("Content gate failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "pubo",
+      department: "content",
+      status: "done",
+      input: {runType: "content-auto-publish"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  // Only log a run that actually published something (or errored). A quiet
+  // sweep — disabled, or nothing clean to publish — writes nothing, so this
+  // doesn't spam the dashboard every 30 minutes.
+  if (summary.autoApproved.length > 0 || summary.errors.length > 0) {
+    await db.collection("agentJobs").add({
+      agentId: "pubo",
+      department: "content",
+      status: "done",
+      input: {runType: "content-auto-publish"},
+      output: {gate: summary},
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+  }
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
   hourlyMonitor,
   hourlyRevenueReconcile,
   supportTriage,
+  contentAutoPublish,
 };

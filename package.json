@@ -143,6 +143,7 @@
     "test:vex": "node functions/agents/runners/vex.test.js",
     "test:till": "node functions/agents/runners/till.test.js",
     "test:echo": "node functions/agents/runners/echo.test.js",
+    "test:gate": "node functions/agents/runners/gate.test.js",
     "test:gemini-image-client": "node scripts/test-gemini-image-client.mjs",
     "test:kie-client": "node scripts/test-kie-client.mjs",
     "test:diagram-providers": "node functions/teacherTools/generateDiagram.test.js",

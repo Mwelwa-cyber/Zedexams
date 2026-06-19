@@ -200,6 +200,7 @@ const {
   hourlyMonitor: hourlyMonitorCron,
   hourlyRevenueReconcile: hourlyRevenueReconcileCron,
   supportTriage: supportTriageCron,
+  contentAutoPublish: contentAutoPublishCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2537,6 +2538,12 @@ exports.hourlyRevenueReconcile = hourlyRevenueReconcileCron;
 // reply (drafts only, never sends). Writes the triage onto each doc and an
 // agentJobs rollup under "support".
 exports.supportTriage = supportTriageCron;
+
+// Content auto-publish gate — every 30 min. Auto-approves content jobs stuck
+// at awaiting_approval that pass a strict Cala+Reva bar (which fires the
+// existing Pubo publish trigger). OFF unless agentControl/content.autoPublish
+// is true — shipping it changes nothing until you opt in.
+exports.contentAutoPublish = contentAutoPublishCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
