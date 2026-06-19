@@ -121,6 +121,7 @@
     "test:cors": "node functions/cors.test.js",
     "test:visual-safety": "node functions/visualSafety.test.js",
     "test:lenco": "node functions/lencoService.test.js",
+    "test:subscription-activation": "node functions/subscriptionActivation.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
     "test:scheme-schema": "node functions/teacherTools/schemeOfWorkSchema.test.js",
     "test:scheme-outline": "node functions/teacherTools/schemeCurriculumOutline.test.js",
