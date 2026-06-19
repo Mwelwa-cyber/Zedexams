@@ -1003,6 +1003,195 @@ body.theme-midnight .moe-calendar {
     color: #566f76;
   }
 
+  /* ── Teacher Workspace (app-style card grid) ─────────────────────────
+     Compact tile grid grouped under labelled section heads (icon + label +
+     "View all"). Replaces the tall studio cards on the dashboard tools area
+     to match the ZedExams mobile workspace design. */
+  .studio-theme .teacher-workspace-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 8px 0 22px;
+  }
+
+  .studio-theme .teacher-workspace-header__icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 12px;
+    background: #fff5e6;
+    color: #c2531a;
+    border: 1.5px solid #f3d4b0;
+  }
+
+  .studio-theme .teacher-workspace-header__title {
+    margin: 0;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .studio-theme .teacher-workspace-header__text {
+    margin: 3px 0 0;
+    color: #566f76;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .studio-theme .teacher-workspace-section {
+    margin-bottom: 26px;
+  }
+
+  .studio-theme .teacher-workspace-section__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .studio-theme .teacher-workspace-section__icon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--ws-icon-bg, #faecb8);
+    color: var(--ws-icon-fg, #8a5d00);
+  }
+
+  .studio-theme .teacher-workspace-section__icon--amber  { --ws-icon-bg: #faecb8; --ws-icon-fg: #8a5d00; }
+  .studio-theme .teacher-workspace-section__icon--blue   { --ws-icon-bg: #dbe7f4; --ws-icon-fg: #1d4e89; }
+  .studio-theme .teacher-workspace-section__icon--violet { --ws-icon-bg: #e8d8f0; --ws-icon-fg: #6b21a8; }
+  .studio-theme .teacher-workspace-section__icon--green  { --ws-icon-bg: #d8ecd0; --ws-icon-fg: #166534; }
+  .studio-theme .teacher-workspace-section__icon--slate  { --ws-icon-bg: #e3dcc8; --ws-icon-fg: #334155; }
+
+  .studio-theme .teacher-workspace-section__label {
+    flex: 1;
+    min-width: 0;
+    color: #0e2a32;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .studio-theme .teacher-workspace-section__viewall {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    color: #c2531a;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  .studio-theme .teacher-workspace-section__viewall:hover {
+    color: #ff7a2e;
+  }
+
+  .studio-theme .teacher-workspace-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 12px;
+  }
+
+  .studio-theme .teacher-workspace-card {
+    display: flex;
+    min-height: 150px;
+    flex-direction: column;
+    padding: 14px;
+    border: 1.5px solid #e4dcc6;
+    border-radius: 16px;
+    background: #fff;
+    color: #0e2a32;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(14,42,50,.04);
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .studio-theme a.teacher-workspace-card:hover {
+    border-color: #ff7a2e;
+    box-shadow: 0 10px 24px rgba(14,42,50,.10);
+    transform: translateY(-2px);
+  }
+
+  .studio-theme .teacher-workspace-card.is-disabled,
+  .studio-theme .teacher-workspace-card.is-inactive {
+    opacity: .68;
+    cursor: default;
+  }
+
+  .studio-theme .teacher-workspace-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .studio-theme .teacher-workspace-card__icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .studio-theme .teacher-workspace-card__icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .studio-theme .teacher-workspace-card__badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .studio-theme .teacher-workspace-card__badge--accent { background: #ff7a2e; color: #fff; }
+  .studio-theme .teacher-workspace-card__badge--saved { background: #0e2a32; color: #fde9b8; }
+  .studio-theme .teacher-workspace-card__badge--success { background: #10864e; color: #fff; }
+  .studio-theme .teacher-workspace-card__badge--muted { background: #e7e1cf; color: #7a6a4a; }
+
+  .studio-theme .teacher-workspace-card__title {
+    margin: 0 0 5px;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 15.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+
+  .studio-theme .teacher-workspace-card__text {
+    flex: 1;
+    margin: 0;
+    color: #6a7c82;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
   @media (max-width: 720px) {
     .studio-theme .teacher-subscription-banner {
       align-items: stretch;

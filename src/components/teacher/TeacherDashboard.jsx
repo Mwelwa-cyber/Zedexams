@@ -28,6 +28,7 @@ import {
   FolderOpen,
   GraduationCap,
   Layers,
+  LayoutGrid,
   PencilLine,
   Sparkles,
   Target,
@@ -52,14 +53,26 @@ import iconLibrary from '../../assets/teacher-icons/library.webp'
 import iconSchoolCalendar from '../../assets/teacher-icons/school-calendar.webp'
 import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
 
-// Tiles are grouped into the three teacher workflows (plan → make → assess) that
-// the dashboard renders as labelled sections. `NEW` is reserved for genuinely
-// recent tools so the badge keeps its signal; every other tile shows either its
-// saved-count or no badge. Keep each group's items in their display order.
+// Tiles are grouped into the teacher workflows the "Teacher Workspace" renders
+// as labelled sections (each with a header icon + "View all" link, matching the
+// app design). `NEW` is reserved for genuinely recent tools so the badge keeps
+// its signal; every other tile shows either its saved-count or no badge. Keep
+// each group's items in their display order.
 const STUDIO_GROUPS = [
   {
     label: 'Planning',
+    icon: ClipboardList,
+    accent: 'amber',
+    viewAll: '/teacher/library',
     items: [
+      {
+        img: iconSyllabiStudio,
+        tone: 'sky',
+        badge: null,
+        title: 'Syllabus Studio',
+        tagline: 'Browse CBC subjects, topics, competences, and standards.',
+        to: '/teacher/syllabi',
+      },
       {
         img: iconSchemeOfWork,
         tone: 'amber',
@@ -68,7 +81,14 @@ const STUDIO_GROUPS = [
         title: 'Schemes of Work',
         tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
         to: '/teacher/generate/scheme-of-work',
-        meta: 'Term planning',
+      },
+      {
+        img: iconSchoolCalendar,
+        tone: 'indigo',
+        badge: null,
+        title: 'School Calendar',
+        tagline: 'Check MoE terms, public holidays, and working days.',
+        to: '/teacher/calendar',
       },
       {
         img: iconWeeklyForecast,
@@ -76,9 +96,8 @@ const STUDIO_GROUPS = [
         badge: null,
         libraryKey: 'weekly-forecast',
         title: 'Weekly Forecast',
-        tagline: "Plan the week day by day from your scheme, syllabus and timetable.",
+        tagline: 'Plan the week day by day from your scheme, syllabus and timetable.',
         to: '/teacher/generate/weekly-forecast',
-        meta: 'Weekly prep',
       },
       {
         img: iconLessonPlan,
@@ -88,7 +107,6 @@ const STUDIO_GROUPS = [
         title: 'Lesson Plans',
         tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
         to: '/teacher/generate/lesson-plan',
-        meta: 'Daily prep',
       },
       {
         img: iconRecordOfWork,
@@ -98,25 +116,6 @@ const STUDIO_GROUPS = [
         title: 'Record of Work',
         tagline: 'Log what you actually taught each week, checked against your scheme.',
         to: '/teacher/generate/record-of-work',
-        meta: 'Weekly log',
-      },
-      {
-        img: iconSchoolCalendar,
-        tone: 'indigo',
-        badge: null,
-        title: 'School Calendar',
-        tagline: 'Check MoE terms, public holidays, and working days.',
-        to: '/teacher/calendar',
-        meta: 'Academic year',
-      },
-      {
-        img: iconSyllabiStudio,
-        tone: 'sky',
-        badge: null,
-        title: 'Syllabus Studio',
-        tagline: 'Browse CBC subjects, topics, competences, and standards.',
-        to: '/teacher/syllabi',
-        meta: 'Curriculum reference',
       },
       {
         img: iconClassRegister,
@@ -124,9 +123,8 @@ const STUDIO_GROUPS = [
         badge: 'NEW',
         libraryKey: null,
         title: 'Class Register',
-        tagline: 'Build one class list per class — then SBA, marks and reports load every learner for you.',
+        tagline: 'Build one class list per class — SBA, marks and reports load every learner.',
         to: '/teacher/register',
-        meta: 'Class lists',
       },
       {
         img: iconClassTimetable,
@@ -136,22 +134,23 @@ const STUDIO_GROUPS = [
         title: 'Class Timetable',
         tagline: 'Auto-fill a balanced week from the curriculum subjects.',
         to: '/teacher/generate/class-timetable',
-        meta: 'Term planning',
       },
     ],
   },
   {
-    label: 'Teaching Materials',
+    label: 'Content & Teaching Materials',
+    icon: BookOpen,
+    accent: 'blue',
+    viewAll: '/teacher/library',
     items: [
       {
         img: iconNotesStudio,
         tone: 'blue',
         badge: null,
         libraryKey: 'notes',
-        title: 'Teaching Notes Studio',
+        title: 'Notes Studio',
         tagline: 'Turn a lesson plan into delivery notes and examples.',
         to: '/teacher/generate/notes',
-        meta: 'Instruction support',
       },
       {
         img: iconWorksheet,
@@ -161,7 +160,6 @@ const STUDIO_GROUPS = [
         title: 'Worksheets',
         tagline: 'Create classroom practice, exercises, and consolidation tasks.',
         to: '/teacher/generate/worksheet',
-        meta: 'Practice material',
       },
       {
         img: iconFlashcards,
@@ -171,7 +169,6 @@ const STUDIO_GROUPS = [
         title: 'Flashcards',
         tagline: 'Build short revision prompts for recall and practice.',
         to: '/teacher/generate/flashcards',
-        meta: 'Revision',
       },
       {
         img: iconVisualStudio,
@@ -179,14 +176,16 @@ const STUDIO_GROUPS = [
         badge: 'NEW',
         libraryKey: null,
         title: 'Visual Studio',
-        tagline: 'Make labelled diagrams & test pictures — AI, templates, then send to a studio.',
+        tagline: 'Make labelled diagrams & test pictures, then send to a studio.',
         to: '/teacher/visual-studio',
-        meta: 'Pictures & diagrams',
       },
     ],
   },
   {
-    label: 'Test Papers & SBA',
+    label: 'Assessment & Marking',
+    icon: ClipboardCheckList,
+    accent: 'violet',
+    viewAll: '/teacher/library',
     items: [
       {
         img: iconAssessments,
@@ -195,7 +194,6 @@ const STUDIO_GROUPS = [
         title: 'Test Papers',
         tagline: 'Build topic, weekly, mid-term, and end-of-term test papers.',
         to: '/teacher/test-papers',
-        meta: 'Test paper bank',
       },
       {
         img: iconAssessments,
@@ -203,9 +201,8 @@ const STUDIO_GROUPS = [
         badge: 'NEW',
         libraryKey: 'exam-paper',
         title: 'Exam Studio',
-        tagline: 'Fresh ECZ-style multiple-choice exam questions with a teacher answer key.',
+        tagline: 'Fresh ECZ-style multiple-choice exam questions with an answer key.',
         to: '/teacher/generate/exam-paper',
-        meta: 'Max studio',
       },
       {
         img: iconRubric,
@@ -215,7 +212,23 @@ const STUDIO_GROUPS = [
         title: 'Rubrics',
         tagline: 'Define criteria, levels, and marking guidance.',
         to: '/teacher/generate/rubric',
-        meta: 'Marking guide',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'sky',
+        badge: null,
+        libraryKey: 'sba',
+        title: 'SBA Studio',
+        tagline: 'ECZ School Based Assessment — create tasks, record marks, track coverage.',
+        to: '/teacher/sba',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'cyan',
+        badge: null,
+        title: 'SBA Mark Tracker',
+        tagline: 'Record SBA marks and watch task coverage build up over the term.',
+        to: '/teacher/generate/sba-tracker',
       },
       {
         img: iconMarkSchedule,
@@ -225,34 +238,43 @@ const STUDIO_GROUPS = [
         title: 'Mark Schedule',
         tagline: 'Marks in — totals, class positions and report comments out.',
         to: '/teacher/generate/mark-schedule',
-        meta: 'After tests',
       },
+    ],
+  },
+  {
+    label: 'SBA Planning',
+    icon: Target,
+    accent: 'green',
+    viewAll: '/teacher/sba',
+    items: [
       {
         img: iconSbaStudio,
         tone: 'sky',
         badge: null,
-        libraryKey: 'sba',
-        title: 'SBA Studio',
-        tagline: 'ECZ School Based Assessment, end to end — create tasks, record marks, and track coverage.',
-        to: '/teacher/sba',
-        meta: 'Grades 5–7',
+        title: 'SBA Year Planner',
+        tagline: 'Plan SBA tasks across the year and track planned vs marked.',
+        to: '/teacher/generate/sba-planner',
+      },
+    ],
+  },
+  {
+    label: 'Library',
+    icon: FolderOpen,
+    accent: 'slate',
+    viewAll: '/teacher/library',
+    items: [
+      {
+        img: iconLibrary,
+        tone: 'slate',
+        badge: null,
+        isLibrary: true,
+        title: 'My Library',
+        tagline: 'All saved plans, notes, worksheets, rubrics, and assessments.',
+        to: '/teacher/library',
       },
     ],
   },
 ]
-
-// "My Library" sits on its own below the workflow groups (matches the design),
-// and surfaces the total-saved count via the isLibrary branch in StudioCard.
-const LIBRARY_TILE = {
-  img: iconLibrary,
-  tone: 'slate',
-  badge: null,
-  isLibrary: true,
-  title: 'My Library',
-  tagline: 'Browse saved plans, notes, worksheets, rubrics, and assessments.',
-  to: '/teacher/library',
-  meta: 'Saved work',
-}
 
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
@@ -280,7 +302,24 @@ function SectionLabel({ children }) {
   )
 }
 
-function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
+function WorkspaceSectionHead({ icon, accent, label, viewAll }) {
+  return (
+    <div className="teacher-workspace-section__head">
+      <span className={`teacher-workspace-section__icon teacher-workspace-section__icon--${accent || 'amber'}`}>
+        <Icon as={icon} size="sm" />
+      </span>
+      <span className="teacher-workspace-section__label">{label}</span>
+      {viewAll && (
+        <Link to={viewAll} className="teacher-workspace-section__viewall">
+          View all
+          <Icon as={ArrowRight} size="xs" />
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary }) {
   const isSoon = badge === 'SOON'
   // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
   // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
@@ -296,48 +335,44 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, m
   const showBadge = badge !== null || count !== null
   const badgeText = badge !== null ? badge : `${count} saved`
   const badgeClass = badge === 'FREE'
-    ? 'teacher-studio-card__badge--success'
+    ? 'teacher-workspace-card__badge--success'
     : badge === 'SOON'
-    ? 'teacher-studio-card__badge--muted'
+    ? 'teacher-workspace-card__badge--muted'
     : badge === 'NEW'
-    ? 'teacher-studio-card__badge--accent'
-    : 'teacher-studio-card__badge--saved'
+    ? 'teacher-workspace-card__badge--accent'
+    : 'teacher-workspace-card__badge--saved'
   const cardClass = [
-    'teacher-studio-card',
-    `teacher-studio-card--${tone || 'slate'}`,
+    'teacher-workspace-card',
+    `teacher-workspace-card--${tone || 'slate'}`,
     isSoon ? 'is-disabled' : '',
   ].filter(Boolean).join(' ')
 
   const inner = (
     <>
-      <div className="teacher-studio-card__top">
-        <span className="teacher-studio-card__icon teacher-studio-card__icon--img">
+      <div className="teacher-workspace-card__top">
+        <span className="teacher-workspace-card__icon">
           <img
-            className="teacher-studio-card__icon-img"
+            className="teacher-workspace-card__icon-img"
             src={img}
             alt=""
             aria-hidden="true"
-            width="50"
-            height="50"
+            width="44"
+            height="44"
             loading="lazy"
             decoding="async"
           />
         </span>
         {showBadge && (
-          <span className={`teacher-studio-card__badge ${badgeClass}`}>
+          <span className={`teacher-workspace-card__badge ${badgeClass}`}>
             {badgeText}
           </span>
         )}
       </div>
-      <p className="teacher-studio-card__title">
+      <p className="teacher-workspace-card__title">
         {title}
       </p>
-      <p className="teacher-studio-card__text">
+      <p className="teacher-workspace-card__text">
         {tagline}
-      </p>
-      <p className="teacher-studio-card__meta">
-        {isSoon ? 'Coming soon' : meta}
-        {!isSoon && <Icon as={ArrowRight} size="xs" />}
       </p>
     </>
   )
@@ -602,25 +637,31 @@ export default function TeacherDashboard() {
 
       {!loading && <ProgressWidget generations={generations} quizzes={quizzes} />}
 
-      <SectionLabel>Tools</SectionLabel>
-      <h2 className="teacher-dashboard-heading">
-        Choose a workspace
-      </h2>
+      <div className="teacher-workspace-header">
+        <span className="teacher-workspace-header__icon">
+          <Icon as={LayoutGrid} size="md" />
+        </span>
+        <div>
+          <h2 className="teacher-workspace-header__title">Teacher Workspace</h2>
+          <p className="teacher-workspace-header__text">Everything you need in one place</p>
+        </div>
+      </div>
+
       {STUDIO_GROUPS.map(group => (
-        <section key={group.label}>
-          <SectionLabel>{group.label}</SectionLabel>
-          <div className="teacher-studio-grid">
+        <section key={group.label} className="teacher-workspace-section">
+          <WorkspaceSectionHead
+            icon={group.icon}
+            accent={group.accent}
+            label={group.label}
+            viewAll={group.viewAll}
+          />
+          <div className="teacher-workspace-grid">
             {group.items.map(s => (
               <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
             ))}
           </div>
         </section>
       ))}
-
-      <SectionLabel>My Library</SectionLabel>
-      <div className="teacher-studio-grid">
-        <StudioCard {...LIBRARY_TILE} librarySummary={librarySummary} />
-      </div>
 
       <div className="mt-6">
         <FeedbackButton source="teacher-dashboard" />
