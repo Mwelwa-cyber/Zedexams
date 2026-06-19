@@ -30,6 +30,10 @@
  *     and exam attempts into a ranked "what to build next" backlog (which
  *     grade/subject areas have demand but weak mastery). Deterministic, no
  *     LLM. Writes an agentJobs rollup the dashboard + Dawn surface.
+ *   - weeklyRetentionScan (Anchor) — Mondays 07:00. Finds learners who were
+ *     engaged then went quiet 14–45 days ago and surfaces the highest-value
+ *     ones to win back, with a drafted nudge. Read-only — does not message
+ *     learners. Writes an agentJobs rollup.
  */
 
 const admin = require("firebase-admin");
@@ -43,6 +47,7 @@ const {reconcilePendingPayments} = require("./runners/till");
 const {runEchoTriage, templateReply} = require("./runners/echo");
 const {runContentGate} = require("./runners/gate");
 const {runCompass} = require("./runners/compass");
+const {runAnchor} = require("./runners/anchor");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -551,6 +556,52 @@ const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
   });
 });
 
+// Anchor — weekly retention scan (Mondays 07:00 Africa/Lusaka). Surfaces
+// lapsed-but-recoverable learners. Read-only; bounded date-range query over
+// learnerStats. No LLM, no secrets, ~free.
+const RETENTION_SCAN_OPTS = {
+  schedule: "every monday 07:00",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+};
+
+const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let summary;
+  try {
+    summary = await runAnchor({db});
+  } catch (err) {
+    console.error("Anchor failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "anchor",
+      department: "growth",
+      status: "failed",
+      input: {runType: "weekly-retention-scan"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  const notable = summary.atRisk > 0 || summary.errors.length > 0;
+  await db.collection("agentJobs").add({
+    agentId: "anchor",
+    department: "growth",
+    status: notable ? "awaiting_approval" : "done",
+    input: {runType: "weekly-retention-scan"},
+    output: {anchor: summary},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
@@ -559,4 +610,5 @@ module.exports = {
   supportTriage,
   contentAutoPublish,
   weeklyProductSignal,
+  weeklyRetentionScan,
 };

@@ -202,6 +202,7 @@ const {
   supportTriage: supportTriageCron,
   contentAutoPublish: contentAutoPublishCron,
   weeklyProductSignal: weeklyProductSignalCron,
+  weeklyRetentionScan: weeklyRetentionScanCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2550,6 +2551,11 @@ exports.contentAutoPublish = contentAutoPublishCron;
 // attempts into a ranked "what to build next" backlog (grade/subject areas with
 // demand but weak mastery). Deterministic, no LLM. Writes an agentJobs rollup.
 exports.weeklyProductSignal = weeklyProductSignalCron;
+
+// Anchor — weekly retention scan (Mondays 07:00). Surfaces engaged learners
+// who went quiet 14–45 days ago, ranked by win-back value, with a drafted
+// nudge. Read-only — does not message learners. Writes an agentJobs rollup.
+exports.weeklyRetentionScan = weeklyRetentionScanCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
