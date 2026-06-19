@@ -211,7 +211,9 @@ export default function LessonPlanGenerator() {
       // the .pdf extension and falls back to the print dialog if rendering
       // fails (e.g. inside the Android WebView).
       const base = buildFilename(form, lessonPlan).replace(/\.docx$/, '')
-      await downloadLessonPlanPdf(lessonPlan, base, `${base}.pdf`)
+      await downloadLessonPlanPdf(lessonPlan, base, `${base}.pdf`, {
+        attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      })
     } catch (err) {
       // The helper only throws when popups are blocked — surface that
       // message inline via the existing error state.

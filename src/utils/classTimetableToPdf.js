@@ -7,9 +7,14 @@
  * directly from a click handler so the popup isn't blocked.
  */
 import { downloadHtmlAsPdf } from './htmlToPdf.js'
+import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
 
 const ATTRIBUTION_TEXT =
   'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers'
+
+// Free-plan exports get the diagonal ZedExams watermark; paid/admin stay clean.
+const withWatermark = (html, attribution) =>
+  attribution ? injectHtmlWatermark(html, WATERMARK_TEXT) : html
 
 const escapeHtml = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -43,7 +48,7 @@ export async function downloadClassTimetablePdf(
   { attribution = false, filename = 'class-timetable.pdf' } = {},
 ) {
   if (!timetable) throw new Error('No timetable to export.')
-  const html = buildPrintableHtml(timetable, attribution)
+  const html = withWatermark(buildPrintableHtml(timetable, attribution), attribution)
   return downloadHtmlAsPdf(html, filename, {
     onFallback: () => printClassTimetableAsPdf(timetable, { attribution }),
   })
@@ -57,7 +62,7 @@ export function printClassTimetableAsPdf(timetable, { attribution = false } = {}
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
-  const html = buildPrintableHtml(timetable, attribution)
+  const html = withWatermark(buildPrintableHtml(timetable, attribution), attribution)
   win.document.open()
   win.document.write(html)
   win.document.close()

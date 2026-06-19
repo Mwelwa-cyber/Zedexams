@@ -20,8 +20,13 @@
  */
 
 import { downloadHtmlAsPdf } from './htmlToPdf.js'
+import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
 
 const BRAND_PRIMARY = '#059669' // emerald-600, matches the lesson-plan UI
+
+// Free-plan exports get the diagonal ZedExams watermark; paid/admin stay clean.
+const withWatermark = (html, attribution) =>
+  attribution ? injectHtmlWatermark(html, WATERMARK_TEXT) : html
 
 /**
  * Download the lesson plan as a real .pdf file. Falls back to the browser
@@ -31,15 +36,16 @@ export async function downloadLessonPlanPdf(
   plan,
   titleForDocument = 'CBC Lesson Plan',
   filename = 'lesson-plan.pdf',
+  { attribution = false } = {},
 ) {
   if (!plan) throw new Error('No lesson plan to export.')
-  const html = buildPrintableHtml(plan, titleForDocument)
+  const html = withWatermark(buildPrintableHtml(plan, titleForDocument), attribution)
   return downloadHtmlAsPdf(html, filename, {
-    onFallback: () => printLessonPlanAsPdf(plan, titleForDocument),
+    onFallback: () => printLessonPlanAsPdf(plan, titleForDocument, { attribution }),
   })
 }
 
-export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan') {
+export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan', { attribution = false } = {}) {
   if (!plan) throw new Error('No lesson plan to export.')
 
   // NOTE: must NOT pass `noopener`/`noreferrer` in the features string — when
@@ -51,7 +57,7 @@ export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan')
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
 
-  const html = buildPrintableHtml(plan, titleForDocument)
+  const html = withWatermark(buildPrintableHtml(plan, titleForDocument), attribution)
   win.document.open()
   win.document.write(html)
   win.document.close()

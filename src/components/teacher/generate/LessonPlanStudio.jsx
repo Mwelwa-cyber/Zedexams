@@ -15,6 +15,8 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
 import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
+import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -57,7 +59,7 @@ function loadScriptsSequentially(srcs) {
 
 export default function LessonPlanStudio() {
   const navigate = useNavigate()
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const db = getFirestore(app)
 
   // Generation state for the React <AiGenerationProgress> overlay. The vanilla
@@ -440,8 +442,18 @@ export default function LessonPlanStudio() {
       delete window.esc
       delete window.toast
       delete window.__zxDownloadPdf
+      delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Free-plan exports carry the diagonal ZedExams watermark; the vanilla export
+  // script (public/studio/10-export.js) reads this global at export time and
+  // paints it onto every format (PDF / Word / HTML). Kept in its own effect so
+  // it tracks the live plan tier (the profile can load after mount) — paid and
+  // admin exports stay clean.
+  useEffect(() => {
+    window.__zxExportWatermark = isFreePlanTeacher({ userProfile, isAdmin }) ? WATERMARK_TEXT : ''
+  }, [userProfile, isAdmin])
 
   return (
     <>
