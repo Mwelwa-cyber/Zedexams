@@ -177,7 +177,25 @@ export default function UsageMeter() {
           </div>
         </div>
 
-        {cappedFeature && (
+        {/* A purchased K25 top-up lands as users/{uid}.generationCredits and
+            reaches this widget live via the profile snapshot. Acknowledge it
+            here — otherwise the "Pay K25" banner below would persist unchanged
+            after payment (used still ≥ cap), so a teacher who just paid sees no
+            effect and reports "paid K25 but nothing happened". The credit is
+            only spent inside a studio on the next Generate, so the copy points
+            there. Shown whenever a credit is banked, capped or not. */}
+        {data.credits > 0 && (
+          <div className="zum-credit-banner">
+            <span className="zum-credit-emoji" aria-hidden="true">🎟️</span>
+            <div className="zum-limit-msg">
+              <strong>You have {data.credits} extra generation{data.credits === 1 ? '' : 's'} ready.</strong><br />
+              Open any studio — Test papers, Exam papers, Worksheets… — and press <strong>Generate</strong>. Your
+              K25 credit is applied automatically, on any tool.
+            </div>
+          </div>
+        )}
+
+        {cappedFeature && data.credits === 0 && (
           <div className="zum-limit-banner">
             <div className="zum-limit-msg">
               <strong>You've hit your {FEATURE_LABEL[cappedFeature.key]} limit for this month.</strong><br />
@@ -250,6 +268,10 @@ const styles = `
 .zum-limit-banner button:hover{background:#E55E22}
 .zum-limit-banner button.zum-limit-pay{background:#fff;color:var(--orange);border:1.5px solid var(--orange);box-shadow:none}
 .zum-limit-banner button.zum-limit-pay:hover{background:var(--orange-soft);color:#E55E22}
+.zum-credit-banner{margin-top:18px;background:#EAF7EF;border:1px solid #BFE6CE;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.zum-credit-banner .zum-credit-emoji{font-size:18px;line-height:1.4}
+.zum-credit-banner .zum-limit-msg{color:var(--ink-2)}
+.zum-credit-banner .zum-limit-msg strong{color:var(--green)}
 @media (max-width:560px){
   .zum-head{flex-direction:column;align-items:flex-start}
   .zum-limit-banner{flex-direction:column;align-items:flex-start}
