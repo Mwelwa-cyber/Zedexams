@@ -37,6 +37,7 @@ import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
+import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 
 const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
 
@@ -806,14 +807,42 @@ async function renderQuestion(b) {
       }))
     }
   }
-  if (b.wordBank && b.wordBank.length) {
+  if (b.type !== 'fill_blanks' && b.wordBank && b.wordBank.length) {
     out.push(para([
       runText('Word bank: ', { bold: true, size: 20 }),
       runText(b.wordBank.join(' · '), { size: 20 }),
     ]))
   }
 
-  if (b.type === 'mcq') {
+  if (b.type === 'fill_blanks') {
+    // Fill-in-the-Blanks: an optional word-bank line, then each statement on
+    // its own paragraph ("A. … __________ …") with generous spacing. In the
+    // marking key (showAnswer) each blank is filled with its answer in green.
+    if (b.wordBank && b.wordBank.length) {
+      out.push(para([
+        runText('Word Bank: ', { bold: true, size: 22 }),
+        runText(b.wordBank.join(', '), { size: 22 }),
+      ], { spacing: { after: 160 } }))
+    }
+    const statements = Array.isArray(b.statements) ? b.statements : []
+    statements.forEach((statement, i) => {
+      const runs = [runText(`${statementLabel(i)}.  `, { bold: true, size: 22 })]
+      const segments = splitStatementSegments(String(statement?.text ?? ''))
+      const answers = Array.isArray(statement?.answers) ? statement.answers : []
+      segments.forEach((segment, segIndex) => {
+        if (segment) runs.push(runText(segment, { size: 22 }))
+        if (segIndex < segments.length - 1) {
+          const answer = answers[segIndex]
+          if (b.showAnswer && answer) {
+            runs.push(runText(answer, { size: 22, bold: true, color: '047857' }))
+          } else {
+            runs.push(runText(' __________ ', { size: 22 }))
+          }
+        }
+      })
+      out.push(para(runs, { spacing: { after: 200 } }))
+    })
+  } else if (b.type === 'mcq') {
     const optsHtml = b.optionsHtml || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
@@ -1033,6 +1062,9 @@ async function renderQuestion(b) {
         runText('Correct order: ', { bold: true, size: 20, color: '047857' }),
         runText(seq, { size: 20, color: '047857' }),
       ]))
+    } else if (b.type === 'fill_blanks') {
+      // Fill-in-the-blanks answers are already rendered inline (green) on each
+      // statement in the marking-key pass above — nothing more to print here.
     } else {
       out.push(para([
         runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),

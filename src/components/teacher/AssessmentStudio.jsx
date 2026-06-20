@@ -22,6 +22,7 @@ import {
 import { useUndoRedo } from '../../hooks/useUndoRedo'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
 import { generateDiagram } from '../../utils/generateDiagram'
 import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
 import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion'
@@ -239,7 +240,7 @@ function assetsById(assets = []) {
 
 function buildStandaloneSection(question = {}) {
   const type = question.type ?? 'mcq'
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay' || type === 'fill_blanks'
   return createStandaloneSection({
     ...question,
     sharedInstruction: question.sharedInstruction ?? '',
@@ -1284,6 +1285,10 @@ export default function AssessmentStudio() {
       const usable = generatedList.filter(q => {
         if (!richTextHasContent(q?.text ?? '')) return false
         const t = q?.type || 'mcq'
+        if (t === 'fill_blanks') {
+          return Array.isArray(q?.statements)
+            && q.statements.some(s => /_{2,}/.test(String(s?.text ?? '')))
+        }
         if (t === 'short_answer' || t === 'diagram') {
           return String(q?.correctAnswer ?? '').trim().length > 0
         }
@@ -1762,7 +1767,24 @@ export default function AssessmentStudio() {
         newSection = baseQuestion('mcq', { options: ['True', 'False', '', ''], correctAnswer: 0, marks: 1 })
         break
       case 'fill_in_blank':
-        newSection = baseQuestion('short_answer', { options: [], correctAnswer: '', marks: 1 })
+        // Dedicated Fill-in-the-Blanks: an instruction + word bank + a set of
+        // A/B/C/D statements, each with its own blank(s). Seeded with 4 empty
+        // statements (the most common Zambian test-paper size) so the teacher
+        // fills in sentences rather than wiring up the structure.
+        newSection = baseQuestion('fill_blanks', {
+          options: [],
+          correctAnswer: '',
+          text: 'Fill in the blanks using the words provided below.',
+          wordBank: [],
+          wordBankReuse: false,
+          statements: [
+            { text: '', answers: [''] },
+            { text: '', answers: [''] },
+            { text: '', answers: [''] },
+            { text: '', answers: [''] },
+          ],
+          marks: 4,
+        })
         break
       case 'numeric':
         newSection = baseQuestion('numeric', {
@@ -3594,6 +3616,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const type = question.type || 'mcq'
   const isMcq = type === 'mcq'
   const isEssay = type === 'essay'
+  const isFillBlanks = type === 'fill_blanks'
   const isShortAnswer = type === 'short_answer' || type === 'fill' || type === 'short'
   const isStructured = type === 'diagram' && !isShortAnswer
   const isNumeric = type === 'numeric'
@@ -3830,6 +3853,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     numeric: { tag: 'mcq', label: 'Numeric' },
     matching: { tag: 'struct', label: 'Matching' },
     sequence: { tag: 'struct', label: 'Sequence' },
+    fill_blanks: { tag: 'struct', label: 'Fill in the Blanks' },
   }
   const meta = typeMeta[type] || typeMeta.mcq
 
@@ -4187,6 +4211,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         </>
       )}
 
+      {isFillBlanks && (
+        <FillBlanksInputs question={question} onUpdate={updateQuestion} />
+      )}
+
       {isStructured && !isMcq && (
         <>
           <div className="sv-field" style={{ marginBottom: 'var(--sv-s2)' }}>
@@ -4488,6 +4516,173 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           />
         </div>
       )}
+    </div>
+  )
+}
+
+// Dedicated Fill-in-the-Blanks editor. The instruction itself is the question
+// text (edited above by the shared question-text field). Here the teacher sets
+// the word bank (or chooses open mode), the reuse rule, and the individual
+// A/B/C/D statements — each with its own blank(s) and the expected answer for
+// each blank. Total marks track the blank count automatically (one per blank).
+function FillBlanksInputs({ question, onUpdate }) {
+  const statements = Array.isArray(question.statements) ? question.statements : []
+  const wordBank = Array.isArray(question.wordBank) ? question.wordBank : []
+  const useWordBank = wordBank.length > 0
+  const totalBlanks = statements.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+
+  function commitStatements(next) {
+    onUpdate('statements', next)
+    // One mark per blank, clamped to the schema's [1, 20] range, so the
+    // printed paper's [1] cues and the auto-marking stay in agreement.
+    const blanks = next.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+    onUpdate('marks', Math.max(1, Math.min(20, blanks || 1)))
+  }
+
+  function updateStatementText(index, text) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      // Resize the answers array to match the new blank count (keep at least
+      // one slot so a not-yet-blanked sentence still shows an answer field).
+      const blanks = countBlanks(text)
+      const prev = Array.isArray(s.answers) ? s.answers : []
+      const answers = Array.from({ length: Math.max(blanks, 1) }, (_, k) => prev[k] ?? '')
+      return { text, answers }
+    })
+    commitStatements(next)
+  }
+
+  function setAnswer(index, blankIndex, value) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      const answers = [...(Array.isArray(s.answers) ? s.answers : [])]
+      answers[blankIndex] = value
+      return { ...s, answers }
+    })
+    onUpdate('statements', next)
+  }
+
+  function addStatement() {
+    commitStatements([...statements, { text: '', answers: [''] }])
+  }
+
+  function removeStatement(index) {
+    commitStatements(statements.filter((_, i) => i !== index))
+  }
+
+  function insertBlank(index) {
+    const current = statements[index]?.text ?? ''
+    const needsSpace = current && !/\s$/.test(current)
+    updateStatementText(index, `${current}${needsSpace ? ' ' : ''}${BLANK_TOKEN} `)
+  }
+
+  // Quick-size presets (4 / 6 / 8 / 10 blanks) — add or trim statements so the
+  // teacher gets the requested number of single-blank items in one click.
+  function setCount(target) {
+    const next = statements.slice(0, target)
+    while (next.length < target) next.push({ text: '', answers: [''] })
+    commitStatements(next)
+  }
+
+  return (
+    <div className="sv-fill-blanks" style={{ marginTop: 'var(--sv-s2)' }}>
+      {/* Word bank / open-mode controls */}
+      <div className="sv-field" style={{ marginBottom: 'var(--sv-s2)' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={useWordBank}
+            onChange={e => onUpdate('wordBank', e.target.checked ? (wordBank.length ? wordBank : ['']) : [])}
+          />
+          Provide a word bank (learners pick from supplied words)
+        </label>
+        {useWordBank && (
+          <>
+            <input
+              type="text"
+              value={wordBank.join(', ')}
+              onChange={e => onUpdate('wordBank', e.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
+              placeholder="e.g. soap, clean, germs, water"
+              style={{ marginTop: 6 }}
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, marginTop: 6, color: 'var(--sv-muted)' }}>
+              <input
+                type="checkbox"
+                checked={Boolean(question.wordBankReuse)}
+                onChange={e => onUpdate('wordBankReuse', e.target.checked)}
+              />
+              Words may be used more than once
+            </label>
+          </>
+        )}
+      </div>
+
+      {/* Size presets */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 'var(--sv-s2)', fontSize: 12 }}>
+        <span style={{ color: 'var(--sv-muted)' }}>Number of blanks:</span>
+        {[4, 6, 8, 10].map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setCount(n)}
+            className="sv-btn sv-btn-outline sv-btn-sm"
+          >
+            {n}
+          </button>
+        ))}
+        <span style={{ color: 'var(--sv-muted)' }}>· {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} total</span>
+      </div>
+
+      {/* Statements */}
+      {statements.map((statement, index) => {
+        const blanks = countBlanks(statement?.text ?? '')
+        const answers = Array.isArray(statement?.answers) ? statement.answers : []
+        return (
+          <div
+            key={index}
+            style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, marginBottom: 8, background: 'var(--sv-paper)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <strong style={{ fontSize: 13 }}>{statementLabel(index)}.</strong>
+              <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={() => insertBlank(index)} title="Insert a blank where the cursor will go">
+                + Insert blank
+              </button>
+              <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={() => removeStatement(index)} style={{ marginLeft: 'auto', color: 'var(--sv-danger, #b91c1c)' }}>
+                Remove
+              </button>
+            </div>
+            <input
+              type="text"
+              value={statement?.text ?? ''}
+              onChange={e => updateStatementText(index, e.target.value)}
+              placeholder="e.g. We use ____ to wash our hands."
+              style={{ width: '100%' }}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+              {Array.from({ length: Math.max(blanks, 1) }).map((_, blankIndex) => (
+                <label key={blankIndex} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'var(--sv-muted)' }}>
+                  Answer {blanks > 1 ? `#${blankIndex + 1}` : ''}
+                  <input
+                    type="text"
+                    value={answers[blankIndex] ?? ''}
+                    onChange={e => setAnswer(index, blankIndex, e.target.value)}
+                    placeholder={blanks === 0 ? 'Add a ____ blank first' : 'expected answer'}
+                    disabled={blanks === 0}
+                    style={{ minWidth: 140 }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={addStatement}>
+        + Add statement
+      </button>
+      <p style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 6 }}>
+        Tip: type underscores (<code>____</code>) where a blank should go. Use “/” to allow alternatives, e.g. <code>sunlight/sun</code>.
+      </p>
     </div>
   )
 }
@@ -5313,7 +5508,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="📋" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
           <BlockPickerItem icon="📝" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
           <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
-          <BlockPickerItem icon="📐" title="Fill in Blank" hint="Gap-fill sentence" onClick={() => onPick('fill_in_blank')} />
+          <BlockPickerItem icon="📐" title="Fill in the Blanks" hint="Instruction + word bank + A/B/C/D statements" onClick={() => onPick('fill_in_blank')} />
           <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
           <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
           <BlockPickerItem icon="🔤" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
@@ -5558,6 +5753,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
               <option value="mcq">Multiple choice</option>
               <option value="true_false">True / False</option>
               <option value="short_answer">Short answer</option>
+              <option value="fill_blank">Fill in the blanks</option>
               <option value="mixed">Mixed (all three)</option>
             </select>
           </div>
@@ -6395,6 +6591,13 @@ function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQue
               onChange={e => update('correctAnswer', e.target.value)}
               rows={3}
             />
+          </div>
+        )}
+
+        {type === 'fill_blanks' && (
+          <div className="sv-field" style={{ marginTop: 12 }}>
+            <div className="sv-block-cat">Fill-in-the-Blanks</div>
+            <FillBlanksInputs question={question} onUpdate={update} />
           </div>
         )}
 

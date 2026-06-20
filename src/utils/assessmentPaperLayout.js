@@ -583,6 +583,18 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     imageWidth: q.imageWidth || 'full',
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
+    // Whether word-bank words may be reused across blanks (fill_blanks only).
+    wordBankReuse: Boolean(q.wordBankReuse),
+    // Fill-in-the-Blanks statements — each prints "A. … ____ …" on its own
+    // line. Keep the raw text (underscore runs intact) so the renderers can
+    // turn each blank into a long ruled gap or an interactive input. `plain`
+    // strips any stray markup without disturbing the underscores.
+    statements: Array.isArray(q.statements)
+      ? q.statements.map(s => ({
+        text: plain(s?.text),
+        answers: Array.isArray(s?.answers) ? s.answers.map(a => plain(a)) : [],
+      }))
+      : [],
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,
     // Answer-space format: 'lines' (default), 'none', or 'labelled_blanks'.
     // 'labelled_blanks' prints one "Label: ____" row per blankLabels entry.

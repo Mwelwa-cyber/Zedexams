@@ -143,7 +143,11 @@ async function normalizeQuestionPayload(q, order) {
   // (matchingAnswer / sequenceAnswer); they have no options either.
   const isMatching = type === 'matching'
   const isSequence = type === 'sequence'
-  const noOptions = isShortAnswer || isNumeric || isHotspot || isMatching || isSequence
+  // Fill-in-the-Blanks stores its prompt/answer in dedicated `statements[]`
+  // (each with its own answers) + an optional `wordBank`; no options array and
+  // correctAnswer is an (often empty) string, like short-answer.
+  const isFillBlanks = type === 'fill_blanks'
+  const noOptions = isShortAnswer || isNumeric || isHotspot || isMatching || isSequence || isFillBlanks
   const options = noOptions
     ? []
     : Array.isArray(q.options)
@@ -190,10 +194,10 @@ async function normalizeQuestionPayload(q, order) {
     passageId:     q.passageId || null,
     partId:        q.partId ?? null,
     subtype:       q.subtype ?? null,
-    correctAnswer: isShortAnswer || isMatching || isSequence
+    correctAnswer: isShortAnswer || isMatching || isSequence || isFillBlanks
       // Short-answer/essay store the written answer; matching/sequence keep
-      // their correctness in their own arrays below, so correctAnswer is an
-      // (often empty) string for all three.
+      // their correctness in their own arrays below, and fill-blanks keeps its
+      // answers on each statement, so correctAnswer is an (often empty) string.
       ? String(q.correctAnswer ?? '').trim()
       : isNumeric
         // Numeric questions store a real number — Number() converts strings
@@ -276,6 +280,21 @@ async function normalizeQuestionPayload(q, order) {
     ...(Array.isArray(q.wordBank) && q.wordBank.length
       ? { wordBank: q.wordBank.map(w => String(w ?? '').trim().slice(0, 120)).filter(Boolean).slice(0, 40) }
       : {}),
+    // Fill-in-the-Blanks statements + word-bank-reuse flag. Only persisted for
+    // the dedicated type so other questions never carry an empty array
+    // (keeps the .strict() schema lean). Each statement clamps to the schema's
+    // caps (text ≤ 2000, ≤ 12 answers ≤ 200 chars, ≤ 40 statements).
+    ...(isFillBlanks ? {
+      statements: (Array.isArray(q.statements) ? q.statements : [])
+        .map(s => ({
+          text: String(s?.text ?? '').slice(0, 2000),
+          answers: (Array.isArray(s?.answers) ? s.answers : [])
+            .map(a => String(a ?? '').trim().slice(0, 200))
+            .slice(0, 12),
+        }))
+        .slice(0, 40),
+      wordBankReuse: Boolean(q.wordBankReuse),
+    } : {}),
     // Diagram label overlays, identify-mode flag, inline data table, and the
     // Draw & Label canvas height. These power the Assessment Studio's labelled
     // diagram / image-identify / data-table / draw-and-label questions. Without

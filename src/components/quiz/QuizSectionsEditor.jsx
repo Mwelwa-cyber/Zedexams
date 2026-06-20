@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
+import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
 import { clampInt } from '../../utils/inputs.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
 import DiagramPicker from '../diagrams/DiagramPicker.jsx'
@@ -19,6 +20,165 @@ const PART_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
 function partLabel(index) {
   return `Part ${PART_LETTERS[index] ?? index + 1}`
+}
+
+// Dedicated Fill-in-the-Blanks editor for the Quiz Studio. The instruction is
+// the question text (edited above); here the teacher manages the word bank (or
+// open mode), the reuse rule, and the A/B/C/D statements — each with its own
+// blank(s) and expected answer(s). `set(field, value)` patches the question.
+function FillBlanksFields({ question, theme, set }) {
+  const statements = Array.isArray(question.statements) ? question.statements : []
+  const wordBank = Array.isArray(question.wordBank) ? question.wordBank : []
+  const useWordBank = wordBank.length > 0
+  const totalBlanks = statements.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+  const inputClass = joinClasses('theme-input w-full rounded-lg border px-3 py-2 text-sm outline-none', theme.focus)
+
+  function commitStatements(next) {
+    set('statements', next)
+    // One mark per blank, clamped to the schema's [1, 20] range.
+    const blanks = next.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+    set('marks', Math.max(1, Math.min(20, blanks || 1)))
+  }
+
+  function updateStatementText(index, text) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      const blanks = countBlanks(text)
+      const prev = Array.isArray(s.answers) ? s.answers : []
+      const answers = Array.from({ length: Math.max(blanks, 1) }, (_, k) => prev[k] ?? '')
+      return { text, answers }
+    })
+    commitStatements(next)
+  }
+
+  function setAnswer(index, blankIndex, value) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      const answers = [...(Array.isArray(s.answers) ? s.answers : [])]
+      answers[blankIndex] = value
+      return { ...s, answers }
+    })
+    set('statements', next)
+  }
+
+  function insertBlank(index) {
+    const current = statements[index]?.text ?? ''
+    const needsSpace = current && !/\s$/.test(current)
+    updateStatementText(index, `${current}${needsSpace ? ' ' : ''}${BLANK_TOKEN} `)
+  }
+
+  function setCount(target) {
+    const next = statements.slice(0, target)
+    while (next.length < target) next.push({ text: '', answers: [''] })
+    commitStatements(next)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="theme-bg-subtle space-y-2 rounded-xl border-2 theme-border p-3">
+        <label className="flex items-center gap-2 text-xs font-bold theme-text">
+          <input
+            type="checkbox"
+            checked={useWordBank}
+            onChange={event => set('wordBank', event.target.checked ? (wordBank.length ? wordBank : ['']) : [])}
+            className="accent-[var(--accent)]"
+          />
+          Provide a word bank (learners pick from supplied words)
+        </label>
+        {useWordBank && (
+          <>
+            <input
+              value={wordBank.join(', ')}
+              onChange={event => set('wordBank', event.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
+              placeholder="e.g. soap, clean, germs, water"
+              className={inputClass}
+            />
+            <label className="theme-text-muted flex items-center gap-2 text-xs font-bold">
+              <input
+                type="checkbox"
+                checked={Boolean(question.wordBankReuse)}
+                onChange={event => set('wordBankReuse', event.target.checked)}
+                className="accent-[var(--accent)]"
+              />
+              Words may be used more than once
+            </label>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="theme-text-muted font-bold">Number of blanks:</span>
+        {[4, 6, 8, 10].map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setCount(n)}
+            className={joinClasses('rounded-lg border px-2.5 py-1 font-bold', theme.button)}
+          >
+            {n}
+          </button>
+        ))}
+        <span className="theme-text-muted">· {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} total</span>
+      </div>
+
+      {statements.map((statement, index) => {
+        const blanks = countBlanks(statement?.text ?? '')
+        const answers = Array.isArray(statement?.answers) ? statement.answers : []
+        return (
+          <div key={index} className="space-y-2 rounded-xl border-2 theme-border p-3">
+            <div className="flex items-center gap-2">
+              <span className="theme-text text-sm font-black">{statementLabel(index)}.</span>
+              <button
+                type="button"
+                onClick={() => insertBlank(index)}
+                className={joinClasses('rounded-lg border px-2 py-0.5 text-xs font-bold', theme.button)}
+              >
+                + Insert blank
+              </button>
+              <button
+                type="button"
+                onClick={() => commitStatements(statements.filter((_, i) => i !== index))}
+                className="ml-auto rounded-lg bg-transparent px-2 py-0.5 text-xs font-bold text-red-500 shadow-none hover:bg-red-50"
+              >
+                Remove
+              </button>
+            </div>
+            <input
+              value={statement?.text ?? ''}
+              onChange={event => updateStatementText(index, event.target.value)}
+              placeholder="e.g. We use ____ to wash our hands."
+              className={inputClass}
+            />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: Math.max(blanks, 1) }).map((_, blankIndex) => (
+                <label key={blankIndex} className="theme-text-muted flex flex-col gap-1 text-[11px] font-bold">
+                  Answer {blanks > 1 ? `#${blankIndex + 1}` : ''}
+                  <input
+                    value={answers[blankIndex] ?? ''}
+                    onChange={event => setAnswer(index, blankIndex, event.target.value)}
+                    placeholder={blanks === 0 ? 'Add a ____ blank first' : 'expected answer'}
+                    disabled={blanks === 0}
+                    className={joinClasses('theme-input rounded-lg border px-2 py-1 text-sm outline-none', theme.focus)}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      <button
+        type="button"
+        onClick={() => commitStatements([...statements, { text: '', answers: [''] }])}
+        className={joinClasses('rounded-lg border px-3 py-1.5 text-xs font-bold', theme.button)}
+      >
+        + Add statement
+      </button>
+      <p className="theme-text-muted text-xs">
+        Type underscores (<code>____</code>) where a blank goes. Use “/” to allow alternatives, e.g. <code>sunlight/sun</code>.
+      </p>
+    </div>
+  )
 }
 // Tiptap-based rich field (new). Accepts HTML strings or Tiptap JSON on the
 // way in (legacy quizzes render fine) and emits Tiptap JSON. Saving passes
@@ -470,6 +630,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
 
   const isTrueFalse = question.type === 'truefalse'
   const isFill = question.type === 'fill'
+  const isFillBlanks = question.type === 'fill_blanks'
   const isNumeric = question.type === 'numeric'
   const isHotspot = question.type === 'hotspot'
   const isTextAnswer = question.type === 'short_answer' || question.type === 'diagram' || isFill
@@ -548,6 +709,20 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
                 onChange(sectionIndex, 'correctAnswer', typeof question.correctAnswer === 'string' ? question.correctAnswer : '')
                 // Subtype only makes sense for MCQ — clear it on type change.
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
+              } else if (nextType === 'fill_blanks') {
+                // Dedicated Fill-in-the-Blanks: no options; answers live on the
+                // statements. Seed 4 empty statements so the editor has shape.
+                onChange(sectionIndex, 'options', [])
+                onChange(sectionIndex, 'correctAnswer', '')
+                if (!Array.isArray(question.statements) || question.statements.length === 0) {
+                  onChange(sectionIndex, 'statements', [
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                  ])
+                }
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
               } else if (nextType === 'numeric') {
                 // Numeric questions have no options and store correctAnswer
                 // as a real number. The runner accepts any typed answer
@@ -580,6 +755,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             <option value="truefalse">True / False</option>
             <option value="short_answer">Short Answer</option>
             <option value="fill">Fill in the blank</option>
+            <option value="fill_blanks">Fill in the Blanks (statements)</option>
             <option value="numeric">Numeric (±tolerance)</option>
             <option value="hotspot">Hotspot (click on image)</option>
             <option value="diagram">Diagram / Image</option>
@@ -833,6 +1009,8 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             Worked example: correct answer <span className="font-bold theme-text">3.14</span>, tolerance <span className="font-bold theme-text">0.01</span> accepts any typed answer between 3.13 and 3.15.
           </p>
         </div>
+      ) : isFillBlanks ? (
+        <FillBlanksFields question={question} theme={theme} set={set} />
       ) : isTextAnswer ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
