@@ -25,6 +25,7 @@ import {
   ChartBarIcon,
   Search,
   Lightbulb,
+  LayoutGrid,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../ui/Icon'
@@ -64,6 +65,7 @@ const NAV_SECTIONS = [
     label: 'Overview',
     items: [
       { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+      { to: '/admin/company', icon: LayoutGrid, label: 'AI Company' },
       { to: '/admin/analytics', icon: ChartBarIcon, label: 'Analytics' },
     ],
   },

@@ -156,6 +156,7 @@ const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
+const CompanyHQ       = lazy(() => import('./components/admin/company/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
@@ -576,6 +577,7 @@ export default function App() {
           <Route path="/admin/generate/class-timetable" element={<AdminRoute><ClassTimetableStudio /></AdminRoute>} />
           <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
+          <Route path="/admin/company"                  element={<AdminRoute><CompanyHQ /></AdminRoute>} />
           <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />
           <Route path="/admin/agents/jobs"              element={<AdminRoute><AgentsAllJobs /></AdminRoute>} />
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
