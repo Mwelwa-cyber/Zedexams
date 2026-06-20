@@ -96,7 +96,7 @@ describe('useTeacherUsage', () => {
 
     expect(result.current.data.plan).toBe('pro')
     expect(result.current.data.planLabel).toBe('Pro')
-    expect(result.current.data.caps.plans).toBe(40) // pro lesson_plan, not free's 5
+    expect(result.current.data.caps.plans).toBe(40) // pro lesson_plan, not free's 2
     expect(result.current.data.daily).toBe(10)
   })
 
