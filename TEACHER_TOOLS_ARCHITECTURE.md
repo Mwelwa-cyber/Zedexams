@@ -9,7 +9,7 @@
 - Teacher tools live at `zedexams.com/teachers/*` under the same auth and Firestore database.
 - Teacher access is gated by the existing `teacherApplications` approval flow. A user's `role` must equal `"teacher"` or `"admin"` to use generation endpoints.
 - AI backend is Claude, with model routing between Sonnet 4.5 (heavy tasks) and Haiku 4.5 (light tasks).
-- Pricing: Free (5 lesson plans, 3 worksheets, 3 teacher notes / month), Pro (Individual) K79/mo or K790/yr, Max (School) K199/mo or K1,990/yr.
+- Pricing: Free (2 lesson plans, 3 worksheets, 3 teacher notes / month), Pro (Individual) K79/mo or K790/yr, Max (School) K199/mo or K1,990/yr.
 - Mobile money via the existing `momoService.js`; subscription status stored on the existing `users` document (extended with teacher-plan fields).
 
 ## 2. Data model — Firestore additions
@@ -640,7 +640,7 @@ which still normalises the pre-2026-06 legacy ids `individual` → `pro`, `schoo
 
 | Tool            | Free | Pro              | Max (per teacher)          |
 |-----------------|------|------------------|----------------------------|
-| lesson_plan     | 5    | 40               | 200 (fair-use)             |
+| lesson_plan     | 2    | 40               | 200 (fair-use)             |
 | worksheet       | 3    | 25               | 200 (fair-use)             |
 | notes           | 3    | 25               | 200 (fair-use)             |
 | flashcards      | 20   | 200              | 200                        |
