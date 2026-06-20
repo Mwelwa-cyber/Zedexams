@@ -151,8 +151,7 @@ const PLANS = [
     note: 'No card required.', cta: 'Start free',
     feats: [
       <><strong>5</strong> lesson plans / month</>,
-      <><strong>3</strong> worksheets / month</>,
-      <><strong>3</strong> teacher notes / month</>,
+      <>Preview a <strong>sample</strong> of every other studio</>,
       <>Daily cap of <strong>2</strong> generations</>,
       'HTML export only',
       'Library kept for 7 days',
@@ -339,13 +338,13 @@ export default function Plans() {
                 <tbody>
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Generations / month</td></tr>
                   <Row label="Lesson plans" cells={['5', '40', 'Unlimited']} />
-                  <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
-                  <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
-                  <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />
+                  <Row label="Worksheets" cells={['Sample', '25', 'Unlimited']} />
+                  <Row label="Teacher notes" cells={['Sample', '25', 'Unlimited']} />
+                  <Row label="Schemes of work" cells={['Sample', '2', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Max studios</td></tr>
-                  <Row label="Assessment studio" cells={['1 to try', '1 to try', 'Unlimited']} />
-                  <Row label="Exam Paper studio" cells={['1 to try', '1 to try', 'Unlimited']} />
+                  <Row label="Assessment studio" cells={['Sample', '1 to try', 'Unlimited']} />
+                  <Row label="Exam Paper studio" cells={['Sample', '1 to try', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />

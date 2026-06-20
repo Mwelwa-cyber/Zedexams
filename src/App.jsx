@@ -185,6 +185,12 @@ const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/S
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 
+// Route-level gate: Free teachers can only open the Lesson Plan studio; every
+// other generator studio is wrapped in <StudioGate>, which shows a read-only
+// sample + upgrade CTA instead. Imported eagerly (it's tiny and reads the
+// plan synchronously); it lazy-loads LockedStudio only for Free teachers.
+import StudioGate from './components/teacher/StudioGate'
+
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
@@ -584,36 +590,39 @@ export default function App() {
               teacher-side quiz creator and `/teacher/content` workflow.
               Both create and edit run through the same studio so a saved paper
               reopens in the full, type-complete builder. */}
-          <Route path="/teacher/test-papers"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
-          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
-          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          {/* Test Paper / Assessment studio — Free sees a sample (StudioGate). */}
+          <Route path="/teacher/test-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
           {/* Legacy /teacher/assessments/* paths — kept as functional aliases
               so existing bookmarks and saved links keep resolving after the
               rename to the Test Paper Studio. */}
-          <Route path="/teacher/assessments"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
-          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
-          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          <Route path="/teacher/assessments"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
+          {/* Lesson Plan studios stay open on Free — the one studio every plan can use. */}
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
           <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/exam-paper"     element={<TeacherRoute><ExamPaperGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><ClassTimetableStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
+          {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
+          <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/exam-paper"     element={<TeacherRoute><StudioGate tool="exam_paper"><ExamPaperGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><StudioGate tool="worksheet"><WorksheetGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><StudioGate tool="flashcards"><FlashcardGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><StudioGate tool="scheme_of_work"><SchemeOfWorkGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><StudioGate tool="mark_schedule"><MarkScheduleStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><StudioGate tool="weekly_forecast"><WeeklyForecastStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><StudioGate tool="record_of_work"><RecordOfWorkStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><StudioGate tool="class_timetable"><ClassTimetableStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/rubric"          element={<TeacherRoute><StudioGate tool="rubric"><RubricGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/notes"           element={<TeacherRoute><StudioGate tool="notes"><NotesStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/visual-studio"            element={<TeacherRoute><VisualStudioPage /></TeacherRoute>} />
           <Route path="/teacher/generate/visual-studio"   element={<Navigate to="/teacher/visual-studio" replace />} />
-          <Route path="/teacher/generate/sba"             element={<TeacherRoute><SbaTaskStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><SbaMarkTracker /></TeacherRoute>} />
-          <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><SbaYearPlanner /></TeacherRoute>} />
+          <Route path="/teacher/generate/sba"             element={<TeacherRoute><StudioGate tool="sba_task"><SbaTaskStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><StudioGate tool="sba_tracker"><SbaMarkTracker /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><StudioGate tool="sba_planner"><SbaYearPlanner /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/sba"                      element={<TeacherRoute><SbaHub /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />

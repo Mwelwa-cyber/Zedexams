@@ -79,12 +79,13 @@ describe('useTeacherUsage', () => {
     expect(data.planLabel).toBe('Free')
     expect(data.used.plans).toBe(2)
     expect(data.used.worksheets).toBe(1)
-    expect(data.caps.plans).toBe(5) // free lesson_plan
-    // 'assessments' reads the `assessment` tool (the Test Paper studio), NOT
-    // the retired `quiz` creator. assessment + exam_paper are Max-only, so Free
-    // gets a single monthly taster (cap 1), then the Upgrade-to-Max paywall.
-    expect(data.caps.assessments).toBe(1) // free assessment taster
-    expect(data.caps.exams).toBe(1) // free exam_paper taster (now surfaced)
+    expect(data.caps.plans).toBe(5) // free lesson_plan — the one open studio
+    // Free can only use the Lesson Plan studio now; every other studio is
+    // locked to a read-only sample (cap 0) until the teacher upgrades. The
+    // Test Paper (`assessment`) and Exam Paper studios are no exception.
+    expect(data.caps.assessments).toBe(0) // assessment locked → sample only
+    expect(data.caps.exams).toBe(0) // exam_paper locked → sample only
+    expect(data.caps.worksheets).toBe(0) // worksheet locked → sample only
     expect(data.daily).toBe(2)
   })
 

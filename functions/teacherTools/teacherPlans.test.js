@@ -135,9 +135,11 @@ test("isMaxOnlyTool flags only the Max studios", () => {
   assert.ok(!isMaxOnlyTool("worksheet"));
 });
 
-test("free + pro get a single monthly taster of each Max studio", () => {
+test("free is sample-only for the Max studios; pro keeps a single taster", () => {
   for (const tool of MAX_ONLY_TOOLS) {
-    assert.strictEqual(PLAN_LIMITS.free[tool], 1, `free.${tool} taster`);
+    // Free can only open the Lesson Plan studio — the Max studios (like every
+    // other generator) are locked to a read-only sample (0), not a taster.
+    assert.strictEqual(PLAN_LIMITS.free[tool], 0, `free.${tool} locked`);
     assert.strictEqual(PLAN_LIMITS.pro[tool], 1, `pro.${tool} taster`);
   }
 });
@@ -155,10 +157,20 @@ test("every Max-only tool is a registered, daily-counted tool", () => {
   }
 });
 
-test("free limits match the published marketing numbers", () => {
+test("free can only use the Lesson Plan studio; every other studio is locked", () => {
+  // The Lesson Plan studio is the one generator a Free teacher can use.
   assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 5);
-  assert.strictEqual(PLAN_LIMITS.free.worksheet, 3);
-  assert.strictEqual(PLAN_LIMITS.free.notes, 3);
+  // Tools that stay funded on Free even though they aren't full studios: the
+  // quiz-editor micro-helpers and the in-studio diagram tool.
+  const stillFunded = new Set(["suggest_answer", "revise_question", "diagram"]);
+  for (const [tool, limit] of Object.entries(PLAN_LIMITS.free)) {
+    if (tool === "lesson_plan") continue;
+    if (stillFunded.has(tool)) {
+      assert.ok(limit > 0, `free.${tool} stays funded`);
+    } else {
+      assert.strictEqual(limit, 0, `free.${tool} must be locked (sample only)`);
+    }
+  }
 });
 
 // ── daily caps (marketing: "Daily cap of 2/10/30 generations") ───────

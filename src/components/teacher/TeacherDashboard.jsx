@@ -277,6 +277,26 @@ const STUDIO_GROUPS = [
   },
 ]
 
+// Studio tile routes that are Pro/Max only — a Free teacher who opens one sees a
+// read-only sample (StudioGate), so the tile is badged "Sample" for them. The
+// Lesson Plan tile and the non-generator utilities (Syllabus, Calendar,
+// Register, Visual Studio, SBA hub, Library) stay open and are absent here.
+const LOCKED_STUDIO_PATHS = new Set([
+  '/teacher/generate/scheme-of-work',
+  '/teacher/generate/weekly-forecast',
+  '/teacher/generate/record-of-work',
+  '/teacher/generate/class-timetable',
+  '/teacher/generate/notes',
+  '/teacher/generate/worksheet',
+  '/teacher/generate/flashcards',
+  '/teacher/generate/rubric',
+  '/teacher/generate/mark-schedule',
+  '/teacher/test-papers',
+  '/teacher/generate/exam-paper',
+  '/teacher/generate/sba-tracker',
+  '/teacher/generate/sba-planner',
+])
+
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
   scheme_of_work: { icon: CalendarDays, accent: '#faecb8', label: 'Scheme of Work' },
@@ -320,7 +340,7 @@ function WorkspaceSectionHead({ icon, accent, label, viewAll }) {
   )
 }
 
-function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary }) {
+function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary, locked }) {
   const isSoon = badge === 'SOON'
   // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
   // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
@@ -333,9 +353,14 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
   // Only show a badge when there's something real to show: an explicit badge
   // (NEW/FREE/SOON) or a saved-count for library-backed tiles. Without this
   // guard, a badge-less tile with no count would render the literal "null saved".
-  const showBadge = badge !== null || count !== null
-  const badgeText = badge !== null ? badge : `${count} saved`
-  const badgeClass = badge === 'FREE'
+  // A locked (Free-plan, Pro/Max-only) tile shows a "🔒 Sample" badge that
+  // takes priority over the saved-count / NEW badge — it's the more useful
+  // signal: clicking opens a read-only sample, not the studio.
+  const showBadge = locked || badge !== null || count !== null
+  const badgeText = locked ? '🔒 Sample' : badge !== null ? badge : `${count} saved`
+  const badgeClass = locked
+    ? 'teacher-workspace-card__badge--muted'
+    : badge === 'FREE'
     ? 'teacher-workspace-card__badge--success'
     : badge === 'SOON'
     ? 'teacher-workspace-card__badge--muted'
@@ -492,7 +517,11 @@ export default function TeacherDashboard() {
   // (users.teacherPlan, same field the usage meter + server gate on), not the
   // learner-style isPremium flag — otherwise a premium learner with no Pro
   // teacher plan would falsely read "Pro" while the meter still showed Free.
-  const teacherPlanLabel = PLAN_LABELS[resolveTeacherPlan(userProfile)] || 'Free'
+  const teacherPlan = resolveTeacherPlan(userProfile)
+  const teacherPlanLabel = PLAN_LABELS[teacherPlan] || 'Free'
+  // Free teachers can only open the Lesson Plan studio; other tiles open a
+  // read-only sample, so they're badged "Sample" on the workspace grid.
+  const isFreePlan = teacherPlan === 'free'
 
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
@@ -658,7 +687,12 @@ export default function TeacherDashboard() {
           />
           <div className="teacher-workspace-grid">
             {group.items.map(s => (
-              <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
+              <StudioCard
+                key={s.title}
+                {...s}
+                librarySummary={librarySummary}
+                locked={isFreePlan && LOCKED_STUDIO_PATHS.has(s.to)}
+              />
             ))}
           </div>
         </section>
