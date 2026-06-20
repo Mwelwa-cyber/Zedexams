@@ -48,6 +48,7 @@ const {runEchoTriage, templateReply} = require("./runners/echo");
 const {runContentGate} = require("./runners/gate");
 const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
+const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -602,6 +603,146 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
   });
 });
 
+// Dawn — delivers an on-demand morning briefing once the Managed Agent has
+// finished. The admin starts a run with the /admin/agents button (the
+// runDawnBriefing callable writes dawnRuns/{sessionId} = status:'running'); this
+// poller watches those docs, and when the session goes idle it pulls the
+// briefing Dawn wrote, emails it, and saves it back onto the doc so the panel
+// renders it inline. Cheap: nearly every run finds no in-flight briefing and
+// returns after a single bounded query. A run that hangs past STALE_MS is
+// marked 'timeout' so it can't be polled forever.
+const DAWN_STALE_MS = 25 * 60 * 1000; // a Dawn run that isn't done by ~25 min is stuck.
+const DAWN_DELIVERY_OPTS = {
+  schedule: "every 5 minutes",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  secrets: [anthropicApiKey, emailSmtpUser, emailSmtpPassword],
+};
+
+async function emailBriefing({to, subject, body}) {
+  const senderEmail = String(emailSmtpUser.value() || "").trim();
+  const senderPassword = emailSmtpPassword.value();
+  if (!senderEmail || !senderPassword) {
+    return {ok: false, reason: "smtp-not-configured"};
+  }
+  const nodemailer = require("nodemailer");
+  const transporter = nodemailer.createTransport({
+    host: "mail.privateemail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {user: senderEmail, pass: senderPassword},
+    tls: {minVersion: "TLSv1.2", servername: "mail.privateemail.com"},
+  });
+  await transporter.sendMail({
+    from: `ZedExams <${senderEmail}>`,
+    sender: senderEmail,
+    to,
+    replyTo: senderEmail,
+    subject,
+    text: body,
+    headers: {"X-Auto-Response-Suppress": "All"},
+  });
+  return {ok: true};
+}
+
+const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
+  const db = admin.firestore();
+  const apiKey = (anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "").trim();
+
+  let snap;
+  try {
+    // Equality-only filter (no orderBy) so this needs no composite index. The
+    // runDawnBriefing callable enforces a single in-flight run, so there's
+    // normally ≤1 match here; limit(5) is just a defensive cap.
+    snap = await db.collection("dawnRuns")
+        .where("status", "==", "running")
+        .limit(5)
+        .get();
+  } catch (err) {
+    console.error("Dawn delivery: dawnRuns query failed", err);
+    return;
+  }
+  if (snap.empty) return; // nothing in flight — the common case.
+
+  const now = Date.now();
+  for (const doc of snap.docs) {
+    const run = doc.data();
+    const sessionId = run.sessionId || doc.id;
+    const startedMs = run.startedAt?.toMillis ? run.startedAt.toMillis() : now;
+
+    try {
+      const status = await fetchSessionStatus({fetchImpl: fetch, apiKey, sessionId});
+
+      if (!isTerminalStatus(status)) {
+        // Still working. Give up on a run that has hung well past a normal ~10
+        // min so a stuck session doesn't get polled indefinitely.
+        if (now - startedMs > DAWN_STALE_MS) {
+          await doc.ref.update({
+            status: "timeout",
+            lastStatus: status,
+            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } else {
+          await doc.ref.update({lastStatus: status});
+        }
+        continue;
+      }
+
+      // Terminal — collect the briefing. The Files index can lag a beat behind
+      // the session going idle, so a missing file isn't fatal until STALE_MS.
+      const briefing = await fetchBriefing({fetchImpl: fetch, apiKey, sessionId});
+      if (!briefing) {
+        if (now - startedMs > DAWN_STALE_MS) {
+          await doc.ref.update({
+            status: "error",
+            error: "Dawn finished but wrote no briefing file.",
+            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        continue;
+      }
+
+      const {subject, body} = parseBriefing(briefing.text);
+      let emailError = null;
+      const to = String(run.toEmail || "").trim();
+      if (to) {
+        try {
+          const sent = await emailBriefing({to, subject, body});
+          if (!sent.ok) emailError = sent.reason;
+        } catch (err) {
+          emailError = String(err && err.message || err).slice(0, 300);
+        }
+      } else {
+        emailError = "no-recipient";
+      }
+
+      await doc.ref.update({
+        status: "done",
+        subject,
+        briefing: body.slice(0, 100_000),
+        sourceFile: briefing.filename,
+        emailedTo: emailError ? null : (to || null),
+        emailError,
+        finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error(`Dawn delivery: session ${sessionId} failed`, err);
+      // Don't wedge a run on a transient API hiccup — only fail it out once it
+      // is clearly stuck.
+      if (now - startedMs > DAWN_STALE_MS) {
+        await doc.ref.update({
+          status: "error",
+          error: String(err && err.message || err).slice(0, 300),
+          finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }).catch(() => {});
+      }
+    }
+  }
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
@@ -611,4 +752,5 @@ module.exports = {
   contentAutoPublish,
   weeklyProductSignal,
   weeklyRetentionScan,
+  deliverDawnBriefings,
 };
