@@ -36,6 +36,23 @@ const FEATURE_LABEL = {
   sba: 'SBA tasks',
 }
 
+// Feature key → the studio route where the credit is actually spent. Lets the
+// "credit ready" banner deep-link straight to Generate instead of leaving a
+// teacher on the dashboard wondering why paying "did nothing". Mirrors the
+// dashboard tiles in TeacherDashboard.jsx.
+const FEATURE_ROUTE = {
+  plans: '/teacher/generate/lesson-plan',
+  worksheets: '/teacher/generate/worksheet',
+  flashcards: '/teacher/generate/flashcards',
+  notes: '/teacher/generate/notes',
+  homework: '/teacher/generate/homework',
+  rubric: '/teacher/generate/rubric',
+  assessments: '/teacher/test-papers/new',
+  exams: '/teacher/generate/exam-paper',
+  schemes: '/teacher/generate/scheme-of-work',
+  sba: '/teacher/generate/sba',
+}
+
 // Feature keys whose studio is Max-only — hitting their cap routes to the
 // "Upgrade to Max" paywall, not the generic Pro upsell. Derived from the
 // canonical MAX_ONLY_TOOLS so it can't drift from the server gate.
@@ -215,10 +232,19 @@ export default function UsageMeter() {
         {data.credits > 0 && (
           <div className="zum-credit-banner">
             <span className="zum-credit-emoji" aria-hidden="true">🎟️</span>
-            <div className="zum-limit-msg">
-              <strong>You have {data.credits} extra generation{data.credits === 1 ? '' : 's'} ready.</strong><br />
-              Open any studio — Test papers, Exam papers, Worksheets… — and press <strong>Generate</strong>. Your
-              K25 credit is applied automatically, on any tool.
+            <div className="zum-credit-body">
+              <div className="zum-limit-msg">
+                <strong>You have {data.credits} extra generation{data.credits === 1 ? '' : 's'} ready.</strong><br />
+                {cappedFeature
+                  ? <>Open the {FEATURE_LABEL[cappedFeature.key]} studio and press <strong>Generate</strong> — your K25 credit is applied automatically.</>
+                  : <>Open any studio and press <strong>Generate</strong> — your K25 credit is applied automatically, on any tool.</>}
+              </div>
+              {cappedFeature && FEATURE_ROUTE[cappedFeature.key] && (
+                <button type="button" className="zum-credit-go"
+                  onClick={() => navigate(FEATURE_ROUTE[cappedFeature.key])}>
+                  Open {FEATURE_LABEL[cappedFeature.key]} →
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -309,8 +335,11 @@ const styles = `
 .zum-recover-msg{margin:6px 0 0;font-size:12px;color:var(--ink-2)}
 .zum-credit-banner{margin-top:18px;background:#EAF7EF;border:1px solid #BFE6CE;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
 .zum-credit-banner .zum-credit-emoji{font-size:18px;line-height:1.4}
+.zum-credit-body{display:flex;flex-direction:column;gap:10px;flex:1}
 .zum-credit-banner .zum-limit-msg{color:var(--ink-2)}
 .zum-credit-banner .zum-limit-msg strong{color:var(--green)}
+.zum-credit-go{align-self:flex-start;background:var(--green);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(47,125,95,.22)}
+.zum-credit-go:hover{background:#27664D}
 @media (max-width:560px){
   .zum-head{flex-direction:column;align-items:flex-start}
   .zum-limit-banner{flex-direction:column;align-items:flex-start}

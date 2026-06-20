@@ -71,7 +71,9 @@ describe('UsageMeter — K25 top-up credit acknowledgement', () => {
     usageState.data = cappedData({ credits: 1 })
     render(<UsageMeter />)
     expect(screen.getByText(/1 extra generation ready/i)).toBeInTheDocument()
-    expect(screen.getByText(/press/i)).toBeInTheDocument()
+    // Deep-links straight to the capped studio so the teacher isn't stranded
+    // on the dashboard after paying.
+    expect(screen.getByRole('button', { name: /Open exam papers/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Pay K25/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/hit your exam papers limit/i)).not.toBeInTheDocument()
   })
