@@ -14,6 +14,7 @@ import {
 } from '../../utils/lenco'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
+import MobileMoneyBrands from './MobileMoneyBrands'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
   learner: ['grade7_monthly', 'grade7_termly'],
@@ -453,6 +454,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
                 {method === 'mobile_money' ? (
                   <div className="space-y-3">
+                    <MobileMoneyBrands className="rounded-2xl bg-white border border-gray-100 p-3" />
                     <div>
                       <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
                         Mobile money number
