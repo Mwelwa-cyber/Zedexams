@@ -25,6 +25,7 @@ import {
 } from '../../../config/sba'
 import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
+import { checkDownload } from '../../../utils/downloadGuard'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -147,6 +148,15 @@ export default function SbaTaskStudio() {
       subject: form.subject,
       topic: task.header?.taskType || currentTaskType?.label || 'task',
     })
+    // Deterministic, zero-cost guard: warn (never block) if the file is junk-named,
+    // titleless, or doesn't match the requested grade/subject.
+    const { ok, problems } = checkDownload({
+      tool: 'sbaTask',
+      filename: name,
+      output: task,
+      inputs: { grade: form.grade, subject: form.subject, topic: task.header?.taskType },
+    })
+    if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
     downloadSbaTaskDocx(task, name, {
       includeAnswers,
       schoolName,

@@ -18,6 +18,7 @@ import {
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
+import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -151,14 +152,31 @@ export default function WorksheetGenerator() {
     })
   }
 
+  // Deterministic, zero-cost guard: warn (never block) if the file we're about
+  // to save has a junk name, no title, doesn't match the requested
+  // grade/subject, or is structurally empty.
+  function guardDownload(filename) {
+    const { ok, problems } = checkDownload({
+      tool: 'worksheet',
+      filename,
+      output: worksheet,
+      inputs: { grade: form.grade, subject: form.subject, topic: worksheet?.header?.topic || form.topic },
+    })
+    if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
+  }
+
   function onExportPupil() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('worksheet'), { mode: 'worksheet', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const filename = buildFilename('worksheet')
+    guardDownload(filename)
+    downloadWorksheetDocx(worksheet, filename, { mode: 'worksheet', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   function onExportAnswerKey() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('answer_key'), { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const filename = buildFilename('answer_key')
+    guardDownload(filename)
+    downloadWorksheetDocx(worksheet, filename, { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

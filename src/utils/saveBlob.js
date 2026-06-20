@@ -26,6 +26,9 @@
  * `file-saver` / blob-URL path.
  */
 
+import { inspectFilename } from './downloadGuard.js'
+import { reportClientError } from './clientErrorReporting.js'
+
 function isAndroid() {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
 }
@@ -80,6 +83,20 @@ function blobToDataUrl(blob) {
 
 export async function saveBlob(blob, filename) {
   const name = filename || 'download'
+
+  // Universal, free download-name observability. A junk/UUID/generic-default
+  // name reaching this choke point means a human-readable name was lost in one
+  // of the ~25 exporters upstream. We report it (name only — never blob bytes)
+  // so the regression is caught, then ALWAYS continue — this never blocks a save.
+  try {
+    const verdict = inspectFilename(name)
+    if (!verdict.ok) {
+      reportClientError(`bad download name [${verdict.code}]: ${name}`, 'download_guard')
+      console.warn(`saveBlob: ${verdict.message || 'suspicious filename'} (${name})`)
+    }
+  } catch {
+    // The guard must never break a download.
+  }
 
   // Android + iOS/iPadOS: the data-URL route is the only one that preserves the
   // filename. It must run BEFORE file-saver, which also uses blob: URLs and so
