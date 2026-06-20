@@ -13,6 +13,8 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import MaxStudioBanner from './MaxStudioBanner'
 import { paywall } from '../../../utils/paywall'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
@@ -52,6 +54,8 @@ export default function ExamPaperGenerator() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
+  const { currentUser } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
 
   const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
   useEffect(() => {
@@ -64,6 +68,11 @@ export default function ExamPaperGenerator() {
 
   async function onGenerate(e) {
     e.preventDefault()
+    // Fail fast: if the teacher is out of quota (and has no top-up credit),
+    // open the pay/upgrade prompt immediately instead of starting a doomed
+    // generation. The server enforces the same gate; this just spares the
+    // wasted round-trip and the misleading "Generating…" flash.
+    if (!ensureCanGenerate('exam_paper')) return
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')

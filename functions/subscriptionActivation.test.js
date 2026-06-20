@@ -46,7 +46,15 @@ const db = {
       get: async (ref) => snapFor(ref.__col, ref.__id),
       update: (ref, data) => {
         const key = k(ref.__col, ref.__id);
-        store[key] = {...(store[key] || {}), ...data};
+        const base = {...(store[key] || {})};
+        for (const [field, val] of Object.entries(data)) {
+          if (val && typeof val === "object" && "__inc" in val) {
+            base[field] = Number(base[field] || 0) + val.__inc;
+          } else {
+            base[field] = val;
+          }
+        }
+        store[key] = base;
       },
     };
     return fn(tx);
@@ -54,7 +62,7 @@ const db = {
 };
 
 const firestoreFn = () => db;
-firestoreFn.FieldValue = {serverTimestamp: () => SERVER_TS};
+firestoreFn.FieldValue = {serverTimestamp: () => SERVER_TS, increment: (n) => ({__inc: n})};
 firestoreFn.Timestamp = {fromDate: (d) => ({toDate: () => d, _date: d})};
 const adminStub = {firestore: firestoreFn};
 
@@ -226,6 +234,32 @@ async function rejects(promise, re) {
   await activateSubscriptionFromPayment({paymentId: "pux"});
   ok("upgrade on an expired sub starts a fresh ~30-day period",
       daysFromNow(store["users/u6"].subscriptionExpiry._date) === 30);
+
+  // ── Pay-per-generation top-up grants a credit, not a subscription ────────
+  reset();
+  store["payments/ptu"] = {planId: "topup_generation", userId: "u7", amountZMW: 25, currency: "ZMW"};
+  store["users/u7"] = {premium: false, generationCredits: 0};
+  const topRes = await activateSubscriptionFromPayment({paymentId: "ptu"});
+  ok("topup returns activated + topUp flag",
+      topRes.ok === true && topRes.activated === true && topRes.topUp === true);
+  ok("topup grants one generation credit", store["users/u7"].generationCredits === 1);
+  ok("topup does NOT make the user premium",
+      store["users/u7"].premium === false && !("subscriptionPlan" in store["users/u7"]));
+  ok("topup does NOT set a teacher tier", !("teacherPlan" in store["users/u7"]));
+  ok("topup flips payment to successful", store["payments/ptu"].status === "successful");
+  ok("topup emits a receipt invoice", calls.invoice.length === 1);
+  ok("topup skips referral side effects", calls.redeem.length === 0 && calls.consume.length === 0);
+
+  // Credits stack onto an existing balance, and a webhook/poll replay must not
+  // double-grant (idempotency is the whole point of the status guard).
+  reset();
+  store["payments/ptu2"] = {planId: "topup_generation", userId: "u8"};
+  store["users/u8"] = {generationCredits: 2};
+  await activateSubscriptionFromPayment({paymentId: "ptu2"});
+  ok("topup stacks onto existing credits (2+1=3)", store["users/u8"].generationCredits === 3);
+  const replay = await activateSubscriptionFromPayment({paymentId: "ptu2"});
+  ok("topup replay is a no-op (no double-grant)",
+      replay.alreadyActive === true && store["users/u8"].generationCredits === 3);
 
   // ── Side-effect resilience: a failed invoice/referral never undoes access ──
   reset();

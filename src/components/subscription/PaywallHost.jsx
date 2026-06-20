@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { paywall } from '../../utils/paywall'
+import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
 import { ensureProFonts } from '../../utils/proFonts'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
+const TopUpModal = lazy(() => import('./TopUpModal'))
 
 const SCENARIOS = {
   'feature-locked': {
@@ -18,21 +20,23 @@ const SCENARIOS = {
   'monthly-limit': {
     tag: '⏱ Limit reached',
     title: (ctx) => `You've used all your free ${ctx.feature || 'lesson plans'} this month`,
-    sub: (ctx) => `Upgrade to keep planning — or wait ${ctx.resetDays || 9} days for the reset on the 1st.`,
+    sub: () => 'Upgrade to keep planning — or pay K25 for one more right now.',
     mascot: '🦊',
     primary: 'Upgrade to Pro · K79/mo',
     primaryAction: 'upgrade',
-    secondary: 'Just one more · K5',
+    secondary: 'Pay K25 — one extra now',
     secondaryAction: 'one-off',
     compare: 'free-vs-pro',
   },
   'daily-cap': {
     tag: '⏱ Daily cap',
     title: () => "You've hit today's generation cap",
-    sub: () => 'Free is capped at 2 generations per day to keep things fair. Come back tomorrow, or upgrade for 10/day.',
+    sub: () => 'You can come back tomorrow, upgrade for a higher daily cap, or pay K25 for one more right now.',
     mascot: '🐢',
     primary: 'Upgrade to Pro · K79/mo',
     primaryAction: 'upgrade',
+    secondary: 'Pay K25 — one extra now',
+    secondaryAction: 'one-off',
     compare: 'free-vs-pro',
   },
   'quiz-preview-limit': {
@@ -50,10 +54,12 @@ const SCENARIOS = {
   'max-feature': {
     tag: '🦅 Max studio',
     title: (ctx) => `${ctx.feature || 'Assessments'} are a Max studio`,
-    sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — our most powerful generation.`,
+    sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — or pay K25 for just one more now.`,
     mascot: '🦅',
     primary: 'Upgrade to Max · K199/mo',
     primaryAction: 'upgrade',
+    secondary: 'Pay K25 — one extra now',
+    secondaryAction: 'one-off',
     compare: 'pro-vs-max',
   },
 }
@@ -143,10 +149,14 @@ export default function PaywallHost() {
   // before state is cleared so we can route to the correct portal copy
   // (learner Grade-7 pack vs teacher Pro).
   const [upgradeReason, setUpgradeReason] = useState(null)
+  // Pay-per-generation top-up checkout. `topUpState` carries the label of
+  // the studio the teacher was blocked on, purely for the modal's copy.
+  const [topUpState, setTopUpState] = useState(null)
   const lastFocusRef = useRef(null)
   const primaryBtnRef = useRef(null)
 
   useEffect(() => paywall.subscribe(setState), [])
+  useEffect(() => topup.subscribe(setTopUpState), [])
 
   // Body scroll lock + focus management
   useEffect(() => {
@@ -206,16 +216,14 @@ export default function PaywallHost() {
   function handleSecondary() {
     const action = scenario?.secondaryAction
     if (action === 'one-off') {
-      // K5 one-off credit purchase isn't wired yet — fall through to upgrade.
-      capture('paywall_upgrade_clicked', {
+      // Pay-per-generation top-up: K25 buys one extra generation on any tool.
+      capture('topup_intent', {
         reason: state?.reason || null,
         feature: ctx.feature || null,
-        plan_target: paywallPlanTarget(state?.reason),
-        via: 'secondary',
+        via: 'paywall-secondary',
       })
-      setUpgradeReason(state?.reason || null)
       paywall.hide()
-      setShowUpgrade(true)
+      topup.show({ feature: ctx.feature || null })
     }
   }
 
@@ -292,6 +300,14 @@ export default function PaywallHost() {
               onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
             />
           )}
+        </Suspense>
+      )}
+      {topUpState && (
+        <Suspense fallback={null}>
+          <TopUpModal
+            feature={topUpState.ctx?.feature || null}
+            onClose={() => topup.hide()}
+          />
         </Suspense>
       )}
     </>

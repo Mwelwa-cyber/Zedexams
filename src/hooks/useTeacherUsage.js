@@ -70,7 +70,7 @@ function daysUntilMonthReset(now = new Date()) {
 // meter doc is used only for the actual usage counters. This keeps the
 // widget consistent with the "Current plan" banner instead of showing Free
 // options to someone who already paid for Pro.
-function project(meterData, livePlan) {
+function project(meterData, livePlan, credits = 0) {
   const plan = PLAN_LIMITS[livePlan] ? livePlan : 'free'
   const counters = meterData?.counters || {}
   const planLimits = PLAN_LIMITS[plan]
@@ -87,6 +87,9 @@ function project(meterData, livePlan) {
     planLabel: PLAN_LABELS[plan] || 'Free',
     used,
     caps,
+    // Purchased pay-per-generation top-ups (users/{uid}.generationCredits).
+    // Each covers one extra generation on any tool once a cap is hit.
+    credits: Math.max(0, Number(credits || 0)),
     daily: DAILY_LIMITS[plan] || DAILY_LIMITS.free,
     today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
@@ -111,6 +114,7 @@ function projectAdmin(meterData) {
     planLabel: 'Admin',
     used,
     caps,
+    credits: 0,
     daily: ADMIN_DAILY_CAP,
     today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
@@ -121,6 +125,10 @@ export function useTeacherUsage(uid) {
   const { userProfile } = useAuth()
   const isAdmin = isSuperAdmin(userProfile)
   const livePlan = resolveTeacherPlan(userProfile)
+  // Live top-up balance from the profile (AuthContext subscribes to the user
+  // doc), so a credit bought from the paywall unblocks the next generate
+  // without a reload.
+  const credits = Math.max(0, Number(userProfile?.generationCredits || 0))
   const [state, setState] = useState({ loading: true, data: null, error: null })
 
   useEffect(() => {
@@ -133,13 +141,13 @@ export function useTeacherUsage(uid) {
       ref,
       (snap) => {
         const raw = snap.exists() ? snap.data() : null
-        const projected = isAdmin ? projectAdmin(raw) : project(raw, livePlan)
+        const projected = isAdmin ? projectAdmin(raw) : project(raw, livePlan, credits)
         setState({ loading: false, data: projected, error: null })
       },
       (error) => setState({ loading: false, data: null, error })
     )
     return unsub
-  }, [uid, isAdmin, livePlan])
+  }, [uid, isAdmin, livePlan, credits])
 
   return state
 }

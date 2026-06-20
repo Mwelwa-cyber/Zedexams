@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateSchemeOfWork,
@@ -28,7 +29,8 @@ import { SOURCE_META } from '../views/SchemeOfWorkView'
 import { FieldText, FieldTextarea, FieldSelect } from './studioFields'
 
 export default function SchemeOfWorkGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -111,6 +113,7 @@ export default function SchemeOfWorkGenerator() {
 
   async function onGenerate(e) {
     e.preventDefault()
+    if (!ensureCanGenerate('scheme_of_work')) return
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')

@@ -14,7 +14,7 @@ const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
 const FAQ = [
   {
     q: 'What happens when I hit my monthly limit?',
-    a: "Your plan keeps everything you've already made — nothing gets locked. You can either wait for the reset on the 1st of next month, upgrade for instant unlock, or pay K5 for one extra generation if you only need one more.",
+    a: "Your plan keeps everything you've already made — nothing gets locked. You can either wait for the reset on the 1st of next month, upgrade for instant unlock, or pay K25 for one extra generation if you only need one more.",
   },
   {
     q: 'Can I pay with Mobile Money?',

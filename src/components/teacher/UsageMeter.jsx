@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTeacherUsage, TOOL_TO_FEATURE } from '../../hooks/useTeacherUsage'
 import { paywall } from '../../utils/paywall'
+import { topup } from '../../utils/topup'
 import { MAX_ONLY_TOOLS } from '../../utils/teacherPlans'
 import { ensureProFonts } from '../../utils/proFonts'
 import { useEffect } from 'react'
@@ -180,11 +181,17 @@ export default function UsageMeter() {
           <div className="zum-limit-banner">
             <div className="zum-limit-msg">
               <strong>You've hit your {FEATURE_LABEL[cappedFeature.key]} limit for this month.</strong><br />
-              Upgrade to keep working, or pay K5 for one extra now.
+              Upgrade to keep working, or pay K25 for one extra now.
             </div>
-            <button type="button" onClick={() => openMonthlyLimit(cappedFeature.key)}>
-              Upgrade
-            </button>
+            <div className="zum-limit-actions">
+              <button type="button" className="zum-limit-pay"
+                onClick={() => topup.show({ feature: FEATURE_LABEL[cappedFeature.key] })}>
+                Pay K25
+              </button>
+              <button type="button" onClick={() => openMonthlyLimit(cappedFeature.key)}>
+                Upgrade
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -238,8 +245,11 @@ const styles = `
 .zum-limit-banner{margin-top:18px;background:#FFF6EE;border:1px solid #FBD9C0;border-radius:14px;padding:14px 16px;display:flex;gap:14px;align-items:center;justify-content:space-between}
 .zum-limit-msg{font-size:13px;color:var(--ink-2);line-height:1.5}
 .zum-limit-msg strong{color:var(--ink);font-weight:600}
+.zum-limit-actions{display:flex;gap:8px;align-items:center}
 .zum-limit-banner button{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(243,106,42,.24)}
 .zum-limit-banner button:hover{background:#E55E22}
+.zum-limit-banner button.zum-limit-pay{background:#fff;color:var(--orange);border:1.5px solid var(--orange);box-shadow:none}
+.zum-limit-banner button.zum-limit-pay:hover{background:var(--orange-soft);color:#E55E22}
 @media (max-width:560px){
   .zum-head{flex-direction:column;align-items:flex-start}
   .zum-limit-banner{flex-direction:column;align-items:flex-start}

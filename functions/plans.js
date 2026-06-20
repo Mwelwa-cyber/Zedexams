@@ -29,6 +29,14 @@ const PLANS = {
   pro_yearly: {id: "pro_yearly", name: "Pro · Yearly", priceZMW: 790, durationDays: 365},
   max_monthly: {id: "max_monthly", name: "Max · Monthly", priceZMW: 199, durationDays: 30},
   max_yearly: {id: "max_yearly", name: "Max · Yearly", priceZMW: 1990, durationDays: 365},
+
+  // ── Pay-per-generation top-up ──────────────────────────────────────────
+  // Not a subscription: a one-off K25 purchase that grants ONE extra
+  // generation usable on ANY metered teacher tool. `kind: "topup"` makes
+  // subscriptionActivation grant a `generationCredits` credit instead of
+  // flipping the plan/expiry (it has no durationDays). Sold from the paywall
+  // the moment a teacher hits a monthly or daily cap.
+  topup_generation: {id: "topup_generation", name: "Extra generation (top-up)", priceZMW: 25, kind: "topup", credits: 1},
 };
 
 function getPlan(planId) {

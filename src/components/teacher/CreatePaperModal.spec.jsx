@@ -28,6 +28,18 @@ vi.mock('../../utils/teacherTools', () => ({
   generateAssessment: vi.fn(),
 }))
 
+// The fail-fast generation gate is covered by its own suite
+// (functions/teacherTools/usageMeter.test.js); here it's stubbed to "allowed"
+// so the modal's own behaviour is what's under test. Mocking it (and
+// AuthContext) also keeps firebase/config out of this jsdom run — the gate
+// would otherwise pull in the live Firebase app.
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({ currentUser: { uid: 'test-uid' } }),
+}))
+vi.mock('../../hooks/useGenerationGate', () => ({
+  useGenerationGate: () => ({ ensureCanGenerate: () => true }),
+}))
+
 vi.mock('../../utils/aiPaperToSections', () => ({
   aiAssessmentToStudioBlocks: vi.fn(),
 }))

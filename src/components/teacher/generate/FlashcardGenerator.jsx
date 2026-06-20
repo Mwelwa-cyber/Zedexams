@@ -15,6 +15,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
@@ -26,7 +27,8 @@ import { FieldTextarea, FieldSelect } from './studioFields'
  * export for printable cut-out cards.
  */
 export default function FlashcardGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -70,6 +72,7 @@ export default function FlashcardGenerator() {
       setStatus('error')
       return
     }
+    if (!ensureCanGenerate('flashcards')) return
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')

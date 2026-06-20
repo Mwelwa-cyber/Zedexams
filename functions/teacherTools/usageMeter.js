@@ -105,14 +105,44 @@ async function assertAndIncrement(uid, tool) {
   const countsDaily = isDailyCountedTool(tool);
 
   const meterRef = admin.firestore().doc(`usageMeters/${uid}/periods/${period}`);
+  const userRef = admin.firestore().doc(`users/${uid}`);
 
   const result = await admin.firestore().runTransaction(async (tx) => {
-    const snap = await tx.get(meterRef);
+    // Both reads must happen before any write (Firestore tx rule). The user
+    // doc is read transactionally so a top-up credit is consumed atomically —
+    // two racing generations can't spend the same credit twice.
+    const [snap, userSnap] = await Promise.all([tx.get(meterRef), tx.get(userRef)]);
     const existing = snap.exists ? (snap.data() || {}) : {};
     const counters = existing.counters || {};
     const used = Number(counters[tool] || 0);
+    const credits = Math.max(0, Number((userSnap.exists ? userSnap.data() : null)?.generationCredits || 0));
 
-    if (used >= limit) {
+    // Rolling daily counter ({date, count}) — backs the "Daily cap of
+    // 2/10/30 generations" sold on /pricing and the dashboard widget's
+    // "Today: N of M". Resets implicitly when the stored date no longer
+    // matches today. Super admins skip the gate, but their daily-counted
+    // generations still increment so the widget stays truthful.
+    const dayKey = yyyymmdd();
+    const prevDaily = existing.daily || {};
+    const todayUsed = prevDaily.date === dayKey ? Number(prevDaily.count || 0) : 0;
+
+    const monthlyBlocked = used >= limit;
+    const dailyBlocked = countsDaily && !isSuperAdmin && todayUsed >= dailyLimit;
+
+    // A purchased top-up credit (K25, one extra generation, any tool) covers
+    // EITHER cap. Spend it only when the teacher would otherwise be blocked,
+    // so a credit is never wasted on a within-quota generation. It buys one
+    // bonus run without touching the plan counters (the plan meter stays at
+    // its cap; the bonus lives only as the spent credit).
+    if ((monthlyBlocked || dailyBlocked) && credits > 0 && !isSuperAdmin) {
+      tx.update(userRef, {
+        generationCredits: admin.firestore.FieldValue.increment(-1),
+        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return {used, limit, plan, period, usedCredit: true, creditsRemaining: credits - 1};
+    }
+
+    if (monthlyBlocked) {
       // Assessment + Exam Paper are Max-only studios: Free/Pro get a single
       // monthly taster, then must upgrade to Max (not Pro). Surface a
       // Max-specific message + a structured `details.reason` so the client
@@ -135,21 +165,13 @@ async function assertAndIncrement(uid, tool) {
       });
     }
 
-    // Rolling daily counter ({date, count}) — backs the "Daily cap of
-    // 2/10/30 generations" sold on /pricing and the dashboard widget's
-    // "Today: N of M". Resets implicitly when the stored date no longer
-    // matches today. Super admins skip the gate, but their daily-counted
-    // generations still increment so the widget stays truthful.
-    const dayKey = yyyymmdd();
-    const prevDaily = existing.daily || {};
-    const todayUsed = prevDaily.date === dayKey ? Number(prevDaily.count || 0) : 0;
-
-    if (countsDaily && !isSuperAdmin && todayUsed >= dailyLimit) {
+    if (dailyBlocked) {
       throw new HttpsError(
         "failed-precondition",
         `You have used ${todayUsed}/${dailyLimit} generations today on the ` +
         `${PLAN_LABELS[plan] || plan} plan. Your daily allowance resets ` +
         `tomorrow${plan === "max" ? "" : " — or upgrade for a higher cap"}.`,
+        {reason: "daily-cap", tool, plan, used: todayUsed, limit: dailyLimit},
       );
     }
 
