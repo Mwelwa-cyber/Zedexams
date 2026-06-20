@@ -13,6 +13,7 @@ import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
+import SuggestionNudge from '../feedback/SuggestionNudge'
 import Icon from '../ui/Icon'
 import {
   ArrowRight,
@@ -717,6 +718,8 @@ export default function TeacherDashboard() {
           })}
         </div>
       )}
+
+      <SuggestionNudge source="teacher-dashboard" />
     </div>
   )
 }

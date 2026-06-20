@@ -6,7 +6,6 @@ import { listMyGenerations } from '../../utils/teacherLibraryService'
 import { buildReminders, SEEN_REMINDERS_KEY } from '../../utils/teacherReminders'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
-import ThemeSelector from '../ui/ThemeSelector'
 import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
 import {
   BarChart3,
@@ -112,9 +111,7 @@ export default function TeacherGlassHeader() {
         </Link>
 
         <div className="flex items-start gap-1 sm:gap-1.5">
-          <HeaderIconLink to="/teacher" label="Progress" icon={BarChart3} size="sm" />
-
-          <ThemeSelector dashboardStyle dashboardSize="sm" />
+          <HeaderIconLink to="/teacher/register" label="Progress" icon={BarChart3} size="sm" />
 
           <div ref={bellRef} className="relative">
             <HeaderIconButton
