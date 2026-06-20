@@ -219,7 +219,7 @@ export const PLANS = {
     tier: 'max',
     billing: 'monthly',
     name: 'Max · Monthly',
-    tagline: 'For HoDs & heavy users',
+    tagline: 'For heavy users',
     priceZMW: 199,
     durationDays: 30,
     dailyQuizLimit: Infinity,
