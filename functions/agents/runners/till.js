@@ -74,6 +74,11 @@ function toMillis(value) {
  * @param {number}   [args.windowMs]
  * @param {number}   [args.minAgeMs]
  * @param {number}   [args.maxPerRun]
+ * @param {string}   [args.userId]               When set, reconcile ONLY this
+ *   user's pending payments (on-demand "I paid but didn't get my credit"
+ *   recovery). Uses an equality-only query (status + userId) so it needs no
+ *   composite index, and the caller typically passes minAgeMs=0 to skip the
+ *   live-poll grace period the user has explicitly waited past.
  * @returns {Promise<Object>} summary
  */
 async function reconcilePendingPayments({
@@ -87,6 +92,7 @@ async function reconcilePendingPayments({
   windowMs = RECONCILE_WINDOW_MS,
   minAgeMs = MIN_AGE_MS,
   maxPerRun = MAX_PER_RUN,
+  userId = null,
 }) {
   const summary = {
     checked: 0, // payments actually queried against Lenco
@@ -110,12 +116,24 @@ async function reconcilePendingPayments({
 
   const docs = [];
   try {
-    const snap = await db.collection("payments")
-        .where("status", "==", "pending")
-        .where("createdAt", ">=", since)
-        .orderBy("createdAt", "asc")
-        .limit(maxPerRun)
-        .get();
+    let query;
+    if (userId) {
+      // On-demand, single-user recovery. Two equality filters (no orderBy /
+      // inequality) so Firestore serves it from single-field indexes — no
+      // composite index to deploy. The per-doc window guard below still
+      // bounds how far back we'll reconcile.
+      query = db.collection("payments")
+          .where("status", "==", "pending")
+          .where("userId", "==", userId)
+          .limit(maxPerRun);
+    } else {
+      query = db.collection("payments")
+          .where("status", "==", "pending")
+          .where("createdAt", ">=", since)
+          .orderBy("createdAt", "asc")
+          .limit(maxPerRun);
+    }
+    const snap = await query.get();
     snap.forEach((doc) => docs.push({id: doc.id, data: doc.data() || {}}));
   } catch (err) {
     summary.errors.push({stage: "query", message: clampMessage(err)});
@@ -123,8 +141,12 @@ async function reconcilePendingPayments({
   }
 
   for (const {id, data} of docs) {
-    // Live poll owns the first few minutes of a checkout — don't race it.
+    // Beyond the window a still-pending doc is an abandoned checkout, not a
+    // dropped webhook. The cron path already filters this in the query; the
+    // user-scoped path (no createdAt filter) enforces it here instead.
     const createdMs = toMillis(data.createdAt);
+    if (createdMs != null && (now - createdMs) > windowMs) continue;
+    // Live poll owns the first few minutes of a checkout — don't race it.
     if (createdMs != null && (now - createdMs) < minAgeMs) {
       summary.skippedTooNew += 1;
       continue;

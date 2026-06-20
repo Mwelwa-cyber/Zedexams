@@ -18,6 +18,7 @@ const fns = getFunctions(app, 'us-central1')
 const initiateCallable = httpsCallable(fns, 'initiateLencoPayment')
 const submitOtpCallable = httpsCallable(fns, 'submitLencoOtp')
 const statusCallable = httpsCallable(fns, 'getLencoPaymentStatus')
+const recoverCallable = httpsCallable(fns, 'recoverMyPendingPayments')
 
 // Mirror of functions/lencoService.js OPERATORS — kept in sync so the
 // checkout dropdown and the auto-detect agree with the server.
@@ -79,6 +80,19 @@ export async function submitLencoOtp({ paymentId, otp }) {
 
 export async function getLencoPaymentStatus(paymentId) {
   const res = await statusCallable({ paymentId })
+  return res.data
+}
+
+/**
+ * On-demand "I already paid — restore my credit" recovery. Re-queries Lenco
+ * for the signed-in user's stuck-pending payments and finishes the activation
+ * the dropped webhook / closed poll never did (idempotent server-side, so it's
+ * safe to call repeatedly). Resolves to { recovered, stillPending, ... }; when
+ * recovered > 0 the granted credit / subscription lands on the profile snapshot
+ * and the gate unblocks without a reload.
+ */
+export async function recoverMyPendingPayments() {
+  const res = await recoverCallable({})
   return res.data
 }
 

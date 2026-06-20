@@ -3011,6 +3011,50 @@ exports.getLencoPaymentStatus = onCall({
   return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
 });
 
+// On-demand "I paid but didn't get my credit" recovery. The live checkout
+// poll only runs while the modal is open; if the buyer approves on their
+// phone after it closes AND the webhook is delayed/dropped, the credit is
+// stuck until the hourly Till sweep. This lets the buyer (or anyone hitting
+// the dashboard "Already paid? Restore it" affordance) trigger that same
+// reconciliation immediately for THEIR OWN pending payments. Reuses the
+// idempotent activation path, so it can never double-grant — re-runs are safe.
+exports.recoverMyPendingPayments = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  const {activateSubscriptionFromPayment, markPaymentFailed} = require("./subscriptionActivation");
+  const {reconcilePendingPayments} = require("./agents/runners/till");
+
+  const summary = await reconcilePendingPayments({
+    db: admin.firestore(),
+    apiKey,
+    getCollectionStatus: lenco.getCollectionStatus,
+    activate: activateSubscriptionFromPayment,
+    markFailed: markPaymentFailed,
+    emailSecrets: lencoEmailSecrets(),
+    userId: uid,
+    // The user explicitly waited and asked — don't skip fresh payments.
+    minAgeMs: 0,
+    maxPerRun: 20,
+  });
+
+  return {
+    recovered: summary.recovered.length,
+    stillPending: summary.stillPending,
+    failedClosed: summary.failedClosed.length,
+    checked: summary.checked,
+  };
+});
+
 // Server-to-server webhook. No CORS / App Check — security is the
 // x-lenco-signature HMAC over the raw body. We process fully (the
 // activation transaction is fast and the receipt is best-effort) and
