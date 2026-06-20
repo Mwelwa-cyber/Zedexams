@@ -22,10 +22,11 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {
   ASSESSMENT_TYPES,
   resolveAssessmentFormatContext,
+  normalizeQuestionTypes,
 } = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV6");
+  require("./assessmentPromptV7");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
@@ -79,6 +80,7 @@ function sanitizeInputs(raw = {}) {
     durationMinutes: Math.min(180, Math.max(10,
         Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
+    questionTypes: normalizeQuestionTypes(raw.questionTypes),
     instructions: str(raw.instructions, 500),
     assessmentType: ASSESSMENT_TYPES.includes(assessmentType) ?
       assessmentType : "topic_test",
@@ -131,6 +133,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       grade: inputs.grade,
       subject: inputs.subject,
       assessmentType: inputs.assessmentType,
+      allowedTypes: inputs.questionTypes,
     }),
     assertAndIncrement(uid, "assessment"),
   ]);
@@ -281,5 +284,6 @@ function createGenerateAssessment(anthropicApiKeySecret) {
 
 module.exports = {
   createGenerateAssessment, runAssessment, sanitizeInputs,
+  normalizeQuestionTypes,
   ALLOWED_SUBJECTS, ALLOWED_GRADES,
 };

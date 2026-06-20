@@ -118,3 +118,41 @@ describe('CreatePaperModal — topic checkboxes', () => {
     expect(screen.getByRole('checkbox', { name: 'Adding fractions' })).toBeChecked()
   })
 })
+
+describe('CreatePaperModal — question types', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  // Reproduces the reported bug: the teacher selected only Multiple choice +
+  // Fill in the blank but the paper also came back with Short answer and
+  // Structured questions. The fix sends a canonical `questionTypes` whitelist
+  // (deduped: fill-in-the-blank collapses into short_answer) so the generator
+  // can hard-restrict the paper to exactly those types.
+  it('sends only the selected question types (deduped to canonical keys)', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal()
+    // A topic is required before generation runs.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+
+    // Default selection is MCQ + short answer + structured — turn the studio
+    // into the bug's exact selection: Multiple choice + Fill in the blank only.
+    fireEvent.click(screen.getByRole('button', { name: 'Short answer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Structured' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Fill in the blank' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+
+    expect(generateAssessment).toHaveBeenCalledTimes(1)
+    const payload = generateAssessment.mock.calls[0][0]
+    // fill-in-the-blank → short_answer; "multiple choice" → multiple_choice.
+    expect([...payload.questionTypes].sort()).toEqual(
+      ['multiple_choice', 'short_answer'],
+    )
+    // The disallowed type is gone — no structured.
+    expect(payload.questionTypes).not.toContain('structured')
+    // The human phrasing is also echoed in the instructions so the prompt
+    // renders fill-in-the-blank as blanks.
+    expect(payload.instructions).toMatch(/fill-in-the-blank/i)
+  })
+})
