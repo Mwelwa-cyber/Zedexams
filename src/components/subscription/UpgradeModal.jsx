@@ -229,8 +229,8 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-4 overflow-hidden animate-scale-in">
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center relative">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-4 max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center relative shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -246,7 +246,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
           <p className="text-white/90 text-sm mt-1">{copy.subtitle}</p>
         </div>
 
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto flex-1">
           {step === 'plans' && <>
             {pendingReferralCredits > 0 && (
               <div
