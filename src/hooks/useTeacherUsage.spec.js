@@ -79,7 +79,7 @@ describe('useTeacherUsage', () => {
     expect(data.planLabel).toBe('Free')
     expect(data.used.plans).toBe(2)
     expect(data.used.worksheets).toBe(1)
-    expect(data.caps.plans).toBe(5) // free lesson_plan — the one open studio
+    expect(data.caps.plans).toBe(2) // free lesson_plan — the one open studio
     // Free can only use the Lesson Plan studio now; every other studio is
     // locked to a read-only sample (cap 0) until the teacher upgrades. The
     // Test Paper (`assessment`) and Exam Paper studios are no exception.
@@ -97,7 +97,7 @@ describe('useTeacherUsage', () => {
 
     expect(result.current.data.plan).toBe('pro')
     expect(result.current.data.planLabel).toBe('Pro')
-    expect(result.current.data.caps.plans).toBe(40) // pro lesson_plan, not free's 5
+    expect(result.current.data.caps.plans).toBe(40) // pro lesson_plan, not free's 2
     expect(result.current.data.daily).toBe(10)
   })
 

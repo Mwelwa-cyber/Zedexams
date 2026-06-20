@@ -159,7 +159,7 @@ test("every Max-only tool is a registered, daily-counted tool", () => {
 
 test("free can only use the Lesson Plan studio; every other studio is locked", () => {
   // The Lesson Plan studio is the one generator a Free teacher can use.
-  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 5);
+  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 2);
   // Tools that stay funded on Free even though they aren't full studios: the
   // quiz-editor micro-helpers and the in-studio diagram tool.
   const stillFunded = new Set(["suggest_answer", "revise_question", "diagram"]);

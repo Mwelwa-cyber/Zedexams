@@ -121,7 +121,15 @@ export function emptyQuestion(overrides = {}) {
     blankLabels: [],
     // Optional word bank printed above the answer space (a row of candidate
     // answers the student picks from). Stored as an array of short strings.
+    // Also the word bank for the dedicated Fill-in-the-Blanks type.
     wordBank: [],
+    // Dedicated Fill-in-the-Blanks fields (type === 'fill_blanks').
+    //   statements    — [{ text, answers }]; each prints "A. … ____ …" on its
+    //                   own line. `text` uses underscore runs as blanks;
+    //                   `answers[i]` is the expected answer for the i-th blank.
+    //   wordBankReuse — may a word bank word be used in more than one blank?
+    statements: [],
+    wordBankReuse: false,
     ...overrides,
   }
 
@@ -409,6 +417,13 @@ export function isQuestionBlank(question = {}) {
     return false
   }
 
+  // A Fill-in-the-Blanks question is "started" as soon as it has any statement
+  // text — its answer lives on the statements, not in correctAnswer.
+  if (type === 'fill_blanks' && Array.isArray(question.statements)
+    && question.statements.some(s => String(s?.text ?? '').trim().length > 0)) {
+    return false
+  }
+
   // richFieldEmpty is format-aware (HTML string OR Tiptap JSON); the legacy
   // richTextHasContent only recognises HTML, so it would mark every Tiptap
   // JSON field as "blank" — which would make every new quiz fail validation.
@@ -675,7 +690,7 @@ function hydrateStandaloneQuestion(question = {}) {
   // `sequence` rides the same path — correctness lives on sequenceAnswer.
   // `essay` has no options either — the answer is the learner's written
   // response, graded against an optional sample answer / rubric.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay' || type === 'fill' || type === 'fill_blanks' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -772,6 +787,18 @@ function hydrateStandaloneQuestion(question = {}) {
     wordBank: Array.isArray(question.wordBank)
       ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
       : [],
+    // Fill-in-the-Blanks statements + reuse flag. Listed explicitly (not via a
+    // `...question` spread) so a saved fill-blanks paper reopened from
+    // Firestore keeps its statements instead of resetting to the empty default.
+    statements: Array.isArray(question.statements)
+      ? question.statements.map(s => ({
+        text: String(s?.text ?? '').slice(0, 2000),
+        answers: Array.isArray(s?.answers)
+          ? s.answers.map(a => String(a ?? '').slice(0, 200)).slice(0, 12)
+          : [],
+      })).slice(0, 40)
+      : [],
+    wordBankReuse: Boolean(question.wordBankReuse),
     ...normalizeAnswerSpace(question),
   })
 }

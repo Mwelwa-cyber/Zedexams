@@ -22,6 +22,7 @@ import {
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaPlanGeneration } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import SbaWorkflowNote from '../SbaWorkflowNote'
@@ -145,21 +146,29 @@ export default function SbaYearPlanner() {
     setStatuses(next)
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!plan || saving) return
     setSaving(true)
     try {
       const id = await saveSbaPlanGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[SbaYearPlanner] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
+
+  // Auto-save to the library so a hand-built SBA plan is never lost.
+  useLibraryAutoSave({
+    enabled: Object.keys(statuses).length > 0,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
 
   async function onExport() {
     if (!plan) return

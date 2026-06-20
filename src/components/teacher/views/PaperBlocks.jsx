@@ -15,6 +15,7 @@
 
 import DiagramSvg from '../../diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
+import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
 import '../studio/assessmentStudio.css'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -261,11 +262,12 @@ function PaperQuestionBlock({ block }) {
       {block.tableData && (
         <PaperDataTable tableData={block.tableData} />
       )}
-      {block.wordBank?.length > 0 && (
+      {block.type !== 'fill_blanks' && block.wordBank?.length > 0 && (
         <div style={{ display: 'inline-block', border: '1px solid #000', padding: '4px 10px', margin: '4px 0', fontSize: 12 }}>
           <strong>Word bank:</strong> {block.wordBank.join(' · ')}
         </div>
       )}
+      {block.type === 'fill_blanks' && <PaperFillBlanks block={block} />}
       {block.type === 'mcq' && <PaperMcqOptions block={block} />}
       {(block.type === 'short_answer' || block.type === 'fill') && (
         <PaperAnswerSpace block={block} defaultLines={2} />
@@ -302,6 +304,59 @@ function PaperQuestionBlock({ block }) {
       {block.showAnswer && <PaperAnswerBlock block={block} />}
     </div>
   )
+}
+
+// Fill-in-the-Blanks renderer — the dedicated `fill_blanks` type. Prints an
+// optional word bank, then each statement on its own line ("A. … ____ …")
+// with generous vertical spacing. In marking-key mode (showAnswer) the blanks
+// are filled with the expected answer in green; otherwise a long ruled gap.
+function PaperFillBlanks({ block }) {
+  const statements = Array.isArray(block.statements) ? block.statements : []
+  const wordBank = Array.isArray(block.wordBank) ? block.wordBank : []
+  return (
+    <div className="sv-paper-fill-blanks" style={{ margin: '4px 0 2px' }}>
+      {wordBank.length > 0 && (
+        <div style={{ border: '1px solid #000', padding: '6px 10px', margin: '4px 0 12px', fontSize: 12.5 }}>
+          <strong>Word Bank:</strong> {wordBank.join(', ')}
+        </div>
+      )}
+      {statements.map((statement, i) => (
+        <div
+          key={i}
+          style={{ display: 'flex', gap: 8, margin: '12px 0', fontSize: 13, lineHeight: 2 }}
+        >
+          <strong style={{ flex: '0 0 auto' }}>{statementLabel(i)}.</strong>
+          <span style={{ flex: 1 }}>{renderFillStatement(statement, block.showAnswer)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Split a statement on its blanks and weave a ruled gap (or the answer, in
+// marking-key mode) between each text segment.
+function renderFillStatement(statement, showAnswer) {
+  const text = String(statement?.text ?? '')
+  const segments = splitStatementSegments(text)
+  const answers = Array.isArray(statement?.answers) ? statement.answers : []
+  const nodes = []
+  segments.forEach((segment, i) => {
+    if (segment) nodes.push(<span key={`s${i}`}>{segment}</span>)
+    if (i < segments.length - 1) {
+      const answer = answers[i]
+      if (showAnswer && answer) {
+        nodes.push(<strong key={`b${i}`} style={{ color: '#047857' }}>{answer}</strong>)
+      } else {
+        nodes.push(
+          <span
+            key={`b${i}`}
+            style={{ display: 'inline-block', minWidth: 110, borderBottom: '1px solid #000', margin: '0 4px', verticalAlign: 'middle', height: 14 }}
+          />,
+        )
+      }
+    }
+  })
+  return nodes
 }
 
 // Renders the blank answer space under a written-answer question, honouring the

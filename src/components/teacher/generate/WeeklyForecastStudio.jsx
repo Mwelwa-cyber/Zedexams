@@ -54,6 +54,7 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
   listMyGenerations, titleForGeneration, saveWeeklyForecastGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import WeeklyForecastView from '../views/WeeklyForecastView'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -499,21 +500,29 @@ export default function WeeklyForecastStudio() {
     toast.info('Cleared. Starting a fresh forecast.')
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!artifact || saving) return
     setSaving(true)
     try {
       const id = await saveWeeklyForecastGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[WeeklyForecastStudio] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
+
+  // Auto-save to the library so a hand-built forecast is never lost.
+  useLibraryAutoSave({
+    enabled: !!artifact,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
 
   async function onExportDocx() {
     if (!artifact) return

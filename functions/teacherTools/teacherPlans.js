@@ -31,7 +31,7 @@ const PLAN_LIMITS = {
   // for direct calls). Keep lesson_plan + the quiz-editor micro-helpers
   // (suggest_answer / revise_question) and the in-studio diagram tool funded.
   free: {
-    lesson_plan: 5,
+    lesson_plan: 2,
     worksheet: 0,
     flashcards: 0,
     quiz: 0,

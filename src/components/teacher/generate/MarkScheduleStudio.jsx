@@ -25,6 +25,7 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
 import MarkScheduleView from '../views/MarkScheduleView'
@@ -198,21 +199,29 @@ export default function MarkScheduleStudio() {
     toast.info('Cleared. Starting a fresh schedule.')
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!artifact || saving) return
     setSaving(true)
     try {
       const id = await saveMarkScheduleGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[MarkScheduleStudio] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
+
+  // Auto-save to the library so a hand-built schedule is never lost.
+  useLibraryAutoSave({
+    enabled: !!artifact,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
 
   async function onExportDocx() {
     if (!artifact) return
