@@ -180,7 +180,15 @@ console.log('aiPaperToSections')
   assert.strictEqual(labelled.overrides.diagramLabels.length, 5)
   assert.strictEqual(labelled.overrides.diagramLabels[0].text, 'Dirty water')
   assert.ok(labelled.overrides.diagramLabels.every((l) => l.x >= 0 && l.x <= 1 && l.y >= 0 && l.y <= 1))
-  ok('labelled_figure builds diagramLabels + identify mode with in-range positions', true)
+  // Every default label carries a leader-line target (tx/ty) so it points AT a
+  // part instead of sitting on top of it, and the targets are in range.
+  assert.ok(labelled.overrides.diagramLabels.every((l) =>
+    Number.isFinite(l.tx) && Number.isFinite(l.ty) && l.tx >= 0 && l.tx <= 1 && l.ty >= 0 && l.ty <= 1))
+  // Labels alternate into the left/right margins (not stacked on one edge) so
+  // the leader lines fan out the way a real exam diagram is labelled.
+  assert.ok(labelled.overrides.diagramLabels.some((l) => l.x < 0.5) &&
+    labelled.overrides.diagramLabels.some((l) => l.x > 0.5))
+  ok('labelled_figure builds diagramLabels + identify mode with leader-line targets', true)
 
   // option_images — picture-based MCQ
   const picOpts = mapAiQuestion({

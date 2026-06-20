@@ -4630,7 +4630,15 @@ function newLabelId() {
 function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels, onChangeMode, onRemoveImage }) {
   const isIdentify = mode === 'identify'
   const wrapperRef = useRef(null)
-  const dragRef = useRef(null) // { id, startX, startY, origX, origY }
+  const dragRef = useRef(null) // { id, which:'label'|'target', startX, startY, origX, origY }
+
+  // The point a label's leader line points AT. Defaults a little inward from
+  // the label when not yet set so a freshly dropped label still shows a line.
+  function targetOf(label) {
+    const tx = Number.isFinite(label?.tx) ? label.tx : (label.x <= 0.5 ? Math.min(0.95, label.x + 0.22) : Math.max(0.05, label.x - 0.22))
+    const ty = Number.isFinite(label?.ty) ? label.ty : label.y
+    return { tx, ty }
+  }
 
   function updateLabel(id, patch) {
     onChangeLabels(labels.map(l => l.id === id ? { ...l, ...patch } : l))
@@ -4642,13 +4650,16 @@ function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels
     const rect = wrapperRef.current.getBoundingClientRect()
     const x = Math.max(0.02, Math.min(0.98, (clientX - rect.left) / rect.width))
     const y = Math.max(0.02, Math.min(0.98, (clientY - rect.top) / rect.height))
-    onChangeLabels([...labels, { id: newLabelId(), x, y, text: '' }])
+    // Seed a leader-line target pointing inward so the new label points at a
+    // part instead of sitting on top of it; the teacher drags the tip on.
+    const tx = x <= 0.5 ? Math.min(0.95, x + 0.22) : Math.max(0.05, x - 0.22)
+    onChangeLabels([...labels, { id: newLabelId(), x, y, tx, ty: y, text: '' }])
   }
 
   function onImageMouseDown(e) {
-    // Only handle clicks on the image background — not on labels themselves.
-    // Labels stop propagation in their own mousedown handlers below.
-    if (e.target.closest('[data-label]')) return
+    // Only handle clicks on the image background — not on labels or their
+    // leader-tip handles. Those stop propagation in their own handlers below.
+    if (e.target.closest('[data-label]') || e.target.closest('[data-target]')) return
     e.preventDefault()
     addLabelAt(e.clientX, e.clientY)
   }
@@ -4660,10 +4671,26 @@ function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels
     if (!label) return
     dragRef.current = {
       id,
+      which: 'label',
       startX: e.clientX,
       startY: e.clientY,
       origX: label.x,
       origY: label.y,
+    }
+  }
+  function onTargetMouseDown(e, id) {
+    e.stopPropagation()
+    e.preventDefault()
+    const label = labels.find(l => l.id === id)
+    if (!label) return
+    const { tx, ty } = targetOf(label)
+    dragRef.current = {
+      id,
+      which: 'target',
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: tx,
+      origY: ty,
     }
   }
   function onWrapperMouseMove(e) {
@@ -4672,10 +4699,9 @@ function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels
     const rect = wrapperRef.current.getBoundingClientRect()
     const dx = (e.clientX - drag.startX) / rect.width
     const dy = (e.clientY - drag.startY) / rect.height
-    updateLabel(drag.id, {
-      x: Math.max(0.02, Math.min(0.98, drag.origX + dx)),
-      y: Math.max(0.02, Math.min(0.98, drag.origY + dy)),
-    })
+    const nx = Math.max(0.02, Math.min(0.98, drag.origX + dx))
+    const ny = Math.max(0.02, Math.min(0.98, drag.origY + dy))
+    updateLabel(drag.id, drag.which === 'target' ? { tx: nx, ty: ny } : { x: nx, y: ny })
   }
   function onWrapperMouseUp() {
     dragRef.current = null
@@ -4696,6 +4722,43 @@ function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels
         style={{ position: 'relative', cursor: 'crosshair', userSelect: 'none' }}
       >
         <img src={imageUrl} alt="" draggable={false} style={{ pointerEvents: 'none' }} />
+        {/* Leader lines from each label to the part it points at, ending in a
+            dot on the part — same drawing the printed paper produces. */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }} aria-hidden="true">
+          {labels.map((label) => {
+            const { tx, ty } = targetOf(label)
+            return (
+              <g key={`ln-${label.id}`}>
+                <line x1={`${label.x * 100}%`} y1={`${label.y * 100}%`} x2={`${tx * 100}%`} y2={`${ty * 100}%`} stroke="#000" strokeWidth="1" />
+                <circle cx={`${tx * 100}%`} cy={`${ty * 100}%`} r="2.5" fill="#000" />
+              </g>
+            )
+          })}
+        </svg>
+        {/* Draggable leader tip — teacher drags this onto the exact part. */}
+        {labels.map((label) => {
+          const { tx, ty } = targetOf(label)
+          return (
+            <div
+              key={`tip-${label.id}`}
+              data-target
+              onMouseDown={e => onTargetMouseDown(e, label.id)}
+              title="Drag onto the part this label points at"
+              style={{
+                position: 'absolute',
+                left: `${tx * 100}%`,
+                top: `${ty * 100}%`,
+                transform: 'translate(-50%, -50%)',
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                border: '2px solid #2563eb',
+                background: 'rgba(37,99,235,0.18)',
+                cursor: 'move',
+              }}
+            />
+          )
+        })}
         {labels.map((label, i) => (
           <div
             key={label.id}
@@ -4754,8 +4817,8 @@ function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels
       <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span>
           {isIdentify
-            ? 'Drop numbered hotspots · each text becomes the expected answer · students fill in numbered blanks below'
-            : 'Click the image to drop a label · drag labels to reposition · ✕ to delete · max 20 labels'}
+            ? 'Drop numbered hotspots · drag the blue tip onto the part each points at · each text becomes the expected answer · students fill in numbered blanks below'
+            : 'Click the image to drop a label · drag the label to the margin and the blue tip onto the part it points at · ✕ to delete · max 20 labels'}
           {labels.length >= 20 && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· limit reached</span>}
         </span>
         {onChangeMode && (

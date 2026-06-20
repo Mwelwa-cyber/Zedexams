@@ -298,6 +298,12 @@ export const questionSchema = z
     //   diagramLabels — draggable labels on the question image. x/y are 0..1
     //                   ratios of the image so they stay anchored across the
     //                   preview / PDF / DOCX renderers.
+    //                   tx/ty (optional) are the 0..1 ratio coordinates of the
+    //                   PART the label points at. When present the renderer
+    //                   draws a leader line from the label box (x,y) to the
+    //                   part (tx,ty) — so a label POINTS at the part instead of
+    //                   sitting on top of it. Absent on legacy labels and on
+    //                   maths-dimension figures, where the text sits in place.
     //   diagramMode   — 'labeled' prints the label text on the image;
     //                   'identify' prints numbers and the student names each.
     //   tableData     — inline table { headers[], rows[][] }.
@@ -308,6 +314,8 @@ export const questionSchema = z
           id: z.string().max(64).optional(),
           x: z.number().min(0).max(1),
           y: z.number().min(0).max(1),
+          tx: z.number().min(0).max(1).optional(),
+          ty: z.number().min(0).max(1).optional(),
           text: z.string().max(80).default(''),
         }).strict()
       )

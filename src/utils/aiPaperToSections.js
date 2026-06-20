@@ -59,9 +59,12 @@ function readVisual(q) {
 }
 
 /**
- * Default placement for a labelled figure's labels: spread evenly down the
- * right edge. The teacher drags them onto the right spots once the generated
- * figure is in (x/y are 0..1 ratios of the image, matching diagramLabels).
+ * Default placement for a labelled figure's labels. Each label sits in the
+ * left/right margin and runs a LEADER LINE inward to a point near the figure
+ * (tx/ty) — so a part is labelled with a line pointing at it, the way a real
+ * exam diagram is drawn, instead of a marker dumped on top of the part. The
+ * teacher drags the line's tip onto the exact part once the figure is in.
+ * x/y/tx/ty are 0..1 ratios of the image, matching the diagramLabels schema.
  * Deterministic (index-based ids) so the converter stays node-testable.
  */
 function defaultDiagramLabels(labels) {
@@ -70,12 +73,21 @@ function defaultDiagramLabels(labels) {
     .filter(Boolean)
     .slice(0, 8)
   const n = arr.length
-  return arr.map((text, i) => ({
-    id: `lbl-${i}`,
-    x: 0.82,
-    y: n > 1 ? 0.12 + (0.76 * i) / (n - 1) : 0.5,
-    text,
-  }))
+  return arr.map((text, i) => {
+    // Alternate labels between the left and right margins, stacked in rows.
+    const onLeft = i % 2 === 0
+    const row = Math.floor(i / 2)
+    const rows = Math.ceil(n / 2)
+    const y = rows > 1 ? 0.15 + (0.7 * row) / (rows - 1) : 0.5
+    return {
+      id: `lbl-${i}`,
+      x: onLeft ? 0.04 : 0.96, // label box hugs the margin
+      y,
+      tx: onLeft ? 0.4 : 0.6, // leader tip points inward toward the figure
+      ty: y,
+      text,
+    }
+  })
 }
 
 function mapType(aiType) {
