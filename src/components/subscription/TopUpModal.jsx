@@ -12,6 +12,7 @@ import {
 } from '../../utils/lenco'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
+import MobileMoneyBrands from './MobileMoneyBrands'
 
 // One-off pay-per-generation top-up. Server-authoritative price + grant live
 // in functions/plans.js (topup_generation, K25, +1 generationCredits) and
@@ -245,6 +246,7 @@ export default function TopUpModal({ onClose, feature }) {
           {/* ── Payment form (idle / starting) ──────────────────── */}
           {(payState === 'idle' || payState === 'starting') && (
             <div className="space-y-3">
+              <MobileMoneyBrands className="rounded-2xl bg-white border border-gray-100 p-3" />
               <div>
                 <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
                   Mobile number
