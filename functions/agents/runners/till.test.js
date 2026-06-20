@@ -153,6 +153,34 @@ async function run() {
     assert.strictEqual(fakes.activateCalls.length, 0);
   });
 
+  // ── on-demand, user-scoped recovery (minAgeMs=0 + window guard) ─────
+  await test("user-scoped recovery activates a fresh payment and respects the window", async () => {
+    const docs = [
+      // Fresh (1 min old): the cron path would skip this as too-new, but the
+      // on-demand caller passes minAgeMs=0 so it must be reconciled.
+      {id: "p_fresh", data: {provider: "lenco", userId: "u9", planId: "topup_generation", amountZMW: 25, createdAt: ts(NOW - 60_000)}},
+      // Ancient (4 days old): beyond the 3-day window — the in-loop guard must
+      // skip it even though the user-scoped query has no createdAt filter.
+      {id: "p_ancient", data: {provider: "lenco", userId: "u9", createdAt: ts(NOW - 4 * 24 * 3_600_000)}},
+    ];
+    const fakes = makeFakes({
+      statusMap: {p_fresh: {status: "successful"}, p_ancient: {status: "successful"}},
+      activateMap: {p_fresh: {ok: true, activated: true}},
+    });
+
+    const s = await reconcilePendingPayments({
+      db: fakeDb(docs), apiKey: "test-key", now: NOW, userId: "u9", minAgeMs: 0,
+      getCollectionStatus: fakes.getCollectionStatus,
+      activate: fakes.activate, markFailed: fakes.markFailed,
+    });
+
+    assert.strictEqual(s.checked, 1, "only the in-window payment is queried");
+    assert.strictEqual(s.skippedTooNew, 0, "minAgeMs=0 means nothing is skipped as too-new");
+    assert.strictEqual(s.recovered.length, 1);
+    assert.strictEqual(s.recovered[0].paymentId, "p_fresh");
+    assert.deepStrictEqual(fakes.lookedUp, ["p_fresh"], "the out-of-window payment is never queried");
+  });
+
   // ── toMillis helper ────────────────────────────────────────────────
   await test("toMillis reads Timestamps, Dates, numbers and ISO strings", async () => {
     assert.strictEqual(toMillis(ts(123)), 123);

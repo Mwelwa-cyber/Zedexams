@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import UsageMeter from './UsageMeter.jsx'
+import { recoverMyPendingPayments } from '../../utils/lenco'
 
 // The dashboard usage widget reads usage + the purchased K25 top-up balance.
 // We mock the hook so each test drives an exact state without Firebase.
@@ -31,6 +32,8 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../../utils/proFonts', () => ({ ensureProFonts: vi.fn() }))
+// utils/lenco pulls in firebase/config; stub the one function the widget uses.
+vi.mock('../../utils/lenco', () => ({ recoverMyPendingPayments: vi.fn() }))
 
 // A teacher who has hit their exam-paper cap (1 of 1) on the Free plan.
 function cappedData(overrides = {}) {
@@ -77,5 +80,27 @@ describe('UsageMeter — K25 top-up credit acknowledgement', () => {
     usageState.data = cappedData({ credits: 3 })
     render(<UsageMeter />)
     expect(screen.getByText(/3 extra generations ready/i)).toBeInTheDocument()
+  })
+
+  it('offers on-demand recovery when capped, and reports a restored payment', async () => {
+    recoverMyPendingPayments.mockResolvedValueOnce({ recovered: 1, stillPending: 0 })
+    usageState.data = cappedData({ credits: 0 })
+    render(<UsageMeter />)
+    const btn = screen.getByRole('button', { name: /Already paid\? Restore my credit/i })
+    fireEvent.click(btn)
+    await waitFor(() =>
+      expect(screen.getByText(/your credit has been restored/i)).toBeInTheDocument()
+    )
+    expect(recoverMyPendingPayments).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells the teacher when no pending payment is found', async () => {
+    recoverMyPendingPayments.mockResolvedValueOnce({ recovered: 0, stillPending: 0 })
+    usageState.data = cappedData({ credits: 0 })
+    render(<UsageMeter />)
+    fireEvent.click(screen.getByRole('button', { name: /Already paid\?/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/No pending payment found/i)).toBeInTheDocument()
+    )
   })
 })
