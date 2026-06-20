@@ -195,9 +195,90 @@ async function assertAndIncrement(uid, tool) {
   return result;
 }
 
+/**
+ * Refund a generation credit or roll back a monthly-counter increment that
+ * was consumed by assertAndIncrement when the generation subsequently failed
+ * with a hard throw (no usable output returned to the user).
+ *
+ * Must ONLY be called when a usageResult was returned by assertAndIncrement
+ * (i.e. the gate was passed). The `flagged` path in the runners (validation
+ * failed but an exam paper / assessment was still returned) must NOT call this —
+ * only a true throw from the AI call qualifies.
+ *
+ * Safety contract:
+ *  - Best-effort: never throws over the original error (callers must
+ *    wrap in their own try/catch and rethrow the original).
+ *  - Idempotent enough: re-crediting an already-correct balance is
+ *    harmless (the original error is still surfaced to the user).
+ *  - Super admins skip both the gate and the refund (their daily-counted
+ *    generations do still increment the display counter, but there's no
+ *    limit to enforce so no rollback makes sense).
+ *
+ * @param {string} uid
+ * @param {{ usedCredit?: boolean, period?: string, plan?: string }} usageResult
+ *   The object returned by assertAndIncrement.
+ * @param {string} tool  The tool key passed to assertAndIncrement.
+ */
+async function refundGeneration(uid, usageResult, tool) {
+  if (!usageResult || !uid || !tool) return;
+  // Super-admin path: assertAndIncrement increments the display counter for
+  // them but they have no hard cap and no purchased credits — nothing to refund.
+  if (usageResult.plan === "max" && usageResult.used !== undefined) {
+    // Detect super-admin by checking the user doc directly (same as meter does).
+    try {
+      const snap = await admin.firestore().doc(`users/${uid}`).get();
+      if (snap.exists && isSuperAdminRole(snap.data()?.role)) return;
+    } catch (_) {
+      // If we can't read the doc, proceed with normal refund logic.
+    }
+  }
+
+  if (usageResult.usedCredit) {
+    // A purchased K25 credit was spent. Return it atomically.
+    try {
+      await admin.firestore().doc(`users/${uid}`).update({
+        generationCredits: admin.firestore.FieldValue.increment(1),
+        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("[usageMeter] refundGeneration: credit refund failed", {uid, tool, err});
+    }
+  } else if (usageResult.period && usageResult.plan) {
+    // A free/pro/max plan counter was incremented. Roll it back.
+    const period = usageResult.period;
+    const meterRef = admin.firestore().doc(`usageMeters/${uid}/periods/${period}`);
+    try {
+      await admin.firestore().runTransaction(async (tx) => {
+        const snap = await tx.get(meterRef);
+        if (!snap.exists) return; // meter doc gone — nothing to roll back
+        const counters = (snap.data() || {}).counters || {};
+        const current = Number(counters[tool] || 0);
+        if (current <= 0) return; // already at 0, don't go negative
+        tx.update(meterRef, {
+          [`counters.${tool}`]: admin.firestore.FieldValue.increment(-1),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        // Also roll back the daily counter if this tool counts daily and
+        // the stored date still matches today (don't touch a different day).
+        if (isDailyCountedTool(tool)) {
+          const daily = (snap.data() || {}).daily || {};
+          if (daily.date === yyyymmdd() && Number(daily.count || 0) > 0) {
+            tx.update(meterRef, {
+              "daily.count": admin.firestore.FieldValue.increment(-1),
+            });
+          }
+        }
+      });
+    } catch (err) {
+      console.error("[usageMeter] refundGeneration: counter rollback failed", {uid, tool, period, err});
+    }
+  }
+}
+
 module.exports = {
   PLAN_LIMITS,
   yyyymm,
   getUserTeacherPlan,
   assertAndIncrement,
+  refundGeneration,
 };

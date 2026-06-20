@@ -92,7 +92,9 @@ async function getUserRole(uid) {
 }
 
 function isStaffRole(role) {
-  return role === "teacher" || role === "admin";
+  // superAdmin can generate exam papers, assessments, and all other teacher
+  // tools (the usage meter already maps superAdmin to Max tier and skips caps).
+  return role === "teacher" || role === "admin" || role === "superAdmin";
 }
 
 function cleanChatHistory(history = []) {
