@@ -323,6 +323,26 @@ test('numeric type accepts null tolerance (legacy / not yet set)', () => {
   assert(result.success, JSON.stringify(result.error?.issues))
 })
 
+test('diagramLabels accept leader-line targets (tx/ty)', () => {
+  const d = validDoc()
+  d.imageUrl = 'https://example.com/flower.png'
+  d.diagramMode = 'labeled'
+  d.diagramLabels = [
+    { id: 'l0', x: 0.04, y: 0.5, tx: 0.4, ty: 0.5, text: 'X' },
+    { x: 0.96, y: 0.3, text: 'stem' }, // legacy label with no target still valid
+  ]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('diagramLabels reject out-of-range leader target', () => {
+  const d = validDoc()
+  d.imageUrl = 'https://example.com/flower.png'
+  d.diagramLabels = [{ x: 0.1, y: 0.1, tx: 1.4, ty: 0.5, text: 'X' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'tx > 1 should fail')
+})
+
 test('hotspot type rejects correctRegion missing radius', () => {
   const d = validDoc()
   d.type = 'hotspot'

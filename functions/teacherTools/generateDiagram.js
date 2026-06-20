@@ -122,7 +122,9 @@ function buildFinalPrompt(userPrompt, provider) {
     "Clean black-and-white line art on a white background.",
     "No shading, no colour, no gradients, no photorealism.",
     "Simple thin outlines suitable for printing on a school exam paper.",
-    "No text labels in the image — labels will be added separately.",
+    "Absolutely no text, no letters, no numbers, no words, no captions,",
+    "and no label markers (no X, no arrows, no pointer lines) anywhere in",
+    "the image — labels and leader lines are added separately by the studio.",
   ].join(" ");
   return `${guard}\n\n${userPrompt}`;
 }

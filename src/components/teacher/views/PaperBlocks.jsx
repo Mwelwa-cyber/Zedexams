@@ -187,6 +187,30 @@ function PaperQuestionBlock({ block }) {
             style={{ position: 'relative', display: 'inline-block', maxWidth: `${resolveImageWidthPercent(block.imageWidth)}%` }}
           >
             <img src={block.imageUrl} alt={block.imageAlt || ''} style={{ width: '100%' }} />
+            {/* Leader lines: a thin line from each label to the part it points
+                at (tx,ty), ending in a small dot ON the part — so the diagram is
+                labelled with a line, never a marker sitting on top of the part.
+                Drawn only for labels that carry a target; legacy/maths labels
+                without one keep sitting in place. */}
+            {(block.diagramLabels || []).some((l) => Number.isFinite(l?.tx) && Number.isFinite(l?.ty)) && (
+              <svg
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
+                aria-hidden="true"
+              >
+                {(block.diagramLabels || []).map((label, i) => (
+                  Number.isFinite(label?.tx) && Number.isFinite(label?.ty) ? (
+                    <g key={i}>
+                      <line
+                        x1={`${label.x * 100}%`} y1={`${label.y * 100}%`}
+                        x2={`${label.tx * 100}%`} y2={`${label.ty * 100}%`}
+                        stroke="#000" strokeWidth="1"
+                      />
+                      <circle cx={`${label.tx * 100}%`} cy={`${label.ty * 100}%`} r="2.5" fill="#000" />
+                    </g>
+                  ) : null
+                ))}
+              </svg>
+            )}
             {(block.diagramLabels || []).map((label, i) => (
               <span
                 key={i}
