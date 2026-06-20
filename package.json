@@ -97,6 +97,8 @@
     "test:assessment-format-resolver": "node functions/teacherTools/assessmentFormats.test.js",
     "test:assessment-prompt-v5": "node functions/teacherTools/assessmentPromptV5.test.js",
     "test:assessment-prompt-v6": "node functions/teacherTools/assessmentPromptV6.test.js",
+    "test:assessment-prompt-v7": "node functions/teacherTools/assessmentPromptV7.test.js",
+    "test:assessment-question-types": "node functions/teacherTools/assessmentQuestionTypes.test.js",
     "test:assessment-schema": "node functions/teacherTools/assessmentSchema.test.js",
     "test:assessment-shapes": "node scripts/test-assessment-shapes.mjs",
     "test:paper-taxonomy": "node scripts/test-paper-taxonomy.mjs",

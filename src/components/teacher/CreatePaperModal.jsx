@@ -21,16 +21,33 @@ import {
 } from './paperTaxonomy'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 
+// Each chip maps to a canonical schema question type (`canonical`) sent to the
+// generator so the paper contains ONLY the selected types, while `key` is the
+// human phrasing folded into the prompt text (so "fill-in-the-blank" still
+// reads as blanks even though it is stored as a short_answer). Fill-in-the-blank
+// has no separate schema type — it is a short_answer presented with blanks.
 const QUESTION_TYPE_OPTIONS = [
-  { key: 'multiple choice', label: 'Multiple choice' },
-  { key: 'true/false', label: 'True / False' },
-  { key: 'short answer', label: 'Short answer' },
-  { key: 'fill-in-the-blank', label: 'Fill in the blank' },
-  { key: 'matching (match Column A with Column B)', label: 'Matching' },
-  { key: 'structured (multi-part)', label: 'Structured' },
-  { key: 'calculation (show working)', label: 'Calculation' },
-  { key: 'essay/composition', label: 'Essay / Composition' },
+  { key: 'multiple choice', canonical: 'multiple_choice', label: 'Multiple choice' },
+  { key: 'true/false', canonical: 'true_false', label: 'True / False' },
+  { key: 'short answer', canonical: 'short_answer', label: 'Short answer' },
+  { key: 'fill-in-the-blank', canonical: 'short_answer', label: 'Fill in the blank' },
+  { key: 'matching (match Column A with Column B)', canonical: 'matching', label: 'Matching' },
+  { key: 'structured (multi-part)', canonical: 'structured', label: 'Structured' },
+  { key: 'calculation (show working)', canonical: 'calculation', label: 'Calculation' },
+  { key: 'essay/composition', canonical: 'essay', label: 'Essay / Composition' },
 ]
+
+// The canonical schema types for the currently-selected chips, deduped
+// (multiple chips can map to the same canonical type, e.g. short answer +
+// fill-in-the-blank → short_answer).
+function canonicalTypesFor(selectedKeys) {
+  const out = []
+  for (const k of selectedKeys) {
+    const opt = QUESTION_TYPE_OPTIONS.find((o) => o.key === k)
+    if (opt && !out.includes(opt.canonical)) out.push(opt.canonical)
+  }
+  return out
+}
 
 const MARKS_OPTIONS = [20, 30, 40, 50, 60, 80, 100]
 const DURATION_OPTIONS = [30, 40, 60, 90, 120, 150, 180]
@@ -369,6 +386,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       totalMarks: Number(form.totalMarks),
       durationMinutes: Number(form.durationMinutes),
       assessmentType: form.assessmentType,
+      // Canonical question types — the generator filters the paper format to
+      // these and refuses to emit any other type. Sent alongside the
+      // human-readable instruction (buildInstructions) so the prompt also
+      // phrases fill-in-the-blank as blanks rather than open short answers.
+      questionTypes: canonicalTypesFor(form.questionTypes),
       instructions: buildInstructions(),
     })
     if (!res.ok) {
