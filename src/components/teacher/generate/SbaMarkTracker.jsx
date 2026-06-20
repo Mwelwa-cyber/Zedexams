@@ -28,6 +28,7 @@ import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaTrackerXlsx } from '../../../utils/sbaTrackerToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -185,21 +186,29 @@ export default function SbaMarkTracker() {
     toast.info('Cleared this sheet.')
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!named.length || saving) return
     setSaving(true)
     try {
       const id = await saveSbaMarkSheetGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[SbaMarkTracker] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
+
+  // Auto-save to the library so a hand-built SBA mark sheet is never lost.
+  useLibraryAutoSave({
+    enabled: named.length > 0,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
 
   async function onExportDocx() {
     if (!named.length) return
