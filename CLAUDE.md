@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo at a glance
 
-ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 18 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5/4.6 for generators, Haiku 4.5 for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. Payments are MTN MoMo (Zambia live + sandbox). A Capacitor wrapper produces Android builds.
+ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 18 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5/4.6 for generators, Haiku 4.5 for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW). A Capacitor wrapper produces Android builds.
 
 The Firebase project id is `examsprepzambia` (see `.firebaserc`).
 
@@ -57,7 +57,7 @@ npm run android:run               # launch on a connected device
 npx firebase deploy --only firestore:indexes   # indexes are the one CLI deploy that's OK from a workstation
 ```
 
-`.env` (frontend) must be present for `npm run dev`. All vars start with `VITE_FIREBASE_*` — see `.env.example`. Backend secrets (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, MTN MoMo keys) live as Firebase Functions secrets, not in `.env`.
+`.env` (frontend) must be present for `npm run dev`. All vars start with `VITE_FIREBASE_*` — see `.env.example`. Backend secrets (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LENCO_API_KEY`) live as Firebase Functions secrets, not in `.env`.
 
 ## Deploy flow — read this before shipping
 
@@ -119,7 +119,7 @@ functions/                      — Cloud Functions v2, Node 22, codebase=defaul
   agents/                       — Internal agent pipeline. dispatcher.js drives Aria → Cala → Reva → awaiting_approval → Pubo via Firestore triggers on agentJobs/{id}. Runners live in agents/runners/{aria,cala,reva,pubo,quill,vex}.js. agentControl/{agentId}.paused acts as a circuit breaker.
   grading/                      — daily-exam grading
   storageCleanup/               — Firestore triggers that cascade-delete Storage blobs when lessons/quiz questions change
-  momoService.js + momoSettlement.js — MTN MoMo (sandbox EUR + mtnzambia ZMW)
+  lencoService.js + subscriptionActivation.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW); idempotent subscription activation
   scripts/                      — CBC ingestion utilities (cbc:verify, cbc:ingest, cbc:check)
 
 scripts/                        — top-level data-migration + integrity + test scripts (all plain `node`); also scripts/agents/ for agent-runner harnesses
