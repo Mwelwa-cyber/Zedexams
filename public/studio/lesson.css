@@ -215,6 +215,15 @@
 .c2-stage-table{table-layout:fixed}
 .c2-stage-table th.col-head,.c2-stage-table td{width:33.33%}
 .c2-stage-table td + td{border-left:1px solid var(--line)}
+/* Honour the declared column percentages on every progression table — not
+   just c2-stage-table. Without table-layout:fixed the browser falls back to
+   auto sizing on narrow viewports: the multi-column table grows past 100% of
+   the page and the .doc-wrap{overflow:hidden} clips the right-most column
+   (e.g. ASSESSMENT CRITERIA vanishes off-screen on phones). Fixed layout pins
+   each column to its percentage; overflow-wrap lets long tokens (formulae like
+   R/100)^T) break instead of pushing the table wide. */
+.lp-table,.stage-table{table-layout:fixed}
+.lp-table th,.lp-table td,.stage-table th,.stage-table td{overflow-wrap:break-word;word-break:break-word}
 .idc-table{width:calc(100% - 16px);margin:6px 0 10px 16px;border-collapse:collapse;font-size:10pt}
 .idc-table th,.idc-table td{padding:6px 9px;text-align:left;vertical-align:top;border:1px solid var(--line)}
 .idc-table thead th{background:var(--paper-2);font:700 9.5pt/1.2 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
