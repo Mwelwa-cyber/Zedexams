@@ -21,39 +21,97 @@ function test(name, fn) {
 
 const NOW = 1_700_000_000_000;
 
-// A Firestore-ish handle: chainable orderBy/limit/get on each collection, plus
-// doc().set() that records the write AND reflects it back into the in-memory
-// doc (so a second sweep sees echoProcessedAt and skips it).
-function fakeDb({feedback = [], contactMessages = []}) {
+// Millis from any Firestore-ish timestamp (Date / millis-number / Timestamp).
+function ms(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  if (typeof v.getTime === "function") return v.getTime();
+  if (typeof v.toMillis === "function") return v.toMillis();
+  return null;
+}
+
+// A query-realistic Firestore fake: honours where('createdAt','>=',cursor),
+// orderBy('createdAt', dir) and limit(n) so the cursor-drain behaviour is
+// actually exercised (docs missing the orderBy field are excluded, matching
+// Firestore). doc().get()/set() read/reflect the in-memory store, and set()
+// merges so a later sweep sees echoProcessedAt / advanced cursors.
+function fakeDb({feedback = [], contactMessages = [], echoState = []} = {}) {
   const writes = [];
-  function coll(name, docs) {
+  const store = {feedback, contactMessages, echoState};
+
+  function query(docs) {
+    const filters = [];
+    let order = null;
+    let lim = Infinity;
     return {
-      orderBy() {
+      where(field, op, value) {
+        filters.push({field, op, value});
         return this;
       },
-      limit() {
+      orderBy(field, dir = "asc") {
+        order = {field, dir};
+        return this;
+      },
+      limit(n) {
+        lim = n;
         return this;
       },
       async get() {
+        let rows = docs.filter((d) => filters.every((f) => {
+          const a = ms(d.data[f.field]);
+          const b = ms(f.value);
+          if (a == null) return false; // missing field never matches a range
+          if (f.op === ">=") return a >= b;
+          if (f.op === ">") return a > b;
+          return d.data[f.field] === f.value;
+        }));
+        if (order) {
+          rows = rows
+              .filter((d) => d.data[order.field] != null) // Firestore drops docs missing the orderBy field
+              .sort((x, y) => ms(x.data[order.field]) - ms(y.data[order.field]));
+          if (order.dir === "desc") rows.reverse();
+        }
+        rows = rows.slice(0, lim);
         return {forEach(cb) {
-          docs.forEach((d) => cb({id: d.id, data: () => d.data}));
-        }};
-      },
-      doc(id) {
-        return {async set(obj) {
-          writes.push({collection: name, id, obj});
-          const target = docs.find((x) => x.id === id);
-          if (target) Object.assign(target.data, obj);
+          rows.forEach((d) => cb({id: d.id, data: () => d.data}));
         }};
       },
     };
   }
+
+  function coll(name) {
+    const docs = store[name] || (store[name] = []);
+    const api = query(docs);
+    api.doc = (id) => ({
+      async get() {
+        const t = docs.find((x) => x.id === id);
+        return {exists: !!t, data: () => (t ? t.data : undefined)};
+      },
+      async set(obj, opts) {
+        writes.push({collection: name, id, obj});
+        let t = docs.find((x) => x.id === id);
+        if (!t) {
+          t = {id, data: {}};
+          docs.push(t);
+        }
+        if (opts && opts.merge) Object.assign(t.data, obj);
+        else t.data = {...obj};
+      },
+    });
+    return api;
+  }
+
   return {
     writes,
-    feedback,
-    contactMessages,
+    store,
+    get feedback() {
+      return store.feedback;
+    },
+    get contactMessages() {
+      return store.contactMessages;
+    },
     collection(name) {
-      return name === "feedback" ? coll("feedback", feedback) : coll("contactMessages", contactMessages);
+      return coll(name);
     },
   };
 }
@@ -94,14 +152,14 @@ async function run() {
   await test("triages new feedback + surfaces invisible contact messages, idempotently", async () => {
     const db = fakeDb({
       feedback: [
-        {id: "f_bug", data: {type: "bug", status: "new", name: "Mary", message: "save button does nothing"}},
-        {id: "f_idea", data: {type: "suggestion", status: "new", message: "add dark mode"}},
-        {id: "f_done", data: {type: "bug", status: "done", message: "old, already handled"}}, // not 'new' → skip
-        {id: "f_seen", data: {type: "content", status: "new", message: "already triaged", echoProcessedAt: new Date(NOW - 1000)}}, // skip
+        {id: "f_bug", data: {type: "bug", status: "new", name: "Mary", message: "save button does nothing", createdAt: new Date(NOW - 5000)}},
+        {id: "f_idea", data: {type: "suggestion", status: "new", message: "add dark mode", createdAt: new Date(NOW - 4000)}},
+        {id: "f_done", data: {type: "bug", status: "done", message: "old, already handled", createdAt: new Date(NOW - 3000)}}, // not 'new' → skip
+        {id: "f_seen", data: {type: "content", status: "new", message: "already triaged", echoProcessedAt: new Date(NOW - 1000), createdAt: new Date(NOW - 2000)}}, // skip
       ],
       contactMessages: [
-        {id: "c_refund", data: {name: "John", email: "j@x.com", message: "I paid but got no access, I want a refund"}},
-        {id: "c_seen", data: {name: "Old", message: "already triaged", echoProcessedAt: new Date(NOW - 1000)}}, // skip
+        {id: "c_refund", data: {name: "John", email: "j@x.com", message: "I paid but got no access, I want a refund", createdAt: new Date(NOW - 5000)}},
+        {id: "c_seen", data: {name: "Old", message: "already triaged", echoProcessedAt: new Date(NOW - 1000), createdAt: new Date(NOW - 2000)}}, // skip
       ],
     });
 
@@ -122,9 +180,11 @@ async function run() {
     assert.strictEqual(s.errors.length, 0);
 
     // Exactly the 3 fresh items were drafted + written; the 3 skipped were not.
+    // (Writes to echoState are the drain cursor, not item triage — filter them.)
+    const itemWrites = db.writes.filter((w) => w.collection !== "echoState");
     assert.deepStrictEqual(drafted.sort(), ["c_refund", "f_bug", "f_idea"]);
-    assert.deepStrictEqual(db.writes.map((w) => w.id).sort(), ["c_refund", "f_bug", "f_idea"]);
-    for (const w of db.writes) {
+    assert.deepStrictEqual(itemWrites.map((w) => w.id).sort(), ["c_refund", "f_bug", "f_idea"]);
+    for (const w of itemWrites) {
       assert.ok(w.obj.echoProcessedAt instanceof Date);
       assert.ok(typeof w.obj.echoDraftReply === "string" && w.obj.echoDraftReply.length > 0);
     }
@@ -137,7 +197,7 @@ async function run() {
   // ── drafter failure degrades, never aborts ──────────────────────────
   await test("a drafter error falls back to the template and still processes the item", async () => {
     const db = fakeDb({
-      feedback: [{id: "f1", data: {type: "bug", status: "new", name: "Sam", message: "broken"}}],
+      feedback: [{id: "f1", data: {type: "bug", status: "new", name: "Sam", message: "broken", createdAt: new Date(NOW - 1000)}}],
     });
     const draftReply = async () => {
       throw new Error("model timeout");
@@ -146,7 +206,50 @@ async function run() {
     assert.strictEqual(s.processed, 1);
     assert.strictEqual(s.errors.length, 1);
     assert.strictEqual(s.errors[0].stage, "draft");
-    assert.ok(db.writes[0].obj.echoDraftReply.includes("The ZedExams Team"), "fell back to the template");
+    const f1Write = db.writes.find((w) => w.collection === "feedback" && w.id === "f1");
+    assert.ok(f1Write.obj.echoDraftReply.includes("The ZedExams Team"), "fell back to the template");
+  });
+
+  // ── starvation regression (the bug in #1156) ────────────────────────
+  // A backlog LARGER than maxItems must be fully drained over repeated runs.
+  // The old limit-then-filter took the NEWEST maxItems then filtered to the
+  // unprocessed ones, so once those were handled the oldest items below the
+  // window were never fetched again — starved forever. Oldest-first draining
+  // guarantees forward progress.
+  await test("drains a backlog larger than maxItems — oldest items are eventually processed", async () => {
+    const BACKLOG = 12;
+    const MAX = 4; // small window so the backlog spans several runs
+    // c0 is the OLDEST (createdAt NOW-12000), c11 the newest. Pre-existing,
+    // none processed — exactly the contactMessages-with-no-UI scenario.
+    const contactMessages = [];
+    for (let i = 0; i < BACKLOG; i++) {
+      contactMessages.push({
+        id: `c${i}`,
+        data: {name: `User${i}`, message: `message ${i}`, createdAt: new Date(NOW - (BACKLOG - i) * 1000)},
+      });
+    }
+    const db = fakeDb({contactMessages});
+    const draftReply = async ({kind}) => `DRAFT(${kind})`;
+
+    // Drive the scheduled sweep repeatedly (as the every-2-hours cron would).
+    let totalProcessed = 0;
+    for (let run = 0; run < 10; run++) {
+      const s = await runEchoTriage({db, draftReply, now: NOW + run * 60_000, maxItems: MAX});
+      totalProcessed += s.processed;
+      if (totalProcessed >= BACKLOG) break;
+    }
+
+    // Every item — crucially the OLDEST (c0), which the old code starved — has
+    // an idempotent triage written exactly once.
+    for (let i = 0; i < BACKLOG; i++) {
+      const doc = db.store.contactMessages.find((d) => d.id === `c${i}`);
+      assert.ok(doc.data.echoProcessedAt instanceof Date, `c${i} (the oldest is c0) must be triaged`);
+    }
+    assert.strictEqual(totalProcessed, BACKLOG, "each backlog item processed exactly once across the runs");
+
+    // And it's stable: another sweep finds nothing new.
+    const sFinal = await runEchoTriage({db, draftReply, now: NOW + 999_000, maxItems: MAX});
+    assert.strictEqual(sFinal.processed, 0, "fully drained — re-running is a no-op");
   });
 
   console.log(`\n${passed} passed`);

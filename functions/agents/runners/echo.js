@@ -21,9 +21,36 @@
  * classification + orchestration unit-test without Firebase, the network, or
  * an LLM (same pattern as till.js / monitor.js). The reply draft falls back to
  * a free templated acknowledgement when no model key is configured.
+ *
+ * Forward progress (no starvation): each channel is drained OLDEST-first via a
+ * persisted cursor — the `createdAt` of the last item we've safely passed,
+ * stored per-collection in `echoState/echo`. Each run queries only
+ * `createdAt >= cursor` ascending, so the per-run limit window can never be
+ * saturated by already-processed docs sitting at the top. This replaced the
+ * earlier `orderBy(createdAt,'desc').limit(N)`-then-filter, which permanently
+ * skipped any unprocessed item that sorted below position N once the newest N
+ * were all handled (limit-then-filter starvation — bites a >N backlog, e.g.
+ * the UI-less contactMessages inbox). Idempotency is still guarded by
+ * `echoProcessedAt`, and the cursor only advances past items we actually
+ * handled (processed, or correctly skipped) — never past one whose write
+ * failed, so failures are retried rather than dropped.
  */
 
 const MAX_ITEMS = 40;
+
+// Per-collection drain cursors live here (server-owned; admin SDK only, so no
+// Firestore rule is needed — same pattern as monitorState/vigil).
+const STATE_COLLECTION = "echoState";
+const STATE_DOC_ID = "echo";
+
+/** Coerce a Firestore Timestamp / Date / millis-number to milliseconds. */
+function toMillis(v) {
+  if (v == null) return 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  if (typeof v.getTime === "function") return v.getTime();
+  return 0;
+}
 
 // Words that push an item to "high" regardless of its category — money,
 // access loss, or an upset tone all warrant a fast, careful human reply.
@@ -112,67 +139,125 @@ async function runEchoTriage({db, draftReply, now = Date.now(), maxItems = MAX_I
     byKind: {},
     byPriority: {high: 0, normal: 0},
     highPriority: [],
+    cursors: {}, // per-collection drain position after this run (millis)
     errors: [],
   };
 
-  const items = [];
-  async function gather(collection, keep) {
+  const stateRef = db.collection(STATE_COLLECTION).doc(STATE_DOC_ID);
+
+  // Load the persisted drain cursors (millis). A fresh install / unreadable
+  // doc starts at 0 — i.e. the very beginning of the backlog.
+  const cursors = {feedback: 0, contactMessages: 0};
+  try {
+    const snap = await stateRef.get();
+    const state = (snap && typeof snap.data === "function" ? snap.data() : null) || {};
+    if (Number.isFinite(state.feedbackCursorMs)) cursors.feedback = state.feedbackCursorMs;
+    if (Number.isFinite(state.contactMessagesCursorMs)) cursors.contactMessages = state.contactMessagesCursorMs;
+  } catch (err) {
+    summary.errors.push({stage: "cursor-read", message: clampMessage(err)});
+  }
+
+  /**
+   * Drain one collection oldest-first from its cursor. `keep` decides whether a
+   * fetched doc is actionable; non-kept docs (already-processed, or feedback
+   * that isn't `status:'new'`) are passed over but still advance the cursor.
+   * The cursor stops advancing at the first item whose write FAILS, so a failed
+   * item — and only it onward — is retried next run.
+   */
+  async function drain(collection, keep) {
+    let snap;
     try {
-      const snap = await db.collection(collection)
-          .orderBy("createdAt", "desc")
+      snap = await db.collection(collection)
+          // `createdAt >= cursor` ascending: the limit window holds the OLDEST
+          // unscanned items, so it can't be filled by already-processed docs.
+          // `>=` (not `>`) so same-millisecond siblings at the boundary are
+          // never skipped — `keep`/`echoProcessedAt` dedupe the re-read.
+          .where("createdAt", ">=", new Date(cursors[collection]))
+          .orderBy("createdAt", "asc")
           .limit(maxItems)
           .get();
-      snap.forEach((doc) => {
-        const data = doc.data() || {};
-        if (keep(data)) items.push({collection, id: doc.id, data});
-      });
     } catch (err) {
       summary.errors.push({stage: `${collection}-query`, message: clampMessage(err)});
+      return;
     }
+
+    const fetched = [];
+    snap.forEach((doc) => fetched.push({id: doc.id, data: doc.data() || {}}));
+
+    let cursorAt = cursors[collection];
+    let blocked = false; // a write failed — freeze the cursor from here on
+
+    for (const {id, data} of fetched) {
+      const createdMs = toMillis(data.createdAt);
+
+      if (!keep(data)) {
+        if (!blocked) cursorAt = Math.max(cursorAt, createdMs);
+        continue;
+      }
+
+      const item = {collection, id, data};
+      const {kind, priority} = classifyItem(item);
+
+      let draft = "";
+      try {
+        draft = await draftReply({kind, priority, item});
+      } catch (err) {
+        summary.errors.push({collection, id, stage: "draft", message: clampMessage(err)});
+      }
+      if (!draft) draft = templateReply({kind, item});
+
+      try {
+        await db.collection(collection).doc(id).set({
+          echoClassification: kind,
+          echoPriority: priority,
+          echoDraftReply: draft,
+          // A native Date stores as a Timestamp via the Admin SDK — keeps this
+          // module free of a firebase-admin dependency so it stays unit-testable.
+          echoProcessedAt: new Date(now),
+        }, {merge: true});
+      } catch (err) {
+        summary.errors.push({collection, id, stage: "write", message: clampMessage(err)});
+        blocked = true; // don't let the cursor skip an item we failed to record
+        continue;
+      }
+
+      if (!blocked) cursorAt = Math.max(cursorAt, createdMs);
+
+      summary.processed += 1;
+      if (collection === "contactMessages") summary.surfacedContact += 1;
+      summary.byKind[kind] = (summary.byKind[kind] || 0) + 1;
+      summary.byPriority[priority] += 1;
+      if (priority === "high") {
+        summary.highPriority.push({
+          collection,
+          id,
+          kind,
+          who: whoFrom(data),
+          snippet: String(data.message || "").slice(0, 140),
+        });
+      }
+    }
+
+    cursors[collection] = cursorAt;
   }
 
   // New, not-yet-triaged feedback; and any contact message we haven't seen.
-  await gather("feedback", (d) => d.status === "new" && !d.echoProcessedAt);
-  await gather("contactMessages", (d) => !d.echoProcessedAt);
+  await drain("feedback", (d) => d.status === "new" && !d.echoProcessedAt);
+  await drain("contactMessages", (d) => !d.echoProcessedAt);
 
-  for (const item of items.slice(0, maxItems)) {
-    const {kind, priority} = classifyItem(item);
+  summary.cursors = {...cursors};
 
-    let draft = "";
-    try {
-      draft = await draftReply({kind, priority, item});
-    } catch (err) {
-      summary.errors.push({collection: item.collection, id: item.id, stage: "draft", message: clampMessage(err)});
-    }
-    if (!draft) draft = templateReply({kind, item});
-
-    try {
-      await db.collection(item.collection).doc(item.id).set({
-        echoClassification: kind,
-        echoPriority: priority,
-        echoDraftReply: draft,
-        // A native Date stores as a Timestamp via the Admin SDK — keeps this
-        // module free of a firebase-admin dependency so it stays unit-testable.
-        echoProcessedAt: new Date(now),
-      }, {merge: true});
-    } catch (err) {
-      summary.errors.push({collection: item.collection, id: item.id, stage: "write", message: clampMessage(err)});
-      continue;
-    }
-
-    summary.processed += 1;
-    if (item.collection === "contactMessages") summary.surfacedContact += 1;
-    summary.byKind[kind] = (summary.byKind[kind] || 0) + 1;
-    summary.byPriority[priority] += 1;
-    if (priority === "high") {
-      summary.highPriority.push({
-        collection: item.collection,
-        id: item.id,
-        kind,
-        who: whoFrom(item.data),
-        snippet: String(item.data.message || "").slice(0, 140),
-      });
-    }
+  // Persist the advanced cursors so the next run resumes the drain. Best-effort:
+  // a failure here only means some already-handled docs get re-scanned next run
+  // (idempotent via echoProcessedAt), never a dropped item.
+  try {
+    await stateRef.set({
+      feedbackCursorMs: cursors.feedback,
+      contactMessagesCursorMs: cursors.contactMessages,
+      updatedAt: new Date(now),
+    }, {merge: true});
+  } catch (err) {
+    summary.errors.push({stage: "cursor-write", message: clampMessage(err)});
   }
 
   return summary;
@@ -184,4 +269,6 @@ module.exports = {
   inferContactKind,
   templateReply,
   MAX_ITEMS,
+  STATE_COLLECTION,
+  STATE_DOC_ID,
 };
