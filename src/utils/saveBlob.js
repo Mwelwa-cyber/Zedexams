@@ -3,63 +3,38 @@
  *
  * Shared by every studio export so the behaviour is identical everywhere.
  *
- * WHY THE DATA-URL ROUTE EXISTS (ANDROID + iOS)
- * ─────────────────────────────────────────────
- * Both Android Chrome/WebView AND iOS Safari ignore the `download` attribute on
- * anchors that point to `blob:` URLs. Instead they name the saved file after the
- * blob's internal random UUID, so teachers downloading Notes / Worksheets / etc.
- * got files called things like "5fee66fe-1c3a-4b9d-….docx" instead of
- * "Grade 5 English Notes.docx".
+ * TWO ROUTES — and why the split matters
+ * ──────────────────────────────────────
+ * 1. REAL BROWSERS (desktop AND mobile: Android Chrome, iOS Safari, …) use a
+ *    `blob:` URL via `file-saver`. A blob URL references the full in-memory
+ *    Blob, so the browser streams every byte — the file is never truncated —
+ *    and modern browsers honour the `download` filename.
  *
- * The workaround: convert the Blob to a `data:` URL first, then click an anchor
- * with `download=<filename>`. Both platforms honour the `download` attribute on
- * `data:` URLs — unlike `blob:` URLs — so the chosen name is preserved.
+ * 2. THE NATIVE CAPACITOR SHELL (the installed Android app) uses a `data:` URL.
+ *    Its WebView has no browser download manager, so a `blob:` URL anchor click
+ *    does nothing at all there; encoding the bytes inline in a `data:` URL is
+ *    the only thing that triggers a save.
  *
- * ANDROID: any UA string that includes "Android".
- * iOS SAFARI: iPhones report "iPhone" / "iPad" in the UA. iPadOS 13+ spoofs as
- * "Macintosh" for desktop-site compat, so UA detection alone is insufficient.
- * We catch iPadOS by also checking `navigator.maxTouchPoints > 1` on a platform
- * that looks like Mac — a touch-capable "Mac" is always an iPad.
+ * WHY WE NO LONGER USE `data:` URLS IN MOBILE BROWSERS
+ * ───────────────────────────────────────────────────
+ * An earlier version routed *all* Android + iOS browsers through the `data:`
+ * URL trick to dodge a UUID-naming quirk. That backfired badly: Android
+ * Chrome's download manager TRUNCATES large `data:` URL downloads, so a
+ * multi-hundred-KB .docx arrived as a half-written ZIP — Word then reported
+ * "found unreadable content" and recovery produced an empty document. It also
+ * still named those downloads after a random id. So `data:` URLs gave the worst
+ * of both worlds in real browsers; they are now reserved for the native shell,
+ * where there is no alternative.
  *
- * Desktop browsers (Chrome, Firefox, Edge, desktop Safari) reliably honour
- * `download` on both `blob:` and `data:` URLs, so they stay on the faster
- * `file-saver` / blob-URL path.
+ * NOTE: the native shell's `data:` route shares the same truncation risk for
+ * very large files. A proper native fix (write to disk via a Capacitor
+ * filesystem plugin, then open) is tracked separately; it needs the native
+ * project + on-device testing.
  */
 
 import { inspectFilename } from './downloadGuard.js'
 import { reportClientError } from './clientErrorReporting.js'
-
-function isAndroid() {
-  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
-}
-
-/**
- * Returns true when the runtime is iOS Safari or iPadOS Safari — environments
- * that ignore the anchor `download` attribute for `blob:` URLs and so produce
- * random UUID filenames unless we switch to the `data:` URL route.
- *
- * Detection logic:
- *  • "iPhone" or "iPad" in the UA → definitely iOS/iPadOS.
- *  • UA looks like macOS ("Macintosh") BUT has multiple touch points → iPadOS 13+
- *    spoofing desktop UA. `navigator.maxTouchPoints > 1` is reliable here because
- *    real Intel Macs always report 0 touch points.
- */
-function isIosSafari() {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  if (/iPhone|iPad/i.test(ua)) return true
-  // iPadOS 13+ desktop-mode spoofing: "Macintosh" UA but a touch screen.
-  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true
-  return false
-}
-
-/**
- * Returns true when the platform needs the `data:` URL route to preserve the
- * `download` filename (Android and iOS/iPadOS Safari).
- */
-function prefersDataUrlDownload() {
-  return isAndroid() || isIosSafari()
-}
+import { isNativePlatform } from './runtime.js'
 
 /** Click an attached `<a download>` — attached + removed so every browser honours it. */
 function anchorDownload(href, filename) {
@@ -98,10 +73,11 @@ export async function saveBlob(blob, filename) {
     // The guard must never break a download.
   }
 
-  // Android + iOS/iPadOS: the data-URL route is the only one that preserves the
-  // filename. It must run BEFORE file-saver, which also uses blob: URLs and so
-  // hits the same UUID-naming bug on these platforms.
-  if (prefersDataUrlDownload() && typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
+  // Native Capacitor shell ONLY: its WebView has no download manager, so a
+  // blob: URL anchor click does nothing — encoding the bytes inline in a data:
+  // URL is the only thing that triggers a save. Real browsers must NOT take this
+  // route (Android Chrome truncates large data: URLs → corrupt .docx).
+  if (isNativePlatform() && typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
     try {
       const dataUrl = await blobToDataUrl(blob)
       anchorDownload(dataUrl, name)
@@ -111,7 +87,8 @@ export async function saveBlob(blob, filename) {
     }
   }
 
-  // Desktop: file-saver handles older-browser quirks.
+  // All real browsers (desktop + mobile): file-saver streams the full blob via
+  // a blob: URL — never truncated — and honours the download filename.
   try {
     const { saveAs } = await import('file-saver')
     saveAs(blob, name)
