@@ -24,6 +24,9 @@ import {
   Send,
   Mail,
   ChevronRight,
+  Clock,
+  Target,
+  ListChecks,
 } from '../ui/icons'
 
 // Public contact channels surfaced on the schools callout, pricing tier,
@@ -368,6 +371,94 @@ function WorksheetPreview() {
   )
 }
 
+// Mock teacher lesson-plan output — mirrors WorksheetPreview to prove the
+// CBC lesson plan generator drafts a full, structured plan in seconds.
+function LessonPlanPreview() {
+  return (
+    <Card variant="elevated" size="lg" className="overflow-hidden">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
+          >
+            <Icon as={BookOpen} size="md" />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider theme-text-muted">
+              Generated in 7 seconds
+            </p>
+            <h3 className="font-display font-black text-lg leading-tight">
+              Grade 6 Science · The Water Cycle lesson plan
+            </h3>
+          </div>
+        </div>
+        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider theme-accent-text">
+          <Icon as={Sparkles} size="xs" /> AI-drafted
+        </span>
+      </div>
+
+      <div className="rounded-2xl border theme-border bg-[color:var(--bg-subtle)] p-5 sm:p-6 space-y-4 font-body text-sm">
+        <div className="flex flex-wrap gap-3 text-xs theme-text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon as={Clock} size="xs" /> 80 minutes
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon as={Target} size="xs" /> 2 outcomes
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon as={ListChecks} size="xs" /> Assessed
+          </span>
+        </div>
+
+        <div>
+          <p className="font-black theme-text mb-1">Learning outcomes</p>
+          <ul className="list-disc pl-5 space-y-1 theme-text">
+            <li>Describe how water moves through evaporation, condensation and precipitation.</li>
+            <li>Relate the water cycle to rainfall and rivers in Zambia.</li>
+          </ul>
+        </div>
+
+        <div>
+          <p className="font-black theme-text mb-1">Lesson development</p>
+          <ol className="list-decimal pl-5 space-y-1.5 theme-text">
+            <li>
+              <span className="font-bold">Introduction (10 min):</span> ask where the water in the
+              Zambezi comes from to surface prior ideas.
+            </li>
+            <li>
+              <span className="font-bold">Development (45 min):</span> demonstrate evaporation with a
+              kettle, then map each stage of the cycle on the board.
+            </li>
+            <li>
+              <span className="font-bold">Conclusion (15 min):</span> learners draw and label their
+              own water cycle in their books.
+            </li>
+          </ol>
+        </div>
+
+        <p className="theme-text-help text-xs italic">
+          …materials, assessment and homework on the printable page
+        </p>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
+          <Icon as={Download} size="xs" />
+          DOCX
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
+          <Icon as={Download} size="xs" />
+          PDF
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full theme-card border theme-border px-3 py-1 text-xs font-black theme-text-muted">
+          Editable in Word
+        </span>
+      </div>
+    </Card>
+  )
+}
+
 export default function Marketing() {
   const [contactOpen, setContactOpen] = useState(false)
   const [contactSource, setContactSource] = useState('marketing-page')
@@ -589,6 +680,47 @@ export default function Marketing() {
           </div>
           <div className="lg:col-span-7">
             <WorksheetPreview />
+          </div>
+        </div>
+      </Section>
+
+      {/* Teacher proof — realistic lesson-plan output preview */}
+      <Section className="py-16 sm:py-20">
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
+          <div className="lg:col-span-5">
+            <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
+              For teachers
+            </p>
+            <h2 className="font-display font-black text-3xl sm:text-4xl mb-4">
+              Generate a lesson plan in seconds.
+            </h2>
+            <p className="theme-text-muted text-lg mb-6">
+              Give ZedExams the grade, subject, and topic. Get a structured, CBC-aligned lesson
+              plan — outcomes, lesson development, and assessment — ready to teach or edit in Word.
+            </p>
+            <ul className="space-y-2.5 theme-text-muted mb-7">
+              {[
+                'Clear learning outcomes mapped to the official CBC syllabus',
+                'Timed introduction, development and conclusion you can teach straight from',
+                'Built-in assessment, materials list and homework — no extra prep',
+              ].map((b) => (
+                <li key={b} className="flex gap-2.5">
+                  <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-3">
+              <Button as={Link} to="/register" variant="primary" size="lg">
+                Start free
+              </Button>
+              <Button as={Link} to="/teachers" variant="secondary" size="lg">
+                See real samples
+              </Button>
+            </div>
+          </div>
+          <div className="lg:col-span-7">
+            <LessonPlanPreview />
           </div>
         </div>
       </Section>
