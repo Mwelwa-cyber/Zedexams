@@ -140,20 +140,20 @@ async function caught(promise) {
   // Monthly cap hit, no credit → throws monthly-limit with structured reason.
   reset();
   store[userPath("u2")] = {teacherPlan: "free"};
-  store[meterPath("u2")] = {counters: {lesson_plan: 5}};
+  store[meterPath("u2")] = {counters: {lesson_plan: 2}};
   const e2 = await caught(assertAndIncrement("u2", "lesson_plan"));
   ok("monthly cap + no credit throws", e2 instanceof HttpsError);
   ok("monthly throw carries reason=monthly-limit", e2.details && e2.details.reason === "monthly-limit");
-  ok("monthly throw does not move the counter", store[meterPath("u2")].counters.lesson_plan === 5);
+  ok("monthly throw does not move the counter", store[meterPath("u2")].counters.lesson_plan === 2);
 
   // Monthly cap hit WITH a credit → spend one, allow, don't push counter past cap.
   reset();
   store[userPath("u3")] = {teacherPlan: "free", generationCredits: 2};
-  store[meterPath("u3")] = {counters: {lesson_plan: 5}};
+  store[meterPath("u3")] = {counters: {lesson_plan: 2}};
   const r3 = await assertAndIncrement("u3", "lesson_plan");
   ok("monthly cap + credit is allowed via credit", r3.usedCredit === true && r3.creditsRemaining === 1);
   ok("credit spend decrements the balance (2→1)", store[userPath("u3")].generationCredits === 1);
-  ok("credit spend does NOT push the counter past cap", store[meterPath("u3")].counters.lesson_plan === 5);
+  ok("credit spend does NOT push the counter past cap", store[meterPath("u3")].counters.lesson_plan === 2);
 
   // Max-only tool (exam_paper) at its taster cap, with a credit → still allowed.
   reset();
@@ -211,15 +211,15 @@ async function caught(promise) {
   // refundGeneration must roll back the counter so the teacher's quota is restored.
   reset();
   store[userPath("r2")] = {teacherPlan: "free"};
-  store[meterPath("r2")] = {counters: {lesson_plan: 3}};
+  store[meterPath("r2")] = {counters: {lesson_plan: 0}};
   const rr2 = await assertAndIncrement("r2", "lesson_plan");
-  ok("refund/counter: counter incremented to 4", store[meterPath("r2")].counters.lesson_plan === 4);
+  ok("refund/counter: counter incremented to 1", store[meterPath("r2")].counters.lesson_plan === 1);
   ok("refund/counter: no credit used", !rr2.usedCredit);
   await refundGeneration("r2", rr2, "lesson_plan");
-  ok("refund rolls counter back to 3", store[meterPath("r2")].counters.lesson_plan === 3);
+  ok("refund rolls counter back to 0", store[meterPath("r2")].counters.lesson_plan === 0);
   // Ensure the counter can be re-incremented after the rollback.
   const rr2b = await assertAndIncrement("r2", "lesson_plan");
-  ok("refund/counter: counter increments to 4 on retry", rr2b.used === 4 && !rr2b.usedCredit);
+  ok("refund/counter: counter increments to 1 on retry", rr2b.used === 1 && !rr2b.usedCredit);
 
   // Scenario: the flagged path (validation.ok === false but paper returned) must
   // NOT trigger a refund — the teacher still gets a paper so the credit is earned.

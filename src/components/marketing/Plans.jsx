@@ -150,7 +150,7 @@ const PLANS = [
     key: 'free', name: 'Free', mascot: '🐢', meta: 'For trying things out',
     note: 'No card required.', cta: 'Start free',
     feats: [
-      <><strong>5</strong> lesson plans / month</>,
+      <><strong>2</strong> lesson plans / month</>,
       <><strong>3</strong> worksheets / month</>,
       <><strong>3</strong> teacher notes / month</>,
       <>Daily cap of <strong>2</strong> generations</>,
@@ -338,7 +338,7 @@ export default function Plans() {
                 </thead>
                 <tbody>
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Generations / month</td></tr>
-                  <Row label="Lesson plans" cells={['5', '40', 'Unlimited']} />
+                  <Row label="Lesson plans" cells={['2', '40', 'Unlimited']} />
                   <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
                   <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />

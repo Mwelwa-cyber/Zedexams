@@ -79,7 +79,7 @@ describe('useTeacherUsage', () => {
     expect(data.planLabel).toBe('Free')
     expect(data.used.plans).toBe(2)
     expect(data.used.worksheets).toBe(1)
-    expect(data.caps.plans).toBe(5) // free lesson_plan
+    expect(data.caps.plans).toBe(2) // free lesson_plan
     // 'assessments' reads the `assessment` tool (the Test Paper studio), NOT
     // the retired `quiz` creator. assessment + exam_paper are Max-only, so Free
     // gets a single monthly taster (cap 1), then the Upgrade-to-Max paywall.

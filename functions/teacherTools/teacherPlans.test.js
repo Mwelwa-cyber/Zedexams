@@ -156,7 +156,7 @@ test("every Max-only tool is a registered, daily-counted tool", () => {
 });
 
 test("free limits match the published marketing numbers", () => {
-  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 5);
+  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 2);
   assert.strictEqual(PLAN_LIMITS.free.worksheet, 3);
   assert.strictEqual(PLAN_LIMITS.free.notes, 3);
 });
