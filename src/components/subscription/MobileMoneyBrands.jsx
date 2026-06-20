@@ -1,8 +1,8 @@
 // Accepted mobile-money networks shown above the checkout phone input so payers
 // know — at a glance — that Airtel, MTN and Zamtel all work. Uses the official
 // network artwork (public/images/mobile-money-networks.jpg). The network the
-// payer actually pays with is still auto-detected from their number and shown
-// in the Network dropdown — this row is purely informational.
+// payer actually pays with is auto-detected from their number and confirmed in
+// the NetworkField below — this row is purely informational.
 export default function MobileMoneyBrands({ className = '' }) {
   return (
     <div className={className}>
