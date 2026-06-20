@@ -91,10 +91,21 @@ function templateReply({kind, item}) {
   return `Hi ${hi},\n\n${ack[kind] || ack.general}\n\n— The ZedExams Team`;
 }
 
+// Control doc that remembers how far each channel has been drained. A single
+// small doc, merged each run, keeps the scan oldest-first and unbounded by
+// backlog size without a schema migration of the source collections.
+const CONTROL_COLLECTION = "agentControl";
+const CONTROL_DOC = "echo";
+
 /**
- * Sweep new feedback + unprocessed contact messages, triage each, draft a
- * reply, and write the triage back. Idempotent: an item with echoProcessedAt
- * set is skipped, so re-runs only touch genuinely new items.
+ * Sweep feedback + contact messages oldest-first, triage each, draft a reply,
+ * and write the triage back. Idempotent in two layers: a per-channel
+ * `createdAt` cursor (in agentControl/echo) means each run's limit window is
+ * filled with docs we have NOT examined yet — never already-processed ones — so
+ * a backlog larger than `maxItems` is drained over successive runs instead of
+ * starving the oldest items (the limit-then-filter bug, #1156). The legacy
+ * `echoProcessedAt` guard is kept as a belt-and-suspenders against re-triage if
+ * the cursor is ever lost/reset.
  *
  * @param {Object}   args
  * @param {FirebaseFirestore.Firestore} args.db
@@ -102,7 +113,7 @@ function templateReply({kind, item}) {
  *                                      throw / return empty; falls back to a
  *                                      templated reply.
  * @param {number}   [args.now]
- * @param {number}   [args.maxItems]
+ * @param {number}   [args.maxItems]   per-run processing bound (across channels)
  * @returns {Promise<Object>} summary
  */
 async function runEchoTriage({db, draftReply, now = Date.now(), maxItems = MAX_ITEMS}) {
@@ -115,63 +126,107 @@ async function runEchoTriage({db, draftReply, now = Date.now(), maxItems = MAX_I
     errors: [],
   };
 
-  const items = [];
-  async function gather(collection, keep) {
+  // Where each channel's drain last reached. Missing on the first run → scan
+  // from the very oldest doc.
+  const controlRef = db.collection(CONTROL_COLLECTION).doc(CONTROL_DOC);
+  let cursors = {};
+  try {
+    const snap = await controlRef.get();
+    const data = (snap && snap.exists && snap.data()) || {};
+    cursors = data.echoCursors || {};
+  } catch (err) {
+    summary.errors.push({stage: "cursor-read", message: clampMessage(err)});
+  }
+  // Seed from the saved cursors so the persisted doc stays complete even if a
+  // run advances only one channel (no reliance on deep-merge of nested maps).
+  const nextCursors = {...cursors};
+  let advanced = false;
+
+  // Drain one channel oldest-first from just past its saved cursor, so the
+  // limit window holds only unseen docs. The cursor advances over every doc we
+  // EXAMINE (not just the ones we keep), so non-matching docs — already-`done`
+  // feedback, anything that fails `keep` — can't wedge the window forever. The
+  // global `maxItems` cap stops us mid-window without advancing past an unseen
+  // doc, so the next run resumes exactly where this one left off.
+  async function drain(collection, keep) {
+    let docs = [];
     try {
-      const snap = await db.collection(collection)
-          .orderBy("createdAt", "desc")
-          .limit(maxItems)
-          .get();
-      snap.forEach((doc) => {
-        const data = doc.data() || {};
-        if (keep(data)) items.push({collection, id: doc.id, data});
-      });
+      let q = db.collection(collection).orderBy("createdAt", "asc");
+      const cursor = cursors[collection];
+      if (cursor !== undefined && cursor !== null) q = q.where("createdAt", ">", cursor);
+      const snap = await q.limit(maxItems).get();
+      snap.forEach((doc) => docs.push({id: doc.id, data: doc.data() || {}}));
     } catch (err) {
       summary.errors.push({stage: `${collection}-query`, message: clampMessage(err)});
+      return;
+    }
+
+    for (const {id, data} of docs) {
+      // Honour the per-run bound. Stop BEFORE advancing the cursor over this
+      // doc so it is re-examined next run — never skipped.
+      if (summary.processed >= maxItems) return;
+      // Examined → the cursor may move past it regardless of `keep`.
+      if (data.createdAt !== undefined && data.createdAt !== null) {
+        nextCursors[collection] = data.createdAt;
+        advanced = true;
+      }
+      if (!keep(data)) continue;
+
+      const item = {collection, id, data};
+      const {kind, priority} = classifyItem(item);
+
+      let draft = "";
+      try {
+        draft = await draftReply({kind, priority, item});
+      } catch (err) {
+        summary.errors.push({collection, id, stage: "draft", message: clampMessage(err)});
+      }
+      if (!draft) draft = templateReply({kind, item});
+
+      try {
+        await db.collection(collection).doc(id).set({
+          echoClassification: kind,
+          echoPriority: priority,
+          echoDraftReply: draft,
+          // A native Date stores as a Timestamp via the Admin SDK — keeps this
+          // module free of a firebase-admin dependency so it stays unit-testable.
+          echoProcessedAt: new Date(now),
+        }, {merge: true});
+      } catch (err) {
+        summary.errors.push({collection, id, stage: "write", message: clampMessage(err)});
+        continue;
+      }
+
+      summary.processed += 1;
+      if (collection === "contactMessages") summary.surfacedContact += 1;
+      summary.byKind[kind] = (summary.byKind[kind] || 0) + 1;
+      summary.byPriority[priority] += 1;
+      if (priority === "high") {
+        summary.highPriority.push({
+          collection,
+          id,
+          kind,
+          who: whoFrom(data),
+          snippet: String(data.message || "").slice(0, 140),
+        });
+      }
     }
   }
 
   // New, not-yet-triaged feedback; and any contact message we haven't seen.
-  await gather("feedback", (d) => d.status === "new" && !d.echoProcessedAt);
-  await gather("contactMessages", (d) => !d.echoProcessedAt);
+  // Each channel drains independently oldest-first; they share the per-run
+  // `maxItems` budget. Feedback (low-volume in-app suggestion box) goes first so
+  // it rarely consumes much of the budget, leaving the bulk for the
+  // higher-volume, UI-less contactMessages backlog this fix targets.
+  await drain("feedback", (d) => d.status === "new" && !d.echoProcessedAt);
+  await drain("contactMessages", (d) => !d.echoProcessedAt);
 
-  for (const item of items.slice(0, maxItems)) {
-    const {kind, priority} = classifyItem(item);
-
-    let draft = "";
+  // Persist how far each channel drained so the next run resumes after it.
+  if (advanced) {
     try {
-      draft = await draftReply({kind, priority, item});
+      await controlRef.set({echoCursors: nextCursors, echoCursorAt: new Date(now)}, {merge: true});
     } catch (err) {
-      summary.errors.push({collection: item.collection, id: item.id, stage: "draft", message: clampMessage(err)});
-    }
-    if (!draft) draft = templateReply({kind, item});
-
-    try {
-      await db.collection(item.collection).doc(item.id).set({
-        echoClassification: kind,
-        echoPriority: priority,
-        echoDraftReply: draft,
-        // A native Date stores as a Timestamp via the Admin SDK — keeps this
-        // module free of a firebase-admin dependency so it stays unit-testable.
-        echoProcessedAt: new Date(now),
-      }, {merge: true});
-    } catch (err) {
-      summary.errors.push({collection: item.collection, id: item.id, stage: "write", message: clampMessage(err)});
-      continue;
-    }
-
-    summary.processed += 1;
-    if (item.collection === "contactMessages") summary.surfacedContact += 1;
-    summary.byKind[kind] = (summary.byKind[kind] || 0) + 1;
-    summary.byPriority[priority] += 1;
-    if (priority === "high") {
-      summary.highPriority.push({
-        collection: item.collection,
-        id: item.id,
-        kind,
-        who: whoFrom(item.data),
-        snippet: String(item.data.message || "").slice(0, 140),
-      });
+      summary.errors.push({stage: "cursor-write", message: clampMessage(err)});
     }
   }
 
