@@ -617,6 +617,25 @@ service cloud.firestore {
       allow write:  if isAdmin();
     }
 
+    // ── Dawn (on-demand morning briefing) ─────────────────────
+    // dawnConfig/default holds the non-secret launch ids (agent /
+    // environment / vault) + recipient email an admin sets from the
+    // Dawn panel. The Anthropic key is NOT here — it stays a Cloud
+    // Functions secret. Admin-only read + write.
+    match /dawnConfig/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // dawnRuns/{sessionId} tracks each launched briefing (running →
+    // done / timeout / error) and stores the finished briefing text for
+    // the panel. The runDawnBriefing callable + the delivery poller own
+    // every write via the Admin SDK (which bypasses these rules), so
+    // clients only read.
+    match /dawnRuns/{runId} {
+      allow read:   if isAdmin();
+      allow write:  if false;
+    }
+
     // ── teacherLibraries ──────────────────────────────────────
     match /teacherLibraries/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());

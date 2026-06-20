@@ -19,6 +19,7 @@ import { db } from '../../../firebase/config'
 import { AGENTS, AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import PlatformHealthPanel from './PlatformHealthPanel'
+import DawnBriefingPanel from './DawnBriefingPanel'
 
 const JOBS_WINDOW = 200
 
@@ -741,6 +742,9 @@ export default function AgentsDashboard() {
           {/* Platform health — top of dashboard so blockers surface
               before the admin scrolls into per-agent detail. */}
           <PlatformHealthPanel />
+
+          {/* Dawn — one-click on-demand morning briefing (no laptop). */}
+          <DawnBriefingPanel />
 
           {/* Pipeline + activity */}
           <div className="grid gap-4 lg:grid-cols-3">
