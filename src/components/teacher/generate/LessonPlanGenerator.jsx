@@ -15,6 +15,7 @@ import {
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
+import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
 import { generateDiagram } from '../../../utils/generateDiagram'
@@ -201,9 +202,22 @@ export default function LessonPlanGenerator() {
     setDiagramError('')
   }
 
+  // Deterministic, zero-cost guard: warn (never block) if the file we're about
+  // to save has a junk name, no title, or doesn't match the requested grade/subject.
+  function guardDownload(filename) {
+    const { ok, problems } = checkDownload({
+      tool: 'lessonPlan',
+      filename,
+      output: lessonPlan,
+      inputs: { grade: form.grade, subject: form.subject, topic: lessonPlan?.header?.topic || form.topic },
+    })
+    if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
+  }
+
   function onExportDocx() {
     if (!lessonPlan) return
     const filename = buildFilename(form, lessonPlan)
+    guardDownload(filename)
     downloadLessonPlanDocx(lessonPlan, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
@@ -214,6 +228,7 @@ export default function LessonPlanGenerator() {
       // the .pdf extension and falls back to the print dialog if rendering
       // fails (e.g. inside the Android WebView).
       const base = buildFilename(form, lessonPlan).replace(/\.docx$/, '')
+      guardDownload(`${base}.pdf`)
       await downloadLessonPlanPdf(lessonPlan, base, `${base}.pdf`, {
         attribution: isFreePlanTeacher({ userProfile, isAdmin }),
       })
