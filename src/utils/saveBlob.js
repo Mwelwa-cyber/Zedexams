@@ -3,19 +3,59 @@
  *
  * Shared by every studio export so the behaviour is identical everywhere.
  *
- * The important case is Android. Android Chrome and Android WebViews (the
- * Capacitor app) ignore the anchor `download` attribute for `blob:` URLs — they
- * name the saved file after the blob's random UUID, so teachers downloading
- * Notes / Worksheets / etc. got files called things like
- * "5fee66fe-1c3a-4b9d-….docx" instead of "Grade 5 English Notes.docx". The
- * legacy lesson-plan studio already worked around this; this helper brings the
- * same fix to every other studio: on Android we convert the blob to a `data:`
- * URL first, which makes the `download` filename stick. Elsewhere we keep an
- * ordinary blob download (with `file-saver` for Safari/iOS quirks).
+ * WHY THE DATA-URL ROUTE EXISTS (ANDROID + iOS)
+ * ─────────────────────────────────────────────
+ * Both Android Chrome/WebView AND iOS Safari ignore the `download` attribute on
+ * anchors that point to `blob:` URLs. Instead they name the saved file after the
+ * blob's internal random UUID, so teachers downloading Notes / Worksheets / etc.
+ * got files called things like "5fee66fe-1c3a-4b9d-….docx" instead of
+ * "Grade 5 English Notes.docx".
+ *
+ * The workaround: convert the Blob to a `data:` URL first, then click an anchor
+ * with `download=<filename>`. Both platforms honour the `download` attribute on
+ * `data:` URLs — unlike `blob:` URLs — so the chosen name is preserved.
+ *
+ * ANDROID: any UA string that includes "Android".
+ * iOS SAFARI: iPhones report "iPhone" / "iPad" in the UA. iPadOS 13+ spoofs as
+ * "Macintosh" for desktop-site compat, so UA detection alone is insufficient.
+ * We catch iPadOS by also checking `navigator.maxTouchPoints > 1` on a platform
+ * that looks like Mac — a touch-capable "Mac" is always an iPad.
+ *
+ * Desktop browsers (Chrome, Firefox, Edge, desktop Safari) reliably honour
+ * `download` on both `blob:` and `data:` URLs, so they stay on the faster
+ * `file-saver` / blob-URL path.
  */
 
 function isAndroid() {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+}
+
+/**
+ * Returns true when the runtime is iOS Safari or iPadOS Safari — environments
+ * that ignore the anchor `download` attribute for `blob:` URLs and so produce
+ * random UUID filenames unless we switch to the `data:` URL route.
+ *
+ * Detection logic:
+ *  • "iPhone" or "iPad" in the UA → definitely iOS/iPadOS.
+ *  • UA looks like macOS ("Macintosh") BUT has multiple touch points → iPadOS 13+
+ *    spoofing desktop UA. `navigator.maxTouchPoints > 1` is reliable here because
+ *    real Intel Macs always report 0 touch points.
+ */
+function isIosSafari() {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad/i.test(ua)) return true
+  // iPadOS 13+ desktop-mode spoofing: "Macintosh" UA but a touch screen.
+  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true
+  return false
+}
+
+/**
+ * Returns true when the platform needs the `data:` URL route to preserve the
+ * `download` filename (Android and iOS/iPadOS Safari).
+ */
+function prefersDataUrlDownload() {
+  return isAndroid() || isIosSafari()
 }
 
 /** Click an attached `<a download>` — attached + removed so every browser honours it. */
@@ -41,10 +81,10 @@ function blobToDataUrl(blob) {
 export async function saveBlob(blob, filename) {
   const name = filename || 'download'
 
-  // Android: the data-URL route is the only one that preserves the filename.
-  // It must run BEFORE file-saver, which also uses blob: URLs and so hits the
-  // same UUID-naming bug on Android.
-  if (isAndroid() && typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
+  // Android + iOS/iPadOS: the data-URL route is the only one that preserves the
+  // filename. It must run BEFORE file-saver, which also uses blob: URLs and so
+  // hits the same UUID-naming bug on these platforms.
+  if (prefersDataUrlDownload() && typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
     try {
       const dataUrl = await blobToDataUrl(blob)
       anchorDownload(dataUrl, name)
@@ -54,7 +94,7 @@ export async function saveBlob(blob, filename) {
     }
   }
 
-  // Desktop / iOS: file-saver handles Safari + older-browser quirks.
+  // Desktop: file-saver handles older-browser quirks.
   try {
     const { saveAs } = await import('file-saver')
     saveAs(blob, name)
