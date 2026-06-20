@@ -25,19 +25,24 @@
  */
 
 const PLAN_LIMITS = {
+  // Free can only use the Lesson Plan studio — every other generator studio is
+  // closed (0) and shown as a read-only sample until the teacher upgrades (the
+  // client gates the route in StudioGate; this is the authoritative server gate
+  // for direct calls). Keep lesson_plan + the quiz-editor micro-helpers
+  // (suggest_answer / revise_question) and the in-studio diagram tool funded.
   free: {
     lesson_plan: 2,
-    worksheet: 3,
-    flashcards: 20,
+    worksheet: 0,
+    flashcards: 0,
     quiz: 0,
     rubric: 0,
     scheme_of_work: 0,
-    notes: 3,
-    full_lesson: 2,
-    homework: 3,
-    assessment: 1,
-    sba_task: 1,
-    exam_paper: 1,
+    notes: 0,
+    full_lesson: 0,
+    homework: 0,
+    assessment: 0,
+    sba_task: 0,
+    exam_paper: 0,
     diagram: 3,
     slide_notes: 0,
     slide_notes_images: 0,

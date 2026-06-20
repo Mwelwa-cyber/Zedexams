@@ -9,7 +9,7 @@
 - Teacher tools live at `zedexams.com/teachers/*` under the same auth and Firestore database.
 - Teacher access is gated by the existing `teacherApplications` approval flow. A user's `role` must equal `"teacher"` or `"admin"` to use generation endpoints.
 - AI backend is Claude, with model routing between Sonnet 4.5 (heavy tasks) and Haiku 4.5 (light tasks).
-- Pricing: Free (2 lesson plans, 3 worksheets, 3 teacher notes / month), Pro (Individual) K79/mo or K790/yr, Max (School) K199/mo or K1,990/yr.
+- Pricing: Free (2 lesson plans / month; every other studio is sample-only), Pro (Individual) K79/mo or K790/yr, Max (School) K199/mo or K1,990/yr.
 - Mobile money via the existing `momoService.js`; subscription status stored on the existing `users` document (extended with teacher-plan fields).
 
 ## 2. Data model — Firestore additions
@@ -641,16 +641,17 @@ which still normalises the pre-2026-06 legacy ids `individual` → `pro`, `schoo
 | Tool            | Free | Pro              | Max (per teacher)          |
 |-----------------|------|------------------|----------------------------|
 | lesson_plan     | 2    | 40               | 200 (fair-use)             |
-| worksheet       | 3    | 25               | 200 (fair-use)             |
-| notes           | 3    | 25               | 200 (fair-use)             |
-| flashcards      | 20   | 200              | 200                        |
+| worksheet       | 0    | 25               | 200 (fair-use)             |
+| notes           | 0    | 25               | 200 (fair-use)             |
+| flashcards      | 0    | 200              | 200                        |
 | quiz            | 0    | 8                | 200 (fair-use)             |
 | rubric          | 0    | 8                | 200 (fair-use)             |
 | scheme_of_work  | 0    | 2                | 200 (fair-use)             |
 
-Free users see assessments (`quiz`, `rubric`) and `scheme_of_work` as locked
-features — the gate raises `failed-precondition` immediately, which the
-frontend maps to the `feature-locked` paywall scenario.
+On Free only the Lesson Plan studio is usable; every other generator studio
+is locked (limit 0) and shown as a read-only sample until the teacher
+upgrades. The gate raises `failed-precondition` immediately for a direct API
+call, which the frontend maps to the `feature-locked` paywall scenario.
 
 Admins can override via `users.teacherMonthlyGenerationsOverride` for special cases.
 
