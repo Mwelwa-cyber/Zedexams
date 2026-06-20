@@ -26,7 +26,7 @@
 
 const PLAN_LIMITS = {
   free: {
-    lesson_plan: 5,
+    lesson_plan: 2,
     worksheet: 3,
     flashcards: 20,
     quiz: 0,
