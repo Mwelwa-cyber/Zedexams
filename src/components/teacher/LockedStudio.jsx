@@ -11,6 +11,7 @@
  * the upgrade CTAs, which open the standard Pro/Max paywall.
  */
 
+import { useEffect } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
 import StudioPageHeader from './StudioPageHeader'
 import { paywall } from '../../utils/paywall'
@@ -107,6 +108,17 @@ export default function LockedStudio({ tool }) {
   function upgrade() {
     paywall.show('feature-locked', { feature })
   }
+
+  // A Free teacher only ever reaches this component by pressing a studio that's
+  // reserved for Pro/Max (StudioGate routes them here). Surface the paywall
+  // message immediately on arrival so it's unmissable that this studio needs a
+  // paid plan — rather than relying on them noticing the sample/CTA. Fires once
+  // per mount, so navigating to a different locked studio re-shows it. The
+  // sample stays rendered behind the modal as context.
+  useEffect(() => {
+    paywall.show('feature-locked', { feature })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool])
 
   return (
     <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
