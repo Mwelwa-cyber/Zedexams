@@ -5,16 +5,16 @@ import { PLANS } from '../../utils/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
 import {
-  OPERATORS,
-  detectOperator,
   initiateLencoPayment,
   looksLikeZambianPhone,
   pollLencoStatus,
+  resolveOperator,
   submitLencoOtp,
 } from '../../utils/lenco'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import MobileMoneyBrands from './MobileMoneyBrands'
+import NetworkField from './NetworkField'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
   learner: ['grade7_monthly', 'grade7_termly'],
@@ -101,7 +101,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
   const userEmail = userProfile?.email || currentUser?.email || ''
   const phoneValid = looksLikeZambianPhone(phone)
-  const detectedOperator = operatorTouched ? operator : (detectOperator(phone) || operator)
+  const detectedOperator = resolveOperator({ phone, operator, operatorTouched })
   const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
 
   function handleContinue() {
@@ -471,21 +471,12 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                         }`}
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                        Network
-                      </label>
-                      <select
-                        value={detectedOperator || ''}
-                        onChange={(e) => { setOperator(e.target.value); setOperatorTouched(true) }}
-                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none bg-white"
-                      >
-                        <option value="">Select your network…</option>
-                        {OPERATORS.map((op) => (
-                          <option key={op.id} value={op.id}>{op.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <NetworkField
+                      phone={phone}
+                      operator={operator}
+                      operatorTouched={operatorTouched}
+                      onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-3">

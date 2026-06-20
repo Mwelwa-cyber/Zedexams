@@ -53,6 +53,20 @@ export function looksLikeZambianPhone(phone) {
   return nationalDigits(phone) !== ''
 }
 
+/**
+ * The operator we'll actually charge. An explicit manual choice wins;
+ * otherwise we auto-detect from the number. Kept here as the single source
+ * of truth so the checkout UI's displayed network and the value sent to the
+ * server (and to Lenco) never drift apart.
+ *
+ * @param {{phone?: string, operator?: string, operatorTouched?: boolean}} args
+ * @returns {string} an operator id, or '' when it can't be resolved yet.
+ */
+export function resolveOperator({ phone, operator, operatorTouched } = {}) {
+  if (operatorTouched) return operator || ''
+  return detectOperator(phone) || operator || ''
+}
+
 export async function initiateLencoPayment(payload) {
   const res = await initiateCallable(payload)
   return res.data
