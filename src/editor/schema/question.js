@@ -99,7 +99,7 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']
+const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'fill_blanks', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
 // level the teacher tags so the studio can show the spread of thinking skills.
@@ -344,8 +344,28 @@ export const questionSchema = z
     // Labels for the 'labelled_blanks' format, e.g. ['P','Q','R'].
     blankLabels: z.array(z.string().max(24)).max(26).optional(),
     // Optional word bank printed above the answer space (candidate answers the
-    // student chooses from). Used by structured / stimulus sub-questions.
+    // student chooses from). Used by structured / stimulus sub-questions AND
+    // the dedicated Fill-in-the-Blanks type (`type: 'fill_blanks'`).
     wordBank: z.array(z.string().max(120)).max(40).optional(),
+    // Whether the word bank's words may be reused across blanks. Only
+    // meaningful for `type: 'fill_blanks'`; a display/marking hint, not
+    // enforced at grade time. Absent on legacy docs → treated as false.
+    wordBankReuse: z.boolean().optional(),
+    // Dedicated Fill-in-the-Blanks statements. Each statement prints on its
+    // own line as "A. … ____ …" and carries the expected answer for each of
+    // its blanks (index-aligned to the underscore runs in `text`). Only
+    // present on `type: 'fill_blanks'` questions, so it stays optional and a
+    // plain MCQ never carries an empty array (keeps the .strict() schema lean
+    // and the doc small).
+    statements: z
+      .array(
+        z.object({
+          text: z.string().max(2000).default(''),
+          answers: z.array(z.string().max(200)).max(12).default([]),
+        }).strict()
+      )
+      .max(40)
+      .optional(),
 
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),

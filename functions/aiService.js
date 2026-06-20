@@ -731,7 +731,9 @@ function buildQuizMessages(payload) {
   // Question kind requested by the studio: mcq (default) | true_false |
   // short_answer | mixed. Anything unrecognised falls back to mcq so old
   // clients keep their exact behaviour.
-  const QUIZ_TYPES = new Set(["mcq", "true_false", "short_answer", "mixed"]);
+  const QUIZ_TYPES = new Set([
+    "mcq", "true_false", "short_answer", "fill_blank", "mixed",
+  ]);
   const rawType = cleanString(payload.type, 20).toLowerCase();
   const quizType = QUIZ_TYPES.has(rawType) ? rawType : "mcq";
 
@@ -743,6 +745,11 @@ function buildQuizMessages(payload) {
     short_answer:
       `Write ${count} SHORT-ANSWER quiz questions for the following lesson. ` +
       "Each expects a one-word or one-phrase written answer:",
+    fill_blank:
+      "Write ONE Fill-in-the-Blanks exercise for the following lesson, made " +
+      `up of EXACTLY ${count} short statements. Each statement has exactly ` +
+      "ONE blank the learner completes, and there is a word bank of the " +
+      "answers:",
     mixed:
       `Write ${count} quiz questions for the following lesson, mixing the ` +
       "three kinds roughly evenly: multiple-choice, true/false and " +
@@ -788,6 +795,22 @@ function buildQuizMessages(payload) {
       "    },",
     );
   }
+  if (quizType === "fill_blank") {
+    // ONE object that bundles the whole fill-in-the-blanks exercise: the
+    // instruction, a word bank, and `count` single-blank statements.
+    shapeLines.push(
+      "    { // a single fill-in-the-blanks exercise",
+      '      "type": "fill_blank",',
+      '      "instruction": "Fill in the blanks using the words provided below.",',
+      '      "wordBank": ["soap", "clean", "germs", "water"],',
+      '      "statements": [',
+      '        { "text": "We use ____ to wash our hands.", "answers": ["soap"] },',
+      '        { "text": "Dirty hands may carry ____.", "answers": ["germs"] }',
+      "      ],",
+      '      "topic": "The sub-topic this exercise tests"',
+      "    }",
+    );
+  }
 
   const hardRules = [
     "Hard rules (violations cause the question to be rejected):",
@@ -808,6 +831,16 @@ function buildQuizMessages(payload) {
       "- Every question has an \"answer\" that is a single word or a short",
       "  phrase a marker can check at a glance — never a full sentence essay.",
       "- The question must have ONE clearly correct answer.",
+    ] : []),
+    ...(quizType === "fill_blank" ? [
+      "- Return ONE object (not a list of separate questions) with a " +
+        `"statements" array of EXACTLY ${count} items.`,
+      "- Each statement has EXACTLY one blank, written as a run of four or " +
+        "more underscores (____), and exactly one short answer.",
+      "- Do NOT cram several blanks into one statement; one blank per line.",
+      "- The \"wordBank\" lists every answer (a word or short phrase) in a " +
+        "shuffled order, so each blank's answer appears in the bank.",
+      "- Keep each statement a short, classroom-style sentence on its own.",
     ] : []),
     ...(quizType === "mixed" ? [
       "- Follow the per-kind shape above exactly for each question's type.",
@@ -1151,6 +1184,40 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
       topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
       marks: Math.min(Math.max(Number(q.marks) || 1, 1), 10),
     };
+    // Fill-in-the-Blanks: one object that bundles the whole exercise — an
+    // instruction (text), a word bank, and a list of single-blank statements.
+    if (rawType === "fill_blank" || rawType === "fill_blanks" ||
+        Array.isArray(q.statements)) {
+      const statements = (Array.isArray(q.statements) ? q.statements : [])
+        .map((s) => ({
+          text: cleanString(s && s.text, 2000),
+          answers: Array.isArray(s && s.answers) ?
+            s.answers.map((a) => cleanString(a, 200)).filter(Boolean).slice(0, 12) :
+            [],
+        }))
+        .filter((s) => s.text)
+        .slice(0, 40);
+      const wordBank = Array.isArray(q.wordBank) ?
+        q.wordBank.map((w) => cleanString(w, 120)).filter(Boolean).slice(0, 40) :
+        [];
+      const blankCount = statements.reduce(
+        (sum, s) => sum + ((s.text.match(/_{2,}/g) || []).length),
+        0,
+      );
+      return {
+        text: cleanString(
+          q.instruction || q.text ||
+            "Fill in the blanks using the words provided below.",
+          LIMITS.question,
+        ),
+        explanation: cleanString(q.explanation, 500),
+        topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
+        marks: Math.min(Math.max(blankCount, 1), 20),
+        type: "fill_blanks",
+        statements,
+        wordBank,
+      };
+    }
     // Short answers carry a string answer in correctAnswer (the studio's
     // text-answer shape) and no options.
     if (rawType === "short_answer" ||
@@ -1182,9 +1249,12 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
       type: "mcq",
     };
   }).filter((q) => q.text && (
-    q.type === "short_answer" ?
-      String(q.correctAnswer || "").trim().length > 0 :
-      q.options.length >= 2
+    q.type === "fill_blanks" ?
+      Array.isArray(q.statements) && q.statements.some(
+          (s) => /_{2,}/.test(s.text)) :
+      q.type === "short_answer" ?
+        String(q.correctAnswer || "").trim().length > 0 :
+        q.options.length >= 2
   ));
 
   const {topic, subject, grade, subtopic} =
@@ -1198,6 +1268,13 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
 
   const filtered = [];
   for (const q of shaped) {
+    // Fill-in-the-Blanks bundles many statements in one object and has no
+    // options / single correctAnswer, so the MCQ-centric validator doesn't
+    // apply — the inline filter above already enforced "has a real blank".
+    if (q.type === "fill_blanks") {
+      filtered.push(q);
+      continue;
+    }
     const {valid, reasons} = validateQuizQuestion(q, anchor);
     if (valid) {
       filtered.push(q);

@@ -19,6 +19,7 @@
 
 import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
+import { gradeFillBlanks } from './fillBlanks.js'
 
 export function isTextAnswerType(type) {
   return type === 'short_answer' || type === 'diagram'
@@ -30,6 +31,10 @@ export function isNumericType(type) {
 
 export function isHotspotType(type) {
   return type === 'hotspot'
+}
+
+export function isFillBlanksType(type) {
+  return type === 'fill_blanks'
 }
 
 /**
@@ -49,6 +54,12 @@ export function isQuestionCorrect(question, answer) {
   }
   if (isHotspotType(question.type)) {
     return hotspotMatches(answer, question.correctRegion)
+  }
+  // Fill-in-the-blanks grades deterministically against the per-blank answer
+  // key (no AI). The learner answer is a flat array aligned to the blanks in
+  // statement reading order; every blank must match for the question to score.
+  if (isFillBlanksType(question.type)) {
+    return gradeFillBlanks(question, answer).allCorrect
   }
   return answer === question.correctAnswer
 }

@@ -22,7 +22,9 @@ import {
   isTextAnswerType,
   isNumericType,
   isHotspotType,
+  isFillBlanksType,
 } from '../../utils/quizScoring'
+import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
 import SeoHelmet from '../seo/SeoHelmet'
 
 function fmt(seconds) {
@@ -804,6 +806,113 @@ export default function QuizRunnerV2() {
               </div>
             )}
           </div>
+          )
+        })() : isFillBlanksType(question.type) ? (() => {
+          // Fill-in-the-Blanks branch — each statement renders on its own line
+          // with an input for every blank. Graded deterministically (no AI)
+          // against the per-blank answer key; the learner response is a flat
+          // array aligned to the blanks in statement reading order, which is
+          // exactly what computeQuizScore → gradeFillBlanks expects.
+          const layout = fillBlanksLayout(question)
+          const wordBank = Array.isArray(question.wordBank) ? question.wordBank : []
+          const response = Array.isArray(answers[question.id]) ? answers[question.id] : []
+          const fbResult = aiResults[question.id]
+          const fbChecked = !!fbResult
+
+          function setBlank(flatIndex, value) {
+            setAnswers(current => {
+              const prev = Array.isArray(current[question.id]) ? [...current[question.id]] : []
+              prev[flatIndex] = value
+              return { ...current, [question.id]: prev }
+            })
+            if (actionError) setActionError('')
+            // Editing invalidates a prior check.
+            if (fbChecked) {
+              setAiResults(current => {
+                const next = { ...current }
+                delete next[question.id]
+                return next
+              })
+            }
+          }
+
+          function checkFillBlanks() {
+            const result = gradeFillBlanks(question, answers[question.id])
+            setAiResults(current => ({
+              ...current,
+              [question.id]: {
+                correct: result.allCorrect,
+                perBlank: result.perBlank,
+                feedback: result.allCorrect
+                  ? '🌟 All blanks correct!'
+                  : `${result.correctBlanks} of ${result.totalBlanks} blanks correct.`,
+              },
+            }))
+          }
+
+          const anyTyped = response.some(v => String(v ?? '').trim())
+
+          return (
+            <div className="space-y-4">
+              {wordBank.length > 0 && (
+                <div className="rounded-2xl border-2 border-slate-900 bg-white p-3">
+                  <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Word bank</p>
+                  <div className="flex flex-wrap gap-2">
+                    {wordBank.map((word, i) => (
+                      <span key={i} className="rounded-full border-2 border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-800">{word}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {layout.map(statement => (
+                  <div key={statement.index} className="flex flex-wrap items-center gap-x-1 gap-y-2 text-base leading-relaxed text-slate-900">
+                    <strong className="mr-1">{statement.label}.</strong>
+                    {statement.segments.map((segment, segIndex) => {
+                      const flatIndex = statement.startFlatIndex + segIndex
+                      const blankCorrect = fbChecked ? fbResult.perBlank?.[flatIndex] : null
+                      return (
+                        <span key={segIndex} className="inline-flex flex-wrap items-center gap-1">
+                          {segment && <span>{segment}</span>}
+                          {segIndex < statement.segments.length - 1 && (
+                            <input
+                              type="text"
+                              value={response[flatIndex] ?? ''}
+                              onChange={event => setBlank(flatIndex, event.target.value)}
+                              disabled={fbChecked && mode === 'practice'}
+                              aria-label={`Blank ${flatIndex + 1}`}
+                              className={`mx-1 w-28 border-b-2 bg-transparent px-1 pb-0.5 text-center text-sm font-semibold text-slate-900 outline-none ${
+                                blankCorrect === true ? 'border-emerald-600 text-emerald-700'
+                                  : blankCorrect === false ? 'border-orange-500 text-orange-700'
+                                    : 'border-slate-400 focus:border-[var(--accent)]'
+                              }`}
+                            />
+                          )}
+                        </span>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {!fbChecked && (
+                <button
+                  type="button"
+                  onClick={checkFillBlanks}
+                  disabled={!anyTyped}
+                  className="zx-sb zx-sb-primary w-full text-sm"
+                >
+                  {mode === 'exam' ? 'Save Answer' : 'Check My Answers'}
+                </button>
+              )}
+
+              {fbChecked && mode === 'practice' && (
+                <div className={`rounded-2xl border-2 p-4 ${fbResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <p className={`text-sm font-bold ${fbResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{fbResult.feedback}</p>
+                </div>
+              )}
+            </div>
           )
         })() : isNumericType(question.type) ? (() => {
           // Numeric branch — local, synchronous check via numericMatches.
