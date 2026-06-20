@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveBlob } from './saveBlob.js'
 import { isNativePlatform } from './runtime.js'
+import { saveBlobNative } from './nativeDownload.js'
 
 // Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
 // own blob:-URL anchor fallback (file-saver internally does the same blob:-URL
@@ -10,6 +11,10 @@ vi.mock('file-saver', () => { throw new Error('not available') })
 // isNativePlatform() is the single switch between the two download routes, so we
 // mock it per-test to exercise both the native shell and the browser path.
 vi.mock('./runtime.js', () => ({ isNativePlatform: vi.fn(() => false) }))
+
+// The native filesystem+share save is covered by nativeDownload.spec.js; here we
+// mock it to drive saveBlob's native success vs. fallback branches.
+vi.mock('./nativeDownload.js', () => ({ saveBlobNative: vi.fn() }))
 
 /**
  * The regressions these cover:
@@ -122,16 +127,30 @@ describe('saveBlob', () => {
     expect(a.download).toBe('download')
   })
 
-  // ── Native Capacitor shell: data: URL ─────────────────────────────────────
+  // ── Native Capacitor shell ────────────────────────────────────────────────
 
-  it('downloads via a data: URL with the filename in the native Capacitor shell', async () => {
-    // The native WebView has no download manager, so the data: URL route is the
-    // only one that triggers a save there.
+  it('uses the native filesystem save in the Capacitor shell (no data: URL)', async () => {
+    // The proper native path writes the full bytes to disk + shares them, so it
+    // never falls back to the truncation-prone data: URL anchor.
     vi.mocked(isNativePlatform).mockReturnValue(true)
-    setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile')
+    vi.mocked(saveBlobNative).mockResolvedValue(true)
+    const a = stubAnchor()
+    const blob = new Blob(['hello'], { type: 'text/plain' })
+
+    await saveBlob(blob, 'Grade 5 English Notes.docx')
+
+    expect(saveBlobNative).toHaveBeenCalledWith(blob, 'Grade 5 English Notes.docx')
+    expect(a.click).not.toHaveBeenCalled()
+  })
+
+  it('falls back to a data: URL when the native save fails', async () => {
+    // If the filesystem/share plugins are unavailable (not yet synced into the
+    // APK), saveBlob must still save something — via the legacy data: URL route.
+    vi.mocked(isNativePlatform).mockReturnValue(true)
+    vi.mocked(saveBlobNative).mockRejectedValue(new Error('plugin not available'))
     const a = stubAnchor()
 
-    await saveBlob(new Blob(['hello'], { type: 'text/plain' }), 'Grade 5 English Notes.docx')
+    await saveBlob(new Blob(['hello']), 'Grade 5 English Notes.docx')
 
     expect(a.download).toBe('Grade 5 English Notes.docx')
     expect(a.href.startsWith('data:')).toBe(true)

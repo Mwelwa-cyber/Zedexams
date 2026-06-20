@@ -35,6 +35,7 @@
 import { inspectFilename } from './downloadGuard.js'
 import { reportClientError } from './clientErrorReporting.js'
 import { isNativePlatform } from './runtime.js'
+import { saveBlobNative } from './nativeDownload.js'
 
 /** Click an attached `<a download>` — attached + removed so every browser honours it. */
 function anchorDownload(href, filename) {
@@ -73,17 +74,28 @@ export async function saveBlob(blob, filename) {
     // The guard must never break a download.
   }
 
-  // Native Capacitor shell ONLY: its WebView has no download manager, so a
-  // blob: URL anchor click does nothing — encoding the bytes inline in a data:
-  // URL is the only thing that triggers a save. Real browsers must NOT take this
-  // route (Android Chrome truncates large data: URLs → corrupt .docx).
-  if (isNativePlatform() && typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
+  // Native Capacitor shell: its WebView has no download manager. Write the full
+  // bytes to disk via @capacitor/filesystem and share them — this never
+  // truncates, unlike the data: URL route below.
+  if (isNativePlatform()) {
     try {
-      const dataUrl = await blobToDataUrl(blob)
-      anchorDownload(dataUrl, name)
+      await saveBlobNative(blob, name)
       return
-    } catch {
-      // fall through to the blob-URL paths below
+    } catch (err) {
+      // Native filesystem/share unavailable (e.g. plugins not yet synced into
+      // the APK). Fall back to the legacy data: URL anchor — the only other
+      // thing that triggers a save in a WebView. It risks truncating very large
+      // files, but a possibly-truncated save still beats no save at all.
+      reportClientError(err, 'native_save_fallback')
+      if (typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
+        try {
+          const dataUrl = await blobToDataUrl(blob)
+          anchorDownload(dataUrl, name)
+          return
+        } catch {
+          // fall through to the browser paths below
+        }
+      }
     }
   }
 
