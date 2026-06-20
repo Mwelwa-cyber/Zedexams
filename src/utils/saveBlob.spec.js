@@ -1,25 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveBlob } from './saveBlob.js'
+import { isNativePlatform } from './runtime.js'
 
-// `vi.mock` is hoisted to the top of the module by Vitest, so it must live at
-// the top level. It forces the dynamic `file-saver` import to throw, which lets
-// the desktop test below exercise saveBlob's anchor fallback. The Android and
-// iOS tests never reach the file-saver branch (they take the data:-URL path),
-// so they are unaffected.
+// Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
+// own blob:-URL anchor fallback (file-saver internally does the same blob:-URL
+// download, so asserting the fallback covers the real path too). Hoisted by Vitest.
 vi.mock('file-saver', () => { throw new Error('not available') })
 
+// isNativePlatform() is the single switch between the two download routes, so we
+// mock it per-test to exercise both the native shell and the browser path.
+vi.mock('./runtime.js', () => ({ isNativePlatform: vi.fn(() => false) }))
+
 /**
- * The regression these cover:
+ * The regressions these cover:
  *
- * On Android AND iOS Safari, a bare `blob:` URL download ignores the anchor
- * `download` attribute and saves the file under the blob's random UUID — the
- * "gibberish filename" (e.g. "5fee66fe-1c3a-4b9d-….docx") teachers reported.
- * saveBlob must convert to a `data:` URL on these platforms so the chosen name
- * sticks. Desktop browsers honour `download` on blob: URLs and stay on the
- * faster file-saver / blob-URL path.
- *
- * iOS-specific note: iPhones report "iPhone" in their UA. iPadOS 13+ spoofs as
- * "Macintosh" for desktop-site compat — we detect it via maxTouchPoints > 1.
+ * 1. REAL BROWSERS (including Android Chrome / iOS Safari) must download via a
+ *    `blob:` URL, NOT a `data:` URL. Android Chrome truncates large `data:` URL
+ *    downloads, which corrupted .docx files ("Word found unreadable content");
+ *    blob: URLs stream the full bytes and are never truncated.
+ * 2. THE NATIVE CAPACITOR SHELL must use the `data:` URL route, because its
+ *    WebView has no download manager and a blob: URL click does nothing there.
+ * 3. The chosen filename is preserved on every route; a missing name falls back
+ *    to a sane default.
  */
 
 function stubAnchor() {
@@ -40,107 +42,99 @@ function setUserAgent(ua) {
   Object.defineProperty(window.navigator, 'userAgent', { value: ua, configurable: true })
 }
 
-function setMaxTouchPoints(n) {
-  Object.defineProperty(window.navigator, 'maxTouchPoints', { value: n, configurable: true })
+/** Stub URL.createObjectURL so the blob:-URL fallback is observable. */
+function stubObjectUrl() {
+  const createObjectURL = vi.fn(() => 'blob:fake-url')
+  const revokeObjectURL = vi.fn()
+  vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
 }
 
 describe('saveBlob', () => {
   const originalUA = window.navigator.userAgent
-  const originalMTP = window.navigator.maxTouchPoints
 
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.mocked(isNativePlatform).mockReturnValue(false) // default: a real browser
   })
 
   afterEach(() => {
     setUserAgent(originalUA)
-    setMaxTouchPoints(originalMTP ?? 0)
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
-  // ── Android ──────────────────────────────────────────────────────────────
+  // ── Real browsers: blob: URL, never data: ─────────────────────────────────
 
-  it('downloads via a data: URL with the given filename on Android', async () => {
+  it('downloads an Android-browser file via a blob: URL (NOT data:) with the filename', async () => {
+    // Regression: routing Android browsers through data: URLs truncated large
+    // .docx files into corrupt ZIPs. A blob: URL streams the full bytes.
+    vi.mocked(isNativePlatform).mockReturnValue(false)
     setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile')
     const a = stubAnchor()
-    const blob = new Blob(['hello'], { type: 'text/plain' })
+    stubObjectUrl()
 
-    await saveBlob(blob, 'Grade 5 English Notes.docx')
+    await saveBlob(new Blob(['hello'], { type: 'text/plain' }), 'Grade 5 English Notes.docx')
 
     expect(a.download).toBe('Grade 5 English Notes.docx')
-    expect(a.href.startsWith('data:')).toBe(true)
+    expect(a.href.startsWith('blob:')).toBe(true)
+    expect(a.href.startsWith('data:')).toBe(false)
     expect(a.click).toHaveBeenCalledOnce()
   })
 
-  it('falls back to a default name when none is given', async () => {
-    setUserAgent('Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile')
-    const a = stubAnchor()
-    await saveBlob(new Blob(['x']), '')
-    expect(a.download).toBe('download')
-  })
-
-  // ── iOS Safari (iPhone) ──────────────────────────────────────────────────
-  // Root-cause regression: iOS was previously falling through to the
-  // file-saver / blob-URL path, which produced random UUID filenames.
-
-  it('downloads via a data: URL with the given filename on iOS Safari (iPhone UA)', async () => {
+  it('downloads an iPhone-browser file via a blob: URL (NOT data:) with the filename', async () => {
+    vi.mocked(isNativePlatform).mockReturnValue(false)
     setUserAgent(
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
     )
     const a = stubAnchor()
-    const blob = new Blob(['hello'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+    stubObjectUrl()
 
-    await saveBlob(blob, 'Grade 4 Integrated Science Lesson Plan.docx')
+    await saveBlob(
+      new Blob(['x'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      'Grade 4 Integrated Science Lesson Plan.docx',
+    )
 
     expect(a.download).toBe('Grade 4 Integrated Science Lesson Plan.docx')
-    expect(a.href.startsWith('data:')).toBe(true)
-    expect(a.click).toHaveBeenCalledOnce()
+    expect(a.href.startsWith('blob:')).toBe(true)
+    expect(a.href.startsWith('data:')).toBe(false)
   })
 
-  it('downloads via a data: URL with the given filename on iPad (explicit iPad UA)', async () => {
-    setUserAgent(
-      'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-    )
-    const a = stubAnchor()
-
-    await saveBlob(new Blob(['x']), 'Grade 7 Mathematics Worksheet.docx')
-
-    expect(a.download).toBe('Grade 7 Mathematics Worksheet.docx')
-    expect(a.href.startsWith('data:')).toBe(true)
-    expect(a.click).toHaveBeenCalledOnce()
-  })
-
-  it('downloads via a data: URL on iPadOS 13+ spoofing a Mac UA (Macintosh + maxTouchPoints > 1)', async () => {
-    // iPadOS 13+ sends a desktop Macintosh UA by default. The only reliable
-    // runtime signal is maxTouchPoints > 1 on a "Macintosh" platform.
-    setUserAgent(
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-    )
-    setMaxTouchPoints(5)
-    const a = stubAnchor()
-
-    await saveBlob(new Blob(['y']), 'Grade 4 Integrated Science Lesson Plan.docx')
-
-    expect(a.download).toBe('Grade 4 Integrated Science Lesson Plan.docx')
-    expect(a.href.startsWith('data:')).toBe(true)
-    expect(a.click).toHaveBeenCalledOnce()
-  })
-
-  // ── Desktop ───────────────────────────────────────────────────────────────
-
-  it('keeps the filename on the blob-URL fallback when file-saver is unavailable (desktop)', async () => {
-    // A real Intel Mac has maxTouchPoints === 0 — must NOT be treated as iOS.
+  it('keeps the filename on the desktop blob-URL fallback', async () => {
+    vi.mocked(isNativePlatform).mockReturnValue(false)
     setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Chrome/120 Safari')
-    setMaxTouchPoints(0)
     const a = stubAnchor()
-    const createObjectURL = vi.fn(() => 'blob:fake-url')
-    const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
+    stubObjectUrl()
 
     await saveBlob(new Blob(['x']), 'Worksheet (Answer Key).docx')
 
     expect(a.download).toBe('Worksheet (Answer Key).docx')
     expect(a.href).toBe('blob:fake-url')
-    vi.unstubAllGlobals()
+  })
+
+  it('falls back to a default name when none is given', async () => {
+    vi.mocked(isNativePlatform).mockReturnValue(false)
+    setUserAgent('Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile')
+    const a = stubAnchor()
+    stubObjectUrl()
+
+    await saveBlob(new Blob(['x']), '')
+
+    expect(a.download).toBe('download')
+  })
+
+  // ── Native Capacitor shell: data: URL ─────────────────────────────────────
+
+  it('downloads via a data: URL with the filename in the native Capacitor shell', async () => {
+    // The native WebView has no download manager, so the data: URL route is the
+    // only one that triggers a save there.
+    vi.mocked(isNativePlatform).mockReturnValue(true)
+    setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile')
+    const a = stubAnchor()
+
+    await saveBlob(new Blob(['hello'], { type: 'text/plain' }), 'Grade 5 English Notes.docx')
+
+    expect(a.download).toBe('Grade 5 English Notes.docx')
+    expect(a.href.startsWith('data:')).toBe(true)
+    expect(a.click).toHaveBeenCalledOnce()
   })
 })
