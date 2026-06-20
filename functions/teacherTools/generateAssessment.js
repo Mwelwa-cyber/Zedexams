@@ -26,7 +26,7 @@ const {
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./assessmentPromptV6");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 const ASSESSMENT_MODEL =
@@ -199,6 +199,10 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
+    // The AI call failed with a hard throw — no usable assessment was returned.
+    // Refund the credit or roll back the counter so the teacher is not charged
+    // for a transient failure. Best-effort: must not mask the original error.
+    try { await refundGeneration(uid, usage, "assessment"); } catch (_) {}
     throw err;
   }
 

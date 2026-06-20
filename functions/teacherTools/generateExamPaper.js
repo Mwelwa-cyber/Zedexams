@@ -26,7 +26,7 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateExamPaper} = require("./examPaperSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./examPaperPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 
 const EXAM_PAPER_MODEL = process.env.EXAM_PAPER_MODEL || "claude-sonnet-4-6";
 
@@ -166,6 +166,11 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
+    // The AI call failed with a hard throw — no usable paper was returned to
+    // the teacher. Refund the credit or roll back the counter so a K25 top-up
+    // credit (or free-plan taster) is not permanently lost on a transient error.
+    // This must not throw over the original error — it is strictly best-effort.
+    try { await refundGeneration(uid, usage, "exam_paper"); } catch (_) {}
     throw err;
   }
 
