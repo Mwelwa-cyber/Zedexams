@@ -254,6 +254,7 @@ const PREVIEW_HEALTH = {
   summary: 'All 7 scheduled agents on time',
   lateAgents: [],
   neverRan: [],
+  pendingAgents: [],
   pausedAgents: [],
   stuckCount: 0,
   recentFailureCount: 0,
