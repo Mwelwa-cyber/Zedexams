@@ -1,5 +1,6 @@
 /**
- * Marshal — operations supervisor (read-only, deterministic, drafts nothing).
+ * Marshal — operations supervisor (deterministic; drafts nothing; writes only
+ * its own watch bookkeeping).
  *
  * The fleet has watchdogs for slices of the platform — Quill checks job health
  * nightly, Vigil checks the site hourly — but nobody checks the WATCHDOGS. If a
@@ -42,6 +43,10 @@ const STUCK_MS = 15 * 60_000; // a job running/queued longer than this is stuck
 const FAILURE_WINDOW_MS = 24 * HOUR;
 const MAX_LIST = 25;
 
+// Marshal's own bookkeeping doc — the first time it saw each watched agent.
+// Server-only (admin SDK); never read by clients, so it needs no security rule.
+const WATCH_STATE_DOC = "agentState/marshal";
+
 function clampMessage(err) {
   return String((err && err.message) || err || "").slice(0, 200);
 }
@@ -58,13 +63,16 @@ function clampMessage(err) {
  *     stuckJobs       — [{id, agentId, status, ageMs}]
  *     recentFailures  — [{id, agentId, error, agoMs}]
  *
- * State per watched agent: 'paused' | 'never' | 'late' | 'ok'.
+ * State per watched agent: 'paused' | 'never' | 'pending' | 'late' | 'ok'.
+ * 'pending' = never ran but only just deployed (within its first run window) —
+ * surfaced but NOT counted against health, so a fresh agent isn't an outage.
  * healthy === no late, no never, no paused, no stuck, no recent failures.
  */
 function assessFleet({
   now,
   watched = WATCHED,
   lastRunByAgent = {},
+  firstWatchedAt = {},
   pausedAgents = [],
   stuckJobs = [],
   recentFailures = [],
@@ -77,7 +85,15 @@ function assessFleet({
     if (pausedSet.has(w.id)) {
       state = "paused";
     } else if (last == null) {
-      state = "never";
+      // Never produced a rollup. Tell a genuinely dead agent apart from one
+      // that was only just deployed: a brand-new agent hasn't had a full run
+      // window yet, so it's 'pending' (informational) rather than 'never' (a
+      // real miss). With no firstWatchedAt reference we assume it has been
+      // watched forever (→ 'never'), keeping the pure-function default strict.
+      const firstSeen = firstWatchedAt[w.id];
+      const watchedForMs = firstSeen == null ?
+        Infinity : Math.max(0, now - firstSeen);
+      state = watchedForMs > (w.everyMs + w.graceMs) ? "never" : "pending";
     } else {
       lastRunAgoMs = Math.max(0, now - last);
       state = lastRunAgoMs > (w.everyMs + w.graceMs) ? "late" : "ok";
@@ -87,6 +103,10 @@ function assessFleet({
 
   const lateAgents = agents.filter((a) => a.state === "late").map((a) => a.id);
   const neverRan = agents.filter((a) => a.state === "never").map((a) => a.id);
+  // 'pending' = never ran, but only just deployed (not yet due). Surfaced for
+  // visibility but deliberately NOT a health failure — that's the whole point
+  // of this state: a fresh agent shouldn't read as an outage.
+  const pendingAgents = agents.filter((a) => a.state === "pending").map((a) => a.id);
   // Every paused agent — including content agents a breaker may have tripped,
   // not just the scheduled ones Marshal watches for freshness.
   const pausedList = [...pausedSet];
@@ -108,6 +128,8 @@ function assessFleet({
     if (stuckJobs.length) parts.push(`${stuckJobs.length} stuck job(s)`);
     if (recentFailures.length) parts.push(`${recentFailures.length} failure(s)/24h`);
   }
+  // Informational either way — pending agents are awaiting their first run.
+  if (pendingAgents.length) parts.push(`awaiting first run: ${pendingAgents.join(", ")}`);
 
   return {
     healthy,
@@ -116,6 +138,7 @@ function assessFleet({
     agents,
     lateAgents,
     neverRan,
+    pendingAgents,
     pausedAgents: pausedList,
     stuckCount: stuckJobs.length,
     stuckJobs: stuckJobs.slice(0, MAX_LIST),
@@ -142,11 +165,52 @@ async function lastRunMs(db, agentId) {
   }
 }
 
+/** Load Marshal's stored first-seen stamps ({agentId: ms}). Never throws. */
+async function loadFirstWatchedAt(db) {
+  try {
+    const snap = await db.doc(WATCH_STATE_DOC).get();
+    const data = snap.exists ? (snap.data() || {}) : {};
+    const fw = data.firstWatchedAt;
+    return (fw && typeof fw === "object") ? {...fw} : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+/**
+ * Stamp `now` for any watched agent not seen before and persist the small map.
+ * This is the only write Marshal makes — its own watch bookkeeping, never the
+ * fleet's work — and it lets a freshly-deployed agent read as 'pending'
+ * (awaiting first run) instead of a dead 'never' for its whole first window.
+ */
+async function ensureFirstWatchedAt(db, firstWatchedAt, watched, now) {
+  let dirty = false;
+  for (const w of watched) {
+    if (firstWatchedAt[w.id] == null) {
+      firstWatchedAt[w.id] = now;
+      dirty = true;
+    }
+  }
+  if (dirty) {
+    try {
+      await db.doc(WATCH_STATE_DOC).set({firstWatchedAt}, {merge: true});
+    } catch (err) {
+      // Best effort: assess with the in-memory stamps; next run retries.
+    }
+  }
+  return firstWatchedAt;
+}
+
 /**
  * Read the fleet's live state from Firestore and assess it. db injected.
- * Only indexed, bounded reads — no LLM, no secrets.
+ * Indexed, bounded reads + one tiny bookkeeping doc — no LLM, no secrets.
  */
 async function runMarshal({db, now = Date.now()} = {}) {
+  // 0. Marshal's own first-seen bookkeeping, so a just-deployed agent reads
+  //    as 'pending' rather than a dead 'never' until its first window elapses.
+  const firstWatchedAt = await ensureFirstWatchedAt(
+      db, await loadFirstWatchedAt(db), WATCHED, now);
+
   // 1. Last run per watched agent (agentId+createdAt index exists).
   const lastRunByAgent = {};
   await Promise.all(WATCHED.map(async (w) => {
@@ -209,7 +273,10 @@ async function runMarshal({db, now = Date.now()} = {}) {
     // ignore
   }
 
-  return assessFleet({now, watched: WATCHED, lastRunByAgent, pausedAgents, stuckJobs, recentFailures});
+  return assessFleet({
+    now, watched: WATCHED, lastRunByAgent, firstWatchedAt,
+    pausedAgents, stuckJobs, recentFailures,
+  });
 }
 
 module.exports = {runMarshal, assessFleet, WATCHED, STUCK_MS, FAILURE_WINDOW_MS};

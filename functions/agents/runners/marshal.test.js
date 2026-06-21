@@ -61,14 +61,59 @@ console.log("marshal.assessFleet");
   ok("one ms past threshold → late", assessFleet({now: NOW, lastRunByAgent: overEdge}).lateAgents.includes("vigil"));
 }
 
-// ── never ran ────────────────────────────────────────────────────────────────
+// ── never ran (no first-seen reference → strict default) ─────────────────────
 {
   const last = allFresh();
-  last.anchor = null; // never seen
+  last.anchor = null; // never seen, and no firstWatchedAt passed
   const r = assessFleet({now: NOW, lastRunByAgent: last});
   ok("agent never seen → neverRan", r.neverRan.includes("anchor"));
   ok("never-ran → not healthy", r.healthy === false);
   ok("never state is 'never'", r.agents.find((a) => a.id === "anchor").state === "never");
+}
+
+// ── never ran but only just deployed → pending, still healthy ────────────────
+{
+  const last = allFresh();
+  last.anchor = null;
+  const r = assessFleet({
+    now: NOW,
+    lastRunByAgent: last,
+    firstWatchedAt: {anchor: NOW - 60_000}, // first watched a minute ago
+  });
+  ok("just-deployed never-ran agent is 'pending'", r.agents.find((a) => a.id === "anchor").state === "pending");
+  ok("pending agent listed in pendingAgents", r.pendingAgents.includes("anchor"));
+  ok("pending NOT in neverRan", !r.neverRan.includes("anchor"));
+  ok("pending does NOT break health", r.healthy === true);
+  ok("summary notes awaiting first run", /awaiting first run/.test(r.summary));
+}
+
+// ── never ran AND watched past its window → genuine 'never', unhealthy ───────
+{
+  const anchorW = WATCHED.find((w) => w.id === "anchor");
+  const overdue = anchorW.everyMs + anchorW.graceMs + 1;
+  const last = allFresh();
+  last.anchor = null;
+  const r = assessFleet({
+    now: NOW,
+    lastRunByAgent: last,
+    firstWatchedAt: {anchor: NOW - overdue}, // watched longer than a full window, still nothing
+  });
+  ok("long-watched never-ran agent is 'never'", r.agents.find((a) => a.id === "anchor").state === "never");
+  ok("genuinely-missing agent → neverRan", r.neverRan.includes("anchor"));
+  ok("genuinely-missing agent → not healthy", r.healthy === false);
+}
+
+// ── pending/never boundary: exactly at the window is still pending ───────────
+{
+  const anchorW = WATCHED.find((w) => w.id === "anchor");
+  const last = allFresh();
+  last.anchor = null;
+  const r = assessFleet({
+    now: NOW,
+    lastRunByAgent: last,
+    firstWatchedAt: {anchor: NOW - (anchorW.everyMs + anchorW.graceMs)}, // exactly at edge
+  });
+  ok("exactly at window → still pending (> is never)", r.agents.find((a) => a.id === "anchor").state === "pending");
 }
 
 // ── paused breaker ───────────────────────────────────────────────────────────
