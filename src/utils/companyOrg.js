@@ -91,6 +91,9 @@ export const AGENTS = [
   { id: 'mendi', name: 'Mendi', title: 'Bug Fixer', dept: 'qaEng',
     model: 'Sonnet 4.5', runsVia: 'ci', cadence: 'On bug issue', spend: 'med',
     mission: 'Turns a reported breakage into a permanent fix plus a regression test, as a draft PR.' },
+  { id: 'marshal', name: 'Marshal', title: 'Operations Supervisor', dept: 'qaEng',
+    model: 'Deterministic', runsVia: 'cron', cadence: 'Hourly', spend: 'none',
+    mission: 'Checks every scheduled agent actually ran on time; flags stuck jobs, tripped breakers and failures into one health verdict.' },
 
   // ── Revenue ──────────────────────────────────────────────────────────
   { id: 'till', name: 'Till', title: 'Revenue Reconciler', dept: 'revenue',

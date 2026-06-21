@@ -204,6 +204,7 @@ const {
   weeklyProductSignal: weeklyProductSignalCron,
   weeklyRetentionScan: weeklyRetentionScanCron,
   deliverDawnBriefings: deliverDawnBriefingsCron,
+  hourlyAgentSupervisor: hourlyAgentSupervisorCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2641,6 +2642,12 @@ exports.weeklyRetentionScan = weeklyRetentionScanCron;
 // run started by the runDawnBriefing callable finishes, this pulls the briefing
 // Dawn wrote, emails it, and saves it onto dawnRuns/{id} for the admin panel.
 exports.deliverDawnBriefings = deliverDawnBriefingsCron;
+
+// Marshal — operations supervisor (every hour). Confirms every scheduled agent
+// ran within its window and surfaces stuck jobs, tripped breakers and recent
+// failures into one company-health verdict. Deterministic; writes an agentJobs
+// rollup the /admin/company HQ surfaces.
+exports.hourlyAgentSupervisor = hourlyAgentSupervisorCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
