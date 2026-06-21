@@ -32,7 +32,7 @@ import ScrollToTop from './components/ui/ScrollToTop'
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
   '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
-  '/papers',
+  '/papers', '/company',
 ])
 function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
@@ -104,6 +104,7 @@ const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
 const TeachersLanding = lazy(() => import('./components/marketing/TeachersLanding'))
+const AiTeam = lazy(() => import('./components/marketing/AiTeam'))
 const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
@@ -424,6 +425,7 @@ export default function App() {
               canonicalise to the landing itself: 301'd at the hosting layer
               (firebase.json); the splat <Navigate> is the dev-server fallback. */}
           <Route path="/teachers"   element={<TeachersLanding />} />
+          <Route path="/company"  element={<AiTeam />} />
           <Route path="/teachers/*" element={<Navigate to="/teachers" replace />} />
           {/* Grade-specific landing pages — the URLs to share in WhatsApp
               posts. React Router v6 can't match a partial dynamic segment

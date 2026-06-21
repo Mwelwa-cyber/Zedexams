@@ -935,6 +935,7 @@ export default function Marketing() {
                 <li><Link to="/papers" className="hover:theme-text">ECZ past papers</Link></li>
                 <li><Link to="/games" className="hover:theme-text">CBC games</Link></li>
                 <li><Link to="/blog" className="hover:theme-text">Revision blog</Link></li>
+                <li><Link to="/company" className="hover:theme-text">Meet our AI team</Link></li>
               </ul>
             </div>
             <div>
