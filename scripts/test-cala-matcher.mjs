@@ -218,6 +218,52 @@ await test("buildOutcomeId uses kbMatch.id + 1-indexed n", () => {
   assert(id === "g1-math-numbers-20:o3", `got ${id}`);
 });
 
+await test("stem folds plurals and verb forms to a common stem", () => {
+  const { stem } = _internals;
+  // Plurals → singular.
+  assert(stem("foods") === stem("food"), `foods≠food: ${stem("foods")} / ${stem("food")}`);
+  assert(stem("numbers") === stem("number"), "numbers≠number");
+  assert(stem("diseases") === stem("disease"), "diseases≠disease");
+  // Verb conjugations of the same lemma converge.
+  const classify = stem("classify");
+  assert(stem("classifies") === classify, `classifies≠classify: ${stem("classifies")}`);
+  assert(stem("classified") === classify, `classified≠classify: ${stem("classified")}`);
+  assert(stem("eating") === stem("eat"), "eating≠eat");
+  assert(stem("prevented") === stem("prevent"), "prevented≠prevent");
+  // British/American -ise/-ize unify.
+  assert(stem("recognize") === stem("recognise"), "recognize≠recognise");
+});
+
+await test("stem leaves short / unrelated tokens distinct (precision guard)", () => {
+  const { stem } = _internals;
+  assert(stem("air") === "air", `air mangled: ${stem("air")}`);
+  // Genuinely different concepts must NOT collapse together.
+  assert(stem("food") !== stem("water"), "food collided with water");
+  assert(stem("classify") !== stem("compare"), "classify collided with compare");
+});
+
+await test("token-overlap matches a draft that uses inflected forms", async () => {
+  // Outcome wording uses singular/base forms; the draft uses plurals and
+  // verb conjugations. Pre-stemming this fell below the old 0.7 bar.
+  const draft = {
+    activities: [
+      "Pupils compared several numbers, deciding which were more than or less than the others.",
+    ],
+  };
+  const out = await runCala({ job: { input: KNOWN_INPUT, output: { aria: { draft } } } });
+  const matched = out.citations.find((c) => /compare/i.test(c.text));
+  assert(matched,
+    `expected the 'compare two numbers' outcome to match an inflected draft, got ${JSON.stringify(out.citations)}`);
+});
+
+await test("an unrelated draft still produces gaps (no false coverage)", async () => {
+  const draft = { activities: ["We painted pictures of animals and named the colours."] };
+  const out = await runCala({ job: { input: KNOWN_INPUT, output: { aria: { draft } } } });
+  assert(out.aligned === false, `expected aligned=false, got ${out.aligned}`);
+  assert(out.citations.length === 0,
+    `softened matcher must not invent coverage, got ${JSON.stringify(out.citations)}`);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) {
   console.error("Failures:");

@@ -57,6 +57,41 @@ function normalise(text) {
       .trim();
 }
 
+// Light inflectional stemmer for the token-overlap fallback. Folds
+// plurals and the common verb endings (foods→food, classifies/classified
+// →classify, eating→eat, prevented→prevent, diseases→diseas) and unifies
+// British/American -ise/-ize spelling, so a KB outcome still matches a
+// draft that uses a different grammatical form of the same word — the
+// single biggest source of false "outcome not covered" gaps.
+//
+// Deliberately crude. It is applied to BOTH the outcome text and the
+// draft text the same way, so internal consistency matters far more than
+// linguistic correctness: as long as "foods" and "food" both fold to the
+// same stem, an over-aggressive rule (e.g. "size"→"sise") is harmless
+// because it hits both sides identically.
+function stem(token) {
+  let t = String(token || "");
+  if (t.length <= 3) return t;
+  // Unify -ize/-ise spelling (organize↔organise, recognized↔recognised).
+  t = t.replace(/iz/g, "is");
+  if (t.endsWith("ies") && t.length > 4) {
+    t = `${t.slice(0, -3)}y`; // studies→study, bodies→body
+  } else if (t.endsWith("ing") && t.length > 5) {
+    t = t.slice(0, -3); // counting→count, eating→eat
+  } else if (t.endsWith("ed") && t.length > 4) {
+    t = t.slice(0, -2); // prevented→prevent, classified→classifi
+  } else if (t.endsWith("es") && t.length > 4) {
+    t = t.slice(0, -2); // diseases→diseas, boxes→box
+  } else if (t.endsWith("s") && !t.endsWith("ss") && t.length > 3) {
+    t = t.slice(0, -1); // foods→food, numbers→number
+  }
+  // Fold a trailing -i→-y and a silent trailing -e so classify/classified/
+  // classifies and disease/diseases converge to one stem.
+  t = t.replace(/i$/, "y");
+  if (t.length > 3 && t.endsWith("e")) t = t.slice(0, -1);
+  return t;
+}
+
 // Pull the outcome list out of whatever shape kbMatch happens to be.
 // Topic entries (seed + editable KB) use `specificOutcomes`; stored
 // sub-topic curriculum modules use `outcomes`. Either way we want an
@@ -88,8 +123,14 @@ function buildOutcomeId(kbMatch, index) {
 
 // "Soft" substring match: the normalised outcome text appears in the
 // normalised draft text. We also accept a token-overlap fallback for
-// outcomes that get heavily reworded — at least 70% of the outcome's
-// content words must appear somewhere in the draft.
+// outcomes that get heavily reworded — at least 60% of the outcome's
+// content words (compared by stem) must appear somewhere in the draft.
+//
+// `draftTokens` MUST be a Set of already-stemmed draft tokens (see
+// runCala); the outcome's content tokens are stemmed here so both sides
+// are compared on the same footing.
+const COVERAGE_THRESHOLD = 0.6;
+
 function draftCoversOutcome(normDraft, draftTokens, outcomeText) {
   const normOutcome = normalise(outcomeText);
   if (!normOutcome) return false;
@@ -103,10 +144,11 @@ function draftCoversOutcome(normDraft, draftTokens, outcomeText) {
   ]);
   const outcomeTokens = normOutcome
       .split(" ")
-      .filter((t) => t.length > 2 && !STOP.has(t));
+      .filter((t) => t.length > 2 && !STOP.has(t))
+      .map(stem);
   if (outcomeTokens.length < 3) return false;
   const overlap = outcomeTokens.filter((t) => draftTokens.has(t)).length;
-  return overlap / outcomeTokens.length >= 0.7;
+  return overlap / outcomeTokens.length >= COVERAGE_THRESHOLD;
 }
 
 /**
@@ -134,7 +176,9 @@ async function runCala({job}) {
 
   const draftText = collectDraftText(draft);
   const normDraft = normalise(draftText);
-  const draftTokens = new Set(normDraft.split(" ").filter(Boolean));
+  const draftTokens = new Set(
+      normDraft.split(" ").filter(Boolean).map(stem),
+  );
 
   const gaps = [];
   let citations = [];
@@ -197,5 +241,6 @@ module.exports = {
     draftCoversOutcome,
     buildOutcomeId,
     normalise,
+    stem,
   },
 };

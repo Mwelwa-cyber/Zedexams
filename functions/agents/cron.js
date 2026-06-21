@@ -50,6 +50,7 @@ const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
 const {runMarshal} = require("./runners/marshal");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
+const {shouldAuditGeneration} = require("./auditScope");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -161,6 +162,7 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
   let aligned = 0;
   let drifted = 0;
   let errored = 0;
+  let skipped = 0;
 
   for (const docSnap of snap.docs) {
     const data = docSnap.data() || {};
@@ -168,6 +170,14 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
     const draft = data.output;
     if (!draft) {
       // Skip in-flight or failed generations.
+      continue;
+    }
+    // Skip content Cala can't meaningfully align — non-curricular tools
+    // (timetables, records of work) and subject-wide generations with no
+    // topic (e.g. a whole-subject exam paper). Auditing these only ever
+    // produced a bogus "Topic not found in verified CBC KB" finding.
+    if (!shouldAuditGeneration({tool: data.tool, inputs})) {
+      skipped += 1;
       continue;
     }
     // Synthesize a minimal agentJobs-shaped doc for runCala to consume.
@@ -203,9 +213,11 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
 
   const summary = {
     sampleSize: snap.size,
+    audited: aligned + drifted,
     aligned,
     drifted,
     errored,
+    skipped,
     findings: findings.slice(0, 50),
   };
 
