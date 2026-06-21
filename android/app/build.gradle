@@ -8,9 +8,11 @@ apply plugin: 'com.android.application'
 // avoiding the "Android won't install my new APK because versionCode
 // hasn't changed" footgun documented in docs/ANDROID-RELEASE.md.
 // Last fallback is a hardcoded number for shallow clones / tarball
-// builds where git isn't available.
+// builds where git isn't available. Keep hardcodedVersionName in sync
+// with the latest shipped release so a build with no ZED_VERSION_NAME
+// override (e.g. a blank manual dispatch) doesn't ship a stale label.
 def hardcodedVersionCode = 3
-def hardcodedVersionName = "1.1.1"
+def hardcodedVersionName = "1.1.8"
 
 def resolvedVersionCode = {
     def envOverride = System.getenv("ZED_VERSION_CODE")
