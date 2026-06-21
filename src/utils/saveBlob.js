@@ -154,17 +154,11 @@ export async function saveBlob(blob, filename) {
     } catch {
       // trySaveViaShare is already defensive; never let it break a download.
     }
-    // No Web Share (DuckDuckGo, in-app WebViews, older Android): echo the bytes
-    // back through our own /api/download endpoint so the file downloads FROM
-    // zedexams.com with the correct name, in a single round-trip.
-    try {
-      const { saveViaServerEcho } = await import('./serverEchoDownload.js')
-      if (await saveViaServerEcho(blob, name)) return
-    } catch {
-      // fall through
-    }
-    // Last universal fallback for oversized files the echo can't carry: stamp
-    // the name onto a temp Storage object and let the download manager read it.
+    // No Web Share (DuckDuckGo, in-app WebViews, older Android): stamp the real
+    // filename onto a temp Storage object and let the download manager read it
+    // from Content-Disposition. This navigates to a real, working download URL —
+    // so unlike a fire-and-forget form POST, a failure surfaces instead of
+    // silently dropping the download with no fallback.
     try {
       const { saveViaStampedUrl } = await import('./stampedDownload.js')
       if (await saveViaStampedUrl(blob, name)) return

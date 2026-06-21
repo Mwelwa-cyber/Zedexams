@@ -145,7 +145,6 @@
     "test:usage-meter": "node functions/teacherTools/usageMeter.test.js",
     "test:storage-cleanup": "node functions/storageCleanup/helpers.test.js",
     "test:tmp-download-reaper": "node functions/storageCleanup/tmpDownloadReaper.test.js",
-    "test:download-echo": "node functions/downloadEcho.test.js",
     "test:quiz-summary": "node functions/quizSummary/index.test.js",
     "test:pdf-export-window": "node scripts/test-pdf-export-window.test.js",
     "test:studio-downloads": "node scripts/test-studio-downloads.test.js",
