@@ -115,6 +115,13 @@
         }
       },
       {
+        "source": "/api/teacher/download",
+        "function": {
+          "functionId": "apiLibraryDownload",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

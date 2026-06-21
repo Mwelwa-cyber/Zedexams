@@ -720,6 +720,14 @@ service cloud.firestore {
       }
     }
 
+    // Short-lived download tickets minted by createLibraryDownloadTicket and
+    // consumed by the apiLibraryDownload GET endpoint — both via the admin SDK,
+    // which bypasses these rules. The client never reads/writes them directly;
+    // the random ticket id is the bearer credential.
+    match /downloadTickets/{ticketId} {
+      allow read, write: if false;
+    }
+
     // ── private CBC curriculum grounding ─────────────────────
     // These collections hold the raw server-side curriculum corpus used to
     // ground AI generations. They must never be exposed to the browser.
