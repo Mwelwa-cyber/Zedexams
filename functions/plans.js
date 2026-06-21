@@ -14,9 +14,8 @@
  */
 
 const PLANS = {
+  weekly: {id: "weekly", name: "Weekly", priceZMW: 15, durationDays: 7},
   monthly: {id: "monthly", name: "Monthly", priceZMW: 50, durationDays: 30},
-  termly: {id: "termly", name: "Termly", priceZMW: 120, durationDays: 91},
-  yearly: {id: "yearly", name: "Yearly", priceZMW: 400, durationDays: 365},
 
   grade7_monthly: {id: "grade7_monthly", name: "Grade 7 ECZ Pack · Monthly", priceZMW: 75, durationDays: 30},
   grade7_termly: {id: "grade7_termly", name: "Grade 7 ECZ Pack · Termly", priceZMW: 200, durationDays: 90},

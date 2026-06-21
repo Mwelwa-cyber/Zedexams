@@ -3201,7 +3201,7 @@ exports.bulkGrantDemoTrials = onCall({
   if (days < 1 || days > 365) {
     throw new HttpsError("invalid-argument", "days must be 1–365.");
   }
-  const allowedPlans = new Set(["monthly", "termly", "yearly"]);
+  const allowedPlans = new Set(["weekly", "monthly"]);
   const plan = typeof data.plan === "string" && allowedPlans.has(data.plan) ?
     data.plan :
     "monthly";

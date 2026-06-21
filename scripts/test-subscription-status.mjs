@@ -140,7 +140,13 @@ test('upgradePortal routes audiences to the right plans', () => {
   assert(upgradePortal(AUDIENCE.TEACHER).portal === 'teacher', 'teacher portal')
   assert(upgradePortal(AUDIENCE.TEACHER).defaultPlanId === 'pro_monthly', 'teacher plan')
   assert(upgradePortal(AUDIENCE.LEARNER).portal === 'learner', 'learner portal')
-  assert(upgradePortal(AUDIENCE.LEARNER).defaultPlanId === 'grade7_monthly', 'learner plan')
+  // The learner offer is now just Weekly (K15) + Monthly (K50); the generic
+  // termly/yearly plans were retired. Monthly is the default (best value).
+  assert(upgradePortal(AUDIENCE.LEARNER).defaultPlanId === 'monthly', 'learner plan')
+  assert(
+    JSON.stringify(upgradePortal(AUDIENCE.LEARNER).planIds) === JSON.stringify(['weekly', 'monthly']),
+    'learner plan list should be weekly + monthly only',
+  )
 })
 
 test('reminder copy is benefit-led, never "you must pay"', () => {

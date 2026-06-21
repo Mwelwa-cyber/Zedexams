@@ -237,5 +237,5 @@ export function upgradePortal(audience) {
       defaultPlanId: 'pro_monthly',
     }
   }
-  return { portal: 'learner', planIds: ['grade7_monthly', 'grade7_termly'], defaultPlanId: 'grade7_monthly' }
+  return { portal: 'learner', planIds: ['weekly', 'monthly'], defaultPlanId: 'monthly' }
 }

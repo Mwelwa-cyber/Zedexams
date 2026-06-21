@@ -281,8 +281,8 @@ export default function PaywallHost() {
           {upgradeReason === 'quiz-preview-limit' ? (
             <UpgradeModal
               portal="learner"
-              planIds={['grade7_monthly', 'grade7_termly']}
-              defaultPlanId="grade7_monthly"
+              planIds={['weekly', 'monthly']}
+              defaultPlanId="monthly"
               onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
             />
           ) : upgradeReason === 'max-feature' ? (
