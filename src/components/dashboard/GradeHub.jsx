@@ -58,6 +58,7 @@ import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
 import ThemeSelector            from '../ui/ThemeSelector'
 import MobileBottomNav          from '../layout/MobileBottomNav'
+import SuggestionNudge          from '../feedback/SuggestionNudge'
 import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
 import SeoHelmet                from '../seo/SeoHelmet'
@@ -1755,6 +1756,11 @@ export default function GradeHub() {
 
       {/* ──────────── MOBILE BOTTOM NAV ──────────────────────── */}
       <MobileBottomNav className="learner-bottom-nav" />
+
+      {/* Occasional, dismissible "suggest a subject / paper / feature" nudge —
+          mirrors the teacher dashboard. The once-a-day payment reminder popup
+          is mounted globally in App.jsx, so it already covers this surface. */}
+      <SuggestionNudge source="learner-dashboard" />
     </div>
   )
 }
