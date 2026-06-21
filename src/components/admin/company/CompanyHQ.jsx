@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, limit as fsLimit, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, limit as fsLimit, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { listDailyUsage } from '../../../utils/aiCosts'
@@ -310,6 +310,7 @@ export function CompanyHQ() {
   const [controlMap, setControlMap] = useState({})
   const [jobs, setJobs] = useState([])
   const [health, setHealth] = useState(null)
+  const [fxMeta, setFxMeta] = useState(null)
   const [mode, setMode] = useState('live')
   const [fx, setFx] = useState(DEFAULT_ZMW_PER_USD)
   const [reinvest, setReinvest] = useState(DEFAULT_REINVEST_RATIO)
@@ -393,6 +394,28 @@ export function CompanyHQ() {
         if (m) {
           const at = m.checkedAt || (d.createdAt?.toDate ? d.createdAt.toDate().getTime() : Date.now())
           setHealth({ ...m, checkedAt: at })
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // Auto-refreshed FX rate (settings/fxRate, written daily by dailyFxRefresh).
+  // Seeds the FX assumption with the live rate so the read-out tracks the real
+  // kwacha; falls back to the default if no rate has been fetched yet.
+  useEffect(() => {
+    let cancelled = false
+    getDoc(doc(db, 'settings', 'fxRate'))
+      .then((snap) => {
+        if (cancelled || !snap.exists()) return
+        const d = snap.data() || {}
+        const rate = Number(d.zmwPerUsd)
+        if (Number.isFinite(rate) && rate >= 5 && rate <= 100) {
+          setFx(rate)
+          const at = Number.isFinite(Number(d.fetchedAtMs))
+            ? Number(d.fetchedAtMs)
+            : (d.fetchedAt?.toDate ? d.fetchedAt.toDate().getTime() : null)
+          setFxMeta({ rate, at })
         }
       })
       .catch(() => {})
@@ -542,6 +565,11 @@ export function CompanyHQ() {
                 onChange={(e) => setFx(Math.max(1, Number(e.target.value) || DEFAULT_ZMW_PER_USD))}
                 className="mt-1 w-full rounded-lg border theme-border bg-white px-2 py-1.5 text-sm font-black"
               />
+              <span className="mt-1 block text-[10px] font-normal theme-text-muted">
+                {fxMeta
+                  ? <>Auto-updated daily{fxMeta.at ? ` · ${relAt(new Date(fxMeta.at))}` : ''}</>
+                  : 'Manual assumption (no auto-rate yet)'}
+              </span>
             </label>
             <label className="mt-3 block text-xs font-bold theme-text">
               Reinvestment fraction

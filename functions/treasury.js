@@ -41,7 +41,10 @@
 // charges money. It is only used to express ZMW revenue on the same USD
 // axis as API spend for the treasury read-out, and is surfaced as an
 // editable assumption in the dashboard. ~26 ZMW/USD is a mid-2026
-// placeholder; override with AI_TREASURY_ZMW_PER_USD.
+// placeholder. A daily cron (dailyFxRefresh) auto-refreshes the live rate
+// into settings/fxRate; this constant — overridable with
+// AI_TREASURY_ZMW_PER_USD — is the FALLBACK used whenever that doc is
+// missing, stale (> 8 days), or out of the sane band.
 const DEFAULT_ZMW_PER_USD = 26;
 
 // Fraction of realized revenue the company may reinvest in AI APIs. 0.30
@@ -233,15 +236,69 @@ function getBudgetFloorUsd() {
 //     AI_BUDGET_FLOOR_USD=10           (optional; bootstrap floor, default 0)
 // Leaving AI_BUDGET_MODE unset keeps today's static behaviour.
 
+// ── Daily FX auto-refresh (pure helpers) ──────────────────────────────────
+//
+// The ZMW/USD rate that puts revenue on the same axis as USD spend can be
+// auto-refreshed daily (a cron writes settings/fxRate); the budget path reads
+// that CACHED value and never makes a live network call itself. These pure
+// helpers validate + resolve the rate so the gate always has a safe number.
+
+const FX_MIN = 5; // ZMW/USD sanity band — a value outside this is rejected so
+const FX_MAX = 100; // a bad API response can never poison the budget.
+const FX_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000; // ignore a rate older than 8 days
+
+/** True when n is a finite ZMW/USD rate inside the sane band. */
+function isSaneFxRate(n) {
+  const v = Number(n);
+  return Number.isFinite(v) && v >= FX_MIN && v <= FX_MAX;
+}
+
+/**
+ * Extract the ZMW-per-USD rate from an open.er-api.com /latest/USD response
+ * ({ result:'success', rates:{ ZMW:n, … } }). Returns a sane number or null.
+ */
+function parseFxApiResponse(json) {
+  if (!json || json.result !== "success" || !json.rates) return null;
+  const r = Number(json.rates.ZMW);
+  return isSaneFxRate(r) ? r : null;
+}
+
+/**
+ * Resolve the rate to use: the live (auto-refreshed) value when it is sane and
+ * fresh, otherwise the env/default fallback. Pure — no I/O.
+ *
+ *   resolveZmwPerUsd({ liveRate, liveFetchedAtMs, now, envFallback, maxAgeMs })
+ */
+function resolveZmwPerUsd({
+  liveRate,
+  liveFetchedAtMs,
+  now = Date.now(),
+  envFallback = DEFAULT_ZMW_PER_USD,
+  maxAgeMs = FX_MAX_AGE_MS,
+} = {}) {
+  const fallback = isSaneFxRate(envFallback) ? Number(envFallback) : DEFAULT_ZMW_PER_USD;
+  if (!isSaneFxRate(liveRate)) return fallback;
+  const fetchedAt = Number(liveFetchedAtMs);
+  // No timestamp → treat as usable (better than discarding a sane rate).
+  if (Number.isFinite(fetchedAt) && (now - fetchedAt) > maxAgeMs) return fallback;
+  return Number(liveRate);
+}
+
 module.exports = {
   DEFAULT_ZMW_PER_USD,
   DEFAULT_REINVEST_RATIO,
   DEFAULT_BUDGET_FLOOR_USD,
   TIGHT_RATIO,
+  FX_MIN,
+  FX_MAX,
+  FX_MAX_AGE_MS,
   deriveBudgetFromRevenueUsd,
   computeTreasury,
   getBudgetMode,
   getReinvestRatio,
   getZmwPerUsd,
   getBudgetFloorUsd,
+  isSaneFxRate,
+  parseFxApiResponse,
+  resolveZmwPerUsd,
 };

@@ -124,6 +124,7 @@
     "test:treasury": "node functions/treasury.test.js",
     "test:budget-revenue-linked": "node functions/aiBudgetRevenueLinked.test.js",
     "test:marshal": "node functions/agents/runners/marshal.test.js",
+    "test:fx-rate": "node functions/fxRate.test.js",
     "test:edit-question": "node functions/editQuizQuestion.test.js",
     "test:revise-question": "node functions/teacherTools/reviseQuestion.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
