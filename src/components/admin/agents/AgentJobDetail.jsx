@@ -8,7 +8,7 @@ import { AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import Button from '../../ui/Button'
-import { CalaOutput } from './CbcAlignmentCard'
+import { CalaOutput, isAuditSummary } from './CbcAlignmentCard'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
@@ -213,6 +213,51 @@ function ApprovalPanel({ job }) {
   )
 }
 
+// Read-only rollups (the weekly CBC audit) also land in awaiting_approval,
+// but there's nothing to publish — agentJobsOnApproved/Pubo only act on
+// `content` jobs, so an audit is a qaEng no-op. Show a plain "Acknowledge"
+// instead of the misleading "Approve & publish" flow. Firestore rules only
+// permit admins to move an agentJob to 'approved' or 'rejected', so
+// acknowledging writes 'approved' (harmless for a qaEng job) while still
+// recording who reviewed it and when.
+function AcknowledgePanel({ job }) {
+  const { currentUser } = useAuth()
+  const [busy, setBusy]   = useState(false)
+  const [errMsg, setErrMsg] = useState(null)
+
+  async function acknowledge() {
+    setBusy(true)
+    setErrMsg(null)
+    try {
+      await updateDoc(doc(db, `agentJobs/${job.id}`), {
+        status: 'approved',
+        reviewedBy: currentUser?.uid || null,
+        reviewedAt: serverTimestamp(),
+      })
+    } catch (e) {
+      setErrMsg(e.message || 'Update failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-black text-sky-800">Review this audit</p>
+        <p className="text-xs text-sky-700 mt-0.5">
+          This is a read-only report — nothing is published. Acknowledge it to clear
+          it from the approval queue once you&apos;ve looked over the findings below.
+        </p>
+      </div>
+      <Button variant="primary" size="md" disabled={busy} onClick={acknowledge}>
+        {busy ? 'Saving…' : 'Acknowledge'}
+      </Button>
+      {errMsg && <p className="text-xs text-red-700">{errMsg}</p>}
+    </div>
+  )
+}
+
 // "Retry Cala" affordance for jobs that failed inside Cala or Reva. The
 // callable re-runs the deterministic Cala step on the existing Aria
 // draft, then continues to Reva. Aria's tokens are not re-spent.
@@ -349,7 +394,11 @@ export default function AgentJobDetail() {
         )}
       </header>
 
-      {job.status === 'awaiting_approval' && <ApprovalPanel job={job} />}
+      {job.status === 'awaiting_approval' && (
+        isAuditSummary(job.output?.cala)
+          ? <AcknowledgePanel job={job} />
+          : <ApprovalPanel job={job} />
+      )}
       {job.status === 'failed' && <RetryPanel job={job} />}
 
       {job.error && (
