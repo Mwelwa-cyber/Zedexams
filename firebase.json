@@ -115,6 +115,13 @@
         }
       },
       {
+        "source": "/api/download",
+        "function": {
+          "functionId": "apiDownloadEcho",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -3148,6 +3148,11 @@ exports.lencoWebhook = onRequest({
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
+// Same-origin download echo (/api/download). Lets browsers that drop the
+// filename for in-page blob: downloads save studio exports under the right name,
+// served from zedexams.com instead of firebasestorage.googleapis.com.
+exports.apiDownloadEcho = require('./downloadEcho').apiDownloadEcho;
+
 // Admin dashboard overhaul — user lifecycle callables.
 //
 // TEMPORARILY DISABLED to unblock the Deploy Firebase workflow that
