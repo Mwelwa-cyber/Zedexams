@@ -8,6 +8,7 @@ import { AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import Button from '../../ui/Button'
+import { CalaOutput } from './CbcAlignmentCard'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
@@ -55,116 +56,6 @@ function JsonBlock({ label, value, defaultOpen = true }) {
         <pre className="theme-card theme-border overflow-x-auto rounded-xl border p-3 text-xs leading-relaxed">
           {formatted}
         </pre>
-      )}
-    </section>
-  )
-}
-
-// Structured renderer for Cala's alignment output. Replaces the raw JSON
-// dump in the common case; the full JSON stays available below via the
-// "Raw output" toggle so devs can still see everything.
-function CbcAlignmentCard({ alignment }) {
-  if (!alignment || typeof alignment !== 'object') return null
-  const {
-    aligned, citations = [], gaps = [], drift = [], kbVersion, kbWarning,
-  } = alignment
-
-  const citationCount = Array.isArray(citations) ? citations.length : 0
-  const gapCount      = Array.isArray(gaps) ? gaps.length : 0
-  const driftCount    = Array.isArray(drift) ? drift.length : 0
-
-  const headerCls = aligned
-    ? 'border-emerald-200 bg-emerald-50'
-    : 'border-amber-200 bg-amber-50'
-  const headerText = aligned
-    ? 'text-emerald-800'
-    : 'text-amber-800'
-
-  return (
-    <section className={`rounded-2xl border ${headerCls} p-4 space-y-3`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={`text-sm font-black ${headerText}`}>
-            CBC alignment — {aligned ? 'aligned' : 'review needed'}
-          </p>
-          <p className={`text-xs mt-0.5 ${headerText} opacity-80`}>
-            {citationCount} citation{citationCount === 1 ? '' : 's'} ·{' '}
-            {gapCount} gap{gapCount === 1 ? '' : 's'} ·{' '}
-            {driftCount} drift item{driftCount === 1 ? '' : 's'}
-            {kbVersion ? <> · KB <code className="font-mono">{kbVersion}</code></> : null}
-          </p>
-        </div>
-      </div>
-
-      {kbWarning && (
-        <p className="rounded-lg bg-white/60 px-3 py-2 text-xs text-amber-900">
-          <span className="font-black">KB warning:</span> {kbWarning}
-        </p>
-      )}
-
-      {citationCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-emerald-900 mb-1.5">
-            Citations
-          </h4>
-          <ul className="space-y-1.5">
-            {citations.map((c, i) => (
-              <li key={`${c.outcome || 'c'}-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                <div className="font-mono text-[11px] text-emerald-800 font-black">
-                  {c.outcome || '—'}
-                </div>
-                {c.text && (
-                  <div className="theme-text mt-0.5">{c.text}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {gapCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-amber-900 mb-1.5">
-            Gaps
-          </h4>
-          <ul className="space-y-1.5">
-            {gaps.map((g, i) => (
-              <li key={`g-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                {g.outcome && (
-                  <div className="font-mono text-[11px] text-amber-800 font-black">
-                    {g.outcome}
-                  </div>
-                )}
-                {g.text && (
-                  <div className="theme-text mt-0.5">{g.text}</div>
-                )}
-                {g.note && (
-                  <div className="theme-text-muted mt-0.5 italic">{g.note}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {driftCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-red-900 mb-1.5">
-            Drift
-          </h4>
-          <ul className="space-y-1.5">
-            {drift.map((d, i) => (
-              <li key={`d-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                <div className="font-mono text-[11px] text-red-800 font-black">
-                  {d.outcome || '—'}
-                </div>
-                {d.note && (
-                  <div className="theme-text-muted mt-0.5 italic">{d.note}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </section>
   )
@@ -485,7 +376,7 @@ export default function AgentJobDetail() {
         </div>
       )}
 
-      {alignment && <CbcAlignmentCard alignment={alignment} />}
+      {alignment && <CalaOutput alignment={alignment} />}
 
       {job.overrideReason && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
