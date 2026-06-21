@@ -48,6 +48,7 @@ const {runEchoTriage, templateReply} = require("./runners/echo");
 const {runContentGate} = require("./runners/gate");
 const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
+const {runMarshal} = require("./runners/marshal");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
@@ -743,6 +744,53 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
   }
 });
 
+// Marshal — operations supervisor (every hour). Confirms each scheduled agent
+// actually ran within its window, and surfaces stuck jobs, tripped breakers and
+// recent failures, into a single company-health verdict. Deterministic, no LLM,
+// no secrets — a handful of indexed reads. Writes an agentJobs rollup
+// (awaiting_approval when something is wrong) the /admin/company HQ surfaces.
+const SUPERVISOR_OPTS = {
+  schedule: "every 1 hours",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+};
+
+const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let report;
+  try {
+    report = await runMarshal({db});
+  } catch (err) {
+    console.error("Marshal failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "marshal",
+      department: "qaEng",
+      status: "failed",
+      input: {runType: "hourly-supervisor"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  await db.collection("agentJobs").add({
+    agentId: "marshal",
+    department: "qaEng",
+    status: report.healthy ? "done" : "awaiting_approval",
+    input: {runType: "hourly-supervisor"},
+    output: {marshal: report},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
@@ -753,4 +801,5 @@ module.exports = {
   weeklyProductSignal,
   weeklyRetentionScan,
   deliverDawnBriefings,
+  hourlyAgentSupervisor,
 };

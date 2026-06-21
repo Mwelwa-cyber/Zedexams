@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, limit as fsLimit, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, limit as fsLimit, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { listDailyUsage } from '../../../utils/aiCosts'
@@ -246,6 +246,62 @@ function ActivityFeed({ items }) {
   )
 }
 
+// Preview-mode company-health snapshot (Marshal), so the strip renders even
+// before the supervisor has run once.
+const PREVIEW_HEALTH = {
+  healthy: true,
+  watchedCount: 7,
+  summary: 'All 7 scheduled agents on time',
+  lateAgents: [],
+  neverRan: [],
+  pausedAgents: [],
+  stuckCount: 0,
+  recentFailureCount: 0,
+}
+
+function HealthStrip({ health }) {
+  if (!health) {
+    return (
+      <div className="theme-card theme-border flex items-center gap-2 rounded-2xl border p-3 text-xs theme-text-muted">
+        <ShieldCheck size={15} /> No supervisor run yet — Marshal posts a company-health check every hour.
+      </div>
+    )
+  }
+  const good = health.healthy
+  const checked = health.checkedAt ? relAt(new Date(health.checkedAt)) : ''
+  const chips = []
+  if (health.lateAgents?.length) chips.push(`${health.lateAgents.length} late`)
+  if (health.neverRan?.length) chips.push(`${health.neverRan.length} never ran`)
+  if (health.pausedAgents?.length) chips.push(`${health.pausedAgents.length} paused`)
+  if (health.stuckCount) chips.push(`${health.stuckCount} stuck`)
+  if (health.recentFailureCount) chips.push(`${health.recentFailureCount} failed/24h`)
+  return (
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 p-3 ${
+      good ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
+    }`}>
+      <div className="flex items-center gap-2.5">
+        {good
+          ? <CheckCircleIcon size={18} className="shrink-0 text-emerald-600" />
+          : <AlertTriangle size={18} className="shrink-0 text-rose-600" />}
+        <div className="min-w-0">
+          <p className={`text-sm font-black ${good ? 'text-emerald-800' : 'text-rose-800'}`}>
+            {good ? 'All systems go' : 'Attention needed'}
+            <span className="theme-text-muted font-bold"> · Marshal supervisor</span>
+          </p>
+          <p className="text-xs theme-text-muted">{health.summary}{checked ? ` · checked ${checked}` : ''}</p>
+        </div>
+      </div>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <span key={c} className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{c}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── the page ────────────────────────────────────────────────────────────────
 export function CompanyHQ() {
   const { getRevenueByDay } = useFirestore()
@@ -253,6 +309,7 @@ export function CompanyHQ() {
   const [live, setLive] = useState({ revenueZmw: 0, apiCostUsd: 0, activations: 0, callCount: 0 })
   const [controlMap, setControlMap] = useState({})
   const [jobs, setJobs] = useState([])
+  const [health, setHealth] = useState(null)
   const [mode, setMode] = useState('live')
   const [fx, setFx] = useState(DEFAULT_ZMW_PER_USD)
   const [reinvest, setReinvest] = useState(DEFAULT_REINVEST_RATIO)
@@ -320,6 +377,28 @@ export function CompanyHQ() {
     return () => { cancelled = true }
   }, [])
 
+  // Latest Marshal company-health rollup.
+  useEffect(() => {
+    let cancelled = false
+    getDocs(query(
+      collection(db, 'agentJobs'),
+      where('agentId', '==', 'marshal'),
+      orderBy('createdAt', 'desc'),
+      fsLimit(1),
+    ))
+      .then((snap) => {
+        if (cancelled || snap.empty) return
+        const d = snap.docs[0].data() || {}
+        const m = d.output?.marshal
+        if (m) {
+          const at = m.checkedAt || (d.createdAt?.toDate ? d.createdAt.toDate().getTime() : Date.now())
+          setHealth({ ...m, checkedAt: at })
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   const hasLive = live.revenueZmw > 0 || live.apiCostUsd > 0
   const preview = mode === 'preview'
 
@@ -344,6 +423,8 @@ export function CompanyHQ() {
     if (!preview && jobs.length) return jobs
     return seedAgentActivity()
   }, [preview, jobs])
+
+  const displayHealth = preview ? { ...PREVIEW_HEALTH, checkedAt: Date.now() - 12 * 60_000 } : health
 
   const statusMeta = STATUS_TONE[t.status] || STATUS_TONE.idle
   const StatusIcon = statusMeta.icon
@@ -385,6 +466,9 @@ export function CompanyHQ() {
             : 'No live revenue or AI spend recorded yet this month — showing a representative preview of how the treasury reads.'}
         </div>
       )}
+
+      {/* ── Company health (Marshal) ─────────────────────────── */}
+      <HealthStrip health={displayHealth} />
 
       {/* ── Treasury ─────────────────────────────────────────── */}
       <section className="space-y-3">

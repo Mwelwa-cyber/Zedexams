@@ -53,7 +53,7 @@ HQ in `src/utils/companyOrg.js`):
 | Department | Agents | Trigger |
 |---|---|---|
 | **Content** | Aria, Cala, Reva, Pubo, Compass, Gate | agentJobs pipeline + cron |
-| **QA & Engineering** | Vex, Quill, Vigil, Rex, Ledger, Mendi | sync / cron / CI |
+| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI |
 | **Revenue** | Till | hourly cron (Lenco reconcile) |
 | **Support** | Echo | 2-hourly cron (feedback triage) |
 | **Growth** | Anchor, Dawn | weekly cron / on-demand managed agent |
@@ -178,6 +178,23 @@ budget governor (below) is the company's CFO.
   through the `agentJobs` queue. Quiz authors expect Grammarly-style
   instant feedback; queueing breaks that loop. Cost is metered through
   the existing `aiUsage/{uid}_{day}` per-user daily limit.
+
+#### Marshal — Operations Supervisor
+- **Mission:** The watchdog for the watchdogs. Every hour, confirm each
+  scheduled agent actually ran within its expected window, and surface stuck
+  jobs (running/queued far too long), tripped `agentControl` breakers, and
+  recent failures — rolled into one company-health verdict.
+- **Schedule:** `every 1 hours` (`hourlyAgentSupervisor`, Africa/Lusaka).
+- **Watches (fixed-cadence rollups only):** Vigil, Till (hourly), Echo (2h),
+  Quill (daily), Cala-audit, Compass, Anchor (weekly). Event-driven /
+  on-demand agents (the content Gate, Dawn, the Aria-Reva pipeline, Vex) have
+  no fixed cadence and are deliberately not freshness-checked.
+- **Outputs:** an `agentJobs` rollup (`output.marshal`, status
+  `awaiting_approval` when something is wrong so it joins the approvals badge),
+  surfaced as the health strip on `/admin/company`.
+- **Wraps:** `functions/agents/runners/marshal.js` — deterministic, no LLM, no
+  secrets, only indexed reads. `assessFleet` is pure + unit-tested
+  (`marshal.test.js`). db injected.
 
 ## Handoff: Lesson-Plan Pipeline
 
@@ -357,3 +374,10 @@ agent pause/resume controls stay in `/admin/agents`.
   Defaults to `static` (no behaviour change); both paths fail open and a $0
   ceiling falls back to the static budget so arming can't brick AI. Covered by
   `functions/aiBudgetRevenueLinked.test.js` (13 assertions).
+- **2026-06-21** — Marshal (Operations Supervisor) added to QA / Eng — the
+  watchdog for the watchdogs. Hourly `hourlyAgentSupervisor` cron confirms each
+  fixed-cadence scheduled agent ran within its window and surfaces stuck jobs,
+  tripped breakers and recent failures into one company-health verdict, shown
+  as the health strip on `/admin/company`. Deterministic, no LLM/secrets, only
+  indexed reads; `assessFleet` is pure + unit-tested
+  (`functions/agents/runners/marshal.test.js`, 23 assertions).
