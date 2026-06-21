@@ -33,6 +33,7 @@ const {
 } = require("./onQuestionChange");
 const {onUserDeleted} = require("./onUserDeleted");
 const {orphanStorageReaper} = require("./orphanReaper");
+const {tmpDownloadReaper} = require("./tmpDownloadReaper");
 
 module.exports = {
   onLessonDeleted,
@@ -43,4 +44,5 @@ module.exports = {
   onAssessmentQuestionUpdated,
   onUserDeleted,
   orphanStorageReaper,
+  tmpDownloadReaper,
 };

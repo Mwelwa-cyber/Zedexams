@@ -2583,6 +2583,7 @@ exports.onAssessmentQuestionDeleted = storageCleanup.onAssessmentQuestionDeleted
 exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated;
 exports.onUserDeleted = storageCleanup.onUserDeleted;
 exports.orphanStorageReaper = storageCleanup.orphanStorageReaper;
+exports.tmpDownloadReaper = storageCleanup.tmpDownloadReaper;
 
 // Quiz library mirror. Keeps quizSummaries/{id} (quiz doc minus the heavy
 // passages[]/parts[]/description) in sync on every write to quizzes/{id}, so

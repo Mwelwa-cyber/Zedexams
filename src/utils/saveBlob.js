@@ -147,19 +147,28 @@ export async function saveBlob(blob, filename) {
   // Mobile browsers (Android Chrome, iOS Safari): an <a download> on a blob:
   // URL loses the filename here — Android saves it under the blob's UUID
   // ("acc6d3a8-….docx") and iOS ignores the name. The Web Share API is the only
-  // path that keeps the real name, so route mobile browsers through it. If it
-  // can't run (no support / genuine failure) we fall through to file-saver.
+  // free/local path that keeps the real name, so try it first.
   if (isMobileBrowser()) {
     try {
       if (await trySaveViaShare(blob, name)) return
     } catch {
       // trySaveViaShare is already defensive; never let it break a download.
     }
+    // Belt-and-braces for browsers without Web Share (DuckDuckGo, some
+    // WebViews): stamp the real filename onto a temp Storage object and let the
+    // download manager read it from Content-Disposition. Universal, but costs an
+    // upload — so it runs only after the local Web Share path is ruled out.
+    try {
+      const { saveViaStampedUrl } = await import('./stampedDownload.js')
+      if (await saveViaStampedUrl(blob, name)) return
+    } catch {
+      // fall through to file-saver
+    }
   }
 
-  // Desktop browsers (and the mobile fallback): file-saver streams the full blob
-  // via a blob: URL — never truncated — and desktop browsers honour the download
-  // filename.
+  // Desktop browsers (and the last-resort fallback): file-saver streams the full
+  // blob via a blob: URL — never truncated — and desktop browsers honour the
+  // download filename.
   try {
     const { saveAs } = await import('file-saver')
     saveAs(blob, name)
