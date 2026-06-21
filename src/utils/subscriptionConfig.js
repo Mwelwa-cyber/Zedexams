@@ -57,32 +57,6 @@ export const PLANS = {
     features: ['Unlimited quizzes', 'Exam mode (timed)', 'Weakness analysis', 'Priority support'],
     locked: [],
   },
-  termly: {
-    id: 'termly',
-    name: 'Termly',
-    tagline: 'Best value per term',
-    priceZMW: 120,
-    durationDays: 91,
-    dailyQuizLimit: Infinity,
-    weaknessAnalysis: true,
-    examMode: true,
-    badge: '🏆',
-    features: ['Everything in Monthly', 'Save 20% vs monthly', 'Valid for a full term'],
-    locked: [],
-  },
-  yearly: {
-    id: 'yearly',
-    name: 'Yearly',
-    tagline: 'Best deal — whole year',
-    priceZMW: 400,
-    durationDays: 365,
-    dailyQuizLimit: Infinity,
-    weaknessAnalysis: true,
-    examMode: true,
-    badge: '💎',
-    features: ['Everything in Termly', 'Save 33% vs monthly', 'Valid for a full year'],
-    locked: [],
-  },
 
   // ── Grade 7 ECZ Exam Pack ──────────────────────────────────────────────
   // First learner-facing product priced around the ECZ Grade 7 composite
@@ -181,8 +155,8 @@ export const PLANS = {
   },
 
   // ── Pro / Max tiers (matches /pricing marketing page) ──────────────────
-  // Kept alongside the legacy monthly/termly/yearly plans so existing
-  // subscribers keep their access; new subscriptions use these.
+  // Teacher plans. Kept alongside the learner weekly/monthly plans so
+  // existing subscribers keep their access; new subscriptions use these.
   pro_monthly: {
     id: 'pro_monthly',
     tier: 'pro',
@@ -339,8 +313,8 @@ export function getActivePlan(userProfile) {
 }
 
 // Plain tier name for display: 'free' | 'pro' | 'max'.
-// Premium learner plans (legacy monthly/termly/yearly, grade7_*, etc. — which
-// have no `tier` field) count as 'max' per product naming.
+// Premium learner plans (weekly/monthly, grade7_*, etc. — which have no
+// `tier` field) count as 'max' per product naming.
 export function getPlanTier(userProfile) {
   if (!hasPremiumAccess(userProfile)) return 'free'
   const plan = getActivePlan(userProfile)

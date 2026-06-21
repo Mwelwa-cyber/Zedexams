@@ -26,8 +26,6 @@ const PLAN_BORDER = {
   grade7_termly:  'border-emerald-400 bg-emerald-50',
   weekly:         'border-amber-400 bg-amber-50',
   monthly:        'border-green-400 bg-green-50',
-  termly:         'border-blue-400 bg-blue-50',
-  yearly:         'border-purple-400 bg-purple-50',
   pro_monthly:    'border-orange-400 bg-orange-50',
   pro_yearly:     'border-orange-400 bg-orange-50',
   max_monthly:    'border-blue-500 bg-blue-50',

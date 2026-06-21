@@ -15,8 +15,6 @@ const bulkGrantDemoTrialsCallable = httpsCallable(fns, 'bulkGrantDemoTrials')
 const PLAN_OPTIONS = [
   { id: 'weekly',  label: 'Weekly (7 days)' },
   { id: 'monthly', label: 'Monthly (30 days)' },
-  { id: 'termly',  label: 'Termly (~91 days)' },
-  { id: 'yearly',  label: 'Yearly (365 days)' },
 ]
 
 // Slugify mirrors functions/index.js#bulkGrantDemoTrials so the email
