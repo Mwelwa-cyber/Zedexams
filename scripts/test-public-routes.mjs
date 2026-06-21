@@ -35,6 +35,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { getActiveGrades } from '../src/config/curriculum.js'
+import { buildRouteList } from './prerenderRoutes.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -201,6 +202,27 @@ for (const loc of locs) {
         : onlyGated
           ? `sitemap lists ${loc} but it is auth-gated — a crawler would be bounced to /login`
           : `sitemap lists ${loc} but no matching route is a public page`,
+    )
+  })
+}
+
+// ── 4b. Every advertised public URL is prerendered ──────────────────
+// A sitemap URL that is NOT in the prerender list falls back to
+// dist/index.html — the neutral SPA shell, which carries no
+// <link rel="canonical"> — so Googlebot reads identical raw HTML for it and
+// the homepage and files it under "Duplicate without user-selected canonical",
+// keeping it out of the index. The homepage ("/") is the one allowed
+// exception: it *is* that shell, on purpose (see scripts/prerender.mjs).
+console.log('\nevery advertised public URL is prerendered (ships a self-canonical)')
+const prerendered = new Set(buildRouteList())
+for (const loc of locs) {
+  if (loc === '/') continue
+  test(`sitemap ${loc} is in the prerender route list`, () => {
+    assert(
+      prerendered.has(loc),
+      `sitemap advertises ${loc} but scripts/prerenderRoutes.mjs does not prerender it — ` +
+        `it would ship the canonical-less SPA shell and be flagged "Duplicate without ` +
+        `user-selected canonical". Add it to buildRouteList().`,
     )
   })
 }
