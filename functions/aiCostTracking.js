@@ -38,6 +38,8 @@ const {
   getZmwPerUsd,
   getBudgetFloorUsd,
   deriveBudgetFromRevenueUsd,
+  resolveZmwPerUsd,
+  FX_MAX_AGE_MS,
 } = require("./treasury");
 
 // All rates in USD per million tokens.
@@ -318,11 +320,44 @@ function monthStartUtc() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
+// FX rate resolver. Reads the auto-refreshed settings/fxRate doc (written by
+// the dailyFxRefresh cron) and resolves it against the env/default fallback —
+// NEVER a live network call, so it can't block the AI gate. Cached 1h since
+// the rate only changes daily; fails open to the env/default rate.
+const FX_CACHE_TTL_MS = 60 * 60_000;
+let fxCache = {expiresAt: 0, rate: null};
+
+async function getResolvedZmwPerUsd() {
+  const nowMs = Date.now();
+  if (nowMs < fxCache.expiresAt && fxCache.rate != null) return fxCache.rate;
+  const envFallback = getZmwPerUsd();
+  let rate = envFallback;
+  try {
+    const snap = await admin.firestore().collection("settings").doc("fxRate").get();
+    const d = snap.exists ? (snap.data() || {}) : {};
+    const fetchedAtMs = Number.isFinite(Number(d.fetchedAtMs)) ?
+      Number(d.fetchedAtMs) :
+      (d.fetchedAt && d.fetchedAt.toMillis ? d.fetchedAt.toMillis() : NaN);
+    rate = resolveZmwPerUsd({
+      liveRate: d.zmwPerUsd,
+      liveFetchedAtMs: fetchedAtMs,
+      now: nowMs,
+      envFallback,
+      maxAgeMs: FX_MAX_AGE_MS,
+    });
+  } catch (err) {
+    // Fail open to the env/default rate; never block a budget read on FX.
+    rate = envFallback;
+  }
+  fxCache = {expiresAt: nowMs + FX_CACHE_TTL_MS, rate};
+  return rate;
+}
+
 /**
  * Month-to-date confirmed subscription revenue, expressed in USD via the
- * assumed ZMW/USD rate. Cached 5 min; returns null (not 0) on a read error
- * so callers can distinguish "couldn't read" from "earned nothing" and fail
- * open accordingly.
+ * auto-refreshed (or fallback) ZMW/USD rate. Cached 5 min; returns null (not 0)
+ * on a read error so callers can distinguish "couldn't read" from "earned
+ * nothing" and fail open accordingly.
  */
 async function getMonthToDateRevenueUsd() {
   const monthKey = monthKeyUtc();
@@ -342,7 +377,7 @@ async function getMonthToDateRevenueUsd() {
     snap.forEach((doc) => {
       zmw += Number((doc.data() || {}).amountZMW || 0);
     });
-    const revenueUsd = zmw / getZmwPerUsd();
+    const revenueUsd = zmw / (await getResolvedZmwPerUsd());
     revenueCache = {expiresAt: nowMs + REVENUE_CACHE_TTL_MS, monthKey, revenueUsd};
     return revenueUsd;
   } catch (err) {
@@ -467,6 +502,7 @@ async function getRevenueLinkedBudgetStatus() {
 function _resetBudgetCache() {
   budgetCache = {expiresAt: 0, monthKey: null, monthCostUsd: 0};
   revenueCache = {expiresAt: 0, monthKey: null, revenueUsd: null};
+  fxCache = {expiresAt: 0, rate: null};
 }
 
 module.exports = {
@@ -478,6 +514,7 @@ module.exports = {
   getMonthlyBudgetUsd,
   getMonthToDateCostUsd,
   getMonthToDateRevenueUsd,
+  getResolvedZmwPerUsd,
   evaluateBudget,
   getBudgetStatus,
   BUDGET_WARN_RATIO,

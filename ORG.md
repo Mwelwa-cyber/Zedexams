@@ -311,10 +311,14 @@ incapable of outrunning income*. The company self-funds.
 | Budget headroom / runway | how much / how many days of spend remain under the ceiling at today's burn |
 | Status | `idle` · `bootstrapping` · `healthy` · `tight` (≥80%) · `over` (governor would pause) |
 
-**Assumptions, made explicit.** The ZMW/USD rate is an *assumption*, not a
-locked pair (the kwacha moves daily; nothing that charges money hardcodes
-it). It only puts ZMW revenue on the same axis as USD spend, and is
-editable in the HQ.
+**Assumptions, made explicit.** The ZMW/USD rate only puts ZMW revenue on the
+same axis as USD spend, and is editable in the HQ. A daily cron
+(`dailyFxRefresh`) fetches the live rate and writes it to `settings/fxRate`;
+the budget path reads that **cached** value (never a live network call, so an
+FX outage can't block AI) and falls back to `AI_TREASURY_ZMW_PER_USD` / 26
+whenever the doc is missing, stale (> 8 days), or out of the sane 5–100 band.
+The fetched value is range-checked before it's written, and a bad fetch leaves
+the last good rate untouched (`functions/fxRate.test.js`).
 
 **Arming the governor (off by default).** The governor is **wired** into
 `aiCostTracking.getBudgetStatus()` (tested in
@@ -381,3 +385,10 @@ agent pause/resume controls stay in `/admin/agents`.
   as the health strip on `/admin/company`. Deterministic, no LLM/secrets, only
   indexed reads; `assessFleet` is pure + unit-tested
   (`functions/agents/runners/marshal.test.js`, 23 assertions).
+- **2026-06-21** — Daily FX auto-refresh for the treasury. A new
+  `dailyFxRefresh` cron fetches the live ZMW/USD rate and writes
+  `settings/fxRate`; the budget governor + `/admin/company` read that cached
+  value (never a live network call) and fall back to `AI_TREASURY_ZMW_PER_USD`
+  / 26 when it's missing, stale, or out of band. Range-checked before write; a
+  bad fetch keeps the last good rate. `functions/fxRate.js` +
+  `functions/fxRate.test.js` (29 assertions).

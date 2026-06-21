@@ -49,6 +49,7 @@ const {runContentGate} = require("./runners/gate");
 const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
 const {runMarshal} = require("./runners/marshal");
+const {refreshFxRate} = require("../fxRate");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
 const {shouldAuditGeneration} = require("./auditScope");
 
@@ -803,6 +804,30 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
   });
 });
 
+// Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
+// it to settings/fxRate so the budget governor + /admin/company read a fresh,
+// cached rate without ever making a live network call. Range-checked before
+// it's written; a bad fetch leaves the last good rate untouched. No agentJobs
+// rollup — the settings/fxRate doc (with source + fetchedAt + lastError) is the
+// record. Cheap: one HTTP GET + one write per day.
+const FX_REFRESH_OPTS = {
+  schedule: "every day 05:00",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+};
+
+const dailyFxRefresh = onSchedule(FX_REFRESH_OPTS, async () => {
+  const db = admin.firestore();
+  const result = await refreshFxRate({db});
+  if (result.ok) {
+    console.log(`[fxRate] updated ZMW/USD = ${result.zmwPerUsd}`);
+  } else {
+    console.warn(`[fxRate] refresh failed: ${result.error}`);
+  }
+});
+
 module.exports = {
   nightlyQaSmoke,
   weeklyCbcAlignmentAudit,
@@ -814,4 +839,5 @@ module.exports = {
   weeklyRetentionScan,
   deliverDawnBriefings,
   hourlyAgentSupervisor,
+  dailyFxRefresh,
 };

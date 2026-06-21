@@ -205,6 +205,7 @@ const {
   weeklyRetentionScan: weeklyRetentionScanCron,
   deliverDawnBriefings: deliverDawnBriefingsCron,
   hourlyAgentSupervisor: hourlyAgentSupervisorCron,
+  dailyFxRefresh: dailyFxRefreshCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2648,6 +2649,11 @@ exports.deliverDawnBriefings = deliverDawnBriefingsCron;
 // failures into one company-health verdict. Deterministic; writes an agentJobs
 // rollup the /admin/company HQ surfaces.
 exports.hourlyAgentSupervisor = hourlyAgentSupervisorCron;
+
+// Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
+// settings/fxRate so the budget governor + /admin/company read a fresh, cached
+// rate without a live network call. Range-checked; fails to the env fallback.
+exports.dailyFxRefresh = dailyFxRefreshCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
