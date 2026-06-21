@@ -279,6 +279,21 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Short-lived export staging. Studios upload a just-generated file here
+    // ONLY so its real filename can be carried on the download via the object's
+    // Content-Disposition metadata — browsers like DuckDuckGo ignore the
+    // <a download> name for blob: URLs and would otherwise save "<uuid>.docx".
+    // Owner-scoped; the tokened download URL fetches it, and tmpDownloadReaper
+    // sweeps anything older than an hour. 25 MB cap covers any studio export.
+    function validTmpDownload() {
+      return request.resource.size < 25 * 1024 * 1024;
+    }
+    match /tmp-downloads/{ownerUid}/{fileName=**} {
+      allow read: if ownsPath(ownerUid);
+      allow create: if ownsPath(ownerUid) && validTmpDownload();
+      allow delete: if ownsPath(ownerUid);
+    }
+
     // Block all other paths
     match /{allPaths=**} {
       allow read, write: if false;

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveBlob } from './saveBlob.js'
 import { isNativePlatform, isMobileBrowser } from './runtime.js'
 import { saveBlobNative } from './nativeDownload.js'
+import { saveViaStampedUrl } from './stampedDownload.js'
 
 // Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
 // own blob:-URL anchor fallback (file-saver internally does the same blob:-URL
@@ -18,6 +19,11 @@ vi.mock('./runtime.js', () => ({
 // The native filesystem+share save is covered by nativeDownload.spec.js; here we
 // mock it to drive saveBlob's native success vs. fallback branches.
 vi.mock('./nativeDownload.js', () => ({ saveBlobNative: vi.fn() }))
+
+// The Storage-stamped universal fallback is covered by stampedDownload.spec.js;
+// here we mock it to drive saveBlob's "Web Share unavailable" branch. Default:
+// it declines (returns false) so the legacy anchor fallback still runs.
+vi.mock('./stampedDownload.js', () => ({ saveViaStampedUrl: vi.fn(() => false) }))
 
 /**
  * The regressions these cover:
@@ -78,8 +84,10 @@ function clearWebShare() {
 describe('saveBlob', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.clearAllMocks() // reset call history on the vi.mock() factory fns too
     vi.mocked(isNativePlatform).mockReturnValue(false)
     vi.mocked(isMobileBrowser).mockReturnValue(false)
+    vi.mocked(saveViaStampedUrl).mockResolvedValue(false)
     clearWebShare()
   })
 
@@ -154,8 +162,27 @@ describe('saveBlob', () => {
     await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
 
     expect(share).toHaveBeenCalledOnce()
+    // Web Share failed → we try the stamped fallback (which declined here) before
+    // the anchor. The anchor still saves the file so nothing is lost.
+    expect(saveViaStampedUrl).toHaveBeenCalledOnce()
     expect(a.click).toHaveBeenCalledOnce()
     expect(a.download).toBe('Grade 4 Science Notes.docx')
+  })
+
+  it('uses the Storage-stamped fallback when the mobile browser has no Web Share', async () => {
+    // DuckDuckGo / WebViews: no navigator.share at all. We must NOT drop a
+    // UUID-named anchor download — the stamped fallback names it correctly.
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    vi.mocked(saveViaStampedUrl).mockResolvedValue(true)
+    const a = stubAnchor()
+    stubObjectUrl()
+    // No stubWebShare(): navigator.share is absent on this browser.
+
+    const blob = new Blob(['x'])
+    await saveBlob(blob, 'Grade 4 Science Notes.docx')
+
+    expect(saveViaStampedUrl).toHaveBeenCalledWith(blob, 'Grade 4 Science Notes.docx')
+    expect(a.click).not.toHaveBeenCalled()
   })
 
   // ── Desktop browsers: blob: URL, name honoured ─────────────────────────────
