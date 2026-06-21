@@ -156,6 +156,7 @@
     "test:compass": "node functions/agents/runners/compass.test.js",
     "test:anchor": "node functions/agents/runners/anchor.test.js",
     "test:dawn": "node functions/agents/runners/dawn.test.js",
+    "test:audit-scope": "node functions/agents/auditScope.test.js",
     "test:gemini-image-client": "node scripts/test-gemini-image-client.mjs",
     "test:kie-client": "node scripts/test-kie-client.mjs",
     "test:diagram-providers": "node functions/teacherTools/generateDiagram.test.js",
