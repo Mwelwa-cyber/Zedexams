@@ -214,26 +214,24 @@ function getBudgetFloorUsd() {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_BUDGET_FLOOR_USD;
 }
 
-// ── ARMING THE GOVERNOR (one place, when the owner is ready) ───────────────
+// ── ARMING THE GOVERNOR ────────────────────────────────────────────────────
 //
-// aiCostTracking.getBudgetStatus() today reads a STATIC ceiling from
-// AI_MONTHLY_BUDGET_USD. To make spend self-fund instead, compute the
-// month-to-date revenue in USD (sum payments.amountZMW for confirmed/
-// successful this month, divide by getZmwPerUsd()) and pass it through
-// deriveBudgetFromRevenueUsd():
+// WIRED. aiCostTracking.getBudgetStatus() branches on getBudgetMode():
+// 'static' (default) keeps the fixed AI_MONTHLY_BUDGET_USD ceiling, while
+// 'revenue_linked' reads month-to-date revenue and uses
+// deriveBudgetFromRevenueUsd({ revenueUsd, reinvestRatio: getReinvestRatio(),
+// floorUsd: getBudgetFloorUsd() }) as the ceiling. Everything downstream
+// (overBudget gate, 80% warning, daily summary) is unchanged — only the
+// SOURCE of the ceiling moves. Both paths fail OPEN, and a $0 derived ceiling
+// (no revenue, no floor) falls back to the static budget so arming this can
+// never brick AI. See functions/aiBudgetRevenueLinked.test.js.
 //
-//     const budgetUsd = getBudgetMode() === 'revenue_linked'
-//       ? deriveBudgetFromRevenueUsd({
-//           revenueUsd: monthRevenueUsd,
-//           reinvestRatio: getReinvestRatio(),
-//           floorUsd: getBudgetFloorUsd(),
-//         })
-//       : getMonthlyBudgetUsd();   // existing static behaviour
-//
-// Everything downstream (overBudget gate, 80% warning, daily summary
-// email) keeps working unchanged — only the source of the ceiling moves
-// from a fixed env number to "what we earned × reinvest ratio". Left
-// deliberately un-wired here so this file is safe to deploy on its own.
+// To switch it on, set on the Cloud Functions runtime:
+//     AI_BUDGET_MODE=revenue_linked
+//     AI_REVENUE_REINVEST_RATIO=0.30   (optional; default 0.30)
+//     AI_TREASURY_ZMW_PER_USD=26       (optional; default 26)
+//     AI_BUDGET_FLOOR_USD=10           (optional; bootstrap floor, default 0)
+// Leaving AI_BUDGET_MODE unset keeps today's static behaviour.
 
 module.exports = {
   DEFAULT_ZMW_PER_USD,
