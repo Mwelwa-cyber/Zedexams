@@ -786,7 +786,7 @@ export default function PaymentsPanel() {
                 className="flex-1 min-w-[140px] border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none" />
               <select value={grantPlan} onChange={e => { setGrantPlan(e.target.value); setGrantDays(PLANS[e.target.value]?.durationDays ?? 30) }}
                 className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
-                {['monthly', 'termly', 'yearly'].map(p => <option key={p} value={p}>{PLANS[p].name}</option>)}
+                {['weekly', 'monthly', 'termly', 'yearly'].map(p => <option key={p} value={p}>{PLANS[p].name}</option>)}
               </select>
               <input type="number" value={grantDays} onChange={e => setGrantDays(e.target.value)}
                 className="w-20 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none" />

@@ -17,13 +17,14 @@ import MobileMoneyBrands from './MobileMoneyBrands'
 import NetworkField from './NetworkField'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
-  learner: ['grade7_monthly', 'grade7_termly'],
+  learner: ['weekly', 'monthly'],
   teacher: ['pro_monthly', 'pro_yearly'],
-  generic: ['grade7_monthly', 'grade7_termly'],
+  generic: ['weekly', 'monthly'],
 }
 const PLAN_BORDER = {
   grade7_monthly: 'border-amber-400 bg-amber-50',
   grade7_termly:  'border-emerald-400 bg-emerald-50',
+  weekly:         'border-amber-400 bg-amber-50',
   monthly:        'border-green-400 bg-green-50',
   termly:         'border-blue-400 bg-blue-50',
   yearly:         'border-purple-400 bg-purple-50',
@@ -36,8 +37,8 @@ const FALLBACK_BORDER = 'border-orange-400 bg-orange-50'
 
 const PORTAL_COPY = {
   learner: {
-    title: 'Grade 7 ECZ Exam Pack',
-    subtitle: 'Notes · past papers · quizzes · exam strategy',
+    title: 'Unlock Premium Learning',
+    subtitle: 'Unlimited quizzes · exam mode · weakness analysis',
   },
   teacher: {
     title: 'Subscribe to Teacher Portal',

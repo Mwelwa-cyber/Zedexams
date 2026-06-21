@@ -13,6 +13,7 @@ const bulkGrantDemoTrialsCallable = httpsCallable(fns, 'bulkGrantDemoTrials')
 // Mirror src/utils/subscriptionConfig.js plan list — no need to import
 // it here, the names are stable.
 const PLAN_OPTIONS = [
+  { id: 'weekly',  label: 'Weekly (7 days)' },
   { id: 'monthly', label: 'Monthly (30 days)' },
   { id: 'termly',  label: 'Termly (~91 days)' },
   { id: 'yearly',  label: 'Yearly (365 days)' },
