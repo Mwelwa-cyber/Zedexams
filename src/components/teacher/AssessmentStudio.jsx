@@ -427,6 +427,11 @@ export default function AssessmentStudio() {
   // (createAssessment succeeded). Distinct from the local-device autosave —
   // this is the durable, cross-device copy.
   const [savedToLibrary, setSavedToLibrary] = useState(false)
+  // The library doc id once this (new) paper has been persisted. When a NEW
+  // paper is auto-saved on download, the route still says /new (editId is
+  // undefined), so we track the created id here to update — rather than
+  // duplicate — that same doc on later saves/downloads in this session.
+  const createdIdRef = useRef(null)
   // Pre-publish checklist modal. Replaces the old "first error → toast →
   // bail" save flow so the teacher sees every issue at once.
   const [checklistOpen, setChecklistOpen] = useState(false)
@@ -1590,6 +1595,105 @@ export default function AssessmentStudio() {
     })
   }
 
+  // Persist the current paper to the teacher's durable library (create or
+  // update). Shared by the explicit Save button and the auto-save-on-download
+  // path. Does NOT gate on validation, toast, or navigate — callers decide.
+  // Returns the assessment id. Uses editId (edit route) or the in-session
+  // createdIdRef so repeated saves update one doc instead of duplicating.
+  async function persistAssessment() {
+    const serialized = serializeQuizSections(sections, parts)
+    const questionsForSave = await uploadImportedQuestionImages(serialized.questions)
+    const passagesForSave = await uploadImportedPassageImages(serialized.passages)
+    // Defensive: catch any blob: URL that slipped through the upload pass
+    // before it can land in Firestore and break for every learner.
+    assertNoBlobImageUrls(questionsForSave, passagesForSave)
+    const totalMarksForSave = questionsForSave.reduce((sum, q) => sum + (q.marks || 1), 0)
+    const library = classifyForLibrary({
+      libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      grade: `Grade ${form.grade}`,
+      term: form.term,
+      subject: STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
+      assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType] || form.assessmentType,
+    })
+    const finalTitle = form.title.trim() || autoTitle
+    // Shared payload for both create and update so an edited paper round-trips
+    // every field the builder sets — cover toggles, page breaks, MCQ layout
+    // and import metadata included.
+    const assessmentPayload = {
+      title: finalTitle,
+      subject: form.subject,
+      grade: form.grade,
+      term: form.term,
+      year: form.year,
+      duration: form.duration,
+      topic: form.topic,
+      assessmentType: form.assessmentType,
+      schoolName: form.schoolName,
+      className: form.className,
+      paperName: form.paperName,
+      assessmentDate: form.assessmentDate,
+      coverInstructions: form.coverInstructions,
+      showNameField: form.showNameField,
+      showDateField: form.showDateField,
+      showMarksField: form.showMarksField,
+      showClassField: form.showClassField,
+      mcqOptionLayout: form.mcqOptionLayout,
+      mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+      endOfPaperText: form.endOfPaperText,
+      footerCode,
+      passages: passagesForSave,
+      pagebreaks: serialized.pagebreaks,
+      parts: serialized.parts,
+      passageCount: passagesForSave.length,
+      totalMarks: totalMarksForSave,
+      questionCount: questionsForSave.length,
+      // Phase 10: see CreateQuizV2 comment — fresh count, persisted so the
+      // badge/chip/banner stay honest as flagged questions get fixed.
+      reviewCount: form.mode === 'imported_document'
+        ? questionsForSave.filter(q => q.requiresReview).length
+        : 0,
+      mode: form.mode,
+      importStatus: form.mode === 'imported_document'
+        ? (questionsForSave.some(q => q.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
+        : form.importStatus,
+      sourceFileName: form.sourceFileName,
+      sourceContentType: form.sourceContentType,
+      importWarnings: form.importWarnings,
+      library,
+    }
+
+    const targetId = editId || createdIdRef.current
+    if (targetId) {
+      // updateAssessmentWithQuestions upserts changed questions and deletes
+      // the ones removed since load — atomic doc + subcollection update.
+      await updateAssessmentWithQuestions(
+        targetId,
+        { ...assessmentPayload, updatedBy: currentUser.uid },
+        questionsForSave,
+        deletedIds,
+      )
+      setDeletedIds([])
+    } else {
+      const newAssessmentId = await createAssessment({ ...assessmentPayload, createdBy: currentUser.uid })
+      await saveAssessmentQuestions(newAssessmentId, questionsForSave)
+      // Remember the id so later saves/downloads in this session update the
+      // same doc instead of creating duplicates while still on /new. Entry is
+      // single-flight (callers gate on the saving/exporting flags), so this
+      // plain ref write isn't actually racy.
+      // eslint-disable-next-line require-atomic-updates
+      createdIdRef.current = newAssessmentId
+      // The freshly-created paper now owns its questions; clear the
+      // new-paper draft so it doesn't resurrect on the next visit.
+      clearAssessmentDraft(currentUser.uid)
+      clearAssessmentDraftRemote(currentUser.uid)
+    }
+    setImportedAssets({})
+    // The durable library copy now exists / is updated — reflect that.
+    setDirty(false)
+    setSavedToLibrary(true)
+    return targetId || createdIdRef.current
+  }
+
   async function handleSave() {
     // Show the full pre-publish checklist if anything is missing, instead of
     // bailing on the first error with a toast. The teacher sees — and fixes —
@@ -1600,90 +1704,9 @@ export default function AssessmentStudio() {
     }
     setSaving(true)
     try {
-      const serialized = serializeQuizSections(sections, parts)
-      const questionsForSave = await uploadImportedQuestionImages(serialized.questions)
-      const passagesForSave = await uploadImportedPassageImages(serialized.passages)
-      // Defensive: catch any blob: URL that slipped through the upload pass
-      // before it can land in Firestore and break for every learner.
-      assertNoBlobImageUrls(questionsForSave, passagesForSave)
-      const totalMarksForSave = questionsForSave.reduce((sum, q) => sum + (q.marks || 1), 0)
-      const library = classifyForLibrary({
-        libraryType: LIBRARY_TYPES.ASSESSMENTS,
-        grade: `Grade ${form.grade}`,
-        term: form.term,
-        subject: STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
-        assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType] || form.assessmentType,
-      })
-      const finalTitle = form.title.trim() || autoTitle
-      // Shared payload for both create and update so an edited paper round-trips
-      // every field the builder sets — cover toggles, page breaks, MCQ layout
-      // and import metadata included.
-      const assessmentPayload = {
-        title: finalTitle,
-        subject: form.subject,
-        grade: form.grade,
-        term: form.term,
-        year: form.year,
-        duration: form.duration,
-        topic: form.topic,
-        assessmentType: form.assessmentType,
-        schoolName: form.schoolName,
-        className: form.className,
-        paperName: form.paperName,
-        assessmentDate: form.assessmentDate,
-        coverInstructions: form.coverInstructions,
-        showNameField: form.showNameField,
-        showDateField: form.showDateField,
-        showMarksField: form.showMarksField,
-        showClassField: form.showClassField,
-        mcqOptionLayout: form.mcqOptionLayout,
-        mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
-        endOfPaperText: form.endOfPaperText,
-        footerCode,
-        passages: passagesForSave,
-        pagebreaks: serialized.pagebreaks,
-        parts: serialized.parts,
-        passageCount: passagesForSave.length,
-        totalMarks: totalMarksForSave,
-        questionCount: questionsForSave.length,
-        // Phase 10: see CreateQuizV2 comment — fresh count, persisted so the
-        // badge/chip/banner stay honest as flagged questions get fixed.
-        reviewCount: form.mode === 'imported_document'
-          ? questionsForSave.filter(q => q.requiresReview).length
-          : 0,
-        mode: form.mode,
-        importStatus: form.mode === 'imported_document'
-          ? (questionsForSave.some(q => q.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
-          : form.importStatus,
-        sourceFileName: form.sourceFileName,
-        sourceContentType: form.sourceContentType,
-        importWarnings: form.importWarnings,
-        library,
-      }
-
-      if (isEditing) {
-        // updateAssessmentWithQuestions upserts changed questions and deletes
-        // the ones removed since load — atomic doc + subcollection update.
-        await updateAssessmentWithQuestions(
-          editId,
-          { ...assessmentPayload, updatedBy: currentUser.uid },
-          questionsForSave,
-          deletedIds,
-        )
-        setDeletedIds([])
-      } else {
-        const newAssessmentId = await createAssessment({ ...assessmentPayload, createdBy: currentUser.uid })
-        await saveAssessmentQuestions(newAssessmentId, questionsForSave)
-        // The freshly-created paper now owns its questions; clear the
-        // new-paper draft so it doesn't resurrect on the next visit.
-        clearAssessmentDraft(currentUser.uid)
-        clearAssessmentDraftRemote(currentUser.uid)
-      }
-      setImportedAssets({})
-      // The durable library copy now exists / is updated — reflect that.
-      setDirty(false)
-      setSavedToLibrary(true)
-      showToast(isEditing ? 'Changes saved.' : 'Saved to your library!')
+      const wasUpdate = Boolean(editId || createdIdRef.current)
+      await persistAssessment()
+      showToast(wasUpdate ? 'Changes saved.' : 'Saved to your library!')
       setTimeout(() => navigate('/teacher/test-papers'), 900)
     } catch (error) {
       console.error(error)
@@ -1703,6 +1726,19 @@ export default function AssessmentStudio() {
     }
     setExporting(true)
     try {
+      // Auto-save the paper to the teacher's library before handing over the
+      // download, so a downloaded paper is never lost — matching every other
+      // studio. Only when it passes the pre-publish checklist (errorCount 0):
+      // an incomplete paper still downloads but isn't filed (per product
+      // decision). Best-effort and silent — a save failure must not block the
+      // download the teacher just asked for; skipped when nothing changed.
+      if (errorCount === 0 && (dirty || (!editId && !createdIdRef.current))) {
+        try {
+          await persistAssessment()
+        } catch (saveErr) {
+          console.error('Auto-save on download failed', saveErr)
+        }
+      }
       // Auto-titles (e.g. "Grade 4 Mathematics - Fractions") read well as-is;
       // a custom title gets grade/subject prepended so the file still says
       // what it is. buildAssessmentName handles both.

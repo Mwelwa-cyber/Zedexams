@@ -129,6 +129,11 @@ export default function LessonPlanStudio() {
       const ref = await addDoc(collection(db, 'aiGenerations'), {
         ownerUid: uid,
         tool: 'lesson_plan',
+        // Fixed status/visibility so the doc matches the aiGenerations
+        // client-create rule (see firestore.rules) — without these the save
+        // is silently denied and the plan never reaches the library.
+        status: 'complete',
+        visibility: 'private',
         createdAt: serverTimestamp(),
         inputs: {
           grade:    m.klass || null,

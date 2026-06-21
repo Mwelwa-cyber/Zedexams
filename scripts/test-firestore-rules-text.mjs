@@ -316,6 +316,33 @@ test('aiGenerations client create stays locked to the client-side tools', () => 
   )
 })
 
+test('aiGenerations lesson_plan client create cannot forge cost/token fields', () => {
+  // The Lesson Plan Studio is the one AI tool whose library copy is assembled
+  // client-side (its pre-rendered html lives only in the browser), so it has a
+  // dedicated client-create branch. It is allowed BUT must stay owner-scoped
+  // and its hasOnly() allowlist must never admit the server-only cost/token
+  // fields — otherwise a client could forge spend on the AI-cost rollup.
+  const block = rules.match(/match \/aiGenerations\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'aiGenerations match block not found')
+  const lpCreate = block[1].match(/allow create:[\s\S]*?'lesson_plan'[\s\S]*?;/)
+  assert(lpCreate, 'lesson_plan client-create branch not found')
+  assert(
+    /incoming\(\)\.ownerUid == request\.auth\.uid/.test(lpCreate[0]),
+    'lesson_plan create must require ownerUid == auth.uid',
+  )
+  assert(
+    /keys\(\)\.hasOnly\(/.test(lpCreate[0]),
+    'lesson_plan create lost its keys().hasOnly() allowlist',
+  )
+  const FORGEABLE = ['tokensIn', 'tokensOut', 'costUsdCents', 'modelUsed', 'promptVersion', 'kbVersion']
+  FORGEABLE.forEach((f) => {
+    assert(
+      !lpCreate[0].includes(`'${f}'`),
+      `lesson_plan create now allows the server-only field '${f}' — clients could forge it`,
+    )
+  })
+})
+
 test('feedback box is owner-create / admin-read', () => {
   // The learner/teacher suggestion box. Submissions must be pinned to the
   // caller (uid == auth.uid) and only readable by admins (private inbox).

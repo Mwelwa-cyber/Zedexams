@@ -549,6 +549,23 @@ service cloud.firestore {
                          'ownerUid', 'tool', 'status', 'visibility',
                          'createdAt', 'inputs', 'output', 'library',
                        ]);
+      // The Lesson Plan Studio (legacy vanilla-JS editor) is the one AI tool
+      // whose library copy is assembled client-side: the generate callable
+      // only logs a lightweight cost record, while the full plan (its
+      // pre-rendered `html` blob + the studio's `data`/`meta` trees) is built
+      // in the browser. Allow the owner to save it directly — fixed
+      // tool/status/visibility, constrained to the studio's field set so it
+      // still can't write the server-only cost/token fields.
+      allow create: if isAuthed()
+                       && incoming().ownerUid == request.auth.uid
+                       && incoming().tool == 'lesson_plan'
+                       && incoming().status == 'complete'
+                       && incoming().visibility == 'private'
+                       && incoming().keys().hasOnly([
+                         'ownerUid', 'tool', 'status', 'visibility',
+                         'createdAt', 'inputs', 'library',
+                         'meta', 'data', 'html', 'studioFormat',
+                       ]);
       // Teachers can update their own generations' output (in-place editing),
       // the teacherEdited / visibility / exportedFormats metadata fields, and
       // the `library` map (canonical Schemes/Forecasts/Lesson Plans/Notes/

@@ -740,27 +740,36 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
     ? window.__lpResolveSeries(lessonNumber)
     : null;
 
-  saveToLibrary({
-    type: 'plan',
-    meta: {
-      klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
-      format: i.format, school: i.school, duration: i.duration,
-      termWeek: i.termWeek, syllabusVersion,
-      learningEnvironments: i.learningEnvironments,
-      // Series metadata — read by the React-side saveToLibrary bridge to
-      // populate inputs.lessonSeries on the aiGenerations doc.
-      lessonSeries,
-      // Backwards-compat flags so older readers that only know about the
-      // single multi-lesson flag still surface "Lesson K of N".
-      multiLesson: totalLessons > 1,
-      lessonsTotal: totalLessons,
-      lessonsCurrent: lessonNumber,
-      lessonFocus: lessonFocus || '',
-      progressNotes: '',
-    },
-    data: data,
-    html: html,
-  });
+  // Auto-save to the teacher's library. Awaited (not fire-and-forget) so a
+  // rejected write surfaces instead of silently leaving the plan out of the
+  // library while we still claim "generated and saved". A save failure must
+  // not discard the already-rendered plan, so the lesson stays on screen.
+  try {
+    await saveToLibrary({
+      type: 'plan',
+      meta: {
+        klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
+        format: i.format, school: i.school, duration: i.duration,
+        termWeek: i.termWeek, syllabusVersion,
+        learningEnvironments: i.learningEnvironments,
+        // Series metadata — read by the React-side saveToLibrary bridge to
+        // populate inputs.lessonSeries on the aiGenerations doc.
+        lessonSeries,
+        // Backwards-compat flags so older readers that only know about the
+        // single multi-lesson flag still surface "Lesson K of N".
+        multiLesson: totalLessons > 1,
+        lessonsTotal: totalLessons,
+        lessonsCurrent: lessonNumber,
+        lessonFocus: lessonFocus || '',
+        progressNotes: '',
+      },
+      data: data,
+      html: html,
+    });
+  } catch (err) {
+    console.error('saveToLibrary failed', err);
+    toast('Plan made, but saving to your library failed — try again');
+  }
   return true;
 }
 
