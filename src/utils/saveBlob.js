@@ -34,7 +34,7 @@
 
 import { inspectFilename } from './downloadGuard.js'
 import { reportClientError } from './clientErrorReporting.js'
-import { isNativePlatform } from './runtime.js'
+import { isNativePlatform, isMobileBrowser } from './runtime.js'
 import { saveBlobNative } from './nativeDownload.js'
 
 /** Click an attached `<a download>` — attached + removed so every browser honours it. */
@@ -46,6 +46,51 @@ function anchorDownload(href, filename) {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+/**
+ * Save `blob` as `filename` through the Web Share API (Web Share Level 2).
+ *
+ * This is the ONLY browser mechanism that preserves a real filename on a mobile
+ * browser. An `<a download>` click on a `blob:` URL does not: Android Chrome
+ * names the saved file after the blob's internal UUID ("acc6d3a8-….docx") and
+ * iOS Safari ignores the `download` name entirely. We hand the OS a `File`
+ * object whose `.name` IS the human filename, so "Save to Files" / Drive / Word
+ * all keep "Grade 1 Mathematics Lesson Plan.docx".
+ *
+ * @returns {Promise<boolean>} true when the file was handed off (shared) OR the
+ *   user deliberately dismissed the share sheet — in both cases the caller must
+ *   NOT fall through to the anchor route (which would dump a UUID-named copy
+ *   into Downloads). false means "couldn't even try" → caller should fall back.
+ */
+async function trySaveViaShare(blob, filename) {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false
+  if (typeof File !== 'function') return false
+
+  let file
+  try {
+    file = new File([blob], filename, { type: blob.type || 'application/octet-stream' })
+  } catch {
+    return false
+  }
+
+  // If the platform can tell us it can't share this file, don't try — fall back.
+  if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
+    return false
+  }
+
+  try {
+    await navigator.share({ files: [file], title: filename })
+    return true
+  } catch (err) {
+    // AbortError = the user closed the share sheet on purpose. Treat as handled
+    // so we don't immediately re-trigger a UUID-named anchor download.
+    if (err && err.name === 'AbortError') return true
+    // Any other failure (NotAllowedError, share unsupported for files, …) →
+    // report and let the caller fall through to the file-saver/anchor route.
+    reportClientError(err, 'share_save_fallback')
+    return false
+  }
 }
 
 function blobToDataUrl(blob) {
@@ -99,8 +144,22 @@ export async function saveBlob(blob, filename) {
     }
   }
 
-  // All real browsers (desktop + mobile): file-saver streams the full blob via
-  // a blob: URL — never truncated — and honours the download filename.
+  // Mobile browsers (Android Chrome, iOS Safari): an <a download> on a blob:
+  // URL loses the filename here — Android saves it under the blob's UUID
+  // ("acc6d3a8-….docx") and iOS ignores the name. The Web Share API is the only
+  // path that keeps the real name, so route mobile browsers through it. If it
+  // can't run (no support / genuine failure) we fall through to file-saver.
+  if (isMobileBrowser()) {
+    try {
+      if (await trySaveViaShare(blob, name)) return
+    } catch {
+      // trySaveViaShare is already defensive; never let it break a download.
+    }
+  }
+
+  // Desktop browsers (and the mobile fallback): file-saver streams the full blob
+  // via a blob: URL — never truncated — and desktop browsers honour the download
+  // filename.
   try {
     const { saveAs } = await import('file-saver')
     saveAs(blob, name)

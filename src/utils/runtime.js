@@ -16,6 +16,29 @@ export function isNativePlatform() {
 }
 
 /**
+ * True for a mobile *web browser* (Android Chrome, iOS Safari, …) — NOT the
+ * native Capacitor shell, and NOT a desktop browser.
+ *
+ * Why this matters for downloads: on a mobile browser an `<a download>` click
+ * on a `blob:` URL does NOT reliably keep the filename. Android Chrome names
+ * the saved file after the blob's internal UUID (e.g. "acc6d3a8-….docx") and
+ * iOS Safari ignores the name too. The Web Share API is the only browser path
+ * that preserves a real filename there, so saveBlob() routes mobile browsers
+ * through it. Desktop browsers honour `download`, so they stay on file-saver.
+ */
+export function isMobileBrowser() {
+  if (isNativePlatform()) return false
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/Android|iPhone|iPad|iPod/i.test(ua)) return true
+  // iPadOS 13+ reports a desktop "Macintosh" UA; disambiguate via touch points.
+  if (/Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1) {
+    return true
+  }
+  return false
+}
+
+/**
  * Resolve an `/api/...` path to a fully-qualified URL when running in the
  * native shell, or return it unchanged on the web. Anything that isn't an
  * `/api/...` path is returned unchanged so call sites can pass straight URLs.

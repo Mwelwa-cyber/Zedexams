@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { saveBlob } from './saveBlob.js'
-import { isNativePlatform } from './runtime.js'
+import { isNativePlatform, isMobileBrowser } from './runtime.js'
 import { saveBlobNative } from './nativeDownload.js'
 
 // Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
@@ -8,9 +8,12 @@ import { saveBlobNative } from './nativeDownload.js'
 // download, so asserting the fallback covers the real path too). Hoisted by Vitest.
 vi.mock('file-saver', () => { throw new Error('not available') })
 
-// isNativePlatform() is the single switch between the two download routes, so we
-// mock it per-test to exercise both the native shell and the browser path.
-vi.mock('./runtime.js', () => ({ isNativePlatform: vi.fn(() => false) }))
+// isNativePlatform() / isMobileBrowser() are the switches between download
+// routes, so we mock them per-test to exercise each path independently.
+vi.mock('./runtime.js', () => ({
+  isNativePlatform: vi.fn(() => false),
+  isMobileBrowser: vi.fn(() => false),
+}))
 
 // The native filesystem+share save is covered by nativeDownload.spec.js; here we
 // mock it to drive saveBlob's native success vs. fallback branches.
@@ -19,14 +22,17 @@ vi.mock('./nativeDownload.js', () => ({ saveBlobNative: vi.fn() }))
 /**
  * The regressions these cover:
  *
- * 1. REAL BROWSERS (including Android Chrome / iOS Safari) must download via a
- *    `blob:` URL, NOT a `data:` URL. Android Chrome truncates large `data:` URL
- *    downloads, which corrupted .docx files ("Word found unreadable content");
- *    blob: URLs stream the full bytes and are never truncated.
- * 2. THE NATIVE CAPACITOR SHELL must use the `data:` URL route, because its
- *    WebView has no download manager and a blob: URL click does nothing there.
- * 3. The chosen filename is preserved on every route; a missing name falls back
- *    to a sane default.
+ * 1. MOBILE BROWSERS (Android Chrome / iOS Safari) must save via the Web Share
+ *    API, handing the OS a `File` whose `.name` is the real filename. An
+ *    <a download> click on a blob: URL does NOT keep the name there — Android
+ *    saves it under the blob's UUID ("acc6d3a8-….docx"). The key assertion is
+ *    therefore on the File handed to navigator.share, NOT on an anchor's
+ *    `download` attribute (which the browser ignores on mobile anyway).
+ * 2. DESKTOP BROWSERS honour `download`, so they stay on file-saver / the
+ *    blob:-URL anchor with the filename preserved.
+ * 3. THE NATIVE CAPACITOR SHELL writes the full bytes to disk + shares them.
+ * 4. Every route falls back gracefully and never dumps a misnamed copy after the
+ *    user cancels a share sheet.
  */
 
 function stubAnchor() {
@@ -43,10 +49,6 @@ function stubAnchor() {
   return a
 }
 
-function setUserAgent(ua) {
-  Object.defineProperty(window.navigator, 'userAgent', { value: ua, configurable: true })
-}
-
 /** Stub URL.createObjectURL so the blob:-URL fallback is observable. */
 function stubObjectUrl() {
   const createObjectURL = vi.fn(() => 'blob:fake-url')
@@ -54,71 +56,127 @@ function stubObjectUrl() {
   vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
 }
 
-describe('saveBlob', () => {
-  const originalUA = window.navigator.userAgent
+/**
+ * Install navigator.share + navigator.canShare. `shareImpl` lets a test resolve
+ * (saved), reject with AbortError (user cancelled), or reject with a real error.
+ */
+function stubWebShare({ canShare = true, shareImpl } = {}) {
+  const share = vi.fn(shareImpl || (() => Promise.resolve()))
+  Object.defineProperty(window.navigator, 'share', { value: share, configurable: true })
+  Object.defineProperty(window.navigator, 'canShare', {
+    value: vi.fn(() => canShare),
+    configurable: true,
+  })
+  return share
+}
 
+function clearWebShare() {
+  try { delete window.navigator.share } catch { /* noop */ }
+  try { delete window.navigator.canShare } catch { /* noop */ }
+}
+
+describe('saveBlob', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    vi.mocked(isNativePlatform).mockReturnValue(false) // default: a real browser
+    vi.mocked(isNativePlatform).mockReturnValue(false)
+    vi.mocked(isMobileBrowser).mockReturnValue(false)
+    clearWebShare()
   })
 
   afterEach(() => {
-    setUserAgent(originalUA)
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    clearWebShare()
   })
 
-  // ── Real browsers: blob: URL, never data: ─────────────────────────────────
+  // ── Mobile browsers: Web Share API with the real filename ──────────────────
 
-  it('downloads an Android-browser file via a blob: URL (NOT data:) with the filename', async () => {
-    // Regression: routing Android browsers through data: URLs truncated large
-    // .docx files into corrupt ZIPs. A blob: URL streams the full bytes.
-    vi.mocked(isNativePlatform).mockReturnValue(false)
-    setUserAgent('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile')
+  it('shares a mobile-browser download as a File carrying the real filename', async () => {
+    // THE regression: Android Chrome saved blob: downloads under a random UUID
+    // ("acc6d3a8-….docx"). The fix hands the OS a File whose .name is the human
+    // name, so "Save to Files"/Drive/Word keep it. We assert exactly that File.
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    const share = stubWebShare()
+    const a = stubAnchor()
+
+    await saveBlob(
+      new Blob(['hello'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      'Grade 1 Mathematics Lesson Plan.docx',
+    )
+
+    expect(share).toHaveBeenCalledOnce()
+    const arg = share.mock.calls[0][0]
+    expect(Array.isArray(arg.files)).toBe(true)
+    expect(arg.files[0]).toBeInstanceOf(File)
+    // The contract that actually matters: the OS receives the real name.
+    expect(arg.files[0].name).toBe('Grade 1 Mathematics Lesson Plan.docx')
+    // And we must NOT also trigger the UUID-prone anchor download.
+    expect(a.click).not.toHaveBeenCalled()
+  })
+
+  it('does NOT fall back to an anchor download when the user cancels the share sheet', async () => {
+    // Dismissing the sheet is a deliberate "no". Re-downloading via the anchor
+    // would drop a misnamed UUID copy into Downloads — the very bug we fixed.
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    const abort = Object.assign(new Error('cancelled'), { name: 'AbortError' })
+    const share = stubWebShare({ shareImpl: () => Promise.reject(abort) })
     const a = stubAnchor()
     stubObjectUrl()
 
-    await saveBlob(new Blob(['hello'], { type: 'text/plain' }), 'Grade 5 English Notes.docx')
+    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
 
-    expect(a.download).toBe('Grade 5 English Notes.docx')
+    expect(share).toHaveBeenCalledOnce()
+    expect(a.click).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the blob:-URL download when the mobile browser cannot share files', async () => {
+    // Older mobile browsers without Web Share Level 2: canShare({files}) is
+    // false. We must still save the file rather than do nothing.
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    const share = stubWebShare({ canShare: false })
+    const a = stubAnchor()
+    stubObjectUrl()
+
+    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
+
+    expect(share).not.toHaveBeenCalled()
+    expect(a.download).toBe('Grade 4 Science Notes.docx')
     expect(a.href.startsWith('blob:')).toBe(true)
-    expect(a.href.startsWith('data:')).toBe(false)
     expect(a.click).toHaveBeenCalledOnce()
   })
 
-  it('downloads an iPhone-browser file via a blob: URL (NOT data:) with the filename', async () => {
-    vi.mocked(isNativePlatform).mockReturnValue(false)
-    setUserAgent(
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
-    )
+  it('falls back to the blob:-URL download when a real share error occurs', async () => {
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    const share = stubWebShare({ shareImpl: () => Promise.reject(new Error('NotAllowedError')) })
     const a = stubAnchor()
     stubObjectUrl()
 
-    await saveBlob(
-      new Blob(['x'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
-      'Grade 4 Integrated Science Lesson Plan.docx',
-    )
+    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
 
-    expect(a.download).toBe('Grade 4 Integrated Science Lesson Plan.docx')
-    expect(a.href.startsWith('blob:')).toBe(true)
-    expect(a.href.startsWith('data:')).toBe(false)
+    expect(share).toHaveBeenCalledOnce()
+    expect(a.click).toHaveBeenCalledOnce()
+    expect(a.download).toBe('Grade 4 Science Notes.docx')
   })
 
-  it('keeps the filename on the desktop blob-URL fallback', async () => {
-    vi.mocked(isNativePlatform).mockReturnValue(false)
-    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Chrome/120 Safari')
+  // ── Desktop browsers: blob: URL, name honoured ─────────────────────────────
+
+  it('keeps the filename on the desktop blob-URL fallback (no share sheet)', async () => {
+    // Desktop browsers honour the download attribute, so we deliberately do NOT
+    // route them through the share sheet (worse UX than a direct download).
+    vi.mocked(isMobileBrowser).mockReturnValue(false)
+    const share = stubWebShare() // available, but must be ignored on desktop
     const a = stubAnchor()
     stubObjectUrl()
 
     await saveBlob(new Blob(['x']), 'Worksheet (Answer Key).docx')
 
+    expect(share).not.toHaveBeenCalled()
     expect(a.download).toBe('Worksheet (Answer Key).docx')
     expect(a.href).toBe('blob:fake-url')
   })
 
   it('falls back to a default name when none is given', async () => {
-    vi.mocked(isNativePlatform).mockReturnValue(false)
-    setUserAgent('Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile')
+    vi.mocked(isMobileBrowser).mockReturnValue(false)
     const a = stubAnchor()
     stubObjectUrl()
 
@@ -130,8 +188,6 @@ describe('saveBlob', () => {
   // ── Native Capacitor shell ────────────────────────────────────────────────
 
   it('uses the native filesystem save in the Capacitor shell (no data: URL)', async () => {
-    // The proper native path writes the full bytes to disk + shares them, so it
-    // never falls back to the truncation-prone data: URL anchor.
     vi.mocked(isNativePlatform).mockReturnValue(true)
     vi.mocked(saveBlobNative).mockResolvedValue(true)
     const a = stubAnchor()
@@ -144,8 +200,6 @@ describe('saveBlob', () => {
   })
 
   it('falls back to a data: URL when the native save fails', async () => {
-    // If the filesystem/share plugins are unavailable (not yet synced into the
-    // APK), saveBlob must still save something — via the legacy data: URL route.
     vi.mocked(isNativePlatform).mockReturnValue(true)
     vi.mocked(saveBlobNative).mockRejectedValue(new Error('plugin not available'))
     const a = stubAnchor()
