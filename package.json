@@ -122,6 +122,7 @@
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
     "test:ai-cost-openai": "node functions/aiCostOpenAi.test.js",
     "test:treasury": "node functions/treasury.test.js",
+    "test:budget-revenue-linked": "node functions/aiBudgetRevenueLinked.test.js",
     "test:edit-question": "node functions/editQuizQuestion.test.js",
     "test:revise-question": "node functions/teacherTools/reviseQuestion.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",

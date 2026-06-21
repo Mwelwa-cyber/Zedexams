@@ -299,11 +299,14 @@ locked pair (the kwacha moves daily; nothing that charges money hardcodes
 it). It only puts ZMW revenue on the same axis as USD spend, and is
 editable in the HQ.
 
-**Arming the governor (off by default).** `functions/treasury.js` ships
-dormant — deploying it changes no production behaviour. To switch the
-static `AI_MONTHLY_BUDGET_USD` ceiling over to the revenue-linked one, set
-the Cloud Functions runtime env and follow the one-place wiring documented
-at the bottom of that file:
+**Arming the governor (off by default).** The governor is **wired** into
+`aiCostTracking.getBudgetStatus()` (tested in
+`functions/aiBudgetRevenueLinked.test.js`) but dormant: `AI_BUDGET_MODE`
+defaults to `static`, so production behaviour is unchanged until the owner
+arms it. Both ceiling paths fail open, and a $0 derived ceiling (no revenue,
+no floor) falls back to the static budget so arming can never brick AI. To
+switch the static `AI_MONTHLY_BUDGET_USD` ceiling over to the revenue-linked
+one, set on the Cloud Functions runtime:
 
 | Env var | Default | Effect |
 |---|---|---|
@@ -347,3 +350,10 @@ agent pause/resume controls stay in `/admin/agents`.
   live data and falls back to a labelled Preview. Roster doc refreshed to the
   real five departments (Revenue/Support/Growth + Compass/Gate/Echo/Anchor/Dawn).
   The governor ships **dormant** — arm it with `AI_BUDGET_MODE=revenue_linked`.
+- **2026-06-21** — Revenue-linked governor **wired** into
+  `aiCostTracking.getBudgetStatus()`: with `AI_BUDGET_MODE=revenue_linked`
+  the monthly AI ceiling becomes `monthRevenueUsd × reinvestRatio` (read from
+  `payments`, cached 5 min) instead of the static `AI_MONTHLY_BUDGET_USD`.
+  Defaults to `static` (no behaviour change); both paths fail open and a $0
+  ceiling falls back to the static budget so arming can't brick AI. Covered by
+  `functions/aiBudgetRevenueLinked.test.js` (13 assertions).
