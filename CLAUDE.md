@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo at a glance
 
-ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 18 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5/4.6 for generators, Haiku 4.5 for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW). A Capacitor wrapper produces Android builds.
+ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 18 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5 default — `claude-sonnet-4-5`, overridable per-runtime with `ANTHROPIC_MODEL` — for generators; Haiku 4.5 `claude-haiku-4-5-20251001` for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. **Image generation** (question/passage diagrams, note pictures, visual notes) goes through `functions/kieClient.js` (Kie.ai unified Jobs API) plus Recraft/OpenAI/Gemini providers — see `generateDiagram` / `generateNotePictures` / `generateVisualNotes`. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW). A Capacitor wrapper produces Android builds.
 
 The Firebase project id is `examsprepzambia` (see `.firebaserc`).
+
+> **Firestore region:** the `(default)` Firestore database lives in **`africa-south1`** (moved from `us-central1` for Zambian latency). Firestore-triggered Cloud Functions (`onDocument*`, agent dispatcher, storage-cleanup triggers) must be pinned to `africa-south1` too so Eventarc doesn't make a cross-region hop on every event. HTTP/callable functions have no regional trigger and stay in **`us-central1`** (this is what `firebase.json` rewrites point at). When you add a new Firestore trigger, set `region: "africa-south1"`.
 
 ## Common commands
 
@@ -90,43 +92,49 @@ src/
   firebase/ai.js                — Firebase AI Logic (Gemini) client; src/utils/aiLogic.js wraps generateText/streamText/generateJSON
   contexts/                     — AuthContext, ThemeContext, DataSaverContext, PlatformSettingsContext
   components/
-    admin/                      — /admin/* — learners, results, approvals, CBC KB editor, generation logs, agent ops at /admin/agents
+    admin/                      — /admin/* — learners, results, approvals, CBC KB editor, generation logs, payments, agent ops at /admin/agents (now lists the ops/growth agents too), PictureBankAdmin + VisualStudioAdmin (image pipeline), PastPaperStudio, CurriculumReplaceStudio (syllabus versioning)
     ai/                         — ZedChatLauncher + ZedChatPage (learner study assistant; SSE streamed from apiAiChat)
     auth/                       — Login, Register, AuthAction (password reset)
     dashboard/                  — StudentDashboard, GradeHub, MyResults, Badges, Profile
     exams/                      — Daily exams hub, runner, results, live leaderboard
     games/                      — Games hub + engines (TimedQuizGame, MemoryMatchGame, WordBuilderGame, ProvinceShapesGame, …)
     lessons/                    — Lesson library + slide player + editor; src/features/notes/ holds Notes Studio (admin authoring + learner reader gated by LearnerGate)
-    quiz/                       — QuizList, EditQuizV2, QuizRunnerV2, QuizResultsV2, document-quiz importer; QuizVerifyModal calls Vex
-    teacher/                    — TeacherDashboard + studios (lesson plan / worksheet / flashcards / scheme of work / rubric / notes / full lesson / homework / assessment). NOTE: the teacher-facing agent-submission surface (AgentBriefForm + AgentJobsList at /teacher/agents) was removed in 2026-06 — it duplicated the direct studios behind a human-approval gate nobody staffed. The server-side agentJobs pipeline + the /admin/agents approval UI remain.
+    quiz/                       — QuizList, EditQuizV2, QuizRunnerV2, QuizResultsV2, document-quiz importer + scanned-image (OCR) importer; QuizVerifyModal calls Vex. Question types include MCQ, short-answer, and Fill-in-the-Blanks
+    teacher/                    — TeacherDashboard + studios (lesson plan / worksheet / flashcards / scheme of work / rubric / notes / full lesson / homework / assessment / exam paper / SBA task). AssessmentStudio is the largest. Free-plan teachers see locked studios (LockedStudio + StudioGate) with samples + paywall. NOTE: the teacher-facing agent-submission surface (AgentBriefForm + AgentJobsList at /teacher/agents) was removed in 2026-06 — it duplicated the direct studios behind a human-approval gate nobody staffed. The server-side agentJobs pipeline + the /admin/agents approval UI remain.
+    diagrams/                   — diagram rendering + the leader-line label layer for question/passage figures
     papers/                     — Past papers viewer + practice + history
     parent/                     — Parent portal pages
-    classes/                    — Class management UI
-  features/lessons, features/notes — feature-folder pattern (pages/, components/, services/) for newer surfaces
+    classes/                    — Class management UI (rosters, invites, assignments, analytics)
+  features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
-  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + MoMo + permissions + paywall + analytics
+  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~210 modules; the catch-all bucket)
   schemas/                      — Zod schemas for quiz, attempt, result
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, MoMo webhooks, agentJobsOnCreate/Approved, storageCleanup triggers, scheduled jobs)
+  index.js                      — every function export lives here (~130 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/ExamPaper/SbaTask/FullLesson/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), lencoWebhook + payment recovery, agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled agent crons (nightlyQaSmoke, hourlyMonitor, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
-  geminiClient.js               — Gemini REST client used by structureImportedQuiz
+  kieClient.js                  — Kie.ai unified Jobs API client (async image/video gen + polling); fronts Recraft/OpenAI/Flux image models
+  geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
+  visualSafety.js / visualSafetyCore.js — safety gate for generated images; pictureNaming.js auto-names picture-bank assets
   openaiClient.js               — OpenAI client (short-answer marking)
-  teacherTools/                 — one folder per generator (prompt + schema + run* runner) + cbcKnowledge.js (KB resolver), usageMeter.js (per-user + per-agent daily caps), privateCurriculum.js
-  agents/                       — Internal agent pipeline. dispatcher.js drives Aria → Cala → Reva → awaiting_approval → Pubo via Firestore triggers on agentJobs/{id}. Runners live in agents/runners/{aria,cala,reva,pubo,quill,vex}.js. agentControl/{agentId}.paused acts as a circuit breaker.
+  teacherTools/                 — one folder per generator (prompt + schema + generate*/run* runner) + cbcKnowledge.js + cbcTopics.js (KB resolver), usageMeter.js (per-user + per-agent daily caps), privateCurriculum.js, assessment/exam-paper/SBA schemas + format seeds
+  agents/                       — Internal agent pipeline. dispatcher.js drives Aria → Cala → Reva → awaiting_approval → Pubo via Firestore triggers on agentJobs/{id} (pinned to africa-south1). agents/runners/ holds the content agents (aria, cala, reva, pubo, vex) AND the ops/growth agents driven by agents/cron.js (monitor=Vigil, till, echo, compass, anchor, gate, dawn, quill). agentControl/{agentId}.paused is a circuit breaker; agentControl/content.autoPublish gates Gate. learnerAi/ holds the curriculum-ingester runner.
   grading/                      — daily-exam grading
-  storageCleanup/               — Firestore triggers that cascade-delete Storage blobs when lessons/quiz questions change
-  lencoService.js + subscriptionActivation.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW); idempotent subscription activation
+  classManagement.js / classAnalytics.js — teacher classes, rosters, invites, assignments, stats
+  parentPortal.js / weeklyParentDigest.js — parent portal data + weekly digest email
+  invoiceGenerator.js / lencoService.js / subscriptionActivation.js / subscriptionLifecycle.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW), idempotent activation, invoices, expiry/cancellation lifecycle
+  metaWhatsApp.js / newsletter.js / referralRedemption.js — WhatsApp (Meta) channel, newsletter signup, referral codes
+  storageCleanup/               — Firestore triggers that cascade-delete Storage blobs when lessons/quiz/assessment questions change
   scripts/                      — CBC ingestion utilities (cbc:verify, cbc:ingest, cbc:check)
 
 scripts/                        — top-level data-migration + integrity + test scripts (all plain `node`); also scripts/agents/ for agent-runner harnesses
 firestore.rules                 — large, hand-written; the test:rules-text script is a text-level sanity check, not a behavioural test
 firestore.indexes.json          — composite indexes (leaderboard, results, attempts). Deploy these BEFORE shipping queries that need them.
 storage.rules                   — Storage security rules
-firebase.json                   — hosting rewrites map /api/ai/chat, /api/teacher/lesson-plan/stream, /api/teacher/worksheet/stream, /api/tts, /api/payments/momo/* to the matching onRequest Cloud Functions in us-central1; SPA fallback at the bottom
+firebase.json                   — hosting rewrites map /api/ai/chat, /api/teacher/lesson-plan/stream, /api/teacher/worksheet/stream, /api/tts, /api/payments/lenco/webhook to the matching onRequest Cloud Functions in us-central1; SPA fallback at the bottom
 capacitor.config.json           — appId com.zedexams.app; android/ holds the generated native project
 .claude/settings.json           — repo-level permission allow/deny list (denies `firebase deploy --only hosting|functions`)
 .claude/agents/                 — subagent definitions (cbc-alignment, content-author, content-reviewer, code-reviewer, publisher, qa-smoke, quiz-verifier, release-notes); see ORG.md for the agent org chart
@@ -140,22 +148,38 @@ capacitor.config.json           — appId com.zedexams.app; android/ holds the g
 - **Zed chat (learner study assistant)** — OpenAI (`gpt-4o-mini` by default; override Zed-only with `ZED_CHAT_MODEL`, which falls back to the shared `OPENAI_MODEL`) via `aiService.callOpenAI` / `callOpenAIStream`. SSE-streamed via `apiAiChat` (HTTP) and `aiChat` (callable). The hosting rewrite `/api/ai/chat` → `apiAiChat` is how the SPA reaches it without CORS. Spend lands on the same `/admin/ai-costs` rollup (priced via the `gpt-*` rows in `aiCostTracking.js`).
 - **Quiz verification (Vex)** — synchronous callable `verifyQuiz` using Anthropic Haiku 4.5, layered on top of deterministic structural checks (empty/duplicate/out-of-range options). Vex is intentionally **not** routed through `agentJobs` because authors expect Grammarly-style instant feedback. Returns `{ verdict, overallScore, scores, summary, blockers[], warnings[] }` directly to the caller — no Firestore writes.
 - **Short-answer marking** — OpenAI (GPT) via `checkShortAnswer` callable, in `functions/openaiClient.js`.
+- **Image generation** — `functions/kieClient.js` fronts the Kie.ai unified Jobs API (async submit → poll); `generateDiagram` picks a provider (`recraft` line-art / `openai` / `kie` full-colour) per `ALLOWED_PROVIDERS`, `geminiImageClient.js` is the Gemini path. Outputs flow through `visualSafety` before landing in Storage + the picture bank. Surfaces: `generateNotePictures`, `generateVisualNotes`, plus admin VisualStudio/PictureBank.
 - **Client-side helpers** — Firebase AI Logic / Gemini, exposed through `src/utils/aiLogic.js` (`generateText`, `streamText`, `generateJSON`). Requires App Check enforcement before it's safe to enable on the public origin.
 
 ### Agent pipeline (the internal "AI company")
 
-See [`ORG.md`](./ORG.md) for the full org chart and cost budgets. Operationally:
+See [`ORG.md`](./ORG.md) for the full org chart and cost budgets. The **content line** flows through Firestore:
 
 ```
-teacher submits brief
-   → write to agentJobs collection
-   → agentJobsOnCreate (functions/agents/dispatcher.js) runs Aria → Cala → Reva sequentially
+content job written to agentJobs collection (by an admin tool or a cron)
+   → agentJobsOnCreate (functions/agents/dispatcher.js, region africa-south1) runs Aria → Cala → Reva sequentially
    → status flips to awaiting_approval
-   → admin clicks Approve in /admin/agents
-   → agentJobsOnApproved fires; Pubo writes the final artefact to aiGenerations and flips status='done'
+   → admin clicks Approve in /admin/agents  (OR Gate auto-approves if agentControl/content.autoPublish === true and the bar passes)
+   → agentJobsOnApproved fires; Pubo flips the reserved aiGenerations doc public + stamps approval and sets status='done'
 ```
 
-Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in one hour pauses the agent automatically. Vex is the **only** agent that bypasses this pipeline (it's synchronous, called from the quiz editor).
+Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in one hour pauses the agent automatically.
+
+Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `functions/agents/cron.js` (each writes an `agentJobs` rollup the `/admin/agents` dashboard surfaces — all are read-only/draft-only, none message users directly):
+
+| Agent | Schedule | Job |
+|-------|----------|-----|
+| **Quill** (`nightlyQaSmoke`) | daily 02:00 | walks Firestore for stuck jobs + KB freshness |
+| **Cala** (`weeklyCbcAlignmentAudit`) | Sun 03:00 | re-runs alignment on recent `aiGenerations`, catches drift |
+| **Vigil** (`hourlyMonitor`, runner `monitor.js`) | hourly | checks pages/Firebase/images/quizzes; on failure asks Haiku for fixes, emails + files a GitHub bug issue → Mendi |
+| **Till** (`hourlyRevenueReconcile`) | hourly | re-queries Lenco for stale "pending" payments; finishes what a dropped webhook missed via the idempotent activation path |
+| **Echo** (`supportTriage`) | every 2h | classifies + prioritises new feedback + public `contactMessages`, drafts replies (Haiku) — never sends |
+| **Gate** (`contentAutoPublish`) | every 30m | auto-approves content jobs passing a strict bar; OFF unless `agentControl/content.autoPublish === true` |
+| **Compass** (`weeklyProductSignal`) | Mon 06:00 | deterministic "what to build next" backlog from quiz/exam attempts |
+| **Anchor** (`weeklyRetentionScan`) | Mon 07:00 | finds learners who went quiet 14–45d ago + drafts a win-back nudge |
+| **Dawn** (`deliverDawnBriefings`/`runDawnBriefing`) | on-demand | Claude Managed Agent morning briefing; "Run Dawn now" button in `/admin/agents` |
+
+**Vex** is the **only** AI agent that bypasses the whole pipeline (synchronous callable from the quiz editor). **Mendi** (bug-fixer), **Rex** (code review), and **Ledger** (release notes) are subagents invoked from CI/locally, not crons.
 
 ### Hosting + Functions wiring
 
