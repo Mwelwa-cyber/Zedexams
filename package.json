@@ -81,6 +81,7 @@
     "test:pwa-auto-reload": "node scripts/test-pwa-auto-reload.mjs",
     "test:scroll-to-top": "node scripts/test-scroll-to-top.mjs",
     "test:rules-text": "node scripts/test-firestore-rules-text.mjs",
+    "test:pdfjs-loader": "node scripts/test-pdfjs-loader.mjs",
     "test:grade-rules": "node scripts/test-grade-rules-consistency.mjs",
     "test:public-routes": "node scripts/test-public-routes.mjs",
     "test:mark-schedule": "node scripts/test-mark-schedule.mjs",

@@ -28,24 +28,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { loadPdfjs } from '../../utils/pdfjsLoader'
 
 const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 const DEFAULT_ZOOM_INDEX = 3 // 1.0
-
-let pdfjsLoader = null
-async function loadPdfJs() {
-  if (!pdfjsLoader) {
-    pdfjsLoader = (async () => {
-      const [{ GlobalWorkerOptions, getDocument }, workerUrl] = await Promise.all([
-        import('pdfjs-dist/legacy/build/pdf.mjs'),
-        import('pdfjs-dist/legacy/build/pdf.worker.mjs?url').then((m) => m.default),
-      ])
-      GlobalWorkerOptions.workerSrc = workerUrl
-      return { getDocument }
-    })()
-  }
-  return pdfjsLoader
-}
 
 async function fetchPdfBuffer(url, { retries = 1 } = {}) {
   let lastErr
@@ -89,11 +75,12 @@ export default function PdfJsViewer({ url, blob, title }) {
     setPageIndex(0)
     ;(async () => {
       try {
-        const [{ getDocument }, buffer] = await Promise.all([
-          loadPdfJs(),
+        const [pdfjs, buffer] = await Promise.all([
+          loadPdfjs(),
           blob ? blob.arrayBuffer() : fetchPdfBuffer(url),
         ])
         if (cancelled) return
+        const { getDocument } = pdfjs
         const doc = await getDocument({ data: buffer }).promise
         if (cancelled) {
           doc.destroy?.()
