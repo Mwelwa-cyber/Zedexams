@@ -628,7 +628,10 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
     onChange(sectionIndex, 'optionMedia', next)
   }
 
-  const isTrueFalse = question.type === 'truefalse'
+  // Accept both the canonical 'tf' (what the schema stores + the runner reads)
+  // and the legacy 'truefalse' spelling so a reloaded true/false question still
+  // shows its True/False editor UI.
+  const isTrueFalse = question.type === 'tf' || question.type === 'truefalse'
   const isFill = question.type === 'fill'
   const isFillBlanks = question.type === 'fill_blanks'
   const isNumeric = question.type === 'numeric'
@@ -701,7 +704,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             onChange={event => {
               const nextType = event.target.value
               set('type', nextType)
-              if (nextType === 'truefalse') {
+              if (nextType === 'tf') {
                 onChange(sectionIndex, 'options', ['True', 'False'])
                 onChange(sectionIndex, 'correctAnswer', 0)
               } else if (nextType === 'short_answer' || nextType === 'diagram' || nextType === 'fill') {
@@ -752,7 +755,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             className={joinClasses('theme-input rounded-lg border px-2 py-1 text-xs outline-none', theme.focus)}
           >
             <option value="mcq">MCQ (4 options)</option>
-            <option value="truefalse">True / False</option>
+            <option value="tf">True / False</option>
             <option value="short_answer">Short Answer</option>
             <option value="fill">Fill in the blank</option>
             <option value="fill_blanks">Fill in the Blanks (statements)</option>
