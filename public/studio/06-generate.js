@@ -879,6 +879,22 @@ async function __studioOnGenerateClick() {
       else toast(`${madeCount} of ${total} lesson plans generated and saved`);
       // Clear "only this" so the next click defaults back to the full series.
       if (typeof window.__lpResetGenerateOnly === 'function') window.__lpResetGenerateOnly();
+      // Surface the lesson kit (Create worksheet / homework / notes for this
+      // lesson). Hand React the CBC-normalised coords the companion studios
+      // expect: classToCbcGrade turns "Grade 5" → "G5" and subjectToCbcSubject
+      // turns the display subject → its snake_case slug, matching TEACHER_GRADES
+      // + useCurriculumOptions so the deep-linked form pre-fills cleanly.
+      if (typeof window.__studioOnGenerated === 'function') {
+        const cbcGrade = (typeof classToCbcGrade === 'function') ? classToCbcGrade(i.klass) : i.klass;
+        const cbcSubject = (typeof subjectToCbcSubject === 'function') ? subjectToCbcSubject(i.subject) : i.subject;
+        window.__studioOnGenerated({
+          grade: cbcGrade || '',
+          subject: cbcSubject || '',
+          topic: i.topic || '',
+          subtopic: i.subtopic || '',
+          term: i.term || '',
+        });
+      }
       $('#sidebar').classList.remove('open');
       $('#scrim').classList.remove('show');
       // On phones the form is now an in-flow panel above the preview, so

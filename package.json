@@ -139,6 +139,7 @@
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
     "test:lesson-batch-export": "node scripts/test-lesson-batch-export.test.js",
+    "test:lesson-kit": "node scripts/test-lesson-kit.test.js",
     "test:worksheet-schema": "node functions/teacherTools/worksheetSchema.test.js",
     "test:worksheet-prompt": "node functions/teacherTools/worksheetPrompt.test.js",
     "test:scheme-schema": "node functions/teacherTools/schemeOfWorkSchema.test.js",
