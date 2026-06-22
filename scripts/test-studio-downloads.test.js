@@ -87,6 +87,10 @@ check(!/cdn\.jsdelivr|cdnjs|unpkg/.test(exportJs), '10-export.js no longer pulls
 check(/exportWordLegacy/.test(exportJs), '10-export.js keeps the .doc fallback')
 check(!/function exportPDF|function exportHTML/.test(exportJs), '10-export.js has no PDF/HTML export functions')
 check(!/__zxDownloadPdf/.test(exportJs), '10-export.js no longer uses the PDF bridge')
+// The Word (.docx) download must route through the bundled saveBlob bridge so
+// large files aren't truncated into "unreadable content" on Android Chrome.
+check(/window\.__zxSaveBlob/.test(exportJs), '10-export.js prefers the bundled saveBlob bridge for downloads')
+check(/legacyTriggerDownload/.test(exportJs), '10-export.js keeps a legacy download fallback when the bridge is absent')
 
 // 6. Vendored converter is actually present.
 check(
@@ -101,6 +105,8 @@ check(!/__zxDownloadPdf/.test(studioJsx), 'LessonPlanStudio no longer registers 
 check(!/downloadHtmlAsPdf/.test(studioJsx), 'LessonPlanStudio no longer imports the real-PDF helper')
 check(/data-export="word"/.test(studioJsx), 'LessonPlanStudio keeps the Word export button')
 check(!/data-export="pdf"|data-export="html"/.test(studioJsx), 'LessonPlanStudio has no PDF/HTML export buttons')
+check(/window\.__zxSaveBlob\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxSaveBlob bridge')
+check(/delete window\.__zxSaveBlob/.test(studioJsx), 'LessonPlanStudio cleans up the saveBlob bridge on unmount')
 
 // 8. The PDF libraries get their own lazy chunk (kept out of the eager vendor).
 const viteConfig = read('vite.config.js')

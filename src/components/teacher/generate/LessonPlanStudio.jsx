@@ -14,6 +14,7 @@ import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
+import { saveBlob } from '../../../utils/saveBlob'
 import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 
@@ -375,6 +376,16 @@ export default function LessonPlanStudio() {
       t._tid = setTimeout(() => t.classList.remove('show'), 3000)
     }
 
+    // ---- Export bridge ----
+    // The Word (.docx) export lives in public/studio/10-export.js, which can't
+    // import the bundled saveBlob. Hand it the robust download path: saveBlob
+    // writes full bytes on native, uses the Web Share API on mobile browsers
+    // (real filename, never truncated) and file-saver on desktop. Without this
+    // bridge the studio's own data:-URL fallback truncates large .docx files on
+    // Android Chrome — the "Word found unreadable content" bug — and saves them
+    // under a random UUID name.
+    window.__zxSaveBlob = (blob, filename) => saveBlob(blob, filename)
+
     // ---- Load scripts in dependency order ----
     const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
@@ -435,6 +446,7 @@ export default function LessonPlanStudio() {
       delete window.$$
       delete window.esc
       delete window.toast
+      delete window.__zxSaveBlob
       delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

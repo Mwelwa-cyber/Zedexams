@@ -156,12 +156,32 @@ function currentFilename() {
 
 // Trigger a browser download that keeps `filename`.
 //
-// Android Chrome (and Android WebViews) ignore the anchor `download` attribute
-// for `blob:` URLs — they name the saved file after the blob's random UUID,
-// which is the "5fee66fe-…-….docx" teachers were seeing. Converting the blob to
-// a `data:` URL first makes the `download` filename stick on Android while
-// staying an ordinary blob download on desktop.
+// PREFERRED: the bundled saveBlob, bridged in as window.__zxSaveBlob by
+// LessonPlanStudio.jsx. It is the same robust path the PDF export uses — it
+// writes full bytes to disk on the native Android app, uses the Web Share API on
+// mobile browsers (so the real filename sticks and nothing is truncated), and
+// falls back to file-saver on desktop. This is what fixes the corrupt Word
+// download: the old data:-URL route below TRUNCATES large .docx files on Android
+// Chrome ("Word found unreadable content") and saves them under a random UUID.
+//
+// FALLBACK (bridge unavailable, e.g. scripts loaded standalone): the legacy
+// route. Android Chrome ignores the anchor `download` attribute for `blob:`
+// URLs and names the file after the blob's UUID, so we convert small blobs to a
+// `data:` URL first to make the name stick — but data: URLs truncate large
+// files, so this is strictly a last resort.
 function triggerDownload(blob, filename) {
+  if (typeof window !== 'undefined' && typeof window.__zxSaveBlob === 'function') {
+    try {
+      const r = window.__zxSaveBlob(blob, filename);
+      if (r && typeof r.catch === 'function') r.catch(() => legacyTriggerDownload(blob, filename));
+      return;
+    } catch (e) {
+      // Bridge threw synchronously — fall through to the legacy route.
+    }
+  }
+  legacyTriggerDownload(blob, filename);
+}
+function legacyTriggerDownload(blob, filename) {
   const isAndroid = /Android/i.test(navigator.userAgent || '');
   if (isAndroid && typeof FileReader !== 'undefined') {
     const reader = new FileReader();
