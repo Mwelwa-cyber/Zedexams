@@ -32,6 +32,16 @@ import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
 
+// A plan can only seed notes if it carries a structured body. The Cloud
+// Functions pipeline stores it under `output`; the legacy studio editor
+// under `data`. Plans still generating (or failed) have neither.
+function planHasBody(plan) {
+  if (!plan) return false
+  if (plan.output && typeof plan.output === 'object') return true
+  if (plan.data && typeof plan.data === 'object') return true
+  return false
+}
+
 export default function NotesStudio() {
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -95,7 +105,11 @@ export default function NotesStudio() {
     setPlansLoading(true)
     setPlansError(false)
     listMyGenerations({ uid: currentUser.uid, tool: 'lesson_plan' })
-      .then((rows) => { if (!cancelled) setPlans(rows) })
+      // Only offer plans that actually have a body to build notes from —
+      // a plan still generating (or one whose generation failed) has no
+      // `output`/`data` and the server would reject it with a confusing
+      // "isn't a lesson plan we can build notes from" error.
+      .then((rows) => { if (!cancelled) setPlans(rows.filter(planHasBody)) })
       .catch(() => { if (!cancelled) { setPlans([]); setPlansError(true) } })
       .finally(() => { if (!cancelled) setPlansLoading(false) })
     return () => { cancelled = true }
