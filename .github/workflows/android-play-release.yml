@@ -205,16 +205,19 @@ jobs:
       # Firebase native config — required for @capacitor-firebase/authentication
       # (Google sign-in). Without it android/app/build.gradle skips the
       # google-services plugin, no default_web_client_id is generated, and
-      # native Google sign-in can't mint a Firebase ID token. Warn-only so a
-      # release that hasn't configured the secret yet still builds.
+      # native Google sign-in can't mint a Firebase ID token. This is a
+      # distributable build, so a MISSING or WRONG-package file is a HARD
+      # failure — we refuse to ship a release where Google sign-in is broken.
+      # (The debug-APK workflow stays warn-only so it can build with no secrets.)
       - name: Write google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::warning::GOOGLE_SERVICES_JSON secret is unset — Google sign-in will NOT work in this release."
-            exit 0
+            echo "::error::GOOGLE_SERVICES_JSON secret is unset — refusing to build a release without it (Google sign-in would be broken). Set it to the project's google-services.json."
+            exit 1
           fi
+          # The secret may be raw JSON or base64-encoded JSON; accept both.
           if printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d 2>/dev/null | grep -q '"project_info"'; then
             printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
           else
@@ -224,7 +227,16 @@ jobs:
             echo "::error::GOOGLE_SERVICES_JSON did not decode to a valid google-services.json."
             exit 1
           fi
-          echo "google-services.json written ($(stat -c%s android/app/google-services.json) bytes)."
+          # Guard against a stale/wrong file: the app's applicationId is
+          # com.zedexams.android and the google-services Gradle plugin matches by
+          # package name. A file for another package (e.g. the old
+          # com.zedexams.app) would fail the Gradle build or silently omit the
+          # OAuth client — catch it here with an actionable message.
+          if ! python3 -c 'import json,sys; d=json.load(open("android/app/google-services.json")); n=[c.get("client_info",{}).get("android_client_info",{}).get("package_name") for c in d.get("client",[])]; sys.exit(0 if "com.zedexams.android" in n else 1)'; then
+            echo "::error::google-services.json has no client for com.zedexams.android (likely the old com.zedexams.app file). Re-download it from the Firebase Android app for com.zedexams.android and update the GOOGLE_SERVICES_JSON secret."
+            exit 1
+          fi
+          echo "google-services.json written for com.zedexams.android ($(stat -c%s android/app/google-services.json) bytes)."
 
       - name: Sync Capacitor Android assets
         run: npx cap sync android
