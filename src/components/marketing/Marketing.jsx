@@ -20,13 +20,9 @@ import {
   Users,
   CheckCircleIcon,
   Lock,
-  FileText,
   Send,
   Mail,
   ChevronRight,
-  Clock,
-  Target,
-  ListChecks,
 } from '../ui/icons'
 
 // Public contact channels surfaced on the schools callout, pricing tier,
@@ -301,78 +297,8 @@ function DailyExamPreview() {
   )
 }
 
-// Mock teacher worksheet output — proves the "DOCX/PDF in seconds" claim.
-function WorksheetPreview() {
-  return (
-    <Card variant="elevated" size="lg" className="overflow-hidden">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
-          >
-            <Icon as={FileText} size="md" />
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-wider theme-text-muted">
-              Generated in 6 seconds
-            </p>
-            <h3 className="font-display font-black text-lg leading-tight">
-              Grade 9 Maths · Percentages &amp; Money worksheet
-            </h3>
-          </div>
-        </div>
-        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider theme-accent-text">
-          <Icon as={Sparkles} size="xs" /> AI-drafted
-        </span>
-      </div>
-
-      <div className="rounded-2xl border theme-border bg-[color:var(--bg-subtle)] p-5 sm:p-6 space-y-4 font-body text-sm">
-        <p className="font-black theme-text">Name: ____________________   Date: __________</p>
-        <ol className="list-decimal pl-5 space-y-2.5 theme-text">
-          <li>
-            A shop marks up a bag of mealie-meal that costs{' '}
-            <span className="font-bold">K180</span> by <span className="font-bold">25%</span>.
-            Find the selling price.
-          </li>
-          <li>
-            Mwila deposits <span className="font-bold">K2 500</span> at{' '}
-            <span className="font-bold">8%</span> simple interest per year. How much interest
-            does she earn after 3 years?
-          </li>
-          <li>
-            A phone costs <span className="font-bold">K3 200</span> cash, or a{' '}
-            <span className="font-bold">K400</span> deposit plus 8 monthly payments of{' '}
-            <span className="font-bold">K380</span>. How much more is the hire-purchase price?
-          </li>
-          <li>Chanda scored 45 out of 60 in a test. Express this as a percentage.</li>
-          <li>
-            The price of a chitenge rose from <span className="font-bold">K90</span> to{' '}
-            <span className="font-bold">K117</span>. Calculate the percentage increase.
-          </li>
-        </ol>
-        <p className="theme-text-help text-xs italic">…3 more questions on the printable page</p>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
-          <Icon as={Download} size="xs" />
-          DOCX
-        </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
-          <Icon as={Download} size="xs" />
-          PDF
-        </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full theme-card border theme-border px-3 py-1 text-xs font-black theme-text-muted">
-          Editable in Word
-        </span>
-      </div>
-    </Card>
-  )
-}
-
-// Mock teacher lesson-plan output — mirrors WorksheetPreview to prove the
-// CBC lesson plan generator drafts a full, structured plan in seconds.
+// Mock teacher lesson-plan output — styled like a real printed A4 sheet to
+// prove the CBC lesson plan generator drafts a full, structured plan in seconds.
 function LessonPlanPreview() {
   return (
     <Card variant="elevated" size="lg" className="overflow-hidden">
@@ -398,48 +324,78 @@ function LessonPlanPreview() {
         </span>
       </div>
 
-      <div className="rounded-2xl border theme-border bg-[color:var(--bg-subtle)] p-5 sm:p-6 space-y-4 font-body text-sm">
-        <div className="flex flex-wrap gap-3 text-xs theme-text-muted">
-          <span className="inline-flex items-center gap-1.5">
-            <Icon as={Clock} size="xs" /> 80 minutes
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Icon as={Target} size="xs" /> 2 outcomes
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Icon as={ListChecks} size="xs" /> Assessed
-          </span>
+      {/* A real printed A4 sheet — white page, ruled red margin, print serif type */}
+      <div className="relative overflow-hidden rounded-sm bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_24px_-6px_rgba(0,0,0,0.25)] ring-1 ring-slate-200">
+        {/* punched binder holes down the left edge */}
+        <div className="pointer-events-none absolute left-2 top-0 hidden h-full flex-col justify-center gap-8 sm:flex">
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
         </div>
+        {/* red ruled margin line */}
+        <div className="pointer-events-none absolute inset-y-0 left-8 hidden w-px bg-red-300/70 sm:block" />
 
-        <div>
-          <p className="font-black theme-text mb-1">Learning outcomes</p>
-          <ul className="list-disc pl-5 space-y-1 theme-text">
-            <li>Describe how water moves through evaporation, condensation and precipitation.</li>
-            <li>Relate the water cycle to rainfall and rivers in Zambia.</li>
-          </ul>
+        <div className="px-6 py-6 font-serif text-[13px] leading-relaxed sm:pl-12 sm:pr-8">
+          {/* printed letterhead */}
+          <div className="border-b-2 border-double border-slate-400 pb-3 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-900">
+              Lesson Plan
+            </p>
+            <p className="mt-0.5 text-[11px] uppercase tracking-widest text-slate-500">
+              Republic of Zambia · CBC Syllabus
+            </p>
+          </div>
+
+          {/* form-style meta grid */}
+          <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Grade:</dt>
+              <dd className="text-slate-800">6</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Subject:</dt>
+              <dd className="text-slate-800">Science</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Topic:</dt>
+              <dd className="text-slate-800">The Water Cycle</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Duration:</dt>
+              <dd className="text-slate-800">80 min</dd>
+            </div>
+          </dl>
+
+          <div className="mt-4">
+            <p className="font-bold uppercase tracking-wide text-slate-900">Learning outcomes</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-700">
+              <li>Describe how water moves through evaporation, condensation and precipitation.</li>
+              <li>Relate the water cycle to rainfall and rivers in Zambia.</li>
+            </ul>
+          </div>
+
+          <div className="mt-4">
+            <p className="font-bold uppercase tracking-wide text-slate-900">Lesson development</p>
+            <ol className="mt-1 list-decimal space-y-1.5 pl-5 text-slate-700">
+              <li>
+                <span className="font-semibold text-slate-900">Introduction (10 min):</span> ask where
+                the water in the Zambezi comes from to surface prior ideas.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">Development (45 min):</span> demonstrate
+                evaporation with a kettle, then map each stage of the cycle on the board.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">Conclusion (15 min):</span> learners
+                draw and label their own water cycle in their books.
+              </li>
+            </ol>
+          </div>
+
+          <p className="mt-4 border-t border-dashed border-slate-300 pt-2 text-[11px] italic text-slate-400">
+            …materials, assessment and homework continue on the printable page
+          </p>
         </div>
-
-        <div>
-          <p className="font-black theme-text mb-1">Lesson development</p>
-          <ol className="list-decimal pl-5 space-y-1.5 theme-text">
-            <li>
-              <span className="font-bold">Introduction (10 min):</span> ask where the water in the
-              Zambezi comes from to surface prior ideas.
-            </li>
-            <li>
-              <span className="font-bold">Development (45 min):</span> demonstrate evaporation with a
-              kettle, then map each stage of the cycle on the board.
-            </li>
-            <li>
-              <span className="font-bold">Conclusion (15 min):</span> learners draw and label their
-              own water cycle in their books.
-            </li>
-          </ol>
-        </div>
-
-        <p className="theme-text-help text-xs italic">
-          …materials, assessment and homework on the printable page
-        </p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -685,47 +641,6 @@ export default function Marketing() {
           </div>
           <div className="lg:col-span-7">
             <LessonPlanPreview />
-          </div>
-        </div>
-      </Section>
-
-      {/* Teacher proof — realistic worksheet output preview */}
-      <Section className="py-16 sm:py-20">
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
-          <div className="lg:col-span-5">
-            <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
-              For teachers
-            </p>
-            <h2 className="font-display font-black text-3xl sm:text-4xl mb-4">
-              Generate a worksheet in seconds.
-            </h2>
-            <p className="theme-text-muted text-lg mb-6">
-              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned document drafted by
-              AI, ready to edit in Word — same lesson, less prep.
-            </p>
-            <ul className="space-y-2.5 theme-text-muted mb-7">
-              {[
-                'Lesson plans, schemes of work, weekly forecasts, worksheets, term tests, flashcards and rubrics',
-                'Mark schedules that rank the class and turn into per-pupil report cards',
-                'Locally relevant examples (kwacha, Zambian names, local context)',
-              ].map((b) => (
-                <li key={b} className="flex gap-2.5">
-                  <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-3">
-              <Button as={Link} to="/register" variant="primary" size="lg">
-                Start free
-              </Button>
-              <Button as={Link} to="/teachers" variant="secondary" size="lg">
-                See real samples
-              </Button>
-            </div>
-          </div>
-          <div className="lg:col-span-7">
-            <WorksheetPreview />
           </div>
         </div>
       </Section>
