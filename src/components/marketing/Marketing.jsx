@@ -493,10 +493,15 @@ export default function Marketing() {
       {/* Hero */}
       <section className="marketing-hero">
         <img
-          src="/images/characters/zed-zara-reading.webp"
+          src="/images/characters/zed-zara-reading.webp?v=2"
           alt=""
           className="marketing-hero-art"
           aria-hidden="true"
+          width="1402"
+          height="1122"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
         />
         <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
           <div className="max-w-3xl">
@@ -643,47 +648,6 @@ export default function Marketing() {
         </div>
       </Section>
 
-      {/* Teacher proof — realistic worksheet output preview */}
-      <Section className="py-16 sm:py-20">
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
-          <div className="lg:col-span-5">
-            <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
-              For teachers
-            </p>
-            <h2 className="font-display font-black text-3xl sm:text-4xl mb-4">
-              Generate a worksheet in seconds.
-            </h2>
-            <p className="theme-text-muted text-lg mb-6">
-              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned document drafted by
-              AI, ready to edit in Word — same lesson, less prep.
-            </p>
-            <ul className="space-y-2.5 theme-text-muted mb-7">
-              {[
-                'Lesson plans, schemes of work, weekly forecasts, worksheets, term tests, flashcards and rubrics',
-                'Mark schedules that rank the class and turn into per-pupil report cards',
-                'Locally relevant examples (kwacha, Zambian names, local context)',
-              ].map((b) => (
-                <li key={b} className="flex gap-2.5">
-                  <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-3">
-              <Button as={Link} to="/register" variant="primary" size="lg">
-                Start free
-              </Button>
-              <Button as={Link} to="/teachers" variant="secondary" size="lg">
-                See real samples
-              </Button>
-            </div>
-          </div>
-          <div className="lg:col-span-7">
-            <WorksheetPreview />
-          </div>
-        </div>
-      </Section>
-
       {/* Teacher proof — realistic lesson-plan output preview */}
       <Section className="py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
@@ -721,6 +685,47 @@ export default function Marketing() {
           </div>
           <div className="lg:col-span-7">
             <LessonPlanPreview />
+          </div>
+        </div>
+      </Section>
+
+      {/* Teacher proof — realistic worksheet output preview */}
+      <Section className="py-16 sm:py-20">
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
+          <div className="lg:col-span-5">
+            <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
+              For teachers
+            </p>
+            <h2 className="font-display font-black text-3xl sm:text-4xl mb-4">
+              Generate a worksheet in seconds.
+            </h2>
+            <p className="theme-text-muted text-lg mb-6">
+              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned document drafted by
+              AI, ready to edit in Word — same lesson, less prep.
+            </p>
+            <ul className="space-y-2.5 theme-text-muted mb-7">
+              {[
+                'Lesson plans, schemes of work, weekly forecasts, worksheets, term tests, flashcards and rubrics',
+                'Mark schedules that rank the class and turn into per-pupil report cards',
+                'Locally relevant examples (kwacha, Zambian names, local context)',
+              ].map((b) => (
+                <li key={b} className="flex gap-2.5">
+                  <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-3">
+              <Button as={Link} to="/register" variant="primary" size="lg">
+                Start free
+              </Button>
+              <Button as={Link} to="/teachers" variant="secondary" size="lg">
+                See real samples
+              </Button>
+            </div>
+          </div>
+          <div className="lg:col-span-7">
+            <WorksheetPreview />
           </div>
         </div>
       </Section>

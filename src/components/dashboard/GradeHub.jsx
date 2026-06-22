@@ -86,7 +86,7 @@ const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // hosting weight. Intrinsic pixel dimensions are passed to the <img> so
 // the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
-  hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
+  hero:  { src: '/images/characters/zed-zara-reading.webp?v=2', width: 1200, height: 960 },
   exams: { src: '/images/characters/todays-exams.webp?v=1',     width: 1075, height: 971 },
   games: { src: '/images/characters/zed-games.webp?v=1',        width: 1140, height: 866 },
   notes:     { src: '/images/characters/notes-notebook.webp?v=1',       width: 822, height: 887 },

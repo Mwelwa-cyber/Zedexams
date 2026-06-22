@@ -545,7 +545,8 @@ export default function LibraryItemDetail() {
                 🔁 Generate similar
               </button>
             )}
-            {item.tool === 'lesson_plan' && (
+            {item.tool === 'lesson_plan' &&
+              (item.output || item.data) && (
               <button
                 onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
                 className="studio-btn-primary"

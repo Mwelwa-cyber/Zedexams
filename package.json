@@ -118,6 +118,7 @@
     "test:rich-formatting": "node src/utils/richTextFormatting.test.js",
     "test:exam-paper-library": "node functions/teacherTools/examPaperLibraryHelpers.test.js",
     "test:anthropic-client": "node functions/teacherTools/anthropicClient.test.js",
+    "test:notes-plan-source": "node functions/teacherTools/notesPlanSource.test.js",
     "test:ai-prompt-policy": "node functions/aiPromptPolicy.test.js",
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
     "test:ai-cost-openai": "node functions/aiCostOpenAi.test.js",

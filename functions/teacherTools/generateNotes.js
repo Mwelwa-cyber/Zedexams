@@ -31,6 +31,11 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./notesPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {
+  isLessonPlanTool,
+  lessonPlanBody,
+  deriveInputsFromLessonPlan,
+} = require("./notesPlanSource");
 
 const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
@@ -148,33 +153,34 @@ async function loadLessonPlan(uid, lessonPlanId) {
       "You can only build notes from your own lesson plans.",
     );
   }
-  if (data.tool !== "lesson_plan" || !data.output) {
+  if (!isLessonPlanTool(data.tool)) {
     throw new HttpsError(
       "invalid-argument",
       "That generation isn't a lesson plan we can build notes from.",
     );
   }
-  return data;
-}
-
-function deriveInputsFromLessonPlan(plan, base) {
-  if (!plan || !plan.output) return base;
-  const planInputs = plan.inputs || {};
-  const planHeader = plan.output.header || {};
-  return {
-    ...base,
-    grade: base.grade || planInputs.grade || planHeader.class || "",
-    subject: base.subject || planInputs.subject || planHeader.subject || "",
-    topic: base.topic || planInputs.topic || planHeader.topic || "",
-    subtopic: base.subtopic || planInputs.subtopic || planHeader.subtopic || "",
-    durationMinutes: base.durationMinutes ||
-      planInputs.durationMinutes || planHeader.durationMinutes || 40,
-    language: base.language || planInputs.language ||
-      planHeader.mediumOfInstruction || "english",
-    teacherName: base.teacherName ||
-      planInputs.teacherName || planHeader.teacherName || "",
-    school: base.school || planInputs.school || planHeader.school || "",
-  };
+  const body = lessonPlanBody(data);
+  if (!body) {
+    // It IS a lesson plan, but it has no usable body yet — almost always
+    // because it's still generating or the generation failed. Give an
+    // actionable message instead of the misleading "isn't a lesson plan".
+    if (data.status === "generating") {
+      throw new HttpsError(
+        "failed-precondition",
+        "That lesson plan is still being written. Give it a moment to " +
+        "finish, then try again.",
+      );
+    }
+    throw new HttpsError(
+      "failed-precondition",
+      "That lesson plan didn't finish generating, so there's nothing to " +
+      "build notes from. Pick a finished plan, or switch to Standalone mode.",
+    );
+  }
+  // Hand back a normalised shape so the rest of the pipeline can rely on
+  // `.output` regardless of which writer produced the doc (the legacy
+  // studio stored the body under `data`).
+  return {...data, output: body};
 }
 
 async function runNotes({uid, rawInputs, apiKey}) {

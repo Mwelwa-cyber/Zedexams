@@ -72,7 +72,6 @@ for (const [rel, { download, print }] of Object.entries(pdfUtils)) {
 // 4. PDF buttons in the remaining PDF surfaces call the async download wrapper,
 //    not the bare print function (which only opened a dialog).
 const componentNoBarePrint = {
-  'src/components/teacher/generate/LessonPlanGenerator.jsx': /downloadLessonPlanPdf/,
   'src/components/teacher/generate/ClassTimetableStudio.jsx': /downloadClassTimetablePdf/,
   'src/components/teacher/library/LibraryItemDetail.jsx': /downloadClassTimetablePdf/,
 }
