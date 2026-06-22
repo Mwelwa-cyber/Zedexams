@@ -25,7 +25,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v22'
+const STUDIO_ASSET_VERSION = 'v23'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -519,7 +519,19 @@ export default function LessonPlanStudio() {
                     <div className="field"><label>Class</label><select id="f-class"></select></div>
                     <div className="field"><label>Duration (min)</label><input type="number" id="f-duration" defaultValue="40" min="20" max="120" /></div>
                   </div>
-                  <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                  <div className="field-row">
+                    <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                    <div className="field"><label>Medium of instruction</label><select id="f-medium" defaultValue="English">
+                      <option value="English">English</option>
+                      <option value="Bemba">Bemba</option>
+                      <option value="Nyanja">Nyanja</option>
+                      <option value="Tonga">Tonga</option>
+                      <option value="Lozi">Lozi</option>
+                      <option value="Kaonde">Kaonde</option>
+                      <option value="Lunda">Lunda</option>
+                      <option value="Luvale">Luvale</option>
+                    </select></div>
+                  </div>
                   <div className="field-row">
                     <div className="field"><label>Term</label><select id="f-term" defaultValue="2"><option>1</option><option>2</option><option>3</option></select></div>
                     <div className="field"><label>Week</label><select id="f-week" defaultValue="5">

@@ -52,6 +52,9 @@ function gatherInput() {
     time: $('#f-time').value.trim(),
     topic: $('#f-topic').value.trim(),
     subtopic: $('#f-subtopic').value.trim(),
+    // Medium of instruction — defaults to English when the row is missing
+    // (older cached bundle) so the header never goes blank.
+    medium: (() => { const el = $('#f-medium'); return (el && el.value) || 'English'; })(),
     teacher: $('#f-teacher').value.trim(),
     tsno: $('#f-tsno').value.trim(),
     showEnrolment: $('#t-enrolment').dataset.on === 'true',
@@ -178,6 +181,14 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const envLine = (i.learningEnvironments && i.learningEnvironments.length)
     ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
     : '';
+  // Medium of instruction. The plan itself stays in English (it is an official
+  // document the head teacher / standards officer reads), but for a local
+  // medium we ask the model to reflect the delivery language in the parts
+  // learners actually hear, with an English gloss so the document stays legible.
+  const medium = String(i.medium || 'English').trim();
+  const mediumLine = (medium && medium.toLowerCase() !== 'english')
+    ? `\n- MEDIUM OF INSTRUCTION: The lesson is taught in ${medium}. Write the plan in English (it is an official document), but reflect the medium — give the teacher's key questions and greetings, any songs, rhymes or chants, and the key vocabulary in ${medium} with a short English gloss in brackets where helpful, e.g. "Mwapoleni mukwai (Good morning)". Keep the stage names, assessment criteria and other prose in English.`
+    : '';
   const N = Math.max(1, parseInt(totalLessons, 10) || 1);
   const K = Math.max(1, Math.min(N, parseInt(lessonNumber, 10) || 1));
   const focusLines = (N > 1 && Array.isArray(i.planner && i.planner.foci) && i.planner.foci.length)
@@ -193,7 +204,8 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
 - Topic: ${i.topic || 'choose an appropriate topic from the official syllabus below'}
 - Sub-topic: ${i.subtopic || 'choose an appropriate sub-topic'}
 - Duration: ${i.duration} minutes
-- Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
+- Medium of instruction: ${medium}
+- Term & Week: ${i.termWeek || 'unspecified'}${envLine}${mediumLine}${seqLine}
 ${syllabusContext}${buildStyleBlock(i)}${buildDiagramBlock(i)}
 IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope shown above (${versionLabel}). If the user-supplied topic doesn't match this grade level, return {"error": "explanation"} instead.
 
@@ -227,7 +239,7 @@ function renderMetaTable(meta) {
     rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) rows.push(['Lesson Focus', esc(meta.lessonFocus)]);
   }
-  rows.push(['Medium of Instruction', 'English']);
+  rows.push(['Medium of Instruction', esc(meta.medium || 'English')]);
   return `<table class="meta-table"><tbody>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -244,6 +256,7 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)]);
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___']);
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___']);
+  items.push(['Medium', esc(meta.medium || 'English')]);
   if (meta.multiLesson) {
     items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) items.push(['Lesson Focus', esc(meta.lessonFocus)]);
@@ -274,6 +287,7 @@ function renderOfficialHeader(meta) {
   if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
   if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
   pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide']);
+  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')]);
   if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : ''), 'wide']);
   const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`;
   return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`;
@@ -541,6 +555,7 @@ function renderOldHeader(meta, data) {
   pairs.push(['DURATION', esc(meta.duration) + ' minutes']);
   pairs.push(['GRADE', esc(meta.klass || '')]);
   pairs.push(['TERM &amp; WEEK', esc(meta.termWeek || '')]);
+  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')]);
   pairs.push(['TOPIC', esc(data.topic || meta.topic || ''), 'wide']);
   pairs.push(['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide']);
   if (meta.showEnrolment) pairs.push(['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
@@ -640,6 +655,7 @@ function renderOldModern(data, meta) {
     ['SUBJECT', esc(meta.subject || '')],
     ['DURATION', esc(meta.duration) + ' minutes'],
     ['TOPIC', esc(data.topic || meta.topic || '')],
+    ['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')],
     ['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______'],
     ['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide'],
   ];
@@ -825,7 +841,7 @@ async function __studioOnGenerateClick() {
       headerLine: i.headerLine, school: i.school, department: i.department,
       teacher: i.teacher, tsno: i.tsno, klass: i.klass, subject: i.subject,
       termWeek: i.termWeek, duration: i.duration, topic: i.topic,
-      subtopic: i.subtopic, syllabusVersion,
+      subtopic: i.subtopic, medium: i.medium, syllabusVersion,
     },
     lessons: [],
   };
