@@ -1,0 +1,30 @@
+# ZedExams
+
+> ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and parents. It offers ECZ-style practice quizzes and past papers, daily exams, lessons and notes, learning games, and AI study help for primary and secondary school (with a focus on Grade 7 and Grade 12 ECZ exams). Teachers get AI tools to generate lesson plans, worksheets, schemes of work, assessments, and exam papers. Pricing is in ZMW with mobile money (MTN, Airtel, Zamtel) and card payments.
+
+## Main pages
+
+- [Home](https://zedexams.com/): Overview of ZedExams for learners, teachers, and parents.
+- [Pricing](https://zedexams.com/pricing): Subscription plans and pricing in ZMW.
+- [For Teachers](https://zedexams.com/teachers): AI-powered lesson planning and assessment tools for Zambian teachers.
+- [Past Papers](https://zedexams.com/papers): Browsable archive of ECZ past papers.
+- [Games](https://zedexams.com/games): Educational learning games aligned to the CBC curriculum.
+- [Games Leaderboard](https://zedexams.com/games/leaderboard): Live leaderboard for ZedExams learning games.
+- [Status](https://zedexams.com/status): Service status page.
+
+## Grade packs
+
+- [Grade 7](https://zedexams.com/grade-7): Grade 7 ECZ exam preparation resources.
+- [Grade 12](https://zedexams.com/grade-12): Grade 12 ECZ exam preparation resources.
+
+## Blog
+
+- [Blog](https://zedexams.com/blog): Study guides and exam revision tips.
+- [Grade 7 ECZ Maths Revision Guide](https://zedexams.com/blog/grade-7-ecz-maths-revision-guide): Revision guide for Grade 7 ECZ Mathematics.
+- [How to Revise Week by Week](https://zedexams.com/blog/how-to-revise-week-by-week): A week-by-week revision plan for exams.
+- [Top Mistakes in Grade 9 English](https://zedexams.com/blog/top-mistakes-grade-9-english): Common mistakes to avoid in Grade 9 English.
+
+## Legal
+
+- [Privacy Policy](https://zedexams.com/privacy): How ZedExams handles user data.
+- [Terms of Service](https://zedexams.com/terms): Terms and conditions for using ZedExams.
