@@ -14,7 +14,6 @@ import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
-import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
 import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 
@@ -25,7 +24,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v20'
+const STUDIO_ASSET_VERSION = 'v21'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -376,16 +375,6 @@ export default function LessonPlanStudio() {
       t._tid = setTimeout(() => t.classList.remove('show'), 3000)
     }
 
-    // ---- Export bridge ----
-    // The vanilla export script (public/studio/10-export.js) used to print()
-    // only (no real PDF file). Hand it the bundled, lazy-loaded PDF helper so
-    // "Download PDF" saves a real .pdf file; it returns a Promise and falls
-    // back to the print dialog on failure. (Word export is handled inside
-    // 10-export.js via the locally-vendored html-docx — that library can't be
-    // bundled, so it can't be passed through this bridge.)
-    window.__zxDownloadPdf = (html, filename, onFallback) =>
-      downloadHtmlAsPdf(html, filename, { onFallback })
-
     // ---- Load scripts in dependency order ----
     const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
@@ -446,14 +435,13 @@ export default function LessonPlanStudio() {
       delete window.$$
       delete window.esc
       delete window.toast
-      delete window.__zxDownloadPdf
       delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Free-plan exports carry the diagonal ZedExams watermark; the vanilla export
   // script (public/studio/10-export.js) reads this global at export time and
-  // paints it onto every format (PDF / Word / HTML). Kept in its own effect so
+  // paints it onto the Word export. Kept in its own effect so
   // it tracks the live plan tier (the profile can load after mount) — paid and
   // admin exports stay clean.
   useEffect(() => {
@@ -908,17 +896,9 @@ export default function LessonPlanStudio() {
                   <span>Export</span>
                 </button>
                 <div className="export-pop" id="export-pop">
-                  <button data-export="pdf">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    PDF (A4 via Print)
-                  </button>
                   <button data-export="word">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8 9.5 16 12 10 14.5 16 17 8" strokeWidth="1.7"/></svg>
                     Microsoft Word (.docx)
-                  </button>
-                  <button data-export="html">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                    HTML File
                   </button>
                 </div>
               </div>

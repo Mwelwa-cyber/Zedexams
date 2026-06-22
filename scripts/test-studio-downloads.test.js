@@ -79,12 +79,14 @@ for (const [rel, re] of Object.entries(componentNoBarePrint)) {
   check(re.test(read(rel)), `${rel} calls the async PDF download wrapper`)
 }
 
-// 5. Lesson Plan Studio (vanilla) export script.
+// 5. Lesson Plan Studio (vanilla) export script is Word-only: the PDF + HTML
+//    download paths were removed, leaving Word (.docx) as the sole export.
 const exportJs = read('public/studio/10-export.js')
-check(/window\.__zxDownloadPdf/.test(exportJs), '10-export.js uses the bundled real-PDF bridge')
 check(/\/studio\/vendor\/html-docx\.min\.js/.test(exportJs), '10-export.js loads the locally-vendored Word converter')
 check(!/cdn\.jsdelivr|cdnjs|unpkg/.test(exportJs), '10-export.js no longer pulls the Word converter from a CDN')
 check(/exportWordLegacy/.test(exportJs), '10-export.js keeps the .doc fallback')
+check(!/function exportPDF|function exportHTML/.test(exportJs), '10-export.js has no PDF/HTML export functions')
+check(!/__zxDownloadPdf/.test(exportJs), '10-export.js no longer uses the PDF bridge')
 
 // 6. Vendored converter is actually present.
 check(
@@ -92,10 +94,13 @@ check(
   'vendored html-docx converter exists in public/studio/vendor/',
 )
 
-// 7. React wrapper registers the PDF bridge for the vanilla studio.
+// 7. React wrapper is Word-only: no PDF bridge, and only the Word export button
+//    survives in the export menu.
 const studioJsx = read('src/components/teacher/generate/LessonPlanStudio.jsx')
-check(/window\.__zxDownloadPdf\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxDownloadPdf bridge')
-check(/delete window\.__zxDownloadPdf/.test(studioJsx), 'LessonPlanStudio cleans up the bridge on unmount')
+check(!/__zxDownloadPdf/.test(studioJsx), 'LessonPlanStudio no longer registers the PDF bridge')
+check(!/downloadHtmlAsPdf/.test(studioJsx), 'LessonPlanStudio no longer imports the real-PDF helper')
+check(/data-export="word"/.test(studioJsx), 'LessonPlanStudio keeps the Word export button')
+check(!/data-export="pdf"|data-export="html"/.test(studioJsx), 'LessonPlanStudio has no PDF/HTML export buttons')
 
 // 8. The PDF libraries get their own lazy chunk (kept out of the eager vendor).
 const viteConfig = read('vite.config.js')

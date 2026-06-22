@@ -230,7 +230,6 @@ function closePdfViewer() {
 
 // Document-level keyboard shortcuts. Bound once at script load.
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); exportPDF(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); exportWord(); }
   if (e.key === 'Escape') { closeModal(); closePdfViewer(); if (typeof exportPop !== 'undefined' && exportPop) exportPop.classList.remove('open'); }
 });

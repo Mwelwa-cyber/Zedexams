@@ -10,7 +10,7 @@ function __studioInitExport() {
   exportPop.addEventListener('click', e => e.stopPropagation());
   $$('#export-pop button').forEach(b => b.addEventListener('click', () => {
     const t = b.dataset.export; exportPop.classList.remove('open');
-    if (t === 'pdf') exportPDF(); if (t === 'word') exportWord(); if (t === 'html') exportHTML();
+    if (t === 'word') exportWord();
   }));
 }
 
@@ -51,76 +51,6 @@ function withWatermark(html) {
   if (html.indexOf('</head>') !== -1) return html.replace('</head>', style + '</head>');
   return html.replace(/(<body[^>]*>)/i, '$1' + style);
 }
-// Build the clean, print-ready HTML for the rendered plan ALONE (no sidebar /
-// form / format cards), with the studio styles + print overrides inlined.
-// Shared by the real-PDF path and the print fallback.
-function buildExportHtml() {
-  const styles = gatherStyles();
-  return withWatermark('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-    currentFilename() + '</title>' +
-    '<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet">' +
-    '<style>' + styles +
-    // Print-only overrides: fill the page, no screen shadow/accent bar.
-    '@page{size:A4;margin:14mm 15mm}' +
-    'html,body{background:#fff;margin:0;padding:0}' +
-    '.doc-wrap{max-width:none;margin:0;box-shadow:none;border-radius:0}' +
-    '.doc-wrap::before{display:none}' +
-    '.doc{padding:0;min-height:0}' +
-    '</style></head><body><div class="doc-wrap"><div class="doc">' +
-    doc.innerHTML + '</div></div></body></html>');
-}
-
-// Print fallback: open a clean popup with ONLY the plan and call print(), so
-// the user can "Save as PDF" if real PDF generation isn't available. A bare
-// window.print() would print the whole studio UI, so we never use that.
-function printFallback() {
-  let win = null;
-  try { win = window.open('', '_blank', 'width=900,height=1100'); } catch (e) { win = null; }
-  if (!win) {
-    if (typeof toast === 'function') toast('Allow pop-ups, or use the Word / HTML export instead.');
-    try { window.print(); } catch (e) { /* user can Ctrl+P */ }
-    return;
-  }
-  win.document.open();
-  win.document.write(buildExportHtml());
-  win.document.close();
-  const triggerPrint = () => { try { win.focus(); win.print(); } catch (e) { /* user can Ctrl+P */ } };
-  if (win.document.readyState === 'complete') setTimeout(triggerPrint, 350);
-  else win.addEventListener('load', () => setTimeout(triggerPrint, 350));
-}
-
-async function exportPDF() {
-  // Capture the plan HTML now (contentEditable off so edit chrome isn't baked
-  // into the export), then generate a REAL .pdf file via the bundled helper.
-  if (editing) doc.contentEditable = false;
-  const restore = () => { if (editing) doc.contentEditable = true; };
-  const html = buildExportHtml();
-
-  if (typeof window.__zxDownloadPdf === 'function') {
-    if (typeof toast === 'function') toast('Preparing PDF…');
-    try {
-      const ok = await window.__zxDownloadPdf(html, currentFilename() + '.pdf', printFallback);
-      if (typeof toast === 'function') {
-        toast(ok ? 'PDF downloaded' : 'Opened print view — choose “Save as PDF”.');
-      }
-    } catch (e) {
-      printFallback();
-    } finally {
-      restore();
-    }
-    return;
-  }
-
-  // Bridge unavailable (scripts loaded standalone) — print fallback.
-  printFallback();
-  restore();
-}
-function exportHTML() {
-  const styles = gatherStyles();
-  const body = withWatermark(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lesson Plan</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet"><style>${styles}</style></head><body><div class="doc-wrap" style="max-width:794px;margin:24px auto"><div class="doc">${doc.innerHTML}</div></div></body></html>`);
-  download(body, currentFilename() + '.html', 'text/html');
-}
-
 // Build the Word-flavoured HTML document (inline print styles + Office
 // namespaces) that the HTML→docx converter turns into a .docx.
 function buildWordHtml() {
