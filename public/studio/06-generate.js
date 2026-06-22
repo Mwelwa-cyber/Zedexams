@@ -734,6 +734,19 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
   $('#doc').innerHTML = html;
   if (editing) setTimeout(enableAllTableResize, 50);
 
+  // Collect this lesson's rendered HTML so a multi-lesson run can be exported
+  // as ONE document (cover sheet + every lesson) — see 10-export.js. Each loop
+  // iteration overwrites #doc, so without this the export would only ever see
+  // the last lesson. Guarded so a stale bundle without the store never throws.
+  if (window.__lpBatch && Array.isArray(window.__lpBatch.lessons)) {
+    window.__lpBatch.lessons.push({
+      lessonNumber,
+      total: totalLessons,
+      focus: lessonFocus || '',
+      html,
+    });
+  }
+
   // Hand the planner the lesson number so it can return the matching
   // seriesId / planningMode / focus payload to attach to this doc.
   const lessonSeries = (typeof window.__lpResolveSeries === 'function')
@@ -801,6 +814,21 @@ async function __studioOnGenerateClick() {
   if (!i.school) { toast('Please add a school name'); $('#f-school').focus(); return; }
   if (!i.topic && !i.subtopic) { toast('Add at least a topic or sub-topic'); $('#f-topic').focus(); return; }
   const btn = $('#btn-generate');
+
+  // Fresh batch store for this run. Lessons are pushed in
+  // __studioGenerateOneLesson; the export menu (10-export.js) offers a combined
+  // "whole series" download when more than one lesson lands here. We snapshot
+  // the shared header fields now so the cover sheet matches what was generated
+  // even if the teacher edits the form afterwards.
+  window.__lpBatch = {
+    meta: {
+      headerLine: i.headerLine, school: i.school, department: i.department,
+      teacher: i.teacher, tsno: i.tsno, klass: i.klass, subject: i.subject,
+      termWeek: i.termWeek, duration: i.duration, topic: i.topic,
+      subtopic: i.subtopic, syllabusVersion,
+    },
+    lessons: [],
+  };
 
   const total = Math.max(1, parseInt(i.planner.count, 10) || 1);
   // "Only this" overrides the loop — produce a single lesson at that index.

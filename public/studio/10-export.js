@@ -6,7 +6,13 @@ function __studioInitExport() {
   exportPop = $('#export-pop');
   if (!exportPop) return;
   const btn = $('#btn-export');
-  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); exportPop.classList.toggle('open'); });
+  if (btn) btn.addEventListener('click', e => {
+    e.stopPropagation();
+    // Refresh the whole-series button before opening so the lesson count is
+    // current and it only shows after a genuine multi-lesson run.
+    refreshBatchExportButtons();
+    exportPop.classList.toggle('open');
+  });
   exportPop.addEventListener('click', e => e.stopPropagation());
   $$('#export-pop button').forEach(b => b.addEventListener('click', () => {
     const t = b.dataset.export; exportPop.classList.remove('open');
@@ -51,12 +57,9 @@ function withWatermark(html) {
   if (html.indexOf('</head>') !== -1) return html.replace('</head>', style + '</head>');
   return html.replace(/(<body[^>]*>)/i, '$1' + style);
 }
-// Build the Word-flavoured HTML document (inline print styles + Office
-// namespaces) that the HTML→docx converter turns into a .docx.
-function buildWordHtml() {
-  return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>Lesson Plan</title>
-<style>
+// Shared Word print styles (Office namespaces) — used by the single-plan
+// export and the whole-series batch export so the two never drift.
+const WORD_DOC_STYLES = `
 @page WordSection1 { size: 21cm 29.7cm; margin: 18mm 16mm 18mm 16mm; }
 div.WordSection1 { page: WordSection1; }
 body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; color: #1c1612; }
@@ -84,8 +87,14 @@ h2.sec, .progression-title { font-family: Georgia, serif; font-weight: 700; font
 .c2-stage-table td + td { border-left: 1px solid #c8baa3; }
 ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
 li { margin: 2pt 0; }
-strong { font-weight: 700; }
-</style>
+strong { font-weight: 700; }`;
+
+// Build the Word-flavoured HTML document (inline print styles + Office
+// namespaces) that the HTML→docx converter turns into a .docx.
+function buildWordHtml() {
+  return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Lesson Plan</title>
+<style>${WORD_DOC_STYLES}</style>
 </head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`);
 }
 
@@ -135,6 +144,120 @@ function exportWordLegacy() {
   const html = withWatermark(`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plan</title><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${doc.innerHTML}</div></body></html>`);
   download(html, currentFilename() + '.doc', 'application/msword');
 }
+// ── Whole-series batch export ───────────────────────────────────────────────
+//
+// A multi-lesson run (Multiple / Full week / Let AI suggest) generates and
+// saves every lesson, but #doc only ever holds the last one (each loop
+// iteration overwrites it — see 06-generate.js). window.__lpBatch collects each
+// lesson's rendered HTML so the teacher can download the whole series as ONE
+// Word document (a cover sheet + one lesson per page) — the format heads submit
+// to the HoD. The single-plan Word export above is untouched.
+
+// True only when the last run produced more than one lesson.
+function lpBatchActive() {
+  const b = window.__lpBatch;
+  return !!(b && Array.isArray(b.lessons) && b.lessons.length > 1);
+}
+
+// Cover sheet: school identity + a contents list of every lesson in the series.
+function buildBatchCoverHtml(meta, lessons) {
+  const m = meta || {};
+  const rows = [];
+  if (m.teacher) rows.push(['Teacher', esc(m.teacher) + (m.tsno ? ' &nbsp;·&nbsp; TS ' + esc(m.tsno) : '')]);
+  rows.push(['Subject', esc(m.subject || '')]);
+  rows.push(['Class', esc(m.klass || '')]);
+  if (m.termWeek) rows.push(['Term &amp; Week', esc(m.termWeek)]);
+  rows.push(['Duration', esc(m.duration || '') + ' minutes per lesson']);
+  if (m.topic) rows.push(['Topic', esc(m.topic)]);
+  if (m.subtopic) rows.push(['Sub-topic', esc(m.subtopic)]);
+  rows.push(['Number of lessons', String(lessons.length)]);
+  const contents = lessons
+    .map(l => `<li>Lesson ${esc(l.lessonNumber)} of ${esc(l.total)}${l.focus ? ' — ' + esc(l.focus) : ''}</li>`)
+    .join('');
+  return `<div class="lp-print-page plan-official">
+    <div class="doc-head">
+      ${m.headerLine ? `<div class="header-line">${esc(m.headerLine)}</div>` : ''}
+      <div class="school">${esc(m.school || 'School Name')}</div>
+      ${m.department ? `<div class="department">${esc(m.department)}</div>` : ''}
+      <div class="lp-title">Lesson Plans</div>
+    </div>
+    <table class="meta-table"><tbody>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</tbody></table>
+    <div class="progression-title">Lessons in this series</div>
+    <ol style="padding-left:22px;margin:8px 0">${contents}</ol>
+  </div>`;
+}
+
+// Word document for the whole series — shared styles, cover sheet first, each
+// lesson split onto a fresh page (html-docx honours page-break-before).
+function buildBatchWordHtml() {
+  const b = window.__lpBatch || { meta: {}, lessons: [] };
+  const lessons = Array.isArray(b.lessons) ? b.lessons : [];
+  const brk = '<div style="page-break-before:always"></div>';
+  const parts = [buildBatchCoverHtml(b.meta, lessons)].concat(lessons.map(l => l.html));
+  return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Lesson Plans</title>
+<style>${WORD_DOC_STYLES}</style>
+</head><body><div class="WordSection1">${parts.join(brk)}</div></body></html>`);
+}
+
+// Whole-series filename, e.g. "Grade 4 Mathematics Lesson Plans - Term 2, Week 5".
+function batchFilename() {
+  const m = (window.__lpBatch && window.__lpBatch.meta) || {};
+  const clean = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const head = [clean(m.klass), clean(m.subject), 'Lesson Plans'].filter(Boolean).join(' ');
+  const tw = clean(m.termWeek);
+  const name = tw ? `${head} - ${tw}` : head;
+  return (name || 'Lesson Plans').slice(0, 120).trim();
+}
+
+// Export the whole series as one .docx. Mirrors exportWord(): real .docx via the
+// vendored converter, .doc fallback if it fails to load.
+async function exportBatchWord() {
+  if (typeof toast === 'function') toast('Preparing Word document…');
+  const html = buildBatchWordHtml();
+  const filename = batchFilename() + '.docx';
+  try {
+    await loadHtmlDocxLib();
+    const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
+    triggerDownload(blob, filename);
+    if (typeof toast === 'function') toast('Word document downloaded');
+    return;
+  } catch (e) {
+    console.error('batch docx export failed, falling back to .doc:', e);
+  }
+  if (typeof toast === 'function') toast('Downloading Word (.doc) instead…');
+  const b = window.__lpBatch || { meta: {}, lessons: [] };
+  const lessons = Array.isArray(b.lessons) ? b.lessons : [];
+  const brk = '<div style="page-break-before:always"></div>';
+  const parts = [buildBatchCoverHtml(b.meta, lessons)].concat(lessons.map(l => l.html));
+  const styles = gatherStyles();
+  const html2 = withWatermark(`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plans</title><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${parts.join(brk)}</div></body></html>`);
+  download(html2, batchFilename() + '.doc', 'application/msword');
+}
+
+// Word icon matching the static export-popover button (LessonPlanStudio.jsx).
+const BATCH_WORD_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8 9.5 16 12 10 14.5 16 17 8" stroke-width="1.7"/></svg>';
+
+// Inject (or refresh) the whole-series button in the export popover. Called
+// each time the popover opens so the lesson count stays current and the button
+// vanishes after a single-lesson run. The injected button lives inside
+// #export-pop, so it inherits the existing popover button styling.
+function refreshBatchExportButtons() {
+  if (!exportPop) return;
+  exportPop.querySelectorAll('.lp-batch-export').forEach(n => n.remove());
+  if (!lpBatchActive()) return;
+  const n = window.__lpBatch.lessons.length;
+  const frag = document.createElement('div');
+  frag.className = 'lp-batch-export';
+  frag.style.cssText = 'border-top:1px solid var(--line,#e5ddd0);margin-top:6px;padding-top:6px';
+  frag.innerHTML =
+    `<div class="lp-batch-export-label" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7a6d5d;padding:4px 12px">Whole series (${n} lessons)</div>` +
+    `<button type="button" data-batch="word">${BATCH_WORD_ICON} All ${n} lessons (Word)</button>`;
+  exportPop.appendChild(frag);
+  const wordBtn = frag.querySelector('[data-batch="word"]');
+  if (wordBtn) wordBtn.addEventListener('click', () => { exportPop.classList.remove('open'); exportBatchWord(); });
+}
+
 // Human-readable download name — "Reception Pre-Mathematics and Science Lesson
 // Plan - Shapes and Space" rather than a slug. Teachers asked for files that say
 // what they are once they leave the app and land in a Downloads folder.
