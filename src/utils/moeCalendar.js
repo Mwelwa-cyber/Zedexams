@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // moeCalendar.js
 // Shared MoE Zambia School Calendar 2026–2030
-// Used by: TeacherCalendar, LearnerCalendar, LessonPlanGenerator,
+// Used by: TeacherCalendar, LearnerCalendar,
 //          SchemeOfWork, WeeklyForecast, ZedStudyAssistant
 // ─────────────────────────────────────────────────────────────────────────────
 

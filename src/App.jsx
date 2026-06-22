@@ -195,7 +195,6 @@ import StudioGate from './components/teacher/StudioGate'
 
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
-const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
 const ExamPaperGenerator = lazy(() => import('./components/teacher/generate/ExamPaperGenerator'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
@@ -609,7 +608,6 @@ export default function App() {
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           {/* Lesson Plan studios stay open on Free — the one studio every plan can use. */}
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
-          <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
           {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/exam-paper"     element={<TeacherRoute><StudioGate tool="exam_paper"><ExamPaperGenerator /></StudioGate></TeacherRoute>} />
