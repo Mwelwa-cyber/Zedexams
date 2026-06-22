@@ -497,6 +497,11 @@ export default function Marketing() {
           alt=""
           className="marketing-hero-art"
           aria-hidden="true"
+          width="1402"
+          height="1122"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
         />
         <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
           <div className="max-w-3xl">
