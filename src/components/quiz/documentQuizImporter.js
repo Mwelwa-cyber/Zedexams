@@ -1,5 +1,5 @@
 import { unzipSync, strFromU8 } from 'fflate'
-import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url'
+import { loadPdfjs } from '../../utils/pdfjsLoader.js'
 import { createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 import {
   metadataFromText as buildImportMetadata,
@@ -20,18 +20,6 @@ import {
   IMAGE_IMPORT_EXTENSIONS,
   DEFAULT_DIAGRAM_HANDLING,
 } from './scannedQuizImporter.js'
-
-let pdfjsLoader = null
-
-async function loadPdfjs() {
-  if (!pdfjsLoader) {
-    pdfjsLoader = import('pdfjs-dist/legacy/build/pdf.mjs').then(module => {
-      module.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-      return module
-    })
-  }
-  return pdfjsLoader
-}
 
 export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',
