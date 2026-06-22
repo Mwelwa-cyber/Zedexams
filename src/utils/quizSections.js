@@ -760,12 +760,22 @@ function hydrateStandaloneQuestion(question = {}) {
       : [],
     diagramLabels: Array.isArray(question.diagramLabels)
       ? question.diagramLabels
-        .map(l => ({
-          id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
-          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
-          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
-          text: String(l?.text ?? '').slice(0, 80),
-        }))
+        .map(l => {
+          const out = {
+            id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: String(l?.text ?? '').slice(0, 80),
+          }
+          // Preserve the leader-line target (the part the label points at) so a
+          // teacher's dragged blue tip survives save → reload. Only when both
+          // coords are finite; a target-less label keeps the renderer default.
+          if (Number.isFinite(Number(l?.tx)) && Number.isFinite(Number(l?.ty))) {
+            out.tx = Math.max(0, Math.min(1, Number(l.tx)))
+            out.ty = Math.max(0, Math.min(1, Number(l.ty)))
+          }
+          return out
+        })
         .slice(0, 20)
       : [],
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
@@ -852,12 +862,22 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     diagramText: question.diagramText ?? '',
     diagramLabels: Array.isArray(question.diagramLabels)
       ? question.diagramLabels
-        .map(l => ({
-          id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
-          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
-          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
-          text: String(l?.text ?? '').slice(0, 80),
-        }))
+        .map(l => {
+          const out = {
+            id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: String(l?.text ?? '').slice(0, 80),
+          }
+          // Preserve the leader-line target (the part the label points at) so a
+          // teacher's dragged blue tip survives save → reload. Only when both
+          // coords are finite; a target-less label keeps the renderer default.
+          if (Number.isFinite(Number(l?.tx)) && Number.isFinite(Number(l?.ty))) {
+            out.tx = Math.max(0, Math.min(1, Number(l.tx)))
+            out.ty = Math.max(0, Math.min(1, Number(l.ty)))
+          }
+          return out
+        })
         .slice(0, 20)
       : [],
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
