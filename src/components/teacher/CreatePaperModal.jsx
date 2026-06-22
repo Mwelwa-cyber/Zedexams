@@ -15,7 +15,8 @@ import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
 import {
-  PAPER_TYPES, paperGradeOptions, isPaperGrade, maxTopicsFor,
+  PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
+  paperGradeOptions, isPaperGrade, maxTopicsFor,
   isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
   FALLBACK_SUBJECT_KEYS,
 } from './paperTaxonomy'
@@ -144,14 +145,20 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
 
 const labelRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }
 
-export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
+export default function CreatePaperModal({ paperMeta, onApply, onClose, variant = 'test' }) {
   const { currentUser } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
+  // The Exam Studio runs this same modal locked to exam standard: it offers the
+  // three exam paper types instead of the four test types, and every one
+  // generates a cumulative, exam-level paper (mapped to the server's mock_exam
+  // format profile below).
+  const isExam = variant === 'exam'
+  const paperTypes = isExam ? EXAM_PAPER_TYPES : PAPER_TYPES
   const [form, setForm] = useState(() => ({
     grade: isPaperGrade(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
     subject: toKbSubjectKey(paperMeta?.subject) || 'english',
     framework: '2023',
-    assessmentType: 'end_of_term',
+    assessmentType: isExam ? 'mock' : 'end_of_term',
     term: paperMeta?.term || '1',
     topicInput: '',
     topics: [],
@@ -339,7 +346,16 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     if (form.comprehension) {
       bits.push('Include a reading comprehension passage with questions on it.')
     }
-    if (form.assessmentType === 'end_of_term' || form.assessmentType === 'mock_exam') {
+    if (isExam || isExamPaperType(form.assessmentType)) {
+      // Exam Studio: every type is a full, formal examination at ECZ standard.
+      bits.push(
+        'This is a formal examination at full exam standard: pitch the ' +
+        'difficulty at a final/mock examination, write it in authentic ' +
+        'ECZ style, and make it cumulative — distribute the questions across ' +
+        'ALL the listed topics, weighting each by how much it matters rather ' +
+        'than over-focusing on one topic.',
+      )
+    } else if (form.assessmentType === 'end_of_term' || form.assessmentType === 'mock_exam') {
       bits.push(
         'This is a cumulative paper that tests EVERYTHING the learners have ' +
         'covered: distribute the questions across ALL the listed topics, ' +
@@ -385,7 +401,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       term: form.term ? Number(form.term) : null,
       totalMarks: Number(form.totalMarks),
       durationMinutes: Number(form.durationMinutes),
-      assessmentType: form.assessmentType,
+      // Exam types (mock / examination / exam) all resolve to the server's
+      // `mock_exam` format profile — the studio keeps the specific type for the
+      // cover title (see handleApplyAiPaper / buildTitleFromForm). For test
+      // papers the studio type maps 1:1 to a server type already.
+      assessmentType: isExam ? 'mock_exam' : form.assessmentType,
       // Canonical question types — the generator filters the paper format to
       // these and refuses to emit any other type. Sent alongside the
       // human-readable instruction (buildInstructions) so the prompt also
@@ -432,11 +452,15 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <h3 style={{ margin: 0, fontWeight: 900, fontSize: 19, color: 'var(--sv-text, #0e2a32)' }}>
-              📄 Create paper with AI
+              {isExam ? '🎓 Create exam with AI' : '📄 Create paper with AI'}
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--sv-muted, #566f76)' }}>
-              The paper follows the Zambian format for the chosen test type and
-              lands as editable blocks — review every question before saving.
+              {isExam
+                ? 'The exam follows the Zambian examination format at full exam ' +
+                  'standard and lands as editable blocks — review every question ' +
+                  'before saving.'
+                : 'The paper follows the Zambian format for the chosen test type ' +
+                  'and lands as editable blocks — review every question before saving.'}
             </p>
           </div>
           <button type="button" onClick={onClose} disabled={status === 'generating'}
@@ -487,10 +511,10 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={fieldLabel}>Test type</label>
+                <label style={fieldLabel}>{isExam ? 'Exam type' : 'Test type'}</label>
                 <select style={inputStyle} value={form.assessmentType}
                   onChange={(e) => changeAssessmentType(e.target.value)}>
-                  {PAPER_TYPES.map((t) => (
+                  {paperTypes.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>

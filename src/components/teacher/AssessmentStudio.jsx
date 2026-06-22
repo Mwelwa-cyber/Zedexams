@@ -84,7 +84,8 @@ import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
   CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
-import { subjectLabel as kbSubjectLabel } from './paperTaxonomy'
+import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
+import { getStudioVariant } from './studioVariant'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -125,6 +126,8 @@ const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
   end_of_term: 'end_of_term',
   topic: 'topic',
   mock: 'end_of_term',
+  examination: 'end_of_term',
+  exam: 'end_of_term',
   diagnostic: 'topic',
   pre_test: 'topic',
   post_test: 'topic',
@@ -144,19 +147,20 @@ const GRADE_WORDS = {
 }
 const TERMS = ['1', '2', '3']
 
-// The Test Paper Studio offers exactly four test types in the picker.
-const ASSESSMENT_TYPES = ['topic', 'weekly', 'mid_term', 'end_of_term']
-// Labels stay comprehensive: the four selectable types use the studio's
-// "Test" wording, while the legacy keys are retained so papers saved before
+// Labels stay comprehensive: the selectable types use the studio's "Test"/
+// "Exam" wording, while the legacy keys are retained so papers saved before
 // the type list was trimmed still render a readable label rather than a bare
-// "Assessment" fallback.
+// "Assessment" fallback. Which subset the picker shows is driven by the studio
+// variant (Test Paper vs Exam) — see getStudioVariant.
 const ASSESSMENT_TYPE_LABELS = {
   topic: 'Topic Test',
   weekly: 'Weekly Test',
   mid_term: 'Mid-Term Test',
   end_of_term: 'End-of-Term Test',
+  mock: 'Mock Exam',
+  examination: 'Examination',
+  exam: 'Exam',
   monthly: 'Monthly test',
-  mock: 'Mock exam',
   diagnostic: 'Diagnostic / baseline',
   pre_test: 'Pre-test',
   post_test: 'Post-test',
@@ -322,6 +326,10 @@ function buildTitleFromForm(form) {
     typeFormatted = `MID-TERM ${form.term} TEST`
   } else if (form.assessmentType === 'mock') {
     typeFormatted = 'MOCK EXAMINATION'
+  } else if (form.assessmentType === 'examination' || form.assessmentType === 'exam') {
+    // Exam Studio papers are titled as a formal examination — no term prefix,
+    // since an exam covers the whole syllabus rather than a single term.
+    typeFormatted = 'EXAMINATION'
   } else if (termBit) {
     typeFormatted = `${termBit} ${typeUpper}`
   }
@@ -349,7 +357,11 @@ function plainTextWordCount(value) {
  * Top-level component
  * ------------------------------------------------------------------ */
 
-export default function AssessmentStudio() {
+export default function AssessmentStudio({ variant = 'test' }) {
+  // The same builder backs the Test Paper Studio and the Exam Studio; `cfg`
+  // carries the route base, wording and paper-type list for the active flavour.
+  const cfg = getStudioVariant(variant)
+  const isExamStudio = cfg.key === 'exam'
   const {
     createAssessment, saveAssessmentQuestions, getMyAssessments,
     getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions,
@@ -388,7 +400,7 @@ export default function AssessmentStudio() {
     duration: 60,
     type: 'assessment',
     topic: '',
-    assessmentType: 'end_of_term',
+    assessmentType: cfg.defaultType,
     schoolName: '',
     className: '',
     paperName: '',
@@ -851,12 +863,18 @@ export default function AssessmentStudio() {
     getMyAssessments(currentUser.uid)
       .then(list => {
         if (cancelled) return
-        setRecentPapers(Array.isArray(list) ? list.slice(0, 8) : [])
+        // Test Papers and Exam papers live in one collection but each studio
+        // only surfaces its own: the Exam Studio shows mock/examination/exam,
+        // the Test Paper Studio shows everything else.
+        const scoped = (Array.isArray(list) ? list : []).filter(
+          p => isExamPaperType(p.assessmentType) === isExamStudio,
+        )
+        setRecentPapers(scoped.slice(0, 8))
       })
       .catch(err => { console.warn('Failed to load recent papers:', err) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, currentUser?.uid])
+  }, [view, currentUser?.uid, isExamStudio])
 
   /* ------------ section + part mutators ------------ */
   function updateSection(sectionIndex, updater) {
@@ -1146,6 +1164,9 @@ export default function AssessmentStudio() {
     const typeMap = {
       topic_test: 'topic', weekly_test: 'weekly',
       mid_term: 'mid_term', end_of_term: 'end_of_term',
+      // Exam Studio types are passed through unchanged (the modal already emits
+      // the studio's own value for them — see CreatePaperModal).
+      mock: 'mock', examination: 'examination', exam: 'exam',
     }
     // The modal now emits a canonical subject KEY ('numeracy',
     // 'integrated_science'); the studio form carries a display label, so map
@@ -1707,7 +1728,7 @@ export default function AssessmentStudio() {
       const wasUpdate = Boolean(editId || createdIdRef.current)
       await persistAssessment()
       showToast(wasUpdate ? 'Changes saved.' : 'Saved to your library!')
-      setTimeout(() => navigate('/teacher/test-papers'), 900)
+      setTimeout(() => navigate(cfg.routeBase), 900)
     } catch (error) {
       console.error(error)
       showToast(`Failed to save: ${getErrorMessage(error)}`, true)
@@ -2013,7 +2034,7 @@ export default function AssessmentStudio() {
   if (isEditing && editLoading) {
     return (
       <div className="studio-v2">
-        <SeoHelmet title="Edit test paper" noIndex />
+        <SeoHelmet title={`Edit ${cfg.noun}`} noIndex />
         <div style={{ padding: '48px 16px' }} className="space-y-4">
           {[1, 2, 3].map(item => (
             <Skeleton key={item} height={96} className="!rounded-2xl" />
@@ -2027,21 +2048,21 @@ export default function AssessmentStudio() {
     const notFound = editError === 'notfound'
     return (
       <div className="studio-v2">
-        <SeoHelmet title="Edit test paper" noIndex />
+        <SeoHelmet title={`Edit ${cfg.noun}`} noIndex />
         <div className="theme-text py-20 text-center">
           <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
-          <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Test paper not found' : 'Access denied'}</h2>
+          <h2 className="text-display-xl theme-text mb-2">{notFound ? `${cfg.Noun} not found` : 'Access denied'}</h2>
           <p className="theme-text-muted text-body mb-5">
             {notFound
-              ? 'This test paper does not exist or has been deleted.'
-              : 'You can only edit test papers you created.'}
+              ? `This ${cfg.noun} does not exist or has been deleted.`
+              : `You can only edit ${cfg.nounPlural} you created.`}
           </p>
           <button
             type="button"
-            onClick={() => navigate('/teacher/test-papers')}
+            onClick={() => navigate(cfg.routeBase)}
             className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md"
           >
-            ← Back to test papers
+            ← Back to {cfg.nounPlural}
           </button>
         </div>
       </div>
@@ -2050,7 +2071,7 @@ export default function AssessmentStudio() {
 
   return (
     <div className="studio-v2">
-      <SeoHelmet title={isEditing ? 'Edit test paper' : 'Test Paper Studio'} noIndex />
+      <SeoHelmet title={isEditing ? `Edit ${cfg.noun}` : cfg.studioName} noIndex />
 
       <TopBar
         title={autoTitle}
@@ -2062,22 +2083,23 @@ export default function AssessmentStudio() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        onBack={() => navigate('/teacher/test-papers')}
+        onBack={() => navigate(cfg.routeBase)}
         onAi={() => openSlide('ai')}
       />
 
       {view === 'home' && (
         <HomeView
           recentPapers={recentPapers}
+          eyebrow={cfg.eyebrow}
           onNewPaper={() => {
             // Reset to a clean slate
             setSections([createStandaloneSection()])
             setParts([])
             changeView('builder')
           }}
-          onOpenPaper={(paperId) => navigate(`/teacher/test-papers/${paperId}/edit`)}
+          onOpenPaper={(paperId) => navigate(`${cfg.routeBase}/${paperId}/edit`)}
           onAi={() => openSlide('ai')}
-          onLibrary={() => navigate('/teacher/test-papers')}
+          onLibrary={() => navigate(cfg.routeBase)}
           questionCount={questionCount}
         />
       )}
@@ -2130,6 +2152,8 @@ export default function AssessmentStudio() {
           saving={saving}
           errorCount={errorCount}
           onShowChecklist={() => setChecklistOpen(true)}
+          assessmentTypes={cfg.types}
+          assessmentTypeLabel={isExamStudio ? 'Exam type' : 'Assessment'}
         />
       )}
 
@@ -2167,7 +2191,7 @@ export default function AssessmentStudio() {
         // While editing a saved paper, "Home" leaves the studio rather than
         // dropping into the new-paper home view (whose "New paper" reset would
         // otherwise let a save overwrite the loaded assessment with a blank).
-        onHome={() => (isEditing ? navigate('/teacher/test-papers') : changeView('home'))}
+        onHome={() => (isEditing ? navigate(cfg.routeBase) : changeView('home'))}
         onBuilder={() => changeView('builder')}
         onAdd={() => openSlide('blocks')}
         onPreview={() => changeView('preview')}
@@ -2207,6 +2231,7 @@ export default function AssessmentStudio() {
       />
       {createPaperOpen && (
         <CreatePaperModal
+          variant={variant}
           paperMeta={{ grade: form.grade, subject: form.subject, term: form.term }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
@@ -2438,7 +2463,7 @@ function DockBtn({ icon, label, onClick, active }) {
 /* ==================================================================
  * HOME VIEW
  * ================================================================== */
-function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
+function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary, eyebrow = '📄 Teacher-only · Test Paper Studio' }) {
   const draftCount = recentPapers.filter(p => (p.importStatus || '') === 'needs_review' || !p.questionCount).length
   const totalQuestions = recentPapers.reduce((sum, p) => sum + (p.questionCount || 0), 0)
 
@@ -2446,7 +2471,7 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
     <section className="sv-view">
       <div className="sv-canvas-area">
         <div className="sv-welcome">
-          <div className="sv-welcome-eyebrow">📄 Teacher-only · Test Paper Studio</div>
+          <div className="sv-welcome-eyebrow">{eyebrow}</div>
           <h1 className="serif">
             Build school-ready <em>papers</em> the way teachers think.
           </h1>
@@ -2574,6 +2599,8 @@ function BuilderView(props) {
     onImportDocument, onScan, importing, importSummary,
     onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
     onSave, saving = false, errorCount = 0, onShowChecklist,
+    assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
+    assessmentTypeLabel = 'Assessment',
   } = props
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
@@ -2666,7 +2693,7 @@ function BuilderView(props) {
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
-        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} />
+        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
 
         {emptyPaper && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, margin: '12px 0' }}>
@@ -2856,7 +2883,7 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
 /* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-function HeaderBlock({ form, setF, importing, onImportDocument, onScan }) {
+function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'], assessmentTypeLabel = 'Assessment' }) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -2909,9 +2936,9 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan }) {
           </select>
         </div>
         <div className="sv-field">
-          <label>Assessment</label>
+          <label>{assessmentTypeLabel}</label>
           <select value={form.assessmentType} onChange={e => setF('assessmentType', e.target.value)}>
-            {ASSESSMENT_TYPES.map(t => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+            {assessmentTypes.map(t => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
           </select>
         </div>
         <div className="sv-field">

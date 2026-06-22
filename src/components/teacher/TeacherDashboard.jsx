@@ -202,8 +202,8 @@ const STUDIO_GROUPS = [
         badge: 'NEW',
         libraryKey: 'exam-paper',
         title: 'Exam Studio',
-        tagline: 'Fresh ECZ-style multiple-choice exam questions with an answer key.',
-        to: '/teacher/generate/exam-paper',
+        tagline: 'Build mock, examination, and exam papers at full exam standard.',
+        to: '/teacher/exam-papers',
       },
       {
         img: iconRubric,
@@ -292,7 +292,7 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
   '/teacher/test-papers',
-  '/teacher/generate/exam-paper',
+  '/teacher/exam-papers',
   '/teacher/generate/sba-tracker',
   '/teacher/generate/sba-planner',
 ])

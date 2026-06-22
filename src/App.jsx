@@ -196,7 +196,6 @@ import StudioGate from './components/teacher/StudioGate'
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
-const ExamPaperGenerator = lazy(() => import('./components/teacher/generate/ExamPaperGenerator'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
@@ -603,6 +602,13 @@ export default function App() {
           <Route path="/teacher/assessments"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/assessments/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          {/* Exam Studio — the same block-based builder as the Test Paper
+              Studio, locked to exam standard (mock / examination / exam).
+              Gated on the same `assessment` quota since it generates through
+              the assessment pipeline. */}
+          <Route path="/teacher/exam-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList variant="exam" /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
@@ -610,7 +616,10 @@ export default function App() {
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
           {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/generate/exam-paper"     element={<TeacherRoute><StudioGate tool="exam_paper"><ExamPaperGenerator /></StudioGate></TeacherRoute>} />
+          {/* The Exam Studio was upgraded to the block-based paper builder
+              (now at /teacher/exam-papers). Keep the old generator path as a
+              redirect so saved links and bookmarks still land in the studio. */}
+          <Route path="/teacher/generate/exam-paper"     element={<Navigate to="/teacher/exam-papers" replace />} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><StudioGate tool="worksheet"><WorksheetGenerator /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><StudioGate tool="flashcards"><FlashcardGenerator /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><StudioGate tool="scheme_of_work"><SchemeOfWorkGenerator /></StudioGate></TeacherRoute>} />
