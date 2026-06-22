@@ -122,7 +122,9 @@ body.theme-oatmeal {
   --text:         #1C1917;
   --text-muted:   #78716C;
   --border:       #E7D5C0;
-  --accent:       #D97706;
+  /* amber-700, not amber-600: white-on-#D97706 was only 3.18:1 (fails WCAG AA
+     for normal text); #B45309 lifts white text to ~5:1 while staying amber. */
+  --accent:       #B45309;
   --accent-text:  #FFFFFF;
   --accent-bg:    #FEF3C7;
   --accent-fg:    #92400E;
@@ -3115,8 +3117,10 @@ select option {
   --shadow-lg:    0 8px 18px rgba(28,25,23,0.12), 0 22px 48px rgba(28,25,23,0.16);
 }
 
-/* Muted/help fine print — the one tier lighter than secondary copy. */
-.marketing-page .theme-text-help { color: #6B7280; }
+/* Muted/help fine print — the one tier lighter than secondary copy. Kept dark
+   enough to clear WCAG AA on the cream --bg-subtle (#FEF3C7) preview cards,
+   where the old #6B7280 only reached 4.34:1. #586273 lands at ~5.5:1. */
+.marketing-page .theme-text-help { color: #586273; }
 
 /* Flat feature/pricing cards ship with no shadow; give them a subtle one
  * so they still read as cards on cream. Elevated/hero cards already carry
