@@ -167,6 +167,7 @@ function buildBatchCoverHtml(meta, lessons) {
   rows.push(['Subject', esc(m.subject || '')]);
   rows.push(['Class', esc(m.klass || '')]);
   if (m.termWeek) rows.push(['Term &amp; Week', esc(m.termWeek)]);
+  rows.push(['Medium of Instruction', esc(m.medium || 'English')]);
   rows.push(['Duration', esc(m.duration || '') + ' minutes per lesson']);
   if (m.topic) rows.push(['Topic', esc(m.topic)]);
   if (m.subtopic) rows.push(['Sub-topic', esc(m.subtopic)]);
