@@ -493,7 +493,7 @@ export default function Marketing() {
       {/* Hero */}
       <section className="marketing-hero">
         <img
-          src="/images/characters/zed-zara-reading.webp"
+          src="/images/characters/zed-zara-reading.webp?v=2"
           alt=""
           className="marketing-hero-art"
           aria-hidden="true"

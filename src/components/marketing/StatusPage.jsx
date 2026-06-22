@@ -23,7 +23,7 @@ import SeoHelmet from '../seo/SeoHelmet'
  * "ZedExams down" on the status board.
  */
 
-const HOSTING_HEALTH_URL = 'https://zedexams.com/zedexams-logo.png?v=4'
+const HOSTING_HEALTH_URL = 'https://zedexams.com/zedexams-logo.png?v=5'
 
 const FIVE_MIN = 5 * 60 * 1000
 
