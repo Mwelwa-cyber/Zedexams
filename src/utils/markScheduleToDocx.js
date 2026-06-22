@@ -5,6 +5,7 @@
  */
 
 import { saveBlob } from './saveBlob.js'
+import { sanitizeXmlText } from './xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -29,7 +30,7 @@ const CELL_BORDER = {
   right:  { style: BorderStyle.SINGLE, size: 4, color: '000000' },
 }
 
-const text = (str, opts = {}) => new TextRun({ text: str == null ? '' : String(str), size: 18, ...opts })
+const text = (str, opts = {}) => new TextRun({ text: sanitizeXmlText(str), size: 18, ...opts })
 const para = (runs, opts = {}) => new Paragraph({
   children: Array.isArray(runs) ? runs : [runs],
   spacing: { after: 40 },

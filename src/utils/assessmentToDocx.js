@@ -38,25 +38,15 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
+import { sanitizeXmlText } from './xmlText.js'
 
 const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
-// Word refuses to open a .docx whose XML contains characters XML 1.0
-// forbids — it reports "unreadable content" / a corrupt file. Imported
-// papers (scanned PDFs, pasted Word, OCR) routinely carry stray control
-// bytes, so a single such character anywhere in the assessment silently
-// broke the entire Word download even though the preview and PDF looked
-// fine. We strip them at the one place every run's text funnels through.
-// Tab (\t), newline (\n) and carriage-return (\r) are legal XML and kept;
-// surrogate PAIRS (emoji) are left intact so only the genuinely-illegal
-// control range and the two non-characters are removed.
-// eslint-disable-next-line no-control-regex
-const XML_INVALID_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g
-export function sanitizeXmlText(value) {
-  return String(value == null ? '' : value).replace(XML_INVALID_CHARS, '')
-}
+// Re-exported from the shared xmlText.js so every exporter sanitises identically
+// and the existing call sites / tests that import it from this module keep working.
+export { sanitizeXmlText }
 
 function runText(str, opts = {}) {
   return new TextRun({ text: sanitizeXmlText(str), ...opts })
