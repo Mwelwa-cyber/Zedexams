@@ -87,7 +87,20 @@ async function main() {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      // Headless/backgrounded pages get their timers and requestAnimationFrame
+      // heavily throttled. react-helmet-async flushes head tags (title,
+      // canonical, og:*) on an rAF tick, so throttling can delay the canonical
+      // landing in <head> past our settle window — which surfaced as an
+      // intermittent `canonical "null"` failure on the smallest route
+      // (/grade-12's tiny "coming soon" page hit the content gate before the
+      // head flush). Keep the renderer foregrounded so the flush is prompt.
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+    ],
   })
 
   const failures = []
@@ -99,18 +112,28 @@ async function main() {
           waitUntil: 'domcontentloaded',
           timeout: NAV_TIMEOUT_MS,
         })
-        // Wait until React has painted real content into #root. We avoid
-        // networkidle because dummy/real Firestore keeps a long-poll open
-        // that never goes idle.
+        // Wait until React has painted real content into #root AND
+        // react-helmet-async has flushed the per-route canonical into <head>.
+        // We avoid networkidle because dummy/real Firestore keeps a long-poll
+        // open that never goes idle. Gating on the canonical (not just text
+        // length) is what makes this reliable: every prerendered route renders
+        // a <SeoHelmet path="…">, so a present canonical is the precise signal
+        // that the head has been written. Waiting on text alone let the tiny
+        // "coming soon" route snapshot a default-shell head (correct-looking
+        // title from index.html, but a null canonical) before Helmet's rAF
+        // flush ran — an intermittent build break.
         await page.waitForFunction(
           (min) => {
             const root = document.getElementById('root')
-            return !!root && (root.innerText || '').trim().length >= min
+            const hasText = !!root && (root.innerText || '').trim().length >= min
+            const canonical = document.querySelector('link[rel="canonical"]')
+            return hasText && !!canonical?.getAttribute('href')
           },
           { timeout: NAV_TIMEOUT_MS },
           MIN_ROOT_TEXT,
         )
-        // Small settle so react-helmet-async has flushed head tags.
+        // Small settle so the remaining react-helmet-async tags (description,
+        // og:*, twitter:*) have flushed alongside the canonical we waited on.
         await new Promise((r) => setTimeout(r, 250))
 
         const { html, title, canonical, rootLen } = await page.evaluate(() => {
