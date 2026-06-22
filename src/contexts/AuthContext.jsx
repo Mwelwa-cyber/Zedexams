@@ -138,12 +138,32 @@ async function signInWithGoogleNative() {
       cancelled.code = 'auth/cancelled-popup-request'
       throw cancelled
     }
+    // Google Play Services code 10 (DEVELOPER_ERROR) / "developer error" means
+    // the signing key's SHA-1/SHA-256 fingerprint isn't registered against the
+    // Android OAuth client in Firebase, or google-services.json is stale.
+    // Give it a dedicated code so the UI shows an actionable message instead of
+    // a raw native string.
+    if (err?.code === '10' || /developer error/i.test(msg)) {
+      const devErr = new Error('Google sign-in is misconfigured for this build.')
+      devErr.code = 'auth/google-developer-error'
+      throw devErr
+    }
     throw err
   }
   const idToken = result?.credential?.idToken
   if (!idToken) {
-    const err = new Error('Google did not return an ID token.')
-    err.code = 'auth/invalid-credential'
+    // The native sheet completed but no Firebase ID token came back. On Android
+    // the plugin can only mint an ID token when the Web OAuth client ID is
+    // configured — `serverClientId` in capacitor.config.json, backed by a
+    // type-3 ("web") OAuth client in google-services.json. Without it
+    // signInWithGoogle returns an access token but no idToken, so
+    // signInWithCredential below would fail anyway.
+    //
+    // Use a DEDICATED code, not auth/invalid-credential: the email/password
+    // path maps auth/invalid-credential to "Wrong email or password", which
+    // would mislead the user on a Google sign-in failure.
+    const err = new Error('Google sign-in could not be completed on this device.')
+    err.code = 'auth/google-no-id-token'
     throw err
   }
   const credential = GoogleAuthProvider.credential(idToken, result?.credential?.accessToken)
