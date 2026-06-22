@@ -10,13 +10,13 @@
  *   size:      'sm' | 'md' | 'lg' | 'xl'
  *   className: extra tailwind classes
  */
-const LOGO_PNG  = '/zedexams-logo.png?v=4'
-const LOGO_WEBP = '/zedexams-logo.webp?v=1'
+const LOGO_PNG  = '/zedexams-logo.png?v=5'
+const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 // Intrinsic pixel dimensions of the source art. Passed to <img> so the
 // browser can reserve layout space before the image finishes loading
 // (prevents CLS in the sticky header).
-const LOGO_W = 1431
-const LOGO_H = 1762
+const LOGO_W = 312
+const LOGO_H = 384
 
 export default function Logo({ variant = 'full', size = 'md', className = '' }) {
   // Heights for the full logo (wider landscape image)

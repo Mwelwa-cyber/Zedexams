@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 
 const SITE = 'https://zedexams.com'
-const DEFAULT_IMAGE = `${SITE}/zedexams-logo.png?v=4`
+const DEFAULT_IMAGE = `${SITE}/zedexams-logo.png?v=5`
 
 /**
  * Per-route head metadata.

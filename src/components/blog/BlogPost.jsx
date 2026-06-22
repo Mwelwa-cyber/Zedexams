@@ -63,7 +63,7 @@ export default function BlogPost() {
       name: 'ZedExams',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://zedexams.com/zedexams-logo.png?v=4',
+        url: 'https://zedexams.com/zedexams-logo.png?v=5',
       },
     },
     mainEntityOfPage: {
