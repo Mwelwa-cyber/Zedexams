@@ -16,7 +16,7 @@
 
 import { Document, ImageRun, Packer, Paragraph } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildAssessmentDocument, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
+import { buildAssessmentDocument, buildDiagramIdentifySvg, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
 
 let failures = 0
 function assert(cond, msg) {
@@ -144,6 +144,38 @@ const dirtyDoc = await buildAssessmentDocument(
 const dirtyXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(dirtyDoc)))['word/document.xml'])
 assert(!CONTROL_RE.test(dirtyXml), 'packed document.xml contains no raw XML-illegal control characters')
 assert(dirtyXml.includes('right one'), 'sanitised question text still renders')
+
+console.log('\nIdentify-mode markers are composited onto the Word image (buildDiagramIdentifySvg)')
+// Word can't overlay positioned elements on an inline image, so identify
+// papers used to embed a bare image whose numbered answer blanks pointed at
+// invisible markers. We now bake numbered circles + leader lines into one PNG;
+// this guards the pure SVG builder (the raster step is browser-only).
+{
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA',
+    width: 400,
+    height: 300,
+    labels: [
+      { x: 0.25, y: 0.25, tx: 0.4, ty: 0.4, text: '' },
+      { x: 0.5, y: 0.5, text: 'Aorta' },
+      { x: 0.75, y: 0.75, tx: 0.6, ty: 0.6, text: '' },
+    ],
+  })
+  assert(svg.startsWith('<svg') && svg.includes('viewBox="0 0 400 300"'), 'emits an SVG with the image viewBox')
+  assert(svg.includes('<image href="data:image/png;base64,AAAA"'), 'inlines the image as the base layer')
+  // One numbered <text> per hotspot, numbered 1..N in placement order — even
+  // the two blank-text hotspots get a number (that is the whole point).
+  assert((svg.match(/<text /g) || []).length === 3, 'one numbered marker per hotspot (blank text included)')
+  assert(svg.includes('>1</text>') && svg.includes('>2</text>') && svg.includes('>3</text>'), 'markers are numbered 1, 2, 3 in order')
+  // Leader lines only for hotspots that carry a target tip (2 of the 3 here).
+  assert((svg.match(/<line /g) || []).length === 2, 'a leader line is drawn only for hotspots with a target tip')
+}
+{
+  // No labels → just the image, no markers (defensive: never throws on empty).
+  const svg = buildDiagramIdentifySvg({ href: 'data:image/png;base64,AAAA', width: 100, height: 100, labels: [] })
+  assert((svg.match(/<text /g) || []).length === 0, 'no labels → no numbered markers')
+  assert(svg.includes('<image '), 'no labels → still renders the base image')
+}
 
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)

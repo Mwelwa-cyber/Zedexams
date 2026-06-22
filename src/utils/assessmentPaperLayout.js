@@ -633,7 +633,13 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
           }
           return out
         })
-        .filter(l => l.text.length > 0)
+        // In identify mode the label TEXT is the expected answer — which a
+        // teacher legitimately leaves blank (hand-marked, or the answer is
+        // obvious from the part) — while the on-image marker is just its
+        // NUMBER. So a blank-text identify hotspot is still a real, numbered
+        // hotspot and must be kept; dropping it silently deletes a marker and
+        // renumbers the rest. In labeled mode an empty pill is just noise.
+        .filter(l => q.diagramMode === 'identify' || l.text.length > 0)
       : [],
     diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
     // Inline data table (null when the question has no attached table).

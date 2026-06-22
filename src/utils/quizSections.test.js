@@ -152,7 +152,13 @@ function runDiagramFieldsRoundTripTest() {
     createStandaloneSection({
       type: 'diagram', text: 'Label the heart', options: [], correctAnswer: '',
       imageUrl: 'https://x/heart.png',
-      diagramLabels: [{ id: 'l1', x: 0.5, y: 0.3, text: 'Aorta' }],
+      diagramLabels: [
+        // Carries a dragged leader-tip (tx/ty) that must survive the round-trip.
+        { id: 'l1', x: 0.5, y: 0.3, tx: 0.62, ty: 0.42, text: 'Aorta' },
+        // A blank-text identify hotspot — the marker is its number, so it must
+        // not be dropped on save (students still fill in blank #2).
+        { id: 'l2', x: 0.7, y: 0.6, text: '' },
+      ],
       diagramMode: 'identify',
       drawingHeight: 220,
     }),
@@ -182,8 +188,12 @@ function runDiagramFieldsRoundTripTest() {
 
   const diagramQ = reopened.find(s => s.kind === 'standalone' && s.question.type === 'diagram')?.question
   assert(diagramQ, 'standalone diagram question reopens')
-  assert.equal(diagramQ.diagramLabels.length, 1, 'standalone diagram labels round-trip')
+  assert.equal(diagramQ.diagramLabels.length, 2, 'all hotspots round-trip, incl. the blank-text one')
   assert.equal(diagramQ.diagramLabels[0].text, 'Aorta', 'label text round-trips')
+  assert.equal(diagramQ.diagramLabels[1].text, '', 'blank-text identify hotspot survives save')
+  assert.equal(diagramQ.diagramLabels[0].tx, 0.62, 'leader-tip tx survives save → reload')
+  assert.equal(diagramQ.diagramLabels[0].ty, 0.42, 'leader-tip ty survives save → reload')
+  assert.equal(diagramQ.diagramLabels[1].tx, undefined, 'a target-less label stays target-less (no spurious tip)')
   assert.equal(diagramQ.diagramMode, 'identify', 'diagramMode round-trips')
   assert.equal(diagramQ.drawingHeight, 220, 'drawingHeight round-trips')
 
