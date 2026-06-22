@@ -952,6 +952,7 @@ export default function LessonPlanStudio() {
                 <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)}>Worksheet</button>
                 <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)}>Homework</button>
                 <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)}>Teacher notes</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)}>Test paper</button>
               </div>
             )}
 
