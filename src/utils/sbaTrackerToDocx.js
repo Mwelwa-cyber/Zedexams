@@ -6,6 +6,7 @@
  */
 
 import { saveBlob } from './saveBlob.js'
+import { sanitizeXmlText } from './xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -31,7 +32,7 @@ const BORDER = {
 }
 
 function text(str, opts = {}) {
-  return new TextRun({ text: str == null ? '' : String(str), ...opts })
+  return new TextRun({ text: sanitizeXmlText(str), ...opts })
 }
 function para(runs, opts = {}) {
   return new Paragraph({ children: Array.isArray(runs) ? runs : [runs], ...opts })
