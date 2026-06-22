@@ -67,15 +67,38 @@ export const PAPER_TYPES = [
   { value: 'end_of_term', label: 'End-of-Term Test' },
 ]
 
+// ── Exam paper types ───────────────────────────────────────────────────────
+// The Exam Studio is the Test Paper Studio locked to exam standard: it offers
+// only the three exam-grade papers and every one of them generates at full
+// mock-exam / final-examination standard (cumulative, ECZ-style, exam-level
+// difficulty). They all map to the server's `mock_exam` format profile (see
+// CreatePaperModal) — the only thing that differs between them is the title
+// printed on the cover (Mock Examination / Examination / Exam).
+export const EXAM_PAPER_TYPES = [
+  { value: 'mock', label: 'Mock Exam' },
+  { value: 'examination', label: 'Examination' },
+  { value: 'exam', label: 'Exam' },
+]
+
+const EXAM_PAPER_TYPE_VALUES = new Set(EXAM_PAPER_TYPES.map((t) => t.value))
+
+export function isExamPaperType(value) {
+  return EXAM_PAPER_TYPE_VALUES.has(String(value || ''))
+}
+
 // How many topics each test type may cover. Topic and weekly tests are
 // narrow; an end-of-term paper is cumulative and should span everything the
 // class has learned, so its cap is large and the modal offers an
-// "Add all topics" shortcut for it.
+// "Add all topics" shortcut for it. The exam types are all cumulative — an
+// exam covers the whole syllabus — so they carry the largest cap.
 const TOPIC_CAPS = {
   topic_test: 3,
   weekly_test: 3,
   mid_term: 6,
   end_of_term: 15,
+  mock: 15,
+  examination: 15,
+  exam: 15,
 }
 const DEFAULT_TOPIC_CAP = 3
 
