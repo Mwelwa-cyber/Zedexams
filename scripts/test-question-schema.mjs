@@ -14,7 +14,7 @@ globalThis.Node = dom.window.Node
 globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.Element = dom.window.Element
 
-const { questionWriteSchema, tiptapDoc, coerceQuestion } = await import('../src/editor/schema/question.js')
+const { questionWriteSchema, tiptapDoc, coerceQuestion, canonicalizeQuestionType } = await import('../src/editor/schema/question.js')
 const { migrateQuestionRecord } = await import('./migrate-questions-to-v3.mjs')
 
 let pass = 0
@@ -650,6 +650,79 @@ test('plain mcq still passes without the new fields', () => {
   assert(result.success, JSON.stringify(result.error?.issues))
   assert(result.data.diagramLabels === undefined, 'no empty diagramLabels on a plain mcq')
   assert(result.data.tableData === undefined, 'no empty tableData on a plain mcq')
+})
+
+// ── canonicalizeQuestionType (alias folding) ──────────────────────
+console.log('\ncanonicalizeQuestionType')
+
+test("'truefalse' / 'true_false' / 'true/false' fold to 'tf'", () => {
+  assert(canonicalizeQuestionType('truefalse') === 'tf', 'truefalse → tf')
+  assert(canonicalizeQuestionType('true_false') === 'tf', 'true_false → tf')
+  assert(canonicalizeQuestionType('true/false') === 'tf', 'true/false → tf')
+  assert(canonicalizeQuestionType('TrueFalse') === 'tf', 'case-insensitive')
+  assert(canonicalizeQuestionType(' truefalse ') === 'tf', 'trims whitespace')
+})
+
+test("'fill_in_blank' / 'fill_in_the_blank' / 'fill_blank' fold to 'fill_blanks'", () => {
+  assert(canonicalizeQuestionType('fill_in_blank') === 'fill_blanks')
+  assert(canonicalizeQuestionType('fill_in_the_blank') === 'fill_blanks')
+  assert(canonicalizeQuestionType('fill_blank') === 'fill_blanks')
+})
+
+test('canonical + unknown types pass through unchanged', () => {
+  // Canonical values are untouched, and a genuine typo is returned as-is so
+  // the strict write schema still rejects it loudly rather than coercing.
+  for (const t of ['mcq', 'tf', 'fill_blanks', 'short_answer', 'numeric', 'matching']) {
+    assert(canonicalizeQuestionType(t) === t, `${t} unchanged`)
+  }
+  assert(canonicalizeQuestionType('multiple_choice') === 'multiple_choice', 'unknown unchanged')
+  assert(canonicalizeQuestionType(undefined) === undefined, 'non-string unchanged')
+})
+
+test("a 'truefalse' record canonicalises to a schema-valid 'tf' write", () => {
+  // Mirrors useFirestore.normalizeQuestionPayload: the alias is folded BEFORE
+  // the strict schema runs, so a true/false question saves instead of throwing
+  // "Invalid question payload at 'type'" (the MCQ-saves-but-true/false-doesn't
+  // bug). Without canonicalisation 'truefalse' is rejected by the type enum.
+  assert(!questionWriteSchema.safeParse({ ...validDoc(), type: 'truefalse' }).success,
+    'raw truefalse must be rejected by the strict enum')
+  const d = { ...validDoc(), type: canonicalizeQuestionType('truefalse'), options: ['True', 'False'], correctAnswer: 0 }
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.type === 'tf', 'persists as canonical tf')
+})
+
+test("coerceQuestion reads a 'truefalse' doc back as 'tf' (not 'mcq')", () => {
+  assert(coerceQuestion({ type: 'truefalse', marks: 1 }).type === 'tf')
+  assert(coerceQuestion({ type: 'fill_in_blank', marks: 1 }).type === 'fill_blanks')
+})
+
+// ── diagramLabels leader-line target (tx/ty) round-trip ───────────
+console.log('\ndiagramLabels tx/ty')
+
+test('a label with a leader-line target (tx/ty) is accepted and survives parse', () => {
+  // Guards the writer contract: useFirestore.normalizeQuestionPayload now
+  // persists tx/ty (the point a label POINTS at). Dropping them lost every
+  // teacher-placed leader line when a saved paper was reopened from Firestore.
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 0.1, y: 0.2, tx: 0.4, ty: 0.5, text: 'Nucleus' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels[0].tx === 0.4, 'tx survives parse')
+  assert(result.data.diagramLabels[0].ty === 0.5, 'ty survives parse')
+})
+
+test('an out-of-range leader-line target is rejected', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 0.1, y: 0.2, tx: 1.4, ty: 0.5, text: 'P' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'tx > 1 should fail')
 })
 
 // ── Report ────────────────────────────────────────────────────────
