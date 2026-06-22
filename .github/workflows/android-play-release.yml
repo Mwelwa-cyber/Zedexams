@@ -202,6 +202,30 @@ jobs:
           VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
         run: npm run build
 
+      # Firebase native config — required for @capacitor-firebase/authentication
+      # (Google sign-in). Without it android/app/build.gradle skips the
+      # google-services plugin, no default_web_client_id is generated, and
+      # native Google sign-in can't mint a Firebase ID token. Warn-only so a
+      # release that hasn't configured the secret yet still builds.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::warning::GOOGLE_SERVICES_JSON secret is unset — Google sign-in will NOT work in this release."
+            exit 0
+          fi
+          if printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d 2>/dev/null | grep -q '"project_info"'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          fi
+          if ! grep -q '"project_info"' android/app/google-services.json; then
+            echo "::error::GOOGLE_SERVICES_JSON did not decode to a valid google-services.json."
+            exit 1
+          fi
+          echo "google-services.json written ($(stat -c%s android/app/google-services.json) bytes)."
+
       - name: Sync Capacitor Android assets
         run: npx cap sync android
 
