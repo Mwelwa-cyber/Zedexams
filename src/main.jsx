@@ -18,11 +18,26 @@ import './i18n'
 import './index.css'
 
 initNativeShell()
-// Fire-and-forget — initSentry resolves to a no-op when VITE_SENTRY_DSN
-// is unset, and dynamically imports @sentry/react only when it is. The
-// promise is intentionally not awaited so a slow Sentry CDN can never
-// delay the React mount.
-initSentry()
+// Sentry is a support-triage error sink, not part of first paint, so its
+// ~130 KiB chunk has no business loading on the critical path — when it
+// did, PageSpeed flagged it as a long main-thread task (~106 ms) firing
+// right as React mounts, plus the bulk of its bytes as "unused JS" during
+// load. Defer the download/parse/init to browser idle (after first paint /
+// LCP). Any error thrown in the gap before Sentry loads still reaches the
+// PostHog client-error sink wired synchronously below — that is its
+// documented "we have a signal even without Sentry" role. initSentry stays
+// a no-op + tree-shaken when VITE_SENTRY_DSN is unset.
+//   • requestIdleCallback keeps it off the busy initial main thread; the
+//     `timeout` guarantees it still runs on a saturated thread.
+//   • setTimeout fallback covers Safari, which lacks requestIdleCallback.
+const scheduleSentryInit = (cb) => {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(cb, { timeout: 5000 })
+  } else {
+    setTimeout(cb, 2000)
+  }
+}
+scheduleSentryInit(() => { initSentry() })
 // Audit B2 — wire the PostHog consent listener. Silent no-op without
 // VITE_POSTHOG_KEY. When the user accepts the cookie banner, the SDK
 // dynamically imports + initialises; when they decline, it tears down.
