@@ -26,6 +26,7 @@ import SbaTrackerView from '../views/SbaTrackerView'
 import SbaPlanView from '../views/SbaPlanView'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
@@ -231,7 +232,12 @@ export default function LibraryItemDetail() {
     })
 
     if (item.tool === 'lesson_plan') {
-      await downloadLessonPlanDocx(item.output, name())
+      // Prefer the server-generated download: it streams from zedexams.com with
+      // the correct filename (no Firebase, no upload) and works on browsers that
+      // mangle in-page blob: download names. Falls back to the in-app generator
+      // if the server path isn't available (unsaved item, native shell, error).
+      const served = await downloadLibraryItemViaServer({ generationId: item.id, filename: name() })
+      if (!served) await downloadLessonPlanDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'worksheet') {
       await downloadWorksheetDocx(item.output, name(), { mode: 'worksheet' })

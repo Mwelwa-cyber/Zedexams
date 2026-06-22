@@ -3148,6 +3148,14 @@ exports.lencoWebhook = onRequest({
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
+// Server-generated library downloads: regenerate a saved document on the server
+// and stream it from zedexams.com with the correct filename — no upload, no
+// Firebase Storage, works on every browser. See functions/libraryDownload.js.
+const libraryDownload = require('./libraryDownload');
+exports.createLibraryDownloadTicket = libraryDownload.createLibraryDownloadTicket;
+exports.apiLibraryDownload = libraryDownload.apiLibraryDownload;
+exports.reapDownloadTickets = libraryDownload.reapDownloadTickets;
+
 // Admin dashboard overhaul — user lifecycle callables.
 //
 // TEMPORARILY DISABLED to unblock the Deploy Firebase workflow that
