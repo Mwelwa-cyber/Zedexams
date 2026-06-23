@@ -23,6 +23,7 @@ import { useUndoRedo } from '../../hooks/useUndoRedo'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
+import { subPartLabel, hasSubParts, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../utils/questionParts.js'
 import { generateDiagram } from '../../utils/generateDiagram'
 import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
 import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion'
@@ -4009,8 +4010,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           marks
           <input
             type="number"
-            value={question.marks || 1}
+            value={hasSubParts(question) ? sumSubPartMarks(question.subParts) : (question.marks || 1)}
             onChange={e => onUpdateQuestion('marks', clampInt(e.target.value, 0, 100, 1))}
+            readOnly={hasSubParts(question)}
+            title={hasSubParts(question) ? 'Total auto-sums from the sub-parts below' : 'Marks for this question'}
+            style={hasSubParts(question) ? { background: 'var(--sv-tinted)', cursor: 'not-allowed' } : undefined}
           />
         </label>
         <DifficultySelect question={question} onUpdateQuestion={onUpdateQuestion} />
@@ -4318,13 +4322,18 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       )}
 
       {isShortAnswer && (
-        <>
-          <ShortAnswerInputs
-            correctAnswer={question.correctAnswer}
-            onChange={value => updateQuestion('correctAnswer', value)}
-          />
-          <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
-        </>
+        hasSubParts(question)
+          ? <SubPartsEditor question={question} onUpdate={updateQuestion} />
+          : (
+            <>
+              <ShortAnswerInputs
+                correctAnswer={question.correctAnswer}
+                onChange={value => updateQuestion('correctAnswer', value)}
+              />
+              <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
+              <SplitIntoPartsButton question={question} onUpdate={updateQuestion} />
+            </>
+          )
       )}
 
       {isFillBlanks && (
@@ -4919,6 +4928,166 @@ function AnswerSpaceControl({ question, onUpdate }) {
       )}
     </div>
   )
+}
+
+// "Split into parts" — converts a single short-answer question into a multi-part
+// one. The question text becomes the instruction stem; the first lettered part
+// inherits whatever the teacher already typed as the model answer. From here the
+// SubPartsEditor takes over.
+function SplitIntoPartsButton({ question, onUpdate }) {
+  function split() {
+    const firstAnswer = String(question.correctAnswer ?? '').trim()
+    const parts = [emptySubPart({ answer: firstAnswer }), emptySubPart()]
+    onUpdate('subParts', parts)
+    onUpdate('marks', sumSubPartMarks(parts))
+    // The stem no longer carries a single answer — it lives on the parts now.
+    onUpdate('correctAnswer', '')
+  }
+  return (
+    <div style={{ margin: '8px 0 2px' }}>
+      <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={split}>
+        ➗ Split into parts (a, b, c)
+      </button>
+      <p style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+        Turns the question above into an instruction with lettered sub-questions — each with its own blank and marks.
+      </p>
+    </div>
+  )
+}
+
+// Editor for short-answer SUB-PARTS — the "(a) … (b) … (c) …" structure. The
+// question's text (edited above) is the instruction stem; each part here is a
+// lettered follow-up with its own sentence, marks, model answer and answer
+// space. The (a)(b)(c) labels follow position automatically. The question's
+// total marks auto-sum the parts (kept in sync on every edit).
+function SubPartsEditor({ question, onUpdate }) {
+  const parts = normalizeSubParts(question.subParts)
+
+  function commit(next) {
+    onUpdate('subParts', next)
+    onUpdate('marks', sumSubPartMarks(next))
+  }
+  function updatePart(index, field, value) {
+    commit(parts.map((p, i) => (i === index ? { ...p, [field]: value } : p)))
+  }
+  function addPart() {
+    commit([...parts, emptySubPart()])
+  }
+  function removePart(index) {
+    const next = parts.filter((_, i) => i !== index)
+    if (next.length === 0) {
+      // Removing the last part collapses back to a plain single-answer question.
+      onUpdate('subParts', [])
+      onUpdate('correctAnswer', String(parts[0]?.answer ?? ''))
+      onUpdate('marks', Number(parts[0]?.marks) || 1)
+      return
+    }
+    commit(next)
+  }
+  function movePart(index, dir) {
+    const j = index + dir
+    if (j < 0 || j >= parts.length) return
+    const next = [...parts]
+    ;[next[index], next[j]] = [next[j], next[index]]
+    commit(next)
+  }
+
+  return (
+    <div className="sv-subparts-editor" style={{ margin: '6px 0 2px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 10, background: 'var(--sv-tinted)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <strong style={{ fontSize: 12 }}>🔠 Sub-parts</strong>
+        <span style={{ fontSize: 11, color: 'var(--sv-muted)' }}>
+          The question text above is the instruction. Total: {sumSubPartMarks(parts)} mark{sumSubPartMarks(parts) === 1 ? '' : 's'}.
+        </span>
+      </div>
+
+      {parts.map((part, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 0', borderTop: i === 0 ? 'none' : '1px dashed var(--sv-border)' }}>
+          <strong style={{ flex: '0 0 auto', width: 26, paddingTop: 6 }}>({subPartLabel(i)})</strong>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input
+              type="text"
+              value={part.text}
+              onChange={e => updatePart(i, 'text', e.target.value)}
+              placeholder="Sentence or question, e.g. Foods such as meat belong to the group called …"
+              style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 6, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit' }}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
+                Answer space:
+                <select
+                  value={part.answerFormat}
+                  onChange={e => updatePart(i, 'answerFormat', e.target.value)}
+                  style={{ padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 11 }}
+                >
+                  <option value="inline">Inline blank ……</option>
+                  <option value="lines">Ruled lines</option>
+                  <option value="none">No space</option>
+                </select>
+              </label>
+              {part.answerFormat === 'lines' && (
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={part.answerLines ?? 2}
+                  onChange={e => updatePart(i, 'answerLines', clampInt(e.target.value, 0, 20, 2))}
+                  title="Number of ruled answer lines"
+                  style={{ width: 52, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 11 }}
+                />
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
+                marks
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={part.marks}
+                  onChange={e => updatePart(i, 'marks', clampInt(e.target.value, 0, 99, 1))}
+                  style={{ width: 48, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 11 }}
+                />
+              </label>
+            </div>
+            <input
+              type="text"
+              value={part.answer}
+              onChange={e => updatePart(i, 'answer', e.target.value)}
+              placeholder="Expected answer (used for the marking key)"
+              style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 6, fontSize: 12.5, background: 'var(--sv-paper)', fontFamily: 'inherit' }}
+            />
+          </div>
+          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <button type="button" title="Move up" onClick={() => movePart(i, -1)} disabled={i === 0} style={subPartIconBtnStyle}>↑</button>
+            <button type="button" title="Move down" onClick={() => movePart(i, 1)} disabled={i === parts.length - 1} style={subPartIconBtnStyle}>↓</button>
+            <button type="button" title="Remove this part" onClick={() => removePart(i)} style={{ ...subPartIconBtnStyle, color: '#b91c1c' }}>✕</button>
+          </div>
+        </div>
+      ))}
+
+      <div style={{ marginTop: 8 }}>
+        <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={addPart}>
+          + Add part ({subPartLabel(parts.length)})
+        </button>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 6 }}>
+        Tip: for an inline blank, type a gap with dots or underscores (<code>……</code> / <code>____</code>) where the answer goes — or leave it and one is added at the end.
+      </p>
+    </div>
+  )
+}
+
+const subPartIconBtnStyle = {
+  width: 22,
+  height: 22,
+  display: 'grid',
+  placeItems: 'center',
+  border: '1px solid var(--sv-border)',
+  borderRadius: 'var(--sv-r-sm)',
+  background: 'var(--sv-paper)',
+  cursor: 'pointer',
+  fontSize: 11,
+  lineHeight: 1,
+  padding: 0,
 }
 
 // Generates a short string id used as the React key + stable identifier for

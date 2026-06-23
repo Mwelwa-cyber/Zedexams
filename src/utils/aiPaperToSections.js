@@ -14,9 +14,29 @@ import {
   importMarkupToRichHtml,
   importMarkupToOptionHtml,
 } from '../components/quiz/importRichText.js'
-import { stimulusDescriptorFromQuestion } from './stimulusQuestion.js'
+import { stimulusDescriptorFromQuestion, splitSubQuestions } from './stimulusQuestion.js'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+/**
+ * Map an AI question's `parts` array into the studio's `subParts` shape
+ * ({ text, answer, marks, answerFormat }). Drops part-less / empty entries.
+ * Labels are positional (the studio derives (a)(b)(c)), so any model label is
+ * ignored.
+ */
+function partsToSubParts(parts) {
+  if (!Array.isArray(parts)) return []
+  return parts
+    .filter((p) => p && typeof p === 'object')
+    .map((p) => ({
+      text: String(p.text ?? p.prompt ?? '').trim(),
+      answer: String(p.answer ?? p.correctAnswer ?? '').trim(),
+      marks: Number.isFinite(Number(p.marks)) && Number(p.marks) >= 0 ? Math.round(Number(p.marks)) : 1,
+      answerFormat: ['inline', 'lines', 'none'].includes(p.answerFormat) ? p.answerFormat : 'inline',
+    }))
+    .filter((p) => p.text)
+    .slice(0, 12)
+}
 
 /**
  * Find the correct option index for an AI multiple-choice answer. The
@@ -231,9 +251,36 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       reviewNotes.push('AI returned fewer than 2 options — complete them.')
     }
   } else {
-    // Text-answer types carry the model answer as the correctAnswer string.
-    overrides.correctAnswer = answer
-    if (!answer) reviewNotes.push('AI did not give a model answer.')
+    // Short-answer SUB-PARTS: prefer the model's explicit `parts`; otherwise
+    // auto-split a crammed "(a)… (b)… (c)…" prompt so it prints as an
+    // instruction + lettered blanks instead of one paragraph (the Q18 bug).
+    let subParts = partsToSubParts(q?.parts)
+    if (!subParts.length && type === 'short_answer') {
+      const split = splitSubQuestions(text)
+      if (split && Array.isArray(split.parts) && split.parts.length >= 2) {
+        // The stem becomes the instruction; each marker becomes a sub-part.
+        overrides.text = importMarkupToRichHtml(split.stem || text)
+        subParts = split.parts.map((p) => ({
+          text: String(p.text || '').trim(),
+          answer: '',
+          marks: Number.isFinite(p.marks) && p.marks > 0 ? p.marks : 1,
+          answerFormat: 'inline',
+        })).filter((p) => p.text)
+      }
+    }
+    if (subParts.length >= 2) {
+      overrides.subParts = subParts
+      // A multi-part question owns no marks of its own — they sum from the parts.
+      overrides.marks = subParts.reduce((s, p) => s + (Number(p.marks) || 0), 0)
+      overrides.correctAnswer = ''
+      if (subParts.every((p) => !p.answer)) {
+        reviewNotes.push('AI did not give model answers for the sub-parts — fill them in for the marking key.')
+      }
+    } else {
+      // Plain single-answer question.
+      overrides.correctAnswer = answer
+      if (!answer) reviewNotes.push('AI did not give a model answer.')
+    }
   }
 
   // Stem visuals (option_images / shape_options were handled in the MCQ branch).

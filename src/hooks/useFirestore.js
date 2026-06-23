@@ -40,6 +40,7 @@ import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { questionWriteSchema, coerceQuestion, canonicalizeQuestionType } from '../editor/schema/question.js'
+import { normalizeSubParts } from '../utils/questionParts.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
 import { normalizeSubject } from '../config/curriculum.js'
@@ -300,6 +301,26 @@ async function normalizeQuestionPayload(q, order) {
         .slice(0, 40),
       wordBankReuse: Boolean(q.wordBankReuse),
     } : {}),
+    // Short-answer sub-parts — "(a) … (b) … (c) …" under the question's
+    // instruction stem. Only persisted when present so a plain question never
+    // carries an empty array (keeps the .strict() schema lean). Each part maps
+    // to the exact schema shape; answerLines is omitted unless it's a number so
+    // Firestore never sees `undefined`.
+    ...((() => {
+      const sp = normalizeSubParts(q.subParts)
+      if (!sp.length) return {}
+      return {
+        subParts: sp.map(p => ({
+          text: String(p.text ?? '').slice(0, 2000),
+          answer: String(p.answer ?? '').slice(0, 1000),
+          marks: Math.max(0, Math.min(99, Math.round(Number(p.marks) || 0))),
+          answerFormat: ['inline', 'lines', 'none'].includes(p.answerFormat) ? p.answerFormat : 'inline',
+          ...(Number.isInteger(p.answerLines) && p.answerLines >= 0
+            ? { answerLines: Math.min(20, p.answerLines) }
+            : {}),
+        })),
+      }
+    })()),
     // Diagram label overlays, identify-mode flag, inline data table, and the
     // Draw & Label canvas height. These power the Assessment Studio's labelled
     // diagram / image-identify / data-table / draw-and-label questions. Without

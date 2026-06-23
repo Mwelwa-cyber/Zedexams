@@ -213,3 +213,45 @@ function runDiagramFieldsRoundTripTest() {
 }
 
 runDiagramFieldsRoundTripTest()
+
+// ── Short-answer SUB-PARTS round-trip + auto-summed marks ──
+// A multi-part "(a)(b)(c)" short-answer question must survive serialize →
+// hydrate intact, and the question's marks must auto-sum from its parts (the
+// stem owns none) so the paper total stays honest.
+function runSubPartsRoundTripTest() {
+  const sections = [
+    createStandaloneSection({
+      type: 'short_answer',
+      text: 'Fill in the blanks to complete the sentences below.',
+      options: [],
+      correctAnswer: '',
+      // Marks deliberately set to a wrong value to prove they're recomputed.
+      marks: 99,
+      subParts: [
+        { text: 'Foods such as meat belong to the group called ____', answer: 'protein', marks: 1, answerFormat: 'inline' },
+        { text: 'Fats and oils give our bodies', answer: 'energy', marks: 1, answerFormat: 'inline' },
+        { text: 'Describe a balanced diet.', answer: 'all food groups', marks: 2, answerFormat: 'lines', answerLines: 3 },
+      ],
+    }),
+  ]
+
+  const serialized = serializeQuizSections(sections, [])
+  const saved = serialized.questions[0]
+  assert.equal(saved.subParts.length, 3, 'three sub-parts serialize')
+  assert.equal(saved.marks, 4, 'question marks auto-sum from parts (1+1+2), not the stale 99')
+  assert.equal(serialized.totalMarks, 4, 'paper total reflects the summed parts')
+  assert.equal(saved.subParts[0].answerFormat, 'inline', 'part answerFormat persists')
+  assert.equal(saved.subParts[2].answerLines, 3, 'part answerLines persists')
+
+  const { sections: reopened } = hydrateQuizSections(serialized.questions, serialized.passages, [], serialized.pagebreaks)
+  const q = reopened.find(s => s.kind === 'standalone')?.question
+  assert(q, 'sub-part question reopens')
+  assert.equal(q.subParts.length, 3, 'sub-parts reopen')
+  assert.equal(q.subParts[0].answer, 'protein', 'part answer round-trips')
+  assert.equal(q.subParts[2].marks, 2, 'part marks round-trip')
+  assert.equal(q.marks, 4, 'reopened question keeps the summed total')
+
+  console.log('runSubPartsRoundTripTest passed (sub-parts persist + marks auto-sum)')
+}
+
+runSubPartsRoundTripTest()

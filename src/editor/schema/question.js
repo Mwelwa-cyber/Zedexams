@@ -431,6 +431,24 @@ export const questionSchema = z
       .max(40)
       .optional(),
 
+    // Short-answer SUB-PARTS — the "(a) … (b) … (c) …" structure under one
+    // instruction stem (the question's `text`). Each part has its own sentence,
+    // model answer, marks and answer-space format. The question's `marks`
+    // auto-sum the parts. Only present on multi-part short-answer questions, so
+    // it stays optional (keeps the .strict() schema lean for every other type).
+    subParts: z
+      .array(
+        z.object({
+          text: z.string().max(2000).default(''),
+          answer: z.string().max(1000).default(''),
+          marks: z.number().int().min(0).max(99).default(1),
+          answerFormat: z.enum(['inline', 'lines', 'none']).default('inline'),
+          answerLines: z.number().int().min(0).max(20).nullable().optional(),
+        }).strict()
+      )
+      .max(12)
+      .optional(),
+
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),
     importWarnings: z.array(z.string().max(2000)).default([]),

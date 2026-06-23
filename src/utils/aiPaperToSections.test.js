@@ -376,6 +376,52 @@ console.log('aiPaperToSections')
   ok('AI comprehension sections map to native passage blocks', true)
 }
 
+// ── Short-answer sub-parts: explicit `parts` map to subParts ──────────────
+{
+  const { overrides } = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'Fill in the blanks to complete the sentences below.',
+    marks: 1, // wrong on purpose — must be recomputed from the parts
+    parts: [
+      { text: 'Foods such as meat belong to the group called ____', answer: 'protein', marks: 1 },
+      { text: 'Fats and oils give our bodies ____', answer: 'energy', marks: 1 },
+      { text: 'Too little food leads to ____', answer: 'malnutrition', marks: 1 },
+    ],
+  })
+  assert.strictEqual(overrides.type, 'short_answer')
+  assert.ok(Array.isArray(overrides.subParts) && overrides.subParts.length === 3, 'three sub-parts mapped')
+  assert.strictEqual(overrides.subParts[0].answer, 'protein', 'part answer carried')
+  assert.strictEqual(overrides.marks, 3, 'question marks auto-sum from the parts')
+  assert.strictEqual(overrides.correctAnswer, '', 'stem carries no single answer when parts exist')
+  ok('explicit AI parts map to studio subParts with summed marks', true)
+}
+
+// ── Short-answer sub-parts: a crammed "(a)(b)(c)" prompt auto-splits ───────
+{
+  const { overrides } = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'Complete the sentences below. (a) Water boils at ____ degrees. (1) (b) Ice melts at ____ degrees. (1)',
+    marks: 2,
+  })
+  assert.ok(Array.isArray(overrides.subParts) && overrides.subParts.length === 2, 'crammed prompt auto-splits into 2 parts')
+  assert.strictEqual(overrides.subParts[0].answerFormat, 'inline', 'auto-split parts default to inline blanks')
+  assert.strictEqual(overrides.marks, 2, 'auto-split marks sum from the (1)(1) hints')
+  ok('a crammed (a)(b)(c) short-answer prompt auto-splits into subParts', true)
+}
+
+// ── A plain single short-answer is NOT turned into sub-parts ───────────────
+{
+  const { overrides } = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'Name the capital city of Zambia.',
+    answer: 'Lusaka',
+    marks: 1,
+  })
+  assert.ok(!overrides.subParts, 'plain short-answer has no subParts')
+  assert.strictEqual(overrides.correctAnswer, 'Lusaka', 'plain short-answer keeps its single answer')
+  ok('a plain single short-answer question is left untouched', true)
+}
+
 // ── Garbage input never throws ────────────────────────────────────────────
 {
   for (const junk of [null, undefined, {}, { sections: 'nope' }, []]) {

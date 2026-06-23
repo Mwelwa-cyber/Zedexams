@@ -2,6 +2,8 @@
 // the serializeRichField / hydrateRichField / richFieldEmpty helpers below.
 // ensureRichTextHtml from the legacy module is intentionally no longer used.
 
+import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+
 let localIdCounter = 0
 
 function nextLocalId(prefix) {
@@ -130,6 +132,12 @@ export function emptyQuestion(overrides = {}) {
     //   wordBankReuse — may a word bank word be used in more than one blank?
     statements: [],
     wordBankReuse: false,
+    // Short-answer SUB-PARTS — "(a) … (b) … (c) …" under one instruction stem.
+    // See src/utils/questionParts.js. When non-empty, the question's `text` is
+    // the instruction stem and its `marks` auto-sum the parts' marks. Each part
+    // is { text, answer, marks, answerFormat, answerLines }; the (a)(b)(c) label
+    // is derived from position, never stored.
+    subParts: [],
     ...overrides,
   }
 
@@ -598,6 +606,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         // save, corrupting the marking key and the reopened paper.
         const subType = question.type || 'mcq'
         const subIsTextAnswer = subType === 'short_answer' || subType === 'diagram' || subType === 'essay'
+        const subSubParts = normalizeSubParts(question.subParts)
         questions.push({
           ...question,
           sharedInstruction: serializeRichField(question.sharedInstruction),
@@ -607,6 +616,10 @@ export function serializeQuizSections(sections = [], parts = []) {
           // left over from a type switch so they don't round-trip as MCQ.
           options: subIsTextAnswer ? [] : serializeOptions(question.options),
           ...normalizeAnswerSpace(question),
+          subParts: subSubParts,
+          // A question with sub-parts owns no marks of its own — the total is
+          // the sum of its parts. Keeps the marking key + paper total honest.
+          ...(subSubParts.length ? { marks: sumSubPartMarks(subSubParts) } : {}),
           passageId,
           type: subType,
           detectedType: question.detectedType ?? subType,
@@ -620,6 +633,7 @@ export function serializeQuizSections(sections = [], parts = []) {
     }
 
     const question = section.question || emptyQuestion()
+    const stdSubParts = normalizeSubParts(question.subParts)
     questions.push({
       ...question,
       sharedInstruction: serializeRichField(question.sharedInstruction),
@@ -627,6 +641,10 @@ export function serializeQuizSections(sections = [], parts = []) {
       explanation: serializeRichField(question.explanation),
       options: serializeOptions(question.options),
       ...normalizeAnswerSpace(question),
+      subParts: stdSubParts,
+      // A question with sub-parts owns no marks of its own — the total is the
+      // sum of its parts (auto). Otherwise keep the question's own marks.
+      ...(stdSubParts.length ? { marks: sumSubPartMarks(stdSubParts) } : {}),
       passageId: null,
       subtype: question.subtype ?? null,
       partId: resolvePartId(question.partId),
@@ -809,6 +827,9 @@ function hydrateStandaloneQuestion(question = {}) {
       })).slice(0, 40)
       : [],
     wordBankReuse: Boolean(question.wordBankReuse),
+    // Short-answer sub-parts — restore them across a reload so a multi-part
+    // question reopens with its (a)(b)(c) intact instead of one crammed stem.
+    subParts: normalizeSubParts(question.subParts),
     ...normalizeAnswerSpace(question),
   })
 }
@@ -899,6 +920,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
       ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
       : null,
+    subParts: normalizeSubParts(question.subParts),
     ...normalizeAnswerSpace(question),
   })
 }
