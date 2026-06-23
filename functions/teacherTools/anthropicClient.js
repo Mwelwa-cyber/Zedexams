@@ -22,6 +22,7 @@
 
 const {HttpsError} = require("firebase-functions/v2/https");
 const {anthropicFetch} = require("../anthropicFetch");
+const {buildSystemBlocks} = require("./systemBlocks");
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -32,25 +33,6 @@ const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 // — rather than refunding the credit and leaving them empty-handed. Override per
 // runtime with ANTHROPIC_FALLBACK_MODEL.
 const FALLBACK_MODEL = process.env.ANTHROPIC_FALLBACK_MODEL || "claude-sonnet-4-5";
-
-// Block order matters for prompt-cache economics: caches hit on stable
-// prefixes left-to-right. The system prompt never changes; the format block
-// has only a few dozen variants (assessment type × grade band × subject);
-// the CBC block varies per topic. Format-before-CBC means the
-// system+format prefix stays cached across requests for the same paper
-// shape even when topics differ.
-function buildSystemBlocks(systemPrompt, cbcContextBlock, formatContextBlock) {
-  if (!systemPrompt) return undefined;
-  return [
-    {type: "text", text: systemPrompt, cache_control: {type: "ephemeral"}},
-    ...(formatContextBlock ? [
-      {type: "text", text: formatContextBlock, cache_control: {type: "ephemeral"}},
-    ] : []),
-    ...(cbcContextBlock ? [
-      {type: "text", text: cbcContextBlock, cache_control: {type: "ephemeral"}},
-    ] : []),
-  ];
-}
 
 function buildHeaders(apiKey) {
   return {
