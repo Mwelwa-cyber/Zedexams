@@ -10,7 +10,7 @@
 // the /notes surface only ever shows reading material — slide lessons
 // belong on /lessons.
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { subscribeLearnerNotes } from '../lib/firestore'
 
 function isReadingNote(doc) {
@@ -23,6 +23,10 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
   const [notes, setNotes]     = useState([])
   const [loading, setLoading] = useState(!!grade)
   const [error, setError]     = useState(null)
+  // Bumping reloadKey tears down + re-creates the subscription, which is how
+  // the "Try again" button recovers from a read error.
+  const [reloadKey, setReloadKey] = useState(0)
+  const reload = useCallback(() => setReloadKey(k => k + 1), [])
 
   useEffect(() => {
     if (!grade) {
@@ -31,13 +35,14 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
       return
     }
     setLoading(true)
+    setError(null)
     const unsub = subscribeLearnerNotes(
       { grade },
       (next) => { setNotes(next.filter(isReadingNote)); setLoading(false); setError(null) },
       (err)  => { setError(err);  setLoading(false) },
     )
     return unsub
-  }, [grade])
+  }, [grade, reloadKey])
 
   const filtered = useMemo(() => {
     let list = notes
@@ -59,5 +64,5 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
     return counts
   }, [notes])
 
-  return { notes: filtered, allNotes: notes, countsBySubject, loading, error }
+  return { notes: filtered, allNotes: notes, countsBySubject, loading, error, reload }
 }

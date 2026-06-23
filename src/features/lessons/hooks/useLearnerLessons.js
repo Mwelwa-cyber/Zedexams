@@ -4,13 +4,17 @@
 // grade. Mirrors useLearnerNotes — subject filter and title search are
 // applied client-side so chips stay snappy without re-subscribing.
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { subscribeLearnerLessons } from '../lib/firestore'
 
 export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(!!grade)
   const [error, setError]     = useState(null)
+  // Bumping reloadKey tears down + re-creates the subscription, which is how
+  // the "Try again" button recovers from a read error.
+  const [reloadKey, setReloadKey] = useState(0)
+  const reload = useCallback(() => setReloadKey(k => k + 1), [])
 
   useEffect(() => {
     if (!grade) {
@@ -19,13 +23,14 @@ export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
       return
     }
     setLoading(true)
+    setError(null)
     const unsub = subscribeLearnerLessons(
       { grade },
       (next) => { setLessons(next); setLoading(false); setError(null) },
       (err)  => { setError(err);    setLoading(false) },
     )
     return unsub
-  }, [grade])
+  }, [grade, reloadKey])
 
   const filtered = useMemo(() => {
     let list = lessons
@@ -47,5 +52,5 @@ export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
     return counts
   }, [lessons])
 
-  return { lessons: filtered, allLessons: lessons, countsBySubject, loading, error }
+  return { lessons: filtered, allLessons: lessons, countsBySubject, loading, error, reload }
 }
