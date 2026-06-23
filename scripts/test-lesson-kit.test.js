@@ -49,14 +49,25 @@ check(/window\.__studioOnGenerated\s*=/.test(studio), 'LessonPlanStudio register
 check(/delete window\.__studioOnGenerated/.test(studio), 'LessonPlanStudio cleans up the bridge on unmount')
 check(/Create for this lesson/.test(studio), 'LessonPlanStudio renders the "Create for this lesson" bar')
 
-// 3. The bar deep-links into the three companion studios with the query string.
-for (const route of ['/teacher/generate/worksheet', '/teacher/generate/homework', '/teacher/generate/notes']) {
+// 3. The bar deep-links into the companion studios with the query string.
+for (const route of [
+  '/teacher/generate/worksheet',
+  '/teacher/generate/homework',
+  '/teacher/generate/notes',
+  '/teacher/test-papers/new',
+]) {
   check(new RegExp(`navigate\\(\`${route}\\$\\{buildGeneratorQueryString\\(kit\\)\\}\``).test(studio),
     `LessonPlanStudio deep-links to ${route} with the pre-fill query string`)
 }
 
 // 4. The bar only shows once a plan exists (gated on kit state).
 check(/\{kit && \(/.test(studio), 'LessonPlanStudio only shows the kit bar after a plan is generated')
+
+// 5. AssessmentStudio consumes the deep-link params (the others read them via
+//    useFormDefaultsFromUrl; AssessmentStudio uses the dedicated converter).
+const assessment = read('src/components/teacher/AssessmentStudio.jsx')
+check(/assessmentDefaultsFromParams\(searchParams\)/.test(assessment),
+  'AssessmentStudio seeds its form from the lesson-kit deep link')
 
 if (failures) {
   console.error(`\n✗ lesson-kit guard FAILED (${failures} issue(s)).`)
