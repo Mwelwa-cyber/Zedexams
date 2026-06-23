@@ -33,6 +33,9 @@ export function snapshotFromRoster(roster) {
       learnerNumber: r.learnerNumber || '',
       fullName: r.fullName || '',
       gender: r.gender ?? null,
+      // Carried so cross-year SBA matching can link the same learner across a
+      // teacher's Grade 5/6/7 registers by account, not just by name.
+      linkedUid: r.linkedUid ?? null,
     }))
 }
 
