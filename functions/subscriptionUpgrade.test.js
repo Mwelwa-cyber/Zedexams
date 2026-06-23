@@ -37,7 +37,7 @@ console.log("subscriptionUpgrade");
 // ── tier + daily rate ──────────────────────────────────────────────────────
 ok("planTier maps pro/max ids", planTier("pro_monthly") === "pro" && planTier("max_yearly") === "max");
 ok("planTier null for learner packs", planTier("grade7_monthly") === null);
-ok("dailyRate pro_monthly = 79/30", Math.abs(dailyRate(getPlan("pro_monthly")) - (79 / 30)) < 1e-9);
+ok("dailyRate pro_monthly = price/30", Math.abs(dailyRate(getPlan("pro_monthly")) - (getPlan("pro_monthly").priceZMW / 30)) < 1e-9);
 ok("dailyRate guards zero duration", dailyRate({priceZMW: 10, durationDays: 0}) === 0);
 
 // ── isUpgradePath ──────────────────────────────────────────────────────────
@@ -50,20 +50,22 @@ ok("learner pack is NOT an upgrade", !isUpgradePath("grade7_monthly", "max_month
 
 // ── computeUpgradeQuote maths ──────────────────────────────────────────────
 {
-  // pro_monthly (79/30) → max_monthly (199/30): diff/day = (199-79)/30 = 4.0
+  // pro_monthly → max_monthly: a full 30 days left → pay exactly the
+  // monthly price difference (Max − Pro).
   const q = computeUpgradeQuote({
     fromPlan: getPlan("pro_monthly"), toPlan: getPlan("max_monthly"), expiry: inDays(30), now: NOW,
   });
-  ok("monthly→monthly, 30 days: prorated = round(4*30)=120", q.amountZMW === 120 && q.isUpgrade);
+  const fullMonthDiff = getPlan("max_monthly").priceZMW - getPlan("pro_monthly").priceZMW;
+  ok("monthly→monthly, 30 days: prorated = full monthly diff", q.amountZMW === fullMonthDiff && q.isUpgrade);
   ok("quote reports daysRemaining", q.daysRemaining === 30);
 }
 {
   // The screenshot case: ~114 days left on Pro · Yearly upgrading to Max.
-  // pro_yearly daily = 790/365 ≈ 2.164; max_monthly daily = 199/30 ≈ 6.633.
+  // Daily rates derived from the catalogue: max_monthly/30 minus pro_yearly/365.
   const q = computeUpgradeQuote({
     fromPlan: getPlan("pro_yearly"), toPlan: getPlan("max_monthly"), expiry: inDays(114), now: NOW,
   });
-  const expected = Math.round(((199 / 30) - (790 / 365)) * 114);
+  const expected = Math.round(((getPlan("max_monthly").priceZMW / 30) - (getPlan("pro_yearly").priceZMW / 365)) * 114);
   ok("yearly→monthly, 114 days: matches daily-diff maths", q.amountZMW === expected && q.isUpgrade);
   ok("prorated upgrade is far cheaper than full Max price", q.amountZMW < getPlan("max_monthly").priceZMW * 4);
 }
@@ -93,7 +95,8 @@ ok("falls back to pro_monthly when missing", resolveCurrentProPlanId({}) === "pr
 {
   const user = {subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: inDays(30)};
   const q = quoteUpgradeForUser(user, "max_monthly", NOW);
-  ok("active Pro teacher upgrading to Max → isUpgrade", q.isUpgrade && q.amountZMW === 120);
+  ok("active Pro teacher upgrading to Max → isUpgrade",
+      q.isUpgrade && q.amountZMW === (getPlan("max_monthly").priceZMW - getPlan("pro_monthly").priceZMW));
   ok("quote records the source plan", q.fromPlanId === "pro_monthly");
 }
 ok("Max teacher 'upgrading' to Max is not an upgrade",
