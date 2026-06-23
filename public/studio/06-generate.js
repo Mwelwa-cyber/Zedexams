@@ -70,6 +70,11 @@ function gatherInput() {
     // Auto-draw diagrams for Maths/Science. On by default; older DOMs (no row)
     // fall back to on so the feature is not silently lost on a stale bundle.
     autoDiagrams: (() => { const el = $('#t-diagrams'); return el ? el.dataset.on === 'true' : true; })(),
+    // For a non-English medium: write the WHOLE plan in that language rather
+    // than an English document with local-language touches. Off by default
+    // (and absent on older bundles) so the inspection-friendly English plan
+    // stays the default.
+    planInMedium: (() => { const el = $('#t-plan-in-medium'); return !!el && el.dataset.on === 'true'; })(),
     format: formatChoice,
     learningEnvironments: $$('#learning-env .le-pill')
       .filter(p => p.dataset.on === 'true')
@@ -181,14 +186,19 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const envLine = (i.learningEnvironments && i.learningEnvironments.length)
     ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
     : '';
-  // Medium of instruction. The plan itself stays in English (it is an official
-  // document the head teacher / standards officer reads), but for a local
-  // medium we ask the model to reflect the delivery language in the parts
-  // learners actually hear, with an English gloss so the document stays legible.
+  // Medium of instruction. Default: the plan stays in English (an official
+  // document the head teacher / standards officer reads) with the delivery
+  // language reflected only in the parts learners actually hear. When the
+  // teacher ticks "write the whole plan in the local language", the entire
+  // document is written in that medium instead.
   const medium = String(i.medium || 'English').trim();
-  const mediumLine = (medium && medium.toLowerCase() !== 'english')
-    ? `\n- MEDIUM OF INSTRUCTION: The lesson is taught in ${medium}. Write the plan in English (it is an official document), but reflect the medium — give the teacher's key questions and greetings, any songs, rhymes or chants, and the key vocabulary in ${medium} with a short English gloss in brackets where helpful, e.g. "Mwapoleni mukwai (Good morning)". Keep the stage names, assessment criteria and other prose in English.`
-    : '';
+  const isLocalMedium = medium && medium.toLowerCase() !== 'english';
+  let mediumLine = '';
+  if (isLocalMedium && i.planInMedium) {
+    mediumLine = `\n- MEDIUM OF INSTRUCTION: Write the ENTIRE lesson plan in ${medium} — every heading, the rationale, all teacher and learner activities, the assessment criteria and all prose. Use correct ${medium} spelling and grammar. Keep the syllabus topic and competence codes and proper nouns as they appear officially; only fall back to an English term in brackets where no established ${medium} word exists.`;
+  } else if (isLocalMedium) {
+    mediumLine = `\n- MEDIUM OF INSTRUCTION: The lesson is taught in ${medium}. Write the plan in English (it is an official document), but reflect the medium — give the teacher's key questions and greetings, any songs, rhymes or chants, and the key vocabulary in ${medium} with a short English gloss in brackets where helpful, e.g. "Mwapoleni mukwai (Good morning)". Keep the stage names, assessment criteria and other prose in English.`;
+  }
   const N = Math.max(1, parseInt(totalLessons, 10) || 1);
   const K = Math.max(1, Math.min(N, parseInt(lessonNumber, 10) || 1));
   const focusLines = (N > 1 && Array.isArray(i.planner && i.planner.foci) && i.planner.foci.length)
