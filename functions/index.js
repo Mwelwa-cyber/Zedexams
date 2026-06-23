@@ -262,6 +262,7 @@ const {createQuizImportHandlers} = require("./quiz/importHandlers");
 const {createQuizVerifyHandlers} = require("./quiz/verifyHandlers");
 const {createUserAccessHandlers} = require("./auth/userAccessHandlers");
 const {createDawnHandlers} = require("./agents/dawnHandlers");
+const {createRetryHandlers} = require("./agents/retryHandlers");
 const {createNameBankHandlers} = require("./pictures/nameBankHandlers");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
@@ -1091,98 +1092,17 @@ const {
 exports.uploadCurriculumModule = createUploadCurriculumModule(openaiApiKey);
 exports.deleteCurriculumUpload = createDeleteCurriculumUpload();
 
-/**
- * Admin-only callable: re-runs Cala (and Reva) on a job that previously
- * failed at the Cala step. Safe because Cala is deterministic and costs
- * nothing — there is no Anthropic call on the Cala path, so re-running
- * doesn't burn budget. Reva DOES re-run if Cala succeeds, so the daily
- * cap is re-checked against the job owner (not the admin) to keep cost
- * accounting consistent.
- *
- * Preconditions enforced server-side:
- *   - caller is admin
- *   - job exists and status === "failed"
- *   - job.output.aria.draft is present (Aria must have completed)
- *
- * Failures land in agentJobs.error as before; success leaves the job
- * in awaiting_approval for admin review.
- */
-exports.retryAgentJob = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 300,
-    memory: "512MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "retryAgentJob");
-
-    const role = await getUserRole(request.auth.uid);
-    if (role !== "admin") {
-      throw new HttpsError("permission-denied", "Admins only.");
-    }
-
-    const jobId = typeof request.data?.jobId === "string" ?
-      request.data.jobId.trim() : "";
-    if (!jobId) {
-      throw new HttpsError("invalid-argument", "jobId is required.");
-    }
-
-    const ownerUid = request.auth.uid;
-    const db = admin.firestore();
-    const ref = db.collection("agentJobs").doc(jobId);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      throw new HttpsError("not-found", `agentJobs/${jobId} not found.`);
-    }
-    const job = {id: jobId, ...(snap.data() || {})};
-
-    if (job.status !== "failed") {
-      throw new HttpsError(
-        "failed-precondition",
-        `Retry only allowed on failed jobs; status is ${job.status}.`,
-      );
-    }
-    const draft = job.output && job.output.aria && job.output.aria.draft;
-    if (!draft) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Aria has not produced a draft yet — there is nothing for Cala to check.",
-      );
-    }
-
-    // Clear the failure marker before the resume, otherwise the UI keeps
-    // showing the stale Cala/Reva error while the new run is in flight.
-    await ref.set({
-      status: "running",
-      agentId: "cala",
-      error: admin.firestore.FieldValue.delete(),
-      retryRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
-      retryRequestedBy: ownerUid,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-
-    try {
-      await runFromCala({jobId, anthropicApiKeySecret: anthropicApiKey});
-    } catch (err) {
-      // runFromCala already writes status='failed' on its own catch
-      // branches; this catches a true unexpected throw (firestore down,
-      // etc). Re-stamp the error so the admin sees something.
-      console.error("retryAgentJob: unexpected throw", err);
-      throw new HttpsError(
-        "internal",
-        `Retry failed unexpectedly: ${String(err && err.message || err).slice(0, 300)}`,
-      );
-    }
-
-    return {ok: true};
-  },
-);
+const retryHandlers = createRetryHandlers({
+  onCall,
+  HttpsError,
+  admin,
+  anthropicApiKey,
+  appCheckEnforceCallable: APPCHECK_ENFORCE_CALLABLE,
+  recordAppCheckCallable,
+  getUserRole,
+  runFromCala,
+});
+exports.retryAgentJob = retryHandlers.retryAgentJob;
 
 
 // Storage cleanup — cascade-deletes Storage blobs when their parent
