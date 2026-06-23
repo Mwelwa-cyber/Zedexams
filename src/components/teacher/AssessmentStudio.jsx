@@ -49,6 +49,7 @@ import { getSchoolProfile } from '../../utils/schoolProfileService'
 import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/schoolProfile'
 import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
+import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentAutosave.js'
 import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -446,8 +447,16 @@ export default function AssessmentStudio({ variant = 'test' }) {
   const [draftSavedAt, setDraftSavedAt] = useState(null)
   // Edits made since the last autosave landed. Drives the "Unsaved changes"
   // vs "Saved on this device" status so the teacher always knows whether
-  // their typing has been captured yet.
+  // their typing has been captured yet. Cleared by the per-keystroke DEVICE
+  // draft autosave (~1s after typing stops).
   const [dirty, setDirty] = useState(false)
+  // Edits not yet written to the durable LIBRARY copy. Distinct from `dirty`:
+  // the device draft autosave clears `dirty` a moment after typing, but the
+  // library copy is only current after a real persistAssessment. The library
+  // autosave + the auto-save-on-download gate on THIS flag so a download never
+  // skips edits the draft autosave already "cleared". Cleared only by a
+  // library write.
+  const [libraryDirty, setLibraryDirty] = useState(false)
   // Flips true once the paper has been written to the teacher's library
   // (createAssessment succeeded). Distinct from the local-device autosave —
   // this is the durable, cross-device copy.
@@ -457,6 +466,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // undefined), so we track the created id here to update — rather than
   // duplicate — that same doc on later saves/downloads in this session.
   const createdIdRef = useRef(null)
+  // The in-flight library write (autosave or manual). Held so an explicit
+  // Save / Export can await a running autosave before persisting, which keeps
+  // a brand-new paper's create single-flight — two concurrent persists could
+  // otherwise create two library docs.
+  const persistInFlightRef = useRef(null)
   // Pre-publish checklist modal. Replaces the old "first error → toast →
   // bail" save flow so the teacher sees every issue at once.
   const [checklistOpen, setChecklistOpen] = useState(false)
@@ -732,6 +746,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // truth — don't shadow it with (or restore from) the new-paper draft.
     if (isEditing) return
     if (!draftRestoredRef.current) return
+    // Once the paper is filed in the library (below), the library autosave is
+    // the source of truth — stop maintaining a parallel "new paper" draft that
+    // could otherwise resurrect as a duplicate on the next visit to /new.
+    if (createdIdRef.current) return
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
       const payload = { form, sections, parts, view }
@@ -740,11 +758,46 @@ export default function AssessmentStudio({ variant = 'test' }) {
       // Fire-and-forget; failures fall back to the local copy.
       saveAssessmentDraftRemote(currentUser.uid, payload)
       setDraftSavedAt(Date.now())
-      // The autosave has captured the latest edits — clear the "unsaved" flag.
+      // The device draft autosave has captured the latest edits — clear the
+      // "unsaved" flag. NOTE: this does NOT clear `libraryDirty`; the library
+      // copy is only current after a real persistAssessment.
       setDirty(false)
     }, 800)
     return () => clearTimeout(timer)
   }, [form, sections, parts, view, currentUser?.uid, isEditing])
+
+  // ── Continuous autosave to the durable library ──────────────────────────
+  // Files the paper in the teacher's library — and keeps it updated as they
+  // edit — without an explicit "Save to library" click, so their work is never
+  // stranded as a draft-only copy (covers both Exam Studio and Test Paper
+  // Studio). Heavier than the device draft autosave (it serializes, uploads
+  // images and writes the assessment doc), so it runs on a longer debounce,
+  // never overlaps itself, and yields to an explicit save / export / import /
+  // generation via the gate in shouldAutosaveToLibrary. Best-effort: a failure
+  // leaves the draft holding the work and retries on the next edit.
+  useEffect(() => {
+    const ok = shouldAutosaveToLibrary({
+      uid: currentUser?.uid,
+      questionCount,
+      libraryDirty,
+      saving,
+      exporting,
+      editLoading,
+      importing: importingDocument,
+      generating: aiGenerating,
+    })
+    if (!ok) return undefined
+    const timer = setTimeout(() => {
+      // persistAssessment is single-flight via persistInFlightRef, so a manual
+      // save/export that fires mid-debounce won't double-create the doc.
+      runLibraryPersist().catch((err) => {
+        console.error('Library autosave failed', err)
+      })
+    }, 2000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, sections, parts, libraryDirty, questionCount, saving, exporting,
+    editLoading, importingDocument, aiGenerating, currentUser?.uid])
 
   // ── Edit mode: load the existing assessment + its questions ──────────
   // Hydrates the same in-memory shape the builder already uses, so every
@@ -778,6 +831,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         // The loaded paper is already in the library and not yet edited.
         setSavedToLibrary(true)
         setDirty(false)
+        setLibraryDirty(false)
         // Don't let the freshly-loaded setState flip the "unsaved" badge or
         // trigger a draft restore that clobbers it.
         draftRestoredRef.current = true
@@ -800,6 +854,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     if (!dirtyTrackingReadyRef.current) { dirtyTrackingReadyRef.current = true; return }
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     setDirty(true)
+    setLibraryDirty(true)
     setSavedToLibrary(false)
   }, [form, sections, parts])
 
@@ -1758,8 +1813,20 @@ export default function AssessmentStudio({ variant = 'test' }) {
     setImportedAssets({})
     // The durable library copy now exists / is updated — reflect that.
     setDirty(false)
+    setLibraryDirty(false)
     setSavedToLibrary(true)
     return targetId || createdIdRef.current
+  }
+
+  // Single-flight wrapper around persistAssessment, shared by the library
+  // autosave, the explicit Save, and the auto-save-on-download. Coalesces
+  // concurrent calls onto one in-flight write so a brand-new paper can never be
+  // created twice (e.g. an autosave firing the instant the teacher hits Save).
+  function runLibraryPersist() {
+    if (persistInFlightRef.current) return persistInFlightRef.current
+    const p = persistAssessment().finally(() => { persistInFlightRef.current = null })
+    persistInFlightRef.current = p
+    return p
   }
 
   async function handleSave() {
@@ -1772,8 +1839,12 @@ export default function AssessmentStudio({ variant = 'test' }) {
     }
     setSaving(true)
     try {
+      // Let any in-flight library autosave settle first (it captured slightly
+      // older content), then persist the current state fresh — so the explicit
+      // Save always writes the very latest edits, not the autosave's snapshot.
+      if (persistInFlightRef.current) { try { await persistInFlightRef.current } catch { /* its retry is our save */ } }
       const wasUpdate = Boolean(editId || createdIdRef.current)
-      await persistAssessment()
+      await runLibraryPersist()
       showToast(wasUpdate ? 'Changes saved.' : 'Saved to your library!')
       setTimeout(() => navigate(cfg.routeBase), 900)
     } catch (error) {
@@ -1797,12 +1868,20 @@ export default function AssessmentStudio({ variant = 'test' }) {
       // Auto-save the paper to the teacher's library before handing over the
       // download, so a downloaded paper is never lost — matching every other
       // studio. Only when it passes the pre-publish checklist (errorCount 0):
-      // an incomplete paper still downloads but isn't filed (per product
-      // decision). Best-effort and silent — a save failure must not block the
-      // download the teacher just asked for; skipped when nothing changed.
-      if (errorCount === 0 && (dirty || (!editId && !createdIdRef.current))) {
+      // an incomplete paper still downloads but isn't filed here (the
+      // continuous library autosave files it separately). Best-effort and
+      // silent — a save failure must not block the download the teacher just
+      // asked for. Gated on LIBRARY dirtiness (not the device-draft flag, which
+      // the per-keystroke autosave clears) so a re-download always writes the
+      // latest edits.
+      if (shouldAutosaveOnDownload({
+        errorCount,
+        libraryDirty,
+        hasLibraryDoc: Boolean(editId || createdIdRef.current),
+      })) {
         try {
-          await persistAssessment()
+          if (persistInFlightRef.current) { try { await persistInFlightRef.current } catch { /* our write below covers it */ } }
+          await runLibraryPersist()
         } catch (saveErr) {
           console.error('Auto-save on download failed', saveErr)
         }
