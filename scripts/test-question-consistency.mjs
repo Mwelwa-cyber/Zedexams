@@ -41,6 +41,7 @@ import {
 } from '../src/editor/schema/question.js'
 import { isQuestionCorrect, computeQuizScore } from '../src/utils/quizScoring.js'
 import { rowToQuestion, CSV_HEADERS } from '../src/utils/csvQuizImport.js'
+import { buildPaperLayout } from '../src/utils/assessmentPaperLayout.js'
 
 const require = createRequire(import.meta.url)
 const { validateAssessment } = require('../functions/teacherTools/assessmentSchema.js')
@@ -308,6 +309,46 @@ test('validateAssessment preserves a 50-mark question (no 20 cap, unlike quizzes
   assert(ok, 'assessment should validate')
   eq(value.sections[0].questions[0].marks, 50, 'assessment kept 50 marks')
 })
+
+// ── 8. Export surface (assessment paper layout) ──────────────────────────
+console.log('\nexport surface (buildPaperLayout) reflects canonical type + marks')
+{
+  const questions = [
+    // authored under the 'truefalse' ALIAS to prove the exporter canonicalizes
+    { type: 'truefalse', marks: 2, text: 'Water boils at 100C', options: ['True', 'False'], correctAnswer: 0, order: 0 },
+    { type: 'numeric', marks: 3, text: 'pi to 2dp', correctAnswer: 3.14, tolerance: 0.01, order: 1 },
+    { type: 'matching', marks: 4, text: 'Match', matchingLeft: ['A'], matchingRight: ['1'], matchingAnswer: [0], order: 2 },
+    { type: 'sequence', marks: 4, text: 'Order these', sequenceItems: ['a', 'b'], sequenceAnswer: [1, 2], order: 3 },
+    { type: 'short_answer', marks: 5, text: 'Capital of Zambia', correctAnswer: 'Lusaka', order: 4 },
+    { type: 'fill_blanks', marks: 2, text: 'The sun is a ____.', statements: [{ text: 'The sun is a ____.', answers: ['star'] }], order: 5 },
+    { type: 'essay', marks: 20, text: 'Discuss energy conservation', order: 6 },
+    { type: 'mcq', marks: 15, text: 'Pick one', options: ['A', 'B', 'C', 'D'], correctAnswer: 0, order: 7 },
+  ]
+  const blocks = buildPaperLayout({}, questions)
+  const learner = blocks.find((b) => b.kind === 'learnerFields')
+  const qBlocks = blocks.filter((b) => b.kind === 'question')
+
+  test('export totals every question’s marks (incl. the 15- and 20-mark items)', () =>
+    eq(learner?.totalMarks, 2 + 3 + 4 + 4 + 5 + 2 + 20 + 15, 'learnerFields.totalMarks'))
+  test('export emits one question block per question', () =>
+    eq(qBlocks.length, questions.length, 'question block count'))
+  test('export canonicalizes an aliased truefalse → tf with True/False options', () => {
+    const first = qBlocks[0]
+    eq(first.type, 'tf', 'tf canonicalized in export')
+    assert(
+      (first.optionsPlain || []).join('/').toLowerCase().includes('true'),
+      'True/False options present in export',
+    )
+  })
+  test('export carries every canonical type', () => {
+    const types = qBlocks.map((b) => b.type)
+    for (const t of ['tf', 'numeric', 'matching', 'sequence', 'short_answer', 'fill_blanks', 'essay', 'mcq']) {
+      assert(types.includes(t), `export missing canonical type ${t}`)
+    }
+  })
+  test('export preserves a 20-mark essay block (no quiz 20-cap surprise)', () =>
+    eq(qBlocks.find((b) => b.type === 'essay')?.marks, 20, 'essay block marks'))
+}
 
 // ── Report ───────────────────────────────────────────────────────────────
 console.log('')
