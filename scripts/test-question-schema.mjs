@@ -530,8 +530,16 @@ test('NaN/missing marks falls back to 1 (no score-arithmetic blow-up)', () => {
   assert(coerceQuestion({ marks: 0 }).marks === 1)
 })
 
-test('marks above cap is floored to 10', () => {
-  assert(coerceQuestion({ marks: 999 }).marks === 10)
+test('marks above cap is clamped to 20', () => {
+  assert(coerceQuestion({ marks: 999 }).marks === 20)
+})
+
+test('marks in the 11-20 band survive read-back (no truncation to 10)', () => {
+  // Regression: coerceQuestion used to clamp at 10, so a 15-mark long-answer
+  // question saved fine (write schema allows up to 20) but read back as 10 —
+  // mis-scoring the section total. It must round-trip unchanged now.
+  assert(coerceQuestion({ marks: 15 }).marks === 15)
+  assert(coerceQuestion({ marks: 20 }).marks === 20)
 })
 
 test('non-integer marks is floored', () => {

@@ -1182,7 +1182,9 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
       text: cleanString(q.text, LIMITS.question),
       explanation: cleanString(q.explanation, 500),
       topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
-      marks: Math.min(Math.max(Number(q.marks) || 1, 1), 10),
+      // Cap matches the write schema (max 20); the fill_blanks branch below
+      // already allows up to 20, so keep the MCQ/short path consistent.
+      marks: Math.min(Math.max(Number(q.marks) || 1, 1), 20),
     };
     // Fill-in-the-Blanks: one object that bundles the whole exercise — an
     // instruction (text), a word bank, and a list of single-blank statements.

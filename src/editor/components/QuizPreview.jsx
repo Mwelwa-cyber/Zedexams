@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { toHTML, hydrateKatex } from '../utils/safeRender.js'
+import { canonicalizeQuestionType } from '../schema/question.js'
 
 const QUESTION_TYPES = [
   { v: 'mcq',   l: 'Multiple Choice' },
@@ -32,7 +33,11 @@ export default function QuizPreview({ question }) {
     )
   }
 
-  const qtLabel = QUESTION_TYPES.find((t) => t.v === question.type)?.l ?? question.type
+  // Fold legacy/aliased spellings ('truefalse' → 'tf', etc.) before switching
+  // on the type so an imported true/false question shows its True/False option
+  // list and label instead of falling through to the raw-type display.
+  const qType = canonicalizeQuestionType(question.type)
+  const qtLabel = QUESTION_TYPES.find((t) => t.v === qType)?.l ?? qType
 
   return (
     <div className="pcard">
@@ -50,9 +55,9 @@ export default function QuizPreview({ question }) {
       <SafeHTML content={question.passage}      className="ppassage" />
       <SafeHTML content={question.questionText} className="pq" />
 
-      {(question.type === 'mcq' || question.type === 'tf') && (
+      {(qType === 'mcq' || qType === 'tf') && (
         <div>
-          {(question.type === 'tf' ? ['True', 'False'] : question.options).map((opt, i) => (
+          {(qType === 'tf' ? ['True', 'False'] : question.options).map((opt, i) => (
             <div key={i} className={`popt${i === question.correct ? ' correct' : ''}`}>
               <div className="poltr">{LETTERS[i]}</div>
               <div>
