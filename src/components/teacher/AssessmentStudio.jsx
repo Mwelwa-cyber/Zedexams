@@ -37,6 +37,7 @@ import {
   hydrateQuizSections,
   collectSectionFirestoreIds,
   serializeQuizSections,
+  orderPaperGroups,
 } from '../../utils/quizSections.js'
 import { richTextHasContent, richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 import RichEditor from '../../editor/components/RichEditor.jsx'
@@ -304,6 +305,7 @@ function mapAssessmentToForm(a = {}) {
   copy('endOfPaperText')
   copy('mcqOptionLayout')
   copy('mcqAnswerChoiceCount')
+  copy('ungroupedOrder')
   copy('mode')
   copy('importStatus')
   copy('sourceFileName')
@@ -414,6 +416,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // MCQ option presentation (applies to every multiple-choice question).
     mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
     mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
+    // Where the block of loose / ungrouped questions sits relative to the
+    // sections: the number of sections that print before it. 0 = the loose
+    // questions lead the paper (the historical default); the teacher can push
+    // them below a section with the section's move-up control.
+    ungroupedOrder: 0,
     endOfPaperText: '— END OF PAPER —',
     mode: '',
     importStatus: '',
@@ -521,6 +528,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     showClassField: form.showClassField,
     mcqOptionLayout: form.mcqOptionLayout,
     mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+    ungroupedOrder: form.ungroupedOrder ?? 0,
     passages: serializedPreview.passages,
     pagebreaks: serializedPreview.pagebreaks,
     parts: serializedPreview.parts,
@@ -940,10 +948,42 @@ export default function AssessmentStudio({ variant = 'test' }) {
   }
 
   function addPart() {
+    // Leave the title blank (the A/B/C letter is derived from position, so it
+    // stays correct after a reorder; the title input is for an optional
+    // descriptive name like "Multiple Choice"). Matches CreateQuizV2/EditQuizV2.
     setParts(prev => [
       ...prev,
-      createPartGroup({ order: prev.length, title: `Section ${SECTION_LETTERS[prev.length] || ''}`.trim() }),
+      createPartGroup({ order: prev.length, title: '' }),
     ])
+  }
+  // Reorder a whole Section (Part) relative to the other sections AND the block
+  // of loose / ungrouped questions. `direction` is -1 (up) or +1 (down).
+  // Swapping a section past the ungrouped block is how a teacher puts a section
+  // header "on top" of questions that aren't in any section yet. We rewrite both
+  // the parts[] order (which drives the A/B/C letter) and `ungroupedOrder`
+  // (where the loose-questions block sits) so the builder, preview, PDF and DOCX
+  // all stay in step.
+  function moveSectionGroup(partId, direction) {
+    const hasUngrouped = sections.some(section => {
+      const pid = section.kind === 'passage'
+        ? section.partId ?? null
+        : section.question?.partId ?? null
+      return !pid
+    })
+    const groups = orderPaperGroups(parts, form.ungroupedOrder ?? 0, hasUngrouped)
+    const fromIndex = groups.findIndex(group => group.type === 'part' && group.part.id === partId)
+    const toIndex = fromIndex + direction
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= groups.length) return
+    const reordered = [...groups]
+    ;[reordered[fromIndex], reordered[toIndex]] = [reordered[toIndex], reordered[fromIndex]]
+    const ungroupedIndex = reordered.findIndex(group => group.type === 'ungrouped')
+    const partsBeforeUngrouped = ungroupedIndex < 0
+      ? 0
+      : reordered.slice(0, ungroupedIndex).filter(group => group.type === 'part').length
+    setParts(reordered
+      .filter(group => group.type === 'part')
+      .map((group, index) => ({ ...group.part, order: index })))
+    setF('ungroupedOrder', partsBeforeUngrouped)
   }
   function updatePart(partId, field, value) {
     setParts(prev => prev.map(part => part.id === partId ? { ...part, [field]: value } : part))
@@ -1665,6 +1705,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       showClassField: form.showClassField,
       mcqOptionLayout: form.mcqOptionLayout,
       mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+      ungroupedOrder: form.ungroupedOrder ?? 0,
       endOfPaperText: form.endOfPaperText,
       footerCode,
       passages: passagesForSave,
@@ -2127,6 +2168,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           onAddBlock={(afterIndex) => openSlide('blocks', { insertAfter: afterIndex })}
           onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
           onMoveSection={moveSection}
+          onMoveGroup={moveSectionGroup}
           onRemoveSection={removeSectionAt}
           onDuplicateSection={duplicateSectionAt}
           onSaveToBank={handleSaveToBank}
@@ -2596,7 +2638,7 @@ function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
     estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
-    onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
@@ -2611,9 +2653,11 @@ function BuilderView(props) {
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
   const importInputRef = useRef(null)
 
-  // Group sections by their Part membership for rendering Section headers.
+  // Group sections by their Part membership for rendering Section headers, then
+  // lay the groups out in the teacher-chosen order (sections by their order, the
+  // loose-questions block by `ungroupedOrder`). Same ordering the preview / PDF
+  // / DOCX use via orderPaperGroups, so the builder matches the printed paper.
   const grouped = useMemo(() => {
-    const groups = []
     const sectionIndexByPart = new Map()
     const ungrouped = []
     sections.forEach((section, index) => {
@@ -2627,13 +2671,11 @@ function BuilderView(props) {
         ungrouped.push({ section, index })
       }
     })
-    if (ungrouped.length) groups.push({ part: null, members: ungrouped })
-    parts.forEach(part => {
-      const members = sectionIndexByPart.get(part.id) || []
-      groups.push({ part, members })
-    })
-    return groups
-  }, [sections, parts])
+    return orderPaperGroups(parts, form.ungroupedOrder ?? 0, ungrouped.length > 0)
+      .map(group => (group.type === 'ungrouped'
+        ? { part: null, members: ungrouped }
+        : { part: group.part, members: sectionIndexByPart.get(group.part.id) || [] }))
+  }, [sections, parts, form.ungroupedOrder])
 
   return (
     <section className="sv-view">
@@ -2732,12 +2774,14 @@ function BuilderView(props) {
             key={group.part?.id ?? `ungrouped-${groupIndex}`}
             group={group}
             groupIndex={groupIndex}
+            groupCount={grouped.length}
             allParts={parts}
             questionNumbers={questionNumbers}
             paperMeta={{ grade: form.grade, subject: form.subject, language: form.language }}
             onAddBlock={onAddBlock}
             onEditQuestion={onEditQuestion}
             onMoveSection={onMoveSection}
+            onMoveGroup={onMoveGroup}
             onRemoveSection={onRemoveSection}
             onDuplicateSection={onDuplicateSection}
             onSaveToBank={onSaveToBank}
@@ -2803,7 +2847,7 @@ function SmartWarningsBanner({ warnings }) {
   )
 }
 
-function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -2825,6 +2869,18 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
           <div className="sv-block-head">
             <span className="sv-ic">📑</span> Section
             <span className="sv-tools">
+              <button
+                className="sv-tool"
+                title="Move section up"
+                disabled={groupIndex <= 0}
+                onClick={() => onMoveGroup?.(group.part.id, -1)}
+              >↑</button>
+              <button
+                className="sv-tool"
+                title="Move section down"
+                disabled={groupIndex >= groupCount - 1}
+                onClick={() => onMoveGroup?.(group.part.id, 1)}
+              >↓</button>
               <button className="sv-tool danger" title="Delete section" onClick={() => onRemovePart(group.part.id)}>🗑</button>
             </span>
           </div>

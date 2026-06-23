@@ -300,6 +300,46 @@ console.log('\nbuildPaperLayout — true/false renders as a 2-option MCQ block')
   assert(q.options.join('/') === 'True/False', 'a tf authored without options defaults to True/False')
 }
 
+console.log('\nbuildPaperLayout — section placement relative to loose questions')
+{
+  // One loose (ungrouped) question + one empty section. Default ungroupedOrder
+  // (0) keeps the loose question first, then the section — the historical
+  // behaviour, so existing papers are unchanged.
+  const assessment = { ...baseAssessment, parts: [{ id: 'pA', order: 0, title: '' }] }
+  const questions = [{ localId: 'q1', order: 1, type: 'mcq', marks: 1, text: 'Loose Q', options: ['x', 'y'], correctAnswer: 0 }]
+  const blocks = buildPaperLayout(assessment, questions)
+  const seq = blocks.filter(b => b.kind === 'question' || b.kind === 'sectionHeader').map(b => b.kind)
+  assert(seq.join(',') === 'question,sectionHeader', 'default keeps the loose question above the section')
+}
+{
+  // ungroupedOrder = 1 pushes the loose-questions block below the first section,
+  // so the section header now prints on top — what "move section up" produces.
+  const assessment = { ...baseAssessment, parts: [{ id: 'pA', order: 0, title: '' }], ungroupedOrder: 1 }
+  const questions = [{ localId: 'q1', order: 1, type: 'mcq', marks: 1, text: 'Loose Q', options: ['x', 'y'], correctAnswer: 0 }]
+  const blocks = buildPaperLayout(assessment, questions)
+  const seq = blocks.filter(b => b.kind === 'question' || b.kind === 'sectionHeader').map(b => b.kind)
+  assert(seq.join(',') === 'sectionHeader,question', 'ungroupedOrder=1 puts the section header on top of the loose question')
+}
+{
+  // Two sections + loose questions: ungroupedOrder=1 slots the loose block
+  // between Section A and Section B, and the section letters follow parts order.
+  const assessment = {
+    ...baseAssessment,
+    parts: [{ id: 'pA', order: 0, title: '' }, { id: 'pB', order: 1, title: '' }],
+    ungroupedOrder: 1,
+  }
+  const questions = [
+    { localId: 'q1', order: 1, partId: 'pA', type: 'mcq', marks: 1, text: 'A1', options: ['x', 'y'], correctAnswer: 0 },
+    { localId: 'q2', order: 2, type: 'short_answer', marks: 2, text: 'Loose Q' },
+    { localId: 'q3', order: 3, partId: 'pB', type: 'short_answer', marks: 2, text: 'B1' },
+  ]
+  const blocks = buildPaperLayout(assessment, questions)
+  const sectionLetters = blocks.filter(b => b.kind === 'sectionHeader').map(b => b.letter)
+  assert(sectionLetters.join('') === 'AB', 'section letters follow parts order (A then B)')
+  const order = blocks.filter(b => ['sectionHeader', 'question'].includes(b.kind)).map(b => b.kind === 'sectionHeader' ? `S${b.letter}` : `Q${b.number}`)
+  assert(order.join(',') === 'SA,Q1,Q2,SB,Q3', 'loose question slots between Section A and Section B')
+}
+
 console.log('\nlatexToReadableText — readable maths for non-JS exports')
 assert(latexToReadableText('18') === '18', 'plain number unchanged')
 assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')
