@@ -184,7 +184,7 @@ export default function Register() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
         '--accent': '#EA580C',
