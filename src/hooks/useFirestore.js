@@ -40,6 +40,7 @@ import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { questionWriteSchema, coerceQuestion, canonicalizeQuestionType } from '../editor/schema/question.js'
+import { normalizeMarks, MARKS_BOUNDS } from '../utils/questionType.js'
 import { normalizeSubParts } from '../utils/questionParts.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
@@ -262,7 +263,7 @@ async function normalizeQuestionPayload(q, order) {
     // ("[15 marks]" in an imported past-paper question, or a UI bug
     // overshoot) never throws "Invalid question payload at 'marks'" on
     // auto-save. The cap exactly matches questionWriteSchema's max.
-    marks:         Math.max(1, Math.min(20, Number(q.marks) || 1)),
+    marks:         normalizeMarks(q.marks, MARKS_BOUNDS.quiz),
     type,
     detectedType:  q.detectedType || type,
     difficulty:    q.difficulty || undefined,
