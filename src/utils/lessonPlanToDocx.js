@@ -67,15 +67,25 @@ function illustrationBox(size) {
 // a visible note, or null when there's nothing to embed.
 async function fetchLessonDiagramImage(diagram) {
   if (!diagram || !diagram.url) return null
-  try {
-    const res = await fetch(diagram.url, { mode: 'cors' })
-    if (!res.ok) return { failed: true }
-    const bytes = new Uint8Array(await res.arrayBuffer())
-    if (!bytes.length) return { failed: true }
-    return { bytes, type: detectDocxImageType(bytes) }
-  } catch {
-    return { failed: true }
+  // CORS cache-poisoning guard — see assessmentToDocx.fetchImageBytes. The
+  // preview renders the same image with a plain `<img>` (no crossOrigin), so
+  // the browser caches a no-CORS, header-less response; the `immutable`
+  // Cache-Control on diagram URLs keeps it around, and a later
+  // `fetch(url,{mode:'cors'})` reuses that poisoned entry and fails its CORS
+  // check. Retrying with `cache: 'reload'` bypasses the cache and forces a
+  // fresh request that gets the CORS headers back.
+  for (const cache of ['default', 'reload']) {
+    try {
+      const res = await fetch(diagram.url, { mode: 'cors', cache })
+      if (!res.ok) continue
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      if (!bytes.length) continue
+      return { bytes, type: detectDocxImageType(bytes) }
+    } catch {
+      // CORS rejection or network error — try the next cache strategy.
+    }
   }
+  return { failed: true }
 }
 
 // Paragraphs for the lesson illustration: a CAPS label, the centred image (or

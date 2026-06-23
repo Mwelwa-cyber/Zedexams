@@ -350,14 +350,30 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
 }
 
 async function fetchImageBytes(url) {
-  try {
-    const response = await fetch(url, { mode: 'cors' })
-    if (!response.ok) return null
-    const buffer = await response.arrayBuffer()
-    return new Uint8Array(buffer)
-  } catch {
-    return null
+  // CORS cache-poisoning guard. The studio preview renders the SAME image with
+  // a plain `<img src>` (no crossOrigin), which the browser fetches as a
+  // no-CORS request and caches WITHOUT an `Access-Control-Allow-Origin` header.
+  // Diagram URLs are stamped `Cache-Control: public, max-age=…, immutable`, so
+  // that header-less response sticks around. A later `fetch(url,{mode:'cors'})`
+  // reuses the poisoned cache entry, fails its CORS check, and the image
+  // silently vanishes from the download even though the preview shows it — the
+  // classic "diagrams show in the preview but not in the download" bug that a
+  // correctly-applied bucket CORS config does NOT fix on its own.
+  //
+  // So try a normal fetch first (fast path, warm cache), then retry with
+  // `cache: 'reload'`, which bypasses the cache and forces a fresh network
+  // request that carries the Origin header and gets the CORS headers back.
+  for (const cache of ['default', 'reload']) {
+    try {
+      const response = await fetch(url, { mode: 'cors', cache })
+      if (!response.ok) continue
+      const buffer = await response.arrayBuffer()
+      return new Uint8Array(buffer)
+    } catch {
+      // CORS rejection or network error — fall through to the next strategy.
+    }
   }
+  return null
 }
 
 /**

@@ -91,6 +91,37 @@ try {
   globalThis.fetch = realFetch
 }
 
+console.log('\nCORS-poisoned cache → exporter retries and still embeds the image')
+// The studio preview loads the image with a plain <img>, poisoning the HTTP
+// cache with a no-CORS (header-less) response. The first mode:'cors' fetch
+// therefore rejects with a CORS error; the exporter must retry with
+// `cache: 'reload'` and recover the bytes so the diagram still lands in the
+// download. Without the retry the image silently vanished from the paper even
+// though it showed in the preview.
+{
+  let calls = 0
+  globalThis.fetch = async (_url, opts) => {
+    calls += 1
+    // First attempt mimics the poisoned-cache CORS rejection; the reload
+    // attempt (cache:'reload') gets a fresh response with the bytes.
+    if ((opts && opts.cache) !== 'reload') throw new TypeError('Failed to fetch (CORS)')
+    return { ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) }
+  }
+  try {
+    const recoveredDoc = await buildAssessmentDocument(
+      { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
+      [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', marks: 1 }],
+      { mode: 'paper' },
+    )
+    const recoveredText = Buffer.from(await Packer.toBuffer(recoveredDoc)).toString('latin1')
+    assert(calls >= 2, 'first (poisoned-cache) fetch failed, exporter retried with cache:reload')
+    assert(recoveredText.includes('media/') && recoveredText.includes('.png'), 'retried fetch → image embedded as a real media part')
+    assert(!recoveredText.includes('could not be embedded'), 'retried fetch → no fallback placeholder')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
 console.log('\nUnreadable image → visible fallback placeholder (not a silent gap)')
 // When the image bytes can't be read (e.g. Storage CORS not applied, or a
 // dead URL), fetchImageBytes returns null. The exporter must drop a visible
