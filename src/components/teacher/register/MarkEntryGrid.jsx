@@ -10,8 +10,9 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { computeRecord } from '../../../utils/classRecordMath'
+import { computeRecord, maxTotalOf } from '../../../utils/classRecordMath'
 import { saveRecordMarks } from '../../../utils/classRecords'
+import { convertSbaMark } from '../../../config/sba'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 
@@ -45,6 +46,17 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
     [snapshot, columns, marks],
   )
   const rowByRoster = useMemo(() => new Map(rows.map((r) => [r.rosterId, r])), [rows])
+
+  // ECZ School-Based Assessment: a learner's marks across the grade's tasks
+  // convert to a mark out of 10 (10% of the grade) — obtained ÷ total × 10.
+  // Shown only for SBA records; the column maximums sum to the grade total.
+  const isSba = record.type === 'sba'
+  const sbaMax = useMemo(() => maxTotalOf(columns), [columns])
+  const sba10 = (total) => convertSbaMark(total, sbaMax).rounded
+  const sbaClassAvg = useMemo(() => {
+    if (!isSba || rows.length === 0) return 0
+    return Math.round(rows.reduce((sum, r) => sum + sba10(r.total), 0) / rows.length)
+  }, [isSba, rows, sbaMax]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Marks live only in local state until Save, so warn before a tab close /
   // reload / external navigation discards typed-but-unsaved marks.
@@ -102,13 +114,20 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
       </div>
 
       {/* Live class stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+      <div className={`grid grid-cols-3 gap-2 ${isSba ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
         <Stat label="Learners" value={stats.count} />
         <Stat label="Class avg" value={stats.classAverage} suffix="%" />
         <Stat label="Highest" value={stats.highest} />
         <Stat label="Lowest" value={stats.lowest} />
         <Stat label="Pass rate" value={stats.passRate} suffix="%" />
+        {isSba && <Stat label="SBA avg" value={sbaClassAvg} suffix="/10" />}
       </div>
+      {isSba && (
+        <p className="theme-text-muted text-xs -mt-1">
+          ECZ School-Based Assessment — each learner&apos;s total converts to a mark out of 10
+          (their 10% for this grade), ready for the OMES portal.
+        </p>
+      )}
 
       {snapshot.length === 0 ? (
         <div className="theme-card border theme-border rounded-radius-md p-6 text-center theme-text-muted text-sm">
@@ -128,6 +147,7 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
                 ))}
                 <th className="px-2 py-2 text-center">Total</th>
                 <th className="px-2 py-2 text-center">%</th>
+                {isSba && <th className="px-2 py-2 text-center whitespace-nowrap">SBA /10</th>}
                 <th className="px-2 py-2 text-center">Grade</th>
                 <th className="px-2 py-2 text-center">Pos</th>
               </tr>
@@ -155,6 +175,7 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
                     ))}
                     <td className="px-2 py-1.5 text-center theme-text font-black">{r.total}</td>
                     <td className="px-2 py-1.5 text-center theme-text-muted">{r.percentage}%</td>
+                    {isSba && <td className="px-2 py-1.5 text-center theme-accent-text font-black">{sba10(r.total)}</td>}
                     <td className={`px-2 py-1.5 text-center text-xs font-black ${GRADE_TONE[r.gradeLabel] || 'theme-text-muted'}`}>
                       {r.gradeLabel}
                     </td>

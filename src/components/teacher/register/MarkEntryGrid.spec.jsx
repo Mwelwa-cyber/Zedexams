@@ -41,6 +41,21 @@ describe('MarkEntryGrid', () => {
     expect(screen.getByText('Excellent')).toBeInTheDocument()
   })
 
+  it('shows an ECZ SBA /10 column for SBA records', () => {
+    const sbaRecord = { ...record, type: 'sba' } // columns max 100
+    render(<MarkEntryGrid classId="c1" record={sbaRecord} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText('SBA /10')).toBeInTheDocument()
+    // Mary 45 + 45 = 90/100 → 9/10.
+    fireEvent.change(screen.getByLabelText('Maths mark for Mary Banda'), { target: { value: '45' } })
+    fireEvent.change(screen.getByLabelText('English mark for Mary Banda'), { target: { value: '45' } })
+    expect(screen.getAllByText('9').length).toBeGreaterThan(0)
+  })
+
+  it('hides the SBA /10 column for non-SBA records', () => {
+    render(<MarkEntryGrid classId="c1" record={record} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.queryByText('SBA /10')).not.toBeInTheDocument()
+  })
+
   it('saves the entered marks', async () => {
     render(<MarkEntryGrid classId="c1" record={record} onClose={() => {}} onSaved={() => {}} />)
     fireEvent.change(screen.getByLabelText('Maths mark for Mary Banda'), { target: { value: '40' } })

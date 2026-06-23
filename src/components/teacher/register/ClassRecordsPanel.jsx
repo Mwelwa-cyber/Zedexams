@@ -29,6 +29,8 @@ export default function ClassRecordsPanel({
   emptyText = 'Create one — every learner on the class list is added automatically.',
   describeRecord,
   renderCreate,
+  // SBA records span the whole year, so that tab opts out of term filtering.
+  periodScoped = true,
 }) {
   const classId = register.id
   const toast = useToast()
@@ -42,8 +44,8 @@ export default function ClassRecordsPanel({
 
   const currentPeriod = { term: register.term, year: register.year }
   const visibleRecords = useMemo(
-    () => filterRecordsByPeriod(records, viewPeriod, currentPeriod),
-    [records, viewPeriod, currentPeriod.term, currentPeriod.year], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (periodScoped ? filterRecordsByPeriod(records, viewPeriod, currentPeriod) : records),
+    [records, viewPeriod, currentPeriod.term, currentPeriod.year, periodScoped], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   async function refresh() {
@@ -104,7 +106,7 @@ export default function ClassRecordsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="theme-text-muted text-sm">{intro}</p>
         <div className="flex items-center gap-3">
-          {records.length > 0 && (
+          {periodScoped && records.length > 0 && (
             <TermPeriodFilter records={records} value={viewPeriod} onChange={setViewPeriod} currentPeriod={currentPeriod} />
           )}
           {!creating && <Button size="sm" onClick={() => setCreating(true)}>{newLabel}</Button>}
