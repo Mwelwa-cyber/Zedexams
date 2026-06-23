@@ -72,6 +72,32 @@ const CRASH_MARKERS = [
   'Something went wrong',
 ]
 
+// Uncaught errors that are EXPECTED when the smoke runs against the FAKE
+// Firebase project in .env.smoke: every backend call (auth, installations,
+// performance, messaging, Firestore) is rejected because the project/key
+// aren't real. In CI, egress reaches Google and the fake key returns a clean
+// `400 INVALID_ARGUMENT` from Firebase Installations (kicked off by
+// getPerformance/getMessaging at init), which surfaces as an uncaught
+// rejection; locally, egress is cert-blocked and the same failure shows up as
+// a console error instead. Both are connectivity noise, not render bugs, so
+// they don't fail the smoke. A genuine render-time exception (TypeError, React
+// error, "Cannot read properties of …") is NOT on this list and still fails.
+// `auth/invalid-api-key` is deliberately absent — it means the key was empty/
+// malformed and the app white-screened, which we DO want to catch.
+const BENIGN_PAGE_ERROR = new RegExp(
+  [
+    'installations/',
+    'API key not valid',
+    'network-request-failed',
+    'messaging/',
+    'permission-denied',
+    'Failed to fetch',
+    'INVALID_ARGUMENT',
+    'ERR_CERT', // local cert-blocked egress variant
+    'ERR_NETWORK',
+  ].join('|'),
+)
+
 async function checkRoute(browser, base, route) {
   const page = await browser.newPage()
   await page.emulate({ viewport: MOBILE_VIEWPORT, userAgent: MOBILE_UA })
@@ -124,8 +150,11 @@ async function checkRoute(browser, base, route) {
     }
     const crash = CRASH_MARKERS.find((m) => bodyText.includes(m))
     if (crash) problems.push(`crash card shown ("${crash}")`)
-    if (pageErrors.length) {
-      problems.push(`uncaught error: ${pageErrors[0]}`)
+    // Only a NON-benign uncaught error fails the smoke. Firebase backend
+    // rejections (fake project) are expected and reported as info below.
+    const realErrors = pageErrors.filter((e) => !BENIGN_PAGE_ERROR.test(e))
+    if (realErrors.length) {
+      problems.push(`uncaught error: ${realErrors[0]}`)
     }
     if (overflowPx > MAX_OVERFLOW_PX) {
       problems.push(
@@ -138,7 +167,7 @@ async function checkRoute(browser, base, route) {
     await page.close()
   }
 
-  return { route, problems, consoleErrors }
+  return { route, problems, consoleErrors, pageErrors }
 }
 
 async function main() {
@@ -178,7 +207,7 @@ async function main() {
 
   console.log('')
   let failed = 0
-  for (const { route, problems, consoleErrors } of results) {
+  for (const { route, problems, consoleErrors, pageErrors } of results) {
     if (problems.length === 0) {
       console.log(`  ok   ${route}`)
     } else {
@@ -186,11 +215,14 @@ async function main() {
       console.log(`  FAIL ${route}`)
       for (const p of problems) console.log(`         ✗ ${p}`)
     }
-    // Console errors are informational only — the smoke runs without real
-    // Firebase secrets, so backend calls are expected to error in the
-    // background. Surface them for debugging without failing the gate.
-    if (consoleErrors.length) {
-      console.log(`         (${consoleErrors.length} console error(s); first: ${consoleErrors[0].slice(0, 140)})`)
+    // Console + benign Firebase-backend errors are informational only — the
+    // smoke runs against a fake project, so backend calls are expected to
+    // error in the background. Surface them for debugging without failing.
+    if (consoleErrors.length || pageErrors.length) {
+      const first = (consoleErrors[0] || pageErrors[0] || '').slice(0, 140)
+      console.log(
+        `         (${consoleErrors.length} console + ${pageErrors.length} backend error(s); first: ${first})`,
+      )
     }
   }
 
