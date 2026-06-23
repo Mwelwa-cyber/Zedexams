@@ -1,0 +1,174 @@
+// Guards the syllabus word-spacing repair (scripts/fix-syllabus-word-spacing.mjs).
+//
+// The CDC syllabi were extracted from PDFs, which scattered single spaces
+// *inside* words ("Communicating" -> "Communicatin g", "and" -> "a nd"). In
+// the Syllabi Studio table (src/components/teacher/SyllabiLibrary.jsx) these
+// read as words broken mid-letter. This test asserts:
+//   1. fixSpacing repairs the broken forms (every category of break),
+//   2. it leaves genuine multi-word phrases untouched (no over-merging),
+//   3. it is idempotent,
+//   4. fixCurriculumData only rewrites string values, never structure, and
+//   5. the committed data files are already clean (the migration was applied
+//      and stays a no-op), keeping the public/functions copies in lock-step.
+//
+// Plain `node` assertion script — run via `npm run test:syllabus-word-spacing`
+// (auto-discovered by scripts/run-all-tests.mjs).
+
+import assert from 'node:assert'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  CORRECTIONS,
+  fixSpacing,
+  fixCurriculumData,
+} from './fix-syllabus-word-spacing.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(__dirname, '..')
+
+let passed = 0
+function check(label, fn) {
+  fn()
+  passed++
+  console.log(`  ✓ ${label}`)
+}
+
+// ── 1. Broken words are repaired (one per category) ───────────────────────
+console.log('\nrepairs broken words')
+
+// Trailing/leading single-letter shards inside a word.
+check('mid-word trailing shard: "Communicatin g" -> "Communicating"', () => {
+  assert.strictEqual(fixSpacing('Communicatin g knowledge'), 'Communicating knowledge')
+})
+check('leading shard: "F orm a series" -> "Form a series"', () => {
+  assert.strictEqual(fixSpacing('0.1.11.9.1.F orm a series of shapes'),
+    '0.1.11.9.1.Form a series of shapes')
+})
+check('split across left neighbour: "to s olve" -> "to solve"', () => {
+  assert.strictEqual(fixSpacing('light to s olve problems'), 'light to solve problems')
+})
+check('trailing-e shard: "solv e" -> "solve"', () => {
+  assert.strictEqual(fixSpacing('use of light to solv e problems'),
+    'use of light to solve problems')
+})
+check('function word: "a nd" / "an d" -> "and"', () => {
+  assert.strictEqual(fixSpacing('shape a nd size'), 'shape and size')
+  assert.strictEqual(fixSpacing('Agro-processing an d Entrepreneurship'),
+    'Agro-processing and Entrepreneurship')
+})
+check('function word: "o f" -> "of", "t he" -> "the", "i n" -> "in"', () => {
+  assert.strictEqual(fixSpacing('understanding o f degradation'), 'understanding of degradation')
+  assert.strictEqual(fixSpacing('Describing t he shape'), 'Describing the shape')
+  assert.strictEqual(fixSpacing('findings i n class'), 'findings in class')
+})
+check('proper adjective: "Africa n" -> "African"', () => {
+  assert.strictEqual(fixSpacing('Service in Africa n Tradition'), 'Service in African Tradition')
+})
+check('capitalised command word: "M ake"/"R ead"/"W rite"/"S how"/"U se"', () => {
+  assert.strictEqual(fixSpacing('M ake a business plan'), 'Make a business plan')
+  assert.strictEqual(fixSpacing('R ead the given passages'), 'Read the given passages')
+  assert.strictEqual(fixSpacing('W rite informal letters'), 'Write informal letters')
+  assert.strictEqual(fixSpacing('S how ways'), 'Show ways')
+  assert.strictEqual(fixSpacing('U se batters in cookery'), 'Use batters in cookery')
+})
+check('trailing plural shard: "word s" -> "words", "Specie s" -> "Species"', () => {
+  assert.strictEqual(fixSpacing('Parts of speech: noun s'), 'Parts of speech: nouns')
+  assert.strictEqual(fixSpacing('Plant Specie s in Zambia'), 'Plant Species in Zambia')
+  assert.strictEqual(fixSpacing('TYPES OF NOUN S'.replace('NOUN S', 'CRAFT S')),
+    'TYPES OF CRAFTS')
+})
+check('double break resolves fully: "p reser ves" -> "preserves"', () => {
+  assert.strictEqual(fixSpacing('types of p reser ves: (jam, pickles)'),
+    'types of preserves: (jam, pickles)')
+})
+
+// ── 2. Genuine phrases are NOT over-merged ────────────────────────────────
+console.log('\npreserves legitimate text')
+
+const PRESERVE = [
+  'Listen to a simple story', // "a simple" is a real phrase, not a broken word
+  'I am fine',
+  'As in formation of polymers', // "in formation" must NOT become "information"
+  'prevention of blindness: (Vit A deficiency)', // "Vit A" = Vitamin A
+  'Recognising own name on a name card',
+  'such as a pencil',
+  'a basic pattern for a simple garment',
+  'tools to be used',
+  'a cylinder and a triangular prism',
+  'the digestive system in human beings', // must NOT become "inhuman"
+  'Draw lessons of fish farming',
+  'Newton’s law of motion', // possessive "’s law" must stay
+  'Interpreting the theme/s and title of a story',
+  'safety precautions in a work environment',
+  're-arranged in a logical order correctly',
+  'Sort different types of food',
+  'Roleplaying in groups',
+]
+for (const phrase of PRESERVE) {
+  check(`unchanged: ${JSON.stringify(phrase)}`, () => {
+    assert.strictEqual(fixSpacing(phrase), phrase)
+  })
+}
+
+check('"Bacteria, fungi and viruses" mangle is left alone (not "fungian")', () => {
+  const s = 'Draw structures of bacteria,f ungian dvi ruses'
+  assert.ok(!fixSpacing(s).includes('fungian'),
+    'must not invent the word "fungian"')
+})
+
+// ── 3. Idempotency ────────────────────────────────────────────────────────
+console.log('\nidempotency')
+check('fixSpacing(fixSpacing(x)) === fixSpacing(x)', () => {
+  for (const [broken] of Object.entries(CORRECTIONS)) {
+    const once = fixSpacing(`prefix ${broken} suffix`)
+    assert.strictEqual(fixSpacing(once), once, `not idempotent for ${JSON.stringify(broken)}`)
+  }
+})
+
+// ── 4. fixCurriculumData preserves structure ──────────────────────────────
+console.log('\nfixCurriculumData')
+check('rewrites string values only; keys/arrays/structure untouched', () => {
+  const data = {
+    'A Subject': {
+      'Grade 1': {
+        title: 'Communicatin g basics',
+        columns: ['TOPIC', 'SUB-TOPIC'],
+        rows: [
+          { type: 'data', cells: { TOPIC: 'shape a nd size', 'SUB-TOPIC': 'a simple thing' } },
+          { type: 'section', label: 'F orm a series' },
+        ],
+      },
+    },
+  }
+  const changed = fixCurriculumData(data)
+  assert.strictEqual(changed, 3) // title, TOPIC, label
+  assert.deepStrictEqual(Object.keys(data), ['A Subject'])
+  assert.deepStrictEqual(Object.keys(data['A Subject']['Grade 1']), ['title', 'columns', 'rows'])
+  assert.strictEqual(data['A Subject']['Grade 1'].title, 'Communicating basics')
+  assert.deepStrictEqual(data['A Subject']['Grade 1'].columns, ['TOPIC', 'SUB-TOPIC'])
+  assert.strictEqual(data['A Subject']['Grade 1'].rows[0].cells.TOPIC, 'shape and size')
+  assert.strictEqual(data['A Subject']['Grade 1'].rows[0].cells['SUB-TOPIC'], 'a simple thing')
+  assert.strictEqual(data['A Subject']['Grade 1'].rows[1].label, 'Form a series')
+})
+
+// ── 5. The committed data files are already clean ─────────────────────────
+console.log('\ncommitted data is clean (migration applied + stays a no-op)')
+const FILES = [
+  'public/syllabi/curriculum-data.json',
+  'public/syllabi/curriculum-data-2013.json',
+  'functions/data/curriculum-data.json',
+  'functions/data/curriculum-data-2013.json',
+]
+for (const rel of FILES) {
+  const file = path.join(ROOT, rel)
+  if (!fs.existsSync(file)) continue
+  check(`${rel}: no remaining repairs`, () => {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    const remaining = fixCurriculumData(data)
+    assert.strictEqual(remaining, 0,
+      `${remaining} broken string(s) remain — run: node scripts/fix-syllabus-word-spacing.mjs`)
+  })
+}
+
+console.log(`\nAll ${passed} syllabus word-spacing checks passed.`)
