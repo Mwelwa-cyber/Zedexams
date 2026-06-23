@@ -21,6 +21,22 @@ import Skeleton from '../ui/Skeleton'
 
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
 
+/**
+ * Breaks a child out of its max-width column to span the full viewport
+ * width, so an opened paper fills the whole screen edge-to-edge instead
+ * of sitting in a narrow centred strip. Capped on very wide desktops so
+ * a single scanned page doesn't blow up past readability; the root
+ * viewer uses `overflow-x-clip` so the 100vw breakout can't introduce a
+ * horizontal scrollbar.
+ */
+function FullBleed({ children }) {
+  return (
+    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
+      <div className="mx-auto max-w-[1400px] px-1 sm:px-3">{children}</div>
+    </div>
+  )
+}
+
 function formatBytes(bytes) {
   if (!bytes || bytes < 1024) return `${bytes || 0} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -342,7 +358,7 @@ export default function PastPaperViewer() {
   )
 
   return (
-    <div className="min-h-screen theme-bg flex flex-col">
+    <div className="min-h-screen theme-bg flex flex-col overflow-x-clip">
       <SeoHelmet
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
@@ -507,32 +523,36 @@ export default function PastPaperViewer() {
                           ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
                         </button>
                       </div>
-                      <Suspense fallback={
-                        <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                          Loading paper…
-                        </div>
-                      }>
-                        <PdfJsViewer url={paperUrl} title={paper.title} />
-                      </Suspense>
+                      <FullBleed>
+                        <Suspense fallback={
+                          <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                            Loading paper…
+                          </div>
+                        }>
+                          <PdfJsViewer url={paperUrl} title={paper.title} />
+                        </Suspense>
+                      </FullBleed>
                     </div>
                   )
                 )}
 
                 {previewSource?.kind === 'images' && (
-                  <PageImageList
-                    pages={validImagePages}
-                    totalPages={previewSource.assets.length}
-                    loading={imageAssetsLoading}
-                    loadedPages={loadedPages}
-                    failedPages={failedPages}
-                    retryNonces={retryNonces}
-                    dataSaver={dataSaver}
-                    syncHash
-                    progressKey={`paper-progress:${paperId}`}
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
-                    onRetry={handleRetryPage}
-                  />
+                  <FullBleed>
+                    <PageImageList
+                      pages={validImagePages}
+                      totalPages={previewSource.assets.length}
+                      loading={imageAssetsLoading}
+                      loadedPages={loadedPages}
+                      failedPages={failedPages}
+                      retryNonces={retryNonces}
+                      dataSaver={dataSaver}
+                      syncHash
+                      progressKey={`paper-progress:${paperId}`}
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                      onRetry={handleRetryPage}
+                    />
+                  </FullBleed>
                 )}
               </section>
             )}
@@ -846,7 +866,7 @@ function PaperPageImage({ pageKey, src, alt, eager, width, height, hasLoaded, on
       height={height}
       onLoad={() => onLoad(pageKey)}
       onError={onError}
-      className="block w-full h-auto max-w-[900px] mx-auto"
+      className="block w-full h-auto"
       // Fallback aspect ratio reserves layout space for old uploads
       // that don't have stored dimensions yet. Drop once loaded so the
       // intrinsic ratio takes over and the rendered page isn't squashed.
@@ -973,19 +993,22 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
             ⬇️ Download answers
           </button>
         </div>
-        <Suspense fallback={
-          <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
-            Loading viewer…
-          </div>
-        }>
-          <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
-        </Suspense>
+        <FullBleed>
+          <Suspense fallback={
+            <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading viewer…
+            </div>
+          }>
+            <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
+          </Suspense>
+        </FullBleed>
       </div>
     )
   }
 
   if (source.kind === 'images') {
     return (
+      <FullBleed>
       <PageImageList
         pages={validPages}
         totalPages={source.assets.length}
@@ -1017,6 +1040,7 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
           setRetryNonces((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }))
         }}
       />
+      </FullBleed>
     )
   }
 

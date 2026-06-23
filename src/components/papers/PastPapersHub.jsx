@@ -52,12 +52,14 @@ import {
   FileText,
   Globe,
   Home,
+  Menu,
   PencilLine,
   Search,
-  Settings,
+  SlidersHorizontal,
   Sparkles,
   StarIcon,
   User,
+  X,
 } from '../ui/icons'
 
 const ANY = 'any'
@@ -153,19 +155,69 @@ function Pill({ Icon, children }) {
   )
 }
 
-function FilterChip({ active, onClick, children }) {
+// Invisible full-screen layer that closes an open popover/dropdown on an
+// outside click. Sits below the menu (z-10) but above the page so a tap
+// anywhere else dismisses it — no document listener / ref plumbing.
+function ClickAway({ onClose }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`rounded-full border-2 px-3.5 py-2 text-xs font-bold transition-colors active:scale-95 ${
-        active
-          ? 'theme-accent-fill theme-on-accent border-transparent shadow-elev-sm'
-          : 'theme-card theme-border theme-text-muted hover:theme-text'
-      }`}
-    >
-      {children}
-    </button>
+      tabIndex={-1}
+      aria-hidden="true"
+      onClick={onClose}
+      className="fixed inset-0 z-10 cursor-default"
+    />
+  )
+}
+
+// Always-visible filter as a compact "Label: value ▾" pill that opens a
+// dropdown list. Replaces the old toggle-to-reveal chip panel so Grade /
+// Subject / Year are one tap away without expanding anything.
+function FilterDropdown({ label, valueLabel, options, selected, onSelect, open, onToggle }) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold shadow-elev-sm transition-colors active:scale-95 ${
+          selected !== 'any'
+            ? 'theme-accent-fill theme-on-accent border-transparent'
+            : 'theme-card theme-border theme-text-muted hover:theme-text'
+        }`}
+      >
+        <span className={selected !== 'any' ? 'opacity-80' : ''}>{label}</span>
+        <span className="font-black">{valueLabel}</span>
+        <ChevronDown size={14} strokeWidth={2.4} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <>
+          <ClickAway onClose={onToggle} />
+          <ul
+            role="listbox"
+            className="absolute left-0 top-full mt-1.5 z-20 theme-card border theme-border rounded-xl shadow-elev-md overflow-hidden min-w-[10rem] max-h-72 overflow-y-auto py-1"
+          >
+            {options.map((opt) => (
+              <li key={opt.value}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected === opt.value}
+                  onClick={() => onSelect(opt.value)}
+                  className={`w-full flex items-center justify-between gap-3 text-left px-3 py-2 text-xs font-bold hover:theme-bg-subtle ${
+                    selected === opt.value ? 'theme-accent-text' : 'theme-text'
+                  }`}
+                >
+                  {opt.label}
+                  {selected === opt.value && <Check size={14} strokeWidth={3} />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -377,8 +429,11 @@ export default function PastPapersHub() {
   const [subject, setSubject] = useState(ANY)
   const [year, setYear] = useState(ANY)
   const [sort, setSort] = useState('newest')
-  const [sortOpen, setSortOpen] = useState(false)
-  const [showFilters, setShowFilters] = useState(true)
+  // Which inline filter dropdown is open ('grade' | 'subject' | 'year' | null).
+  const [openFilter, setOpenFilter] = useState(null)
+  // Search-bar options popover (sort + clear) and header nav menu.
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const [savedIds, setSavedIds] = useState(() => new Set(readStored(BOOKMARK_KEY)))
   const [recentIds, setRecentIds] = useState(() => readStored(RECENT_KEY))
@@ -493,10 +548,6 @@ export default function PastPapersHub() {
     })
   }
 
-  // Summary pills.
-  const totalPapers = loaded.length
-  const quizCount = useMemo(() => loaded.filter((p) => p.quizId).length, [loaded])
-
   // "Recommended for you" — prefer a specimen, else the newest paper
   // that has a quiz, else the newest paper overall.
   const recommended = useMemo(() => {
@@ -554,6 +605,46 @@ export default function PastPapersHub() {
               <Clock size={15} strokeWidth={2.4} />
               <span className="hidden sm:inline">My runs</span>
             </Link>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Menu"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="grid place-items-center w-9 h-9 rounded-full theme-text-muted hover:theme-text hover:theme-bg-subtle transition active:scale-90"
+              >
+                {menuOpen ? <X size={20} strokeWidth={2.2} /> : <Menu size={20} strokeWidth={2.2} />}
+              </button>
+              {menuOpen && (
+                <>
+                  <ClickAway onClose={() => setMenuOpen(false)} />
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-2 z-20 w-48 theme-card border-2 theme-border rounded-radius-md shadow-elev-md py-1.5"
+                  >
+                    {[
+                      { to: '/dashboard', label: 'Home', Icon: Home },
+                      { to: '/lessons', label: 'Library', Icon: BookOpen },
+                      { to: '/papers', label: 'Past Papers', Icon: FileText },
+                      { to: '/quizzes', label: 'Quizzes', Icon: PencilLine },
+                      { to: currentUser ? '/profile' : '/login', label: currentUser ? 'Profile' : 'Sign in', Icon: User },
+                    ].map(({ to, label, Icon }) => (
+                      <Link
+                        key={label}
+                        to={to}
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-bold theme-text hover:theme-bg-subtle"
+                      >
+                        <Icon size={17} strokeWidth={2.2} className="theme-text-muted" />
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -563,7 +654,7 @@ export default function PastPapersHub() {
         <div className="pt-6 pb-4">
           <h1 className="font-display font-black text-3xl sm:text-4xl theme-text">Past Papers</h1>
           <p className="theme-text-muted text-sm sm:text-base mt-2 max-w-2xl">
-            Browse Grade 7 and Grade 12 ECZ past papers by subject and year.
+            Find Grade 7 and Grade 12 ECZ past papers by subject and year.
           </p>
         </div>
 
@@ -585,21 +676,95 @@ export default function PastPapersHub() {
           />
           <button
             type="button"
-            onClick={() => setShowFilters((v) => !v)}
-            aria-label="Toggle filters"
-            aria-expanded={showFilters}
+            onClick={() => setOptionsOpen((v) => !v)}
+            aria-label="Sort and filter options"
+            aria-haspopup="menu"
+            aria-expanded={optionsOpen}
             className={`absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-10 h-10 rounded-full transition active:scale-90 ${
-              showFilters ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted hover:theme-text'
+              optionsOpen ? 'theme-accent-fill theme-on-accent' : 'theme-accent-fill theme-on-accent hover:opacity-90'
             }`}
           >
-            <Settings size={18} strokeWidth={2.2} />
+            <SlidersHorizontal size={18} strokeWidth={2.2} />
           </button>
+          {optionsOpen && (
+            <>
+              <ClickAway onClose={() => setOptionsOpen(false)} />
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 z-20 w-56 theme-card border-2 theme-border rounded-radius-md shadow-elev-md p-3 space-y-3"
+              >
+                <div>
+                  <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-1.5">Sort by</p>
+                  <div className="space-y-0.5">
+                    {SORTS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={sort === s.id}
+                        onClick={() => { setSort(s.id); setOptionsOpen(false) }}
+                        className={`w-full flex items-center justify-between gap-2 text-left rounded-lg px-2.5 py-1.5 text-xs font-bold hover:theme-bg-subtle ${
+                          sort === s.id ? 'theme-accent-text' : 'theme-text'
+                        }`}
+                      >
+                        {s.label}
+                        {sort === s.id && <Check size={14} strokeWidth={3} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={() => { clearFilters(); setOptionsOpen(false) }}
+                    className="w-full text-center rounded-full border-2 theme-border theme-text text-xs font-black px-3 py-2 hover:theme-bg-subtle"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* 4 — Smart summary row */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Pill Icon={FileText}>{totalPapers} {totalPapers === 1 ? 'paper' : 'papers'}</Pill>
-          <Pill Icon={PencilLine}>{quizCount} {quizCount === 1 ? 'quiz' : 'quizzes'} available</Pill>
+        {/* 4 — Inline filter dropdowns + freshness pill */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <FilterDropdown
+            label="Grade"
+            valueLabel={grade === ANY ? 'All' : `Grade ${grade}`}
+            selected={grade}
+            open={openFilter === 'grade'}
+            onToggle={() => setOpenFilter((o) => (o === 'grade' ? null : 'grade'))}
+            onSelect={(v) => { setGrade(v); setOpenFilter(null) }}
+            options={[
+              { value: ANY, label: 'All grades' },
+              ...PAPER_GRADES.map((g) => ({ value: g, label: `Grade ${g}` })),
+            ]}
+          />
+          <FilterDropdown
+            label="Subject"
+            valueLabel={subject === ANY ? 'All' : (SUBJECT_LABEL[subject] || 'Selected')}
+            selected={subject}
+            open={openFilter === 'subject'}
+            onToggle={() => setOpenFilter((o) => (o === 'subject' ? null : 'subject'))}
+            onSelect={(v) => { setSubject(v); setOpenFilter(null) }}
+            options={[
+              { value: ANY, label: 'All subjects' },
+              ...SUBJECT_FILTERS.map((s) => ({ value: s.id, label: s.label })),
+            ]}
+          />
+          <FilterDropdown
+            label="Year"
+            valueLabel={year === ANY ? 'All' : String(year)}
+            selected={year}
+            open={openFilter === 'year'}
+            onToggle={() => setOpenFilter((o) => (o === 'year' ? null : 'year'))}
+            onSelect={(v) => { setYear(v); setOpenFilter(null) }}
+            options={[
+              { value: ANY, label: 'All years' },
+              ...(availableYears.length ? availableYears : [2025, 2024, 2023, 2022]).map((y) => ({ value: String(y), label: String(y) })),
+            ]}
+          />
           <Pill Icon={Sparkles}>Updated weekly</Pill>
         </div>
 
@@ -613,90 +778,6 @@ export default function PastPapersHub() {
               </a>{' '}
               when the first batch lands.
             </span>
-          </div>
-        )}
-
-        {/* 5 — Filter panel */}
-        {showFilters && (
-          <div className="mt-4 theme-card border-2 theme-border rounded-radius-md p-4 shadow-elev-sm space-y-4">
-            <div className="space-y-2">
-              <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">Grade</p>
-              <div className="flex flex-wrap gap-2">
-                <FilterChip active={grade === ANY} onClick={() => setGrade(ANY)}>All</FilterChip>
-                {PAPER_GRADES.map((g) => (
-                  <FilterChip key={g} active={grade === g} onClick={() => setGrade(g)}>Grade {g}</FilterChip>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">Subject</p>
-              <div className="flex flex-wrap gap-2">
-                <FilterChip active={subject === ANY} onClick={() => setSubject(ANY)}>All</FilterChip>
-                {SUBJECT_FILTERS.map((s) => (
-                  <FilterChip key={s.id} active={subject === s.id} onClick={() => setSubject(s.id)}>
-                    {s.label}
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">Year</p>
-              <div className="flex flex-wrap gap-2">
-                <FilterChip active={year === ANY} onClick={() => setYear(ANY)}>All</FilterChip>
-                {(availableYears.length ? availableYears : [2025, 2024, 2023, 2022]).map((y) => (
-                  <FilterChip key={y} active={year === String(y)} onClick={() => setYear(String(y))}>{y}</FilterChip>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 pt-1 border-t theme-border">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setSortOpen((v) => !v)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold theme-text-muted hover:theme-text mt-2"
-                  aria-haspopup="listbox"
-                  aria-expanded={sortOpen}
-                >
-                  Sort by:{' '}
-                  <span className="theme-text font-black">{SORTS.find((s) => s.id === sort)?.label}</span>
-                  <ChevronDown size={14} strokeWidth={2.4} className={sortOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                </button>
-                {sortOpen && (
-                  <ul
-                    role="listbox"
-                    className="absolute left-0 top-full mt-1 z-10 theme-card border theme-border rounded-xl shadow-elev-md overflow-hidden min-w-[8rem]"
-                  >
-                    {SORTS.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={sort === s.id}
-                          onClick={() => { setSort(s.id); setSortOpen(false) }}
-                          className={`w-full text-left px-3 py-2 text-xs font-bold hover:theme-bg-subtle ${
-                            sort === s.id ? 'theme-accent-text' : 'theme-text'
-                          }`}
-                        >
-                          {s.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              {hasActiveFilter && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-xs font-bold theme-accent-text hover:underline mt-2"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
           </div>
         )}
 
