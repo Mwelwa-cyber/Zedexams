@@ -3162,9 +3162,15 @@ function SegControl({ label, value, onChange, options }) {
  * ================================================================== */
 function InstructionsBlock({ form, setF }) {
   const appendPreset = (text) => {
-    const current = form.coverInstructions.trim()
+    const current = (form.coverInstructions || '').trim()
     setF('coverInstructions', current ? `${current}\n${text}` : text)
   }
+  // A preset already sitting in the box shouldn't be appended again — clicking
+  // it twice used to silently duplicate the line. We mark it "added" instead,
+  // so the quick-add pills stay a one-tap, no-surprise affordance.
+  const presentLines = new Set(
+    (form.coverInstructions || '').split('\n').map(l => l.trim()).filter(Boolean),
+  )
   return (
     <div className="sv-block b-instr">
       <div className="sv-block-head">
@@ -3180,16 +3186,26 @@ Choose and circle the correct answer from the given options A, B, C, and D."
         />
       </div>
       <div className="sv-preset-row">
-        {INSTRUCTION_PRESETS.map(preset => (
-          <button
-            key={preset}
-            className="sv-preset-pill"
-            onClick={() => appendPreset(preset)}
-            type="button"
-          >
-            + {preset}
-          </button>
-        ))}
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sv-muted)', alignSelf: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Quick add
+        </span>
+        {INSTRUCTION_PRESETS.map(preset => {
+          const added = presentLines.has(preset)
+          return (
+            <button
+              key={preset}
+              className="sv-preset-pill"
+              onClick={() => { if (!added) appendPreset(preset) }}
+              disabled={added}
+              aria-pressed={added}
+              title={added ? 'Already in the instructions' : 'Add this line to the instructions'}
+              type="button"
+              style={added ? { opacity: 0.55, cursor: 'default' } : undefined}
+            >
+              {added ? '✓' : '+'} {preset}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -3297,6 +3313,30 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
     onUpdateSection(sectionIndex, s => ({
       ...s,
       passage: { ...s.passage, manualMarks: value },
+    }))
+  }
+
+  // Switch a sub-question between MCQ and short answer in place. Picking the
+  // wrong type used to mean delete-and-re-add; this resets only the answer
+  // fields that don't carry over so the switch is deliberate, not destructive.
+  function setQuestionType(qIndex, nextType) {
+    onUpdateSection(sectionIndex, s => ({
+      ...s,
+      passage: {
+        ...s.passage,
+        questions: s.passage.questions.map((q, i) => {
+          if (i !== qIndex) return q
+          if (nextType === 'mcq') {
+            return {
+              ...q,
+              type: 'mcq',
+              options: Array.isArray(q.options) && q.options.length ? q.options : ['', '', '', ''],
+              correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
+            }
+          }
+          return { ...q, type: 'short_answer', correctAnswer: typeof q.correctAnswer === 'string' ? q.correctAnswer : '' }
+        }),
+      },
     }))
   }
 
@@ -3458,7 +3498,15 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
           </div>
           <div className="sv-q-card-top">
             <div className="sv-q-num">{questionNumbers[question.localId] || qIndex + 1}.</div>
-            <div className="sv-q-type-tag mcq">{(question.type || 'mcq').toUpperCase()}</div>
+            <select
+              value={question.type === 'mcq' || !question.type ? 'mcq' : 'short_answer'}
+              onChange={e => setQuestionType(qIndex, e.target.value)}
+              title="Switch this sub-question between multiple choice and short answer"
+              style={{ background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '3px 8px', fontSize: 11.5 }}
+            >
+              <option value="mcq">Multiple choice</option>
+              <option value="short_answer">Short answer</option>
+            </select>
             <label className="sv-q-marks-input">
               marks
               <input
@@ -4702,6 +4750,11 @@ function FillBlanksInputs({ question, onUpdate }) {
       </div>
 
       {/* Statements */}
+      {statements.length === 0 && (
+        <div className="sv-empty-hint">
+          No statements yet — tap a number above for a quick set, or “+ Add statement” to write your own.
+        </div>
+      )}
       {statements.map((statement, index) => {
         const blanks = countBlanks(statement?.text ?? '')
         const answers = Array.isArray(statement?.answers) ? statement.answers : []
@@ -5159,6 +5212,9 @@ function MatchingInputs({ left, right, answer, onChangeLeft, onChangeRight, onCh
   return (
     <div className="sv-answer-lines">
       <div className="sv-answer-meta">🔗 Matching pairs — students draw lines from left to right on the printed paper</div>
+      <p className="sv-input-hint">
+        Type each prompt on the left and its option on the right, then pick the letter it pairs with under <strong>Match →</strong>. The marking key lists the correct pairs.
+      </p>
       <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 24px 1fr 90px 28px', gap: 6, alignItems: 'center', marginBottom: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
         <div></div>
         <div>Left (prompt)</div>
@@ -5288,6 +5344,9 @@ function SequenceInputs({ items, answer, onChangeItems, onChangeAnswer }) {
   return (
     <div className="sv-answer-lines">
       <div className="sv-answer-meta">🔤 Sequence — students write the correct position in the blanks on the printed paper</div>
+      <p className="sv-input-hint">
+        Type the items in any order, then set each one&apos;s <strong>correct position</strong> (1 = first). The paper prints them as typed; the key shows the right order.
+      </p>
       <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 28px', gap: 6, alignItems: 'center', marginBottom: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
         <div></div>
         <div>Item (as printed)</div>
@@ -5401,6 +5460,9 @@ function DataTableInputs({ tableData, onChange }) {
   return (
     <div className="sv-answer-lines" style={{ marginTop: 4 }}>
       <div className="sv-answer-meta">📊 Data table — students read values off this table to answer the question</div>
+      <p className="sv-input-hint">
+        Edit headers and cells directly; use <strong>+</strong> to add a column or row. The table prints above the question for students to read from.
+      </p>
       <div style={{ overflowX: 'auto', marginTop: 4 }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
@@ -5490,6 +5552,9 @@ function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, onChang
   return (
     <div className="sv-answer-lines">
       <div className="sv-answer-meta">🔢 Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
+      <p className="sv-input-hint">
+        Leave tolerance at <code>0</code> to mark only the exact value correct, or set e.g. <code>0.5</code> to accept answers within ±0.5. The unit is optional.
+      </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         <div className="sv-field">
           <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Expected value</label>
@@ -5576,6 +5641,12 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExp
         <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}>🗝 Marking key</button>
         <span className="sv-pages mono">📃 A4 · Portrait</span>
       </div>
+
+      {isKey && (
+        <div style={{ maxWidth: 720, margin: '0 auto var(--sv-s3)', padding: '8px 12px', borderRadius: 'var(--sv-r)', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', fontSize: 12.5, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
+          🗝 <strong style={{ color: 'var(--sv-text)' }}>Marking key</strong> — the answer and any explanation for every question. It&apos;s for you to mark from and is never shown to learners. Set or check answers back in the Builder.
+        </div>
+      )}
 
       <div className="sv-preview-shell">
         <div className="sv-paper">
@@ -6445,6 +6516,15 @@ function MapCompetenciesAction({ questions, questionNumbers, subjectLabel }) {
           )}
           {subjectId && (questions || []).length > 0 && (
             <>
+              <div>
+                <div className="sv-coverage-bar" title={`${coverageCount} of ${competencies.length} strands covered`}>
+                  <span style={{ width: `${competencies.length ? Math.round((coverageCount / competencies.length) * 100) : 0}%` }} />
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--sv-muted)' }}>
+                  {coverageCount} of {competencies.length} strands covered
+                  {(grouped.get('__unmapped__') || []).length > 0 && ` · ${(grouped.get('__unmapped__') || []).length} unmapped`}
+                </div>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
                 Each question is matched to a CBC strand by keywords in its text and topic. Review and reassign as needed — this is a heuristic, not a verdict.
               </div>
