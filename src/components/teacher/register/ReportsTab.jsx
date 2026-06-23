@@ -10,9 +10,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { listRecords } from '../../../utils/classRecords'
-import { classGradeShortLabel } from '../../../schemas/classRegister'
 import { filterRecordsByPeriod } from '../../../utils/classTerms'
-import { buildSchedule } from '../../../utils/markSchedule'
+import { recordToSchedule } from '../../../utils/classRecordExport'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
@@ -20,27 +19,6 @@ import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import Skeleton from '../../ui/Skeleton'
 import TermPeriodFilter from './TermPeriodFilter'
-
-/** Adapt a stored record + its class into the exporters' `schedule` shape. */
-export function recordToSchedule(record, register) {
-  const subjects = (record.columns || []).map((c) => ({ key: c.key, label: c.label, max: Number(c.max) || 0 }))
-  const pupilsIn = (record.rosterSnapshot || []).map((s, i) => ({
-    sn: i + 1,
-    name: s.fullName || '',
-    marks: (record.marks && record.marks[s.rosterId]) || {},
-  }))
-  const pupils = buildSchedule(pupilsIn, subjects) // adds total, position, comment
-  return {
-    header: {
-      school: register.school || '',
-      grade: register.grade ? classGradeShortLabel(register.grade) : '',
-      term: record.term || register.term || '',
-      year: record.year || register.year || '',
-    },
-    subjects,
-    pupils,
-  }
-}
 
 function safeName(s) {
   return String(s || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'class'

@@ -10,7 +10,7 @@
 
 import { z } from 'zod'
 
-const RECORD_TYPES = ['assessment', 'sba', 'mark_schedule']
+const RECORD_TYPES = ['assessment', 'sba', 'sba_final', 'mark_schedule']
 
 const columnSchema = z.object({
   key: z.string().min(1).max(60),

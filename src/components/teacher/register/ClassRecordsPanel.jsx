@@ -29,6 +29,8 @@ export default function ClassRecordsPanel({
   emptyText = 'Create one — every learner on the class list is added automatically.',
   describeRecord,
   renderCreate,
+  // SBA records span the whole year, so that tab opts out of term filtering.
+  periodScoped = true,
 }) {
   const classId = register.id
   const toast = useToast()
@@ -42,16 +44,17 @@ export default function ClassRecordsPanel({
 
   const currentPeriod = { term: register.term, year: register.year }
   const visibleRecords = useMemo(
-    () => filterRecordsByPeriod(records, viewPeriod, currentPeriod),
-    [records, viewPeriod, currentPeriod.term, currentPeriod.year], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (periodScoped ? filterRecordsByPeriod(records, viewPeriod, currentPeriod) : records),
+    [records, viewPeriod, currentPeriod.term, currentPeriod.year, periodScoped], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   async function refresh() {
     setLoading(true)
     try {
-      const [r, recs] = await Promise.all([listRoster(classId), listRecords(classId, { type })])
+      const types = Array.isArray(type) ? type : [type]
+      const [r, all] = await Promise.all([listRoster(classId), listRecords(classId)])
       setRoster(r)
-      setRecords(recs)
+      setRecords(all.filter((rec) => types.includes(rec.type)))
     } catch (err) {
       console.warn('[ClassRecordsPanel] load failed', err)
     } finally {
@@ -59,7 +62,9 @@ export default function ClassRecordsPanel({
     }
   }
 
-  useEffect(() => { refresh() }, [classId, type]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Key on a string so passing `type` as a fresh array literal can't loop.
+  const typeKey = Array.isArray(type) ? type.join(',') : type
+  useEffect(() => { refresh() }, [classId, typeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function openGrid(recordId) {
     try {
@@ -104,7 +109,7 @@ export default function ClassRecordsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="theme-text-muted text-sm">{intro}</p>
         <div className="flex items-center gap-3">
-          {records.length > 0 && (
+          {periodScoped && records.length > 0 && (
             <TermPeriodFilter records={records} value={viewPeriod} onChange={setViewPeriod} currentPeriod={currentPeriod} />
           )}
           {!creating && <Button size="sm" onClick={() => setCreating(true)}>{newLabel}</Button>}
@@ -114,6 +119,7 @@ export default function ClassRecordsPanel({
       {creating && renderCreate({
         register,
         roster,
+        records,
         onCreated: (id) => { setCreating(false); openGrid(id) },
         onCancel: () => setCreating(false),
       })}

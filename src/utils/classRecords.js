@@ -44,13 +44,16 @@ function recordDoc(classId, recordId) {
 export async function createRecordFromRoster({
   classId, teacherUid, type, title, subject = null, term = '', year,
   assessmentType = '', sourceAssessmentId = null, columns = [], roster = [],
+  // Optional pre-seeded marks keyed by rosterId (e.g. the Final SBA G7 column
+  // pre-filled from this class's year-long SBA record).
+  marks = {},
 }) {
   const snapshot = snapshotFromRoster(roster)
-  const { stats } = computeRecord({ snapshot, columns, marks: {} })
+  const { stats } = computeRecord({ snapshot, columns, marks })
   const payload = classRecordWriteSchema.parse({
     classId, teacherUid, type, title, subject, term, year,
     assessmentType, sourceAssessmentId, columns,
-    rosterSnapshot: snapshot, marks: {}, stats,
+    rosterSnapshot: snapshot, marks, stats,
   })
   const now = serverTimestamp()
   const ref = await addDoc(recordsCol(classId), { ...payload, createdAt: now, updatedAt: now })
