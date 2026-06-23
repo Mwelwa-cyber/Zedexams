@@ -22,6 +22,7 @@ import ClassTimetableView from '../views/ClassTimetableView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SbaTaskView from '../views/SbaTaskView'
+import LessonActivitiesView from '../views/LessonActivitiesView'
 import SbaTrackerView from '../views/SbaTrackerView'
 import SbaPlanView from '../views/SbaPlanView'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -42,6 +43,7 @@ import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { downloadLessonActivitiesDocx } from '../../../utils/activityToDocx'
 import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
 import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
@@ -64,6 +66,7 @@ const TOOL_DOC_TYPES = {
   sba_task: 'SBA Task',
   sba_mark_sheet: 'SBA Mark Schedule',
   sba_plan: 'SBA Year Plan',
+  lesson_activities: 'Exercise & Homework',
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
@@ -253,6 +256,12 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'notes') {
       await downloadNotesDocx(item.output, name())
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'lesson_activities') {
+      await downloadLessonActivitiesDocx(item.output, name(), {
+        includeAnswers: true,
+        includeModelAnswers: true,
+      })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'mark_schedule') {
       await downloadMarkScheduleDocx(item.output, name(), { mode: showPercents ? 'percent' : 'marks' })
@@ -448,7 +457,7 @@ export default function LibraryItemDetail() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            {item.tool === 'worksheet' && (
+            {(item.tool === 'worksheet' || item.tool === 'lesson_activities') && (
               <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
                 <input
                   type="checkbox"
@@ -695,6 +704,9 @@ export default function LibraryItemDetail() {
               showAnswers
               schoolName={item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || ''}
             />
+          )}
+          {item.tool === 'lesson_activities' && item.output && (
+            <LessonActivitiesView activities={item.output} showAnswers={showAnswers} />
           )}
           {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
           {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
