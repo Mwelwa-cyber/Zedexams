@@ -346,7 +346,7 @@ export default function PastPaperViewer() {
       <SeoHelmet
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
-        path={`/papers/${paperId}`}
+        path={`/papers/${paperId}${paper.slug ? `/${paper.slug}` : ''}`}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'LearningResource',

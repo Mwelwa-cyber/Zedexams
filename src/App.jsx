@@ -444,6 +444,12 @@ export default function App() {
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* SEO-friendly slug URL (/papers/:id/grade-7-mathematics-2023).
+              The viewer reads :paperId only; the static /practice + /quiz
+              routes below outrank :slug in React Router's specificity ranking,
+              so they still win. The bare /papers/:paperId route stays valid for
+              back-compat and old links. */}
+          <Route path="/papers/:paperId/:slug" element={<PastPaperViewer />} />
           {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
               the component so the redirect carries the original target. */}
           <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />

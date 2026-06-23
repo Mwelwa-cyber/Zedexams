@@ -30,6 +30,7 @@ const full = lightEntry("p1", {
   specimen: false,
   examBoard: "ECZ",
   paperNumber: 1,
+  slug: "grade-7-mathematics-2023-paper-1",
   // heavy / irrelevant fields that must NOT leak into the index:
   assets: [{path: "a"}, {path: "b"}],
   views: 999,
@@ -42,6 +43,8 @@ ok("lightEntry keeps grade as string", full.grade === "7");
 ok("lightEntry keeps year as number", full.year === 2023);
 ok("lightEntry keeps quizId", full.quizId === "q1");
 ok("lightEntry keeps paperNumber", full.paperNumber === 1);
+ok("lightEntry keeps slug when present",
+  full.slug === "grade-7-mathematics-2023-paper-1");
 ok("lightEntry drops assets", !("assets" in full));
 ok("lightEntry drops views/downloads",
   !("views" in full) && !("downloads" in full));
@@ -54,6 +57,7 @@ ok("lightEntry coerces numeric grade to string", sparse.grade === "12");
 ok("lightEntry nulls non-numeric year", sparse.year === null);
 ok("lightEntry defaults examBoard to ECZ", sparse.examBoard === "ECZ");
 ok("lightEntry omits absent paperNumber", !("paperNumber" in sparse));
+ok("lightEntry omits absent slug", !("slug" in sparse));
 ok("lightEntry defaults specimen to false", sparse.specimen === false);
 
 // ── lightSignature: change detection drives the rebuild guard ────────────
@@ -83,6 +87,11 @@ ok("status flip changes signature",
 // Linking a quiz → rebuild (the hub shows a "Quiz available" badge).
 ok("quizId change changes signature",
   lightSignature(published) !== lightSignature({...published, quizId: "q9"}));
+
+// A doc gaining/changing its SEO slug → rebuild, so the archive picks it up.
+ok("slug change changes signature",
+  lightSignature(published) !==
+    lightSignature({...published, slug: "grade-7-english-2024"}));
 
 // Null/absent doc (create or delete edges) is stable + distinct from data.
 ok("absent doc signature is stable",

@@ -256,7 +256,7 @@ function PaperCard({ paper, saved, onToggleSave, onOpen, featured = false }) {
           </Link>
         )}
         <Link
-          to={`/papers/${paper.id}`}
+          to={paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`}
           onClick={() => onOpen(paper.id)}
           className={`inline-flex items-center justify-center gap-1.5 rounded-full border-2 theme-border theme-text text-sm font-bold px-4 py-2.5 hover:theme-bg-subtle active:scale-95 transition ${
             hasQuiz ? '' : 'flex-1'

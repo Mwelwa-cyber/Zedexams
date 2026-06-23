@@ -111,6 +111,7 @@
     "test:assessment-schema": "node functions/teacherTools/assessmentSchema.test.js",
     "test:assessment-shapes": "node scripts/test-assessment-shapes.mjs",
     "test:paper-taxonomy": "node scripts/test-paper-taxonomy.mjs",
+    "test:past-paper-normalize": "node scripts/test-past-paper-normalize.mjs",
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
     "test:lesson-plan-docx-client": "node src/utils/lessonPlanToDocx.test.js",

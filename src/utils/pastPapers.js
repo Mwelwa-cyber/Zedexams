@@ -34,6 +34,7 @@ import {
 } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
+import { normalizePaperFields } from './pastPaperNormalize.js'
 
 // Grade 9 ECZ exams were phased out, so the public archive only
 // surfaces Grade 7 and Grade 12 papers. Any legacy Grade 9 docs that
@@ -338,10 +339,14 @@ export async function deletePaperPdf(path) {
 
 export async function createPaper({ uid, fields }) {
   const now = serverTimestamp()
+  // Single normalization pipeline (grade / subject / title casing / examBoard /
+  // year / paperNumber + derived slug) so every paper lands with consistent,
+  // query-matchable metadata regardless of what the admin typed.
+  const norm = normalizePaperFields(fields)
   const docRef = await addDoc(collection(db, COLLECTION), {
-    ...fields,
-    examBoard: fields.examBoard || 'ECZ',
-    status: fields.status || PAPER_STATUSES.DRAFT,
+    ...norm,
+    examBoard: norm.examBoard || 'ECZ',
+    status: norm.status || PAPER_STATUSES.DRAFT,
     views: 0,
     downloads: 0,
     uploadedBy: uid,
@@ -352,8 +357,11 @@ export async function createPaper({ uid, fields }) {
 }
 
 export async function updatePaper(paperId, fields) {
+  // Run edits through the same pipeline. normalizePaperFields only touches keys
+  // that are present, so a status-only update never clobbers title/grade/etc.,
+  // and the slug is re-derived whenever grade + subject + year are all in play.
   await updateDoc(doc(db, COLLECTION, paperId), {
-    ...fields,
+    ...normalizePaperFields(fields),
     updatedAt: serverTimestamp(),
   })
 }
