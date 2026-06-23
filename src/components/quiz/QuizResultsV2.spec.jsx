@@ -72,7 +72,7 @@ function renderResults() {
   return render(<MemoryRouter><QuizResultsV2 /></MemoryRouter>)
 }
 
-beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => { vi.clearAllMocks(); vi.unstubAllGlobals() })
 
 describe('QuizResultsV2 — pass-state celebration', () => {
   it('shows the confetti burst when the learner passes (well above the mark)', async () => {
@@ -97,15 +97,11 @@ describe('QuizResultsV2 — pass-state celebration', () => {
   })
 
   it('skips the celebration when the learner prefers reduced motion', async () => {
-    const original = window.matchMedia
-    window.matchMedia = vi.fn().mockReturnValue({ matches: true })
-    try {
-      setupResult(90)
-      renderResults()
-      await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
-      expect(screen.queryByText(CONFETTI_MARKER)).not.toBeInTheDocument()
-    } finally {
-      window.matchMedia = original
-    }
+    // Stubbed global is auto-restored by vi.unstubAllGlobals() in beforeEach.
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    setupResult(90)
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
+    expect(screen.queryByText(CONFETTI_MARKER)).not.toBeInTheDocument()
   })
 })

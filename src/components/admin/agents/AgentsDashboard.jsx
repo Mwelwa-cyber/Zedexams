@@ -170,8 +170,8 @@ function computeVerdict(jobs) {
 
 const VERDICT_STYLE = {
   idle:    { badge: 'bg-sky-500/15 text-sky-300 ring-sky-500/30',         dot: 'bg-sky-400',     banner: 'border-sky-500/30 bg-sky-500/10 text-sky-100' },
-  active:  { badge: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',      dot: 'bg-blue-400 animate-pulse', banner: 'border-blue-500/30 bg-blue-500/10 text-blue-100' },
-  healthy: { badge: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30', dot: 'bg-emerald-400 animate-pulse', banner: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' },
+  active:  { badge: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',      dot: 'bg-blue-400 text-blue-400 animate-live-dot', banner: 'border-blue-500/30 bg-blue-500/10 text-blue-100' },
+  healthy: { badge: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30', dot: 'bg-emerald-400 text-emerald-400 animate-live-dot', banner: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' },
   failing: { badge: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',      dot: 'bg-rose-400',    banner: 'border-rose-500/30 bg-rose-500/10 text-rose-100' },
 }
 
@@ -297,9 +297,9 @@ function PipelineFlow({ jobs }) {
               >
                 <span
                   className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-[10px] sm:text-xs font-black text-slate-900 ${
-                    active ? 'animate-pulse' : ''
+                    active ? 'animate-live-dot' : ''
                   }`}
-                  style={{ backgroundColor: dot }}
+                  style={{ backgroundColor: dot, '--live-ring': dot }}
                 >
                   {phase.emoji}
                 </span>

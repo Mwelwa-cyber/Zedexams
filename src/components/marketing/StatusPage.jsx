@@ -32,7 +32,7 @@ function StatusDot({ status }) {
   const cls = {
     ok:       'bg-emerald-500',
     down:     'bg-rose-500',
-    checking: 'bg-amber-400 animate-pulse',
+    checking: 'bg-amber-400 text-amber-400 animate-live-dot',
   }[status]
   return <span aria-hidden="true" className={`inline-block w-3 h-3 rounded-full ${cls}`} />
 }

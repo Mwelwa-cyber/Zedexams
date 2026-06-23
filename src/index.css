@@ -3163,6 +3163,15 @@ select option {
 /* Gentle score-circle settle — scales in 0.9 → 1.0 over the same 1s the
    results stroke takes to draw, so the ring and the number arrive together. */
 @keyframes score-draw   { 0% { transform:scale(0.9) } 100% { transform:scale(1) } }
+/* Countdown urgency — a quick scale "heartbeat" for a timer that's running
+   out. Reads as hurry far better than the old flat opacity flash. */
+@keyframes timer-urgent { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+/* Live-status ping — an expanding, fading ring around a status dot, the
+   classic "this is live" radar pulse. Ring colour comes from `--live-ring`
+   (defaults to the element's own currentColor). */
+@keyframes live-dot     { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--live-ring, currentColor) 55%, transparent) } 100% { box-shadow:0 0 0 6px color-mix(in srgb, var(--live-ring, currentColor) 0%, transparent) } }
+/* Typing dot — a soft bounce for the "Zed is typing…" indicator. */
+@keyframes typing-dot   { 0%,80%,100% { transform:translateY(0);opacity:0.4 } 40% { transform:translateY(-3px);opacity:1 } }
 
 /* Phase 0 — shimmer sweep replaces animate-pulse on skeletons */
 @keyframes shimmer      { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
@@ -3255,8 +3264,15 @@ body.data-saver [data-bg-gradient] {
 .animate-pulse-green{ animation: pulse-green 1.5s ease-out; }
 .animate-star-burst { animation: star-burst 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both; }
 .animate-score-draw { animation: score-draw 1s var(--ease-out) both; }
+.animate-timer-urgent { animation: timer-urgent 0.85s var(--ease-in-out) infinite; }
+.animate-live-dot   { animation: live-dot 1.6s var(--ease-out) infinite; }
+.animate-typing-dot { animation: typing-dot 1.2s var(--ease-in-out) infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .animate-score-draw { animation: none; }
+  .animate-score-draw,
+  .animate-timer-urgent,
+  .animate-live-dot { animation: none; }
+  /* Keep the typing dots visible (not mid-bounce-transparent) at rest. */
+  .animate-typing-dot { animation: none; opacity: 0.6; }
 }
 
 /* Phase 0 — shimmer: applies a sweeping gradient; element must be
