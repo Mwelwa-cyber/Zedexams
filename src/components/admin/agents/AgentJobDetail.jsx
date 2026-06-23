@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
@@ -8,7 +8,8 @@ import { AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import Button from '../../ui/Button'
-import { CalaOutput, isAuditSummary } from './CbcAlignmentCard'
+import { isAuditSummary } from './CbcAlignmentCard'
+import AgentOutput, { ReadablePanel } from './AgentOutputCards'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
@@ -330,8 +331,6 @@ export default function AgentJobDetail() {
     return () => unsub()
   }, [jobId])
 
-  const alignment = useMemo(() => job?.output?.cala || null, [job])
-
   if (loading) return <Skeleton height={400} className="!rounded-2xl" />
 
   if (error) {
@@ -425,8 +424,6 @@ export default function AgentJobDetail() {
         </div>
       )}
 
-      {alignment && <CalaOutput alignment={alignment} />}
-
       {job.overrideReason && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-xs font-black uppercase tracking-wide text-amber-800 mb-1">
@@ -436,14 +433,21 @@ export default function AgentJobDetail() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <JsonBlock label="Input"  value={job.input} />
-        <JsonBlock label="Raw output" value={job.output} defaultOpen={false} />
-      </div>
+      {job.input && <ReadablePanel label="Input / brief" value={job.input} />}
+
+      <AgentOutput output={job.output} />
 
       {job.publishedRefs?.length > 0 && (
-        <JsonBlock label="Published refs" value={job.publishedRefs} />
+        <ReadablePanel label="Published refs" value={job.publishedRefs} />
       )}
+
+      {/* Raw document stays available for debugging, but collapsed and out
+          of the way — the readable cards above are the default view. */}
+      <JsonBlock
+        label="Raw job data (advanced)"
+        value={{ input: job.input, output: job.output }}
+        defaultOpen={false}
+      />
     </div>
   )
 }
