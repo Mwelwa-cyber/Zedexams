@@ -258,6 +258,7 @@ const {createNoteAiHandlers} = require("./notes/noteAiHandlers");
 const {createShortAnswerHandlers} = require("./ai/shortAnswerHandlers");
 const {createQuizImportHandlers} = require("./quiz/importHandlers");
 const {createUserAccessHandlers} = require("./auth/userAccessHandlers");
+const {createDawnHandlers} = require("./agents/dawnHandlers");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
@@ -533,84 +534,13 @@ exports.resendInvoiceEmail = adminNotificationHandlers.resendInvoiceEmail;
 exports.sendActivationConfirmation = adminNotificationHandlers.sendActivationConfirmation;
 exports.sendExpiryReminders = adminNotificationHandlers.sendExpiryReminders;
 
-// Dawn — launch the on-demand "morning briefing" Managed Agent from the admin
-// UI instead of a laptop script. This callable only STARTS the run (a couple of
-// fast API calls) and returns the session id; the deliverDawnBriefings poller
-// (functions/agents/cron.js) collects the briefing ~10 min later, emails it, and
-// saves it onto dawnRuns/{sessionId} for the panel to render. The Anthropic key
-// stays a server secret — it never reaches the browser. Config (the agent /
-// environment / vault ids + the recipient email) lives in dawnConfig/default,
-// set once from the same panel; we never put those in client code.
-exports.runDawnBriefing = onCall({
-  region: "us-central1",
-  timeoutSeconds: 60,
-  memory: "256MiB",
-  secrets: [anthropicApiKey],
-}, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
-
-  const db = admin.firestore();
-  const callerSnap = await db.collection("users").doc(uid).get();
-  const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
-  if (role !== "admin" && role !== "superAdmin") {
-    throw new HttpsError("permission-denied", "Admin only.");
-  }
-
-  // One in-flight run at a time — a second "Run Dawn now" while one is still
-  // working would just burn agent budget on a duplicate briefing.
-  const inFlight = await db.collection("dawnRuns")
-      .where("status", "==", "running")
-      .limit(1)
-      .get();
-  if (!inFlight.empty) {
-    throw new HttpsError(
-        "already-exists",
-        "Dawn is already working on a briefing — it'll arrive shortly.",
-    );
-  }
-
-  const cfgSnap = await db.collection("dawnConfig").doc("default").get();
-  const cfg = cfgSnap.exists ? (cfgSnap.data() || {}) : {};
-  const agentId = String(cfg.agentId || "").trim();
-  const envId = String(cfg.envId || "").trim();
-  const vaultId = String(cfg.vaultId || "").trim();
-  const toEmail = String(cfg.toEmail || "").trim();
-  if (!agentId || !envId) {
-    throw new HttpsError(
-        "failed-precondition",
-        "Dawn isn't configured yet. Add the agent and environment ids " +
-        "(from your launch) in the Dawn panel first.",
-    );
-  }
-
-  const apiKey = (anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "").trim();
-  if (!apiKey) {
-    throw new HttpsError("failed-precondition", "Anthropic API key is not configured.");
-  }
-
-  const {startBriefingRun} = require("./agents/runners/dawn");
-  let sessionId;
-  try {
-    sessionId = await startBriefingRun({fetchImpl: fetch, apiKey, agentId, envId, vaultId});
-  } catch (err) {
-    throw new HttpsError(
-        "internal",
-        `Couldn't start Dawn: ${String(err && err.message || err).slice(0, 300)}`,
-    );
-  }
-
-  await db.collection("dawnRuns").doc(sessionId).set({
-    sessionId,
-    status: "running",
-    requestedBy: uid,
-    requestedByEmail: callerSnap.data()?.email || null,
-    toEmail: toEmail || null,
-    startedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  return {sessionId, status: "running", toEmail: toEmail || null};
+const dawnHandlers = createDawnHandlers({
+  onCall,
+  HttpsError,
+  admin,
+  anthropicApiKey,
 });
+exports.runDawnBriefing = dawnHandlers.runDawnBriefing;
 
 // Zed chat SSE transport — OpenAI-backed (see aiChat above for the model note).
 exports.apiAiChat = onRequest(
