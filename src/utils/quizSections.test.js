@@ -31,9 +31,19 @@ function runPassageShortAnswerRoundTripTest() {
     'short-answer sub-question carries no options')
 
   // Reopen the saved paper — the short-answer must come back as short_answer.
+  // The passage's stimulus text is what the learner reads in the runner; a
+  // dropped passageText is the "English quiz lost its passage" failure. Pin
+  // it through both halves of the round-trip.
+  const serializedPassage = serialized.passages.find(p => p.title === 'Comprehension')
+  assert(serializedPassage, 'passage serializes into passages[]')
+  assert.equal(serializedPassage.passageText, 'Once upon a time…',
+    'passageText must survive serialization')
+
   const { sections } = hydrateQuizSections(serialized.questions, serialized.passages, [], [])
   const reopened = sections.find(s => s.kind === 'passage')
   assert(reopened, 'passage section round-trips')
+  assert.equal(reopened.passage.passageText, 'Once upon a time…',
+    'passageText must survive serialize → hydrate (reopen) round-trip')
   const reopenedShort = reopened.passage.questions.find(q => q.type === 'short_answer')
   assert(reopenedShort, 'short-answer sub-question reopens as short_answer, not mcq')
   assert.equal(typeof reopenedShort.correctAnswer, 'string',

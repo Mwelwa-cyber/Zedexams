@@ -10,6 +10,7 @@ const assert = require("node:assert");
 const {
   parseStoragePathFromUrl,
   collectQuestionImagePaths,
+  collectLivePathsFromQuestions,
   collectLessonPaths,
   collectLessonPrefixes,
   collectPaperPaths,
@@ -131,6 +132,55 @@ eq("collects passage-level imageUrl",
     },
   }, BUCKET),
   ["passage.png"]);
+
+console.log("\ncollectLivePathsFromQuestions (sibling-reference guard)");
+
+const urlFor = (name) =>
+  `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/` +
+  `quiz-images%2Fuid%2F${name}?alt=media&token=x`;
+
+eq("unions paths across sibling questions, deduped",
+  [...collectLivePathsFromQuestions([
+    {imageUrl: urlFor("a.png")},
+    {optionMedia: [{imageUrl: urlFor("b.png")}]},
+    {imageUrl: urlFor("a.png")}, // duplicate ref to a.png
+    null,
+  ], BUCKET)].sort(),
+  ["quiz-images/uid/a.png", "quiz-images/uid/b.png"]);
+
+eq("empty for no siblings / all text-only",
+  [...collectLivePathsFromQuestions(
+    [null, {options: ["x"]}, {}], BUCKET)],
+  []);
+
+// The regression this whole change exists for: a duplicate question doc is
+// deleted, but the SURVIVING sibling still references the same blob — so the
+// shared image must NOT be deleted. The trigger computes
+// `candidatePaths.filter((p) => !live.has(p))`; assert that filter is empty
+// when the survivor keeps the path.
+{
+  const shared = urlFor("shared-figure.png");
+  const deletedDoc = {imageUrl: shared};
+  const survivingSibling = {imageUrl: shared};
+  const candidates = collectQuestionImagePaths(deletedDoc, BUCKET);
+  const live = collectLivePathsFromQuestions([survivingSibling], BUCKET);
+  const toDelete = candidates.filter((p) => !live.has(p));
+  eq("shared image is KEPT when a sibling still references it",
+    toDelete, []);
+}
+
+// Control: a blob referenced ONLY by the deleted question (no sibling holds it)
+// is still collected for deletion.
+{
+  const orphanOnly = urlFor("only-here.png");
+  const deletedDoc = {imageUrl: orphanOnly};
+  const survivingSibling = {imageUrl: urlFor("different.png")};
+  const candidates = collectQuestionImagePaths(deletedDoc, BUCKET);
+  const live = collectLivePathsFromQuestions([survivingSibling], BUCKET);
+  const toDelete = candidates.filter((p) => !live.has(p));
+  eq("unshared image is still deleted",
+    toDelete, ["quiz-images/uid/only-here.png"]);
+}
 
 console.log("\ncollectLessonPaths + collectLessonPrefixes");
 
