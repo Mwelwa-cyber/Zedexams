@@ -84,6 +84,43 @@ jobs:
       - name: Vitest
         run: npm run test:coverage
 
+  build:
+    # Clean build gate (release-safety layer). The pre-merge guarantee that the
+    # Vite frontend actually compiles AND the core public routes render on a
+    # phone — caught here before merge, not post-merge in deploy-hosting.yml.
+    #
+    #   • Build: `vite build --mode smoke` runs the full production build
+    #     pipeline with the FAKE public Firebase config in .env.smoke (web
+    #     config is non-secret; it ships in every browser bundle). No repo
+    #     secrets are needed, so this gate runs on forked-PR builds too.
+    #   • Mobile smoke: boots the build in a phone-sized headless Chromium and
+    #     asserts /, /login, /register, /papers, /pricing each paint real
+    #     content with no crash card, uncaught error, or horizontal overflow.
+    #
+    # Make this a required status check on `main` branch protection to block a
+    # merge that breaks the build or a public route.
+    name: Build + mobile smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # Override the workflow-level skip: this job is the one that DOES need the
+    # puppeteer Chromium (the smoke drives a real browser).
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (smoke mode — fake public Firebase config)
+        run: npm run smoke:build
+      - name: Mobile smoke (public routes)
+        run: npm run smoke:mobile
+
   rules-emulator:
     # Behavioural Firestore-rules tests. Kept as a separate job because
     # they need the Firestore emulator (JVM) — that's why they can't sit
