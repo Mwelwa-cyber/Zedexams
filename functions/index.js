@@ -256,6 +256,7 @@ const {createAdminNotificationHandlers} = require("./subscriptions/adminNotifica
 const {createDemoTrialsHandlers} = require("./subscriptions/demoTrialsHandlers");
 const {createNoteAiHandlers} = require("./notes/noteAiHandlers");
 const {createShortAnswerHandlers} = require("./ai/shortAnswerHandlers");
+const {createQuizImportHandlers} = require("./quiz/importHandlers");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
@@ -1317,238 +1318,34 @@ exports.verifyQuiz = onCall(
   },
 );
 
-exports.structureImportedQuiz = onCall(
-  {
-    secrets: [anthropicApiKey, geminiApiKey],
-    region: "us-central1",
-    timeoutSeconds: 90, // pipeline calls two models; allow extra headroom
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "structureImportedQuiz");
-
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only teachers and admins can use smart quiz import.",
-      );
-    }
-
-    const fileName = cleanAiString(
-      request.data?.fileName,
-      LIMITS.importFileName,
-    );
-    const documentText = cleanAiString(
-      request.data?.documentText,
-      LIMITS.importDocumentText,
-    );
-    const localDraft = cleanAiString(
-      request.data?.localDraft,
-      LIMITS.importLocalDraft,
-    );
-
-    if (!documentText || documentText.length < 120) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Not enough document text was available for smart import.",
-      );
-    }
-
-    await assertDailyLimit(request.auth.uid, role, "smartImport");
-
-    // Pipeline (when GEMINI_API_KEY is present):
-    //   Step 1 — Gemini 2.5 Flash ingests the full document (1M context)
-    //            and emits rough question candidates as JSON.
-    //   Step 2 — Claude refines those candidates into the final CBC-
-    //            aligned shape using the existing system prompt.
-    //
-    // Fallback (when GEMINI_API_KEY is missing):
-    //   Skip step 1 entirely; Claude reads the raw document directly
-    //   exactly as it always has. This means the feature keeps working
-    //   without the new secret being rotated in.
-    const geminiKey = geminiApiKey.value() || process.env.GEMINI_API_KEY || "";
-    let claudeInputDocument = documentText;
-    let claudeInputHint = localDraft;
-    if (geminiKey) {
-      try {
-        const geminiText = await callGemini(geminiKey, {
-          systemPrompt: [
-            "You are a document scanner for the ZedExams smart-import pipeline.",
-            "Read the raw exam document below and emit a STRUCTURED JSON list",
-            "of every question you can find, in the order they appear.",
-            "Prefer recall over precision — include any uncertain candidates;",
-            "a downstream CBC reviewer will refine and drop bad ones.",
-            "For each question, group passages with their child questions.",
-            "Preserve mathematics and tables with this markup (do not flatten",
-            "them to prose or placeholders): fractions as \\frac{3}{4} (mixed:",
-            "1\\frac{1}{3}); other inline maths wrapped in $...$ e.g. $\\sqrt{49}$,",
-            "$x^2$; vertical/column arithmetic as one token on its own line",
-            "[[vmath op=- lines=954751,362948 answer=]] (op = + - * /, lines are",
-            "the operands top-to-bottom); and any table as a GitHub-style",
-            "Markdown table (header row, |---| separator, then data rows).",
-            "Do NOT invent questions or answers. Return only the JSON object",
-            "described below — no markdown fences, no preamble.",
-          ].join(" "),
-          userPrompt: [
-            fileName ? `File name: ${fileName}` : "",
-            "",
-            "Raw document text:",
-            documentText,
-            "",
-            "Return JSON in this shape:",
-            "{\"candidates\":[",
-            "  {\"sourceQuestionNumber\":1,\"text\":\"...\",\"options\":[\"\",\"\",\"\",\"\"],",
-            "   \"correctAnswer\":\"\",\"explanation\":\"\",\"passageTitle\":\"\",",
-            "   \"passageText\":\"\"}",
-            "]}",
-          ].filter(Boolean).join("\n"),
-          maxTokens: 6000,
-          temperature: 0.1,
-          responseJson: true,
-        });
-        // Pass Gemini's structured extraction to Claude as the
-        // localDraft hint, alongside the original raw text. Claude sees
-        // both and can correct any mistakes the first pass made.
-        claudeInputHint = `Pre-structured extraction (use to anchor question grouping, but verify against the raw document above): ${geminiText.slice(0, 60000)}`;
-        // Defensive: if Gemini's output is empty/blank we keep the
-        // hint as the original localDraft.
-        if (!geminiText.trim()) claudeInputHint = localDraft;
-      } catch (geminiErr) {
-        // Pipeline failure: fall back to single-pass Claude rather
-        // than failing the whole import. Log so we notice if Gemini
-        // is consistently misbehaving.
-        console.warn("structureImportedQuiz: Gemini step failed, falling back to Claude-only", {
-          message: geminiErr?.message?.slice(0, 200),
-        });
-      }
-    }
-
-    const {systemPrompt, messages} = toAnthropicShape(buildImportStructureMessages({
-      fileName,
-      documentText: claudeInputDocument,
-      localDraft: claudeInputHint,
-    }));
-    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
-      systemPrompt,
-      messages,
-      // 8000 tokens (~30K chars) comfortably fits a 16-question past paper
-      // with options, passages, and per-question explanations. 4000 used to
-      // truncate the JSON mid-array, which is why parseStructuredImport
-      // failed with "The smart import response could not be read."
-      maxTokens: 8000,
-      temperature: 0.2,
-      json: true,
-      track: {uid: request.auth.uid, tool: "structureImportedQuiz"},
-    });
-
-    return parseStructuredImport(raw);
-  },
-);
-
-// Scanned past-paper import for the Quiz Editor. The client rasterises an
-// image-only PDF into page images and sends them here in batches; each call
-// runs the dual-model OCR pipeline (Claude vision primary + Gemini assist)
-// and returns blank-answer MCQs flagged for review. Higher memory + timeout
-// than structureImportedQuiz because page images are large and vision is slow.
-exports.structureScannedQuiz = onCall(
-  {
-    secrets: [anthropicApiKey, geminiApiKey],
-    region: "us-central1",
-    timeoutSeconds: 240,
-    memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "structureScannedQuiz");
-
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only teachers and admins can import scanned papers.",
-      );
-    }
-
-    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
-    if (!pages.length) {
-      throw new HttpsError(
-        "invalid-argument",
-        "No page images were supplied for scanned import.",
-      );
-    }
-
-    // Counts as one AI action per page batch (same meter as smart import).
-    await assertDailyLimit(request.auth.uid, role, "scannedImport");
-
-    return runScannedQuizImport({
-      pages,
-      fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
-      subjectHint: cleanAiString(request.data?.subjectHint, 80),
-      gradeHint: cleanAiString(request.data?.gradeHint, 20),
-      anthropicKey: getAnthropicApiKey(anthropicApiKey),
-      geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
-      uid: request.auth.uid,
-    });
-  },
-);
+const quizImportHandlers = createQuizImportHandlers({
+  onCall,
+  HttpsError,
+  anthropicApiKey,
+  geminiApiKey,
+  appCheckEnforceCallable: APPCHECK_ENFORCE_CALLABLE,
+  recordAppCheckCallable,
+  getUserRole,
+  isStaffRole,
+  assertDailyLimit,
+  cleanAiString,
+  LIMITS,
+  callGemini,
+  buildImportStructureMessages,
+  toAnthropicShape,
+  callAnthropic,
+  getAnthropicApiKey,
+  parseStructuredImport,
+  runScannedQuizImport,
+  runSuggestQuizAnswers,
+});
+exports.structureImportedQuiz = quizImportHandlers.structureImportedQuiz;
+exports.structureScannedQuiz = quizImportHandlers.structureScannedQuiz;
 
 exports.structureImportedNote = noteAiHandlers.structureImportedNote;
 exports.ocrNotePages = noteAiHandlers.ocrNotePages;
 
-// Bulk "suggest answers" for the Quiz Editor's answer-key tools. Answers a
-// batch of MCQs in one Claude call; the admin verifies before publishing.
-exports.suggestQuizAnswers = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 120,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "suggestQuizAnswers");
-
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only teachers and admins can suggest answers.",
-      );
-    }
-
-    const questions = Array.isArray(request.data?.questions) ?
-      request.data.questions : [];
-    if (!questions.length) {
-      throw new HttpsError(
-        "invalid-argument",
-        "No questions were supplied for answer suggestion.",
-      );
-    }
-
-    // One AI action for the whole batch.
-    await assertDailyLimit(request.auth.uid, role, "suggestAnswers");
-
-    return runSuggestQuizAnswers({
-      questions,
-      subject: cleanAiString(request.data?.subject, 80),
-      grade: cleanAiString(request.data?.grade, 20),
-      anthropicKey: getAnthropicApiKey(anthropicApiKey),
-      uid: request.auth.uid,
-    });
-  },
-);
+exports.suggestQuizAnswers = quizImportHandlers.suggestQuizAnswers;
 
 const shortAnswerHandlers = createShortAnswerHandlers({
   onCall,
