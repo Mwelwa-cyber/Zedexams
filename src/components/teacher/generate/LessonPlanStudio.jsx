@@ -26,7 +26,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v24'
+const STUDIO_ASSET_VERSION = 'v25'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -815,6 +815,10 @@ export default function LessonPlanStudio() {
                   </div>
                   <div className="toggle-row on" id="t-diagrams" data-on="true">
                     <div className="lbl">Auto-add diagrams<small>For Maths &amp; Science: AI draws shapes, number lines, sets, charts &amp; science diagrams where they help</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row" id="t-plan-in-medium" data-on="false">
+                    <div className="lbl">Write the whole plan in the local language<small>Only when the Medium of instruction is a Zambian language — writes the entire plan in it, not just the parts learners hear. Off keeps an English document for inspection.</small></div>
                     <div className="toggle-switch"></div>
                   </div>
                 </div>
