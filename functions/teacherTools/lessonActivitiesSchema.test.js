@@ -108,6 +108,33 @@ test("matching questions keep their pairs", () => {
   assert.strictEqual(r.value.homework.questions[0].matchPairs.length, 2);
 });
 
+test("a fill-in-the-blank word bank is kept as a clean string list", () => {
+  const r = validateLessonActivities({
+    exercise: {
+      header: {grade: "G4", subject: "integrated_science", topic: "Animals"},
+      wordBank: ["backbone", " insects ", "", "exoskeleton", 42],
+      instructions: "Fill in the blank with a word from the word box below.",
+      questions: [{type: "fill_in_blank", prompt: "An ant has _____ legs.", answer: "six"}],
+    },
+  }, {exercise: true});
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(
+      r.value.exercise.wordBank,
+      ["backbone", "insects", "exoskeleton"],
+  );
+});
+
+test("a missing word bank defaults to an empty array", () => {
+  const r = validateLessonActivities({
+    exercise: {
+      header: {grade: "G5", subject: "mathematics", topic: "Fractions"},
+      questions: [{type: "short_answer", prompt: "Q", answer: "A"}],
+    },
+  }, {exercise: true});
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.value.exercise.wordBank, []);
+});
+
 test("missing required header fields are reported", () => {
   const r = validateLessonActivities({
     exercise: {header: {grade: "G5"}, questions: [{prompt: "Q"}]},

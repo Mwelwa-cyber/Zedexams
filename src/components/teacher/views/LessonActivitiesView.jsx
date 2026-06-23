@@ -5,6 +5,8 @@
  * marking guide are revealed by the parent's `showAnswers` toggle.
  */
 
+import { resolveActivityWordBank } from '../../../utils/activityWordBank'
+
 function titleCase(s) {
   return String(s || '').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -71,18 +73,40 @@ function Question({ q, showAnswers }) {
   )
 }
 
+function WordBox({ words }) {
+  if (!words || !words.length) return null
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#566f76', marginBottom: 4 }}>Word Box</div>
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 6, padding: 10,
+        border: '1px solid #c8d3d6', borderRadius: 8, background: '#fff',
+      }}>
+        {words.map((w, i) => (
+          <span key={i} style={{
+            padding: '3px 10px', border: '1px solid #d6dee0', borderRadius: 6,
+            background: '#f7fafa', fontSize: 13, color: '#0e2a32',
+          }}>{w}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ActivityCard({ activity, showAnswers }) {
   if (!activity) return null
   const header = activity.header || {}
+  const { words, instructions } = resolveActivityWordBank(activity)
   return (
     <div style={{ marginBottom: 24 }}>
       <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>
         {header.title || (activity.kind === 'homework' ? 'Homework' : 'Class Exercise')}
       </h2>
       <MetaStrip header={header} kind={activity.kind} />
-      {activity.instructions && (
-        <p style={{ fontStyle: 'italic', color: '#3a4d52', fontSize: 14, marginBottom: 8 }}>{activity.instructions}</p>
+      {instructions && (
+        <p style={{ color: '#3a4d52', fontSize: 14, marginBottom: 8 }}>{instructions}</p>
       )}
+      <WordBox words={words} />
       <ol style={{ paddingLeft: 22, margin: 0, fontSize: 14 }}>
         {(activity.questions || []).map((q, i) => (
           <Question key={i} q={q} showAnswers={showAnswers} />

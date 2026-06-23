@@ -32,6 +32,12 @@ Question type meanings (use the exact \`type\` value shown):
 - "true_false": a statement; \`options\` is ["True","False"] and \`answer\` is "True" or "False".
 - "short_answer": one or two sentences expected; \`answer\` is the expected response.
 - "fill_in_blank": the \`prompt\` contains one or more blanks written as "_____"; \`answer\` gives the word(s) for the blank(s) in order.
+
+WORD BOX (for fill-in-the-blank activities):
+- When the activity uses "fill_in_blank" questions, supply a top-level \`wordBank\` array: the list of words/phrases learners choose from, one entry per item (e.g. ["backbone", "insects", "exoskeleton"]). You may add a few plausible distractors. Do NOT number or letter them.
+- Do NOT list the word box inside the \`instructions\` text — the studio renders the \`wordBank\` in its own box.
+- Write the activity \`instructions\` as the lead-in shown ABOVE that box. Reference the box as being BELOW the instruction, e.g. "Read each sentence carefully and fill in the blank with a suitable word from the word box below." Never say "word box above".
+- If the activity has no fill-in-the-blank questions, omit \`wordBank\` (or leave it empty).
 - "matching": provide \`matchPairs\` as a list of {left, right} correct pairs; the studio shuffles them for the learner.
 - "structured": a multi-part question; provide \`parts\` as a list of {label, prompt, answer, marks}.
 - "calculation": a maths/science working question; put the final answer in \`answer\` and the steps in \`workingNotes\`.
@@ -126,7 +132,7 @@ function buildUserPrompt(inputs) {
       "OUTPUT",
       "Call the emit_lesson_activities tool with an object shaped like:",
       "{",
-      wantExercise ? '  "exercise": { "header": { "title", "grade", "subject", "topic", "subtopic", "term", "difficulty", "estimatedMinutes", "totalMarks", "instructions" }, "instructions": string, "questions": [ { "number", "type", "prompt", "marks", "options"?: [string], "answer", "modelAnswer"?, "workingNotes"?, "matchPairs"?: [{ "left", "right" }], "parts"?: [{ "label", "prompt", "answer", "marks" }] } ], "answerKey": { "markingNotes" } },' : "",
+      wantExercise ? '  "exercise": { "header": { "title", "grade", "subject", "topic", "subtopic", "term", "difficulty", "estimatedMinutes", "totalMarks", "instructions" }, "instructions": string, "wordBank"?: [string], "questions": [ { "number", "type", "prompt", "marks", "options"?: [string], "answer", "modelAnswer"?, "workingNotes"?, "matchPairs"?: [{ "left", "right" }], "parts"?: [{ "label", "prompt", "answer", "marks" }] } ], "answerKey": { "markingNotes" } },' : "",
       wantHomework ? '  "homework": { ...same shape as exercise..., "parentNote": string }' : "",
       "}",
       wantExercise && !wantHomework ? "Do NOT include a homework key." : "",
