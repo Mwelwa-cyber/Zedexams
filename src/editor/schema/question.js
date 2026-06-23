@@ -29,6 +29,20 @@
  */
 
 import { z } from 'zod'
+import {
+  QUESTION_TYPES,
+  canonicalizeQuestionType,
+  questionTypeLabel,
+  QUESTION_TYPE_LABELS,
+  normalizeMarks,
+  MARKS_BOUNDS,
+} from '../../utils/questionType.js'
+
+// The canonical question-type helpers now live in src/utils/questionType.js
+// (the single source of truth shared by the editor, importers, scorer, and
+// exporters). Re-export them here so the many modules that import them from this
+// schema file keep working unchanged.
+export { canonicalizeQuestionType, questionTypeLabel, QUESTION_TYPE_LABELS }
 
 // ── Tiptap JSON shape ─────────────────────────────────────────────
 
@@ -99,71 +113,6 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'fill_blanks', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']
-
-// Well-known type ALIASES → canonical enum value. The authoring surfaces and
-// importers don't agree on a spelling: QuizSectionsEditor and the document
-// importer emit 'truefalse', the Assessment Studio block picker labels its
-// blocks 'true_false' / 'fill_in_blank', and the server quiz generator requests
-// 'fill_blank'. The canonical names are 'tf' and 'fill_blanks', so a question
-// authored under an alias fails the strict `type` enum on save — the classic
-// "MCQ saves but true/false doesn't" bug. canonicalizeQuestionType() folds the
-// known aliases onto the enum so every surface lands on the same value; an
-// unrecognised value is returned UNCHANGED so a genuine typo still fails loudly
-// at validation instead of being silently coerced to the wrong type.
-const QUESTION_TYPE_ALIASES = {
-  truefalse: 'tf',
-  true_false: 'tf',
-  'true/false': 'tf',
-  fill_in_blank: 'fill_blanks',
-  fill_in_the_blank: 'fill_blanks',
-  fill_blank: 'fill_blanks',
-}
-
-/**
- * Map a possibly-aliased question type onto its canonical schema enum value.
- * Returns the input unchanged when it's already canonical or unrecognised, so
- * the strict write schema still rejects true garbage loudly.
- */
-export function canonicalizeQuestionType(type) {
-  if (typeof type !== 'string') return type
-  return QUESTION_TYPE_ALIASES[type.trim().toLowerCase()] || type
-}
-
-// Human-readable labels for each canonical question type. Single source of
-// truth shared by the studio dropdowns, the pre-publish error messages, and
-// the exported-paper code — so a teacher never sees the raw enum value ("tf",
-// "fill_blanks") in a toast or a checklist. Keyed by CANONICAL type;
-// questionTypeLabel() folds aliases through canonicalizeQuestionType() first.
-export const QUESTION_TYPE_LABELS = {
-  mcq: 'Multiple Choice',
-  tf: 'True / False',
-  short_answer: 'Short Answer',
-  short: 'Short Answer',
-  diagram: 'Label the Diagram',
-  fill: 'Fill in the Blank',
-  fill_blanks: 'Fill in the Blanks',
-  numeric: 'Numeric',
-  hotspot: 'Image Hotspot',
-  essay: 'Essay',
-  matching: 'Matching',
-  sequence: 'Sequence / Ordering',
-}
-
-/**
- * Friendly label for a (possibly aliased) question type. Folds the alias onto
- * its canonical value first, then looks up the label. An unknown/typo value is
- * humanised (snake/kebab → Title Case) so the message stays legible without
- * pretending the type is recognised.
- */
-export function questionTypeLabel(type) {
-  const canonical = canonicalizeQuestionType(type)
-  if (QUESTION_TYPE_LABELS[canonical]) return QUESTION_TYPE_LABELS[canonical]
-  return String(type ?? '')
-    .trim()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown'
-}
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
 // level the teacher tags so the studio can show the spread of thinking skills.
@@ -199,7 +148,7 @@ export const questionSchema = z
     // import without auto-save throwing "Invalid input at 'marks'". The
     // editor's clampInt() and the importer's marksMatch clamp keep the
     // value inside this range for typed input and `[N marks]` text matches.
-    marks: z.number().int().min(1).max(20),
+    marks: z.number().int().min(MARKS_BOUNDS.quiz.min).max(MARKS_BOUNDS.quiz.max),
     difficulty: z.enum(DIFFICULTIES).optional(),
     // Optional Bloom's cognitive level the teacher tags (no inference — a
     // question is only counted as a level once explicitly set).
@@ -579,14 +528,11 @@ export function coerceQuestion(raw) {
     ? raw.optionMedia.map(m => (isPlainObject(m) ? m : null))
     : []
 
-  const rawMarks = Number(raw.marks)
   // Cap mirrors the write schema's `marks: z.number().int().min(1).max(20)`.
-  // It used to clamp at 10, which silently truncated legitimate 11–20 mark
-  // past-paper questions on read-back even though they saved fine — the editor
-  // input, CSV importer, and generator all allow up to 20.
-  const marks = Number.isFinite(rawMarks) && rawMarks >= 1
-    ? Math.min(20, Math.floor(rawMarks))
-    : 1
+  // normalizeMarks (src/utils/questionType.js) is the single shared marks
+  // policy: it used to clamp at 10 here, which silently truncated legitimate
+  // 11–20 mark past-paper questions on read-back even though they saved fine.
+  const marks = normalizeMarks(raw.marks, MARKS_BOUNDS.quiz)
 
   const rawTolerance = Number(raw.tolerance)
   const tolerance = raw.tolerance == null

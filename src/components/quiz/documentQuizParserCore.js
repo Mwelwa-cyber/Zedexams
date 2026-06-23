@@ -1,3 +1,4 @@
+import { normalizeMarks, MARKS_BOUNDS } from '../../utils/questionType.js'
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 import { extractKeywords, keywordsForQuestion, assignByKeywords } from '../../utils/comprehensionGrouping.js'
 import { stripImportJunkChars } from '../../utils/textJunk.js'
@@ -657,10 +658,11 @@ function questionFromCurrent(current, answerKey = new Map()) {
     correctAnswer,
     explanation: cleanImportedText(current.explanationParts.join(' ')),
     topic: '',
-    // Clamp to [1, 20] — the per-question schema cap. An ECZ section
-    // header like "[15 marks]" matching a stem regex used to land as
-    // marks=15 and break auto-save downstream; values above 20 cap to 20.
-    marks: marksMatch ? Math.max(1, Math.min(20, Number(marksMatch[1]) || 1)) : 1,
+    // Shared marks policy (normalizeMarks / MARKS_BOUNDS.quiz): clamp to the
+    // per-question schema cap. An ECZ section header like "[15 marks]" matching
+    // a stem regex used to land as marks=15 and break auto-save downstream;
+    // values above the cap clamp down.
+    marks: marksMatch ? normalizeMarks(marksMatch[1], MARKS_BOUNDS.quiz) : MARKS_BOUNDS.quiz.min,
     type,
     detectedType: type,
     imageUrl: firstAsset?.imageUrl || '',

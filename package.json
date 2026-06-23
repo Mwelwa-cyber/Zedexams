@@ -89,6 +89,8 @@
     "test:grade-rules": "node scripts/test-grade-rules-consistency.mjs",
     "test:public-routes": "node scripts/test-public-routes.mjs",
     "test:secret-hygiene": "node scripts/test-secret-hygiene.mjs",
+    "test:question-consistency": "node scripts/test-question-consistency.mjs",
+    "test:question-type": "node src/utils/questionType.test.js",
     "test:mark-schedule": "node scripts/test-mark-schedule.mjs",
     "test:class-timetable": "node scripts/test-class-timetable.mjs",
     "test:timetable-extraction": "node scripts/test-timetable-extraction.mjs",
