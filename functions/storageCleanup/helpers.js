@@ -89,6 +89,30 @@ function collectQuestionImagePaths(questionData, bucketName) {
 }
 
 /**
+ * Union of every Storage path referenced by a list of question docs.
+ *
+ * Used by the per-question cleanup triggers to answer "is this blob still
+ * referenced by a SIBLING question?" before deleting it. A quiz's questions
+ * routinely share the same uploaded image — the document importer reuses a
+ * stem image across a comprehension's sub-questions, a teacher reuses one
+ * figure in two questions, and (the failure that motivated this) the
+ * `60 → 2000` autosave explosion produced exact duplicate question docs that
+ * all point at the SAME `imageUrl`. When `dedupe-quiz-questions.mjs` (or any
+ * delete/edit) removed the duplicates, the delete trigger deleted that shared
+ * blob even though the surviving question still rendered it — silently
+ * blanking the picture for every learner.
+ *
+ * Returns a Set so the trigger can subtract it from its delete candidates.
+ */
+function collectLivePathsFromQuestions(questionDatas, bucketName) {
+  const live = new Set();
+  for (const data of questionDatas || []) {
+    for (const p of collectQuestionImagePaths(data, bucketName)) live.add(p);
+  }
+  return live;
+}
+
+/**
  * Pull every individually-tracked Storage path stored on a lesson doc.
  * Covers both lesson modes:
  *   - file notes: `storagePath`
@@ -264,6 +288,7 @@ function collectPaperPaths(paperData) {
 module.exports = {
   parseStoragePathFromUrl,
   collectQuestionImagePaths,
+  collectLivePathsFromQuestions,
   collectLessonPaths,
   collectLessonPrefixes,
   collectPaperPaths,
