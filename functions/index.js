@@ -254,6 +254,7 @@ const {createGenerateStudyPlan} = require("./studentAgents");
 const {createLencoHandlers} = require("./payments/lencoHandlers");
 const {createAdminNotificationHandlers} = require("./subscriptions/adminNotificationHandlers");
 const {createDemoTrialsHandlers} = require("./subscriptions/demoTrialsHandlers");
+const {createNoteAiHandlers} = require("./notes/noteAiHandlers");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
@@ -1083,81 +1084,25 @@ exports.explainAnswer = onCall(
   },
 );
 
-// Learner-facing "AI Summary + Key Points" for a published note. Cached per
-// note (noteInsights/{noteId}), so a cache hit costs nothing and the daily
-// limit only bites on first-generation spam. Any signed-in user may call it;
-// the runner enforces that the note is published.
-exports.generateNoteInsights = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 45,
-    memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "generateNoteInsights");
-
-    const noteId = cleanAiString(request.data?.noteId, 80);
-    if (!noteId) {
-      throw new HttpsError("invalid-argument", "A note id is required.");
-    }
-
-    const role = await getUserRole(request.auth.uid);
-    await assertDailyLimit(request.auth.uid, role, "noteInsights");
-
-    return await runNoteInsights({
-      noteId,
-      uid: request.auth.uid,
-      apiKey: getAnthropicApiKey(anthropicApiKey),
-    });
-  },
-);
-
-// Staff-only: generate AI auto-highlights for a study note and cache them in
-// noteSmart/{noteId}. Mirrors generateNoteInsights but restricted to staff
-// (teachers/admins) because highlight generation is admin-triggered, not
-// lazy-on-first-view.
-exports.generateNoteSmart = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 90,
-    memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "generateNoteSmart");
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError("permission-denied", "Only teachers and admins can generate highlights.");
-    }
-    const noteId = cleanAiString(request.data?.noteId, 200);
-    if (!noteId) {
-      throw new HttpsError("invalid-argument", "noteId is required.");
-    }
-    await assertDailyLimit(request.auth.uid, role, "noteSmart");
-    try {
-      return await runGenerateNoteSmart({
-        noteId,
-        uid: request.auth.uid,
-        apiKey: getAnthropicApiKey(anthropicApiKey),
-      });
-    } catch (e) {
-      if (e.code === "not-found") throw new HttpsError("not-found", e.message);
-      if (e.code === "failed-precondition") throw new HttpsError("failed-precondition", e.message);
-      throw new HttpsError("internal", "Could not generate highlights. Please try again.");
-    }
-  },
-);
+const noteAiHandlers = createNoteAiHandlers({
+  onCall,
+  HttpsError,
+  cleanAiString,
+  LIMITS,
+  getUserRole,
+  assertDailyLimit,
+  isStaffRole,
+  runNoteInsights,
+  runGenerateNoteSmart,
+  runNoteImport,
+  runNoteOcr,
+  getAnthropicApiKey,
+  anthropicApiKey,
+  appCheckEnforceCallable: APPCHECK_ENFORCE_CALLABLE,
+  recordAppCheckCallable,
+});
+exports.generateNoteInsights = noteAiHandlers.generateNoteInsights;
+exports.generateNoteSmart = noteAiHandlers.generateNoteSmart;
 
 // Per-question AI edit — powers the "✨ AI" button on every question in the
 // quiz editor (Simplify / Easier / Harder / Rephrase / Suggest answer /
@@ -1594,91 +1539,8 @@ exports.structureScannedQuiz = onCall(
   },
 );
 
-// Notes document import — converts raw document text into structured `study`
-// note blocks via Claude. Staff-only, app-check enforced, daily-capped.
-exports.structureImportedNote = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 120,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "structureImportedNote");
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only teachers and admins can import notes.",
-      );
-    }
-    const fileName = cleanAiString(request.data?.fileName, LIMITS.importFileName);
-    const documentText = cleanAiString(
-      request.data?.documentText,
-      LIMITS.importDocumentText,
-    );
-    if (!documentText || documentText.length < 80) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Not enough document text was available to build a note.",
-      );
-    }
-    await assertDailyLimit(request.auth.uid, role, "importNote");
-    return runNoteImport({
-      documentText,
-      fileName,
-      apiKey: getAnthropicApiKey(anthropicApiKey),
-      uid: request.auth.uid,
-    });
-  },
-);
-
-// Notes scanned-PDF OCR — client batches rendered page images here; each call
-// returns a plain-text transcription that the structureImportedNote callable
-// then converts into study blocks. Staff-only, app-check enforced, daily-capped.
-exports.ocrNotePages = onCall(
-  {
-    secrets: [anthropicApiKey],
-    region: "us-central1",
-    timeoutSeconds: 240,
-    memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "ocrNotePages");
-    const role = await getUserRole(request.auth.uid);
-    if (!isStaffRole(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only teachers and admins can import notes.",
-      );
-    }
-    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
-    if (!pages.length) {
-      throw new HttpsError("invalid-argument", "No page images were supplied.");
-    }
-    if (pages.length > 8) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Too many pages in one OCR call (max 8).",
-      );
-    }
-    await assertDailyLimit(request.auth.uid, role, "importNote");
-    return runNoteOcr({
-      pages,
-      apiKey: getAnthropicApiKey(anthropicApiKey),
-      uid: request.auth.uid,
-    });
-  },
-);
+exports.structureImportedNote = noteAiHandlers.structureImportedNote;
+exports.ocrNotePages = noteAiHandlers.ocrNotePages;
 
 // Bulk "suggest answers" for the Quiz Editor's answer-key tools. Answers a
 // batch of MCQs in one Claude call; the admin verifies before publishing.
