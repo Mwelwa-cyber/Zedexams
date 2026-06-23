@@ -140,6 +140,13 @@
         }
       },
       {
+        "source": "/api/track/visit",
+        "function": {
+          "functionId": "apiTrackVisit",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

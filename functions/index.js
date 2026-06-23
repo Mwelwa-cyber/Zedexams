@@ -3133,6 +3133,11 @@ exports.lencoWebhook = onRequest({
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
+// Website visitor tracker — unauthenticated beacon the SPA POSTs on each
+// route change. Records page-view docs + daily rollups for /admin/visitors.
+// See functions/visitorTracking.js (privacy posture + Firestore shape).
+exports.apiTrackVisit = require('./visitorTracking').apiTrackVisit;
+
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no
 // Firebase Storage, works on every browser. See functions/libraryDownload.js.

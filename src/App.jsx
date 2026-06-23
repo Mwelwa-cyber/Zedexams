@@ -18,6 +18,7 @@ import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ScrollToTop from './components/ui/ScrollToTop'
+import VisitorTracker from './components/ui/VisitorTracker'
 
 // Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -151,6 +152,7 @@ const AdminSettings = lazy(() => import('./components/admin/settings/AdminSettin
 const AnnouncementsAdmin = lazy(() => import('./components/admin/announcements/AnnouncementsAdmin'))
 const AdminActivityLog = lazy(() => import('./components/admin/AdminActivityLog'))
 const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
+const AdminVisitors = lazy(() => import('./components/admin/AdminVisitors'))
 
 // Admin — Agents (operating-model dashboard)
 const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
@@ -405,6 +407,9 @@ export default function App() {
       {/* Reset scroll to the top on every client-side navigation so new
           pages don't inherit the previous page's scroll offset. */}
       <ScrollToTop />
+      {/* Records a first-party page-view on every route change for the
+          /admin/visitors dashboard (consent-aware, best-effort). */}
+      <VisitorTracker />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
@@ -572,6 +577,7 @@ export default function App() {
           <Route path="/admin/announcements"            element={<AdminRoute><AnnouncementsAdmin /></AdminRoute>} />
           <Route path="/admin/activity"                 element={<AdminRoute><AdminActivityLog /></AdminRoute>} />
           <Route path="/admin/analytics"                element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+          <Route path="/admin/visitors"                 element={<AdminRoute><AdminVisitors /></AdminRoute>} />
           <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
           <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
