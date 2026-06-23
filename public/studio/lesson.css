@@ -285,6 +285,10 @@
 .ai-illus-result{margin-top:14px}
 .ai-illus-preview{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;place-items:center;min-height:160px}
 .ai-illus-preview img{max-width:100%;max-height:340px;display:block}
+/* Sidebar "Add an AI picture" entry point (Format & Options) */
+.lp-illustrate-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:10px 14px;background:#fff;color:var(--accent);border:1.5px solid var(--accent);border-radius:7px;font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;transition:background .15s,color .15s}
+.lp-illustrate-btn:hover{background:var(--accent);color:#fff}
+.lp-illustrate-btn svg{flex-shrink:0}
 
 /* ============ BRAND LOGO IMAGE ============ */
 .brand picture{display:inline-flex;flex-shrink:0}

@@ -81,7 +81,7 @@ const canonicalSchema = `Output STRICTLY valid JSON, no preamble, no markdown fe
   "remedialWork": string,           // short support task for learners who struggled ("" if not needed)
   "extensionActivity": string,      // short stretch task for fast finishers ("" if not needed)
   "diagrams": [                     // OPTIONAL — include ONLY when the user prompt explicitly enables diagrams (a Maths/Science lesson). Omit this key entirely in every other case.
-    { "stage": string, "type": string, "params": object, "caption": string }
+    { "stage": string, "type": string, "params": object, "caption": string, "describe": string }
   ]
 }
 
@@ -176,7 +176,7 @@ const oldSchema = `Output STRICTLY valid JSON, no preamble, no markdown fences. 
   ],
   "homework": string,            // the HOMEWORK/EXERCISE task set after the table, with expected answers where natural
   "diagrams": [                  // OPTIONAL — include ONLY when the user prompt explicitly enables diagrams (a Maths/Science lesson). Omit this key entirely in every other case.
-    { "stage": string, "type": string, "params": object, "caption": string }
+    { "stage": string, "type": string, "params": object, "caption": string, "describe": string }
   ]
 }
 

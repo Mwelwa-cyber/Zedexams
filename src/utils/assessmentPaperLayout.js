@@ -15,6 +15,7 @@ import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 import { analyzeTiming } from './assessmentTiming.js'
 import { canonicalizeQuestionType } from '../editor/schema/question.js'
 import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+import { orderPaperGroups } from './quizSections.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly Test',
@@ -190,7 +191,7 @@ function cachedOptionPlain(value) {
   return out
 }
 
-function groupQuestionsByPart(questions, parts) {
+function groupQuestionsByPart(questions, parts, ungroupedOrder = 0) {
   const partsById = new Map()
   for (const part of parts || []) {
     partsById.set(part.id, { ...part, questions: [] })
@@ -204,9 +205,12 @@ function groupQuestionsByPart(questions, parts) {
       standalone.questions.push(q)
     }
   }
-  const ordered = [...partsById.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  if (standalone.questions.length) return [standalone, ...ordered]
-  return ordered
+  // The loose-questions block is positioned relative to the sections by
+  // `ungroupedOrder` (default 0 = lead the paper) rather than being pinned to
+  // the top, so a teacher can place a section header above questions that
+  // aren't in any section yet.
+  return orderPaperGroups(parts || [], ungroupedOrder, standalone.questions.length > 0)
+    .map(group => (group.type === 'ungrouped' ? standalone : partsById.get(group.part.id)))
 }
 
 function passageMembersByPart(passages, parts) {
@@ -324,7 +328,7 @@ export function computeSmartWarnings(assessment, questions = []) {
 export function buildPaperLayout(assessment = {}, questions = [], { mode = 'paper' } = {}) {
   const includeAnswers = mode === 'scheme'
   const sortedQs = [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const groups = groupQuestionsByPart(sortedQs, assessment.parts || [])
+  const groups = groupQuestionsByPart(sortedQs, assessment.parts || [], assessment.ungroupedOrder)
 
   // Paper-level MCQ presentation. Both are optional; when unset the
   // renderers keep their legacy auto behaviour (4-up grid, auto-stack on

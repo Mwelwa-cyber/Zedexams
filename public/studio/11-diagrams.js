@@ -185,6 +185,17 @@ function openDiagramModal() {
   }));
 }
 
+// Open the Insert Diagram modal straight onto the AI Illustration tab. Exposed
+// for the sidebar "Add AI picture" button (LessonPlanStudio.jsx) so teachers can
+// reach AI illustrations without first entering edit mode and finding the
+// toolbar Diagram button.
+function openAiIllustrationModal() {
+  openDiagramModal();
+  const aiBtn = $$('#diagram-modal-body .cat-btn').find(b => b.dataset.cat === 'AI Illustration');
+  if (aiBtn) aiBtn.click();
+}
+if (typeof window !== 'undefined') window.__studioOpenAiIllustration = openAiIllustrationModal;
+
 // AI Illustration tab — teacher describes a picture, the generateDiagram
 // callable (bridged in as window.__studioGenerateDiagram by LessonPlanStudio.jsx)
 // draws a B&W line-art image and returns a Storage URL we insert as an <img>.

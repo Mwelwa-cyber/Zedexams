@@ -543,6 +543,39 @@ export function shuffleQuizSections(sections = []) {
   ]
 }
 
+/**
+ * Order the renderable "groups" of a paper for display: the single block of
+ * loose / ungrouped questions plus every Part (section). Parts sort by their
+ * `order` field (kept in lock-step with their index in `parts[]`, which is what
+ * drives the A/B/C section letter). The ungrouped block is positioned by
+ * `ungroupedOrder` — the count of sections that should sit *before* it, so `0`
+ * (the historical default) leads the paper with the loose questions, and a
+ * higher value pushes them below that many sections. The ungrouped block sorts
+ * just *ahead* of the section at that index (the `- 0.5`) so it always slots
+ * cleanly between sections instead of tying with one.
+ *
+ * Returns an ordered array of descriptors:
+ *   { type: 'ungrouped' }                — the loose-questions block
+ *   { type: 'part', part, partIndex }    — a section; partIndex is its index in
+ *                                          `parts[]` (→ its A/B/C letter)
+ *
+ * Pure + framework-agnostic so the studio builder, the shared paper layout, and
+ * the reorder handler all agree on one ordering.
+ */
+export function orderPaperGroups(parts = [], ungroupedOrder = 0, hasUngrouped = true) {
+  const groups = (parts || []).map((part, index) => ({
+    type: 'part',
+    part,
+    partIndex: index,
+    sortKey: typeof part.order === 'number' ? part.order : index,
+  }))
+  if (hasUngrouped) {
+    const before = Number.isFinite(Number(ungroupedOrder)) ? Number(ungroupedOrder) : 0
+    groups.push({ type: 'ungrouped', sortKey: before - 0.5 })
+  }
+  return groups.sort((a, b) => a.sortKey - b.sortKey)
+}
+
 export function serializeQuizSections(sections = [], parts = []) {
   // Dual-format safe: serializeRichField writes Tiptap JSON as a JSON string
   // (keeps objects out of Firestore document fields) and passes HTML strings
