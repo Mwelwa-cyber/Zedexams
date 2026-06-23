@@ -63,10 +63,42 @@ const DIST = join(ROOT, 'dist')
 // an empty shell or a crash screen).
 const NAV_TIMEOUT_MS = 30_000
 const MIN_ROOT_TEXT = 200
+const MAX_ROUTE_ATTEMPTS = 2
 
 /** Map a route to the dist file path Firebase serves as its directory index. */
 function outputPathFor(route) {
   return join(DIST, route.replace(/^\//, ''), 'index.html')
+}
+
+async function launchBrowser() {
+  return puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      // Headless/backgrounded pages get their timers and requestAnimationFrame
+      // heavily throttled. react-helmet-async flushes head tags (title,
+      // canonical, og:*) on an rAF tick, so throttling can delay the canonical
+      // landing in <head> past our settle window — which surfaced as an
+      // intermittent `canonical "null"` failure on the smallest route
+      // (/grade-12's tiny "coming soon" page hit the content gate before the
+      // head flush). Keep the renderer foregrounded so the flush is prompt.
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+    ],
+  })
+}
+
+function isRecoverableBrowserError(err) {
+  const message = err?.message || String(err || '')
+  return (
+    message.includes('Target.createTarget') ||
+    message.includes('Session with given id not found') ||
+    message.includes('Target closed') ||
+    message.includes('Connection closed')
+  )
 }
 
 async function main() {
@@ -85,111 +117,113 @@ async function main() {
   const base = server.resolvedUrls.local[0].replace(/\/$/, '')
   console.log(`[prerender] preview server at ${base}`)
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      // Headless/backgrounded pages get their timers and requestAnimationFrame
-      // heavily throttled. react-helmet-async flushes head tags (title,
-      // canonical, og:*) on an rAF tick, so throttling can delay the canonical
-      // landing in <head> past our settle window — which surfaced as an
-      // intermittent `canonical "null"` failure on the smallest route
-      // (/grade-12's tiny "coming soon" page hit the content gate before the
-      // head flush). Keep the renderer foregrounded so the flush is prompt.
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-    ],
-  })
+  let browser = await launchBrowser()
 
   const failures = []
   try {
     for (const route of routes) {
-      const page = await browser.newPage()
-      try {
-        await page.goto(`${base}${route}`, {
-          waitUntil: 'domcontentloaded',
-          timeout: NAV_TIMEOUT_MS,
-        })
-        // Wait until React has painted real content into #root AND
-        // react-helmet-async has flushed the per-route canonical into <head>.
-        // We avoid networkidle because dummy/real Firestore keeps a long-poll
-        // open that never goes idle. Gating on the canonical (not just text
-        // length) is what makes this reliable: every prerendered route renders
-        // a <SeoHelmet path="…">, so a present canonical is the precise signal
-        // that the head has been written. Waiting on text alone let the tiny
-        // "coming soon" route snapshot a default-shell head (correct-looking
-        // title from index.html, but a null canonical) before Helmet's rAF
-        // flush ran — an intermittent build break.
-        await page.waitForFunction(
-          (min) => {
+      for (let attempt = 1; attempt <= MAX_ROUTE_ATTEMPTS; attempt += 1) {
+        let page
+        try {
+          if (!browser.connected) {
+            browser = await launchBrowser()
+          }
+          page = await browser.newPage()
+          await page.goto(`${base}${route}`, {
+            waitUntil: 'domcontentloaded',
+            timeout: NAV_TIMEOUT_MS,
+          })
+          // Wait until React has painted real content into #root AND
+          // react-helmet-async has flushed the per-route canonical into <head>.
+          // We avoid networkidle because dummy/real Firestore keeps a long-poll
+          // open that never goes idle. Gating on the canonical (not just text
+          // length) is what makes this reliable: every prerendered route renders
+          // a <SeoHelmet path="…">, so a present canonical is the precise signal
+          // that the head has been written. Waiting on text alone let the tiny
+          // "coming soon" route snapshot a default-shell head (correct-looking
+          // title from index.html, but a null canonical) before Helmet's rAF
+          // flush ran — an intermittent build break.
+          await page.waitForFunction(
+            (min) => {
+              const root = document.getElementById('root')
+              const hasText = !!root && (root.innerText || '').trim().length >= min
+              const canonical = document.querySelector('link[rel="canonical"]')
+              return hasText && !!canonical?.getAttribute('href')
+            },
+            { timeout: NAV_TIMEOUT_MS },
+            MIN_ROOT_TEXT,
+          )
+          // Small settle so the remaining react-helmet-async tags (description,
+          // og:*, twitter:*) have flushed alongside the canonical we waited on.
+          await new Promise((r) => setTimeout(r, 250))
+
+          const { html, title, canonical, rootLen } = await page.evaluate(() => {
+            // The shell (index.html) ships generic, homepage-flavoured <meta>
+            // tags (description, og:*, twitter:*). react-helmet-async appends
+            // its own per-route versions to the END of <head> but cannot remove
+            // the static ones it didn't author, so the head ends up with
+            // duplicates — generic first, correct second. Crawlers read
+            // top-down (and Google may pick the FIRST description), so for any
+            // name/property that appears more than once we keep the LAST
+            // occurrence (Helmet's per-route tag) and drop the earlier static
+            // twin. We dedup by document order rather than a marker attribute
+            // because react-helmet-async v3 no longer stamps data-rh. (The
+            // canonical link has no static twin — that was removed from
+            // index.html in the prior fix.)
+            const metas = [...document.head.querySelectorAll('meta[name], meta[property]')]
+            const keyOf = (m) =>
+              m.getAttribute('name')
+                ? `name:${m.getAttribute('name')}`
+                : `prop:${m.getAttribute('property')}`
+            const lastByKey = new Map()
+            for (const m of metas) lastByKey.set(keyOf(m), m) // last write wins
+            for (const m of metas) {
+              if (lastByKey.get(keyOf(m)) !== m) m.remove()
+            }
+
             const root = document.getElementById('root')
-            const hasText = !!root && (root.innerText || '').trim().length >= min
-            const canonical = document.querySelector('link[rel="canonical"]')
-            return hasText && !!canonical?.getAttribute('href')
-          },
-          { timeout: NAV_TIMEOUT_MS },
-          MIN_ROOT_TEXT,
-        )
-        // Small settle so the remaining react-helmet-async tags (description,
-        // og:*, twitter:*) have flushed alongside the canonical we waited on.
-        await new Promise((r) => setTimeout(r, 250))
+            const link = document.querySelector('link[rel="canonical"]')
+            return {
+              html: `<!DOCTYPE html>\n${document.documentElement.outerHTML}`,
+              title: document.title || '',
+              canonical: link ? link.getAttribute('href') : null,
+              rootLen: (root?.innerText || '').trim().length,
+            }
+          })
 
-        const { html, title, canonical, rootLen } = await page.evaluate(() => {
-          // The shell (index.html) ships generic, homepage-flavoured <meta>
-          // tags (description, og:*, twitter:*). react-helmet-async appends
-          // its own per-route versions to the END of <head> but cannot remove
-          // the static ones it didn't author, so the head ends up with
-          // duplicates — generic first, correct second. Crawlers read
-          // top-down (and Google may pick the FIRST description), so for any
-          // name/property that appears more than once we keep the LAST
-          // occurrence (Helmet's per-route tag) and drop the earlier static
-          // twin. We dedup by document order rather than a marker attribute
-          // because react-helmet-async v3 no longer stamps data-rh. (The
-          // canonical link has no static twin — that was removed from
-          // index.html in the prior fix.)
-          const metas = [...document.head.querySelectorAll('meta[name], meta[property]')]
-          const keyOf = (m) =>
-            m.getAttribute('name')
-              ? `name:${m.getAttribute('name')}`
-              : `prop:${m.getAttribute('property')}`
-          const lastByKey = new Map()
-          for (const m of metas) lastByKey.set(keyOf(m), m) // last write wins
-          for (const m of metas) {
-            if (lastByKey.get(keyOf(m)) !== m) m.remove()
+          // Sanity gates — a route that renders an empty/crash shell, loses its
+          // SEO title, or carries the wrong canonical must fail the build
+          // rather than ship a regression.
+          const expectedCanonical = `https://zedexams.com${route}`
+          if (rootLen < MIN_ROOT_TEXT) {
+            failures.push(`${route}: too little content (${rootLen} chars)`)
+          } else if (!title.includes('ZedExams')) {
+            failures.push(`${route}: missing SEO title (got "${title}")`)
+          } else if (canonical !== expectedCanonical) {
+            failures.push(`${route}: canonical "${canonical}" != "${expectedCanonical}"`)
+          } else {
+            const out = outputPathFor(route)
+            mkdirSync(dirname(out), { recursive: true })
+            writeFileSync(out, html, 'utf8')
+            console.log(`[prerender] ✓ ${route} → ${out.replace(ROOT + '/', '')}  (title: "${title}")`)
           }
-
-          const root = document.getElementById('root')
-          const link = document.querySelector('link[rel="canonical"]')
-          return {
-            html: `<!DOCTYPE html>\n${document.documentElement.outerHTML}`,
-            title: document.title || '',
-            canonical: link ? link.getAttribute('href') : null,
-            rootLen: (root?.innerText || '').trim().length,
+          break
+        } catch (err) {
+          const message = err?.message || String(err)
+          const canRetry = attempt < MAX_ROUTE_ATTEMPTS && isRecoverableBrowserError(err)
+          if (canRetry) {
+            console.warn(
+              `[prerender] recoverable browser error on ${route} (attempt ${attempt}/${MAX_ROUTE_ATTEMPTS}): ${message}`,
+            )
+            await browser.close().catch(() => {})
+            browser = await launchBrowser()
+            continue
           }
-        })
-
-        // Sanity gates — a route that renders an empty/crash shell, loses its
-        // SEO title, or carries the wrong canonical must fail the build
-        // rather than ship a regression.
-        const expectedCanonical = `https://zedexams.com${route}`
-        if (rootLen < MIN_ROOT_TEXT) {
-          failures.push(`${route}: too little content (${rootLen} chars)`)
-        } else if (!title.includes('ZedExams')) {
-          failures.push(`${route}: missing SEO title (got "${title}")`)
-        } else if (canonical !== expectedCanonical) {
-          failures.push(`${route}: canonical "${canonical}" != "${expectedCanonical}"`)
-        } else {
-          const out = outputPathFor(route)
-          mkdirSync(dirname(out), { recursive: true })
-          writeFileSync(out, html, 'utf8')
-          console.log(`[prerender] ✓ ${route} → ${out.replace(ROOT + '/', '')}  (title: "${title}")`)
+          failures.push(`${route}: ${message}`)
+          break
+        } finally {
+          await page?.close().catch(() => {})
         }
-      } catch (err) {
-        failures.push(`${route}: ${err?.message || err}`)
-      } finally {
-        await page.close()
       }
     }
   } finally {
