@@ -37,12 +37,22 @@ const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
  * @param {object} args
  * @param {object} args.job - The agentJobs document data (with id).
  * @param {object} args.anthropicApiKeySecret - Firebase secret param.
+ * @param {object} [args.runners] - Tool→runner map. Defaults to RUNNERS;
+ *   injected by the unit test so the routing/draft-mapping logic runs
+ *   without calling the real teacher-tool generators.
+ * @param {Function} [args.getApiKey] - Resolves the Anthropic key from the
+ *   secret. Injected by the unit test.
  * @returns {Promise<object>} { generationId, draft, modelUsed }
  */
-async function runAria({job, anthropicApiKeySecret}) {
+async function runAria({
+  job,
+  anthropicApiKeySecret,
+  runners = RUNNERS,
+  getApiKey = getAnthropicApiKey,
+}) {
   const input = job.input || {};
   const tool = String(input.tool || "").toLowerCase();
-  const runner = RUNNERS[tool];
+  const runner = runners[tool];
   if (!runner) {
     throw new Error(
       `Aria does not drive the "${tool || "<missing>"}" generator. ` +
@@ -58,7 +68,7 @@ async function runAria({job, anthropicApiKeySecret}) {
     );
   }
 
-  const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+  const apiKey = getApiKey(anthropicApiKeySecret);
   const result = await runner.run({uid, rawInputs: input, apiKey});
 
   return {

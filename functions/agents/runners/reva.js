@@ -70,9 +70,18 @@ function safeParseJson(text) {
  * @param {object} args.job - The agentJobs document data; must have
  *   output.aria.draft and output.cala (alignment).
  * @param {object} args.anthropicApiKeySecret - Firebase secret param.
+ * @param {Function} [args.callLLM] - Anthropic caller. Defaults to
+ *   aiService.callAnthropic; injected by the unit test so the parse/clamp
+ *   logic runs without the network.
+ * @param {Function} [args.getApiKey] - Resolves the key from the secret.
  * @returns {Promise<object>} { verdict, severity, edits, summary, modelUsed }
  */
-async function runReva({job, anthropicApiKeySecret}) {
+async function runReva({
+  job,
+  anthropicApiKeySecret,
+  callLLM = callAnthropic,
+  getApiKey = getAnthropicApiKey,
+}) {
   const input = job.input || {};
   const ariaOutput = job.output && job.output.aria;
   const calaOutput = job.output && job.output.cala;
@@ -80,14 +89,14 @@ async function runReva({job, anthropicApiKeySecret}) {
     throw new Error("Reva needs job.output.aria.draft — Aria must run first.");
   }
 
-  const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+  const apiKey = getApiKey(anthropicApiKeySecret);
   const userPrompt = buildUserPrompt({
     input,
     draft: ariaOutput.draft,
     alignment: calaOutput || {},
   });
 
-  const raw = await callAnthropic(apiKey, {
+  const raw = await callLLM(apiKey, {
     systemPrompt: SYSTEM_PROMPT,
     messages: [{role: "user", content: userPrompt}],
     maxTokens: 1500,
