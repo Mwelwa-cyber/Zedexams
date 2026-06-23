@@ -28,7 +28,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v26'
+const STUDIO_ASSET_VERSION = 'v27'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -831,9 +831,20 @@ export default function LessonPlanStudio() {
                     <div className="toggle-switch"></div>
                   </div>
                   <div className="toggle-row on" id="t-diagrams" data-on="true">
-                    <div className="lbl">Auto-add diagrams<small>For Maths &amp; Science: AI draws shapes, number lines, sets, charts &amp; science diagrams where they help</small></div>
+                    <div className="lbl">Auto-add AI illustrations<small>For Maths &amp; Science: AI draws labelled black-and-white pictures (shapes, number lines, sets, charts &amp; science diagrams) for the lesson where they help</small></div>
                     <div className="toggle-switch"></div>
                   </div>
+                  {/* Manual entry point to the AI Illustration tool — saves the
+                      teacher from discovering it behind Edit mode → Diagram. */}
+                  <button
+                    type="button"
+                    className="lp-illustrate-btn"
+                    onClick={() => { if (typeof window.__studioOpenAiIllustration === 'function') window.__studioOpenAiIllustration() }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+                    <span>Add an AI picture…</span>
+                  </button>
+                  <div className="helper" style={{marginTop:'6px'}}>Describe any picture and AI draws it for your plan — insert it wherever you like.</div>
                   <div className="toggle-row" id="t-plan-in-medium" data-on="false">
                     <div className="lbl">Write the whole plan in the local language<small>Only when the Medium of instruction is a Zambian language — writes the entire plan in it, not just the parts learners hear. Off keeps an English document for inspection.</small></div>
                     <div className="toggle-switch"></div>
