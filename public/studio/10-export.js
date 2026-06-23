@@ -87,15 +87,203 @@ h2.sec, .progression-title { font-family: Georgia, serif; font-weight: 700; font
 .c2-stage-table td + td { border-left: 1px solid #c8baa3; }
 ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
 li { margin: 2pt 0; }
-strong { font-weight: 700; }`;
+strong { font-weight: 700; }
+.plan-official { color: #000; }
+.field-line { margin: 3pt 0; line-height: 1.4; }
+.field-line strong { font-weight: 700; }
+.duration { font-style: italic; font-weight: 500; }
+/* Word ignores CSS grid/flex, so prepareWordBody() rewrites the .meta-compact /
+   .official-meta header grids into these 2-column tables — keep the styling here
+   so the exported header matches the on-screen preview's ruled metadata block. */
+.word-meta-table { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; }
+.word-meta-table td { width: 50%; padding: 3pt 12pt 3pt 0; vertical-align: top; font-size: 10.5pt; line-height: 1.35; }
+.word-meta-table td strong { font-weight: 700; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.3pt; }
+/* Illustrations: AI line-art (remote <img>) + template diagrams (inline <svg>)
+   are both inlined as data URIs by prepareWordBody() so Word can embed them. */
+.stage-diagrams { margin-top: 6pt; }
+.diagram-wrap { margin: 10pt 0; padding: 6pt; text-align: center; page-break-inside: avoid; }
+.diagram-wrap img { max-width: 90%; height: auto; }
+.diagram-caption { font-style: italic; font-size: 9.5pt; text-align: center; margin-top: 4pt; color: #555; }
+/* Modern-format Lesson Evaluation blanks (grid on screen → fill lines in Word). */
+.callout-line { margin: 6pt 0; }
+.callout-line strong { font-weight: 700; }
+.callout-line .blank { display: inline-block; min-width: 45%; border-bottom: 1px solid #000; }`;
+
+// ── Word graphics + layout normalisation ────────────────────────────────────
+//
+// The studio preview and the Word export render from the SAME html
+// (doc.innerHTML), so in principle they should match. They didn't, for two
+// reasons rooted in the Word/MHT engine the vendored html-docx-js targets:
+//
+//   1. PICTURES — html-docx-js only embeds images whose src is a `data:` URI
+//      (its inliner is /"data:(\w+\/\w+);.../). The lesson's AI illustrations
+//      are remote Firebase-Storage <img>s, and the template/auto diagrams are
+//      inline <svg> — Word embeds NEITHER, so every picture vanished from the
+//      download even though it showed in the preview.
+//   2. ARRANGEMENT — Word's HTML engine ignores CSS grid/flex, so the
+//      grid-based metadata header (.meta-compact, on by default; .official-meta
+//      for the classic formats) collapsed into a plain stack instead of the
+//      two-column ruled block the preview shows.
+//
+// prepareWordBody() rewrites the export HTML to fix both: rasterise <svg>→PNG
+// data URI, fetch remote <img>→data URI, and reflow the meta grids into
+// 2-column <table>s Word can lay out. Browser-only (needs DOMParser / Image /
+// canvas / fetch); a no-op elsewhere so the node regression tests still load
+// this file. Failures are swallowed per-element — a broken picture must never
+// abort the whole download.
+async function prepareWordBody(html) {
+  if (typeof DOMParser === 'undefined') return html;
+  let parsed;
+  try { parsed = new DOMParser().parseFromString(String(html || ''), 'text/html'); }
+  catch (e) { return html; }
+  const root = parsed && parsed.body;
+  if (!root) return html;
+  await rasterizeSvgsForWord(parsed, root);
+  await inlineRemoteImagesForWord(root);
+  convertMetaGridsToTables(parsed, root);
+  return root.innerHTML;
+}
+
+// Draw one <svg> onto a canvas and return { url: PNG data URI, w }. The clone
+// gets explicit width/height (some browsers won't rasterise a viewBox-only SVG)
+// and a white backing so transparent diagrams don't print as grey blocks.
+function svgToPngDataUrl(svg) {
+  return new Promise((resolve) => {
+    try {
+      const vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+      const wAttr = parseFloat(svg.getAttribute('width'));
+      const baseW = wAttr || (vb.length === 4 ? vb[2] : 320);
+      const ratio = (vb.length === 4 && vb[2] > 0) ? (vb[3] / vb[2]) : 0.62;
+      const w = Math.max(1, Math.round(baseW));
+      const h = Math.max(1, Math.round(w * ratio));
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('width', String(w));
+      clone.setAttribute('height', String(h));
+      if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const xml = new XMLSerializer().serializeToString(clone);
+      const svgUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+      const scale = 2; // crisp on a 96→Word DPI bump
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = w * scale;
+          canvas.height = h * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve({ url: canvas.toDataURL('image/png'), w });
+        } catch (e) { resolve(null); }
+      };
+      image.onerror = () => resolve(null);
+      image.src = svgUri;
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function rasterizeSvgsForWord(parsed, root) {
+  const svgs = Array.from(root.querySelectorAll('svg'));
+  for (const svg of svgs) {
+    const out = await svgToPngDataUrl(svg);
+    if (out && out.url) {
+      const img = parsed.createElement('img');
+      img.setAttribute('src', out.url);
+      img.setAttribute('width', String(out.w));
+      img.setAttribute('style', 'display:block;max-width:100%;height:auto;margin:0 auto');
+      svg.replaceWith(img);
+    }
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    try {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function inlineRemoteImagesForWord(root) {
+  const imgs = Array.from(root.querySelectorAll('img'));
+  for (const img of imgs) {
+    const src = img.getAttribute('src') || '';
+    if (!/^https?:/i.test(src)) continue; // already a data: URI (e.g. rasterised svg)
+    try {
+      const res = await fetch(src, { mode: 'cors' });
+      if (!res || !res.ok) continue;
+      const blob = await res.blob();
+      const dataUrl = await blobToDataUrl(blob);
+      if (dataUrl) img.setAttribute('src', dataUrl);
+    } catch (e) { /* leave the remote src — a broken ref beats a crashed export */ }
+  }
+}
+
+// Lay a list of {html, wide} metadata cells into a 2-column table. `wide`
+// entries (the official header's om-wide lines, and the compact block's first
+// row) span both columns, mirroring the grid-column:1/-1 rule in lesson.css.
+function buildWordMetaTable(parsed, items) {
+  const table = parsed.createElement('table');
+  table.className = 'word-meta-table';
+  let i = 0;
+  while (i < items.length) {
+    const tr = parsed.createElement('tr');
+    if (items[i].wide) {
+      const td = parsed.createElement('td');
+      td.setAttribute('colspan', '2');
+      td.innerHTML = items[i].html;
+      tr.appendChild(td);
+      i += 1;
+    } else {
+      const td1 = parsed.createElement('td');
+      td1.innerHTML = items[i].html;
+      tr.appendChild(td1);
+      i += 1;
+      const td2 = parsed.createElement('td');
+      if (i < items.length && !items[i].wide) { td2.innerHTML = items[i].html; i += 1; }
+      tr.appendChild(td2);
+    }
+    table.appendChild(tr);
+  }
+  return table;
+}
+
+function convertMetaGridsToTables(parsed, root) {
+  // .meta-compact (Modern + all formats, on by default): "<lbl>: <val>" items;
+  // the first item is full-width on screen (first-child grid rule).
+  root.querySelectorAll('.meta-compact').forEach((grid) => {
+    const cells = Array.from(grid.querySelectorAll('.item')).map((it, idx) => {
+      const lbl = it.querySelector('.lbl');
+      const val = it.querySelector('.val');
+      const label = lbl ? lbl.textContent.replace(/:\s*$/, '') : '';
+      const value = val ? val.innerHTML : it.innerHTML;
+      const html = lbl ? `<strong>${esc(label)}:</strong> ${value}` : it.innerHTML;
+      return { html, wide: idx === 0 };
+    });
+    if (cells.length) grid.replaceWith(buildWordMetaTable(parsed, cells));
+  });
+  // .official-meta (Classic / Classic 2): om-item lines, some flagged om-wide.
+  root.querySelectorAll('.official-meta').forEach((grid) => {
+    const cells = Array.from(grid.querySelectorAll('.om-item')).map((it) => ({
+      html: it.innerHTML,
+      wide: it.classList.contains('om-wide'),
+    }));
+    if (cells.length) grid.replaceWith(buildWordMetaTable(parsed, cells));
+  });
+}
 
 // Build the Word-flavoured HTML document (inline print styles + Office
-// namespaces) that the HTML→docx converter turns into a .docx.
-function buildWordHtml() {
+// namespaces) that the HTML→docx converter turns into a .docx. Async because
+// prepareWordBody() fetches + rasterises the lesson's pictures so they embed.
+async function buildWordHtml() {
+  const body = await prepareWordBody(doc.innerHTML);
   return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Lesson Plan</title>
 <style>${WORD_DOC_STYLES}</style>
-</head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`);
+</head><body><div class="WordSection1">${body}</div></body></html>`);
 }
 
 // Lazy-load the HTML→docx converter. Served locally from /studio/vendor (NOT a
@@ -118,7 +306,7 @@ function loadHtmlDocxLib() {
 
 async function exportWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
-  const html = buildWordHtml();
+  const html = await buildWordHtml();
   const filename = currentFilename() + '.docx';
 
   // Primary: real .docx via the locally-vendored converter.
@@ -189,12 +377,17 @@ function buildBatchCoverHtml(meta, lessons) {
 }
 
 // Word document for the whole series — shared styles, cover sheet first, each
-// lesson split onto a fresh page (html-docx honours page-break-before).
-function buildBatchWordHtml() {
+// lesson split onto a fresh page (html-docx honours page-break-before). Async
+// so every lesson's pictures + metadata go through the same prepareWordBody()
+// normalisation as the single-plan export (otherwise the batch download would
+// keep losing illustrations and reflowing the header).
+async function buildBatchWordHtml() {
   const b = window.__lpBatch || { meta: {}, lessons: [] };
   const lessons = Array.isArray(b.lessons) ? b.lessons : [];
   const brk = '<div style="page-break-before:always"></div>';
-  const parts = [buildBatchCoverHtml(b.meta, lessons)].concat(lessons.map(l => l.html));
+  const rawParts = [buildBatchCoverHtml(b.meta, lessons)].concat(lessons.map(l => l.html));
+  const parts = [];
+  for (const part of rawParts) parts.push(await prepareWordBody(part));
   return withWatermark(`<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Lesson Plans</title>
 <style>${WORD_DOC_STYLES}</style>
@@ -215,7 +408,7 @@ function batchFilename() {
 // vendored converter, .doc fallback if it fails to load.
 async function exportBatchWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
-  const html = buildBatchWordHtml();
+  const html = await buildBatchWordHtml();
   const filename = batchFilename() + '.docx';
   try {
     await loadHtmlDocxLib();
