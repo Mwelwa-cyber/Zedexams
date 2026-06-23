@@ -41,16 +41,13 @@ import nyDashboard from './locales/ny/dashboard.json'
 // still resolves (falling back to English) for anyone who had it selected.
 const ALL_LANGUAGES = [
   { code: 'en', label: 'English', nativeLabel: 'English', ready: true },
-  // Nyanja UI strings are placeholders awaiting a Zambian native-speaker review
-  // (locales/ny/*.json currently fall back to English). The scaffold ships, but
-  // it is hidden from the language switcher until reviewed so production does
-  // not feel half-finished. To re-expose it once the strings are signed off:
-  // flip `ready` to true — no other change needed.
-  { code: 'ny', label: 'Nyanja (preview)', nativeLabel: 'Chinyanja', ready: false },
+  // Nyanja is now production-visible. Incomplete keys still degrade to English
+  // via returnEmptyString=false and fallbackLng='en' until translations fill out.
+  { code: 'ny', label: 'Nyanja', nativeLabel: 'Chinyanja', ready: true },
 ]
 
 // User-facing languages — only locales cleared for production appear in the
-// LanguageToggle. English-only today, so the toggle hides itself entirely.
+// LanguageToggle.
 export const SUPPORTED_LANGUAGES = ALL_LANGUAGES.filter((l) => l.ready)
 
 export const DEFAULT_LANGUAGE = 'en'

@@ -3,7 +3,7 @@
  *
  * The browser never talks to Lenco directly (the API token is a
  * server-only secret). It calls our Cloud Functions:
- *   - initiateLencoPayment  → starts a mobile-money / card collection
+ *   - initiateLencoPayment  → starts a mobile-money collection
  *   - submitLencoOtp        → completes the mobile-money OTP step
  *   - getLencoPaymentStatus → poll fallback while we wait for the webhook
  *
