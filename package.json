@@ -80,6 +80,7 @@
     "test:download-guard": "node src/utils/downloadGuard.test.js",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",
+    "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:auth-recovery": "node scripts/test-auth-recovery.mjs",
     "test:sw-recovery": "node scripts/test-sw-recovery.mjs",
     "test:pwa-reload": "node scripts/test-pwa-reload-cooperative.mjs",
