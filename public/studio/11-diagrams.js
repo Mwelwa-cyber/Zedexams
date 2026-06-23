@@ -159,11 +159,14 @@ if (typeof window !== 'undefined') window.__studioDiagrams = diagrams;
 
 function openDiagramModal() {
   const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  const cats = ['All', ...Array.from(new Set(Object.values(diagrams).map(d => d.cat)))];
+  // "AI Illustration" leads the category row — it's the only one that draws a
+  // real picture (everything else is a hand-built SVG template). The remaining
+  // buttons keep the original All + per-category behaviour.
+  const cats = ['AI Illustration', 'All', ...Array.from(new Set(Object.values(diagrams).map(d => d.cat)))];
   const renderGrid = (filter) => `<div class="diagram-grid" id="diagram-grid">${Object.entries(diagrams).filter(([k,d]) => filter === 'All' || d.cat === filter).map(([key, d]) => `<div class="diagram-card" data-diagram="${key}"><div class="preview">${d.render(d.defaults, accent)}</div><div class="name">${d.name}</div></div>`).join('')}</div>`;
   $('#diagram-modal-body').innerHTML = `
-    <div class="diagram-cats">${cats.map((c,i) => `<button class="cat-btn ${i===0?'active':''}" data-cat="${c}">${c}</button>`).join('')}</div>
-    ${renderGrid('All')}`;
+    <div class="diagram-cats">${cats.map((c) => `<button class="cat-btn ${c==='All'?'active':''}" data-cat="${c}">${c==='AI Illustration'?'✨ '+c:c}</button>`).join('')}</div>
+    <div id="diagram-panel">${renderGrid('All')}</div>`;
   $('#modal-diagram').classList.add('show');
   function bindCards() {
     $$('#diagram-grid .diagram-card').forEach(c => c.addEventListener('click', () => openDiagramConfig(c.dataset.diagram)));
@@ -172,10 +175,99 @@ function openDiagramModal() {
   $$('#diagram-modal-body .cat-btn').forEach(b => b.addEventListener('click', () => {
     $$('#diagram-modal-body .cat-btn').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    const grid = $('#diagram-grid');
-    grid.outerHTML = renderGrid(b.dataset.cat);
-    bindCards();
+    const panel = $('#diagram-panel');
+    if (b.dataset.cat === 'AI Illustration') {
+      renderAiIllustrationPanel(panel);
+    } else {
+      panel.innerHTML = renderGrid(b.dataset.cat);
+      bindCards();
+    }
   }));
+}
+
+// AI Illustration tab — teacher describes a picture, the generateDiagram
+// callable (bridged in as window.__studioGenerateDiagram by LessonPlanStudio.jsx)
+// draws a B&W line-art image and returns a Storage URL we insert as an <img>.
+function renderAiIllustrationPanel(panel) {
+  // Seed the prompt from the lesson the teacher is already planning so the
+  // common case is one click. Subtopic is more specific than topic, so prefer it.
+  const subject = (($('#f-subject') && $('#f-subject').value) || '').trim();
+  const topic = (($('#f-subtopic') && $('#f-subtopic').value) || '').trim()
+    || (($('#f-topic') && $('#f-topic').value) || '').trim();
+  const seed = [topic, subject].filter(Boolean).join(' — ');
+  const available = typeof window.__studioGenerateDiagram === 'function';
+  panel.innerHTML = `
+    <div class="ai-illus">
+      <p class="ai-illus-intro">Describe a picture and AI will draw a clean black-and-white illustration for your plan. Best for science diagrams, labelled objects, scenes and simple processes — it prints well on a photocopier.</p>
+      <div class="config-field">
+        <label>What should the illustration show?</label>
+        <textarea id="ai-illus-prompt" rows="3" placeholder="e.g. Cross-section of a human heart with labelled chambers">${esc(seed)}</textarea>
+      </div>
+      <div class="config-field">
+        <label>Caption <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" id="ai-illus-cap" placeholder="Shown under the picture">
+      </div>
+      <div class="diagram-actions" style="justify-content:flex-start">
+        <button class="btn-solid" id="ai-illus-go"${available ? '' : ' disabled'}>✨ Generate illustration</button>
+      </div>
+      <div id="ai-illus-status" class="ai-illus-status"></div>
+      <div id="ai-illus-result" class="ai-illus-result"></div>
+    </div>`;
+  if (!available) {
+    $('#ai-illus-status').innerHTML = '<span class="ai-illus-err">AI illustrations aren’t available here. Open the Lesson Plan Studio from the teacher dashboard and try again.</span>';
+    return;
+  }
+  $('#ai-illus-go').addEventListener('click', runAiIllustration);
+}
+
+async function runAiIllustration() {
+  const prompt = (($('#ai-illus-prompt') && $('#ai-illus-prompt').value) || '').trim();
+  const status = $('#ai-illus-status');
+  const result = $('#ai-illus-result');
+  const btn = $('#ai-illus-go');
+  if (!prompt) { status.innerHTML = '<span class="ai-illus-err">Please describe the illustration first.</span>'; return; }
+  if (btn) btn.disabled = true;
+  if (result) result.innerHTML = '';
+  status.innerHTML = '<span class="ai-illus-busy">Drawing your illustration… this can take up to a minute.</span>';
+  try {
+    const res = await window.__studioGenerateDiagram({ prompt });
+    if (!res || !res.url) throw new Error('The AI returned no image. Please try again.');
+    status.innerHTML = '';
+    result.innerHTML = `
+      <div class="ai-illus-preview"><img src="${esc(res.url)}" alt="${esc(prompt)}"></div>
+      <div class="diagram-actions" style="justify-content:flex-start">
+        <button class="btn-outline" id="ai-illus-retry">Try again</button>
+        <button class="btn-solid" id="ai-illus-insert">Insert into Lesson</button>
+      </div>`;
+    $('#ai-illus-insert').addEventListener('click', () => {
+      const cap = (($('#ai-illus-cap') && $('#ai-illus-cap').value) || '').trim();
+      insertImageIllustration(res.url, cap || prompt);
+    });
+    $('#ai-illus-retry').addEventListener('click', runAiIllustration);
+  } catch (err) {
+    status.innerHTML = `<span class="ai-illus-err">${esc((err && err.message) || 'Could not generate that illustration. Try a simpler description.')}</span>`;
+  } finally {
+    if ($('#ai-illus-go')) $('#ai-illus-go').disabled = false;
+  }
+}
+
+// Insert a generated illustration into the editable doc. Mirrors insertDiagram:
+// wraps the <img> in the same .diagram-wrap used by SVG diagrams so it lays out
+// and exports identically. The Storage URL is kept (not inlined) so the saved
+// library html blob stays small and well under the 1MB Firestore doc limit.
+function insertImageIllustration(url, caption) {
+  const label = caption || 'Illustration';
+  const html = `<div class="diagram-wrap" contenteditable="false"><img src="${esc(String(url || ''))}" alt="${esc(label)}" style="display:block;max-width:100%;width:420px;margin:0 auto"/><div class="diagram-caption">${esc(label)}</div></div>`;
+  if (!editing) $('#btn-edit').click();
+  doc.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount || !doc.contains(sel.getRangeAt(0).startContainer)) {
+    const r = document.createRange(); r.selectNodeContents(doc); r.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r);
+  }
+  document.execCommand('insertHTML', false, html + '<p>&nbsp;</p>');
+  closeModal();
+  toast('Illustration inserted');
 }
 function openDiagramConfig(key) {
   const d = diagrams[key];

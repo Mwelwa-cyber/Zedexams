@@ -18,6 +18,7 @@ import { saveBlob } from '../../../utils/saveBlob'
 import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import { generateDiagram } from '../../../utils/generateDiagram'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -26,7 +27,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v25'
+const STUDIO_ASSET_VERSION = 'v26'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -204,6 +205,20 @@ export default function LessonPlanStudio() {
       // result.data.text is the raw JSON string from Claude
       return result.data.text
     }
+
+    // ---- Bridge: AI illustration generation ----
+    // public/studio/11-diagrams.js calls this from the "AI Illustration" tab in
+    // the Insert Diagram modal. It can't import the bundled generateDiagram
+    // helper (it's a plain <script>), so we hand it the same callable wrapper
+    // every other studio (Assessment, Picture Bank) uses. Defaults to Recraft
+    // B&W line-art — prints cleanly on classroom photocopiers and is the
+    // cheapest provider. Returns { url, prompt, ... }; the studio inserts the
+    // returned Storage URL as an <img> into the editable plan.
+    window.__studioGenerateDiagram = (opts) => generateDiagram({
+      prompt: (opts && opts.prompt) || '',
+      style: 'line_art',
+      provider: 'recraft',
+    })
 
     // ---- Bridge: auth (for any studio code that checks auth) ----
     window.__studioGetAuth = () => ({
@@ -452,6 +467,7 @@ export default function LessonPlanStudio() {
       delete window.__studioOnGenerated
       delete window.__studioSetGenerating
       delete window.__studioCallClaude
+      delete window.__studioGenerateDiagram
       delete window.__studioGetAuth
       delete window.__studioFetchSyllabusTopics
       delete window.__studioFetchSubtopicDetail
