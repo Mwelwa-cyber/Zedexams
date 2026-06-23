@@ -43,6 +43,14 @@ npm run test:exam-grading         # functions/grading/dailyExamGrading.test.js
 npm run test:ai-prompt-policy     # functions/aiPromptPolicy.test.js
 npm run test:cors                 # functions/cors.test.js
 npm run test:storage-cleanup      # functions/storageCleanup helpers
+npm run test:secret-hygiene       # release-safety: no committed credential/artifact + .gitignore policy guard
+
+# Mobile smoke (release-safety) — NOT in test:all (needs a build + a real
+# Chromium). Builds with the fake public Firebase config in .env.smoke, then
+# boots /, /login, /register, /papers, /pricing in a phone-sized headless
+# browser and asserts each renders (no crash card / white screen / overflow).
+# Runs as the "Build + mobile smoke" CI job; locally:
+npm run smoke                     # = smoke:build (vite build --mode smoke) + smoke:mobile
 
 # Run a single test directly — bypass npm if iterating:
 node scripts/test-question-schema.mjs
@@ -222,6 +230,6 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 ## Repo notes
 
 - Two identical remotes. `gh pr ...` needs `-R Mwelwa-cyber/Zedexams`. `gh api` uses URL paths.
-- `main` is branch-protected. Required checks: `Lint` + `Tests (importer + sanitize + schema)`. `enforce_admins` is on. Use `gh pr merge --auto` rather than blocking on checks.
+- `main` is branch-protected. Required checks: `Lint` + `Tests (importer + sanitize + schema)`. `enforce_admins` is on. Use `gh pr merge --auto` rather than blocking on checks. `ci.yml` also runs `Tests (Vitest unit + coverage)`, `Build + mobile smoke` (the clean-build + public-route render gate), and `Tests (Firestore rules emulator)`; make the build job a required check too once it's settled.
 - The dev server needs `.env` from the project owner. CI builds use repo secrets (`deploy-hosting.yml:60-83`).
 - Today's date and the user's email are surfaced in the session header. Don't hard-code either into code or tests.
