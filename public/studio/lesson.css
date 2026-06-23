@@ -271,7 +271,20 @@
 .btn-solid:hover{background:#0d6b6b}
 .btn-outline{padding:9px 16px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:5px;font-weight:600;font-size:13px;cursor:pointer}
 .btn-outline:hover{background:var(--paper-2)}
+.btn-solid:disabled{opacity:.55;cursor:not-allowed}
 .helper{font-size:11px;color:#a89880;margin-top:4px;line-height:1.4}
+/* ---- AI Illustration panel (Insert Diagram modal) ---- */
+.ai-illus-intro{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 14px}
+.ai-illus .config-field{margin-bottom:12px}
+.ai-illus label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.ai-illus textarea,.ai-illus input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:5px;font-family:var(--font-body);font-size:13px;background:#fff;resize:vertical}
+.ai-illus textarea:focus,.ai-illus input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,84,84,.1)}
+.ai-illus-status{margin-top:10px;font-size:12.5px;line-height:1.4}
+.ai-illus-busy{color:var(--accent)}
+.ai-illus-err{color:#b8492a}
+.ai-illus-result{margin-top:14px}
+.ai-illus-preview{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;place-items:center;min-height:160px}
+.ai-illus-preview img{max-width:100%;max-height:340px;display:block}
 
 /* ============ BRAND LOGO IMAGE ============ */
 .brand picture{display:inline-flex;flex-shrink:0}
