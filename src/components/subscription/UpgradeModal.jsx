@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, CreditCard, Loader2, Sparkles, X } from '../ui/icons'
+import { ArrowLeft, Check, Loader2, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS } from '../../utils/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
@@ -68,11 +68,10 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   )
 
   // ── Checkout state ──────────────────────────────────────────────
-  const [method, setMethod] = useState('mobile_money') // 'mobile_money' | 'card'
+  const method = 'mobile_money'
   const [phone, setPhone] = useState('')
   const [operator, setOperator] = useState('')
   const [operatorTouched, setOperatorTouched] = useState(false)
-  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' })
   const [otp, setOtp] = useState('')
   const [paymentId, setPaymentId] = useState(null)
   const [payState, setPayState] = useState('idle')
@@ -148,44 +147,16 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
     setError('')
     const operatorToSend = detectedOperator
 
-    if (method === 'mobile_money') {
-      if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
-      if (!operatorToSend) { setError('Please choose your mobile money operator.'); return }
-    } else {
-      const digits = card.number.replace(/\s+/g, '')
-      const [mm, yy] = card.expiry.split('/').map((s) => (s || '').trim())
-      if (digits.length < 12 || !mm || !yy || card.cvv.length < 3) {
-        setError('Enter a valid card number, expiry (MM/YY) and CVV.'); return
-      }
-    }
+    if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
+    if (!operatorToSend) { setError('Please choose your mobile money operator.'); return }
 
     setPayState('starting')
     capture('lenco_payment_initiated', { planId: selectedPlanId, method })
     try {
-      const payload = method === 'mobile_money'
-        ? { planId: selectedPlanId, method, phone, operator: operatorToSend }
-        : (() => {
-          const [mm, yy] = card.expiry.split('/').map((s) => (s || '').trim())
-          return {
-            planId: selectedPlanId,
-            method,
-            card: {
-              number: card.number.replace(/\s+/g, ''),
-              expiryMonth: mm,
-              expiryYear: yy,
-              cvv: card.cvv.trim(),
-              name: card.name.trim(),
-            },
-          }
-        })()
+      const payload = { planId: selectedPlanId, method, phone, operator: operatorToSend }
 
       const res = await initiateLencoPayment(payload)
       setPaymentId(res.paymentId)
-
-      // Card 3-D Secure / hosted-auth redirect, when present.
-      if (res.authorization?.url || res.authorization?.redirectUrl) {
-        window.open(res.authorization.url || res.authorization.redirectUrl, '_blank', 'noopener,noreferrer')
-      }
 
       if (resolveTerminal(res.status)) return
       if (res.requiresOtp || res.status === 'otp-required') {
@@ -308,7 +279,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               })}
             </div>
             <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">
-              Pay instantly with Mobile Money or card. Access unlocks the moment your payment confirms.
+              Pay instantly with Mobile Money. Access unlocks the moment your payment confirms.
             </div>
             <Button
               variant="primary"
@@ -370,13 +341,10 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
             {payState === 'processing' && (
               <div className="text-center py-6">
                 <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-[#B8860B]" />
-                <h3 className="text-base font-black text-gray-800 mt-3">
-                  {method === 'mobile_money' ? 'Approve the prompt on your phone' : 'Processing your card…'}
-                </h3>
+                <h3 className="text-base font-black text-gray-800 mt-3">Approve the prompt on your phone</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  {method === 'mobile_money'
-                    ? 'Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute — keep this page open and your access unlocks automatically.'
-                    : 'Hang tight — this can take up to a minute. Keep this page open and your access unlocks automatically once your bank confirms.'}
+                  Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute —
+                  keep this page open and your access unlocks automatically.
                 </p>
                 {timedOut && (
                   <p className="text-xs text-gray-500 mt-3">
@@ -434,104 +402,31 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
             {/* ── Payment form (idle / starting) ──────────────────── */}
             {(payState === 'idle' || payState === 'starting') && (
               <>
-                <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-gray-100 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setMethod('mobile_money')}
-                    className={`py-2.5 rounded-lg text-sm font-bold transition-colors ${method === 'mobile_money' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
-                  >
-                    📱 Mobile Money
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMethod('card')}
-                    className={`py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${method === 'card' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
-                  >
-                    <Icon as={CreditCard} size="xs" /> Card
-                  </button>
-                </div>
-
-                {method === 'mobile_money' ? (
-                  <div className="space-y-3">
-                    <MobileMoneyBrands className="rounded-2xl bg-white border border-gray-100 p-3" />
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                        Mobile money number
-                      </label>
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="0977 740 465"
-                        className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
-                          phone === '' || phoneValid ? 'border-gray-200 focus:border-[#B8860B]' : 'border-red-300 focus:border-red-500'
-                        }`}
-                      />
-                    </div>
-                    <NetworkField
-                      phone={phone}
-                      operator={operator}
-                      operatorTouched={operatorTouched}
-                      onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
+                <div className="space-y-3">
+                  <MobileMoneyBrands className="rounded-2xl bg-white border border-gray-100 p-3" />
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                      Mobile money number
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0977 740 465"
+                      className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
+                        phone === '' || phoneValid ? 'border-gray-200 focus:border-[#B8860B]' : 'border-red-300 focus:border-red-500'
+                      }`}
                     />
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                        Card number
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="cc-number"
-                        value={card.number}
-                        onChange={(e) => setCard((c) => ({ ...c, number: e.target.value }))}
-                        placeholder="1234 5678 9012 3456"
-                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Expiry</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="cc-exp"
-                          value={card.expiry}
-                          onChange={(e) => setCard((c) => ({ ...c, expiry: e.target.value }))}
-                          placeholder="MM/YY"
-                          className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">CVV</label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="cc-csc"
-                          value={card.cvv}
-                          onChange={(e) => setCard((c) => ({ ...c, cvv: e.target.value.replace(/[^\d]/g, '') }))}
-                          placeholder="123"
-                          className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Name on card</label>
-                      <input
-                        type="text"
-                        autoComplete="cc-name"
-                        value={card.name}
-                        onChange={(e) => setCard((c) => ({ ...c, name: e.target.value }))}
-                        placeholder="As shown on the card"
-                        className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
+                  <NetworkField
+                    phone={phone}
+                    operator={operator}
+                    operatorTouched={operatorTouched}
+                    onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
+                  />
+                </div>
 
                 {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 

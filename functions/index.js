@@ -2756,8 +2756,8 @@ exports.backfillReferralCodes = backfillReferralCodes;
 exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubscriptionCancellation;
 
 // ── Lenco automated payments ────────────────────────────────────────
-// User-facing checkout: the SPA calls initiateLencoPayment, optionally
-// submitLencoOtp, then polls getLencoPaymentStatus. The authoritative
+// User-facing checkout: the SPA calls initiateLencoPayment (Mobile Money),
+// optionally submitLencoOtp, then polls getLencoPaymentStatus. The authoritative
 // activation signal is the signed lencoWebhook; the poll is a fallback
 // so the buyer sees "success" even if the webhook is delayed. All three
 // activation paths funnel through the idempotent
@@ -2793,7 +2793,14 @@ exports.initiateLencoPayment = onCall({
   const {getPlan} = require("./plans");
 
   const planId = cleanString(request.data?.planId, 60);
-  const method = cleanString(request.data?.method, 20) === "card" ? "card" : "mobile_money";
+  const requestedMethod = cleanString(request.data?.method, 20);
+  if (requestedMethod === "card") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Card checkout is currently unavailable. Please use Mobile Money.",
+    );
+  }
+  const method = "mobile_money";
   const plan = getPlan(planId);
   if (!plan) throw new HttpsError("invalid-argument", "Unknown plan.");
 
@@ -2848,33 +2855,16 @@ exports.initiateLencoPayment = onCall({
     let phoneNumber = null;
     let operator = null;
 
-    if (method === "mobile_money") {
-      const rawPhone = cleanString(request.data?.phone, 20);
-      phoneNumber = lenco.normalizePhone(rawPhone);
-      if (!phoneNumber) {
-        throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
-      }
-      operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
-      if (!operator) {
-        throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
-      }
-      resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
-    } else {
-      const card = request.data?.card || {};
-      if (!card.number || !card.cvv || !card.expiryMonth || !card.expiryYear) {
-        throw new HttpsError("invalid-argument", "Card number, expiry and CVV are required.");
-      }
-      resp = await lenco.initiateCardCollection({
-        apiKey, amount, reference, bearer,
-        card: {
-          number: String(card.number || ""),
-          cvv: String(card.cvv || ""),
-          expiryMonth: String(card.expiryMonth || ""),
-          expiryYear: String(card.expiryYear || ""),
-          name: String(card.name || user.displayName || ""),
-        },
-      });
+    const rawPhone = cleanString(request.data?.phone, 20);
+    phoneNumber = lenco.normalizePhone(rawPhone);
+    if (!phoneNumber) {
+      throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
     }
+    operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
+    if (!operator) {
+      throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
+    }
+    resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
 
     const data = resp?.data || {};
     const lencoStatus = String(data.status || "pending");
@@ -2901,8 +2891,7 @@ exports.initiateLencoPayment = onCall({
       status: lencoStatus,
       requiresOtp: lencoStatus === "otp-required",
       message: data.message || resp?.message || null,
-      // Card 3-D Secure / hosted-auth redirect, when Lenco returns one.
-      authorization: data.authorization || data.threeDSecure || null,
+      authorization: null,
     };
   } catch (err) {
     await payRef.update({

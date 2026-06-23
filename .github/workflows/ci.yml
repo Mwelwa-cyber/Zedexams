@@ -66,8 +66,8 @@ jobs:
     # Vitest (jsdom) component/hook/behaviour specs — the `*.spec.{js,jsx}`
     # files under src/. Separate from `tests` (the plain-node `*.test.js`
     # suite) because it needs the jsdom environment. Runs coverage so the
-    # frontend gap is reported on every PR. Not a required check yet — make
-    # it required in branch protection once a coverage baseline is agreed.
+    # frontend gap is reported on every PR. This is a required status check
+    # on `main` branch protection.
     name: Tests (Vitest unit + coverage)
     runs-on: ubuntu-latest
     timeout-minutes: 10

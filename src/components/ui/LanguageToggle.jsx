@@ -17,10 +17,7 @@ export default function LanguageToggle({ compact = false, className = '' }) {
   const { i18n, t } = useTranslation()
   const current = i18n.resolvedLanguage || i18n.language || 'en'
 
-  // Nothing to switch between — English is the only production-ready locale
-  // today (Nyanja is hidden pending native-speaker review). Render nothing
-  // rather than a pointless one-option dropdown; the toggle reappears
-  // automatically once a second locale is marked `ready` in src/i18n.
+  // Render nothing if a deploy only exposes one locale.
   if (SUPPORTED_LANGUAGES.length < 2) return null
 
   function handleChange(e) {
