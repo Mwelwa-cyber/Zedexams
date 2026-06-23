@@ -183,3 +183,18 @@ scripts/demo-names.*.local.txt
 
 # Locally generated images (e.g. scripts/kie-generate-image.mjs output).
 generated/
+
+# Migration / export artifacts (e.g. output/<tool>-migration-<timestamp>/) can
+# contain live WhatsApp (Baileys) session material — creds.json plus the
+# *-key-*.json / app-state-sync-*.json files — which must NEVER be committed.
+# Quarantine the migration export trees and any credentials/session folder no
+# matter where a tool drops it. The tracked output/playwright/* test snapshots
+# don't match these patterns, so they stay versioned.
+output/*-migration-*/
+**/credentials/
+creds.json
+**/creds.json
+app-state-sync-*.json
+sender-key-*.json
+pre-key-*.json
+session-*.json

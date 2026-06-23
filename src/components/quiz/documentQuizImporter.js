@@ -841,18 +841,34 @@ function correctAnswerToIndex(value, options) {
   return idx >= 0 ? idx : 0
 }
 
+// Map a True/False answer (word, single letter, boolean, or 0/1 index) onto
+// the fixed 0=True / 1=False option order the tf editor + runner expect.
+// Defaults to True so a missing/odd answer still renders a selectable choice.
+function trueFalseToIndex(value) {
+  if (typeof value === 'boolean') return value ? 0 : 1
+  if (Number.isInteger(value)) return value === 1 ? 1 : 0
+  const s = String(value ?? '').trim().toLowerCase()
+  if (s === 'false' || s === 'f' || s === 'b' || s === '1') return 1
+  return 0
+}
+
 function aiQuestionToLocalOverrides(q) {
   const rawOptions = Array.isArray(q.options) && q.options.length ? q.options : ['', '', '', '']
   const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (rawOptions.length >= 2 ? 'mcq' : 'short_answer')
-  // Resolve the answer index against the ORIGINAL option text (before markup
-  // conversion) so a text-matched correctAnswer still lines up; only then
-  // convert the stored option strings into editor node-HTML (fractions,
-  // inline math). hasImportMarkup gates the converters, so plain options are
-  // passed through byte-for-byte.
+  const isTrueFalse = type === 'truefalse'
+  // mcq resolves the answer index against the ORIGINAL option text (before
+  // markup conversion) so a text-matched correctAnswer still lines up; tf
+  // stores a fixed two-option list with an index answer (0=True/1=False) — the
+  // same shape the editor expects — so a smart-imported tf question lands with
+  // its answer pre-selected instead of an unmatched "True"/"False" string.
   return {
     text: importMarkupToRichHtml(q.text || ''),
-    options: rawOptions.map(opt => importMarkupToOptionHtml(opt)),
-    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, rawOptions) : (q.correctAnswer ?? ''),
+    options: isTrueFalse ? ['True', 'False'] : rawOptions.map(opt => importMarkupToOptionHtml(opt)),
+    correctAnswer: type === 'mcq'
+      ? correctAnswerToIndex(q.correctAnswer, rawOptions)
+      : isTrueFalse
+        ? trueFalseToIndex(q.correctAnswer)
+        : (q.correctAnswer ?? ''),
     explanation: importMarkupToRichHtml(q.explanation || ''),
     type,
     detectedType: type,

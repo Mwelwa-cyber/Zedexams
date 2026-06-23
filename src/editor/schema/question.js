@@ -562,8 +562,12 @@ export function coerceQuestion(raw) {
     : []
 
   const rawMarks = Number(raw.marks)
+  // Cap mirrors the write schema's `marks: z.number().int().min(1).max(20)`.
+  // It used to clamp at 10, which silently truncated legitimate 11–20 mark
+  // past-paper questions on read-back even though they saved fine — the editor
+  // input, CSV importer, and generator all allow up to 20.
   const marks = Number.isFinite(rawMarks) && rawMarks >= 1
-    ? Math.min(10, Math.floor(rawMarks))
+    ? Math.min(20, Math.floor(rawMarks))
     : 1
 
   const rawTolerance = Number(raw.tolerance)

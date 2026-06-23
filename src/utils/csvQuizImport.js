@@ -332,7 +332,9 @@ export function rowToQuestion(cells) {
   let marks = 1
   if (marksRaw) {
     const m = Number(marksRaw)
-    if (!Number.isInteger(m) || m < 1 || m > 10) errors.push('marks must be an integer 1–10')
+    // Cap matches the write schema (max 20) so long-answer past-paper
+    // questions import cleanly instead of erroring at the old 1–10 limit.
+    if (!Number.isInteger(m) || m < 1 || m > 20) errors.push('marks must be an integer 1–20')
     else marks = m
   }
 
