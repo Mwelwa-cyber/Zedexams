@@ -14,6 +14,7 @@ import { richTextToPlainText } from './quizRichText.js'
 import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 import { analyzeTiming } from './assessmentTiming.js'
 import { canonicalizeQuestionType } from '../editor/schema/question.js'
+import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
 import { orderPaperGroups } from './quizSections.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
@@ -571,10 +572,23 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
   const optionsHtml = options.length ? options.map(cachedOptionRichHtml) : []
   const optionsPlain = options.length ? options.map(cachedOptionPlain) : []
 
+  // Short-answer sub-parts: "(a) … (b) … (c) …" under the question's instruction
+  // stem. When present the question owns no marks of its own — the total is the
+  // sum of the parts' marks. Text + answer are flattened to plain (sub-parts are
+  // short sentences, not rich-math blocks).
+  const subParts = normalizeSubParts(q.subParts).map(p => ({
+    text: plain(p.text),
+    answer: plain(p.answer),
+    marks: p.marks,
+    answerFormat: p.answerFormat,
+    answerLines: p.answerLines,
+  }))
+
   return {
     kind: 'question',
     number,
     text: plain(q.text),
+    subParts,
     // Rich-text HTML for the question body. The editor preview, PDF
     // print window, and DOCX export all prefer this when present so
     // Grade-7 math blocks (vertical sums, fractions, number bases)
@@ -582,7 +596,7 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     textHtml: richHtml(q.text),
     optionsHtml,
     optionsPlain,
-    marks: q.marks ?? 1,
+    marks: subParts.length ? sumSubPartMarks(subParts) : (q.marks ?? 1),
     type,
     options,
     optionMedia,

@@ -38,6 +38,7 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
+import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
 import { sanitizeXmlText } from './xmlText.js'
 
 const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
@@ -789,6 +790,49 @@ function answerSpaceParas(b, defaultLines) {
   return out
 }
 
+// A fixed-width dotted gap for an inline sub-part blank ("called …………… [1]").
+const INLINE_GAP = '………………………'
+
+// Render a question's short-answer SUB-PARTS as Word paragraphs:
+//   (a)  <sentence with an inline dotted blank>           [1]
+// honouring each part's answer-space choice ('inline' dotted gap — the default;
+// 'lines' ruled lines below the part; or 'none'). The answers themselves are
+// printed in the green marking-key block, not here.
+function subPartParas(subParts) {
+  const out = []
+  subParts.forEach((part, i) => {
+    const label = subPartLabel(i)
+    const text = String(part?.text ?? '')
+    const format = part?.answerFormat || 'inline'
+    const marks = Number(part?.marks) || 0
+    const marksTag = marks > 0 ? `  [${marks}]` : ''
+    const runs = [runText(`(${label})  `, { bold: true, size: 22 })]
+    if (format === 'inline') {
+      if (countPartBlanks(text) > 0) {
+        const segments = splitPartBlanks(text)
+        segments.forEach((segment, k) => {
+          if (segment) runs.push(runText(segment, { size: 22 }))
+          if (k < segments.length - 1) runs.push(runText(` ${INLINE_GAP} `, { size: 22 }))
+        })
+      } else {
+        if (text) runs.push(runText(`${text} `, { size: 22 }))
+        runs.push(runText(INLINE_GAP, { size: 22 }))
+      }
+    } else {
+      runs.push(runText(text, { size: 22 }))
+    }
+    if (marksTag) runs.push(runText(marksTag, { size: 20, color: '6b7280', italics: true }))
+    out.push(new Paragraph({ children: runs, spacing: { before: 60, after: format === 'lines' ? 20 : 40 } }))
+    if (format === 'lines') {
+      const lines = Number.isFinite(Number(part?.answerLines)) && Number(part.answerLines) >= 0
+        ? Number(part.answerLines)
+        : 2
+      for (let k = 0; k < lines; k += 1) out.push(para(runText(ANSWER_RULE, { size: 20 })))
+    }
+  })
+  return out
+}
+
 async function renderQuestion(b) {
   const out = []
   const marks = b.marks ?? 1
@@ -1013,7 +1057,11 @@ async function renderQuestion(b) {
       })
     }
   } else if (b.type === 'short_answer' || b.type === 'short' || b.type === 'fill') {
-    answerSpaceParas(b, 2).forEach(p => out.push(p))
+    if (Array.isArray(b.subParts) && b.subParts.length > 0) {
+      subPartParas(b.subParts).forEach(p => out.push(p))
+    } else {
+      answerSpaceParas(b, 2).forEach(p => out.push(p))
+    }
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
     // underscore run roughly matches the 160pt line in the PDF.
@@ -1087,7 +1135,15 @@ async function renderQuestion(b) {
   }
 
   if (b.showAnswer) {
-    if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
+    if (Array.isArray(b.subParts) && b.subParts.length > 0) {
+      const pairs = b.subParts
+        .map((p, i) => `(${subPartLabel(i)}) ${String(p?.answer ?? '').trim() || '—'}`)
+        .join('   ')
+      out.push(para([
+        runText('Answers: ', { bold: true, size: 20, color: '047857' }),
+        runText(pairs, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
       const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${l.text || '—'}`).join('   ')
       out.push(para([
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),

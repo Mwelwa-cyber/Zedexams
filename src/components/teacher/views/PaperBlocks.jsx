@@ -16,6 +16,7 @@
 import DiagramSvg from '../../diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
 import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
+import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../../utils/questionParts'
 import '../studio/assessmentStudio.css'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -271,7 +272,9 @@ function PaperQuestionBlock({ block }) {
       {/* True/False renders as a 2-option MCQ (options ['True','False']). */}
       {(block.type === 'mcq' || block.type === 'tf') && <PaperMcqOptions block={block} />}
       {(block.type === 'short_answer' || block.type === 'short' || block.type === 'fill') && (
-        <PaperAnswerSpace block={block} defaultLines={2} />
+        block.subParts?.length > 0
+          ? <PaperSubParts block={block} />
+          : <PaperAnswerSpace block={block} defaultLines={2} />
       )}
       {block.type === 'numeric' && (
         <div className="sv-paper-numeric-line" style={{ display: 'flex', alignItems: 'flex-end', gap: 8, margin: '6px 0' }}>
@@ -358,6 +361,66 @@ function renderFillStatement(statement, showAnswer) {
     }
   })
   return nodes
+}
+
+// Short-answer SUB-PARTS renderer — the "(a) … (b) … (c) …" structure under one
+// instruction stem (the question's text). Each part prints on its own line:
+//   (a)  <sentence with an inline dotted blank>           [1]
+// honouring the part's answer-space choice ('inline' dotted gap — the default,
+// Q17 style; 'lines' ruled lines below; or 'none'). In marking-key mode the
+// blank is filled with the expected answer in green.
+function PaperSubParts({ block }) {
+  const parts = Array.isArray(block.subParts) ? block.subParts : []
+  return (
+    <div className="sv-paper-subparts" style={{ margin: '4px 0 2px' }}>
+      {parts.map((part, i) => {
+        const marks = Number(part?.marks) || 0
+        const format = part?.answerFormat || 'inline'
+        return (
+          <div
+            key={i}
+            className="sv-paper-subpart"
+            style={{ display: 'flex', gap: 8, margin: '8px 0', fontSize: 13, lineHeight: 1.9 }}
+          >
+            <strong style={{ flex: '0 0 auto' }}>({subPartLabel(i)})</strong>
+            <span style={{ flex: 1 }}>
+              {renderSubPartBody(part, format)}
+              {marks > 0 && <span style={{ whiteSpace: 'nowrap' }}> [{marks}]</span>}
+              {format === 'lines' && <PaperAnswerSpace block={part} defaultLines={2} />}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Weave the inline dotted blank(s) into a sub-part's sentence. A blank authored
+// in the text (underscores/dots/ellipsis) becomes a ruled gap; if the part is
+// 'inline' but the author typed no blank, one is appended at the end (so a bare
+// "… called" still gets a gap to write in). 'none'/'lines' print the text as-is
+// (the answer space, if any, is drawn separately). The expected answers are
+// listed in the green marking-key block below the question, like every other
+// type — so the body always shows blank gaps, never the answer.
+function renderSubPartBody(part, format) {
+  const text = String(part?.text ?? '')
+  if (format === 'none' || format === 'lines') {
+    return <span>{text}</span>
+  }
+  const gap = (key) => (
+    <span key={key} style={{ display: 'inline-block', minWidth: 110, borderBottom: '1px dotted #000', margin: '0 4px', verticalAlign: 'middle', height: 14 }} />
+  )
+  if (countPartBlanks(text) > 0) {
+    const segments = splitPartBlanks(text)
+    const nodes = []
+    segments.forEach((segment, i) => {
+      if (segment) nodes.push(<span key={`s${i}`}>{segment}</span>)
+      if (i < segments.length - 1) nodes.push(gap(`b${i}`))
+    })
+    return nodes
+  }
+  // No authored blank — sentence then a trailing gap.
+  return <>{text ? <span>{text} </span> : null}{gap('b-end')}</>
 }
 
 // Renders the blank answer space under a written-answer question, honouring the
@@ -554,6 +617,24 @@ function PaperAnswerBlock({ block }) {
           <strong>Answers:</strong>{' '}
           {block.diagramLabels.map((l, i) => (
             <span key={i} style={{ marginRight: 12 }}>{i + 1}. {l.text || '—'}</span>
+          ))}
+        </div>
+        {block.explanation && (
+          <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
+            Notes: {block.explanation}
+          </div>
+        )}
+      </div>
+    )
+  }
+  // Short-answer sub-parts: one expected answer per (a)(b)(c) part.
+  if (Array.isArray(block.subParts) && block.subParts.length > 0) {
+    return (
+      <div style={{ margin: '4px 0 4px 14px', padding: '4px 8px', background: '#ecfdf5', borderLeft: '3px solid #047857', fontSize: 12, color: '#047857' }}>
+        <div>
+          <strong>Answers:</strong>{' '}
+          {block.subParts.map((p, i) => (
+            <span key={i} style={{ marginRight: 12 }}>({subPartLabel(i)}) {String(p?.answer ?? '').trim() || '—'}</span>
           ))}
         </div>
         {block.explanation && (

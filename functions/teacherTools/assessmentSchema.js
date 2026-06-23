@@ -168,6 +168,32 @@ function normalizeVisual(q) {
   return {kind: "stem_figure", prompt};
 }
 
+// Normalise a short-answer question's SUB-PARTS — the "(a) … (b) … (c) …"
+// structure under one instruction stem. Each part carries its own sentence,
+// marks and model answer. Returns [] when absent/garbage so old payloads are
+// unaffected. The (a)(b)(c) label is positional (the studio derives it), so any
+// label the model emits is ignored.
+function normalizeParts(raw) {
+  if (!Array.isArray(raw)) return [];
+  const parts = raw
+      .filter((p) => p && typeof p === "object")
+      .map((p) => {
+        const fmt = ["inline", "lines", "none"].includes(p.answerFormat) ?
+          p.answerFormat : "inline";
+        const marks = isPositiveNumber(Number(p.marks)) ?
+          Math.min(99, Math.round(Number(p.marks))) : 1;
+        return {
+          text: str(p.text || p.prompt, 2000),
+          answer: str(p.answer || p.correctAnswer, 1000),
+          marks,
+          answerFormat: fmt,
+        };
+      })
+      .filter((p) => p.text)
+      .slice(0, 12);
+  return parts;
+}
+
 function validateAssessment(input) {
   const errors = [];
   if (!input || typeof input !== "object") {
@@ -206,8 +232,13 @@ function validateAssessment(input) {
                 .map((q) => {
                   let type = ALLOWED_TYPES.has(q.type) ?
                     q.type : "short_answer";
-                  const marks = isPositiveNumber(q.marks) ?
-                    Math.round(q.marks) : 1;
+                  // Sub-parts: "(a)…(b)…(c)…" under one instruction stem. When
+                  // present the question's marks are the SUM of its parts (the
+                  // stem owns none), so the paper total stays honest.
+                  const parts = normalizeParts(q.parts);
+                  const marks = parts.length ?
+                    parts.reduce((s, p) => s + (Number(p.marks) || 0), 0) :
+                    (isPositiveNumber(q.marks) ? Math.round(q.marks) : 1);
                   marksFromQuestions += marks;
                   const number = isPositiveNumber(q.number) ?
                     Math.round(q.number) : globalQNum;
@@ -260,6 +291,8 @@ function validateAssessment(input) {
                     visual: normalizeVisual(q),
                     answer: str(q.answer, 2000),
                     markingGuide: str(q.markingGuide, 2000),
+                    // [] for single-answer questions; populated for "(a)(b)(c)".
+                    parts,
                   };
                 }) :
             [];

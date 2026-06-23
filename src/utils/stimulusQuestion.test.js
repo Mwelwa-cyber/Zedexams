@@ -10,6 +10,7 @@ import {
   splitSubQuestions,
   stimulusDescriptorFromQuestion,
   detectLabelledParts,
+  subPartsFromText,
 } from './stimulusQuestion.js'
 
 let failures = 0
@@ -67,6 +68,22 @@ console.log('\nstimulusDescriptorFromQuestion')
   assert(d.questions[1].answerFormat === 'lines', 'a plain sub-question uses ruled lines')
 }
 assert(stimulusDescriptorFromQuestion({ text: 'What is 2 + 2?' }) === null, 'plain question yields no stimulus descriptor')
+
+console.log('\nsubPartsFromText')
+{
+  // A "Fill in the blanks … (a) … (b) … (c)" question — NOT stimulus phrasing —
+  // must still split into an instruction stem + inline-blank sub-parts (Q18 fix).
+  const text = 'Fill in the blanks to complete the sentences below. (a) Foods such as meat belong to the group called ____ (1) (b) Fats and oils give our bodies ____ (1) (c) Too little food leads to ____ (1)'
+  const r = subPartsFromText(text)
+  assert(r !== null, 'splits a non-stimulus fill-in-the-blanks question')
+  assert(r.stem === 'Fill in the blanks to complete the sentences below.', 'keeps the instruction as the stem')
+  assert(r.subParts.length === 3, 'produces 3 sub-parts')
+  assert(r.subParts[0].answerFormat === 'inline', 'sub-parts default to inline blanks')
+  assert(r.subParts[0].marks === 1 && r.subParts[2].marks === 1, 'per-part marks come from the (1) hints')
+  assert(r.subParts.every(p => p.answer === ''), 'no model answer is invented — teacher fills the key')
+}
+assert(subPartsFromText('Name the capital city of Zambia.') === null, 'a single-answer question is not split')
+assert(subPartsFromText('') === null, 'empty text yields null')
 
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
