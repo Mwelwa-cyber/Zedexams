@@ -18,6 +18,7 @@ const LIGHT_FIELDS = [
   "specimen",
   "examBoard",
   "paperNumber",
+  "slug",
 ];
 
 /** Project a pastPapers doc down to the lightweight shape the hub renders. */
@@ -35,6 +36,9 @@ function lightEntry(id, data) {
   // paperNumber is optional — omit when absent rather than writing null
   // noise (the hub treats missing the same as null).
   if (data.paperNumber != null) entry.paperNumber = data.paperNumber;
+  // slug (SEO/shareable identity, derived on write by the normalizer) — carry
+  // it to the archive when present; older docs without one simply omit it.
+  if (data.slug) entry.slug = data.slug;
   return entry;
 }
 
