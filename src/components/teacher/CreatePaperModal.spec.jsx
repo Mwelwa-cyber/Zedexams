@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
-import CreatePaperModal from './CreatePaperModal.jsx'
+import CreatePaperModal, { QUESTION_TYPE_OPTIONS } from './CreatePaperModal.jsx'
+import {
+  ASSESSMENT_QUESTION_TYPES,
+  canonicalizeAssessmentType,
+} from '../../utils/questionType.js'
 
 // Topics/sub-topics the mocked syllabus hook serves up. The modal's "From
 // syllabus" mode now renders these as checkboxes so a teacher can tick several
@@ -183,5 +187,26 @@ describe('CreatePaperModal — exam variant', () => {
     expect(payload.assessmentType).toBe('mock_exam')
     // The instruction pitches the paper at full exam standard.
     expect(payload.instructions).toMatch(/exam standard/i)
+  })
+})
+
+// Phase 2 follow-up: the chip map's `canonical` values must stay in lock-step
+// with the shared assessment namespace (src/utils/questionType.js). Before this
+// was wired, CreatePaperModal carried its own hardcoded assessment-type strings
+// that could silently drift from ASSESSMENT_QUESTION_TYPES. This guard fails the
+// moment a chip is added with a canonical the normalizer doesn't recognise.
+describe('CreatePaperModal — assessment-type chip map parity', () => {
+  it('every chip canonical is a member of the shared ASSESSMENT_QUESTION_TYPES', () => {
+    for (const opt of QUESTION_TYPE_OPTIONS) {
+      expect(ASSESSMENT_QUESTION_TYPES).toContain(opt.canonical)
+    }
+  })
+
+  it('every chip canonical round-trips through canonicalizeAssessmentType unchanged', () => {
+    // Already-canonical values must be a fixed point of the canonicalizer, so
+    // canonicalTypesFor()'s fold is a safe no-op rather than a silent rewrite.
+    for (const opt of QUESTION_TYPE_OPTIONS) {
+      expect(canonicalizeAssessmentType(opt.canonical)).toBe(opt.canonical)
+    }
   })
 })
