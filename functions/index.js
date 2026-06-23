@@ -256,6 +256,7 @@ const {createAdminNotificationHandlers} = require("./subscriptions/adminNotifica
 const {createDemoTrialsHandlers} = require("./subscriptions/demoTrialsHandlers");
 const {createNoteAiHandlers} = require("./notes/noteAiHandlers");
 const {createShortAnswerHandlers} = require("./ai/shortAnswerHandlers");
+const {createZedChatHandlers} = require("./ai/zedChatHandlers");
 const {createQuizImportHandlers} = require("./quiz/importHandlers");
 const {createUserAccessHandlers} = require("./auth/userAccessHandlers");
 const {createDawnHandlers} = require("./agents/dawnHandlers");
@@ -455,54 +456,22 @@ exports.sendPasswordResetEmail = userAccessHandlers.sendPasswordResetEmail;
 // callOpenAIStream fall back to OPENAI_MODEL, then "gpt-4o-mini".
 const ZED_CHAT_MODEL = process.env.ZED_CHAT_MODEL || undefined;
 
-// Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
-// ZED_CHAT_MODEL). buildAnthropicChat returns a provider-neutral
-// {systemPrompt, messages[]} shape that callOpenAI folds into the OpenAI
-// system role.
-exports.aiChat = onCall(
-  {
-    secrets: [openaiApiKey],
-    region: "us-central1",
-    timeoutSeconds: 30,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    recordAppCheckCallable(request, "aiChat");
-
-    const message = cleanAiString(request.data?.message, LIMITS.message);
-    if (!message) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Please enter a question for Zed.",
-      );
-    }
-
-    const role = await getUserRole(request.auth.uid);
-    await assertDailyLimit(request.auth.uid, role, "chat");
-
-    const {systemPrompt, messages} = buildAnthropicChat({
-      message,
-      context: request.data?.context || {},
-      history: request.data?.history || [],
-      role,
-      customSystemPrompt: request.data?.systemPrompt,
-    });
-    const reply = await callOpenAI(getApiKey(openaiApiKey), {
-      systemPrompt,
-      messages,
-      model: ZED_CHAT_MODEL,
-      maxTokens: 1000,
-      temperature: 0.35,
-      track: {uid: request.auth.uid, tool: "aiChat"},
-    });
-
-    return {reply};
-  },
-);
+const zedChatHandlers = createZedChatHandlers({
+  onCall,
+  HttpsError,
+  openaiApiKey,
+  appCheckEnforceCallable: APPCHECK_ENFORCE_CALLABLE,
+  recordAppCheckCallable,
+  cleanAiString,
+  LIMITS,
+  getUserRole,
+  assertDailyLimit,
+  buildAnthropicChat,
+  callOpenAI,
+  getApiKey,
+  zedChatModel: ZED_CHAT_MODEL,
+});
+exports.aiChat = zedChatHandlers.aiChat;
 
 exports.generateStudyPlan = createGenerateStudyPlan(anthropicApiKey, {
   enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
