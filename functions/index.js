@@ -257,6 +257,7 @@ const {createDemoTrialsHandlers} = require("./subscriptions/demoTrialsHandlers")
 const {createNoteAiHandlers} = require("./notes/noteAiHandlers");
 const {createShortAnswerHandlers} = require("./ai/shortAnswerHandlers");
 const {createZedChatHandlers} = require("./ai/zedChatHandlers");
+const {createZedChatHttpHandlers} = require("./ai/zedChatHttpHandlers");
 const {createQuizAuthoringHandlers} = require("./quiz/authoringHandlers");
 const {createQuizImportHandlers} = require("./quiz/importHandlers");
 const {createQuizVerifyHandlers} = require("./quiz/verifyHandlers");
@@ -515,103 +516,24 @@ const dawnHandlers = createDawnHandlers({
 });
 exports.runDawnBriefing = dawnHandlers.runDawnBriefing;
 
-// Zed chat SSE transport — OpenAI-backed (see aiChat above for the model note).
-exports.apiAiChat = onRequest(
-  {secrets: [openaiApiKey], region: "us-central1", timeoutSeconds: 60},
-  async (req, res) => {
-    // Browser CORS via the shared origin allow-list. The default header
-    // set already includes X-Firebase-AppCheck (Audit B3).
-    applyCors(req, res);
-
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-    if (req.method !== "POST") {
-      res.status(405).json({error: "Use POST for Zed chat."});
-      return;
-    }
-
-    // ── Auth + validation (before any headers are sent) ─────────────
-    let decoded;
-    let systemPrompt;
-    let messages;
-    let apiKey;
-    try {
-      const token = (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
-      if (!token) {
-        throw new HttpsError("unauthenticated", "Please sign in first.");
-      }
-      decoded = await admin.auth().verifyIdToken(token);
-      // Audit B3 — observability + opt-in enforcement gate. Throws
-      // permission-denied only when APPCHECK_ENFORCE=1 is set.
-      await softVerifyAppCheckHttp(req, "apiAiChat");
-
-      const message = cleanAiString(req.body?.message, LIMITS.message);
-      if (!message) {
-        throw new HttpsError("invalid-argument", "Please enter a question for Zed.");
-      }
-
-      const role = await getUserRole(decoded.uid);
-      await assertDailyLimit(decoded.uid, role, "chat");
-
-      ({systemPrompt, messages} = buildAnthropicChat({
-        message,
-        context: req.body?.context || {},
-        history: req.body?.history || [],
-        role,
-        customSystemPrompt: req.body?.systemPrompt,
-      }));
-      apiKey = getApiKey(openaiApiKey);
-    } catch (error) {
-      console.error("apiAiChat auth/validation error", {
-        code: error?.code,
-        message: error?.message,
-      });
-      res.status(httpStatusForError(error)).json({
-        error: error?.message || "Zed is unavailable right now.",
-      });
-      return;
-    }
-
-    // ── Stream SSE to the client ──────────────────────────────────────
-    res.set("Content-Type", "text/event-stream; charset=utf-8");
-    res.set("Cache-Control", "no-cache");
-    res.set("Connection", "keep-alive");
-    res.set("X-Accel-Buffering", "no"); // disable Nginx buffering if present
-    res.status(200);
-    // Flush an initial keep-alive comment so the client knows the connection opened.
-    res.write(": connected\n\n");
-
-    try {
-      await callOpenAIStream(
-        apiKey,
-        {
-          systemPrompt,
-          messages,
-          model: ZED_CHAT_MODEL,
-          maxTokens: 1000,
-          temperature: 0.35,
-          track: {uid: decoded.uid, tool: "apiAiChat"},
-        },
-        (token) => {
-          res.write(`data: ${JSON.stringify({text: token})}\n\n`);
-        },
-      );
-      res.write("data: [DONE]\n\n");
-    } catch (error) {
-      console.error("apiAiChat stream error", {
-        code: error?.code,
-        message: error?.message,
-      });
-      // Best-effort: send error event then close. The client uses [ERROR] to
-      // surface a user-facing message and fall back gracefully.
-      res.write(`data: [ERROR] ${JSON.stringify({error: error?.message || "Zed is unavailable right now."})}\n\n`);
-    } finally {
-      res.end();
-    }
-  },
-);
+const zedChatHttpHandlers = createZedChatHttpHandlers({
+  onRequest,
+  HttpsError,
+  admin,
+  openaiApiKey,
+  applyCors,
+  softVerifyAppCheckHttp,
+  cleanAiString,
+  LIMITS,
+  getUserRole,
+  assertDailyLimit,
+  buildAnthropicChat,
+  getApiKey,
+  callOpenAIStream,
+  zedChatModel: ZED_CHAT_MODEL,
+  httpStatusForError,
+});
+exports.apiAiChat = zedChatHttpHandlers.apiAiChat;
 
 exports.autoPickDailyExams = autoPickDailyExams;
 exports.getExamQuestions = getExamQuestionsFn;
