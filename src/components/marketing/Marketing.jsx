@@ -87,7 +87,7 @@ const PRICING = [
   },
   {
     title: 'Teachers',
-    price: 'Free, then K79/mo',
+    price: 'Free, then K59/mo',
     note: 'Pro · 10 generations a day',
     bullets: ['AI lesson plans', 'Worksheets & rubrics', 'DOCX / PDF export'],
     cta: { label: 'See teacher plans', to: '/pricing' },
@@ -114,7 +114,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K79/month for 10 a day and Max at K199/month for heavy users. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes.",
+    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K59/month for 10 a day and Max at K149/month for heavy users. Pay with Airtel Money, MTN MoMo or card right inside the app — your account unlocks instantly.",
   },
   {
     q: 'Is ZedExams safe for children?',

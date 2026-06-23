@@ -67,7 +67,7 @@ export default function WelcomeToPro() {
   const txnId = userProfile?.lastPaymentId || userProfile?.momoTransactionId || 'MOMO-7HK3Q-9B82F'
   const momoNumber = maskMomoNumber(userProfile?.momoNumber || userProfile?.phoneNumber)
   const planLabel = plan?.name ? `Pro · ${plan.name.toLowerCase()}` : 'Pro · monthly'
-  const planTotal = plan?.priceZMW != null ? `K${plan.priceZMW}.00` : 'K79.00'
+  const planTotal = plan?.priceZMW != null ? `K${plan.priceZMW}.00` : 'K59.00'
 
   return (
     <>

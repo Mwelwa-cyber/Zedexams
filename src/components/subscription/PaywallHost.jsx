@@ -13,7 +13,7 @@ const SCENARIOS = {
     title: (ctx) => `${ctx.feature || 'Assessments'} is a Pro feature`,
     sub: () => 'Upgrade to unlock weekly tests, mid-term & end-of-term papers — with a private marking scheme.',
     mascot: '🦅',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
@@ -22,7 +22,7 @@ const SCENARIOS = {
     title: (ctx) => `You've used all your free ${ctx.feature || 'lesson plans'} this month`,
     sub: () => 'Upgrade to keep planning — or pay K25 for one more right now.',
     mascot: '🦊',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     secondary: 'Pay K25 — one extra now',
     secondaryAction: 'one-off',
@@ -33,7 +33,7 @@ const SCENARIOS = {
     title: () => "You've hit today's generation cap",
     sub: () => 'You can come back tomorrow, upgrade for a higher daily cap, or pay K25 for one more right now.',
     mascot: '🐢',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     secondary: 'Pay K25 — one extra now',
     secondaryAction: 'one-off',
@@ -44,7 +44,7 @@ const SCENARIOS = {
     title: (ctx) => `You've previewed ${ctx.limit || 30} questions on ${ctx.paperTitle || 'this paper'}`,
     sub: () => 'Upgrade to keep going on this paper and unlock every past-paper quiz, the full library, daily exams, and Ask Zed AI study help.',
     mascot: '🐢',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
@@ -56,7 +56,7 @@ const SCENARIOS = {
     title: (ctx) => `${ctx.feature || 'Assessments'} are a Max studio`,
     sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — or pay K25 for just one more now.`,
     mascot: '🦅',
-    primary: 'Upgrade to Max · K199/mo',
+    primary: 'Upgrade to Max · K149/mo',
     primaryAction: 'upgrade',
     secondary: 'Pay K25 — one extra now',
     secondaryAction: 'one-off',
@@ -80,7 +80,7 @@ const COMPARE = {
     right: {
       name: 'Pro',
       priceLabel: '/ month',
-      price: 'K79',
+      price: 'K59',
       recommended: true,
       feats: [
         { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
@@ -94,7 +94,7 @@ const COMPARE = {
     left: {
       name: 'Pro',
       priceLabel: '/ month',
-      price: 'K79',
+      price: 'K59',
       feats: [
         { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
         { ok: true, text: '10 generations per day' },
@@ -105,7 +105,7 @@ const COMPARE = {
     right: {
       name: 'Max',
       priceLabel: '/ month',
-      price: 'K199',
+      price: 'K149',
       recommended: true,
       feats: [
         { ok: true, text: 'Unlimited assessments & exam papers' },

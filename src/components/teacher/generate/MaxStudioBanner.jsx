@@ -97,7 +97,7 @@ export default function MaxStudioBanner({ feature = 'Assessment', templates = []
         className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition"
         style={{ background: '#ff7a2e', color: '#fff' }}
       >
-        Upgrade to Max · K199/mo →
+        Upgrade to Max · K149/mo →
       </button>
     </div>
   )

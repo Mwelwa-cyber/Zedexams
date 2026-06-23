@@ -18,7 +18,7 @@ const FAQ = [
   },
   {
     q: 'Can I pay with Mobile Money?',
-    a: "Yes — Airtel Money and MTN MoMo both work. You send the amount to our number, then confirm on WhatsApp using your email as the reference. We activate your account within 30 minutes, 7 days a week. There's no auto-renewal — you only pay for the period you choose.",
+    a: "Yes — Airtel Money, MTN MoMo and cards all work, right inside the app. Choose your plan, pay securely through our checkout, and your account unlocks instantly — no sending money to a number, no waiting. There's no auto-renewal either: you only pay for the period you choose.",
   },
   {
     q: 'Can I cancel anytime?',
@@ -160,7 +160,7 @@ const PLANS = [
   },
   {
     key: 'pro', name: 'Pro', mascot: '🦊', meta: 'For the everyday teacher',
-    note: 'Or K790 / year — two months free.', cta: 'Go Pro', popular: true,
+    note: 'Or K590 / year — two months free.', cta: 'Go Pro', popular: true,
     feats: [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>25</strong> worksheets &amp; teacher notes</>,
@@ -174,7 +174,7 @@ const PLANS = [
   },
   {
     key: 'max', name: 'Max', mascot: '🦅', meta: 'For heavy users',
-    note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
+    note: 'Or K1,490 / year — two months free.', cta: 'Go Max',
     feats: [
       <><strong>Unlimited</strong> assessments &amp; exam papers</>,
       <>The Assessment &amp; Exam Paper studios — <strong>Max only</strong></>,

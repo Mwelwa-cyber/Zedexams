@@ -10,8 +10,8 @@
  * Plan ids match the marketing tiers (src/utils/subscriptionConfig.js,
  * src/components/marketing/Plans.jsx):
  *   free → Free
- *   pro  → Pro  (K79/mo, "for the everyday teacher")    — stored as "individual" before 2026-06
- *   max  → Max  (K199/mo, "unlimited" with fair-use cap) — stored as "school" before 2026-06
+ *   pro  → Pro  (K59/mo, "for the everyday teacher")    — stored as "individual" before 2026-06
+ *   max  → Max  (K149/mo, "unlimited" with fair-use cap) — stored as "school" before 2026-06
  *
  * users/{uid}.teacherPlan values written before the rename may still carry
  * the legacy ids; normalizeTeacherPlan() maps those forever — do not remove
