@@ -791,6 +791,12 @@
   background: var(--sv-canvas);
   color: var(--sv-ink);
 }
+.studio-v2 .sv-block-head .sv-tool:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+  color: var(--sv-muted);
+}
 .studio-v2 .sv-block-head .sv-tool.danger:hover {
   background: var(--sv-primary-soft);
   color: var(--sv-primary);
