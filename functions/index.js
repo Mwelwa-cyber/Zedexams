@@ -3108,42 +3108,30 @@ exports.lencoWebhook = onRequest({
   }
 
   try {
-    const event = req.body || {};
-    const type = String(event.event || event.type || "");
-    const data = event.data || {};
-    const reference = data.reference || null;
-    const collectionId = data.id || null;
-    const status = String(data.status || "");
+    const {processLencoWebhookEvent} = require("./lencoWebhookProcessor");
+    const {
+      activateSubscriptionFromPayment,
+      markPaymentFailed,
+    } = require("./subscriptionActivation");
+    const emailSecrets = lencoEmailSecrets();
 
-    const db = admin.firestore();
-    let paymentId = reference;
-    let paySnap = paymentId ? await db.collection("payments").doc(paymentId).get() : null;
+    const result = await processLencoWebhookEvent({
+      event: req.body || {},
+      db: admin.firestore(),
+      activate: ({paymentId, lencoStatus}) =>
+        activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets}),
+      markFailed: ({paymentId, lencoStatus, reason}) =>
+        markPaymentFailed({paymentId, lencoStatus, reason}),
+    });
 
-    // Fall back to resolving by Lenco's own collection id if the
-    // reference didn't map (e.g. a card flow that minted its own ref).
-    if ((!paySnap || !paySnap.exists) && collectionId) {
-      const q = await db.collection("payments")
-          .where("lencoCollectionId", "==", collectionId).limit(1).get();
-      if (!q.empty) {
-        paySnap = q.docs[0];
-        paymentId = paySnap.id;
-      }
-    }
-
-    if (!paySnap || !paySnap.exists) {
-      console.warn("[lencoWebhook] no matching payment", {reference, collectionId, type});
+    if (!result.matched) {
+      console.warn("[lencoWebhook] no matching payment", {
+        reference: req.body?.data?.reference || null,
+        collectionId: req.body?.data?.id || null,
+        type: req.body?.event || req.body?.type || "",
+      });
       res.status(200).send("ignored");
       return;
-    }
-
-    if (status === "successful" || type.endsWith("successful")) {
-      const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
-      await activateSubscriptionFromPayment({paymentId, lencoStatus: status || "successful", emailSecrets: lencoEmailSecrets()});
-    } else if (status === "failed" || type.endsWith("failed")) {
-      const {markPaymentFailed} = require("./subscriptionActivation");
-      await markPaymentFailed({paymentId, lencoStatus: status || "failed", reason: data.reasonForFailure || ""});
-    } else {
-      await db.collection("payments").doc(paymentId).update({lencoStatus: status || "pending"}).catch(() => {});
     }
 
     res.status(200).send("ok");
