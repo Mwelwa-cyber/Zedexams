@@ -153,7 +153,7 @@ function buildStyleBlock(i) {
 
 function buildDiagramBlock(i) {
   if (!i.autoDiagrams || !DIAGRAM_SUBJECT_RE.test(String(i.subject || ''))) return '';
-  return `\n\nDIAGRAMS (this is a Mathematics/Science lesson — include diagrams where they genuinely help, exactly as the official printed Maths and Science modules do):\n- Add an OPTIONAL top-level "diagrams" array to your JSON. Each entry: { "stage": one of the stage names you used, "type": one of the supported types below, "params": { ... }, "caption": short caption }.\n- Use a diagram ONLY where a picture aids the explanation or the exercise (e.g. a shape whose area is found, a number line, a Venn/set grouping, a bar chart of collected data, a plant or animal cell, a simple circuit). Do not force one into every lesson — 1 to 3 well-chosen diagrams is plenty. If none would help, omit the array entirely.\n- Attach each diagram to the stage where it is used (usually "LESSON DEVELOPMENT" or "EXERCISE / ASSESSMENT").\n- Supported "type" values and their "params" (use ONLY these; keep params short with plain ASCII labels; for barchart/piechart/linegraph/timeline pass comma-separated strings):\n${DIAGRAM_SPEC_HELP}`;
+  return `\n\nDIAGRAMS (this is a Mathematics/Science lesson — include diagrams where they genuinely help, exactly as the official printed Maths and Science modules do):\n- Add an OPTIONAL top-level "diagrams" array to your JSON. Each entry: { "stage": one of the stage names you used, "type": one of the supported types below, "params": { ... }, "caption": short caption, "describe": image description (see below) }.\n- Use a diagram ONLY where a picture aids the explanation or the exercise (e.g. a shape whose area is found, a number line, a Venn/set grouping, a bar chart of collected data, a plant or animal cell, a simple circuit). Do not force one into every lesson — 1 to 3 well-chosen diagrams is plenty. If none would help, omit the array entirely.\n- Attach each diagram to the stage where it is used (usually "LESSON DEVELOPMENT" or "EXERCISE / ASSESSMENT").\n- "describe": one clear sentence describing the picture for an illustrator who will draw it as a clean black-and-white labelled line drawing. Name the object and its key labelled parts (e.g. "A right-angled triangle ABC with the right angle at B and sides a, b and hypotenuse c labelled", or "A labelled plant cell showing the cell wall, nucleus, chloroplasts and vacuole"). Keep it concrete and self-contained — no colours, no shading.\n- Supported "type" values and their "params" (these are a precise fallback drawing — still fill them in; keep params short with plain ASCII labels; for barchart/piechart/linegraph/timeline pass comma-separated strings):\n${DIAGRAM_SPEC_HELP}`;
 }
 
 // Build the user prompt for one specific lesson in the series.
@@ -370,9 +370,51 @@ function stageDiagramsHtml(stageName, specs) {
     try { svg = def.render(params, accent); } catch (e) { svg = ''; }
     if (!svg) return '';
     const cap = esc(d.caption || params.cap || def.name);
-    return `<div class="diagram-wrap" contenteditable="false">${svg}<div class="diagram-caption">${cap}</div></div>`;
+    // The SVG renders instantly as a precise fallback. When the model also gave
+    // a "describe" line we stamp it on the wrapper so __studioUpgradeDiagramImages
+    // can replace the SVG with a real AI line-art illustration after render. If
+    // image generation is unavailable or fails, the SVG simply stays.
+    const describe = String(d.describe || '').trim();
+    const promptAttr = describe ? ` data-illus-prompt="${esc(describe)}"` : '';
+    return `<div class="diagram-wrap" contenteditable="false"${promptAttr}>${svg}<div class="diagram-caption">${cap}</div></div>`;
   }).join('');
   return html ? `<div class="stage-diagrams">${html}</div>` : '';
+}
+
+// Upgrade the instant SVG diagrams in a rendered plan to real AI line-art
+// illustrations. stageDiagramsHtml stamps each model-supplied diagram with a
+// data-illus-prompt; here we generate a B&W line drawing for each (via the
+// window.__studioGenerateDiagram bridge from LessonPlanStudio.jsx) and swap the
+// SVG for an <img>, keeping the same caption. Robust by design:
+//   • no bridge (e.g. stale bundle / not signed in) → leave every SVG as-is;
+//   • a generation failure or the monthly limit → that diagram keeps its SVG;
+//   • capped count + small concurrency so one plan can't burn the image quota
+//     or hammer the API.
+// Operates on the LIVE container so the caller can re-read its innerHTML for the
+// saved/library copy after this resolves.
+async function __studioUpgradeDiagramImages(container) {
+  if (!container || typeof window === 'undefined' || typeof window.__studioGenerateDiagram !== 'function') return;
+  const wraps = Array.from(container.querySelectorAll('.diagram-wrap[data-illus-prompt]')).slice(0, 4);
+  if (!wraps.length) return;
+  const queue = wraps.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const wrap = queue.shift();
+      const prompt = wrap.getAttribute('data-illus-prompt') || '';
+      wrap.removeAttribute('data-illus-prompt');
+      if (!prompt) continue;
+      try {
+        const res = await window.__studioGenerateDiagram({ prompt });
+        if (res && res.url) {
+          const cap = wrap.querySelector('.diagram-caption');
+          const capHtml = cap ? cap.outerHTML : '';
+          wrap.innerHTML = `<img src="${esc(res.url)}" alt="${esc(prompt)}" style="display:block;max-width:100%;width:420px;margin:0 auto">${capHtml}`;
+        }
+      } catch (e) { /* keep the SVG fallback for this diagram */ }
+    }
+  };
+  const CONCURRENCY = 2;
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, wraps.length) }, worker));
 }
 
 // ── Renderers ─────────────────────────────────────────────────────────────────
@@ -752,12 +794,22 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
   // The old (2013) syllabus has its own outcomes-based renderers; the new
   // (2023) syllabus uses the official CDC module renderers.
   const isOld = syllabusVersion === 'old';
-  const html = i.format === 'classic'
+  let html = i.format === 'classic'
     ? (isOld ? renderOldClassic(data, renderMeta) : renderClassic(data, renderMeta))
     : (i.format === 'classic2'
       ? (isOld ? renderOldClassic2(data, renderMeta) : renderClassic2(data, renderMeta))
       : (isOld ? renderOldModern(data, renderMeta) : renderModern(data, renderMeta)));
   $('#doc').innerHTML = html;
+  // Upgrade the instant SVG diagrams to real AI line-art illustrations, then
+  // re-read the doc so the library/export copy carries the generated <img>s.
+  // No-ops when there are no diagrams or the bridge is unavailable, so the
+  // non-diagram path is unchanged. The progress overlay stays up meanwhile.
+  if (i.autoDiagrams) {
+    try {
+      await __studioUpgradeDiagramImages($('#doc'));
+      html = $('#doc').innerHTML;
+    } catch (e) { /* keep the SVG version already on screen + in html */ }
+  }
   if (editing) setTimeout(enableAllTableResize, 50);
 
   // Collect this lesson's rendered HTML so a multi-lesson run can be exported
