@@ -13,6 +13,7 @@
 import { richTextToPlainText } from './quizRichText.js'
 import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 import { analyzeTiming } from './assessmentTiming.js'
+import { canonicalizeQuestionType } from '../editor/schema/question.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly Test',
@@ -516,25 +517,39 @@ function passageTotalFooter(passage, questions) {
 }
 
 function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
-  const type = q.type || 'mcq'
+  // Fold any authoring alias ('truefalse' → 'tf', 'fill_in_blank' →
+  // 'fill_blanks') onto the canonical type so every downstream renderer (the
+  // preview, the PDF print window, the DOCX export, the answer sheet) switches
+  // on one spelling. Without this a legacy 'truefalse' doc slipped past every
+  // `=== 'tf'` check and printed a true/false question with no options.
+  const type = canonicalizeQuestionType(q.type) || 'mcq'
   const { mcqLayout = null, mcqCount = null } = mcqOpts
+  // True/False is a 2-choice MCQ — same options/correctAnswer model — so it
+  // flows through the MCQ option pipeline below.
+  const isChoice = type === 'mcq' || type === 'tf'
   let options = Array.isArray(q.options) ? q.options : []
+  // A true/false question authored without an explicit options array (or saved
+  // by a surface that only set correctAnswer) still prints "A. True / B. False".
+  if (type === 'tf' && options.filter(o => String(o ?? '').trim()).length < 2) {
+    options = ['True', 'False']
+  }
   let optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
   // Paper-level "answer choices" cap. When the teacher fixes the whole
   // paper to 2/3/4 choices we render only the first N — non-destructive,
   // the stored question keeps every option so switching back restores them.
+  // True/False is always exactly two choices, so the cap never applies to it.
   if (type === 'mcq' && mcqCount && options.length > mcqCount) {
     options = options.slice(0, mcqCount)
     optionMedia = optionMedia.slice(0, mcqCount)
   }
   // Drop any letter prefix baked into the option text ("A. digestive system")
   // so the renderers' own A/B/C/D labels don't double up ("A. A. …").
-  if (type === 'mcq') {
+  if (isChoice) {
     options = options.map((o, i) => stripOptionLabel(o, i))
   }
   // optionsMode: 'text', 'image', or 'mixed'. Tells the renderer how to draw.
   let optionsMode = 'text'
-  if (type === 'mcq') {
+  if (isChoice) {
     const hasImage = optionMedia.some(m => m?.imageUrl || m?.diagram)
     const hasText = options.some(o => String(o ?? '').trim())
     if (hasImage && hasText) optionsMode = 'mixed'

@@ -268,8 +268,9 @@ function PaperQuestionBlock({ block }) {
         </div>
       )}
       {block.type === 'fill_blanks' && <PaperFillBlanks block={block} />}
-      {block.type === 'mcq' && <PaperMcqOptions block={block} />}
-      {(block.type === 'short_answer' || block.type === 'fill') && (
+      {/* True/False renders as a 2-option MCQ (options ['True','False']). */}
+      {(block.type === 'mcq' || block.type === 'tf') && <PaperMcqOptions block={block} />}
+      {(block.type === 'short_answer' || block.type === 'short' || block.type === 'fill') && (
         <PaperAnswerSpace block={block} defaultLines={2} />
       )}
       {block.type === 'numeric' && (
@@ -564,7 +565,7 @@ function PaperAnswerBlock({ block }) {
     )
   }
   let body = null
-  if (block.type === 'mcq') {
+  if (block.type === 'mcq' || block.type === 'tf') {
     const i = Number(block.correctAnswer)
     const letter = SECTION_LETTERS[i] || '?'
     // Plain mirror first so a rich fraction option reads as "1/3" instead of

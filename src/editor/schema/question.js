@@ -129,6 +129,41 @@ export function canonicalizeQuestionType(type) {
   if (typeof type !== 'string') return type
   return QUESTION_TYPE_ALIASES[type.trim().toLowerCase()] || type
 }
+
+// Human-readable labels for each canonical question type. Single source of
+// truth shared by the studio dropdowns, the pre-publish error messages, and
+// the exported-paper code — so a teacher never sees the raw enum value ("tf",
+// "fill_blanks") in a toast or a checklist. Keyed by CANONICAL type;
+// questionTypeLabel() folds aliases through canonicalizeQuestionType() first.
+export const QUESTION_TYPE_LABELS = {
+  mcq: 'Multiple Choice',
+  tf: 'True / False',
+  short_answer: 'Short Answer',
+  short: 'Short Answer',
+  diagram: 'Label the Diagram',
+  fill: 'Fill in the Blank',
+  fill_blanks: 'Fill in the Blanks',
+  numeric: 'Numeric',
+  hotspot: 'Image Hotspot',
+  essay: 'Essay',
+  matching: 'Matching',
+  sequence: 'Sequence / Ordering',
+}
+
+/**
+ * Friendly label for a (possibly aliased) question type. Folds the alias onto
+ * its canonical value first, then looks up the label. An unknown/typo value is
+ * humanised (snake/kebab → Title Case) so the message stays legible without
+ * pretending the type is recognised.
+ */
+export function questionTypeLabel(type) {
+  const canonical = canonicalizeQuestionType(type)
+  if (QUESTION_TYPE_LABELS[canonical]) return QUESTION_TYPE_LABELS[canonical]
+  return String(type ?? '')
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown'
+}
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
 // level the teacher tags so the studio can show the spread of thinking skills.

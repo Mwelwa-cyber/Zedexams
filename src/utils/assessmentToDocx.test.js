@@ -177,6 +177,39 @@ console.log('\nIdentify-mode markers are composited onto the Word image (buildDi
   assert(svg.includes('<image '), 'no labels → still renders the base image')
 }
 
+console.log('\nTrue/False renders as a 2-option list + a marking-key answer')
+// A true/false question used to print only its stem in the Word paper — no
+// True/False options, no answer in the marking key — because renderQuestion
+// had no `tf` branch. It now renders through the MCQ branch.
+{
+  const paperDoc = await buildAssessmentDocument(
+    { title: 'TF Test', subject: 'Science', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'tf', text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0, marks: 1 }],
+    { mode: 'paper' },
+  )
+  const paperXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(paperDoc)))['word/document.xml'])
+  assert(paperXml.includes('True') && paperXml.includes('False'), 'tf paper prints the True / False options')
+
+  const schemeDoc = await buildAssessmentDocument(
+    { title: 'TF Test', subject: 'Science', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'tf', text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0, marks: 1 }],
+    { mode: 'scheme' },
+  )
+  const schemeXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(schemeDoc)))['word/document.xml'])
+  assert(schemeXml.includes('Answer'), 'tf marking key prints an Answer line')
+}
+{
+  // The legacy 'truefalse' spelling folds onto 'tf' in buildQuestionBlock, so
+  // it renders the same — even without an explicit options array.
+  const doc = await buildAssessmentDocument(
+    { title: 'TF Test', subject: 'Science', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'truefalse', text: 'Water boils at 100°C.', correctAnswer: 1, marks: 1 }],
+    { mode: 'paper' },
+  )
+  const xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
+  assert(xml.includes('True') && xml.includes('False'), "aliased 'truefalse' still prints True / False options")
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
   process.exit(1)
