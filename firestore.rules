@@ -276,6 +276,23 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ── visits + visitorStats (website visitor tracker) ───────────
+    // Written exclusively by the apiTrackVisit Cloud Function (admin SDK,
+    // which bypasses these rules). Clients can never read or write — the
+    // /admin/visitors dashboard reads them as an admin; the marker
+    // subcollections under visitorStats are server-only end to end.
+    match /visits/{visitId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /visitorStats/{day} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+      match /{markerCollection}/{markerId} {
+        allow read, write: if false;
+      }
+    }
+
     // ── announcements (platform-wide banners) ─────────────────────
     // Read for any signed-in user (audience filtering happens client-
     // side because the audience depends on the viewer's role). Public

@@ -26,6 +26,7 @@ import {
   Search,
   Lightbulb,
   LayoutGrid,
+  Globe,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../ui/Icon'
@@ -105,6 +106,7 @@ const NAV_SECTIONS = [
   {
     label: 'Reports',
     items: [
+      { to: '/admin/visitors', icon: Globe, label: 'Website visitors' },
       { to: '/admin/results', icon: TrendingUp, label: 'Results' },
       { to: '/admin/ai-costs', icon: TrendingUp, label: 'AI costs' },
     ],
