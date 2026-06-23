@@ -917,7 +917,10 @@ async function renderQuestion(b) {
       })
       out.push(para(runs, { spacing: { after: 200 } }))
     })
-  } else if (b.type === 'mcq') {
+  } else if (b.type === 'mcq' || b.type === 'tf') {
+    // True/False renders identically to a 2-option MCQ — buildQuestionBlock
+    // defaults its options to ['True','False'] and keeps correctAnswer as the
+    // index, so the same option-row + marking-key code handles both.
     const optsHtml = b.optionsHtml || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
@@ -1009,7 +1012,7 @@ async function renderQuestion(b) {
         }))
       })
     }
-  } else if (b.type === 'short_answer' || b.type === 'fill') {
+  } else if (b.type === 'short_answer' || b.type === 'short' || b.type === 'fill') {
     answerSpaceParas(b, 2).forEach(p => out.push(p))
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
@@ -1090,7 +1093,7 @@ async function renderQuestion(b) {
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),
         runText(pairs, { size: 20, color: '047857' }),
       ]))
-    } else if (b.type === 'mcq') {
+    } else if (b.type === 'mcq' || b.type === 'tf') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
       // Plain mirror first so a rich fraction option reads as "1/3" rather than

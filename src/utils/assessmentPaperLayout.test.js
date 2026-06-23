@@ -275,6 +275,31 @@ console.log('\nbuildPaperLayout — identify-mode keeps blank-text hotspots, lab
   assert(ql.diagramLabels[0].text === 'Aorta', 'labeled mode keeps only the named pill')
 }
 
+console.log('\nbuildPaperLayout — true/false renders as a 2-option MCQ block')
+{
+  // A true/false question stored with explicit options + index renders with
+  // optionsMode 'text' so the renderers print "A. True / B. False" and the
+  // marking key can resolve the correct letter.
+  const blocks = buildPaperLayout(baseAssessment, [
+    { localId: 'q1', order: 1, type: 'tf', marks: 1, text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0 },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.type === 'tf', 'block keeps the canonical tf type')
+  assert(q.optionsMode === 'text', 'tf flows through the MCQ option pipeline (optionsMode text)')
+  assert(q.options.join('/') === 'True/False', 'tf options thread onto the block')
+  assert(q.optionsPlain.join('/') === 'True/False', 'tf optionsPlain mirror is populated')
+}
+{
+  // Legacy 'truefalse' spelling must fold onto 'tf' so the renderers' `=== 'tf'`
+  // checks match — previously it printed a question with no options at all.
+  const blocks = buildPaperLayout(baseAssessment, [
+    { localId: 'q1', order: 1, type: 'truefalse', marks: 1, text: 'Water boils at 100°C.', correctAnswer: 1 },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.type === 'tf', "aliased 'truefalse' folds onto canonical tf")
+  assert(q.options.join('/') === 'True/False', 'a tf authored without options defaults to True/False')
+}
+
 console.log('\nlatexToReadableText — readable maths for non-JS exports')
 assert(latexToReadableText('18') === '18', 'plain number unchanged')
 assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')
