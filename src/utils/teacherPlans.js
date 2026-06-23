@@ -37,6 +37,7 @@ export const PLAN_LIMITS = {
     notes: 0,
     full_lesson: 0,
     homework: 0,
+    lesson_activities: 0,
     assessment: 0,
     sba_task: 0,
     exam_paper: 0,
@@ -56,6 +57,7 @@ export const PLAN_LIMITS = {
     notes: 25,
     full_lesson: 20,
     homework: 30,
+    lesson_activities: 30,
     // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): Pro
     // and Free get a single monthly taster, then the Max paywall.
     assessment: 1,
@@ -77,6 +79,7 @@ export const PLAN_LIMITS = {
     notes: 200,
     full_lesson: 200,
     homework: 200,
+    lesson_activities: 200,
     assessment: 200,
     sba_task: 200,
     exam_paper: 200,

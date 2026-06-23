@@ -40,6 +40,7 @@ const PLAN_LIMITS = {
     notes: 0,
     full_lesson: 0,
     homework: 0,
+    lesson_activities: 0,
     assessment: 0,
     sba_task: 0,
     exam_paper: 0,
@@ -59,6 +60,8 @@ const PLAN_LIMITS = {
     notes: 25,
     full_lesson: 20,
     homework: 30,
+    // Exercise + homework generated together from the Lesson Plan Studio.
+    lesson_activities: 30,
     // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): the
     // most expensive generations on the platform. Pro (and Free) get a single
     // taster per month so teachers can feel the quality before upgrading to
@@ -82,6 +85,7 @@ const PLAN_LIMITS = {
     notes: 200,
     full_lesson: 200,
     homework: 200,
+    lesson_activities: 200,
     assessment: 200,
     sba_task: 200,
     exam_paper: 200,
@@ -125,6 +129,7 @@ const DAILY_COUNTED_TOOLS = [
   "notes",
   "full_lesson",
   "homework",
+  "lesson_activities",
   "assessment",
   "sba_task",
   "exam_paper",

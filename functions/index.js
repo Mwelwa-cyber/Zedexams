@@ -86,6 +86,9 @@ const {
   createGenerateHomework,
 } = require("./teacherTools/generateHomework");
 const {
+  createGenerateLessonActivities,
+} = require("./teacherTools/generateLessonActivities");
+const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
 // Teacher Tools — SBA Studio (ECZ School Based Assessment task generator).
@@ -2187,6 +2190,11 @@ exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
 
 // Teacher Tools — Homework (short curriculum-grounded take-home practice).
 exports.generateHomework = createGenerateHomework(anthropicApiKey);
+
+// Teacher Tools — Lesson Activities (class exercise + homework generated
+// straight from a lesson in the Lesson Plan Studio).
+exports.generateLessonActivities =
+  createGenerateLessonActivities(anthropicApiKey);
 
 // Teacher Tools — Assessment (formal curriculum-grounded graded test).
 exports.generateAssessment = createGenerateAssessment(anthropicApiKey);

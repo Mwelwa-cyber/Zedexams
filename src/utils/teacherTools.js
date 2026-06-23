@@ -42,6 +42,9 @@ const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson'
 const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
+const generateLessonActivitiesCallable = httpsCallable(functions, 'generateLessonActivities', {
+  timeout: 185_000, // server: 180s — can produce a class exercise AND homework
+})
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
@@ -735,6 +738,44 @@ export async function generateHomework(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateHomework ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate follow-up assessment activities (a class exercise and/or homework)
+ * straight from a lesson in the Lesson Plan Studio. Grounded on the same
+ * curriculum module the lesson plan used (grade + subject + topic + sub-topic).
+ *
+ * `inputs.activities` is 'exercise' | 'homework' | 'both'. Returns
+ * { ok, data: { generationId, activities: { exercise, homework }, usage, warning } }.
+ */
+export async function generateLessonActivities(inputs) {
+  console.info('[zedexams] generateLessonActivities →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, activities: inputs?.activities,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateLessonActivitiesCallable(inputs),
+      185_000,
+      'generateLessonActivities',
+    )
+    console.info('[zedexams] generateLessonActivities ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateLessonActivities ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )
