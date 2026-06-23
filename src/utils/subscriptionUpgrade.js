@@ -26,7 +26,7 @@ function toDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-// Price per day for a plan, e.g. Pro · Monthly = 79/30 ≈ 2.63.
+// Price per day for a plan, e.g. Pro · Monthly = 59/30 ≈ 1.97.
 export function dailyRate(plan) {
   const price = Number(plan?.priceZMW || 0)
   const days = Number(plan?.durationDays || 0)

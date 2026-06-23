@@ -20,7 +20,7 @@ const inDays = (n) => new Date(NOW.getTime() + n * DAY)
 
 describe('dailyRate', () => {
   it('is price / duration', () => {
-    expect(dailyRate(PLANS.pro_monthly)).toBeCloseTo(79 / 30)
+    expect(dailyRate(PLANS.pro_monthly)).toBeCloseTo(PLANS.pro_monthly.priceZMW / 30)
     expect(dailyRate({ priceZMW: 10, durationDays: 0 })).toBe(0)
   })
 })
@@ -42,7 +42,8 @@ describe('computeUpgradeQuote', () => {
       fromPlan: PLANS.pro_monthly, toPlan: PLANS.max_monthly, expiry: inDays(30), now: NOW,
     })
     expect(q.isUpgrade).toBe(true)
-    expect(q.amountZMW).toBe(120) // round((199-79)/30 * 30) = 120
+    // A full month remaining → pay exactly the Max−Pro monthly difference.
+    expect(q.amountZMW).toBe(PLANS.max_monthly.priceZMW - PLANS.pro_monthly.priceZMW)
     expect(q.daysRemaining).toBe(30)
   })
 
@@ -50,7 +51,7 @@ describe('computeUpgradeQuote', () => {
     const q = computeUpgradeQuote({
       fromPlan: PLANS.pro_yearly, toPlan: PLANS.max_monthly, expiry: inDays(114), now: NOW,
     })
-    const expected = Math.round((199 / 30 - 790 / 365) * 114)
+    const expected = Math.round((PLANS.max_monthly.priceZMW / 30 - PLANS.pro_yearly.priceZMW / 365) * 114)
     expect(q.amountZMW).toBe(expected)
   })
 
@@ -71,7 +72,7 @@ describe('getUpgradeQuoteForProfile', () => {
       { subscriptionPlan: 'pro_monthly', teacherPlanExpiresAt: inDays(30) }, 'max_monthly', NOW,
     )
     expect(q.isUpgrade).toBe(true)
-    expect(q.amountZMW).toBe(120)
+    expect(q.amountZMW).toBe(PLANS.max_monthly.priceZMW - PLANS.pro_monthly.priceZMW)
   })
 
   it('is a no-op for a teacher already on Max', () => {

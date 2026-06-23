@@ -24,10 +24,10 @@ const PLANS = {
   full_platform_termly: {id: "full_platform_termly", name: "Full Platform", priceZMW: 200, durationDays: 90},
   single_subject_monthly: {id: "single_subject_monthly", name: "Single Subject", priceZMW: 30, durationDays: 30},
 
-  pro_monthly: {id: "pro_monthly", name: "Pro · Monthly", priceZMW: 79, durationDays: 30},
-  pro_yearly: {id: "pro_yearly", name: "Pro · Yearly", priceZMW: 790, durationDays: 365},
-  max_monthly: {id: "max_monthly", name: "Max · Monthly", priceZMW: 199, durationDays: 30},
-  max_yearly: {id: "max_yearly", name: "Max · Yearly", priceZMW: 1990, durationDays: 365},
+  pro_monthly: {id: "pro_monthly", name: "Pro · Monthly", priceZMW: 59, durationDays: 30},
+  pro_yearly: {id: "pro_yearly", name: "Pro · Yearly", priceZMW: 590, durationDays: 365},
+  max_monthly: {id: "max_monthly", name: "Max · Monthly", priceZMW: 149, durationDays: 30},
+  max_yearly: {id: "max_yearly", name: "Max · Yearly", priceZMW: 1490, durationDays: 365},
 
   // ── Pay-per-generation top-up ──────────────────────────────────────────
   // Not a subscription: a one-off K25 purchase that grants ONE extra
