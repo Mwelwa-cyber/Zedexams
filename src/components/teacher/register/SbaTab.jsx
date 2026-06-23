@@ -15,7 +15,8 @@
 
 import { useState } from 'react'
 import { createRecordFromRoster } from '../../../utils/classRecords'
-import { maxTotalOf, computeRecordRows } from '../../../utils/classRecordMath'
+import { maxTotalOf } from '../../../utils/classRecordMath'
+import { gatherCrossYearSbaMarks } from '../../../utils/sbaCrossYear'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   SBA_SUBJECTS, SBA_GRADE_VALUES, getSbaBlueprint, getSbaGradeTotal, convertSbaMark, SBA_MAX_FINAL_MARK,
@@ -47,19 +48,6 @@ function blueprintColumns(subject, sbaGrade) {
     label: `${String(c.group || '').replace('Term ', 'T')} ${c.label}`.trim(),
     max: c.max,
   }))
-}
-
-/** Per-rosterId /10 mark from a year-long SBA record (for the Final pre-fill). */
-function sbaTenByRoster(sbaRecord) {
-  const max = maxTotalOf(sbaRecord.columns || [])
-  const rows = computeRecordRows({
-    snapshot: sbaRecord.rosterSnapshot || [],
-    columns: sbaRecord.columns || [],
-    marks: sbaRecord.marks || {},
-  })
-  const map = {}
-  rows.forEach((r) => { map[r.rosterId] = convertSbaMark(r.total, max).rounded })
-  return map
 }
 
 function YearMarksForm({ register, roster, onCreated, onCancel }) {
@@ -130,33 +118,30 @@ function YearMarksForm({ register, roster, onCreated, onCancel }) {
   )
 }
 
-function FinalForm({ register, roster, records, onCreated, onCancel }) {
+function FinalForm({ register, roster, onCreated, onCancel }) {
   const { currentUser } = useAuth()
   const toast = useToast()
-  const [sourceId, setSourceId] = useState('') // which year-long SBA record pre-fills G7
+  const [subject, setSubject] = useState(SBA_SUBJECTS[0]?.value || '')
+  const [autoFill, setAutoFill] = useState(true)
   const [saving, setSaving] = useState(false)
   const activeCount = roster.filter((r) => r.status === 'active').length
-  const sbaRecords = (records || []).filter((r) => r.type === 'sba')
 
   async function handleCreate() {
     if (activeCount === 0) { toast.error('This class has no active learners yet.'); return }
-    // Pre-seed Grade 7 from the chosen SBA record's /10, matched by rosterId.
-    let marks = {}
-    if (sourceId) {
-      const src = sbaRecords.find((r) => r.id === sourceId)
-      if (src) {
-        const ten = sbaTenByRoster(src)
-        marks = Object.fromEntries(
-          roster.filter((r) => r.status === 'active' && ten[r.id] != null).map((r) => [r.id, { g7: ten[r.id] }]),
-        )
-      }
-    }
     setSaving(true)
     try {
+      // Pull each learner's G5/G6/G7 /10 from this teacher's own registers
+      // (matched by linked account, then by name) for the chosen subject.
+      let marks = {}
+      if (autoFill) {
+        const active = roster.filter((r) => r.status === 'active')
+        marks = await gatherCrossYearSbaMarks(currentUser.uid, subject, active)
+      }
+      const subjLabel = SBA_SUBJECTS.find((s) => s.value === subject)?.label || subject
       const id = await createRecordFromRoster({
         classId: register.id, teacherUid: currentUser.uid, type: 'sba_final',
-        title: `Final SBA (/30) — ${register.className} (${register.year})`,
-        subject: register.subject || null, term: '', year: register.year,
+        title: `Final SBA (/30) — ${subjLabel} (${register.year})`,
+        subject, term: '', year: register.year,
         assessmentType: 'sba_final', columns: FINAL_COLUMNS, roster, marks,
       })
       onCreated(id)
@@ -175,17 +160,19 @@ function FinalForm({ register, roster, records, onCreated, onCancel }) {
         final mark out of {SBA_MAX_FINAL_MARK} entered on the ECZ OMES portal.
       </p>
       <div>
-        <label className="block text-xs font-black theme-text-muted uppercase tracking-wider mb-1">
-          Pre-fill Grade 7 from (optional)
-        </label>
-        <select className={`${inputCls} w-full sm:w-96`} value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-          <option value="">— Don&apos;t pre-fill (enter all three manually) —</option>
-          {sbaRecords.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+        <label className="block text-xs font-black theme-text-muted uppercase tracking-wider mb-1">Subject</label>
+        <select className={`${inputCls} w-full sm:w-72`} value={subject} onChange={(e) => setSubject(e.target.value)}>
+          {SBA_SUBJECTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        {sbaRecords.length === 0 && (
-          <p className="theme-text-muted text-[11px] mt-1">No year-long SBA records yet — create one first to auto-fill Grade 7.</p>
-        )}
       </div>
+      <label className="flex items-start gap-2 text-xs theme-text-muted cursor-pointer">
+        <input type="checkbox" checked={autoFill} onChange={(e) => setAutoFill(e.target.checked)} className="mt-0.5" />
+        <span>
+          Auto-fill from my other classes — pulls each learner&apos;s Grade 5/6/7 SBA mark for
+          this subject from your own registers (matched by account, then by name). Learners
+          with no match are left blank to enter by hand.
+        </span>
+      </label>
       <p className="theme-text-muted text-xs">{activeCount} active learner{activeCount === 1 ? '' : 's'} will be added automatically.</p>
       <div className="flex gap-2">
         <Button onClick={handleCreate} loading={saving}>Create &amp; enter marks</Button>
