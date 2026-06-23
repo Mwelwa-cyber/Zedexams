@@ -21,13 +21,22 @@ import {
   FALLBACK_SUBJECT_KEYS,
 } from './paperTaxonomy'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
+import { canonicalizeAssessmentType } from '../../utils/questionType'
 
 // Each chip maps to a canonical schema question type (`canonical`) sent to the
 // generator so the paper contains ONLY the selected types, while `key` is the
 // human phrasing folded into the prompt text (so "fill-in-the-blank" still
 // reads as blanks even though it is stored as a short_answer). Fill-in-the-blank
 // has no separate schema type — it is a short_answer presented with blanks.
-const QUESTION_TYPE_OPTIONS = [
+//
+// The `canonical` values are the ASSESSMENT namespace (multiple_choice /
+// true_false / structured / calculation / …), the vocabulary the generator +
+// assessmentSchema speak — NOT the editor enum (mcq / tf / …). They are the
+// single source of truth in src/utils/questionType.js (ASSESSMENT_QUESTION_TYPES,
+// guarded against this map by CreatePaperModal.spec.jsx); canonicalTypesFor()
+// folds each through canonicalizeAssessmentType so the modal can never emit a
+// spelling the shared normalizer doesn't recognise.
+export const QUESTION_TYPE_OPTIONS = [
   { key: 'multiple choice', canonical: 'multiple_choice', label: 'Multiple choice' },
   { key: 'true/false', canonical: 'true_false', label: 'True / False' },
   { key: 'short answer', canonical: 'short_answer', label: 'Short answer' },
@@ -45,7 +54,12 @@ function canonicalTypesFor(selectedKeys) {
   const out = []
   for (const k of selectedKeys) {
     const opt = QUESTION_TYPE_OPTIONS.find((o) => o.key === k)
-    if (opt && !out.includes(opt.canonical)) out.push(opt.canonical)
+    if (!opt) continue
+    // Fold through the shared assessment-namespace canonicalizer (a no-op for
+    // the already-canonical chip values) so the deduped whitelist always uses
+    // the same spelling the generator + assessmentSchema validate against.
+    const canonical = canonicalizeAssessmentType(opt.canonical)
+    if (!out.includes(canonical)) out.push(canonical)
   }
   return out
 }
