@@ -19,6 +19,7 @@ import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import AssessmentActivitiesPanel from './AssessmentActivitiesPanel'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -1008,6 +1009,11 @@ export default function LessonPlanStudio() {
                   </div>
                 </div>
               </div>
+
+              {/* Assessment Activities — generate a class exercise + homework
+                  aligned to the lesson the teacher just created. Appears once a
+                  plan exists (kit is set by __studioOnGenerated). */}
+              {kit && <AssessmentActivitiesPanel kit={kit} />}
             </div>
           </main>
         </div>

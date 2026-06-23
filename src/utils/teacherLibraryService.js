@@ -481,6 +481,14 @@ export const TOOL_META = {
     route: '/teacher/generate/notes',
     colour: 'sky',
   },
+  lesson_activities: {
+    label: 'Exercise & Homework',
+    icon: '🧩',
+    // Generated from inside the Lesson Plan Studio's "Assessment Activities"
+    // section, so "Generate similar" sends the teacher back there.
+    route: '/teacher/generate/lesson-plan',
+    colour: 'orange',
+  },
 }
 
 export const TOOL_FILTER_OPTIONS = [
@@ -496,6 +504,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
   {value: 'notes', label: 'Teacher notes'},
+  {value: 'lesson_activities', label: 'Exercises & homework'},
 ]
 
 /**
@@ -574,6 +583,18 @@ export function titleForGeneration(gen) {
     const sub = out?.header?.subtopic || gen.inputs?.subtopic || ''
     const head = [topic, sub].filter(Boolean).join(' — ')
     return head ? `Lesson: ${head}` : 'Full lesson'
+  }
+  if (gen.tool === 'lesson_activities') {
+    // Output is { exercise, homework }; no top-level header — derive from inputs
+    // or either activity's header.
+    const exH = out?.exercise?.header || {}
+    const hwH = out?.homework?.header || {}
+    const topic = gen.inputs?.topic || exH.topic || hwH.topic || 'Lesson'
+    const parts = []
+    if (out?.exercise) parts.push('Exercise')
+    if (out?.homework) parts.push('Homework')
+    const what = parts.join(' & ') || 'Activities'
+    return `${what} — ${topic}`
   }
   if (gen.tool === 'exam_paper') {
     if (out?.header?.title) return out.header.title

@@ -41,6 +41,7 @@
     "test:sba-docx": "node scripts/test-sba-task-docx.mjs",
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
     "test:schema": "node scripts/test-question-schema.mjs",
+    "test:lesson-activities": "node functions/teacherTools/lessonActivitiesSchema.test.js && node src/utils/activityBankCore.test.js",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",
     "test:sub-status": "node scripts/test-subscription-status.mjs",
     "test:teacher-plan": "node scripts/test-teacher-plan-resolution.mjs",
