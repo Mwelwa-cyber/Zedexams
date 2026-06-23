@@ -14,6 +14,7 @@ import { LearnerLessonCard } from '../components/LearnerLessonCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import Skeleton from '../../../components/ui/Skeleton'
+import ContentLoadError from '../../../components/ui/ContentLoadError'
 import '../../notes/styles/notes.css'
 
 export function LearnerLessonsList() {
@@ -24,7 +25,7 @@ export function LearnerLessonsList() {
   const [activeSubject, setActiveSubject] = useState('all')
   const [search, setSearch] = useState('')
 
-  const { lessons, allLessons, countsBySubject, loading } =
+  const { lessons, allLessons, countsBySubject, loading, error, reload } =
     useLearnerLessons({ grade, subject: activeSubject, search })
 
   const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
@@ -50,9 +51,11 @@ export function LearnerLessonsList() {
             Ready to learn, <span className="font-display-italic">{firstName}.</span>
           </h1>
           <p className="text-base text-neutral-600">
-            {allLessons.length === 0
-              ? `Interactive lessons for Grade ${grade} are on the way.`
-              : `${allLessons.length} lesson${allLessons.length === 1 ? '' : 's'} ready for Grade ${grade}.`}
+            {error && allLessons.length === 0
+              ? 'We hit a snag loading your lessons.'
+              : allLessons.length === 0
+                ? `Interactive lessons for Grade ${grade} are on the way.`
+                : `${allLessons.length} lesson${allLessons.length === 1 ? '' : 's'} ready for Grade ${grade}.`}
           </p>
         </div>
 
@@ -84,10 +87,22 @@ export function LearnerLessonsList() {
           </div>
         )}
 
-        {loading && allLessons.length === 0 && <SkeletonGrid />}
+        {/* A read failure must not masquerade as "no lessons yet" — show a
+            retryable error instead of the empty state. */}
+        {error && allLessons.length === 0 ? (
+          <ContentLoadError
+            title="Couldn’t load your lessons"
+            message="We couldn’t load your lessons right now. Please check your connection and try again."
+            onRetry={reload}
+          />
+        ) : (
+          <>
+            {loading && allLessons.length === 0 && <SkeletonGrid />}
 
-        {!loading && allLessons.length === 0 && (
-          <EmptyState grade={grade} />
+            {!loading && allLessons.length === 0 && (
+              <EmptyState grade={grade} />
+            )}
+          </>
         )}
 
         {!loading && Object.keys(grouped).length > 0 && (

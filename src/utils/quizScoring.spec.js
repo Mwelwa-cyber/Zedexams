@@ -5,6 +5,8 @@ import {
   isTextAnswerType,
   isNumericType,
   isHotspotType,
+  isMatchingType,
+  isSequenceType,
 } from './quizScoring.js'
 
 // computeQuizScore is the marks/percentage/topic breakdown a learner sees the
@@ -22,6 +24,12 @@ describe('type predicates', () => {
     expect(isNumericType('mcq')).toBe(false)
     expect(isHotspotType('hotspot')).toBe(true)
     expect(isHotspotType('numeric')).toBe(false)
+    // Essay rides the AI-graded text-answer family.
+    expect(isTextAnswerType('essay')).toBe(true)
+    expect(isMatchingType('matching')).toBe(true)
+    expect(isMatchingType('sequence')).toBe(false)
+    expect(isSequenceType('sequence')).toBe(true)
+    expect(isSequenceType('matching')).toBe(false)
   })
 })
 
@@ -56,6 +64,35 @@ describe('isQuestionCorrect — per type', () => {
     const q = { type: 'hotspot', correctRegion: { x: 0.5, y: 0.5, radius: 0.1 } }
     expect(isQuestionCorrect(q, { x: 0.52, y: 0.48 })).toBe(true)
     expect(isQuestionCorrect(q, { x: 0.9, y: 0.9 })).toBe(false)
+    expect(isQuestionCorrect(q, undefined)).toBe(false)
+  })
+
+  it('essay trusts the AI verdict like short_answer', () => {
+    expect(isQuestionCorrect({ type: 'essay' }, { text: 'A long answer', correct: true })).toBe(true)
+    expect(isQuestionCorrect({ type: 'essay' }, { text: 'A long answer', correct: false })).toBe(false)
+    expect(isQuestionCorrect({ type: 'essay' }, undefined)).toBe(false)
+  })
+
+  it('matching re-grades against the matchingAnswer key', () => {
+    const q = {
+      type: 'matching',
+      matchingLeft: ['Cow', 'Dog'],
+      matchingRight: ['Puppy', 'Calf'],
+      matchingAnswer: [1, 0],
+    }
+    expect(isQuestionCorrect(q, [1, 0])).toBe(true)
+    expect(isQuestionCorrect(q, [0, 1])).toBe(false)
+    expect(isQuestionCorrect(q, undefined)).toBe(false)
+  })
+
+  it('sequence re-grades against the sequenceAnswer key', () => {
+    const q = {
+      type: 'sequence',
+      sequenceItems: ['Tree', 'Seed', 'Sprout'],
+      sequenceAnswer: [3, 1, 2],
+    }
+    expect(isQuestionCorrect(q, [1, 2, 0])).toBe(true) // Seed,Sprout,Tree
+    expect(isQuestionCorrect(q, [0, 1, 2])).toBe(false) // display order
     expect(isQuestionCorrect(q, undefined)).toBe(false)
   })
 
@@ -116,6 +153,29 @@ describe('computeQuizScore', () => {
   it('returns a zeroed result for an empty or missing question list', () => {
     expect(computeQuizScore([], {})).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {} })
     expect(computeQuizScore(undefined, undefined)).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {} })
+  })
+
+  it('scores a mixed quiz spanning every supported type', () => {
+    const questions = [
+      { id: 'mcq', type: 'mcq', marks: 1, correctAnswer: 1 },
+      { id: 'num', type: 'numeric', marks: 1, correctAnswer: 10, tolerance: 0 },
+      { id: 'txt', type: 'short_answer', marks: 1 },
+      { id: 'ess', type: 'essay', marks: 2 },
+      { id: 'mat', type: 'matching', marks: 2, matchingLeft: ['A', 'B'], matchingRight: ['1', '2'], matchingAnswer: [0, 1] },
+      { id: 'seq', type: 'sequence', marks: 2, sequenceItems: ['X', 'Y'], sequenceAnswer: [2, 1] },
+    ]
+    const answers = {
+      mcq: 1,                          // ✓ 1
+      num: '10',                       // ✓ 1
+      txt: { correct: true },          // ✓ 1
+      ess: { text: 'essay', correct: false }, // ✗ 0
+      mat: [0, 1],                     // ✓ 2
+      seq: [1, 0],                     // Y(pos1),X(pos2) → ✓ 2
+    }
+    const result = computeQuizScore(questions, answers)
+    expect(result.total).toBe(9)
+    expect(result.score).toBe(7) // everything but the essay
+    expect(result.percentage).toBe(78) // round(7/9*100)
   })
 
   it('awards a perfect score as 100%', () => {

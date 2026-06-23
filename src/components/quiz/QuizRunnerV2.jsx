@@ -23,8 +23,12 @@ import {
   isNumericType,
   isHotspotType,
   isFillBlanksType,
+  isMatchingType,
+  isSequenceType,
 } from '../../utils/quizScoring'
 import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
+import { gradeMatching } from '../../utils/matchingGrading'
+import { gradeSequence } from '../../utils/sequenceGrading'
 import SeoHelmet from '../seo/SeoHelmet'
 
 function fmt(seconds) {
@@ -315,12 +319,26 @@ export default function QuizRunnerV2() {
         setSections(displaySections)
         setQuestions(built.questions)
 
+        // Seed sequence questions with their on-screen starting order (the
+        // array of filled item indices in display order). gradeSequence reads
+        // `answers[qid]` as this ordering, so seeding means an untouched
+        // sequence grades against exactly what the learner sees rather than
+        // counting as unanswered. Saved-session answers win over the seed.
+        const seedSequence = {}
+        for (const q of built.questions) {
+          if (q.type === 'sequence') {
+            seedSequence[q.id] = (Array.isArray(q.sequenceItems) ? q.sequenceItems : [])
+              .map((it, i) => (String(it ?? '').trim() ? i : -1))
+              .filter(i => i >= 0)
+          }
+        }
+
         // Auto-resume any in-progress session saved in localStorage
         if (currentUser) {
           const saved = loadQuizSession(quizId, currentUser.uid)
           if (saved) {
             setMode(saved.mode)
-            setAnswers(saved.answers || {})
+            setAnswers({ ...seedSequence, ...(saved.answers || {}) })
             setFlagged(saved.flagged || {})
             setRevealed(saved.revealed || {})
             setShortText(saved.shortText || {})
@@ -329,7 +347,11 @@ export default function QuizRunnerV2() {
             if (saved.endTime) setEndTime(saved.endTime)
             setStartTime(saved.startTime || Date.now())
             setStarted(true)
+          } else if (Object.keys(seedSequence).length) {
+            setAnswers(seedSequence)
           }
+        } else if (Object.keys(seedSequence).length) {
+          setAnswers(seedSequence)
         }
       } catch (err) {
         console.error('QuizRunner load failed', err)
@@ -914,6 +936,219 @@ export default function QuizRunnerV2() {
               )}
             </div>
           )
+        })() : isMatchingType(question.type) ? (() => {
+          // Matching branch — each prompt (matchingLeft) gets a dropdown of the
+          // right-column options. Graded deterministically (no AI) against
+          // matchingAnswer via gradeMatching — exactly what computeQuizScore
+          // re-runs at submit time. The learner response stored in
+          // answers[qid] is a flat array: response[i] = chosen right-index for
+          // left[i] (or -1 when unset).
+          const left = Array.isArray(question.matchingLeft) ? question.matchingLeft : []
+          const right = Array.isArray(question.matchingRight) ? question.matchingRight : []
+          const response = Array.isArray(answers[question.id]) ? answers[question.id] : []
+          const mResult = aiResults[question.id]
+          const mChecked = !!mResult
+
+          function setMatch(rowIndex, value) {
+            setAnswers(current => {
+              const prev = Array.isArray(current[question.id]) ? [...current[question.id]] : []
+              prev[rowIndex] = value === '' ? -1 : Number(value)
+              return { ...current, [question.id]: prev }
+            })
+            if (actionError) setActionError('')
+            if (mChecked) {
+              setAiResults(current => {
+                const next = { ...current }
+                delete next[question.id]
+                return next
+              })
+            }
+          }
+
+          function checkMatching() {
+            const result = gradeMatching(question, answers[question.id])
+            setAiResults(current => ({
+              ...current,
+              [question.id]: {
+                correct: result.allCorrect,
+                perRow: result.perRow,
+                feedback: result.allCorrect
+                  ? '🌟 All matched correctly!'
+                  : `${result.correctPairs} of ${result.totalPairs} matched correctly.`,
+              },
+            }))
+            if (mode === 'practice') {
+              setRevealed(current => ({ ...current, [question.id]: true }))
+              setFeedbackType(result.allCorrect ? 'correct' : 'wrong')
+              setTimeout(() => setFeedbackType(null), 1300)
+            }
+          }
+
+          const anyMatched = response.some(v => Number.isInteger(v) && v >= 0)
+
+          return (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {left.map((prompt, rowIndex) => {
+                  if (!String(prompt ?? '').trim()) return null
+                  const rowCorrect = mChecked ? mResult.perRow?.[rowIndex] : null
+                  const selected = Number.isInteger(response[rowIndex]) && response[rowIndex] >= 0 ? response[rowIndex] : ''
+                  return (
+                    <div key={rowIndex} className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-slate-900 bg-white p-3 shadow-[0_2px_0_#0F1B2D]">
+                      <span className="min-w-[7rem] flex-1 text-sm font-bold text-slate-900">{prompt}</span>
+                      <span aria-hidden="true" className="font-black text-slate-400">→</span>
+                      <select
+                        value={selected}
+                        onChange={event => setMatch(rowIndex, event.target.value)}
+                        disabled={mChecked && mode === 'practice'}
+                        aria-label={`Match for ${typeof prompt === 'string' && prompt ? prompt : `prompt ${rowIndex + 1}`}`}
+                        className={`min-w-[9rem] rounded-xl border-2 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ${
+                          rowCorrect === true ? 'border-emerald-600 text-emerald-700'
+                            : rowCorrect === false ? 'border-orange-500 text-orange-700'
+                              : 'border-slate-400 focus:border-[var(--accent)]'
+                        }`}
+                      >
+                        <option value="">— choose —</option>
+                        {right.map((opt, optIndex) => (
+                          <option key={optIndex} value={optIndex}>{typeof opt === 'string' ? opt : `Option ${optIndex + 1}`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {!mChecked && (
+                <button
+                  type="button"
+                  onClick={checkMatching}
+                  disabled={!anyMatched}
+                  className="zx-sb zx-sb-primary w-full text-sm"
+                >
+                  {mode === 'exam' ? 'Save Answer' : 'Check My Answers'}
+                </button>
+              )}
+
+              {mChecked && mode === 'practice' && (
+                <div className={`rounded-2xl border-2 p-4 ${mResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <p className={`text-sm font-bold ${mResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{mResult.feedback}</p>
+                </div>
+              )}
+            </div>
+          )
+        })() : isSequenceType(question.type) ? (() => {
+          // Sequence branch — the learner reorders the items with up/down
+          // controls into the correct order. The working order stored in
+          // answers[qid] is an array of item indices (a permutation of the
+          // filled rows), seeded on load to the on-screen order. gradeSequence
+          // re-grades it against sequenceAnswer at submit time.
+          const items = Array.isArray(question.sequenceItems) ? question.sequenceItems : []
+          const fallbackOrder = items
+            .map((it, i) => (String(it ?? '').trim() ? i : -1))
+            .filter(i => i >= 0)
+          const order = Array.isArray(answers[question.id]) && answers[question.id].length
+            ? answers[question.id]
+            : fallbackOrder
+          const sResult = aiResults[question.id]
+          const sChecked = !!sResult
+
+          function moveItem(position, direction) {
+            const target = position + direction
+            if (target < 0 || target >= order.length) return
+            setAnswers(current => {
+              const base = Array.isArray(current[question.id]) && current[question.id].length
+                ? [...current[question.id]]
+                : [...fallbackOrder]
+              ;[base[position], base[target]] = [base[target], base[position]]
+              return { ...current, [question.id]: base }
+            })
+            if (actionError) setActionError('')
+            if (sChecked) {
+              setAiResults(current => {
+                const next = { ...current }
+                delete next[question.id]
+                return next
+              })
+            }
+          }
+
+          function checkSequence() {
+            const result = gradeSequence(question, answers[question.id] ?? fallbackOrder)
+            setAiResults(current => ({
+              ...current,
+              [question.id]: {
+                correct: result.allCorrect,
+                perItem: result.perItem,
+                feedback: result.allCorrect
+                  ? '🌟 Perfect order!'
+                  : `${result.correctItems} of ${result.totalItems} in the right place.`,
+              },
+            }))
+            if (mode === 'practice') {
+              setRevealed(current => ({ ...current, [question.id]: true }))
+              setFeedbackType(result.allCorrect ? 'correct' : 'wrong')
+              setTimeout(() => setFeedbackType(null), 1300)
+            }
+          }
+
+          return (
+            <div className="space-y-4">
+              <ol className="space-y-2">
+                {order.map((itemIndex, position) => {
+                  const itemCorrect = sChecked ? sResult.perItem?.[itemIndex] : null
+                  return (
+                    <li
+                      key={itemIndex}
+                      className={`flex items-center gap-3 rounded-2xl border-2 bg-white p-3 shadow-[0_2px_0_#0F1B2D] ${
+                        itemCorrect === true ? 'border-emerald-600'
+                          : itemCorrect === false ? 'border-orange-500'
+                            : 'border-slate-900'
+                      }`}
+                    >
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{position + 1}</span>
+                      <span className="flex-1 text-sm font-bold text-slate-900">{typeof items[itemIndex] === 'string' ? items[itemIndex] : ''}</span>
+                      <div className="flex flex-shrink-0 flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveItem(position, -1)}
+                          disabled={position === 0 || (sChecked && mode === 'practice')}
+                          aria-label={`Move "${typeof items[itemIndex] === 'string' ? items[itemIndex] : `item ${position + 1}`}" up`}
+                          className="grid h-7 w-7 place-items-center rounded-lg border-2 border-slate-900 bg-white text-xs font-black text-slate-900 disabled:opacity-30"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveItem(position, 1)}
+                          disabled={position === order.length - 1 || (sChecked && mode === 'practice')}
+                          aria-label={`Move "${typeof items[itemIndex] === 'string' ? items[itemIndex] : `item ${position + 1}`}" down`}
+                          className="grid h-7 w-7 place-items-center rounded-lg border-2 border-slate-900 bg-white text-xs font-black text-slate-900 disabled:opacity-30"
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ol>
+
+              {!sChecked && (
+                <button
+                  type="button"
+                  onClick={checkSequence}
+                  className="zx-sb zx-sb-primary w-full text-sm"
+                >
+                  {mode === 'exam' ? 'Save Answer' : 'Check My Order'}
+                </button>
+              )}
+
+              {sChecked && mode === 'practice' && (
+                <div className={`rounded-2xl border-2 p-4 ${sResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <p className={`text-sm font-bold ${sResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{sResult.feedback}</p>
+                </div>
+              )}
+            </div>
+          )
         })() : isNumericType(question.type) ? (() => {
           // Numeric branch — local, synchronous check via numericMatches.
           // No AI call, no network round-trip. The submit pipeline re-grades
@@ -1020,42 +1255,67 @@ export default function QuizRunnerV2() {
               ? aiResult.correct ? 'border-emerald-600' : 'border-orange-500'
               : 'border-slate-900'}`}>
               <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🤖 AI-checked answer</div>
-              <div className="flex items-center gap-2 p-3">
-                <input
-                  type="text"
-                  value={typed}
-                  onChange={event => {
-                    setShortText(current => ({ ...current, [question.id]: event.target.value }))
-                    if (actionError) setActionError('')
-                    if (checked) {
-                      setAiResults(current => {
-                        const next = { ...current }
-                        delete next[question.id]
-                        return next
-                      })
-                      setAnswers(current => {
-                        const next = { ...current }
-                        delete next[question.id]
-                        return next
-                      })
-                      setRevealed(current => {
-                        const next = { ...current }
-                        delete next[question.id]
-                        return next
-                      })
-                    }
-                  }}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter' && typed.trim() && !checking && !checked) checkShortAnswer(question.id)
-                  }}
-                  disabled={checking}
-                  placeholder="Type your answer here..."
-                  aria-label="Your answer"
-                  className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                />
-                {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
-                {checked && mode === 'practice' && <span className="text-xl">{aiResult.correct ? '✅' : '❌'}</span>}
-              </div>
+              {(() => {
+                // Essay answers are long-form, so they get a multi-line
+                // textarea (Enter inserts a newline rather than submitting);
+                // short_answer / diagram keep the single-line input with
+                // Enter-to-check. Both share one change handler + the same
+                // AI-marking path (checkShortAnswer).
+                const isEssay = question.type === 'essay'
+                const handleType = (value) => {
+                  setShortText(current => ({ ...current, [question.id]: value }))
+                  if (actionError) setActionError('')
+                  if (checked) {
+                    setAiResults(current => {
+                      const next = { ...current }
+                      delete next[question.id]
+                      return next
+                    })
+                    setAnswers(current => {
+                      const next = { ...current }
+                      delete next[question.id]
+                      return next
+                    })
+                    setRevealed(current => {
+                      const next = { ...current }
+                      delete next[question.id]
+                      return next
+                    })
+                  }
+                }
+                return (
+                  <div className={`gap-2 p-3 ${isEssay ? 'flex flex-col' : 'flex items-center'}`}>
+                    {isEssay ? (
+                      <textarea
+                        value={typed}
+                        onChange={event => handleType(event.target.value)}
+                        disabled={checking}
+                        rows={6}
+                        placeholder="Write your answer here…"
+                        aria-label="Your answer"
+                        className="w-full resize-y bg-transparent text-base font-semibold leading-relaxed text-slate-900 outline-none placeholder:text-slate-400"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={typed}
+                        onChange={event => handleType(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' && typed.trim() && !checking && !checked) checkShortAnswer(question.id)
+                        }}
+                        disabled={checking}
+                        placeholder="Type your answer here..."
+                        aria-label="Your answer"
+                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                      />
+                    )}
+                    <div className={`flex items-center gap-2 ${isEssay ? 'self-end' : ''}`}>
+                      {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
+                      {checked && mode === 'practice' && <span className="text-xl">{aiResult.correct ? '✅' : '❌'}</span>}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {!checked && (
@@ -1099,6 +1359,14 @@ export default function QuizRunnerV2() {
                 />
               </>
             )}
+          </div>
+        ) : (!Array.isArray(question.options) || question.options.length === 0) ? (
+          // Defensive: every authorable type now has its own branch above, so
+          // this only fires for malformed data (e.g. an MCQ that lost its
+          // options). Show a clear notice instead of crashing on .map of an
+          // empty array or rendering a blank, unanswerable option grid.
+          <div className="rounded-2xl border-2 border-dashed border-orange-300 bg-orange-50 p-4 text-sm font-bold text-orange-700">
+            ⚠️ This question can’t be displayed right now. Please let your teacher know so they can fix it.
           </div>
         ) : (
           <div className="space-y-4">

@@ -207,22 +207,24 @@ test('fill_blanks grades deterministically against the answer key', () => {
   assert(isQuestionCorrect(q, ['star']) === true, 'matching blank')
   assert(isQuestionCorrect(q, ['moon']) === false, 'wrong blank')
 })
-// LOCKS: essay is NOT treated as an AI-graded text type (only short_answer /
-// diagram are) — it falls through to strict equality. The normalizer/grader
-// work may change this; pinning it makes that change intentional.
-test('essay falls through to strict equality (NOT AI-graded today)', () => {
+// Essay is an AI-graded text type (like short_answer / diagram): it trusts the
+// upstream marker's verdict carried on the answer object, not strict equality.
+test('essay is AI-graded via the text-answer verdict', () => {
   const q = { id: 'q', type: 'essay', marks: 10, correctAnswer: 'model' }
-  assert(isQuestionCorrect(q, 'model') === true, 'strict eq matches')
-  assert(isQuestionCorrect(q, { correct: true }) === false, 'object answer never matches a string key')
+  assert(isQuestionCorrect(q, { text: 'a long answer', correct: true }) === true, 'AI-correct')
+  assert(isQuestionCorrect(q, { text: 'a long answer', correct: false }) === false, 'AI-wrong')
+  assert(isQuestionCorrect(q, 'model') === false, 'a bare string carries no AI verdict')
 })
-// LOCKS: matching/sequence have no deterministic grader in quizScoring — they
-// fall through to strict equality, so an array response can never equal the
-// scalar correctAnswer and they score 0. Documents the gap for the grader work.
-test('matching/sequence are not auto-graded (array response never strict-equals)', () => {
-  const m = { id: 'm', type: 'matching', marks: 3, matchingAnswer: [0, 1], correctAnswer: 0 }
-  const s = { id: 's', type: 'sequence', marks: 3, sequenceAnswer: [1, 2, 3], correctAnswer: 0 }
-  assert(isQuestionCorrect(m, [0, 1]) === false, 'matching array vs scalar')
-  assert(isQuestionCorrect(s, [1, 2, 3]) === false, 'sequence array vs scalar')
+// Matching/sequence grade deterministically in the learner runner against
+// their dedicated answer keys (matchingAnswer / sequenceAnswer) — the runner
+// stores the learner response as the chosen pairing / arrangement array.
+test('matching/sequence are auto-graded against their answer keys', () => {
+  const m = { id: 'm', type: 'matching', marks: 3, matchingLeft: ['A', 'B'], matchingRight: ['1', '2'], matchingAnswer: [0, 1] }
+  assert(isQuestionCorrect(m, [0, 1]) === true, 'matching correct pairing')
+  assert(isQuestionCorrect(m, [1, 0]) === false, 'matching wrong pairing')
+  const s = { id: 's', type: 'sequence', marks: 3, sequenceItems: ['a', 'b', 'c'], sequenceAnswer: [1, 2, 3] }
+  assert(isQuestionCorrect(s, [0, 1, 2]) === true, 'sequence correct order')
+  assert(isQuestionCorrect(s, [2, 1, 0]) === false, 'sequence wrong order')
 })
 test('computeQuizScore sums marks across mixed types; missing marks count as 1', () => {
   const questions = [

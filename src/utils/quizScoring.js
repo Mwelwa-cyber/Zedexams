@@ -20,9 +20,14 @@
 import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
 import { gradeFillBlanks } from './fillBlanks.js'
+import { matchingMatches } from './matchingGrading.js'
+import { sequenceMatches } from './sequenceGrading.js'
 
+// Essay rides the text-answer family: the learner writes a free-form response
+// graded by the AI marker (same path as short_answer / diagram), with its
+// verdict stamped on the answer object as `correct`.
 export function isTextAnswerType(type) {
-  return type === 'short_answer' || type === 'diagram'
+  return type === 'short_answer' || type === 'diagram' || type === 'essay'
 }
 
 export function isNumericType(type) {
@@ -37,13 +42,23 @@ export function isFillBlanksType(type) {
   return type === 'fill_blanks'
 }
 
+export function isMatchingType(type) {
+  return type === 'matching'
+}
+
+export function isSequenceType(type) {
+  return type === 'sequence'
+}
+
 /**
  * Decide whether a single answer is correct for its question type.
  *
- *   - text (short_answer / diagram): trust the upstream AI verdict stored as
- *     `answer.correct === true`.
+ *   - text (short_answer / diagram / essay): trust the upstream AI verdict
+ *     stored as `answer.correct === true`.
  *   - numeric: re-grade via numericMatches(answer, correctAnswer, tolerance).
  *   - hotspot: re-grade via hotspotMatches(answer, correctRegion).
+ *   - fill_blanks: re-grade per-blank against the answer key.
+ *   - matching / sequence: re-grade against matchingAnswer / sequenceAnswer.
  *   - everything else (mcq / truefalse): strict-equality against correctAnswer.
  */
 export function isQuestionCorrect(question, answer) {
@@ -60,6 +75,15 @@ export function isQuestionCorrect(question, answer) {
   // statement reading order; every blank must match for the question to score.
   if (isFillBlanksType(question.type)) {
     return gradeFillBlanks(question, answer).allCorrect
+  }
+  // Matching / sequence also grade deterministically against their dedicated
+  // answer keys (matchingAnswer / sequenceAnswer). Every pair / item must land
+  // correctly for the question to score — see matching/sequenceGrading.js.
+  if (isMatchingType(question.type)) {
+    return matchingMatches(question, answer)
+  }
+  if (isSequenceType(question.type)) {
+    return sequenceMatches(question, answer)
   }
   return answer === question.correctAnswer
 }

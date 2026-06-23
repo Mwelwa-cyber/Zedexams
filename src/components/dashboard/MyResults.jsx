@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, CheckCircleIcon, ChevronRight, PencilLine, Search, Target, TrophyIcon, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
@@ -6,6 +6,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import ContentLoadError from '../ui/ContentLoadError'
 import SeoHelmet from '../seo/SeoHelmet'
 import { computeStreak } from '../../utils/streak'
 
@@ -61,18 +62,28 @@ export default function MyResults() {
 
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [subjectF, setSubjectF] = useState('')
   const [modeF, setModeF]       = useState('')
 
-  useEffect(() => {
-    async function load() {
-      if (!userProfile?.id) return
+  // A failed read must resolve into a visible, retryable error — never leave
+  // the learner staring at the loading skeleton forever (the bug this fixes).
+  const load = useCallback(async () => {
+    if (!userProfile?.id) return
+    setLoading(true)
+    setError(null)
+    try {
       const data = await getUserResults(userProfile.id, 50)
       setResults(data)
+    } catch (err) {
+      console.error('MyResults load failed', err)
+      setError('We couldn’t load your results. Please check your connection and try again.')
+    } finally {
       setLoading(false)
     }
-    load()
   }, [userProfile?.id, getUserResults])
+
+  useEffect(() => { load() }, [load])
 
   function fmt(ts) {
     if (!ts) return ''
@@ -163,7 +174,13 @@ export default function MyResults() {
       </div>
 
       {/* List */}
-      {loading ? (
+      {error ? (
+        <ContentLoadError
+          title="Couldn’t load your results"
+          message={error}
+          onRetry={load}
+        />
+      ) : loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <ResultSkeleton key={i} />)}
         </div>
