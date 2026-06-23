@@ -56,6 +56,25 @@ describe('MarkEntryGrid', () => {
     expect(screen.queryByText('SBA /10')).not.toBeInTheDocument()
   })
 
+  it('shows a Final /30 total and no CBC grade for sba_final records', () => {
+    const finalRecord = {
+      id: 'f1',
+      title: 'Final SBA',
+      type: 'sba_final',
+      columns: [
+        { key: 'g5', label: 'Grade 5 (/10)', max: 10 },
+        { key: 'g6', label: 'Grade 6 (/10)', max: 10 },
+        { key: 'g7', label: 'Grade 7 (/10)', max: 10 },
+      ],
+      rosterSnapshot: [{ rosterId: 'a', fullName: 'Mary Banda', learnerNumber: '1' }],
+      marks: { a: { g5: 8, g6: 9, g7: 9 } }, // 26/30
+    }
+    render(<MarkEntryGrid classId="c1" record={finalRecord} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText('Final /30')).toBeInTheDocument()
+    expect(screen.queryByText('Grade')).not.toBeInTheDocument()
+    expect(screen.getAllByText('26').length).toBeGreaterThan(0) // total
+  })
+
   it('saves the entered marks', async () => {
     render(<MarkEntryGrid classId="c1" record={record} onClose={() => {}} onSaved={() => {}} />)
     fireEvent.change(screen.getByLabelText('Maths mark for Mary Banda'), { target: { value: '40' } })

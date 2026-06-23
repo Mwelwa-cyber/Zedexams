@@ -51,9 +51,10 @@ export default function ClassRecordsPanel({
   async function refresh() {
     setLoading(true)
     try {
-      const [r, recs] = await Promise.all([listRoster(classId), listRecords(classId, { type })])
+      const types = Array.isArray(type) ? type : [type]
+      const [r, all] = await Promise.all([listRoster(classId), listRecords(classId)])
       setRoster(r)
-      setRecords(recs)
+      setRecords(all.filter((rec) => types.includes(rec.type)))
     } catch (err) {
       console.warn('[ClassRecordsPanel] load failed', err)
     } finally {
@@ -61,7 +62,9 @@ export default function ClassRecordsPanel({
     }
   }
 
-  useEffect(() => { refresh() }, [classId, type]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Key on a string so passing `type` as a fresh array literal can't loop.
+  const typeKey = Array.isArray(type) ? type.join(',') : type
+  useEffect(() => { refresh() }, [classId, typeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function openGrid(recordId) {
     try {
@@ -116,6 +119,7 @@ export default function ClassRecordsPanel({
       {creating && renderCreate({
         register,
         roster,
+        records,
         onCreated: (id) => { setCreating(false); openGrid(id) },
         onCancel: () => setCreating(false),
       })}
