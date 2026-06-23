@@ -140,6 +140,13 @@ function cleanActivity(input, kind, errors) {
   if (!header.subject) errors.push(`${kind}.header.subject is required`);
   if (!header.topic) errors.push(`${kind}.header.topic is required`);
 
+  // The "word box" (a.k.a. word bank / white box) of choices shown above the
+  // questions for fill-in-the-blank exercises. Kept as structured data so the
+  // exporter can render it in its own bordered box BELOW the instruction,
+  // rather than the model cramming the list into the instruction text.
+  const wordBank = Array.isArray(input.wordBank) ?
+    input.wordBank.map((w) => str(w, 80)).filter(Boolean).slice(0, 40) : [];
+
   let n = 1;
   const questions = Array.isArray(input.questions) ?
     input.questions
@@ -170,6 +177,7 @@ function cleanActivity(input, kind, errors) {
       (kind === "homework" ?
         "Do this work at home on your own. Show all your working." :
         "Answer all the questions. Show your working where needed."),
+    wordBank,
     questions,
     parentNote: kind === "homework" ? str(input.parentNote, 1000) : "",
     answerKey: {

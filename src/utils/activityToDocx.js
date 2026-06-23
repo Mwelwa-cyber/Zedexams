@@ -17,13 +17,17 @@ import {
   HeadingLevel,
   Packer,
   Paragraph,
+  Tab,
   Table,
   TableCell,
   TableRow,
+  TabStopPosition,
+  TabStopType,
   TextRun,
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { resolveActivityWordBank } from './activityWordBank.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -42,13 +46,6 @@ function para(runs, opts = {}) {
     spacing: { after: 80 }, ...opts,
   })
 }
-function h1(str) {
-  return new Paragraph({
-    children: [text(str, { bold: true, size: 32 })],
-    heading: HeadingLevel.HEADING_1,
-    alignment: AlignmentType.CENTER, spacing: { after: 200 },
-  })
-}
 function h2(str) {
   return new Paragraph({
     children: [text(str, { bold: true, size: 24 })],
@@ -58,6 +55,12 @@ function h2(str) {
 function bodyPara(str, opts = {}) {
   return new Paragraph({
     children: [text(str, { size: 20, ...opts })], spacing: { after: 60 },
+  })
+}
+function centeredPara(runs, opts = {}) {
+  return new Paragraph({
+    children: Array.isArray(runs) ? runs : [runs],
+    alignment: AlignmentType.CENTER, spacing: { after: 60 }, ...opts,
   })
 }
 function indented(str, opts = {}) {
@@ -99,6 +102,66 @@ function metadataTable(header) {
       ],
     })),
   })
+}
+
+// Test-paper-style header: school name, the activity title, then the
+// subject • grade line — mirroring the Test Paper Studio's centered stack.
+function headerStack(activity) {
+  const header = activity.header || {}
+  const title = header.title ||
+    (activity.kind === 'homework' ? 'Homework' : 'Class Exercise')
+  const subjectGrade = [titleCase(header.subject), header.grade]
+    .filter(Boolean).join('   •   ')
+  const out = [
+    centeredPara(text('YOUR SCHOOL NAME', { bold: true, size: 28 })),
+    centeredPara(text(title, { bold: true, size: 26 }), {
+      heading: HeadingLevel.HEADING_1,
+    }),
+  ]
+  if (subjectGrade) out.push(centeredPara(text(subjectGrade, { bold: true, size: 22 })))
+  return out
+}
+
+// A Name / Date fill-in row, like the one at the top of a test paper.
+function learnerFieldsRow() {
+  return new Paragraph({
+    children: [
+      text('Name: ', { bold: true, size: 20 }),
+      text('______________________________', { size: 20 }),
+      new Tab(),
+      text('Date: ', { bold: true, size: 20 }),
+      text('____________________', { size: 20 }),
+    ],
+    tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+    spacing: { before: 80, after: 160 },
+  })
+}
+
+// The word box for fill-in-the-blank activities — each choice in its own
+// bordered white cell, laid out in a grid. Rendered BELOW the instruction.
+function wordBoxBlock(words) {
+  if (!words.length) return []
+  const perRow = words.length <= 3 ? words.length : (words.length <= 8 ? 4 : 5)
+  const rows = []
+  for (let i = 0; i < words.length; i += perRow) {
+    const slice = words.slice(i, i + perRow)
+    while (slice.length < perRow) slice.push('')
+    rows.push(new TableRow({
+      children: slice.map((w) => new TableCell({
+        children: [centeredPara(text(w, { size: 20 }), {
+          spacing: { before: 40, after: 40 },
+        })],
+        width: { size: Math.floor(100 / perRow), type: WidthType.PERCENTAGE },
+        borders: CELL_BORDER,
+        verticalAlign: AlignmentType.CENTER,
+      })),
+    }))
+  }
+  return [
+    bodyPara('Word Box', { bold: true }),
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
+    para(text(' ', { size: 10 })),
+  ]
 }
 
 // Pupil-facing rendering of one question, type-aware.
@@ -188,13 +251,20 @@ function activityChildren(activity, opts = {}) {
   const children = []
   const header = activity.header || {}
   const includeModel = opts.includeModelAnswers !== false
-  children.push(h1(header.title || (activity.kind === 'homework' ? 'Homework' : 'Class Exercise')))
+  const { words, instructions } = resolveActivityWordBank(activity)
+
+  // Test-paper-style header + a Name / Date row, then the metadata table.
+  headerStack(activity).forEach((node) => children.push(node))
+  children.push(learnerFieldsRow())
   children.push(metadataTable(header))
   children.push(para(text(' ', { size: 14 })))
 
-  if (activity.instructions) {
-    children.push(bodyPara(activity.instructions, { italics: true }))
+  // Instructions sit ON TOP; the word box (when present) is rendered BELOW
+  // them so the lead-in line can reference "the word box below".
+  if (instructions) {
+    children.push(bodyPara(instructions))
   }
+  wordBoxBlock(words).forEach((node) => children.push(node))
 
   children.push(h2('Questions'))
   ;(activity.questions || []).forEach((q, i) => {
