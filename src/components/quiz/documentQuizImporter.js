@@ -10,6 +10,8 @@ import { reconcileSmartSectionOrder, shouldRunSmartImport } from './documentQuiz
 import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { subPartsFromText } from '../../utils/stimulusQuestion.js'
+import { richTextToPlainText } from '../../utils/quizRichText.js'
 import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
 import {
   isLikelyScannedPdf,
@@ -859,6 +861,41 @@ function aiQuestionToLocalOverrides(q) {
   }
 }
 
+// Recover crammed "(a) … (b) … (c) …" short-answer questions on import. A
+// document/scan often collapses an instruction + lettered follow-ups into one
+// question body (the Q18 bug); this splits any such STANDALONE short-answer /
+// diagram section into an instruction stem + inline-blank sub-parts so it prints
+// like the hand-fixed Q17. Passage sub-questions are already split per part, so
+// they're left untouched. Questions that already carry subParts are skipped.
+// Pure (operates on studio section objects) so it can run after every import
+// variant — Word, text PDF, scanned PDF and pictures.
+const SUBPART_SPLITTABLE_TYPES = new Set(['short_answer', 'short', 'fill', 'diagram'])
+function splitStandaloneSubParts(sections) {
+  if (!Array.isArray(sections)) return sections
+  return sections.map(section => {
+    if (!section || section.kind !== 'standalone' || !section.question) return section
+    const q = section.question
+    if (!SUBPART_SPLITTABLE_TYPES.has(q.type || 'mcq')) return section
+    if (Array.isArray(q.subParts) && q.subParts.length) return section
+    const split = subPartsFromText(richTextToPlainText(q.text))
+    if (!split) return section
+    const marks = split.subParts.reduce((sum, p) => sum + (Number(p.marks) || 0), 0)
+    const note = 'Auto-split into lettered sub-parts on import — check the parts and fill in the marking answers.'
+    return {
+      ...section,
+      question: {
+        ...q,
+        text: importMarkupToRichHtml(split.stem || ''),
+        subParts: split.subParts,
+        marks,
+        correctAnswer: '',
+        requiresReview: true,
+        reviewNotes: [...(Array.isArray(q.reviewNotes) ? q.reviewNotes : []), note],
+      },
+    }
+  })
+}
+
 function smartSectionsToLocal(aiSections) {
   return aiSections
     .map(section => {
@@ -964,7 +1001,7 @@ async function importScannedPdfQuiz({ pdf, file, importOptions }) {
       sourceContentType: 'application/pdf',
       importWarnings: warnings,
     },
-    sections: result.sections,
+    sections: splitStandaloneSubParts(result.sections),
     parts: [],
     questions: [],
     documentInstruction: '',
@@ -1011,7 +1048,7 @@ async function importImageQuiz({ files, importOptions }) {
       sourceContentType: contentType,
       importWarnings: warnings,
     },
-    sections: result.sections,
+    sections: splitStandaloneSubParts(result.sections),
     parts: [],
     questions: [],
     documentInstruction: '',
@@ -1159,6 +1196,15 @@ export async function importQuizDocument(input, options = {}) {
     if (regrouped.changed) {
       sections = regrouped.sections
       warnings.push('Comprehension questions were re-grouped by passage — please confirm each text has the right questions.')
+    }
+  }
+
+  // Recover crammed "(a)(b)(c)" short-answer questions into instruction + parts.
+  {
+    const before = sections
+    sections = splitStandaloneSubParts(sections)
+    if (sections.some((s, i) => s !== before[i])) {
+      warnings.push('Some questions were split into lettered sub-parts (a, b, c) — review the parts and add the marking answers.')
     }
   }
 

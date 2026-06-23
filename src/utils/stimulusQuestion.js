@@ -149,6 +149,32 @@ export function stimulusDescriptorFromQuestion(q) {
   }
 }
 
+/**
+ * Split a flat question's text into an instruction stem + short-answer SUB-PARTS
+ * ("(a) … (b) … (c) …") — the inline-blank structure (Q17), as opposed to
+ * stimulusDescriptorFromQuestion which builds a passage with a figure/source.
+ *
+ * Unlike the stimulus path this does NOT require "study the diagram…" phrasing,
+ * so a plain "Fill in the blanks … (a) … (b) … (c)" question (the Q18 bug) is
+ * recovered too. Returns { stem, subParts } or null when there aren't 2+ parts.
+ * subParts default to inline blanks with no model answer (the teacher fills the
+ * marking key in); marks come from any "(1)"/"(2 marks)" hint, else 1 each.
+ */
+export function subPartsFromText(text) {
+  const split = splitSubQuestions(text)
+  if (!split || !Array.isArray(split.parts) || split.parts.length < 2) return null
+  const subParts = split.parts
+    .map((p) => ({
+      text: String(p.text || '').trim(),
+      answer: '',
+      marks: Number.isFinite(p.marks) && p.marks > 0 ? p.marks : 1,
+      answerFormat: 'inline',
+    }))
+    .filter((p) => p.text)
+  if (subParts.length < 2) return null
+  return { stem: String(split.stem || '').trim(), subParts }
+}
+
 // Detect the labelled parts a "name the parts labelled P, Q and R" sub-question
 // asks about, returning ['P','Q','R'] etc. Looks for a run of single-letter /
 // roman / numeric labels joined by commas / "and".
