@@ -7,7 +7,18 @@
  * draft stays untouched.
  */
 
-const {callAnthropic, getAnthropicApiKey} = require("../../aiService");
+// aiService is required lazily (inside the call-time defaults below)
+// rather than at module load: it pulls in the firebase-functions
+// framework, a `functions/`-only dependency, which would make this module
+// unimportable from the root-deps plain-node test suite. The unit test
+// injects its own callLLM/getApiKey, so the real ones are only ever
+// loaded in production.
+function defaultCallLLM(...args) {
+  return require("../../aiService").callAnthropic(...args);
+}
+function defaultGetApiKey(secret) {
+  return require("../../aiService").getAnthropicApiKey(secret);
+}
 
 const SYSTEM_PROMPT = [
   "You are Reva, ZedExams' Content Reviewer. You read like an experienced",
@@ -79,8 +90,8 @@ function safeParseJson(text) {
 async function runReva({
   job,
   anthropicApiKeySecret,
-  callLLM = callAnthropic,
-  getApiKey = getAnthropicApiKey,
+  callLLM = defaultCallLLM,
+  getApiKey = defaultGetApiKey,
 }) {
   const input = job.input || {};
   const ariaOutput = job.output && job.output.aria;
