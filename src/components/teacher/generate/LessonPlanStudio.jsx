@@ -18,6 +18,7 @@ import { saveBlob } from '../../../utils/saveBlob'
 import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 import { generateDiagram } from '../../../utils/generateDiagram'
+import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -26,7 +27,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v22'
+const STUDIO_ASSET_VERSION = 'v26'
 
 // Canonical display names for KB subject slugs whose naive title-case would be
 // wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
@@ -68,6 +69,11 @@ export default function LessonPlanStudio() {
   // window.__studioSetGenerating bridge registered below.
   const [genState, setGenState] = useState(null)
 
+  // Lesson-kit coords (grade/subject/topic/subtopic/term, CBC-normalised) from
+  // the last successful generation. When set, the "Create for this lesson" bar
+  // deep-links into the Worksheet / Homework / Notes studios pre-filled.
+  const [kit, setKit] = useState(null)
+
   useEffect(() => {
     // Studio scripts are loaded once (cached in <head>), but their DOM
     // bindings need to be re-applied every time React mounts a fresh copy
@@ -76,6 +82,14 @@ export default function LessonPlanStudio() {
 
     // ---- Bridge: navigation ----
     window.__studioNavigateHome = () => navigate('/teacher')
+
+    // ---- Bridge: lesson kit ----
+    // 06-generate.js calls this after a successful generation with the lesson's
+    // CBC-normalised coords so the "Create for this lesson" bar can pre-fill the
+    // companion studios (worksheet / homework / notes).
+    window.__studioOnGenerated = (inputs) => {
+      setKit(inputs && typeof inputs === 'object' ? inputs : null)
+    }
 
     // ---- Bridge: generation progress ----
     // 06-generate.js calls this to show/hide the shared AI progress tracker.
@@ -450,6 +464,7 @@ export default function LessonPlanStudio() {
 
     return () => {
       delete window.__studioNavigateHome
+      delete window.__studioOnGenerated
       delete window.__studioSetGenerating
       delete window.__studioCallClaude
       delete window.__studioGenerateDiagram
@@ -535,7 +550,19 @@ export default function LessonPlanStudio() {
                     <div className="field"><label>Class</label><select id="f-class"></select></div>
                     <div className="field"><label>Duration (min)</label><input type="number" id="f-duration" defaultValue="40" min="20" max="120" /></div>
                   </div>
-                  <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                  <div className="field-row">
+                    <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                    <div className="field"><label>Medium of instruction</label><select id="f-medium" defaultValue="English">
+                      <option value="English">English</option>
+                      <option value="Bemba">Bemba</option>
+                      <option value="Nyanja">Nyanja</option>
+                      <option value="Tonga">Tonga</option>
+                      <option value="Lozi">Lozi</option>
+                      <option value="Kaonde">Kaonde</option>
+                      <option value="Lunda">Lunda</option>
+                      <option value="Luvale">Luvale</option>
+                    </select></div>
+                  </div>
                   <div className="field-row">
                     <div className="field"><label>Term</label><select id="f-term" defaultValue="2"><option>1</option><option>2</option><option>3</option></select></div>
                     <div className="field"><label>Week</label><select id="f-week" defaultValue="5">
@@ -806,6 +833,10 @@ export default function LessonPlanStudio() {
                     <div className="lbl">Auto-add diagrams<small>For Maths &amp; Science: AI draws shapes, number lines, sets, charts &amp; science diagrams where they help</small></div>
                     <div className="toggle-switch"></div>
                   </div>
+                  <div className="toggle-row" id="t-plan-in-medium" data-on="false">
+                    <div className="lbl">Write the whole plan in the local language<small>Only when the Medium of instruction is a Zambian language — writes the entire plan in it, not just the parts learners hear. Off keeps an English document for inspection.</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
                 </div>
               </div>
 
@@ -931,6 +962,19 @@ export default function LessonPlanStudio() {
                 </div>
               </div>
             </div>
+
+            {/* Lesson kit — appears after a plan is generated. Deep-links into
+                the companion studios with this lesson's grade/subject/topic
+                pre-filled (the React generators read these via useFormDefaultsFromUrl). */}
+            {kit && (
+              <div className="lp-kit-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line, #e5ddd0)', background: 'var(--paper, #faf6ef)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#7a6d5d' }}>Create for this lesson:</span>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)}>Worksheet</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)}>Homework</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)}>Teacher notes</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)}>Test paper</button>
+              </div>
+            )}
 
             <div className="workspace">
               <div className="doc-wrap" id="doc-wrap">

@@ -156,3 +156,32 @@ describe('CreatePaperModal — question types', () => {
     expect(payload.instructions).toMatch(/fill-in-the-blank/i)
   })
 })
+
+describe('CreatePaperModal — exam variant', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('offers the three exam types instead of the four test types', () => {
+    renderModal({ variant: 'exam' })
+    const typeSelect = screen.getAllByRole('combobox').find((s) => s.value === 'mock')
+    expect(typeSelect).toBeTruthy()
+    const labels = within(typeSelect).getAllByRole('option').map((o) => o.textContent)
+    expect(labels).toEqual(['Mock Exam', 'Examination', 'Exam'])
+  })
+
+  it('generates at exam standard — maps every exam type to the mock_exam format', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal({ variant: 'exam' })
+    // A topic is still required before generation runs.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+
+    expect(generateAssessment).toHaveBeenCalledTimes(1)
+    const payload = generateAssessment.mock.calls[0][0]
+    // The chosen exam type collapses to the server's mock_exam format profile.
+    expect(payload.assessmentType).toBe('mock_exam')
+    // The instruction pitches the paper at full exam standard.
+    expect(payload.instructions).toMatch(/exam standard/i)
+  })
+})

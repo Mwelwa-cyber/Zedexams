@@ -100,6 +100,70 @@ export const diagramRef = z
 // ── Question shape ────────────────────────────────────────────────
 
 const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'fill_blanks', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']
+
+// Well-known type ALIASES → canonical enum value. The authoring surfaces and
+// importers don't agree on a spelling: QuizSectionsEditor and the document
+// importer emit 'truefalse', the Assessment Studio block picker labels its
+// blocks 'true_false' / 'fill_in_blank', and the server quiz generator requests
+// 'fill_blank'. The canonical names are 'tf' and 'fill_blanks', so a question
+// authored under an alias fails the strict `type` enum on save — the classic
+// "MCQ saves but true/false doesn't" bug. canonicalizeQuestionType() folds the
+// known aliases onto the enum so every surface lands on the same value; an
+// unrecognised value is returned UNCHANGED so a genuine typo still fails loudly
+// at validation instead of being silently coerced to the wrong type.
+const QUESTION_TYPE_ALIASES = {
+  truefalse: 'tf',
+  true_false: 'tf',
+  'true/false': 'tf',
+  fill_in_blank: 'fill_blanks',
+  fill_in_the_blank: 'fill_blanks',
+  fill_blank: 'fill_blanks',
+}
+
+/**
+ * Map a possibly-aliased question type onto its canonical schema enum value.
+ * Returns the input unchanged when it's already canonical or unrecognised, so
+ * the strict write schema still rejects true garbage loudly.
+ */
+export function canonicalizeQuestionType(type) {
+  if (typeof type !== 'string') return type
+  return QUESTION_TYPE_ALIASES[type.trim().toLowerCase()] || type
+}
+
+// Human-readable labels for each canonical question type. Single source of
+// truth shared by the studio dropdowns, the pre-publish error messages, and
+// the exported-paper code — so a teacher never sees the raw enum value ("tf",
+// "fill_blanks") in a toast or a checklist. Keyed by CANONICAL type;
+// questionTypeLabel() folds aliases through canonicalizeQuestionType() first.
+export const QUESTION_TYPE_LABELS = {
+  mcq: 'Multiple Choice',
+  tf: 'True / False',
+  short_answer: 'Short Answer',
+  short: 'Short Answer',
+  diagram: 'Label the Diagram',
+  fill: 'Fill in the Blank',
+  fill_blanks: 'Fill in the Blanks',
+  numeric: 'Numeric',
+  hotspot: 'Image Hotspot',
+  essay: 'Essay',
+  matching: 'Matching',
+  sequence: 'Sequence / Ordering',
+}
+
+/**
+ * Friendly label for a (possibly aliased) question type. Folds the alias onto
+ * its canonical value first, then looks up the label. An unknown/typo value is
+ * humanised (snake/kebab → Title Case) so the message stays legible without
+ * pretending the type is recognised.
+ */
+export function questionTypeLabel(type) {
+  const canonical = canonicalizeQuestionType(type)
+  if (QUESTION_TYPE_LABELS[canonical]) return QUESTION_TYPE_LABELS[canonical]
+  return String(type ?? '')
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown'
+}
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
 // level the teacher tags so the studio can show the spread of thinking skills.
@@ -483,7 +547,11 @@ function isPlainObject(v) {
 export function coerceQuestion(raw) {
   if (!isPlainObject(raw)) return null
 
-  const type = QUESTION_TYPES.includes(raw.type) ? raw.type : 'mcq'
+  // Fold known aliases ('truefalse' → 'tf', etc.) before the enum check so a
+  // legacy/aliased doc reads back as its true type rather than collapsing to
+  // 'mcq'. Anything still outside the enum falls back to 'mcq'.
+  const canonicalType = canonicalizeQuestionType(raw.type)
+  const type = QUESTION_TYPES.includes(canonicalType) ? canonicalType : 'mcq'
 
   const options = Array.isArray(raw.options)
     ? raw.options.map(o => (typeof o === 'string' ? o : String(o ?? '')))

@@ -11,7 +11,8 @@
 
 import assert from 'node:assert'
 import {
-  PAPER_TYPES, PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
+  PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
+  PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
 } from '../src/components/teacher/paperTaxonomy.js'
@@ -86,5 +87,24 @@ eq(maxTopicsFor('unknown_type'), 3, 'unknown type → safe default')
 ok(isCumulativeType('end_of_term') && isCumulativeType('mid_term'), 'cumulative types')
 ok(!isCumulativeType('topic_test') && !isCumulativeType('weekly_test'),
   'narrow types are not cumulative')
+
+// ── Exam paper types ─────────────────────────────────────────────────────
+// The Exam Studio offers exactly the three exam-grade papers, in increasing
+// formality, and every one is cumulative at full exam standard.
+const examTypeValues = EXAM_PAPER_TYPES.map((t) => t.value)
+eq(examTypeValues.length, 3, 'exactly three exam types')
+ok(examTypeValues.includes('mock') && examTypeValues.includes('examination') &&
+  examTypeValues.includes('exam'), 'mock / examination / exam present')
+// Exam types are recognised, the four test types are not exam types.
+ok(isExamPaperType('mock') && isExamPaperType('examination') && isExamPaperType('exam'),
+  'exam types recognised')
+ok(!isExamPaperType('end_of_term') && !isExamPaperType('topic_test') && !isExamPaperType(''),
+  'test types + empty are not exam types')
+// Exam papers cover the whole syllabus — every exam type is cumulative with a
+// large topic cap so "Select all topics" appears.
+for (const t of examTypeValues) {
+  ok(maxTopicsFor(t) >= 10, `${t} covers many topics`)
+  ok(isCumulativeType(t), `${t} is cumulative`)
+}
 
 console.log(`✓ paper-taxonomy: ${passed} assertions passed`)

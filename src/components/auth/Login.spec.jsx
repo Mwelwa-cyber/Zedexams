@@ -170,3 +170,41 @@ describe('Login — auth errors are displayed, never swallowed', () => {
     expect(mockLogout).not.toHaveBeenCalled()
   })
 })
+
+// ── Google sign-in error surfacing (Android native flow) ──────────────────────
+// Regression for the "Google sign-in failed" bug: the native flow used to throw
+// auth/invalid-credential when no ID token came back, which the FRIENDLY map
+// renders as "Wrong email or password" — a misleading message on a Google
+// failure. The native flow now uses dedicated codes that map to actionable copy.
+describe('Login — Google sign-in surfaces the real failure, not a password error', () => {
+  it('shows the Google-specific message (not "wrong password") when no ID token is returned', async () => {
+    const err = Object.assign(new Error('no id token'), { code: 'auth/google-no-id-token' })
+    mockLoginWithGoogle.mockRejectedValue(err)
+    setAuth()
+
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/google sign-in could not be completed/i)).toBeInTheDocument(),
+    )
+    // The misleading password copy must NOT appear for a Google failure.
+    expect(screen.queryByText(/wrong email or password/i)).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('stays silent when the user cancels the Google sheet (auth/cancelled-popup-request)', async () => {
+    const err = Object.assign(new Error('cancelled'), { code: 'auth/cancelled-popup-request' })
+    mockLoginWithGoogle.mockRejectedValue(err)
+    setAuth()
+
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    // Let the rejected promise settle, then assert no error banner appeared.
+    await waitFor(() => expect(mockLoginWithGoogle).toHaveBeenCalled())
+    expect(screen.queryByText(/google sign-in failed/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/could not be completed/i)).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})

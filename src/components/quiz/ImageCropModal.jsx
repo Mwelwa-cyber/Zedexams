@@ -27,6 +27,7 @@ import {
   moveCropRect,
   resizeCropRect,
 } from './cropGeometry'
+import { loadCorsImage } from './cropImageLoad'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
@@ -46,17 +47,6 @@ const HANDLES = [
   { id: 'sw', style: { left: 0, top: '100%' }, cursor: 'nesw-resize' },
   { id: 'w', style: { left: 0, top: '50%' }, cursor: 'ew-resize' },
 ]
-
-// Load an image CORS-clean so the cropped canvas can be exported (no taint).
-function loadCorsImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('load failed'))
-    img.src = src
-  })
-}
 
 function canvasToPngBlob(canvas) {
   return new Promise((resolve, reject) => {

@@ -10,14 +10,17 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { getStudioVariant, isExamPaperType } from './studioVariant'
 
 const ASSESSMENT_TYPE_LABELS = {
   topic: 'Topic Test',
   weekly: 'Weekly Test',
   mid_term: 'Mid-Term Test',
   end_of_term: 'End-of-Term Test',
+  mock: 'Mock Exam',
+  examination: 'Examination',
+  exam: 'Exam',
   monthly: 'Monthly test',
-  mock: 'Mock exam',
   diagnostic: 'Diagnostic / baseline',
   pre_test: 'Pre-test',
   post_test: 'Post-test',
@@ -45,9 +48,9 @@ function assessmentFileName(assessment, variant, ext = 'docx') {
   })
 }
 
-function AssessmentRow({ assessment, onDelete, onExport, busy }) {
+function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallbackLabel }) {
   const id = assessment.id
-  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || 'Test paper'
+  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || fallbackLabel
   const [exporting, setExporting] = useState(null)
 
   async function handleExport(format, mode) {
@@ -66,7 +69,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           🦅
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-sm leading-snug" style={{ color: '#0e2a32' }}>{assessment.title || 'Untitled test paper'}</p>
+          <p className="font-black text-sm leading-snug" style={{ color: '#0e2a32' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
           <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
             <span className="text-xs font-bold" style={{ color: '#566f76' }}>{typeLabel}</span>
             {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: '#0a5a35' }}>Grade {assessment.grade}</span>}
@@ -88,7 +91,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          to={`/teacher/test-papers/${id}/edit`}
+          to={`${routeBase}/${id}/edit`}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold no-underline transition-colors"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
@@ -126,11 +129,16 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
   )
 }
 
-export default function AssessmentList() {
+export default function AssessmentList({ variant = 'test' }) {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
+  // Shared library backs both the Test Paper Studio and the Exam Studio; `cfg`
+  // carries the route base + wording, and we filter the one collection so each
+  // studio's library only lists its own papers.
+  const cfg = getStudioVariant(variant)
+  const isExamStudio = cfg.key === 'exam'
 
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -150,7 +158,10 @@ export default function AssessmentList() {
       setLoading(true)
       try {
         const items = await getMyAssessments(currentUser.uid)
-        if (!cancelled) setAssessments(items)
+        const scoped = (Array.isArray(items) ? items : []).filter(
+          a => isExamPaperType(a.assessmentType) === isExamStudio,
+        )
+        if (!cancelled) setAssessments(scoped)
       } catch (err) {
         if (!cancelled) setError(err.message || 'Failed to load assessments.')
       } finally {
@@ -159,7 +170,7 @@ export default function AssessmentList() {
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser?.uid, getMyAssessments])
+  }, [currentUser?.uid, getMyAssessments, isExamStudio])
 
   async function confirmDelete() {
     const assessment = pendingDelete
@@ -211,7 +222,7 @@ export default function AssessmentList() {
 
   return (
     <div>
-      <SeoHelmet title="Test Papers" noIndex />
+      <SeoHelmet title={cfg.NounPlural} noIndex />
       {/* Page header — brand on the left, action on the right */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
@@ -221,7 +232,7 @@ export default function AssessmentList() {
               ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
             </p>
             <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
-              Test Paper Studio
+              {cfg.studioName}
             </p>
           </div>
         </Link>
@@ -249,10 +260,12 @@ export default function AssessmentList() {
             🦅 Sharp Eagle
           </span>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            My test papers
+            {cfg.heroTitle}
           </h1>
           <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Tests and exam papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme.
+            {isExamStudio
+              ? "Mock and final examination papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."
+              : "Tests and exam papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."}
           </p>
           <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
             <span>📝 Word (.docx) export</span>
@@ -261,13 +274,13 @@ export default function AssessmentList() {
           </div>
           <button
             type="button"
-            onClick={() => navigate('/teacher/test-papers/new')}
+            onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
             style={{ background: '#ff7a2e', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
           >
-            ▶ New test paper
+            ▶ New {cfg.noun}
           </button>
         </div>
         <div
@@ -291,20 +304,22 @@ export default function AssessmentList() {
         >
           <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
           <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', marginBottom: 6 }}>
-            No test papers yet
+            No {cfg.nounPlural} yet
           </p>
           <p style={{ fontSize: 13, color: '#8a9aa1', margin: '0 0 16px' }}>
-            Create your first weekly test, mid-term, or end-of-term paper.
+            {isExamStudio
+              ? 'Create your first mock, examination, or exam paper.'
+              : 'Create your first weekly test, mid-term, or end-of-term paper.'}
           </p>
           <button
             type="button"
-            onClick={() => navigate('/teacher/test-papers/new')}
+            onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2 rounded-xl font-bold transition-colors"
             style={{ background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
             onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
           >
-            + Create test paper
+            + Create {cfg.noun}
           </button>
         </div>
       ) : (() => {
@@ -329,7 +344,7 @@ export default function AssessmentList() {
               <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
                 {needsReviewOnly
                   ? `${visible.length} of ${assessments.length} need review`
-                  : `${assessments.length} test paper${assessments.length === 1 ? '' : 's'}`}
+                  : `${assessments.length} ${cfg.noun}${assessments.length === 1 ? '' : 's'}`}
               </h2>
               <button
                 type="button"
@@ -343,9 +358,9 @@ export default function AssessmentList() {
                   color: needsReviewOnly ? '#92400e' : '#374151',
                 }}
                 title={needsReviewOnly
-                  ? 'Click to show all test papers'
+                  ? `Click to show all ${cfg.nounPlural}`
                   : needsReviewCount > 0
-                    ? `${needsReviewCount} imported test paper${needsReviewCount === 1 ? '' : 's'} flagged for review`
+                    ? `${needsReviewCount} imported ${cfg.noun}${needsReviewCount === 1 ? '' : 's'} flagged for review`
                     : 'No imports currently need review'}
               >
                 ⚠️ Needs review
@@ -367,12 +382,14 @@ export default function AssessmentList() {
                   onDelete={setPendingDelete}
                   onExport={handleExport}
                   busy={busyId === a.id}
+                  routeBase={cfg.routeBase}
+                  fallbackLabel={cfg.Noun}
                 />
               ))}
             </div>
             {needsReviewOnly && visible.length === 0 && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
-                No test papers need review right now. Click the chip again to see all of them.
+                No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
               </p>
             )}
           </>
@@ -381,8 +398,8 @@ export default function AssessmentList() {
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        title="Delete this test paper?"
-        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || 'this test paper'}"</strong>. This cannot be undone.</>}
+        title={`Delete this ${cfg.noun}?`}
+        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
         confirmLabel="Delete"
         variant="danger"
         loading={Boolean(pendingDelete) && busyId === pendingDelete.id}

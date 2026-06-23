@@ -120,6 +120,48 @@ test('lesson plan type select defaults to a valid key (simplified)', () => {
   assert(detailKeys.has(typeSelect.defaultValue), 'default lesson plan type is not a guide key')
 })
 
+// ── Medium of instruction (English + the 7 Zambian zonal languages) ───────────
+const mediumSelect = selectBlock(studioJsx, 'f-medium')
+
+test('medium-of-instruction select offers English + the 7 zonal languages', () => {
+  assert(sameSet(mediumSelect.values,
+    ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Lunda', 'Luvale']),
+    `unexpected medium options: ${JSON.stringify(mediumSelect.values)}`)
+})
+
+test('medium select defaults to English', () => {
+  assert(mediumSelect.defaultValue === 'English',
+    `expected default "English", got "${mediumSelect.defaultValue}"`)
+})
+
+test('gatherInput reads the f-medium select', () => {
+  assert(/\$\('#f-medium'\)/.test(generateSrc),
+    'gatherInput in 06-generate.js does not read #f-medium — the teacher choice would be ignored')
+})
+
+test('the prompt passes the medium of instruction to the model', () => {
+  assert(/Medium of instruction:/.test(generateSrc),
+    "buildPrompt in 06-generate.js does not include a 'Medium of instruction:' line")
+})
+
+// ── "Write the whole plan in the local language" toggle ───────────────────────
+test('studio offers the whole-plan-in-local-language toggle (default off)', () => {
+  const m = /<div className="toggle-row([^"]*)" id="t-plan-in-medium" data-on="(true|false)"/.exec(studioJsx)
+  assert(m, 'the t-plan-in-medium toggle-row is missing from LessonPlanStudio.jsx')
+  assert(m[2] === 'false' && !/\bon\b/.test(m[1]),
+    'the t-plan-in-medium toggle must default OFF (English document is the default)')
+})
+
+test('gatherInput reads the t-plan-in-medium toggle', () => {
+  assert(/\$\('#t-plan-in-medium'\)/.test(generateSrc),
+    'gatherInput in 06-generate.js does not read #t-plan-in-medium — the choice would be ignored')
+})
+
+test('the prompt has a whole-plan-in-the-medium branch', () => {
+  assert(/ENTIRE lesson plan in \$\{medium\}/.test(generateSrc),
+    'buildPrompt has no "write the ENTIRE lesson plan in {medium}" directive for the toggle')
+})
+
 // ── ECE subject correctness (the Nursery "Numeracy" bug) ──────────────────────
 function eceSubjects() {
   const m = /ece:\s*\[([^\]]*)\]/.exec(syllabusSrc)

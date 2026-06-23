@@ -48,7 +48,7 @@ const FEATURE_ROUTE = {
   homework: '/teacher/generate/homework',
   rubric: '/teacher/generate/rubric',
   assessments: '/teacher/test-papers/new',
-  exams: '/teacher/generate/exam-paper',
+  exams: '/teacher/exam-papers',
   schemes: '/teacher/generate/scheme-of-work',
   sba: '/teacher/generate/sba',
 }

@@ -159,3 +159,89 @@ function runFullTypeSupportTest() {
 }
 
 runFullTypeSupportTest()
+
+// ── True/False, fill, fill-in-the-blanks, short + alias folding ──────
+// Regression: these types are offered in the quiz editor but used to fall
+// through to the "unrecognised type" blocker, so a teacher could author a
+// true/false (or fill-in-the-blanks) question and then be unable to save the
+// quiz. They must now validate per type, and an aliased spelling
+// ('truefalse', 'fill_in_blank') must validate as its canonical type.
+
+function runExpandedTypeSupportTest() {
+  // True/False — a 2-option MCQ. Complete → no issues; missing answer flagged.
+  assert.equal(issuesFor({
+    type: 'tf', text: 'The sun is a star.',
+    options: ['True', 'False'], correctAnswer: 0,
+  }).length, 0, 'a complete true/false question must produce no issues')
+  // The legacy 'truefalse' spelling must fold onto 'tf' and validate the same.
+  assert.equal(issuesFor({
+    type: 'truefalse', text: 'The sun is a star.',
+    options: ['True', 'False'], correctAnswer: 1,
+  }).length, 0, "aliased 'truefalse' validates as a complete tf question")
+  const tfNoAnswer = issuesFor({
+    type: 'tf', text: 'The sun is a star.',
+    options: ['True', 'False'], correctAnswer: 9,
+  })
+  assert(tfNoAnswer.some(i => i.id.startsWith('correct-')),
+    'a true/false question with no valid correct answer is flagged')
+
+  // Single-blank fill + legacy 'short' — text-answer types, answer optional.
+  assert.equal(issuesFor({ type: 'fill', text: 'The capital of Zambia is ____.' }).length, 0,
+    'a fill question needs no marking-key answer to validate')
+  assert.equal(issuesFor({ type: 'short', text: 'Define photosynthesis.' }).length, 0,
+    'a short-answer question validates with just its stem')
+
+  // Fill-in-the-Blanks — needs ≥1 statement, a blank, and an answer per blank.
+  assert.equal(issuesFor({
+    type: 'fill_blanks', text: 'Complete the sentences.',
+    statements: [{ text: 'We wash our hands with ____.', answers: ['soap'] }],
+  }).length, 0, 'a complete fill_blanks question produces no issues')
+  // Aliased 'fill_in_blank' folds onto 'fill_blanks'.
+  assert.equal(issuesFor({
+    type: 'fill_in_blank', text: 'Complete the sentences.',
+    statements: [{ text: 'Plants need ____ to grow.', answers: ['water'] }],
+  }).length, 0, "aliased 'fill_in_blank' validates as a complete fill_blanks question")
+  const fbNoStatements = issuesFor({ type: 'fill_blanks', text: 'x', statements: [] })
+  assert(fbNoStatements.some(i => i.id.startsWith('fill-blanks-')),
+    'a fill_blanks question with no statements is flagged')
+  const fbNoBlank = issuesFor({
+    type: 'fill_blanks', text: 'x',
+    statements: [{ text: 'This sentence has no blank.', answers: [] }],
+  })
+  assert(fbNoBlank.some(i => i.id.startsWith('fill-blanks-')),
+    'a fill_blanks statement with no underscore blank is flagged')
+  const fbNoAnswer = issuesFor({
+    type: 'fill_blanks', text: 'x',
+    statements: [{ text: 'We wash our hands with ____.', answers: [''] }],
+  })
+  assert(fbNoAnswer.some(i => i.id.startsWith('fill-blanks-')),
+    'a fill_blanks blank with no expected answer is flagged')
+
+  // Hotspot — needs an image + a placed target region.
+  assert.equal(issuesFor({
+    type: 'hotspot', text: 'Click the heart.',
+    imageUrl: 'https://x/body.png', correctRegion: { x: 0.5, y: 0.5, radius: 0.1 },
+  }).length, 0, 'a complete hotspot question produces no issues')
+  const hsNoImage = issuesFor({ type: 'hotspot', text: 'Click the heart.' })
+  assert(hsNoImage.some(i => i.id.startsWith('hotspot-')),
+    'a hotspot question with no image is flagged')
+  const hsNoRegion = issuesFor({ type: 'hotspot', text: 'q', imageUrl: 'https://x/body.png' })
+  assert(hsNoRegion.some(i => i.id.startsWith('hotspot-')),
+    'a hotspot question with no target region is flagged')
+
+  // The single-question validator agrees with the collector for the new types.
+  assert.equal(validateStandaloneQuestion({
+    type: 'tf', text: 'x', options: ['True', 'False'], correctAnswer: 0,
+  }, 'Q1', {}), true, 'validateStandaloneQuestion accepts a complete true/false')
+  assert.equal(validateStandaloneQuestion({
+    type: 'truefalse', text: 'x', options: ['True', 'False'], correctAnswer: 1,
+  }, 'Q1', {}), true, "validateStandaloneQuestion accepts an aliased 'truefalse'")
+  assert.equal(validateStandaloneQuestion({ type: 'fill', text: 'The ____ rises in the east.' }, 'Q1', {}), true,
+    'validateStandaloneQuestion accepts a fill question with just its stem')
+  assert.equal(validateStandaloneQuestion({ type: 'fill_blanks', text: 'x', statements: [] }, 'Q1', {}), false,
+    'validateStandaloneQuestion rejects an empty fill_blanks question')
+
+  console.log('runExpandedTypeSupportTest passed (tf/fill/fill_blanks/short/hotspot + aliases)')
+}
+
+runExpandedTypeSupportTest()

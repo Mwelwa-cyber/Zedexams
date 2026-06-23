@@ -45,7 +45,9 @@ export function buildAnswerSheet(assessment = {}, questions = []) {
   const items = []
   for (const b of blocks) {
     if (b.kind !== 'question') continue
-    if (b.type === 'mcq') {
+    // True/False is a 2-option MCQ on the paper, so it gets a bubble row on the
+    // answer sheet too (A/B for True/False) rather than a write-in line.
+    if (b.type === 'mcq' || b.type === 'tf') {
       items.push({ number: b.number, kind: 'mcq', optionCount: answerSheetOptionCount(b) })
     } else {
       items.push({ number: b.number, kind: 'written' })

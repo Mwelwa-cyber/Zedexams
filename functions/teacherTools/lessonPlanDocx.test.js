@@ -10,6 +10,7 @@
 
 const assert = require("assert");
 const { generateLessonPlanDocxBuffer } = require("./lessonPlanDocx");
+const { sanitizeXmlText } = require("./xmlText");
 
 function assertValidDocx(buf, label) {
   assert.ok(Buffer.isBuffer(buf), `${label}: expected a Buffer`);
@@ -137,6 +138,37 @@ async function main() {
   // Also confirm the attribution (free-plan watermark) path builds.
   const v3Attr = await generateLessonPlanDocxBuffer(v3Plan, { attribution: true });
   assertValidDocx(v3Attr, "v3+attribution");
+
+  // Corrupt-download regression: a plan carrying characters XML 1.0 forbids
+  // (control bytes + a lone surrogate from a truncated emoji) silently produced
+  // a .docx Word refused to open ("unreadable content" on desktop, "can't open
+  // files that contain alternate formats" on Android). sanitizeXmlText now
+  // strips them at the run-text funnel; assert it strips and that the dirty
+  // plan still packs a valid .docx. The illegal chars are built via fromCharCode
+  // so this source stays free of raw control bytes / lone surrogates.
+  const cc = (n) => String.fromCharCode(n);
+  assert.strictEqual(
+    sanitizeXmlText(`a${cc(0)}b${cc(8)}c${cc(31)}d${cc(0x0b)}e`),
+    "abcde",
+    "sanitizeXmlText strips control bytes",
+  );
+  assert.strictEqual(
+    sanitizeXmlText(`lone${cc(0xd83e)}high`),
+    "lonehigh",
+    "sanitizeXmlText strips a lone surrogate",
+  );
+  assert.strictEqual(
+    sanitizeXmlText(`emoji ${cc(0xd83e)}${cc(0xdd85)} stays`),
+    `emoji ${cc(0xd83e)}${cc(0xdd85)} stays`,
+    "sanitizeXmlText keeps a whole emoji",
+  );
+  const dirtyPlan = {
+    ...v3Plan,
+    header: { ...v3Plan.header, subject: `Mathematics${cc(0)}`, topic: `Exploring My World${cc(0xd83e)}` },
+    remedialWork: `Re-teach${cc(31)} the strugglers.`,
+  };
+  const dirty = await generateLessonPlanDocxBuffer(dirtyPlan, {});
+  assertValidDocx(dirty, "dirty-plan");
 
   console.log("lessonPlanDocx.test.js: OK");
 }

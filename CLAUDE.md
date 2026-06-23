@@ -135,7 +135,7 @@ firestore.rules                 — large, hand-written; the test:rules-text scr
 firestore.indexes.json          — composite indexes (leaderboard, results, attempts). Deploy these BEFORE shipping queries that need them.
 storage.rules                   — Storage security rules
 firebase.json                   — hosting rewrites map /api/ai/chat, /api/teacher/lesson-plan/stream, /api/teacher/worksheet/stream, /api/tts, /api/payments/lenco/webhook to the matching onRequest Cloud Functions in us-central1; SPA fallback at the bottom
-capacitor.config.json           — appId com.zedexams.app; android/ holds the generated native project
+capacitor.config.json           — appId com.zedexams.android; android/ holds the generated native project
 .claude/settings.json           — repo-level permission allow/deny list (denies `firebase deploy --only hosting|functions`)
 .claude/agents/                 — subagent definitions (cbc-alignment, content-author, content-reviewer, code-reviewer, publisher, qa-smoke, quiz-verifier, release-notes); see ORG.md for the agent org chart
 ```

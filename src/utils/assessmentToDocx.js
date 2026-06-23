@@ -38,25 +38,15 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
+import { sanitizeXmlText } from './xmlText.js'
 
 const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
-// Word refuses to open a .docx whose XML contains characters XML 1.0
-// forbids — it reports "unreadable content" / a corrupt file. Imported
-// papers (scanned PDFs, pasted Word, OCR) routinely carry stray control
-// bytes, so a single such character anywhere in the assessment silently
-// broke the entire Word download even though the preview and PDF looked
-// fine. We strip them at the one place every run's text funnels through.
-// Tab (\t), newline (\n) and carriage-return (\r) are legal XML and kept;
-// surrogate PAIRS (emoji) are left intact so only the genuinely-illegal
-// control range and the two non-characters are removed.
-// eslint-disable-next-line no-control-regex
-const XML_INVALID_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g
-export function sanitizeXmlText(value) {
-  return String(value == null ? '' : value).replace(XML_INVALID_CHARS, '')
-}
+// Re-exported from the shared xmlText.js so every exporter sanitises identically
+// and the existing call sites / tests that import it from this module keep working.
+export { sanitizeXmlText }
 
 function runText(str, opts = {}) {
   return new TextRun({ text: sanitizeXmlText(str), ...opts })
@@ -521,6 +511,83 @@ async function imageParagraph(url, opts = {}) {
   return run ? centeredPara([run]) : null
 }
 
+// Base64-encode raw bytes for an inline data URL. Browser-only (uses btoa);
+// chunked so a large diagram doesn't blow the argument limit of fromCharCode.
+function bytesToBase64(bytes) {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+// Build an SVG that draws the question image with the identify-mode markers
+// (numbered black circles at each hotspot + a leader line to the part it
+// points at) baked on top. Word can't reliably overlay positioned elements on
+// an inline image, so we composite them into one PNG instead — this is what
+// makes a downloaded identify paper match the studio preview / PDF, where the
+// markers are absolutely-positioned DOM (src/components/teacher/views/PaperBlocks.jsx).
+//
+// `labels` carry x/y (0..1 ratios of the image) for the marker and optional
+// tx/ty for the leader-tip. Pure string builder so the geometry is unit-tested;
+// the raster step (svgToPngBytes) is the only browser-only part.
+export function buildDiagramIdentifySvg({ href, width, height, labels = [] }) {
+  const W = Math.max(1, Math.round(width))
+  const H = Math.max(1, Math.round(height))
+  const clamp01 = n => Math.max(0, Math.min(1, Number(n) || 0))
+  // Marker sizing tracks the smaller edge so circles stay readable but never
+  // swamp a tall/narrow figure; mirrors the preview's ~20px badge proportion.
+  const minEdge = Math.min(W, H)
+  const r = Math.max(9, Math.round(minEdge * 0.035))
+  const fs = Math.max(10, Math.round(r * 1.25))
+  const dot = Math.max(2, Math.round(minEdge * 0.012))
+  const sw = Math.max(1, Math.round(minEdge * 0.006))
+  const parts = [`<image href="${href}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`]
+  labels.forEach((l, i) => {
+    const cx = clamp01(l.x) * W
+    const cy = clamp01(l.y) * H
+    if (Number.isFinite(Number(l.tx)) && Number.isFinite(Number(l.ty))) {
+      const tx = clamp01(l.tx) * W
+      const ty = clamp01(l.ty) * H
+      parts.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${dot}" fill="#000"/>`)
+    }
+    parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="#000" stroke="#fff" stroke-width="${sw}"/>`)
+    parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#fff" font-size="${fs}" font-weight="700" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`)
+  })
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${parts.join('')}</svg>`
+}
+
+// Render a question image with identify-mode numbered markers composited on
+// top, returning a centered ImageRun paragraph. Browser-only: needs a canvas
+// to decode the image and rasterize the overlay SVG. Returns null in a DOM-less
+// context (node tests) or on any failure, so the caller falls back to the plain
+// image — the numbered answer blanks below still print either way.
+async function diagramIdentifyImageParagraph(url, labels, opts = {}) {
+  try {
+    const bytes = await fetchImageBytes(url)
+    if (!bytes) return null
+    const type = detectImageType(bytes)
+    const decoded = await decodeImage(bytes, type)
+    if (!decoded || !decoded.width || !decoded.height) return null
+    // decodeImage transcodes WEBP→PNG; everything else keeps its original mime.
+    const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
+    const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
+    const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels })
+    const baseWidth = opts.width || 360
+    const baseHeight = opts.height || 220
+    const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+    const fit = fitWithin(decoded.width, decoded.height, Math.round(baseWidth * pct), Math.round(baseHeight * pct))
+    // Rasterize at ~2× the embed size for a crisp print.
+    const pngBytes = await svgToPngBytes(svg, fit.width * 2, fit.height * 2)
+    const run = imageRun(pngBytes, fit, opts.alt || '')
+    return run ? centeredPara([run]) : null
+  } catch {
+    return null
+  }
+}
+
 // A visible placeholder for a figure that was expected but could not be
 // embedded — typically because the image bytes couldn't be read
 // cross-origin (Storage CORS not yet applied) or the URL is broken. Without
@@ -752,10 +819,18 @@ async function renderQuestion(b) {
   }
 
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
-    out.push(img || imageFallbackBlock(b.imageAlt || ''))
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
+    // Identify mode: bake the numbered hotspot markers onto the image so the
+    // numbered answer blanks below actually point at something (Word can't
+    // overlay positioned elements). Falls back to the plain image when the
+    // composite is unavailable (no DOM / fetch failure).
+    let img = null
+    if (isIdentify && b.type !== 'mcq' && labels.length) {
+      img = await diagramIdentifyImageParagraph(b.imageUrl, labels, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
+    }
+    if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
+    out.push(img || imageFallbackBlock(b.imageAlt || ''))
     if (labels.length) {
       if (isIdentify && b.type !== 'mcq') {
         // Identify mode: emit numbered blank-answer lines below the image
@@ -842,7 +917,10 @@ async function renderQuestion(b) {
       })
       out.push(para(runs, { spacing: { after: 200 } }))
     })
-  } else if (b.type === 'mcq') {
+  } else if (b.type === 'mcq' || b.type === 'tf') {
+    // True/False renders identically to a 2-option MCQ — buildQuestionBlock
+    // defaults its options to ['True','False'] and keeps correctAnswer as the
+    // index, so the same option-row + marking-key code handles both.
     const optsHtml = b.optionsHtml || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
@@ -934,7 +1012,7 @@ async function renderQuestion(b) {
         }))
       })
     }
-  } else if (b.type === 'short_answer' || b.type === 'fill') {
+  } else if (b.type === 'short_answer' || b.type === 'short' || b.type === 'fill') {
     answerSpaceParas(b, 2).forEach(p => out.push(p))
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
@@ -1015,7 +1093,7 @@ async function renderQuestion(b) {
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),
         runText(pairs, { size: 20, color: '047857' }),
       ]))
-    } else if (b.type === 'mcq') {
+    } else if (b.type === 'mcq' || b.type === 'tf') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
       // Plain mirror first so a rich fraction option reads as "1/3" rather than

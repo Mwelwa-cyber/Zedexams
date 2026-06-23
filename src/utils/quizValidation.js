@@ -7,6 +7,8 @@
 
 import { richTextHasContent } from './quizRichText.js'
 import { findComprehensionGroupingIssues } from './comprehensionGrouping.js'
+import { canonicalizeQuestionType, questionTypeLabel } from '../editor/schema/question.js'
+import { countBlanks, fillBlanksAnswerKey } from './fillBlanks.js'
 
 /**
  * Check whether an answer-option value carries any meaningful content.
@@ -30,13 +32,31 @@ function optionHasContent(value) {
   return Boolean(value)
 }
 
+// Canonical question-type tokens. Authoring surfaces and importers spell some
+// of these differently ('truefalse'/'true_false' → 'tf', 'fill_in_blank' →
+// 'fill_blanks'); every check below runs on the canonical value so the same
+// question validates identically no matter which surface created it.
 const MCQ = 'mcq'
+// True/False is a 2-option MCQ (options ['True','False'], correctAnswer index),
+// so it shares the MCQ completeness checks.
+const TF = 'tf'
 const SHORT_ANSWER = 'short_answer'
+// Legacy short-answer alias kept as its own enum value; treated like SHORT_ANSWER.
+const SHORT = 'short'
 const DIAGRAM = 'diagram'
 const ESSAY = 'essay'
+// Single-blank fill ('fill') collects a short typed answer like short-answer;
+// the dedicated multi-blank type is 'fill_blanks' (statements + word bank).
+const FILL = 'fill'
+const FILL_BLANKS = 'fill_blanks'
 const NUMERIC = 'numeric'
+const HOTSPOT = 'hotspot'
 const MATCHING = 'matching'
 const SEQUENCE = 'sequence'
+
+// Text-answer types: the expected answer is optional (the runner can ask the
+// AI to judge from the stem) so they never block on a missing answer.
+const TEXT_ANSWER_TYPES = new Set([SHORT_ANSWER, SHORT, DIAGRAM, ESSAY, FILL])
 
 // ── Per-type completeness checks ──────────────────────────────────
 // Each returns a human-readable problem string, or null when the question is
@@ -88,6 +108,35 @@ function sequenceIssue(question) {
   return null
 }
 
+function fillBlanksIssue(question) {
+  const statements = (Array.isArray(question?.statements) ? question.statements : [])
+  const withText = statements.filter(s => String(s?.text ?? '').trim().length > 0)
+  if (withText.length === 0) return 'needs at least one statement with a blank.'
+  const totalBlanks = withText.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+  // A statement with text but no underscore run has nothing for the learner to
+  // fill — point the teacher at the blank marker rather than a vague error.
+  if (totalBlanks === 0) return 'each statement needs a blank — type ____ where the answer goes.'
+  // Every blank needs an expected answer or the paper can't be marked
+  // (fill_blanks is graded deterministically against this key).
+  const key = fillBlanksAnswerKey(question)
+  if (key.some(answer => !String(answer ?? '').trim())) {
+    return 'every blank needs an expected answer for the marking key.'
+  }
+  return null
+}
+
+function hotspotIssue(question) {
+  const hasImage = Boolean(String(question?.imageUrl ?? '').trim()) ||
+    Boolean(question?.imageDiagram && question.imageDiagram.libraryKey)
+  if (!hasImage) return 'needs an image — upload one or pick a diagram from the library.'
+  const region = question?.correctRegion
+  if (!region || typeof region !== 'object' ||
+      !Number.isFinite(Number(region.x)) || !Number.isFinite(Number(region.y))) {
+    return 'place a target on the image so it can be marked.'
+  }
+  return null
+}
+
 /**
  * Validate a standalone quiz question before save.
  *
@@ -114,10 +163,14 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
     return false
   }
 
-  const qType = question?.type || MCQ
+  // Fold aliases ('truefalse' → 'tf', 'fill_in_blank' → 'fill_blanks') so a
+  // question authored under any spelling validates as its true type rather than
+  // tripping the "unrecognised type" fallback at the bottom.
+  const qType = canonicalizeQuestionType(question?.type) || MCQ
   const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-  if (qType === MCQ) {
+  // True/False is a 2-option MCQ — same options + correct-answer completeness.
+  if (qType === MCQ || qType === TF) {
     if (!Array.isArray(question.options) || question.options.length < 2) {
       notify(`${label} needs at least two options.`)
       return false
@@ -154,7 +207,7 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
     return true
   }
 
-  if (qType === SHORT_ANSWER || qType === DIAGRAM || qType === ESSAY) {
+  if (TEXT_ANSWER_TYPES.has(qType)) {
     // An empty expected answer is intentional: it tells the runner to ask
     // the AI to judge the student's response from the question text, subject,
     // and grade alone. The editor surfaces this with the
@@ -165,6 +218,18 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
 
   if (qType === NUMERIC) {
     const issue = numericIssue(question)
+    if (issue) { notify(`${label} ${issue}`); return false }
+    return true
+  }
+
+  if (qType === FILL_BLANKS) {
+    const issue = fillBlanksIssue(question)
+    if (issue) { notify(`${label} ${issue}`); return false }
+    return true
+  }
+
+  if (qType === HOTSPOT) {
+    const issue = hotspotIssue(question)
     if (issue) { notify(`${label} ${issue}`); return false }
     return true
   }
@@ -181,8 +246,10 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
     return true
   }
 
-  // Unknown types: allow but warn so unknown content doesn't silently block saves.
-  notify(`${label} has an unrecognised type (${qType}).`)
+  // Genuinely unknown type — block the save with a friendly label so the
+  // teacher sees "Question 3 has an unrecognised type (Wormhole)" rather than
+  // the raw enum token.
+  notify(`${label} has an unrecognised type (${questionTypeLabel(qType)}).`)
   return false
 }
 
@@ -317,9 +384,11 @@ function collectQuestionIssues(question, label, push) {
     push(`question-text-${question.localId}`,
       `${label}: question text is empty.`, { localId })
   }
-  const qType = question?.type || MCQ
+  // Fold aliases onto the canonical type so true/false + fill-in-the-blanks
+  // questions get their real per-type check instead of the unknown-type blocker.
+  const qType = canonicalizeQuestionType(question?.type) || MCQ
   const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-  if (qType === MCQ) {
+  if (qType === MCQ || qType === TF) {
     if (!Array.isArray(question.options) || question.options.length < 2) {
       push(`opt-count-${question.localId}`, `${label}: needs at least two options.`, { localId })
     } else {
@@ -349,19 +418,26 @@ function collectQuestionIssues(question, label, push) {
   } else if (qType === NUMERIC) {
     const issue = numericIssue(question)
     if (issue) push(`numeric-${question.localId}`, `${label}: ${issue}`, { localId })
+  } else if (qType === FILL_BLANKS) {
+    const issue = fillBlanksIssue(question)
+    if (issue) push(`fill-blanks-${question.localId}`, `${label}: ${issue}`, { localId })
+  } else if (qType === HOTSPOT) {
+    const issue = hotspotIssue(question)
+    if (issue) push(`hotspot-${question.localId}`, `${label}: ${issue}`, { localId })
   } else if (qType === MATCHING) {
     const issue = matchingIssue(question)
     if (issue) push(`matching-${question.localId}`, `${label}: ${issue}`, { localId })
   } else if (qType === SEQUENCE) {
     const issue = sequenceIssue(question)
     if (issue) push(`sequence-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType !== SHORT_ANSWER && qType !== DIAGRAM && qType !== ESSAY) {
-    // An unknown type is a publish blocker, not a warning — runner /
-    // grader / export paths only handle the recognised set
-    // (MCQ / SHORT_ANSWER / DIAGRAM / ESSAY / NUMERIC / MATCHING / SEQUENCE).
-    // Letting an unknown type through silently would surface a question the
-    // learner can't answer and the grader can't score.
+  } else if (!TEXT_ANSWER_TYPES.has(qType)) {
+    // An unknown type is a publish blocker, not a warning — the runner /
+    // grader / export paths only handle the recognised set (MCQ / TF /
+    // SHORT_ANSWER / SHORT / DIAGRAM / ESSAY / FILL / FILL_BLANKS / NUMERIC /
+    // HOTSPOT / MATCHING / SEQUENCE). Letting an unknown type through silently
+    // would surface a question the learner can't answer and the grader can't
+    // score. Show the friendly label, not the raw token.
     push(`type-${question.localId}`,
-      `${label}: unrecognised question type "${qType}".`, { localId })
+      `${label}: unrecognised question type "${questionTypeLabel(qType)}".`, { localId })
   }
 }

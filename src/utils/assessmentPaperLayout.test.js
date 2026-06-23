@@ -235,6 +235,71 @@ console.log('\nbuildPaperLayout — pinned manual total overrides the auto-sum')
   assert(footer && footer.totalMarks === 10, 'manualMarks overrides the auto-sum')
 }
 
+console.log('\nbuildPaperLayout — identify-mode keeps blank-text hotspots, labeled mode drops them')
+{
+  // A teacher drops 3 numbered hotspots on a diagram but only types the
+  // expected answer for the middle one. In identify mode the marker is the
+  // NUMBER, so all 3 must survive (and keep their order) — dropping the two
+  // blank ones would delete markers and renumber the rest on the paper.
+  const identifyBlocks = buildPaperLayout(baseAssessment, [
+    {
+      localId: 'q1', order: 1, type: 'diagram', marks: 3, text: 'Identify the labelled parts.',
+      imageUrl: 'https://x/heart.png', diagramMode: 'identify',
+      diagramLabels: [
+        { x: 0.2, y: 0.3, text: '' },
+        { x: 0.5, y: 0.5, text: 'Aorta' },
+        { x: 0.8, y: 0.7, text: '' },
+      ],
+    },
+  ])
+  const qi = identifyBlocks.find(b => b.kind === 'question')
+  assert(qi.diagramLabels.length === 3, 'identify mode keeps all 3 hotspots even when 2 have blank text')
+  assert(qi.diagramLabels[1].text === 'Aorta', 'identify hotspot order is preserved (Aorta stays 2nd)')
+}
+{
+  // Labeled mode renders the text as a visible pill, so an empty pill is just
+  // noise and is still dropped (unchanged behaviour).
+  const labeledBlocks = buildPaperLayout(baseAssessment, [
+    {
+      localId: 'q1', order: 1, type: 'diagram', marks: 3, text: 'Study the diagram.',
+      imageUrl: 'https://x/heart.png', diagramMode: 'labeled',
+      diagramLabels: [
+        { x: 0.2, y: 0.3, text: '' },
+        { x: 0.5, y: 0.5, text: 'Aorta' },
+        { x: 0.8, y: 0.7, text: '' },
+      ],
+    },
+  ])
+  const ql = labeledBlocks.find(b => b.kind === 'question')
+  assert(ql.diagramLabels.length === 1, 'labeled mode still drops the 2 blank-text pills')
+  assert(ql.diagramLabels[0].text === 'Aorta', 'labeled mode keeps only the named pill')
+}
+
+console.log('\nbuildPaperLayout — true/false renders as a 2-option MCQ block')
+{
+  // A true/false question stored with explicit options + index renders with
+  // optionsMode 'text' so the renderers print "A. True / B. False" and the
+  // marking key can resolve the correct letter.
+  const blocks = buildPaperLayout(baseAssessment, [
+    { localId: 'q1', order: 1, type: 'tf', marks: 1, text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0 },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.type === 'tf', 'block keeps the canonical tf type')
+  assert(q.optionsMode === 'text', 'tf flows through the MCQ option pipeline (optionsMode text)')
+  assert(q.options.join('/') === 'True/False', 'tf options thread onto the block')
+  assert(q.optionsPlain.join('/') === 'True/False', 'tf optionsPlain mirror is populated')
+}
+{
+  // Legacy 'truefalse' spelling must fold onto 'tf' so the renderers' `=== 'tf'`
+  // checks match — previously it printed a question with no options at all.
+  const blocks = buildPaperLayout(baseAssessment, [
+    { localId: 'q1', order: 1, type: 'truefalse', marks: 1, text: 'Water boils at 100°C.', correctAnswer: 1 },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.type === 'tf', "aliased 'truefalse' folds onto canonical tf")
+  assert(q.options.join('/') === 'True/False', 'a tf authored without options defaults to True/False')
+}
+
 console.log('\nlatexToReadableText — readable maths for non-JS exports')
 assert(latexToReadableText('18') === '18', 'plain number unchanged')
 assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')

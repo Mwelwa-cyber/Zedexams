@@ -39,7 +39,7 @@ const ADMIN_RECENT_WINDOW_DAYS = 90
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
-import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
+import { questionWriteSchema, coerceQuestion, canonicalizeQuestionType } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
 import { normalizeSubject } from '../config/curriculum.js'
@@ -127,7 +127,12 @@ async function normalizeQuestionPayload(q, order) {
     if (typeof value === 'string' && !value.trim()) return null
     return migrateContent(value)
   }
-  const type = q.type || 'mcq'
+  // Fold known type aliases onto the schema enum BEFORE deriving the per-type
+  // flags below, so a question authored as 'truefalse' (QuizSectionsEditor, the
+  // document importer) or 'fill_in_blank' (Assessment Studio picker) saves as
+  // 'tf' / 'fill_blanks' instead of throwing "Invalid question payload at 'type'"
+  // — the bug where MCQ questions save but true/false ones silently fail.
+  const type = canonicalizeQuestionType(q.type) || 'mcq'
   // Short-answer / diagram / essay collect a written response, not an option
   // list — no options array, correctAnswer is a (possibly blank) string.
   const isShortAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
@@ -304,12 +309,28 @@ async function normalizeQuestionPayload(q, order) {
     ...(Array.isArray(q.diagramLabels) && q.diagramLabels.length
       ? {
         diagramLabels: q.diagramLabels
-          .map(l => ({
-            id: typeof l?.id === 'string' && l.id ? l.id : `lbl-${Math.random().toString(36).slice(2, 10)}`,
-            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
-            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
-            text: String(l?.text ?? '').slice(0, 80),
-          }))
+          .map(l => {
+            const label = {
+              id: typeof l?.id === 'string' && l.id ? l.id : `lbl-${Math.random().toString(36).slice(2, 10)}`,
+              x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+              y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+              text: String(l?.text ?? '').slice(0, 80),
+            }
+            // Leader-line target — the point on the image the label POINTS at
+            // (the teacher drags a tip onto the exact part). Persist only when
+            // both coords are real numbers; an absent tx/ty means "no leader
+            // line" to the renderer. Dropping these silently lost every
+            // teacher-placed leader line when a saved paper was reopened from
+            // Firestore — the same "saved → reopened → gone" failure the rest
+            // of this block guards against.
+            const tx = Number(l?.tx)
+            const ty = Number(l?.ty)
+            if (Number.isFinite(tx) && Number.isFinite(ty)) {
+              label.tx = Math.max(0, Math.min(1, tx))
+              label.ty = Math.max(0, Math.min(1, ty))
+            }
+            return label
+          })
           .slice(0, 20),
         // diagramMode only matters alongside labels; persist it with them.
         diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
