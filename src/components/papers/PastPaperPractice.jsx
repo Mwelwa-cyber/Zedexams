@@ -343,7 +343,7 @@ export default function PastPaperPractice() {
         <div
           aria-live="polite"
           className={`tabular-nums font-black text-2xl px-3 py-1 rounded-xl flex-shrink-0 ${
-            lowTime ? 'bg-rose-100 text-rose-800 animate-pulse' : 'theme-bg-subtle theme-text'
+            lowTime ? 'bg-rose-100 text-rose-800 animate-timer-urgent' : 'theme-bg-subtle theme-text'
           }`}
         >
           {fmtClock(remainingSeconds)}

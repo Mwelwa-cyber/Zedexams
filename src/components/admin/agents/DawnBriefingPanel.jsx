@@ -23,7 +23,7 @@ const functions = getFunctions(app, 'us-central1')
 const runDawnBriefingCallable = httpsCallable(functions, 'runDawnBriefing', { timeout: 60_000 })
 
 const STATUS_STYLE = {
-  running: { label: 'Running', badge: 'bg-amber-500/15 text-amber-300 ring-amber-500/30', dot: 'bg-amber-400 animate-pulse' },
+  running: { label: 'Running', badge: 'bg-amber-500/15 text-amber-300 ring-amber-500/30', dot: 'bg-amber-400 text-amber-400 animate-live-dot' },
   done: { label: 'Done', badge: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30', dot: 'bg-emerald-400' },
   timeout: { label: 'Timed out', badge: 'bg-rose-500/15 text-rose-300 ring-rose-500/30', dot: 'bg-rose-400' },
   error: { label: 'Error', badge: 'bg-rose-500/15 text-rose-300 ring-rose-500/30', dot: 'bg-rose-400' },

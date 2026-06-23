@@ -133,9 +133,9 @@ function MessageRow({ message, onSpeak, isSpeaking }) {
           )}
           {message.streaming && (
             <span aria-hidden="true" className="inline-flex gap-0.5 ml-2 align-middle">
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse [animation-delay:0.15s]" />
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse [animation-delay:0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot [animation-delay:0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot [animation-delay:0.3s]" />
             </span>
           )}
         </div>
@@ -420,7 +420,7 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
               aria-pressed={listening}
               className={`flex-shrink-0 rounded-full p-3 border-2 transition-colors disabled:opacity-50 ${
                 listening
-                  ? 'bg-rose-500 border-rose-500 text-white animate-pulse'
+                  ? 'bg-rose-500 border-rose-500 text-white animate-live-dot [--live-ring:#f43f5e]'
                   : 'theme-border theme-text-muted hover:theme-accent-text hover:theme-bg-subtle'
               }`}
             >

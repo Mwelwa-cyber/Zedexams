@@ -464,7 +464,7 @@ function TimerBar({ timeLeft, pct }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className={`w-16 text-center font-display font-bold text-2xl tabular-nums ${danger ? 'text-rose-300 animate-pulse' : 'text-white'}`}>
+      <div className={`w-16 text-center font-display font-bold text-2xl tabular-nums ${danger ? 'text-rose-300 animate-timer-urgent' : 'text-white'}`}>
         {timeLeft}s
       </div>
     </div>
