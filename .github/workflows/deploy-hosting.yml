@@ -50,6 +50,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          # Full history so the "Detect Firebase deploy dependency" step can
+          # `git diff` against github.event.before — a shallow (depth-1)
+          # checkout doesn't contain the before commit, which would make the
+          # diff fail and silently mis-detect the change as hosting-only.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -127,18 +133,27 @@ jobs:
       - name: Detect Firebase deploy dependency
         id: firebase_changes
         run: |
+          set -euo pipefail
+
           if [ "${{ github.event_name }}" != "push" ]; then
             echo "required=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           base="${{ github.event.before }}"
-          if [ -z "$base" ]; then
+          # On a brand-new branch / first push, before is the all-zero SHA and
+          # there is no prior commit to diff against.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             echo "required=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if git diff --name-only "$base" "${{ github.sha }}" | grep -Eq '^(firestore\.rules|firestore\.indexes\.json|storage\.rules|firebase\.json|\.firebaserc|functions/|\.github/workflows/deploy-firebase\.yml)'; then
+          # Run the diff as its own command (not piped into grep) so that a
+          # genuine git failure aborts the step under `set -e` instead of being
+          # swallowed by the pipe and silently mis-reported as required=false.
+          # fetch-depth: 0 above guarantees both endpoints are present.
+          changed="$(git diff --name-only "$base" "${{ github.sha }}")"
+          if printf '%s\n' "$changed" | grep -Eq '^(firestore\.rules|firestore\.indexes\.json|storage\.rules|firebase\.json|\.firebaserc|functions/|\.github/workflows/deploy-firebase\.yml)'; then
             echo "required=true" >> "$GITHUB_OUTPUT"
           else
             echo "required=false" >> "$GITHUB_OUTPUT"
