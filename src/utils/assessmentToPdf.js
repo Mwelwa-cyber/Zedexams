@@ -80,74 +80,98 @@ ${blocks.map(renderBlock).join('\n')}
 }
 
 const PRINT_CSS = `
-@page { size: A4; margin: 18mm 18mm 16mm; }
+@page { size: A4; margin: 20mm 18mm 16mm; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: white; }
 body {
   color: #111;
   font-family: 'Times New Roman', 'Liberation Serif', serif;
-  font-size: 12pt;
-  line-height: 1.5;
+  font-size: 11.5pt;
+  line-height: 1.45;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
 .banner {
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.78) 0%, rgba(220,220,225,0.50) 50%, rgba(255,255,255,0.65) 100%),
-    repeating-linear-gradient(38deg, transparent 0, rgba(120,120,130,0.08) 2px, transparent 5px, rgba(180,180,190,0.06) 9px),
-    repeating-linear-gradient(-30deg, transparent 0, rgba(150,150,160,0.07) 1px, transparent 4px),
-    linear-gradient(180deg, #ececec, #e3e3e3);
-  border: 1px solid #c8c8c8;
-  padding: 14pt 18pt;
-  margin-bottom: 14pt;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12pt;
-  align-items: center;
+  margin-bottom: 10pt;
   page-break-inside: avoid;
 }
-.banner-left { justify-self: start; min-width: 0; }
-.banner-right { justify-self: end; min-width: 0; }
+.banner-top {
+  display: grid;
+  grid-template-columns: 74pt 1fr;
+  gap: 12pt;
+  align-items: center;
+}
 .banner-text {
   text-align: center;
-  font-family: 'Arial', 'Helvetica', sans-serif;
   min-width: 0;
 }
 .banner-text .school {
-  font-weight: 800; font-size: 16pt;
-  letter-spacing: 0.4pt;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 13.5pt;
+  letter-spacing: 0.3pt;
   text-transform: uppercase;
-  line-height: 1.05;
+  line-height: 1.15;
 }
 .banner-text .title {
-  font-weight: 700; font-size: 11pt;
-  margin-top: 6pt;
-  letter-spacing: 0.3pt;
-  line-height: 1.3;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 10.5pt;
+  margin-top: 8pt;
+  letter-spacing: 0.2pt;
+  text-transform: uppercase;
 }
 .banner-text .subject {
-  font-weight: 800; font-size: 12pt;
-  margin-top: 3pt;
-  letter-spacing: 0.4pt;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  font-size: 25pt;
+  margin-top: 24pt;
+  line-height: 1.1;
 }
 .banner-text .paper-name {
-  font-weight: 800; font-size: 11pt;
-  margin-top: 2pt;
-  letter-spacing: 0.4pt;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 11pt;
+  margin-top: 5pt;
+  text-transform: uppercase;
 }
 .logo {
-  width: 56pt; height: 56pt;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #7d3aa8, #4a1d6e 70%, #2d0e47);
-  display: grid; place-items: center;
+  width: 70pt; height: 70pt;
+  display: grid;
+  place-items: center;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
-  color: white;
-  font-size: 22pt;
+  color: #111;
+  font-size: 18pt;
 }
-.logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.logo img { width: 100%; height: 100%; object-fit: contain; }
+.banner-meta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12pt;
+  margin-top: 10pt;
+  padding-bottom: 8pt;
+  border-bottom: 1pt solid #777;
+}
+.banner-code {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.banner-code .line-2 {
+  margin-top: 8pt;
+  text-transform: none;
+}
+.banner-duration {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
 .learner-row {
   display: flex; justify-content: space-between;
@@ -166,35 +190,35 @@ body {
 }
 
 .instructions {
-  background: #f4f4f4;
-  border-left: 3pt solid #000;
-  padding: 8pt 12pt;
-  margin: 0 0 16pt;
+  margin: 0 0 14pt;
   font-size: 11pt;
-  line-height: 1.6;
+  line-height: 1.5;
   page-break-inside: avoid;
 }
 .instructions .label {
-  display: block;
-  font-weight: 700;
-  font-size: 10pt;
-  text-transform: uppercase;
-  letter-spacing: 1pt;
-  margin-bottom: 4pt;
+  display: none;
 }
-.instructions p { margin: 0 0 4pt; }
+.instructions ol {
+  margin: 0;
+  padding-left: 18pt;
+}
+.instructions li {
+  margin: 0 0 8pt;
+  padding-left: 8pt;
+}
+.instructions p { margin: 0; }
 .instructions strong { font-weight: 700; }
 
 .section-head {
-  font-weight: 700; font-size: 13pt;
+  font-weight: 700; font-size: 11.5pt;
   text-transform: uppercase;
-  letter-spacing: 0.4pt;
+  letter-spacing: 0.2pt;
   border-bottom: 1px solid #000;
   padding-bottom: 3pt;
   margin: 16pt 0 6pt;
   page-break-after: avoid;
 }
-.section-head .marks-tag { float: right; font-size: 11pt; }
+.section-head .marks-tag { float: right; font-size: 10pt; }
 .section-instr {
   font-style: italic; font-size: 11pt;
   margin: 0 0 10pt;
@@ -222,12 +246,15 @@ body {
 
 .question {
   margin: 10pt 0 12pt;
-  page-break-inside: avoid;
+  page-break-inside: auto;
+  break-inside: auto;
   orphans: 3; widows: 3;
 }
 .question .qline {
   font-size: 11.5pt;
-  line-height: 1.55;
+  line-height: 1.5;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 .question .qline strong { font-weight: 700; }
 .question .qmarks {
@@ -276,16 +303,16 @@ body {
 .draw-canvas { border: 1px solid #000; background: #fff; margin: 6pt 0 12pt; page-break-inside: avoid; }
 
 .options-text {
-  padding-left: 18pt;
+  padding-left: 26pt;
   font-size: 11pt;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3pt 14pt;
-  margin: 4pt 0 6pt;
+  grid-template-columns: 1fr;
+  gap: 4pt;
+  margin: 5pt 0 8pt;
 }
-.options-text.stacked { grid-template-columns: 1fr; padding-left: 22pt; }
-.options-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.options-text .letter { font-weight: 700; margin-right: 2pt; }
+.options-text.stacked { grid-template-columns: 1fr; padding-left: 26pt; }
+.options-text > div { white-space: normal; }
+.options-text .letter { display: inline-block; width: 16pt; font-weight: 700; margin-right: 8pt; }
 
 .options-image {
   display: grid;
@@ -441,9 +468,34 @@ body {
   margin-left: 1pt;
   font-weight: 500;
 }
-.data-table { border-collapse: collapse; margin: 6pt 0 10pt; font-size: 11pt; }
-.data-table th, .data-table td { border: 1px solid #000; padding: 3pt 8pt; }
-.data-table th { background: #f1f5f9; font-weight: 700; }
+.table-wrap {
+  margin: 6pt 0 10pt;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0;
+  font-size: 10.5pt;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+.data-table thead { display: table-header-group; }
+.data-table tfoot { display: table-footer-group; }
+.data-table tr { page-break-inside: avoid; break-inside: avoid; }
+.data-table th, .data-table td {
+  border: 1px solid #000;
+  padding: 4pt 6pt;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.data-table th {
+  background: #fff;
+  font-weight: 700;
+}
 
 .diagram-box {
   border: 1px dashed #999;
@@ -487,7 +539,10 @@ body {
 }
 
 @media print {
-  .section-head, .question, .passage, .instructions, .banner { page-break-inside: avoid; }
+  .section-head, .passage, .instructions, .banner { page-break-inside: avoid; break-inside: avoid; }
+  .question.has-table { page-break-inside: auto; break-inside: auto; }
+  .question.has-table .qline { page-break-after: avoid; break-after: avoid; }
+  .table-wrap, .data-table { page-break-inside: auto; break-inside: auto; }
 }
 `
 
@@ -530,16 +585,28 @@ function renderHeader(b) {
   const logoStyle = logoStyleParts.length ? ` style="${logoStyleParts.join('; ')}"` : ''
   const logoHtml = b.logoUrl
     ? `<div class="logo"${logoStyle}><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
-    : `<div class="logo"${logoStyle}>📚</div>`
+    : `<div class="logo"${logoStyle}></div>`
+  const codeLine = b.footerCode
+    ? `<div class="line-1">${escapeHtml(String(b.footerCode).toUpperCase())}</div>`
+    : ''
+  const titleCodeLine = b.title
+    ? `<div class="line-2">${escapeHtml(b.title)}</div>`
+    : ''
+  const durationLine = b.duration ? `<div class="banner-duration">${escapeHtml(String(b.duration))} MINUTES</div>` : ''
   return `<div class="banner">
-  <div class="banner-left">${logoHtml}</div>
-  <div class="banner-text">
+  <div class="banner-top">
+    ${logoHtml}
+    <div class="banner-text">
     <div class="school">${escapeHtml(school).toUpperCase()}</div>
     <div class="title">${escapeHtml(b.title)}</div>
     ${subjectLine}
     ${paperLine}
   </div>
-  <div class="banner-right"></div>
+  </div>
+  <div class="banner-meta">
+    <div class="banner-code">${codeLine}${titleCodeLine}</div>
+    ${durationLine}
+  </div>
 </div>`
 }
 
@@ -561,9 +628,16 @@ function renderLearnerFields(b) {
 
 function renderInstructionsBlock(b) {
   if (!b.text) return ''
+  const items = String(b.text)
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+  const content = items.length > 1
+    ? `<ol>${items.map(item => `<li>${renderInstructionsHtml(item)}</li>`).join('')}</ol>`
+    : renderInstructionsHtml(b.text)
   return `<div class="instructions">
   <span class="label">Instructions</span>
-  ${renderInstructionsHtml(b.text)}
+  ${content}
 </div>`
 }
 
@@ -610,7 +684,7 @@ function renderQuestion(b) {
     body += `<div class="word-bank"><strong>Word bank:</strong> ${b.wordBank.map(escapeHtml).join(' · ')}</div>`
   }
 
-  if (b.type === 'mcq') {
+  if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     body += renderOptionsHtml(b)
   } else if (b.type === 'short_answer' || b.type === 'fill') {
     body += renderAnswerLines(b.answerLines ?? 2)
@@ -642,7 +716,9 @@ function renderQuestion(b) {
   const qBody = b.textHtml && b.textHtml.trim()
     ? b.textHtml
     : escapeHtml(b.text || '(no question text)')
-  return `<div class="question">
+  const questionClasses = ['question']
+  if (b.tableData) questionClasses.push('has-table')
+  return `<div class="${questionClasses.join(' ')}">
     <div class="qline"><strong>${b.number}.</strong> <span class="qbody">${qBody}</span> ${qmark}</div>
     ${body}
   </div>`
@@ -735,7 +811,7 @@ function renderDataTable(tableData) {
     const cells = headers.map((_, j) => `<td>${escapeHtml((Array.isArray(row) ? row[j] : '') || '')}</td>`).join('')
     return `<tr>${cells}</tr>`
   }).join('')
-  return `<table class="data-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`
 }
 
 // Sequence questions render as a single column of items, each preceded by
@@ -782,7 +858,7 @@ function renderAnswerBlock(b) {
     return `<div class="answer-block">${body}${notes}</div>`
   }
   let body = ''
-  if (b.type === 'mcq') {
+  if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     const i = Number(b.correctAnswer)
     const letter = SECTION_LETTERS[i] || '?'
     const opt = b.options?.[i] ?? ''
