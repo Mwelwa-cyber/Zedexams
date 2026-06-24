@@ -16,3 +16,7 @@ export const STUDIO_SUBJECTS = [
 ]
 
 export const STUDIO_GRADES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+
+// Option / column letters (A, B, C, …) — shared by the studio shell and the
+// per-question-type editors (MCQ option labels, matching column headers).
+export const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
