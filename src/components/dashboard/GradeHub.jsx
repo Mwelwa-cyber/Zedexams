@@ -47,6 +47,7 @@ import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
 import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
@@ -610,6 +611,9 @@ export default function GradeHub() {
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
   const navigate                             = useNavigate()
+  // LinkedIn-style: slide the dashboard header away on scroll-down for more
+  // reading space, reveal it on scroll-up.
+  const headerHidden = useHideOnScroll()
 
   // Learner's own grade as a number, validated against the supported set.
   // Null when the profile has no grade (e.g. teacher/admin viewing the
@@ -1041,7 +1045,7 @@ export default function GradeHub() {
       <GameStickerStyles />
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
-      <header className="learner-dashboard-header sticky top-0 z-30 theme-card border-b theme-border shadow-sm">
+      <header className={`learner-dashboard-header sticky top-0 z-30 theme-card border-b theme-border shadow-sm zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
         <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3">
           <div className="min-w-0 shrink">
             <Logo variant="full" size="sm" />

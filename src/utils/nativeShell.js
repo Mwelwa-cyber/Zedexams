@@ -5,28 +5,45 @@ import { isNativePlatform } from './runtime'
 
 let initialized = false
 
-// Themes whose page background is dark — over those, the transparent status
-// bar's network/time/battery icons must be light to stay legible. Every other
-// palette is light → dark icons. Keep this list in sync with the dark entries
-// in THEMES (src/contexts/ThemeContext.jsx).
+// Per-theme page background. The system status/navigation bars are painted to
+// match the page behind them so the chrome reads as one seamless surface
+// (the glass header/bottom-nav are translucent over this same colour). Keep in
+// sync with the --bg values in src/index.css.
+const THEME_BG = {
+  sky: '#F0F9FF',
+  lavender: '#F5F3FF',
+  midnight: '#0F172A',
+  oatmeal: '#FDF6EC',
+  vivid: '#1A0B3D',
+  solar: '#FFFBEB',
+}
+const DEFAULT_BG = THEME_BG.oatmeal
+
+// Themes whose page background is dark — over those the status-bar icons must
+// be light. Everything else is a light palette → dark icons.
 const DARK_THEMES = ['midnight', 'vivid']
 
-function themeIsDark() {
-  if (typeof document === 'undefined') return false
-  return DARK_THEMES.some((t) => document.body.classList.contains(`theme-${t}`))
+function activeThemeId() {
+  if (typeof document === 'undefined') return null
+  for (const id of Object.keys(THEME_BG)) {
+    if (document.body.classList.contains(`theme-${id}`)) return id
+  }
+  return null
 }
 
-// Status-bar *icon* appearance. Style.Dark = "dark status bar" → light/white
-// icons (for a dark background); Style.Light = dark icons (for a light
-// background). We follow the active theme so the icons stay visible over
-// whatever content scrolls beneath the now-transparent bar.
-function syncStatusBarIcons() {
-  const style = themeIsDark() ? Style.Dark : Style.Light
+// Paint the system bars to match the current theme and flip the status-bar
+// icon colour so the OS network/time/battery + back/home icons stay legible.
+// Style.Dark = light icons (for a dark bar); Style.Light = dark icons.
+function syncSystemBars() {
+  const id = activeThemeId()
+  const color = (id && THEME_BG[id]) || DEFAULT_BG
+  EdgeToEdge.setBackgroundColor({ color }).catch(() => {})
+  const style = DARK_THEMES.includes(id) ? Style.Dark : Style.Light
   StatusBar.setStyle({ style }).catch(() => {})
 }
 
 /**
- * Initialise the Capacitor wrapper-only behaviours (edge-to-edge system bars,
+ * Initialise the Capacitor wrapper-only behaviours (system-bar colour + insets,
  * status-bar icon colour, hardware back button). No-ops on the web. Safe to
  * call multiple times.
  */
@@ -35,21 +52,20 @@ export function initNativeShell() {
   if (!isNativePlatform()) return
   initialized = true
 
-  // True edge-to-edge (LinkedIn-style). The @capawesome edge-to-edge plugin
-  // normally insets the WebView and paints solid colour bars behind the status
-  // and navigation bars. disable() drops both: it removes the WebView margins
-  // (so the page draws *under* the bars) and the colour overlays (so the bars
-  // are fully transparent). The OS network/time/battery + back/home icons stay
-  // on top, and the safe-area CSS (env(safe-area-inset-*), viewport-fit=cover)
-  // keeps content clear of them.
-  EdgeToEdge.disable().catch(() => {})
+  // NOTE: we deliberately keep the @capawesome edge-to-edge plugin ENABLED.
+  // It reads the real system-bar insets natively and keeps the WebView clear of
+  // them — Android WebView does NOT surface the navigation/status-bar height to
+  // CSS env(safe-area-inset-*) (only display cutouts), so a "draw under fully
+  // transparent bars" approach leaves the bottom nav and page content hidden
+  // behind the on-screen back/home buttons. Letting the plugin inset the WebView
+  // and painting the bars to match the page background gives a clean, seamless
+  // look with no overlap.
+  syncSystemBars()
 
-  // Keep the status-bar icons readable as the theme (and route-based brand pin)
-  // changes the page background. The MutationObserver re-runs on every body
-  // class change — covers the theme switcher and the public-route theme pin.
-  syncStatusBarIcons()
+  // Repaint the bars whenever the theme (body class) changes — covers the theme
+  // switcher and the public-route brand-default pin.
   if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
-    const observer = new MutationObserver(syncStatusBarIcons)
+    const observer = new MutationObserver(syncSystemBars)
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
   }
 
