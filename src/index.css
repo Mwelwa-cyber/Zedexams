@@ -3538,7 +3538,10 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
    so every theme is honoured. */
 .zx-hero-art {
   flex: none;
-  width: 200px;
+  /* Kept compact on phones so the welcome copy ("Welcome back" + name +
+     tagline) keeps enough width to sit on single lines instead of
+     double-wrapping next to the art. Steps up at sm/md below. */
+  width: 150px;
   height: auto;
   object-fit: contain;
   border-radius: 1rem;
@@ -3557,6 +3560,21 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 @media (min-width: 768px) {
   .zx-hero-art {
     width: 300px;
+  }
+}
+
+/* On wide desktop the hero card is roomy and a 300px illustration left a
+   large empty band between the left-aligned copy and the far-right art.
+   Growing the art on lg/xl anchors that space and balances the banner. */
+@media (min-width: 1024px) {
+  .zx-hero-art {
+    width: 360px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .zx-hero-art {
+    width: 420px;
   }
 }
 
