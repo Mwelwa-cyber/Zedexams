@@ -2107,6 +2107,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
         return
       }
       case 'ai_generate':
+      case 'generate_diagram':
+        // Both AI block-picker entries open the AI tools slide; the free-form
+        // diagram generator (DiagramGeneratorAction) lives there alongside
+        // question generation.
         openSlide('ai')
         return
       case 'question_bank':
@@ -6002,8 +6006,6 @@ function BlockPickerSlide({ open, onClose, onPick }) {
         <div className="sv-block-cat">Structure</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem icon="📑" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
-          <BlockPickerItem icon="📌" title="Part" hint="Coming soon" disabled />
-          <BlockPickerItem icon="📋" title="Instructions" hint="Always rendered at top of paper" disabled />
           <BlockPickerItem icon="↵" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
         </div>
 
@@ -6056,7 +6058,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
             gold
             onClick={() => onPick('ai_generate')}
           />
-          <BlockPickerItem icon="🎨" title="Generate diagram" hint="Coming soon" gold disabled />
+          <BlockPickerItem icon="🎨" title="Generate diagram" hint="Describe a figure — AI draws it" gold onClick={() => onPick('generate_diagram')} />
         </div>
       </div>
     </aside>
