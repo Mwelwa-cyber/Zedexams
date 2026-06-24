@@ -440,6 +440,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
   const [importingDocument, setImportingDocument] = useState(false)
   // Import over existing questions waits on ConfirmDialog — { files, importOptions }.
   const [pendingImportDoc, setPendingImportDoc] = useState(null)
+  // "Clear all" wipes every block back to a blank canvas — gated behind a
+  // ConfirmDialog because it's destructive (undoable via the paper undo stack).
+  const [clearAllOpen, setClearAllOpen] = useState(false)
   // Multi-page "Scan full test paper" camera modal.
   const [scanOpen, setScanOpen] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
@@ -960,6 +963,19 @@ export default function AssessmentStudio({ variant = 'test' }) {
       next.splice(sectionIndex + 1, 0, cloned)
       return next
     })
+  }
+
+  // Clear the whole paper body back to a single blank block. Queues every
+  // already-saved question id for deletion so an edit-mode save removes them
+  // from Firestore (no-op for a never-saved paper). Header fields (title,
+  // grade, school, etc.) are left intact — this clears questions, not the
+  // paper's identity. Tracked by the undo stack, so a stray click is one
+  // Ctrl+Z away.
+  function clearAllBlocks() {
+    const removedIds = sections.flatMap(collectSectionFirestoreIds)
+    if (removedIds.length) setDeletedIds(prev => [...prev, ...removedIds])
+    setSections([createStandaloneSection()])
+    setParts([])
   }
 
   function insertSectionAfter(afterIndex, section) {
@@ -2282,6 +2298,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           importSummary={importSummary}
           onCreatePaper={() => setCreatePaperOpen(true)}
           onVerifyPaper={() => setVerifyOpen(true)}
+          onClearAll={() => setClearAllOpen(true)}
           onOpenDiagramFix={() => setDiagramFixOpen(true)}
           diagramsNeeded={countDiagramsNeeded(sections)}
           onOpenAi={() => openSlide('ai')}
@@ -2480,6 +2497,19 @@ export default function AssessmentStudio({ variant = 'test' }) {
           if (pending) runImportDocument(pending.files, pending.importOptions)
         }}
         onCancel={() => setPendingImportDoc(null)}
+      />
+
+      <ConfirmDialog
+        open={clearAllOpen}
+        title="Clear all questions?"
+        message="Every question and section is removed and the builder returns to a blank canvas. Your header details (title, grade, subject, school) are kept. You can undo this with Ctrl+Z."
+        confirmLabel="Clear all"
+        variant="danger"
+        onConfirm={() => {
+          clearAllBlocks()
+          setClearAllOpen(false)
+        }}
+        onCancel={() => setClearAllOpen(false)}
       />
 
       <ScanPaperModal
@@ -2747,7 +2777,7 @@ function BuilderView(props) {
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onUpdatePart, onRemovePart, onAssignSectionToPart,
     onImportDocument, onScan, importing, importSummary,
-    onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
+    onCreatePaper, onVerifyPaper, onClearAll, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
     onSave, saving = false, health, onShowHealth, onShowTemplates,
     assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
     assessmentTypeLabel = 'Assessment',
@@ -2807,6 +2837,14 @@ function BuilderView(props) {
             pre-save checklist; the Save chip files the paper. On a phone the
             bar wraps and the group drops to the next row. */}
         <div className="sv-builder-bar-right">
+          <button
+            className="sv-chip sv-chip-danger"
+            onClick={onClearAll}
+            disabled={emptyPaper}
+            title="Remove every question and start over"
+          >
+            <Icon name="delete" size={14} /> Clear all
+          </button>
           {!emptyPaper && health && (
             <button
               className={`sv-chip sv-chip-health ${health.status}`}
