@@ -132,7 +132,7 @@ export default function TeacherLayout({ children }) {
       <TeacherGlassHeader />
 
       {/* ── Main Content ────────────────────────────────── */}
-      <main className="flex-1 min-w-0 pt-20 lg:pt-0">
+      <main className="flex-1 min-w-0 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-0">
         <div className="app-container py-6 pb-24 lg:pb-6">
           <TeacherTopBar />
           {children}
