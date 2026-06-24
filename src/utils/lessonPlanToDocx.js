@@ -28,7 +28,7 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { sanitizeXmlText } from './xmlText.js'
-import { toProxyImageUrl } from './imageProxy.js'
+import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
 
 /* ────────────────────────────────────────────────────────────────────
  * Lesson illustration (black-and-white drawing) embedding.
@@ -94,8 +94,16 @@ async function fetchLessonDiagramImage(diagram) {
     try {
       const res = await fetch(proxied, { cache: 'reload' })
       if (res.ok) {
+        const contentType = res.headers && res.headers.get
+          ? (res.headers.get('content-type') || '')
+          : ''
         const bytes = new Uint8Array(await res.arrayBuffer())
-        if (bytes.length) return { bytes, type: detectDocxImageType(bytes) }
+        // Only accept a real image — if the rewrite isn't live the proxy path
+        // resolves to the SPA index.html (200/text/html); embedding that would
+        // be a fresh broken-image bug, so fail closed to the visible note.
+        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          return { bytes, type: detectDocxImageType(bytes) }
+        }
       }
     } catch {
       // Proxy unreachable — fall through to the visible "could not embed" note.
