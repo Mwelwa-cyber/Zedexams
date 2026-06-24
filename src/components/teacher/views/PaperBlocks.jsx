@@ -475,8 +475,16 @@ function PaperMcqOptions({ block }) {
   // print as escaped HTML in this text preview.
   const optText = (i) => block.optionsPlain?.[i] ?? block.options?.[i] ?? ''
   if (block.optionsMode === 'image') {
+    // Fixed-width option cells (140px) instead of `repeat(4, 1fr)`: a 1fr grid
+    // stretches each picture to a quarter of the paper width, so on a wide
+    // preview (or any render where `.sv-paper` isn't width-capped) the option
+    // images balloon to 300px+ and overflow the page. A fixed 140px track
+    // pins them to the SAME size the DOCX exporter uses for image options
+    // (see loadImageRun width:140 in assessmentToDocx.js) so the studio
+    // preview and the downloaded Word file agree, and `auto-fit` + centering
+    // keeps them tidy for any option count and wraps on a narrow screen.
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '8px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 140px)', gap: 8, margin: '8px 0', justifyContent: 'center' }}>
         {(block.options || []).map((opt, i) => {
           const media = block.optionMedia?.[i]
           const isCorrect = block.showAnswer && correct === i
