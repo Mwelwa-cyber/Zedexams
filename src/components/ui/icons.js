@@ -100,6 +100,12 @@ import {
   ViewColumnsIcon,
   DocumentIcon,
   PhotoIcon,
+  KeyIcon,
+  CameraIcon,
+  ScissorsIcon,
+  ScaleIcon,
+  ArrowsRightLeftIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 
 // Size-token map matches components/ui/Icon.jsx so tokens (xs/sm/md/lg/xl)
@@ -283,6 +289,12 @@ const ComputerDesktop = withSize(ComputerDesktopIcon)
 const Calculator = withSize(CalculatorIcon)
 const Language = withSize(LanguageIcon)
 const MusicalNote = withSize(MusicalNoteIcon)
+const Key = withSize(KeyIcon)
+const Camera = withSize(CameraIcon)
+const Scissors = withSize(ScissorsIcon)
+const Scale = withSize(ScaleIcon)
+const ArrowLeftRight = withSize(ArrowsRightLeftIcon)
+const Info = withSize(InformationCircleIcon)
 
 export {
   GraduationCap,
@@ -409,4 +421,10 @@ export {
   Calculator,
   Language,
   MusicalNote,
+  Key,
+  Camera,
+  Scissors,
+  Scale,
+  ArrowLeftRight,
+  Info,
 }

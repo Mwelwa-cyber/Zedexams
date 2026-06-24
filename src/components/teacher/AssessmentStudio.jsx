@@ -50,7 +50,6 @@ import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/scho
 import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentAutosave.js'
-import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -103,7 +102,12 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 // stays lean for teachers who are only editing, not exporting.
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { computePaperHealth } from '../../utils/paperHealth'
+import { instantiateTemplate } from '../../utils/paperTemplates'
 import { PaperBlock } from './views/PaperBlocks'
+import Icon from './studio/studioIcons'
+import PaperHealthModal from './PaperHealthModal'
+import PaperTemplatePicker from './PaperTemplatePicker'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES, normalizeSubject } from '../../config/curriculum'
 
@@ -218,7 +222,7 @@ function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Questi
       <div className="sv-q-text-formatted">
         <div className="sv-q-text-plain">{toEditableText(value) || <span className="sv-q-text-empty">(formatted question)</span>}</div>
         <button type="button" className="sv-q-text-editlink" onClick={onEditDetail}>
-          ✦ Formatted — edit in detail to keep formatting
+          <Icon name="edit" size={12} /> Formatted — edit in detail to keep formatting
         </button>
       </div>
     )
@@ -471,9 +475,14 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // a brand-new paper's create single-flight — two concurrent persists could
   // otherwise create two library docs.
   const persistInFlightRef = useRef(null)
-  // Pre-publish checklist modal. Replaces the old "first error → toast →
-  // bail" save flow so the teacher sees every issue at once.
-  const [checklistOpen, setChecklistOpen] = useState(false)
+  // Paper-health gate. Replaces the old "first error → toast → bail" save flow
+  // and the separate pre-publish checklist: one panel folds blocking issues,
+  // advisory warnings, the paper stats and the AI quality check together so the
+  // teacher sees the whole picture before saving / exporting.
+  const [healthOpen, setHealthOpen] = useState(false)
+  // Ready-made paper templates (common Zambian formats) — the picker seeds the
+  // builder with empty-but-typed sections instead of a blank canvas.
+  const [templateOpen, setTemplateOpen] = useState(false)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
@@ -564,9 +573,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
     [assessmentDoc, serializedPreview.questions],
   )
 
-  // Pre-publish validation — every blocking issue at once, fed to the
-  // QuizValidationChecklist instead of the old "Save → toast → fix → repeat"
-  // loop. The paper title is auto-generated (buildTitleFromForm), so we hand
+  // Pre-publish validation — every blocking issue at once, folded into the
+  // paper-health gate (PaperHealthModal) instead of the old "Save → toast →
+  // fix → repeat" loop. The paper title is auto-generated (buildTitleFromForm), so we hand
   // the checker the resolved autoTitle rather than the raw (often blank)
   // form.title; that keeps the title check from firing on a paper whose name
   // the studio derives automatically.
@@ -580,8 +589,26 @@ export default function AssessmentStudio({ variant = 'test' }) {
     [autoTitle, form.subject, form.grade, sections, parts, questionNumbers],
   )
   const validationIssues = validationResult.issues
-  const validationSummary = validationResult.summary
   const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // The single "paper health" verdict — folds the blocking validation issues,
+  // the advisory smart warnings, and the live paper stats into one object the
+  // health gate (PaperHealthModal) renders, and that Save/Export gate on.
+  const paperHealth = useMemo(
+    () => computePaperHealth({
+      validation: validationResult,
+      smartWarnings: warnings,
+      stats: {
+        questionCount,
+        totalMarks,
+        estimatedPages,
+        estimatedMinutes,
+        sectionCount: parts.length,
+        duration: Number(form.duration) || 0,
+      },
+    }),
+    [validationResult, warnings, questionCount, totalMarks, estimatedPages, estimatedMinutes, parts.length, form.duration],
+  )
 
   /* ------------ helpers ------------ */
   const showToast = useCallback((message, isErr = false) => {
@@ -1619,8 +1646,8 @@ export default function AssessmentStudio({ variant = 'test' }) {
 
   /* ------------ validation + save ------------ */
   // Every blocking issue is gathered up-front by `collectQuizIssues`
-  // (see validationResult above) and shown together in the
-  // QuizValidationChecklist, so the teacher fixes them in one pass instead
+  // (see validationResult / paperHealth above) and shown together in the
+  // paper-health gate, so the teacher fixes them in one pass instead
   // of the old "Save → toast → fix → Save → toast → fix" loop.
 
   // Uploads in-memory imported image blobs (produced by documentQuizImporter)
@@ -1829,14 +1856,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
     return p
   }
 
-  async function handleSave() {
-    // Show the full pre-publish checklist if anything is missing, instead of
-    // bailing on the first error with a toast. The teacher sees — and fixes —
-    // every issue in one pass.
-    if (errorCount > 0) {
-      setChecklistOpen(true)
-      return
-    }
+  // The actual save — persist to the library, confirm, and leave. Gated by the
+  // health check below; also called by the health gate's "Save to library"
+  // button once the paper is clear of blockers.
+  async function persistAndExit() {
+    setHealthOpen(false)
     setSaving(true)
     try {
       // Let any in-flight library autosave settle first (it captured slightly
@@ -1852,6 +1876,38 @@ export default function AssessmentStudio({ variant = 'test' }) {
       showToast(`Failed to save: ${getErrorMessage(error)}`, true)
       setSaving(false)
     }
+  }
+
+  async function handleSave() {
+    // Open the paper-health gate when anything blocks a clean save, so the
+    // teacher sees — and fixes — every issue (plus advisories + the AI check)
+    // in one pass instead of bailing on the first error with a toast. A clean
+    // paper saves straight away — no nagging modal on the happy path.
+    if (!paperHealth.ready) {
+      setHealthOpen(true)
+      return
+    }
+    await persistAndExit()
+  }
+
+  // Seed the builder from a ready-made template (paperTemplates.js). Replaces
+  // the blank canvas; if the teacher already has work, the template is appended
+  // after it (mirrors how an AI paper is added in "append" mode).
+  function handleApplyTemplate(template) {
+    const { sections: tplSections, parts: tplParts, formPatch } = instantiateTemplate(template)
+    const empty = hasOnlyEmptyStarterSection(sections)
+    const partOffset = empty ? 0 : parts.length
+    const orderedParts = tplParts.map((p, i) => ({ ...p, order: partOffset + i }))
+    const safeSections = tplSections.length ? tplSections : [createStandaloneSection()]
+    setSections(empty ? safeSections : [...sections, ...tplSections])
+    setParts(empty ? orderedParts : [...parts, ...orderedParts])
+    if (formPatch.duration) setF('duration', form.duration || formPatch.duration)
+    setTemplateOpen(false)
+    closeSlide()
+    changeView('builder')
+    // The applied template is the new undo baseline — not the empty starter.
+    resetUndoBaseline()
+    showToast(`“${template.name}” added — fill in the questions, then save.`)
   }
 
   /* ------------ export (Word / Print) ------------ */
@@ -2225,6 +2281,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           }}
           onOpenPaper={(paperId) => navigate(`${cfg.routeBase}/${paperId}/edit`)}
           onAi={() => openSlide('ai')}
+          onTemplate={() => setTemplateOpen(true)}
           onLibrary={() => navigate(cfg.routeBase)}
           questionCount={questionCount}
         />
@@ -2277,8 +2334,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
           onOpenAi={() => openSlide('ai')}
           onSave={handleSave}
           saving={saving}
-          errorCount={errorCount}
-          onShowChecklist={() => setChecklistOpen(true)}
+          health={paperHealth}
+          onShowHealth={() => setHealthOpen(true)}
+          onShowTemplates={() => setTemplateOpen(true)}
           assessmentTypes={cfg.types}
           assessmentTypeLabel={isExamStudio ? 'Exam type' : 'Assessment'}
         />
@@ -2383,15 +2441,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
         />
       )}
       {autoDiagram && (
-        <div style={{
-          position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)',
-          zIndex: 96, background: '#0e2a32', color: '#fff', borderRadius: 999,
-          padding: '10px 18px', fontSize: 13, fontWeight: 700,
-          boxShadow: '0 6px 24px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 8,
-        }}>
+        <div className="sv-autodiagram-toast">
+          <Icon name={autoDiagram.running ? 'spinner' : 'check'} size={15} spin={autoDiagram.running} />
           {autoDiagram.running
-            ? `✦ Drawing diagrams… ${autoDiagram.done}/${autoDiagram.total}`
-            : `✓ Diagrams ready (${autoDiagram.done}/${autoDiagram.total})`}
+            ? `Drawing diagrams… ${autoDiagram.done}/${autoDiagram.total}`
+            : `Diagrams ready (${autoDiagram.done}/${autoDiagram.total})`}
         </div>
       )}
       <QuizVerifyModal
@@ -2408,14 +2462,34 @@ export default function AssessmentStudio({ variant = 'test' }) {
         parts={parts}
         onClose={() => setVerifyOpen(false)}
       />
-      {/* Pre-publish checklist — opened when Save is attempted with unresolved
-          issues, or from the "X to fix" pill in the builder's tools bar. Shows
-          every blocking issue at once. */}
-      <QuizValidationChecklist
-        open={checklistOpen}
-        onClose={() => setChecklistOpen(false)}
-        issues={validationIssues}
-        summary={validationSummary}
+      {/* Paper-health gate — the single pre-save/export checklist. Opened from
+          the builder/preview "Paper health" chip, or automatically when Save is
+          attempted on a paper that still has blocking issues. Folds the
+          blocking issues, advisory warnings, paper stats and the AI quality
+          check into one panel. */}
+      <PaperHealthModal
+        open={healthOpen}
+        health={paperHealth}
+        onClose={() => setHealthOpen(false)}
+        onVerify={() => { setHealthOpen(false); setVerifyOpen(true) }}
+        primaryAction={{
+          label: 'Save to library',
+          icon: 'save',
+          busy: saving,
+          busyLabel: 'Saving…',
+          disabled: paperHealth.blockerCount > 0,
+          title: paperHealth.blockerCount > 0
+            ? 'Fix the blocking issues before saving'
+            : 'Save this paper to your library',
+          onClick: persistAndExit,
+        }}
+      />
+      {/* Ready-made paper templates — common Zambian formats that seed the
+          builder with empty-but-typed sections. */}
+      <PaperTemplatePicker
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        onPick={handleApplyTemplate}
       />
       <EditorSlide
         open={slideover === 'editor'}
@@ -2513,7 +2587,7 @@ function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, canUndo, c
   const status = describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary })
   return (
     <header className="sv-app-bar">
-      <button className="sv-icon-btn" onClick={onBack} aria-label="Back">←</button>
+      <button className="sv-icon-btn" onClick={onBack} aria-label="Back"><Icon name="back" size={18} /></button>
       <div className="sv-app-bar-title">
         <span className="sv-status-dot" aria-hidden="true" style={{ background: status.dot, boxShadow: `0 0 0 3px ${status.ring}` }} />
         {title}
@@ -2527,15 +2601,15 @@ function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, canUndo, c
         disabled={!canUndo}
         aria-label="Undo"
         title="Undo (Ctrl+Z)"
-      >↶</button>
+      ><Icon name="undo" size={17} /></button>
       <button
         className="sv-icon-btn"
         onClick={onRedo}
         disabled={!canRedo}
         aria-label="Redo"
         title="Redo (Ctrl+Shift+Z)"
-      >↷</button>
-      <button className="sv-icon-btn" onClick={onAi} title="AI assistant">✨</button>
+      ><Icon name="redo" size={17} /></button>
+      <button className="sv-icon-btn" onClick={onAi} title="AI assistant"><Icon name="ai" size={17} /></button>
     </header>
   )
 }
@@ -2553,11 +2627,11 @@ function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPreview, o
   return (
     <>
       <nav className="sv-dock">
-        <DockBtn icon="🏠" label="Home" onClick={onHome} active={view === 'home'} />
-        <DockBtn icon="📄" label="Build" onClick={onBuilder} active={view === 'builder'} />
-        <DockBtn icon="👁" label="Preview" onClick={onPreview} active={view === 'preview'} />
-        <DockBtn icon="🗝" label="Key" onClick={onMarkingKey} active={view === 'marking-key'} />
-        <DockBtn icon="✨" label="AI" onClick={onAi} />
+        <DockBtn icon="home" label="Home" onClick={onHome} active={view === 'home'} />
+        <DockBtn icon="builder" label="Build" onClick={onBuilder} active={view === 'builder'} />
+        <DockBtn icon="preview" label="Preview" onClick={onPreview} active={view === 'preview'} />
+        <DockBtn icon="key" label="Key" onClick={onMarkingKey} active={view === 'marking-key'} />
+        <DockBtn icon="ai" label="AI" onClick={onAi} />
       </nav>
       {view !== 'home' && (
         <button
@@ -2566,7 +2640,7 @@ function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPreview, o
           aria-label="Add block"
           title="Add block"
         >
-          <span>+</span>
+          <Icon name="add" size={22} />
           {errorCount > 0 && <span className="sv-fab-badge">{errorCount}</span>}
         </button>
       )}
@@ -2581,7 +2655,7 @@ function DockBtn({ icon, label, onClick, active }) {
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
     >
-      <span className="sv-dock-ic">{icon}</span>
+      <span className="sv-dock-ic"><Icon name={icon} size={20} /></span>
       <span className="sv-dock-lbl">{label}</span>
     </button>
   )
@@ -2590,7 +2664,7 @@ function DockBtn({ icon, label, onClick, active }) {
 /* ==================================================================
  * HOME VIEW
  * ================================================================== */
-function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary, eyebrow = '📄 Teacher-only · Test Paper Studio' }) {
+function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onTemplate, onLibrary, eyebrow = 'Teacher-only · Test Paper Studio' }) {
   const draftCount = recentPapers.filter(p => (p.importStatus || '') === 'needs_review' || !p.questionCount).length
   const totalQuestions = recentPapers.reduce((sum, p) => sum + (p.questionCount || 0), 0)
 
@@ -2598,21 +2672,22 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary, eyeb
     <section className="sv-view">
       <div className="sv-canvas-area">
         <div className="sv-welcome">
-          <div className="sv-welcome-eyebrow">{eyebrow}</div>
+          <div className="sv-welcome-eyebrow"><Icon name="builder" size={13} /> {eyebrow}</div>
           <h1 className="serif">
             Build school-ready <em>papers</em> the way teachers think.
           </h1>
           <p>Composable blocks. Real A4 output. AI that drafts sections and writes marking keys — but never publishes to learners.</p>
           <div className="sv-welcome-cta">
-            <button className="sv-btn sv-btn-cream" onClick={onNewPaper}>📝 New paper</button>
-            <button className="sv-btn sv-btn-ghost" onClick={onAi}>✨ Generate with AI</button>
+            <button className="sv-btn sv-btn-cream" onClick={onTemplate}><Icon name="sections" size={15} /> Start from a template</button>
+            <button className="sv-btn sv-btn-ghost" onClick={onAi}><Icon name="ai" size={15} /> Generate with AI</button>
+            <button className="sv-btn sv-btn-ghost" onClick={onNewPaper}><Icon name="scratch" size={15} /> Blank paper</button>
           </div>
         </div>
 
         <div className="sv-eyebrow">Quick actions</div>
 
         <div className="sv-ai-strip" onClick={onAi}>
-          <div className="sv-sparkle">✨</div>
+          <div className="sv-sparkle"><Icon name="ai" size={18} /></div>
           <div className="sv-ai-strip-text">
             <strong>Zed AI is ready to help</strong>
             <span>Generate questions on any CBC topic · auto-balanced sections · marking key included</span>
@@ -2632,20 +2707,15 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary, eyeb
         </div>
 
         {recentPapers.length === 0 ? (
-          <div style={{
-            padding: '40px 24px',
-            textAlign: 'center',
-            background: 'var(--sv-paper)',
-            border: '1px dashed var(--sv-border-strong)',
-            borderRadius: 'var(--sv-r-lg)',
-            color: 'var(--sv-muted)',
-          }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
-            <strong style={{ display: 'block', color: 'var(--sv-text)', marginBottom: 4 }}>
-              You haven&apos;t saved any papers yet
-            </strong>
-            <div style={{ fontSize: 13 }}>
-              Click <em>New paper</em> above to start building.
+          <div className="sv-empty-panel">
+            <span className="sv-empty-panel-ic"><Icon name="builder" size={24} /></span>
+            <strong>No papers yet — let&apos;s make your first one</strong>
+            <div className="sv-empty-panel-sub">
+              Start from a ready-made template, generate one with AI, or build from a blank page.
+            </div>
+            <div className="sv-empty-panel-cta">
+              <button className="sv-btn sv-btn-primary sv-btn-sm" onClick={onTemplate}><Icon name="sections" size={14} /> Templates</button>
+              <button className="sv-btn sv-btn-outline sv-btn-sm" onClick={onAi}><Icon name="ai" size={14} /> Generate with AI</button>
             </div>
           </div>
         ) : (
@@ -2725,7 +2795,7 @@ function BuilderView(props) {
     onUpdatePart, onRemovePart, onAssignSectionToPart,
     onImportDocument, onScan, importing, importSummary,
     onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
-    onSave, saving = false, errorCount = 0, onShowChecklist,
+    onSave, saving = false, health, onShowHealth, onShowTemplates,
     assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
     assessmentTypeLabel = 'Assessment',
   } = props
@@ -2760,49 +2830,53 @@ function BuilderView(props) {
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
-        <button className="sv-chip active">📄 Builder</button>
-        <button className="sv-chip" onClick={() => changeView('preview')}>👁 Preview</button>
-        <button className="sv-chip" onClick={() => changeView('marking-key')}>🗝 Marking key</button>
-        <span className="sv-pages mono">📃 Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
+        <button className="sv-chip active"><Icon name="builder" size={14} /> Builder</button>
+        <button className="sv-chip" onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
+        <button className="sv-chip" onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
+        <span className="sv-pages mono"><Icon name="pages" size={13} /> Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
       </div>
 
       {/* The teacher's main tools, always one tap away (they used to live
           only inside the AI slide-over, which read as "missing"). Wraps on
           phones; same actions on desktop. */}
-      <div className="sv-builder-bar" style={{ flexWrap: 'wrap', rowGap: 6 }}>
-        <button className="sv-chip" onClick={onCreatePaper}>✨ Create paper with AI</button>
+      <div className="sv-builder-bar sv-builder-tools">
+        <button className="sv-chip" onClick={onShowTemplates}><Icon name="sections" size={14} /> Templates</button>
+        <button className="sv-chip" onClick={onCreatePaper}><Icon name="ai" size={14} /> Create with AI</button>
         <button className="sv-chip" onClick={() => importInputRef.current?.click()} disabled={importing}>
-          {importing ? '⏳ Importing…' : '📥 Import paper'}
+          <Icon name={importing ? 'spinner' : 'import'} size={14} spin={importing} /> {importing ? 'Importing…' : 'Import paper'}
         </button>
-        <button className="sv-chip" onClick={onVerifyPaper} disabled={questionCount === 0}>🔍 Check paper</button>
+        <button className="sv-chip" onClick={onVerifyPaper} disabled={questionCount === 0}><Icon name="verify" size={14} /> Check paper</button>
         <button className="sv-chip" onClick={onOpenDiagramFix}>
-          🖼 Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
+          <Icon name="diagrams" size={14} /> Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
         </button>
-        <button className="sv-chip" onClick={onOpenAi}>⚡ More AI tools</button>
-        {/* Save to the teacher's library straight from the builder — no need
-            to detour through Preview to find it. Pushed to the right; on a
-            phone the bar wraps and it drops to the next row. The "X to fix"
-            pill (hidden on a blank canvas) opens the full pre-publish
-            checklist so issues can be fixed in one pass. */}
-        {!emptyPaper && errorCount > 0 && (
+        <button className="sv-chip" onClick={onOpenAi}><Icon name="more" size={14} /> More AI tools</button>
+        {/* Right-aligned group: the "Paper health" status chip opens the single
+            pre-save checklist; the Save chip files the paper. On a phone the
+            bar wraps and the group drops to the next row. */}
+        <div className="sv-builder-bar-right">
+          {!emptyPaper && health && (
+            <button
+              className={`sv-chip sv-chip-health ${health.status}`}
+              onClick={onShowHealth}
+              title="Open the paper-health checklist"
+            >
+              <Icon name={health.status === 'ready' ? 'checkCircle' : 'warn'} size={14} />
+              {health.status === 'blocked'
+                ? `${health.blockerCount} to fix`
+                : health.status === 'attention'
+                  ? `${health.advisoryCount} to review`
+                  : 'Paper health'}
+            </button>
+          )}
           <button
-            className="sv-chip sv-chip-warn"
-            onClick={onShowChecklist}
-            style={{ marginLeft: 'auto' }}
-            title="See everything that still needs fixing before saving"
+            className="sv-chip sv-chip-save"
+            onClick={onSave}
+            disabled={saving || questionCount === 0}
+            title="Save this paper to your library"
           >
-            ⚠ {errorCount} to fix
+            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save draft'}
           </button>
-        )}
-        <button
-          className="sv-chip sv-chip-save"
-          onClick={onSave}
-          disabled={saving || questionCount === 0}
-          style={(!emptyPaper && errorCount > 0) ? undefined : { marginLeft: 'auto' }}
-          title="Save this paper to your library"
-        >
-          {saving ? '⏳ Saving…' : '💾 Save draft'}
-        </button>
+        </div>
         <input
           ref={importInputRef}
           type="file"
@@ -2822,25 +2896,29 @@ function BuilderView(props) {
 
         <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
 
+        {/* No-content recovery: route the teacher into a template, AI, import,
+            or hand-building — instead of an empty canvas with no next step. */}
         {emptyPaper && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, margin: '12px 0' }}>
-            <button type="button" onClick={onCreatePaper}
-              style={{ border: '2px solid var(--sv-primary)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-tinted, #fff3e8)', cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 28 }}>📄</div>
-              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>Create paper with AI</strong>
-              <small style={{ color: 'var(--sv-muted)' }}>Grade → subject → topics → a full Zambian paper with marking key</small>
+          <div className="sv-empty-grid">
+            <button type="button" className="sv-empty-card primary" onClick={onShowTemplates}>
+              <span className="sv-empty-ic"><Icon name="sections" size={20} /></span>
+              <strong>Start from a template</strong>
+              <small>Pick a ready-made format — end-of-term, MCQ quiz, comprehension — with sections and marks already set up.</small>
             </button>
-            <button type="button" onClick={() => importInputRef.current?.click()} disabled={importing}
-              style={{ border: '1.5px dashed var(--sv-border-strong)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-paper, #fff)', cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 28 }}>📥</div>
-              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>{importing ? 'Importing…' : 'Import an existing paper'}</strong>
-              <small style={{ color: 'var(--sv-muted)' }}>Word, PDF or photos become editable blocks</small>
+            <button type="button" className="sv-empty-card" onClick={onCreatePaper}>
+              <span className="sv-empty-ic"><Icon name="ai" size={20} /></span>
+              <strong>Create with AI</strong>
+              <small>Choose grade, subject and topics for a full Zambian paper with a marking key.</small>
             </button>
-            <button type="button" onClick={() => onAddBlock(null)}
-              style={{ border: '1.5px dashed var(--sv-border-strong)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-paper, #fff)', cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 28 }}>✍️</div>
-              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>Build from scratch</strong>
-              <small style={{ color: 'var(--sv-muted)' }}>Add your first question block yourself</small>
+            <button type="button" className="sv-empty-card" onClick={() => importInputRef.current?.click()} disabled={importing}>
+              <span className="sv-empty-ic"><Icon name="import" size={20} /></span>
+              <strong>{importing ? 'Importing…' : 'Import a paper'}</strong>
+              <small>Turn a Word, PDF or photo of an existing paper into editable blocks.</small>
+            </button>
+            <button type="button" className="sv-empty-card" onClick={() => onAddBlock(null)}>
+              <span className="sv-empty-ic"><Icon name="scratch" size={20} /></span>
+              <strong>Build from scratch</strong>
+              <small>Add your first question block and build the paper up yourself.</small>
             </button>
           </div>
         )}
@@ -2888,11 +2966,11 @@ function BuilderView(props) {
       </div>
 
       <div className="sv-totals-bar">
-        <span>📝 <strong>{questionCount}</strong> questions</span>
-        <span>📊 <strong>{totalMarks}</strong> marks</span>
-        <span>📑 <strong>{parts.length}</strong> sections</span>
-        <span>📃 <strong>{estimatedPages}</strong> pages</span>
-        {estimatedMinutes > 0 && <span>⏱ <strong>~{estimatedMinutes}</strong> min</span>}
+        <span><Icon name="questions" size={14} /> <strong>{questionCount}</strong> questions</span>
+        <span><Icon name="marks" size={14} /> <strong>{totalMarks}</strong> marks</span>
+        <span><Icon name="sections" size={14} /> <strong>{parts.length}</strong> sections</span>
+        <span><Icon name="pages" size={14} /> <strong>{estimatedPages}</strong> pages</span>
+        {estimatedMinutes > 0 && <span><Icon name="time" size={14} /> <strong>~{estimatedMinutes}</strong> min</span>}
       </div>
     </section>
   )
@@ -2919,7 +2997,7 @@ function SmartWarningsBanner({ warnings }) {
     <div className="sv-warnings">
       {warnings.map(w => (
         <div key={w.key} className={`sv-warn sv-warn-${w.severity}`}>
-          <span className="sv-warn-ic">{w.severity === 'error' ? '⚠' : w.severity === 'warn' ? '⚡' : 'ℹ'}</span>
+          <span className="sv-warn-ic"><Icon name={w.severity === 'error' ? 'warn' : w.severity === 'warn' ? 'more' : 'info'} size={15} /></span>
           <span className="sv-warn-msg">{w.message}</span>
         </div>
       ))}
@@ -2947,21 +3025,21 @@ function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questio
       {group.part && (
         <div className="sv-block b-section">
           <div className="sv-block-head">
-            <span className="sv-ic">📑</span> Section
+            <span className="sv-ic"><Icon name="section" size={15} /></span> Section
             <span className="sv-tools">
               <button
                 className="sv-tool"
                 title="Move section up"
                 disabled={groupIndex <= 0}
                 onClick={() => onMoveGroup?.(group.part.id, -1)}
-              >↑</button>
+              ><Icon name="moveUp" size={14} /></button>
               <button
                 className="sv-tool"
                 title="Move section down"
                 disabled={groupIndex >= groupCount - 1}
                 onClick={() => onMoveGroup?.(group.part.id, 1)}
-              >↓</button>
-              <button className="sv-tool danger" title="Delete section" onClick={() => onRemovePart(group.part.id)}>🗑</button>
+              ><Icon name="moveDown" size={14} /></button>
+              <button className="sv-tool danger" title="Delete section" onClick={() => onRemovePart(group.part.id)}><Icon name="delete" size={14} /></button>
             </span>
           </div>
           <div className="sv-section-title-row">
@@ -2974,7 +3052,7 @@ function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questio
                 placeholder="Section title (e.g. Multiple Choice Questions)"
               />
               <div className="sv-meta">
-                <span>📝 {group.members.length} block{group.members.length === 1 ? '' : 's'}</span>
+                <span><Icon name="questions" size={13} /> {group.members.length} block{group.members.length === 1 ? '' : 's'}</span>
               </div>
             </div>
             <div className="sv-section-marks">{partMarks} marks</div>
@@ -3036,7 +3114,7 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessme
   return (
     <div className="sv-block b-header">
       <div className="sv-block-head">
-        <span className="sv-ic">📄</span> Paper Header
+        <span className="sv-ic"><Icon name="header" size={15} /></span> Paper Header
       </div>
 
       <div className="sv-identity-row">
@@ -3143,10 +3221,10 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessme
           Learner info fields (printed on paper)
         </label>
         <div className="sv-toggle-list">
-          <Toggle label="👤 NAME field"        on={form.showNameField}  onChange={v => setF('showNameField', v)} />
-          <Toggle label="📅 DATE field"        on={form.showDateField}  onChange={v => setF('showDateField', v)} />
-          <Toggle label="📊 TOTAL MARKS field" on={form.showMarksField} onChange={v => setF('showMarksField', v)} />
-          <Toggle label="🏫 CLASS field"       on={form.showClassField} onChange={v => setF('showClassField', v)} />
+          <Toggle icon="name" label="NAME field"        on={form.showNameField}  onChange={v => setF('showNameField', v)} />
+          <Toggle icon="date" label="DATE field"        on={form.showDateField}  onChange={v => setF('showDateField', v)} />
+          <Toggle icon="marks" label="TOTAL MARKS field" on={form.showMarksField} onChange={v => setF('showMarksField', v)} />
+          <Toggle icon="classField" label="CLASS field"       on={form.showClassField} onChange={v => setF('showClassField', v)} />
         </div>
       </div>
 
@@ -3159,8 +3237,8 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessme
           value={form.mcqOptionLayout}
           onChange={v => setF('mcqOptionLayout', v)}
           options={[
-            { value: 'vertical', label: '☰ Vertical' },
-            { value: 'horizontal', label: '⋯ Horizontal' },
+            { value: 'vertical', label: <><Icon name="layoutRows" size={13} /> Vertical</> },
+            { value: 'horizontal', label: <><Icon name="layoutColumns" size={13} /> Horizontal</> },
           ]}
         />
         <SegControl
@@ -3176,31 +3254,30 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessme
       </div>
 
       <div className="sv-title-preview-card">
-        <div className="sv-auto-label">⚡ Auto-generated header</div>
+        <div className="sv-auto-label"><Icon name="more" size={13} /> Auto-generated header</div>
         <div className="sv-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
         <div className="sv-title-auto">{buildTitleFromForm(form)}</div>
         {form.subject && <div className="sv-subject-auto">{form.subject.toUpperCase()}</div>}
         {form.paperName && <div className="sv-paper-auto">{form.paperName.toUpperCase()}</div>}
       </div>
 
-      <div style={{ marginTop: 'var(--sv-s4)', padding: 'var(--sv-s3)', background: 'var(--sv-tinted)', borderRadius: 'var(--sv-r)', display: 'flex', gap: 'var(--sv-s2)', alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--sv-muted)' }}>
+      <div className="sv-import-row">
+        <span className="sv-import-row-hint">
           Have an existing paper? Scan it page by page, or import a Word, PDF, or pictures.
         </span>
         <button
-          className="sv-btn sv-btn-primary sv-btn-sm"
+          className="sv-btn sv-btn-primary sv-btn-sm sv-import-row-scan"
           onClick={onScan}
           disabled={importing}
-          style={{ marginLeft: 'auto' }}
         >
-          📷 Scan full test paper
+          <Icon name="camera" size={14} /> Scan full test paper
         </button>
         <button
           className="sv-btn sv-btn-outline sv-btn-sm"
           onClick={() => docInputRef.current?.click()}
           disabled={importing}
         >
-          {importing ? 'Importing…' : '📥 Import .doc / .pdf / pictures'}
+          <Icon name={importing ? 'spinner' : 'import'} size={14} spin={importing} /> {importing ? 'Importing…' : 'Import .doc / .pdf / pictures'}
         </button>
         <input
           ref={docInputRef}
@@ -3255,10 +3332,10 @@ function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessme
   )
 }
 
-function Toggle({ label, on, onChange }) {
+function Toggle({ label, icon, on, onChange }) {
   return (
     <div className="sv-tg-row">
-      <div className="sv-lbl">{label}</div>
+      <div className="sv-lbl">{icon ? <Icon name={icon} size={14} /> : null} {label}</div>
       <button
         className={`sv-tg ${on ? 'on' : ''}`}
         onClick={() => onChange(!on)}
@@ -3310,7 +3387,7 @@ function InstructionsBlock({ form, setF }) {
   return (
     <div className="sv-block b-instr">
       <div className="sv-block-head">
-        <span className="sv-ic">📋</span> General Instructions
+        <span className="sv-ic"><Icon name="instructions" size={15} /></span> General Instructions
       </div>
       <div className="sv-field">
         <textarea
@@ -3338,7 +3415,7 @@ Choose and circle the correct answer from the given options A, B, C, and D."
               type="button"
               style={added ? { opacity: 0.55, cursor: 'default' } : undefined}
             >
-              {added ? '✓' : '+'} {preset}
+              <Icon name={added ? 'check' : 'add'} size={13} /> {preset}
             </button>
           )
         })}
@@ -3426,10 +3503,10 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
   const fileInputRef = useRef(null)
 
   const PASSAGE_KIND_META = {
-    comprehension: { icon: '📖', label: 'Comprehension Passage' },
-    map: { icon: '🗺', label: 'Map Question' },
-    diagram: { icon: '🔬', label: 'Diagram-Based Question' },
-    source: { icon: '📜', label: 'Source-Based Question' },
+    comprehension: { icon: 'comprehension', label: 'Comprehension Passage' },
+    map: { icon: 'map', label: 'Map Question' },
+    diagram: { icon: 'science', label: 'Diagram-Based Question' },
+    source: { icon: 'source', label: 'Source-Based Question' },
   }
   const meta = PASSAGE_KIND_META[kind] || PASSAGE_KIND_META.comprehension
 
@@ -3480,7 +3557,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
     <>
       <div className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}`}>
         <div className="sv-block-head">
-          <span className="sv-ic">{meta.icon}</span> {meta.label}
+          <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
           <select
             value={kind}
             onChange={e => setKind(e.target.value)}
@@ -3496,9 +3573,9 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
             Total: {totalMarks} mark{totalMarks === 1 ? '' : 's'}
           </span>
           <span className="sv-tools">
-            <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
-            <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
-            <button className="sv-tool danger" title="Delete passage" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+            <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
+            <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
+            <button className="sv-tool danger" title="Delete passage" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
           </span>
         </div>
         <div className="sv-passage-content">
@@ -3529,14 +3606,14 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
                   >×</button>
                 </div>
               ) : passage.imageUploading ? (
-                <div className="sv-q-media"><div className="sv-ic">⏳</div><div>Uploading image…</div></div>
+                <div className="sv-q-media"><div className="sv-ic"><Icon name="spinner" size={24} spin /></div><div>Uploading image…</div></div>
               ) : (
                 <button
                   type="button"
                   className="sv-q-media"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <div className="sv-ic">{isMap ? '🗺' : isDiagram ? '🔬' : '🖼'}</div>
+                  <div className="sv-ic"><Icon name={isMap ? 'map' : isDiagram ? 'science' : 'diagrams'} size={24} /></div>
                   <div>{isMap ? 'Upload the map image' : isDiagram ? 'Upload the diagram / figure' : 'Upload an image / table / chart (optional)'}</div>
                   <small>JPG, PNG or WEBP · up to 15 MB</small>
                   <input
@@ -3604,7 +3681,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
             style={{ width: 64, padding: '2px 6px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', fontSize: 12.5 }}
           />
           {manualMarks != null && (
-            <button className="sv-tool" type="button" title="Reset to auto" onClick={() => setManualMarks(null)}>↺ auto</button>
+            <button className="sv-tool" type="button" title="Reset to auto" onClick={() => setManualMarks(null)}><Icon name="reset" size={13} /> auto</button>
           )}
         </div>
 
@@ -3626,10 +3703,10 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
       {passage.questions.map((question, qIndex) => (
         <div key={question.localId || qIndex} className="sv-block b-question nested" style={{ marginLeft: 'calc(var(--sv-s4) * 2)' }}>
           <div className="sv-block-head">
-            <span className="sv-ic">✏</span> Passage Question
+            <span className="sv-ic"><Icon name="shortAnswer" size={15} /></span> Passage Question
             <span className="sv-tools">
-              <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}>✏</button>
-              <button className="sv-tool danger" title="Delete question" onClick={() => onRemovePassageQuestion(sectionIndex, qIndex)}>🗑</button>
+              <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={14} /></button>
+              <button className="sv-tool danger" title="Delete question" onClick={() => onRemovePassageQuestion(sectionIndex, qIndex)}><Icon name="delete" size={14} /></button>
             </span>
           </div>
           <div className="sv-q-card-top">
@@ -3713,11 +3790,11 @@ function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection }) {
   return (
     <div className="sv-block b-pagebreak" style={{ background: '#f8fafc', border: '1px dashed #94a3b8', borderRadius: 6 }}>
       <div className="sv-block-head" style={{ color: '#475569' }}>
-        <span className="sv-ic">↵</span> Page break
+        <span className="sv-ic"><Icon name="pagebreak" size={15} /></span> Page break
         <span className="sv-tools">
-          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
-          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
-          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
+          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
+          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
         </span>
       </div>
       <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -3745,10 +3822,10 @@ function AiSuggestionNotice({ rationale, confidence, routedTo, onConfirm }) {
     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--sv-r-sm)', background: m.bg, border: `1px solid ${m.border}`, color: m.text, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-          ✨ AI suggested · {m.label}
+          <Icon name="ai" size={13} /> AI suggested · {m.label}
           {isVision && (
-            <span style={{ background: 'rgba(0,0,0,0.06)', color: m.text, padding: '0 6px', borderRadius: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.3 }}>
-              👁 Vision
+            <span style={{ background: 'rgba(0,0,0,0.06)', color: m.text, padding: '0 6px', borderRadius: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.3, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <Icon name="preview" size={11} /> Vision
             </span>
           )}
         </div>
@@ -3759,13 +3836,13 @@ function AiSuggestionNotice({ rationale, confidence, routedTo, onConfirm }) {
         onClick={onConfirm}
         style={{ background: 'transparent', border: `1px solid ${m.border}`, color: m.text, padding: '3px 8px', borderRadius: 'var(--sv-r-sm)', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >
-        ✓ Confirm
+        <Icon name="check" size={12} /> Confirm
       </button>
     </div>
   )
 }
 
-// Inline popover for the "✨ Revise" per-question action. The teacher
+// Inline popover for the "Revise" per-question action. The teacher
 // picks a target grade and/or modifier, hits Rewrite, then either
 // Apply (overwrites question.text) or Discard (drops the preview).
 function ReviseQuestionPopover({
@@ -3821,24 +3898,24 @@ function ReviseQuestionPopover({
           onClick={onRevise}
           style={{ padding: '4px 12px', fontSize: 12 }}
         >
-          {revising ? '⏳ Rewriting…' : '✨ Rewrite'}
+          <Icon name={revising ? 'spinner' : 'ai'} size={13} spin={revising} /> {revising ? 'Rewriting…' : 'Rewrite'}
         </button>
         <button
           type="button"
           onClick={onClose}
-          style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--sv-muted)', cursor: 'pointer', fontSize: 12 }}
+          style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--sv-muted)', cursor: 'pointer', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
-          Close ✕
+          Close <Icon name="remove" size={13} />
         </button>
       </div>
       {error && (
-        <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 11 }}>
-          ⚠ {error}
+        <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="warn" size={13} /> {error}
         </div>
       )}
       {preview && (
         <div style={{ marginTop: 8, padding: 8, border: '1px solid #A7F3D0', borderRadius: 'var(--sv-r-sm)', background: '#ECFDF5' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#065F46', marginBottom: 4 }}>✨ Suggested rewrite</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#065F46', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ai" size={12} /> Suggested rewrite</div>
           <div style={{ fontSize: 13, color: '#064E3B', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{preview}</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             <button
@@ -3847,7 +3924,7 @@ function ReviseQuestionPopover({
               onClick={onApply}
               style={{ padding: '3px 10px', fontSize: 11 }}
             >
-              ✓ Apply
+              <Icon name="check" size={12} /> Apply
             </button>
             <button
               type="button"
@@ -4098,30 +4175,30 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   }
 
   const typeMeta = {
-    mcq: { tag: 'mcq', label: 'Multiple Choice' },
-    short_answer: { tag: 'struct', label: 'Short Answer' },
-    diagram: { tag: 'struct', label: 'Structured / Diagram' },
-    essay: { tag: 'essay', label: 'Essay' },
-    numeric: { tag: 'mcq', label: 'Numeric' },
-    matching: { tag: 'struct', label: 'Matching' },
-    sequence: { tag: 'struct', label: 'Sequence' },
-    fill_blanks: { tag: 'struct', label: 'Fill in the Blanks' },
+    mcq: { tag: 'mcq', label: 'Multiple Choice', icon: 'mcq' },
+    short_answer: { tag: 'struct', label: 'Short Answer', icon: 'shortAnswer' },
+    diagram: { tag: 'struct', label: 'Structured / Diagram', icon: 'structured' },
+    essay: { tag: 'essay', label: 'Essay', icon: 'essay' },
+    numeric: { tag: 'mcq', label: 'Numeric', icon: 'numeric' },
+    matching: { tag: 'struct', label: 'Matching', icon: 'matching' },
+    sequence: { tag: 'struct', label: 'Sequence', icon: 'sequence' },
+    fill_blanks: { tag: 'struct', label: 'Fill in the Blanks', icon: 'fillBlanks' },
   }
   const meta = typeMeta[type] || typeMeta.mcq
 
   return (
     <div className="sv-block b-question nested">
       <div className="sv-block-head">
-        <span className="sv-ic">❓</span> {meta.label}
+        <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
         <span className="sv-tools">
-          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
-          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
-          <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}>✏</button>
-          <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}>📋</button>
+          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
+          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
+          <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={14} /></button>
+          <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}><Icon name="duplicate" size={14} /></button>
           {onSaveToBank && (
-            <button className="sv-tool" title="Save to your question bank" onClick={() => onSaveToBank(question)}>⭐</button>
+            <button className="sv-tool" title="Save to your question bank" onClick={() => onSaveToBank(question)}><Icon name="bank" size={14} /></button>
           )}
-          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
         </span>
       </div>
 
@@ -4175,8 +4252,8 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           }}
         >
           {suggesting
-            ? '⏳ Thinking…'
-            : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
+            ? <><Icon name="spinner" size={13} spin /> Thinking…</>
+            : <><Icon name="ai" size={13} /> {isEssay ? 'Suggest marking notes' : 'Suggest answer'}</>}
         </button>
         <button
           type="button"
@@ -4196,7 +4273,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             gap: 4,
           }}
         >
-          ✨ Improve
+          <Icon name="ai" size={13} /> Improve
         </button>
         <button
           type="button"
@@ -4215,7 +4292,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             gap: 4,
           }}
         >
-          ✨ Revise {reviseOpen ? '▾' : '▸'}
+          <Icon name="ai" size={13} /> Revise {reviseOpen ? '▾' : '▸'}
         </button>
       </div>
 
@@ -4256,7 +4333,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             <div style={{ display: 'flex', gap: 6 }}>
               <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                 onClick={() => setDiagramTarget('question')}>
-                ✏️ Edit shape
+                <Icon name="edit" size={14} /> Edit shape
               </button>
               <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                 onClick={() => updateQuestion('imageDiagram', null)}>
@@ -4291,19 +4368,19 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                   onClick={() => setEditorOpen(true)}>
-                  ✂️ Crop / resize / rotate
+                  <Icon name="crop" size={14} /> Crop / resize / rotate
                 </button>
                 <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                   disabled={enhancingImage} onClick={onEnhanceAgain}>
-                  {enhancingImage ? '✨ Enhancing…' : '✨ Enhance again'}
+                  <Icon name={enhancingImage ? 'spinner' : 'enhance'} size={14} spin={enhancingImage} /> {enhancingImage ? 'Enhancing…' : 'Enhance again'}
                 </button>
                 <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                   onClick={() => imageInputRef.current?.click()}>
-                  🔁 Replace
+                  <Icon name="replace" size={14} /> Replace
                 </button>
                 <button type="button" className="sv-btn sv-btn-outline" style={{ fontSize: 13 }}
                   onClick={onRemoveImage}>
-                  🗑 Delete
+                  <Icon name="delete" size={14} /> Delete
                 </button>
               </div>
               <input
@@ -4321,13 +4398,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           )
         ) : question.imageUploading ? (
           <div className="sv-q-media">
-            <div className="sv-ic">⏳</div>
+            <div className="sv-ic"><Icon name="spinner" size={24} spin /></div>
             <div>Uploading image…</div>
           </div>
         ) : (
           <>
             <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
-              <div className="sv-ic">🖼</div>
+              <div className="sv-ic"><Icon name="diagrams" size={24} /></div>
               <div>Add a diagram or image (optional)</div>
               <small>JPG, PNG or WEBP · up to 15 MB</small>
               <input
@@ -4348,7 +4425,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               style={{ marginTop: 6, fontSize: 13 }}
               onClick={() => setBankTarget('question')}
             >
-              📚 Picture bank / ✨ AI picture
+              <Icon name="pictureBank" size={14} /> Picture bank / AI picture
             </button>
             <button
               type="button"
@@ -4356,7 +4433,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               style={{ marginTop: 6, fontSize: 13 }}
               onClick={() => setDiagramTarget('question')}
             >
-              📐 Shape / diagram
+              <Icon name="shape" size={14} /> Shape / diagram
             </button>
             <button
               type="button"
@@ -4364,7 +4441,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               style={{ marginTop: 6, fontSize: 13 }}
               onClick={() => setCameraOpen(true)}
             >
-              📷 Camera
+              <Icon name="camera" size={14} /> Camera
             </button>
           </>
         )
@@ -4522,7 +4599,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
 
       {isEssay && (
         <div className="sv-answer-lines">
-          <div className="sv-answer-meta">📏 Answer space: One page (rendered on print)</div>
+          <div className="sv-answer-meta"><Icon name="ruler" size={13} /> Answer space: One page (rendered on print)</div>
           <textarea
             value={String(question.correctAnswer ?? '')}
             onChange={e => updateQuestion('correctAnswer', e.target.value)}
@@ -4572,8 +4649,8 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       )}
 
       {suggestError && (
-        <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
-          ⚠ {suggestError}
+        <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="warn" size={13} /> {suggestError}
         </div>
       )}
 
@@ -4587,7 +4664,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       )}
 
       <div className="sv-q-footer">
-        {question.topic && <span className="sv-q-mapping-tag">🎯 {question.topic}</span>}
+        {question.topic && <span className="sv-q-mapping-tag"><Icon name="target" size={12} /> {question.topic}</span>}
         {parts.length > 0 && (
           <select
             value={question.partId || ''}
@@ -4599,7 +4676,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           </select>
         )}
         <div className="sv-q-mini-actions">
-          <button onClick={() => onEditQuestion(question.localId)}>✏ Edit details</button>
+          <button onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={13} /> Edit details</button>
         </div>
       </div>
     </div>
@@ -4707,7 +4784,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
               fontSize: 14,
             }}
           >
-            🖼
+            <Icon name="diagrams" size={15} />
             <input
               ref={fileRef}
               type="file"
@@ -4733,7 +4810,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
                 fontSize: 14,
               }}
             >
-              📚
+              <Icon name="pictureBank" size={15} />
             </button>
           )}
           {onPickDiagram && (
@@ -4749,7 +4826,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
                 fontSize: 14,
               }}
             >
-              📐
+              <Icon name="shape" size={15} />
             </button>
           )}
         </div>
@@ -4762,7 +4839,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
         onClick={e => e.stopPropagation()}
         placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
       />
-      {isCorrect && <div className="sv-check">✓</div>}
+      {isCorrect && <div className="sv-check"><Icon name="check" size={13} /></div>}
     </div>
       {hasImage && onChangeOptionAlt && (
         <div className="sv-opt-alt" onClick={e => e.stopPropagation()}>
@@ -4955,7 +5032,7 @@ function FillBlanksInputs({ question, onUpdate }) {
 function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">📏 {label || 'Expected answer (used for marking key)'}</div>
+      <div className="sv-answer-meta"><Icon name="ruler" size={13} /> {label || 'Expected answer (used for marking key)'}</div>
       <textarea
         value={String(correctAnswer ?? '')}
         onChange={e => onChange(e.target.value)}
@@ -5013,7 +5090,7 @@ function AnswerSpaceControl({ question, onUpdate }) {
   return (
     <div className="sv-answer-space-control" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '6px 0 2px', fontSize: 12 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sv-muted)' }}>
-        📏 Answer space:
+        <Icon name="ruler" size={13} /> Answer space:
         <select
           value={selectValue}
           onChange={e => onSelect(e.target.value)}
@@ -5081,7 +5158,7 @@ function SplitIntoPartsButton({ question, onUpdate }) {
   return (
     <div style={{ margin: '8px 0 2px' }}>
       <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={split}>
-        ➗ Split into parts (a, b, c)
+        <Icon name="sequence" size={14} /> Split into parts (a, b, c)
       </button>
       <p style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
         Turns the question above into an instruction with lettered sub-questions — each with its own blank and marks.
@@ -5130,7 +5207,7 @@ function SubPartsEditor({ question, onUpdate }) {
   return (
     <div className="sv-subparts-editor" style={{ margin: '6px 0 2px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 10, background: 'var(--sv-tinted)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <strong style={{ fontSize: 12 }}>🔠 Sub-parts</strong>
+        <strong style={{ fontSize: 12 }}><Icon name="sequence" size={13} /> Sub-parts</strong>
         <span style={{ fontSize: 11, color: 'var(--sv-muted)' }}>
           The question text above is the instruction. Total: {sumSubPartMarks(parts)} mark{sumSubPartMarks(parts) === 1 ? '' : 's'}.
         </span>
@@ -5192,9 +5269,9 @@ function SubPartsEditor({ question, onUpdate }) {
             />
           </div>
           <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <button type="button" title="Move up" onClick={() => movePart(i, -1)} disabled={i === 0} style={subPartIconBtnStyle}>↑</button>
-            <button type="button" title="Move down" onClick={() => movePart(i, 1)} disabled={i === parts.length - 1} style={subPartIconBtnStyle}>↓</button>
-            <button type="button" title="Remove this part" onClick={() => removePart(i)} style={{ ...subPartIconBtnStyle, color: '#b91c1c' }}>✕</button>
+            <button type="button" className="sv-subpart-btn" title="Move up" onClick={() => movePart(i, -1)} disabled={i === 0}><Icon name="moveUp" size={13} /></button>
+            <button type="button" className="sv-subpart-btn" title="Move down" onClick={() => movePart(i, 1)} disabled={i === parts.length - 1}><Icon name="moveDown" size={13} /></button>
+            <button type="button" className="sv-subpart-btn danger" title="Remove this part" onClick={() => removePart(i)}><Icon name="remove" size={13} /></button>
           </div>
         </div>
       ))}
@@ -5211,19 +5288,6 @@ function SubPartsEditor({ question, onUpdate }) {
   )
 }
 
-const subPartIconBtnStyle = {
-  width: 22,
-  height: 22,
-  display: 'grid',
-  placeItems: 'center',
-  border: '1px solid var(--sv-border)',
-  borderRadius: 'var(--sv-r-sm)',
-  background: 'var(--sv-paper)',
-  cursor: 'pointer',
-  fontSize: 11,
-  lineHeight: 1,
-  padding: 0,
-}
 
 // Generates a short string id used as the React key + stable identifier for
 // dragged labels. We don't need cryptographic randomness — collisions across
@@ -5515,7 +5579,7 @@ function MatchingInputs({ left, right, answer, onChangeLeft, onChangeRight, onCh
 
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔗 Matching pairs — students draw lines from left to right on the printed paper</div>
+      <div className="sv-answer-meta"><Icon name="matching" size={13} /> Matching pairs — students draw lines from left to right on the printed paper</div>
       <p className="sv-input-hint">
         Type each prompt on the left and its option on the right, then pick the letter it pairs with under <strong>Match →</strong>. The marking key lists the correct pairs.
       </p>
@@ -5647,7 +5711,7 @@ function SequenceInputs({ items, answer, onChangeItems, onChangeAnswer }) {
 
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔤 Sequence — students write the correct position in the blanks on the printed paper</div>
+      <div className="sv-answer-meta"><Icon name="sequence" size={13} /> Sequence — students write the correct position in the blanks on the printed paper</div>
       <p className="sv-input-hint">
         Type the items in any order, then set each one&apos;s <strong>correct position</strong> (1 = first). The paper prints them as typed; the key shows the right order.
       </p>
@@ -5763,7 +5827,7 @@ function DataTableInputs({ tableData, onChange }) {
 
   return (
     <div className="sv-answer-lines" style={{ marginTop: 4 }}>
-      <div className="sv-answer-meta">📊 Data table — students read values off this table to answer the question</div>
+      <div className="sv-answer-meta"><Icon name="table" size={13} /> Data table — students read values off this table to answer the question</div>
       <p className="sv-input-hint">
         Edit headers and cells directly; use <strong>+</strong> to add a column or row. The table prints above the question for students to read from.
       </p>
@@ -5855,7 +5919,7 @@ function DataTableInputs({ tableData, onChange }) {
 function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, onChangeTolerance, onChangeUnit }) {
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔢 Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
+      <div className="sv-answer-meta"><Icon name="numeric" size={13} /> Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
       <p className="sv-input-hint">
         Leave tolerance at <code>0</code> to mark only the exact value correct, or set e.g. <code>0.5</code> to accept answers within ±0.5. The unit is optional.
       </p>
@@ -5904,7 +5968,7 @@ function FooterBlock({ form, setF, footerCode }) {
   return (
     <div className="sv-block b-footer">
       <div className="sv-block-head">
-        <span className="sv-ic">⚓</span> Paper Footer
+        <span className="sv-ic"><Icon name="footer" size={15} /></span> Paper Footer
       </div>
       <div className="sv-field-grid two">
         <div className="sv-field">
@@ -5940,15 +6004,15 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExp
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
-        <button className="sv-chip" onClick={() => changeView('builder')}>📄 Builder</button>
-        <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}>👁 Preview</button>
-        <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}>🗝 Marking key</button>
-        <span className="sv-pages mono">📃 A4 · Portrait</span>
+        <button className="sv-chip" onClick={() => changeView('builder')}><Icon name="builder" size={14} /> Builder</button>
+        <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
+        <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
+        <span className="sv-pages mono"><Icon name="pages" size={13} /> A4 · Portrait</span>
       </div>
 
       {isKey && (
-        <div style={{ maxWidth: 720, margin: '0 auto var(--sv-s3)', padding: '8px 12px', borderRadius: 'var(--sv-r)', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', fontSize: 12.5, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
-          🗝 <strong style={{ color: 'var(--sv-text)' }}>Marking key</strong> — the answer and any explanation for every question. It&apos;s for you to mark from and is never shown to learners. Set or check answers back in the Builder.
+        <div className="sv-key-note">
+          <Icon name="key" size={14} /> <strong>Marking key</strong> — the answer and any explanation for every question. It&apos;s for you to mark from and is never shown to learners. Set or check answers back in the Builder.
         </div>
       )}
 
@@ -5957,12 +6021,12 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExp
           {blocks.map((block, i) => <PaperBlock key={i} block={block} />)}
         </div>
 
-        <div style={{ maxWidth: 720, margin: 'var(--sv-s4) auto 0', display: 'flex', gap: 'var(--sv-s2)', flexWrap: 'wrap' }}>
+        <div className="sv-export-actions">
           <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting}>
-            {exporting ? '⏳ Working…' : `📝 ${isKey ? 'Download key (Word)' : 'Download Word'}`}
+            <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> {exporting ? 'Working…' : (isKey ? 'Download key (Word)' : 'Download Word')}
           </button>
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} title="Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF">
-            🖨 Print / Save as PDF
+            <Icon name="print" size={15} /> Print / Save as PDF
           </button>
           {onExportAnswerSheet && (
             <button
@@ -5971,16 +6035,16 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExp
               disabled={exporting}
               title="A bubble answer sheet (Word) students fill in instead of writing on the paper"
             >
-              🫧 Answer sheet
+              <Icon name="answerSheet" size={15} /> Answer sheet
             </button>
           )}
           {showSave && (
-            <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
-              {saving ? 'Saving…' : `💾 Save · ${assessment.totalMarks || 0} marks`}
+            <button className="sv-btn sv-btn-primary sv-export-save" onClick={onSave} disabled={saving}>
+              <Icon name={saving ? 'spinner' : 'save'} size={15} spin={saving} /> {saving ? 'Saving…' : `Save · ${assessment.totalMarks || 0} marks`}
             </button>
           )}
-          <button className="sv-btn sv-btn-outline" onClick={() => changeView('builder')} style={showSave ? {} : { marginLeft: 'auto' }}>
-            ✏ Edit paper
+          <button className={`sv-btn sv-btn-outline ${showSave ? '' : 'sv-export-save'}`} onClick={() => changeView('builder')}>
+            <Icon name="edit" size={15} /> Edit paper
           </button>
         </div>
       </div>
@@ -5995,52 +6059,52 @@ function BlockPickerSlide({ open, onClose, onPick }) {
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
         <h3 className="serif">Add a block<small>Drop into the document at the chosen position</small></h3>
       </div>
       <div className="sv-slideover-body">
         <div className="sv-block-cat">Structure</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="📑" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
-          <BlockPickerItem icon="📌" title="Part" hint="Coming soon" disabled />
-          <BlockPickerItem icon="📋" title="Instructions" hint="Always rendered at top of paper" disabled />
-          <BlockPickerItem icon="↵" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
+          <BlockPickerItem icon="section" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
+          <BlockPickerItem icon="sections" title="Part" hint="Coming soon" disabled />
+          <BlockPickerItem icon="instructions" title="Instructions" hint="Always rendered at top of paper" disabled />
+          <BlockPickerItem icon="pagebreak" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
         </div>
 
         <div className="sv-block-cat">Questions</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="🔘" title="Multiple Choice" hint="4 options, text" onClick={() => onPick('mcq')} />
-          <BlockPickerItem icon="✏" title="Short Answer" hint="1–3 lines" onClick={() => onPick('short_answer')} />
-          <BlockPickerItem icon="📋" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
-          <BlockPickerItem icon="📝" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
-          <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
-          <BlockPickerItem icon="📐" title="Fill in the Blanks" hint="Instruction + word bank + A/B/C/D statements" onClick={() => onPick('fill_in_blank')} />
-          <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
-          <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
-          <BlockPickerItem icon="🔤" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
+          <BlockPickerItem icon="mcq" title="Multiple Choice" hint="4 options, text" onClick={() => onPick('mcq')} />
+          <BlockPickerItem icon="shortAnswer" title="Short Answer" hint="1–3 lines" onClick={() => onPick('short_answer')} />
+          <BlockPickerItem icon="structured" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="essay" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
+          <BlockPickerItem icon="trueFalse" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
+          <BlockPickerItem icon="fillBlanks" title="Fill in the Blanks" hint="Instruction + word bank + A/B/C/D statements" onClick={() => onPick('fill_in_blank')} />
+          <BlockPickerItem icon="matching" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
+          <BlockPickerItem icon="numeric" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
+          <BlockPickerItem icon="sequence" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
         </div>
 
         <div className="sv-block-cat">Stimulus &amp; source</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="🔬" title="Diagram-Based Question" hint="Instruction → diagram → follow-up sub-questions" onClick={() => onPick('diagram_stimulus')} />
-          <BlockPickerItem icon="📜" title="Source-Based Question" hint="Passage / table / map / chart → follow-up sub-questions" onClick={() => onPick('source_stimulus')} />
-          <BlockPickerItem icon="🏷" title="Labelled Diagram" hint="Name labelled parts (P: __, Q: __, R: __)" onClick={() => onPick('labelled_diagram')} />
+          <BlockPickerItem icon="science" title="Diagram-Based Question" hint="Instruction → diagram → follow-up sub-questions" onClick={() => onPick('diagram_stimulus')} />
+          <BlockPickerItem icon="source" title="Source-Based Question" hint="Passage / table / map / chart → follow-up sub-questions" onClick={() => onPick('source_stimulus')} />
+          <BlockPickerItem icon="labelledDiagram" title="Labelled Diagram" hint="Name labelled parts (P: __, Q: __, R: __)" onClick={() => onPick('labelled_diagram')} />
         </div>
 
         <div className="sv-block-cat">Media &amp; reading</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="📖" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
-          <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
-          <BlockPickerItem icon="🎨" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
-          <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
-          <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
-          <BlockPickerItem icon="👁" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
+          <BlockPickerItem icon="comprehension" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
+          <BlockPickerItem icon="shape" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="drawLabel" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
+          <BlockPickerItem icon="map" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
+          <BlockPickerItem icon="table" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
+          <BlockPickerItem icon="imageIdentify" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
         </div>
 
         <div className="sv-block-cat">Reusable</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem
-            icon="⭐"
+            icon="bank"
             title="From question bank"
             hint="Insert a question you saved earlier"
             onClick={() => onPick('question_bank')}
@@ -6050,13 +6114,13 @@ function BlockPickerSlide({ open, onClose, onPick }) {
         <div className="sv-block-cat">AI-powered</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem
-            icon="✨"
+            icon="ai"
             title="Generate questions"
             hint="AI drafts from topic"
             gold
             onClick={() => onPick('ai_generate')}
           />
-          <BlockPickerItem icon="🎨" title="Generate diagram" hint="Coming soon" gold disabled />
+          <BlockPickerItem icon="diagrams" title="Generate diagram" hint="Coming soon" gold disabled />
         </div>
       </div>
     </aside>
@@ -6071,7 +6135,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
       disabled={disabled}
       type="button"
     >
-      <div className="sv-bp-ic">{icon}</div>
+      <div className="sv-bp-ic"><Icon name={icon} size={20} /></div>
       <strong>{title}</strong>
       <small>{hint}</small>
     </button>
@@ -6123,8 +6187,8 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
-        <h3 className="serif">✨ Zed AI Assistant<small>Context-aware help for this paper</small></h3>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
+        <h3 className="serif"><Icon name="ai" size={17} /> Zed AI Assistant<small>Context-aware help for this paper</small></h3>
       </div>
       <div className="sv-slideover-body">
         <button
@@ -6132,7 +6196,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           onClick={onCreatePaper}
           style={{ marginBottom: 12 }}
         >
-          📄 Create paper with AI
+          <Icon name="ai" size={15} /> Create paper with AI
         </button>
         <div className="sv-ai-msg" style={{ marginBottom: 16 }}>
           A full {form.subject} paper for Grade {form.grade} — pick the topics,
@@ -6270,7 +6334,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           disabled={generating}
           style={{ marginTop: 12 }}
         >
-          {generating ? '✦ Generating…' : '✦ Generate questions'}
+          <Icon name={generating ? 'spinner' : 'ai'} size={15} spin={generating} /> {generating ? 'Generating…' : 'Generate questions'}
         </button>
 
         {generating && (
@@ -6286,7 +6350,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
             onClick={onScan}
             disabled={importing}
           >
-            <div className="sv-ic">📷</div>
+            <div className="sv-ic"><Icon name="camera" size={20} /></div>
             <div><strong>Scan full test paper</strong><small>Photograph every page, preview them, then convert the whole paper at once</small></div>
           </button>
           <button
@@ -6294,7 +6358,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
             onClick={() => docInputRef.current?.click()}
             disabled={importing}
           >
-            <div className="sv-ic">📥</div>
+            <div className="sv-ic"><Icon name="import" size={20} /></div>
             <div><strong>{importing ? 'Importing…' : 'Import Word / PDF / Pictures'}</strong><small>Convert an existing paper (or photos of it) into editable blocks</small></div>
             <input
               ref={docInputRef}
@@ -6310,23 +6374,20 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
             />
           </button>
           <button className="sv-ai-action" onClick={onOpenMarkingKey}>
-            <div className="sv-ic">📑</div>
+            <div className="sv-ic"><Icon name="key" size={20} /></div>
             <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
           </button>
           <button className="sv-ai-action" onClick={onVerifyPaper} disabled={!questions?.length}>
-            <div className="sv-ic">🔍</div>
+            <div className="sv-ic"><Icon name="verify" size={20} /></div>
             <div><strong>Check this paper</strong><small>Vex verifies answers, grade fit and clarity before you print</small></div>
           </button>
           <button className="sv-ai-action" onClick={onOpenDiagramFix}>
-            <div className="sv-ic">🖼</div>
+            <div className="sv-ic"><Icon name="diagrams" size={20} /></div>
             <div>
               <strong>
                 Fix missing diagrams
                 {diagramsNeeded > 0 && (
-                  <span style={{
-                    marginLeft: 6, background: 'var(--sv-primary)', color: '#fff',
-                    borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 800,
-                  }}>{diagramsNeeded}</span>
+                  <span className="sv-ai-badge">{diagramsNeeded}</span>
                 )}
               </strong>
               <small>Match from the picture bank or generate from the AI&apos;s description</small>
@@ -6334,7 +6395,7 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           </button>
           {onOpenDiagramScanner && (
             <button className="sv-ai-action" onClick={onOpenDiagramScanner}>
-              <div className="sv-ic">📷</div>
+              <div className="sv-ic"><Icon name="camera" size={20} /></div>
               <div>
                 <strong>Diagram Scanner</strong>
                 <small>Photograph one diagram, clean it for printing, then add it to a question or save it to the bank</small>
@@ -6377,7 +6438,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🎨</div>
+        <div className="sv-ic"><Icon name="shape" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Generate diagram</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art or a photoreal image</small>
@@ -6403,7 +6464,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('recraft')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                🖋 Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
+                <Icon name="scratch" size={13} /> Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
               </button>
               <button
                 type="button"
@@ -6411,7 +6472,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('openai')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                📷 Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
+                <Icon name="camera" size={13} /> Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
               </button>
               <button
                 type="button"
@@ -6419,7 +6480,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('kie')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                🎨 Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
+                <Icon name="drawLabel" size={13} /> Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
               </button>
             </div>
           </div>
@@ -6429,7 +6490,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
             disabled={disabled || !prompt.trim()}
             onClick={() => onGenerate(prompt.trim(), provider).then(() => setPrompt(''))}
           >
-            {disabled ? '⏳ Generating…' : '✨ Generate image'}
+            <Icon name={disabled ? 'spinner' : 'ai'} size={15} spin={disabled} /> {disabled ? 'Generating…' : 'Generate image'}
           </button>
           <small style={{ color: 'var(--sv-muted)', fontSize: 11 }}>
             The image is added as a new structured question with the prompt as its question text. Counts toward your monthly diagram quota.
@@ -6505,7 +6566,7 @@ function BalanceDifficultyAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">⚖</div>
+        <div className="sv-ic"><Icon name="difficulty" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Balance paper difficulty</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -6600,7 +6661,7 @@ function BloomBalanceAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🧠</div>
+        <div className="sv-ic"><Icon name="bloom" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Thinking skills (Bloom&apos;s)</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -6801,7 +6862,7 @@ function MapCompetenciesAction({ questions, questionNumbers, subjectLabel }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🎯</div>
+        <div className="sv-ic"><Icon name="target" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Map to competencies</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -6923,7 +6984,7 @@ function DetectDuplicatesAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🔍</div>
+        <div className="sv-ic"><Icon name="verify" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Detect duplicates</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -6995,7 +7056,7 @@ function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQue
     return (
       <aside className={`sv-slideover ${open ? 'open' : ''}`}>
         <div className="sv-slideover-head">
-          <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+          <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
           <h3 className="serif">Edit Question<small>Select a question to edit</small></h3>
         </div>
         <div className="sv-slideover-body">
@@ -7020,7 +7081,7 @@ function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQue
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
         <h3 className="serif">Edit Question<small>Q{num} · {type.toUpperCase()}</small></h3>
       </div>
       <div className="sv-slideover-body">
