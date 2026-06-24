@@ -114,7 +114,7 @@ function PaperInstructionsBlock({ block }) {
   const paragraphs = String(block.text || '').split(/\n\s*\n/).filter(p => p.trim())
   return (
     <div className="sv-paper-instr-box">
-      <span className="sv-instr-label">{block.isMarkingKey ? 'Marking key' : 'Instructions'}</span>
+      <span className={`sv-instr-label${block.isMarkingKey ? ' is-key' : ''}`}>{block.isMarkingKey ? 'Marking key' : 'Instructions'}</span>
       {paragraphs.map((p, i) => (
         <p key={i}>{renderInlineOptionLetters(p.replace(/\n/g, ' '))}</p>
       ))}
@@ -177,8 +177,21 @@ function PaperPassageBlock({ block }) {
 
 function PaperQuestionBlock({ block }) {
   const marks = block.marks ?? 1
+  // Print page-break hints (consumed only by the @media print rules in
+  // assessmentStudio.css). Long answer blocks and questions that carry a data
+  // table are allowed to flow across a page boundary instead of the default
+  // "keep whole" — otherwise a tall block shoves a big blank gap to the next
+  // page. The CSS still keeps the question stem with the start of its body.
+  // Screen layout is unaffected: these classes have no on-screen rules.
+  const hasTable = Boolean(block.tableData)
+  const isLong = block.type === 'essay'
+    || (Array.isArray(block.subParts) && block.subParts.length >= 4)
+    || (Number.isFinite(Number(block.answerLines)) && Number(block.answerLines) >= 6)
+  const qClass = ['sv-paper-q', hasTable && 'has-table', isLong && 'is-long']
+    .filter(Boolean)
+    .join(' ')
   return (
-    <div className="sv-paper-q">
+    <div className={qClass}>
       <div className="sv-qline">
         <strong>{block.number}.</strong> {block.text || '(no question text)'}
         {marks >= 1 && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
@@ -541,8 +554,8 @@ function PaperDataTable({ tableData }) {
   const headers = tableData.headers
   const rows = Array.isArray(tableData.rows) ? tableData.rows : []
   return (
-    <div style={{ margin: '8px 0', overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 280 }}>
+    <div className="sv-paper-table-wrap" style={{ margin: '8px 0', overflowX: 'auto' }}>
+      <table className="sv-paper-table" style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 280 }}>
         <thead>
           <tr>
             {headers.map((h, i) => (
