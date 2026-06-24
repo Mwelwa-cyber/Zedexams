@@ -3538,7 +3538,10 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
    so every theme is honoured. */
 .zx-hero-art {
   flex: none;
-  width: 200px;
+  /* Kept compact on phones so the welcome copy ("Welcome back" + name +
+     tagline) keeps enough width to sit on single lines instead of
+     double-wrapping next to the art. Steps up at sm/md below. */
+  width: 150px;
   height: auto;
   object-fit: contain;
   border-radius: 1rem;

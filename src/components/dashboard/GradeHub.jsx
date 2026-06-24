@@ -1042,10 +1042,12 @@ export default function GradeHub() {
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
       <header className="learner-dashboard-header sticky top-0 z-30 theme-card border-b theme-border shadow-sm">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-          <Logo variant="full" size="sm" />
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0 shrink">
+            <Logo variant="full" size="sm" />
+          </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2">
             <HeaderIconLink to="/my-results" label="Progress" icon={BarChart3} />
 
             <ThemeSelector dashboardStyle={true} />
@@ -1171,9 +1173,12 @@ export default function GradeHub() {
               collapses onto far fewer rows. Skipped in data-saver. */}
           {!dataSaver && (
             <>
-              <FloatingStar style={{ top: '16%', left: '8%',  fontSize: 14, animationDelay: '0s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '64%', left: '4%',  fontSize: 10, animationDelay: '1s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '34%', left: '58%', fontSize: 9,  animationDelay: '2s',   zIndex: 2 }} />
+              {/* Kept clear of the left-hand welcome copy / button column so
+                  they read as ambient sparkle rather than artifacts sitting on
+                  top of the text. Anchored to the upper band and right edge. */}
+              <FloatingStar style={{ top: '10%', left: '52%', fontSize: 12, animationDelay: '0s', zIndex: 2 }} />
+              <FloatingStar style={{ top: '46%', left: '93%', fontSize: 10, animationDelay: '1s', zIndex: 2 }} />
+              <FloatingStar style={{ top: '76%', left: '88%', fontSize: 9,  animationDelay: '2s', zIndex: 2 }} />
             </>
           )}
 
@@ -1228,7 +1233,7 @@ export default function GradeHub() {
               </Link>
               <Link
                 to="/my-results"
-                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-white/30 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/70 bg-white/15 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/25"
               >
                 <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
                 My Results
@@ -1237,7 +1242,7 @@ export default function GradeHub() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {userProfile?.grade && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/55 bg-white/15 px-2.5 py-1 text-xs font-black text-white">
                   <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
                   Grade {userProfile.grade}
                 </span>
@@ -1245,7 +1250,7 @@ export default function GradeHub() {
               {dailyGoal.total > 0 && (
                 <Link
                   to="/exams"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-50 transition-colors hover:bg-amber-400/30"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-500/35 px-2.5 py-1 text-xs font-black text-white transition-colors hover:bg-amber-500/45"
                 >
                   <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
                   Today&rsquo;s Goal · {dailyGoal.done}/{dailyGoal.total} activities
