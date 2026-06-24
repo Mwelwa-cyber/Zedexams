@@ -42,6 +42,20 @@ const GRADE_WORDS = {
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+/**
+ * Default number of ruled answer lines per written-answer type, shared by the
+ * preview (PaperBlocks.jsx), the PDF (window.print of the preview) and the
+ * DOCX export (assessmentToDocx.js). Keeping the counts here — instead of three
+ * literals scattered across the renderers — is what stops the Word download
+ * drifting from the on-screen paper (e.g. essays printing 10 lines in Word but
+ * showing 8 in the preview).
+ */
+export const DEFAULT_ANSWER_LINES = {
+  short: 2,
+  diagram: 4,
+  essay: 8,
+}
+
 export function buildPaperTitle(assessment = {}) {
   const grade = assessment.grade ?? ''
   const gradeWord = GRADE_WORDS[grade] || String(grade).toUpperCase()

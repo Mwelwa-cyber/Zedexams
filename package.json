@@ -121,6 +121,7 @@
     "test:lesson-plan-docx-client": "node src/utils/lessonPlanToDocx.test.js",
     "test:assessment-mcq-layout": "node scripts/test-assessment-mcq-layout.mjs",
     "test:assessment-layout": "node src/utils/assessmentPaperLayout.test.js",
+    "test:paper-renderers-sync": "node src/utils/paperRenderersSync.test.js",
     "test:answer-sheet": "node src/utils/assessmentAnswerSheet.test.js",
     "test:timing": "node src/utils/assessmentTiming.test.js",
     "test:assessment-draft": "node src/hooks/assessmentDraftCore.test.js",

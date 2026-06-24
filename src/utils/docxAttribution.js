@@ -74,15 +74,19 @@ function watermarkRunXml(text) {
   )
 }
 
+// The watermark as a single header paragraph. Exposed on its own so paper
+// exports (which build their OWN first-page/running headers for the title
+// banner) can compose the watermark INTO those headers — a Word section has
+// only one header per type, so the banner and the watermark must share it.
+export function attributionWatermarkParagraph() {
+  return new Paragraph({ children: [ImportedXmlComponent.fromXmlString(watermarkRunXml(WATERMARK_TEXT))] })
+}
+
 // The watermark lives in the page header so it repeats on every page and sits
 // behind the body text. A header paragraph is the standard host for a Word
 // text watermark.
 export function attributionWatermarkHeader() {
-  return new Header({
-    children: [
-      new Paragraph({ children: [ImportedXmlComponent.fromXmlString(watermarkRunXml(WATERMARK_TEXT))] }),
-    ],
-  })
+  return new Header({ children: [attributionWatermarkParagraph()] })
 }
 
 /**
