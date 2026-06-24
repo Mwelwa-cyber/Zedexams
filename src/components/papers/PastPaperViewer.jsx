@@ -20,6 +20,7 @@ import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
+const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
 
 /**
  * Breaks a child out of its max-width column to span the full viewport
@@ -627,6 +628,8 @@ function BackToTopFab() {
 function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page', syncHash = false, progressKey = null }) {
   const articleRefs = useRef({})
   const [visiblePage, setVisiblePage] = useState(1)
+  // The page currently open in the full-screen pinch-to-zoom viewer, if any.
+  const [zoomedPage, setZoomedPage] = useState(null)
   const hasScrolledToHashRef = useRef(false)
   const hasRestoredProgressRef = useRef(false)
   // In Data Saver mode, pre-load only the first 2 pages; later pages
@@ -820,12 +823,35 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                       Loading page {page.pageNumber}…
                     </div>
                   )}
+                  {hasLoaded && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomedPage({
+                        src,
+                        alt: `${altPrefix} ${page.pageNumber} of ${totalPages}`,
+                      })}
+                      aria-label={`Zoom in on page ${page.pageNumber}`}
+                      className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 text-white px-3 py-1.5 text-xs font-black shadow-elev-md hover:bg-black/85"
+                    >
+                      <span aria-hidden="true">🔍</span> Zoom
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </article>
         )
       })}
+
+      {zoomedPage && (
+        <Suspense fallback={null}>
+          <ImageZoomOverlay
+            src={zoomedPage.src}
+            alt={zoomedPage.alt}
+            onClose={() => setZoomedPage(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
