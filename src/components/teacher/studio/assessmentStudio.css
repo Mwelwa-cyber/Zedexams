@@ -2074,6 +2074,402 @@
 .studio-v2 .sv-action-toast.err { background: var(--sv-primary); }
 
 /* ============================================================
+   ICONS — shared line-icon vocabulary (studioIcons.jsx)
+   Replaces the emoji that used to sit in buttons/chips/cards.
+   Icons inherit currentColor so they tint with their button.
+   ============================================================ */
+.studio-v2 .sv-icon {
+  flex: none;
+  vertical-align: -0.12em;
+}
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+.studio-v2 .sv-icon-spin { animation: sv-spin 0.9s linear infinite; }
+/* Compact square icon button used in slide-over / modal headers (was an
+   inline { width:32, height:32, borderRadius:6 } island). */
+.studio-v2 .sv-icon-btn.sv-icon-btn-sm { width: 32px; height: 32px; border-radius: var(--sv-r-sm); }
+
+/* ============================================================
+   EMPTY / NO-CONTENT STATE — builder blank canvas + home
+   Recovery routes (template / AI / import / scratch) that used
+   to be inline-styled. Tokenised here so spacing, dark/light
+   and mobile all stay consistent.
+   ============================================================ */
+.studio-v2 .sv-empty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--sv-s3);
+  margin: var(--sv-s3) 0;
+}
+.studio-v2 .sv-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  border: 1.5px dashed var(--sv-border-strong);
+  border-radius: var(--sv-r-lg);
+  padding: var(--sv-s4);
+  background: var(--sv-paper);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.studio-v2 .sv-empty-card:hover {
+  border-color: var(--sv-border-strong);
+  box-shadow: var(--sv-shadow-md);
+}
+.studio-v2 .sv-empty-card:active { transform: translateY(1px); }
+.studio-v2 .sv-empty-card:disabled { opacity: 0.55; cursor: default; box-shadow: none; }
+/* The lead card (template / AI) gets a solid accent + warm tint. */
+.studio-v2 .sv-empty-card.primary {
+  border-style: solid;
+  border-color: var(--sv-primary);
+  background: var(--sv-tinted);
+}
+.studio-v2 .sv-empty-card .sv-empty-ic {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--sv-r);
+  background: var(--sv-canvas-2);
+  color: var(--sv-ink);
+  margin-bottom: var(--sv-s2);
+}
+.studio-v2 .sv-empty-card.primary .sv-empty-ic { background: var(--sv-primary-soft); color: var(--sv-primary); }
+.studio-v2 .sv-empty-card strong { color: var(--sv-text); font-size: 14px; }
+.studio-v2 .sv-empty-card small { color: var(--sv-muted); font-size: 12px; line-height: 1.35; }
+
+/* Home view "no saved papers yet" panel (was inline-styled). */
+.studio-v2 .sv-empty-panel {
+  padding: var(--sv-s6) var(--sv-s5);
+  text-align: center;
+  background: var(--sv-paper);
+  border: 1px dashed var(--sv-border-strong);
+  border-radius: var(--sv-r-lg);
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-empty-panel .sv-empty-panel-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sv-r);
+  background: var(--sv-canvas-2);
+  color: var(--sv-ink);
+  margin-bottom: var(--sv-s3);
+}
+.studio-v2 .sv-empty-panel strong { display: block; color: var(--sv-text); margin-bottom: var(--sv-s1); }
+.studio-v2 .sv-empty-panel-sub { font-size: 13px; }
+.studio-v2 .sv-empty-panel-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s2);
+  justify-content: center;
+  margin-top: var(--sv-s4);
+}
+
+/* ============================================================
+   PAPER HEALTH GATE (PaperHealthModal.jsx) + TEMPLATE PICKER
+   Centred modal cards in the studio's own warm-paper styling.
+   ============================================================ */
+.studio-v2 .sv-health-scrim {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sv-s4);
+  z-index: 120;
+}
+.studio-v2 .sv-health-modal,
+.studio-v2 .sv-template-modal {
+  width: 100%;
+  background: var(--sv-paper);
+  border-radius: var(--sv-r-xl);
+  box-shadow: var(--sv-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+  overflow: hidden;
+}
+.studio-v2 .sv-health-modal { max-width: 520px; }
+.studio-v2 .sv-template-modal { max-width: 720px; }
+
+.studio-v2 .sv-health-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sv-s3);
+  padding: var(--sv-s4) var(--sv-s5);
+  border-bottom: 1px solid var(--sv-border);
+}
+.studio-v2 .sv-health-head-text h3 { font-size: 19px; margin: 4px 0 2px; color: var(--sv-text); }
+.studio-v2 .sv-health-head-text p { font-size: 13px; color: var(--sv-muted); margin: 0; }
+.studio-v2 .sv-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 99px;
+}
+.studio-v2 .sv-health-badge.ready { background: var(--sv-sage-soft); color: #1F5B3D; }
+.studio-v2 .sv-health-badge.attention { background: var(--sv-gold-soft); color: #7A5A1F; }
+.studio-v2 .sv-health-badge.blocked { background: var(--sv-primary-soft); color: var(--sv-primary-dark); }
+
+.studio-v2 .sv-health-body {
+  padding: var(--sv-s4) var(--sv-s5);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-s4);
+}
+.studio-v2 .sv-health-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s2) var(--sv-s4);
+  padding: var(--sv-s3) var(--sv-s4);
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+}
+.studio-v2 .sv-health-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-health-stat strong { color: var(--sv-text); font-size: 14px; }
+.studio-v2 .sv-health-stat .sv-icon { color: var(--sv-ink-soft); }
+
+.studio-v2 .sv-health-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 var(--sv-s2);
+}
+.studio-v2 .sv-health-group.blocked h4 { color: var(--sv-primary-dark); }
+.studio-v2 .sv-health-group.attention h4 { color: #7A5A1F; }
+.studio-v2 .sv-health-group.checks h4 { color: var(--sv-muted); }
+.studio-v2 .sv-health-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.studio-v2 .sv-health-group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--sv-text);
+}
+.studio-v2 .sv-health-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: currentColor;
+}
+.studio-v2 .sv-health-group.blocked li { color: #7a2230; }
+.studio-v2 .sv-health-group.attention li { color: #6e5320; }
+.studio-v2 .sv-health-group.checks li.ok { color: var(--sv-muted); }
+.studio-v2 .sv-health-group.checks li.missing { color: var(--sv-text); font-weight: 600; }
+.studio-v2 .sv-health-check-ic { margin-top: 1px; }
+.studio-v2 .sv-health-group.checks li.ok .sv-health-check-ic { color: var(--sv-sage); }
+.studio-v2 .sv-health-group.checks li.missing .sv-health-check-ic { color: var(--sv-primary); }
+
+.studio-v2 .sv-health-allclear {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s4);
+  background: var(--sv-sage-soft);
+  color: #1F5B3D;
+  border-radius: var(--sv-r);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.studio-v2 .sv-health-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s5);
+  border-top: 1px solid var(--sv-border);
+}
+.studio-v2 .sv-health-foot-right { display: inline-flex; gap: var(--sv-s2); margin-left: auto; }
+
+/* Builder-bar "Paper health" status chip (replaces the X-to-fix pill). */
+.studio-v2 .sv-chip.sv-chip-health.ready { background: var(--sv-sage-soft); color: #1F5B3D; border-color: rgba(62,123,90,0.3); }
+.studio-v2 .sv-chip.sv-chip-health.attention { background: var(--sv-gold-soft); color: #7A5A1F; border-color: rgba(200,146,61,0.35); }
+.studio-v2 .sv-chip.sv-chip-health.blocked { background: var(--sv-primary-soft); color: var(--sv-primary-dark); border-color: rgba(139,38,53,0.3); font-weight: 600; }
+
+/* Template picker grid + cards. */
+.studio-v2 .sv-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--sv-s3);
+  padding: var(--sv-s4) var(--sv-s5) var(--sv-s5);
+  overflow-y: auto;
+}
+.studio-v2 .sv-template-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sv-s1);
+  text-align: left;
+  padding: var(--sv-s4);
+  background: var(--sv-paper);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-lg);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.studio-v2 .sv-template-card:hover {
+  border-color: var(--sv-primary);
+  box-shadow: var(--sv-shadow-md);
+}
+.studio-v2 .sv-template-card:active { transform: translateY(1px); }
+.studio-v2 .sv-template-badge {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-gold);
+  background: var(--sv-gold-soft);
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: var(--sv-s1);
+}
+.studio-v2 .sv-template-name { font-size: 14.5px; color: var(--sv-text); }
+.studio-v2 .sv-template-desc { font-size: 12px; color: var(--sv-muted); line-height: 1.4; margin: 0; }
+.studio-v2 .sv-template-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s1) var(--sv-s3);
+  margin-top: var(--sv-s2);
+  font-size: 11.5px;
+  color: var(--sv-muted-2);
+}
+.studio-v2 .sv-template-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ============================================================
+   MIGRATED INLINE-STYLE ISLANDS
+   Small style objects/inline blocks pulled out of the JSX so
+   spacing + theming live with the rest of the studio.
+   ============================================================ */
+/* Sub-part reorder/remove buttons (was subPartIconBtnStyle). */
+.studio-v2 .sv-subpart-btn {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-sm);
+  background: var(--sv-paper);
+  cursor: pointer;
+  padding: 0;
+  color: var(--sv-ink);
+}
+.studio-v2 .sv-subpart-btn:disabled { opacity: 0.4; cursor: default; }
+.studio-v2 .sv-subpart-btn.danger { color: var(--sv-primary); }
+
+/* Builder tools bar — wraps on small screens; the save/health group sits
+   to the right (was an inline flexWrap + per-chip marginLeft island). */
+.studio-v2 .sv-builder-bar.sv-builder-tools {
+  flex-wrap: wrap;
+  row-gap: var(--sv-s1);
+}
+.studio-v2 .sv-builder-bar-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+}
+
+/* Count badge on the "fix missing diagrams" AI action (was inline-styled). */
+.studio-v2 .sv-ai-badge {
+  margin-left: 6px;
+  background: var(--sv-primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Header "import an existing paper" row (was an inline flex island). */
+.studio-v2 .sv-import-row {
+  margin-top: var(--sv-s4);
+  padding: var(--sv-s3);
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  display: flex;
+  gap: var(--sv-s2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-import-row-hint { font-size: 12.5px; color: var(--sv-muted); }
+.studio-v2 .sv-import-row .sv-import-row-scan { margin-left: auto; }
+
+/* Marking-key explainer note (was an inline-styled island). */
+.studio-v2 .sv-key-note {
+  max-width: 720px;
+  margin: 0 auto var(--sv-s3);
+  padding: var(--sv-s2) var(--sv-s3);
+  border-radius: var(--sv-r);
+  background: var(--sv-tinted);
+  border: 1px solid var(--sv-border);
+  font-size: 12.5px;
+  color: var(--sv-muted);
+  line-height: 1.5;
+}
+.studio-v2 .sv-key-note strong { color: var(--sv-text); }
+.studio-v2 .sv-key-note .sv-icon { color: var(--sv-gold); vertical-align: -0.18em; }
+
+/* Preview/marking-key export action row (was an inline flex island). */
+.studio-v2 .sv-export-actions {
+  max-width: 720px;
+  margin: var(--sv-s4) auto 0;
+  display: flex;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-export-actions .sv-export-save { margin-left: auto; }
+
+/* Auto-diagram progress pill (was a fixed inline-styled div). */
+.studio-v2 .sv-autodiagram-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 96;
+  background: var(--sv-ink);
+  color: #fff;
+  border-radius: 99px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--sv-shadow-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+}
+
+@media (max-width: 540px) {
+  .studio-v2 .sv-template-grid { grid-template-columns: 1fr; }
+  .studio-v2 .sv-empty-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
    PRINT
    ============================================================ */
 @media print {

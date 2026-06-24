@@ -11,6 +11,7 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks
 import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../utils/questionParts.js'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
+import Icon from './studio/studioIcons'
 
 export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
   const options = Array.isArray(question.options) && question.options.length
@@ -112,8 +113,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
               display: 'grid', placeItems: 'center', cursor: 'pointer',
               fontSize: 14,
             }}
-          >
-            🖼
+          ><Icon name="diagrams" size={15} />
             <input
               ref={fileRef}
               type="file"
@@ -139,7 +139,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
                 fontSize: 14,
               }}
             >
-              📚
+              <Icon name="pictureBank" size={15} />
             </button>
           )}
           {onPickDiagram && (
@@ -155,7 +155,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
                 fontSize: 14,
               }}
             >
-              📐
+              <Icon name="shape" size={15} />
             </button>
           )}
         </div>
@@ -168,7 +168,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
         onClick={e => e.stopPropagation()}
         placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
       />
-      {isCorrect && <div className="sv-check">✓</div>}
+      {isCorrect && <div className="sv-check"><Icon name="check" size={13} /></div>}
     </div>
       {hasImage && onChangeOptionAlt && (
         <div className="sv-opt-alt" onClick={e => e.stopPropagation()}>
@@ -361,7 +361,7 @@ export function FillBlanksInputs({ question, onUpdate }) {
 export function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">📏 {label || 'Expected answer (used for marking key)'}</div>
+      <div className="sv-answer-meta"><Icon name="ruler" size={13} /> {label || 'Expected answer (used for marking key)'}</div>
       <textarea
         value={String(correctAnswer ?? '')}
         onChange={e => onChange(e.target.value)}
@@ -419,7 +419,7 @@ export function AnswerSpaceControl({ question, onUpdate }) {
   return (
     <div className="sv-answer-space-control" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '6px 0 2px', fontSize: 12 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sv-muted)' }}>
-        📏 Answer space:
+        <Icon name="ruler" size={13} /> Answer space:
         <select
           value={selectValue}
           onChange={e => onSelect(e.target.value)}
@@ -487,7 +487,7 @@ export function SplitIntoPartsButton({ question, onUpdate }) {
   return (
     <div style={{ margin: '8px 0 2px' }}>
       <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={split}>
-        ➗ Split into parts (a, b, c)
+        <Icon name="sequence" size={14} /> Split into parts (a, b, c)
       </button>
       <p style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
         Turns the question above into an instruction with lettered sub-questions — each with its own blank and marks.
@@ -536,7 +536,7 @@ export function SubPartsEditor({ question, onUpdate }) {
   return (
     <div className="sv-subparts-editor" style={{ margin: '6px 0 2px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 10, background: 'var(--sv-tinted)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <strong style={{ fontSize: 12 }}>🔠 Sub-parts</strong>
+        <strong style={{ fontSize: 12 }}><Icon name="sequence" size={13} /> Sub-parts</strong>
         <span style={{ fontSize: 11, color: 'var(--sv-muted)' }}>
           The question text above is the instruction. Total: {sumSubPartMarks(parts)} mark{sumSubPartMarks(parts) === 1 ? '' : 's'}.
         </span>
@@ -598,9 +598,9 @@ export function SubPartsEditor({ question, onUpdate }) {
             />
           </div>
           <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <button type="button" title="Move up" onClick={() => movePart(i, -1)} disabled={i === 0} style={subPartIconBtnStyle}>↑</button>
-            <button type="button" title="Move down" onClick={() => movePart(i, 1)} disabled={i === parts.length - 1} style={subPartIconBtnStyle}>↓</button>
-            <button type="button" title="Remove this part" onClick={() => removePart(i)} style={{ ...subPartIconBtnStyle, color: '#b91c1c' }}>✕</button>
+            <button type="button" className="sv-subpart-btn" title="Move up" onClick={() => movePart(i, -1)} disabled={i === 0}><Icon name="moveUp" size={13} /></button>
+            <button type="button" className="sv-subpart-btn" title="Move down" onClick={() => movePart(i, 1)} disabled={i === parts.length - 1}><Icon name="moveDown" size={13} /></button>
+            <button type="button" className="sv-subpart-btn danger" title="Remove this part" onClick={() => removePart(i)}><Icon name="remove" size={13} /></button>
           </div>
         </div>
       ))}
@@ -615,20 +615,6 @@ export function SubPartsEditor({ question, onUpdate }) {
       </p>
     </div>
   )
-}
-
-const subPartIconBtnStyle = {
-  width: 22,
-  height: 22,
-  display: 'grid',
-  placeItems: 'center',
-  border: '1px solid var(--sv-border)',
-  borderRadius: 'var(--sv-r-sm)',
-  background: 'var(--sv-paper)',
-  cursor: 'pointer',
-  fontSize: 11,
-  lineHeight: 1,
-  padding: 0,
 }
 
 // Generates a short string id used as the React key + stable identifier for
@@ -921,7 +907,7 @@ export function MatchingInputs({ left, right, answer, onChangeLeft, onChangeRigh
 
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔗 Matching pairs — students draw lines from left to right on the printed paper</div>
+      <div className="sv-answer-meta"><Icon name="matching" size={13} /> Matching pairs — students draw lines from left to right on the printed paper</div>
       <p className="sv-input-hint">
         Type each prompt on the left and its option on the right, then pick the letter it pairs with under <strong>Match →</strong>. The marking key lists the correct pairs.
       </p>
@@ -1053,7 +1039,7 @@ export function SequenceInputs({ items, answer, onChangeItems, onChangeAnswer })
 
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔤 Sequence — students write the correct position in the blanks on the printed paper</div>
+      <div className="sv-answer-meta"><Icon name="sequence" size={13} /> Sequence — students write the correct position in the blanks on the printed paper</div>
       <p className="sv-input-hint">
         Type the items in any order, then set each one&apos;s <strong>correct position</strong> (1 = first). The paper prints them as typed; the key shows the right order.
       </p>
@@ -1169,7 +1155,7 @@ export function DataTableInputs({ tableData, onChange }) {
 
   return (
     <div className="sv-answer-lines" style={{ marginTop: 4 }}>
-      <div className="sv-answer-meta">📊 Data table — students read values off this table to answer the question</div>
+      <div className="sv-answer-meta"><Icon name="table" size={13} /> Data table — students read values off this table to answer the question</div>
       <p className="sv-input-hint">
         Edit headers and cells directly; use <strong>+</strong> to add a column or row. The table prints above the question for students to read from.
       </p>
@@ -1261,7 +1247,7 @@ export function DataTableInputs({ tableData, onChange }) {
 export function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, onChangeTolerance, onChangeUnit }) {
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta">🔢 Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
+      <div className="sv-answer-meta"><Icon name="numeric" size={13} /> Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
       <p className="sv-input-hint">
         Leave tolerance at <code>0</code> to mark only the exact value correct, or set e.g. <code>0.5</code> to accept answers within ±0.5. The unit is optional.
       </p>

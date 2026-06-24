@@ -14,6 +14,7 @@ import AiGenerationProgress from '../ui/AiGenerationProgress'
 import { useSyllabusTopicOptions, CURRICULUM_FRAMEWORKS } from './syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
 import { PaperBlock } from './views/PaperBlocks'
+import Icon from './studio/studioIcons'
 import { bloomLevel, BLOOM_LABELS, BLOOM_LEVELS } from '../../utils/assessmentBloom'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 import {
@@ -36,15 +37,15 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
-        <button className="sv-chip" onClick={() => changeView('builder')}>📄 Builder</button>
-        <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}>👁 Preview</button>
-        <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}>🗝 Marking key</button>
-        <span className="sv-pages mono">📃 A4 · Portrait</span>
+        <button className="sv-chip" onClick={() => changeView('builder')}><Icon name="builder" size={14} /> Builder</button>
+        <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
+        <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
+        <span className="sv-pages mono"><Icon name="pages" size={13} /> A4 · Portrait</span>
       </div>
 
       {isKey && (
-        <div style={{ maxWidth: 720, margin: '0 auto var(--sv-s3)', padding: '8px 12px', borderRadius: 'var(--sv-r)', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', fontSize: 12.5, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
-          🗝 <strong style={{ color: 'var(--sv-text)' }}>Marking key</strong> — the answer and any explanation for every question. It&apos;s for you to mark from and is never shown to learners. Set or check answers back in the Builder.
+        <div className="sv-key-note">
+          <Icon name="key" size={14} /> <strong>Marking key</strong> — the answer and any explanation for every question. It&apos;s for you to mark from and is never shown to learners. Set or check answers back in the Builder.
         </div>
       )}
 
@@ -53,12 +54,12 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
           {blocks.map((block, i) => <PaperBlock key={i} block={block} />)}
         </div>
 
-        <div style={{ maxWidth: 720, margin: 'var(--sv-s4) auto 0', display: 'flex', gap: 'var(--sv-s2)', flexWrap: 'wrap' }}>
+        <div className="sv-export-actions">
           <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting}>
-            {exporting ? '⏳ Working…' : `📝 ${isKey ? 'Download key (Word)' : 'Download Word'}`}
+            <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> {exporting ? 'Working…' : (isKey ? 'Download key (Word)' : 'Download Word')}
           </button>
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} title="Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF">
-            🖨 Print / Save as PDF
+            <Icon name="print" size={15} /> Print / Save as PDF
           </button>
           {onExportAnswerSheet && (
             <button
@@ -67,16 +68,16 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
               disabled={exporting}
               title="A bubble answer sheet (Word) students fill in instead of writing on the paper"
             >
-              🫧 Answer sheet
+              <Icon name="answerSheet" size={15} /> Answer sheet
             </button>
           )}
           {showSave && (
-            <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
-              {saving ? 'Saving…' : `💾 Save · ${assessment.totalMarks || 0} marks`}
+            <button className="sv-btn sv-btn-primary sv-export-save" onClick={onSave} disabled={saving}>
+              <Icon name={saving ? 'spinner' : 'save'} size={15} spin={saving} /> {saving ? 'Saving…' : `Save · ${assessment.totalMarks || 0} marks`}
             </button>
           )}
-          <button className="sv-btn sv-btn-outline" onClick={() => changeView('builder')} style={showSave ? {} : { marginLeft: 'auto' }}>
-            ✏ Edit paper
+          <button className={`sv-btn sv-btn-outline ${showSave ? '' : 'sv-export-save'}`} onClick={() => changeView('builder')}>
+            <Icon name="edit" size={15} /> Edit paper
           </button>
         </div>
       </div>
@@ -91,50 +92,50 @@ export function BlockPickerSlide({ open, onClose, onPick }) {
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
         <h3 className="serif">Add a block<small>Drop into the document at the chosen position</small></h3>
       </div>
       <div className="sv-slideover-body">
         <div className="sv-block-cat">Structure</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="📑" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
-          <BlockPickerItem icon="↵" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
+          <BlockPickerItem icon="section" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
+          <BlockPickerItem icon="pagebreak" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
         </div>
 
         <div className="sv-block-cat">Questions</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="🔘" title="Multiple Choice" hint="4 options, text" onClick={() => onPick('mcq')} />
-          <BlockPickerItem icon="✏" title="Short Answer" hint="1–3 lines" onClick={() => onPick('short_answer')} />
-          <BlockPickerItem icon="📋" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
-          <BlockPickerItem icon="📝" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
-          <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
-          <BlockPickerItem icon="📐" title="Fill in the Blanks" hint="Instruction + word bank + A/B/C/D statements" onClick={() => onPick('fill_in_blank')} />
-          <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
-          <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
-          <BlockPickerItem icon="🔤" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
+          <BlockPickerItem icon="mcq" title="Multiple Choice" hint="4 options, text" onClick={() => onPick('mcq')} />
+          <BlockPickerItem icon="shortAnswer" title="Short Answer" hint="1–3 lines" onClick={() => onPick('short_answer')} />
+          <BlockPickerItem icon="structured" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="essay" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
+          <BlockPickerItem icon="trueFalse" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
+          <BlockPickerItem icon="fillBlanks" title="Fill in the Blanks" hint="Instruction + word bank + A/B/C/D statements" onClick={() => onPick('fill_in_blank')} />
+          <BlockPickerItem icon="matching" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
+          <BlockPickerItem icon="numeric" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
+          <BlockPickerItem icon="sequence" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
         </div>
 
         <div className="sv-block-cat">Stimulus &amp; source</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="🔬" title="Diagram-Based Question" hint="Instruction → diagram → follow-up sub-questions" onClick={() => onPick('diagram_stimulus')} />
-          <BlockPickerItem icon="📜" title="Source-Based Question" hint="Passage / table / map / chart → follow-up sub-questions" onClick={() => onPick('source_stimulus')} />
-          <BlockPickerItem icon="🏷" title="Labelled Diagram" hint="Name labelled parts (P: __, Q: __, R: __)" onClick={() => onPick('labelled_diagram')} />
+          <BlockPickerItem icon="science" title="Diagram-Based Question" hint="Instruction → diagram → follow-up sub-questions" onClick={() => onPick('diagram_stimulus')} />
+          <BlockPickerItem icon="source" title="Source-Based Question" hint="Passage / table / map / chart → follow-up sub-questions" onClick={() => onPick('source_stimulus')} />
+          <BlockPickerItem icon="labelledDiagram" title="Labelled Diagram" hint="Name labelled parts (P: __, Q: __, R: __)" onClick={() => onPick('labelled_diagram')} />
         </div>
 
         <div className="sv-block-cat">Media &amp; reading</div>
         <div className="sv-block-picker-grid">
-          <BlockPickerItem icon="📖" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
-          <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
-          <BlockPickerItem icon="🎨" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
-          <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
-          <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
-          <BlockPickerItem icon="👁" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
+          <BlockPickerItem icon="comprehension" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
+          <BlockPickerItem icon="shape" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="drawLabel" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
+          <BlockPickerItem icon="map" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
+          <BlockPickerItem icon="table" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
+          <BlockPickerItem icon="imageIdentify" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
         </div>
 
         <div className="sv-block-cat">Reusable</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem
-            icon="⭐"
+            icon="bank"
             title="From question bank"
             hint="Insert a question you saved earlier"
             onClick={() => onPick('question_bank')}
@@ -144,13 +145,13 @@ export function BlockPickerSlide({ open, onClose, onPick }) {
         <div className="sv-block-cat">AI-powered</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem
-            icon="✨"
+            icon="ai"
             title="Generate questions"
             hint="AI drafts from topic"
             gold
             onClick={() => onPick('ai_generate')}
           />
-          <BlockPickerItem icon="🎨" title="Generate diagram" hint="Describe a figure — AI draws it" gold onClick={() => onPick('generate_diagram')} />
+          <BlockPickerItem icon="diagrams" title="Generate diagram" hint="Describe a figure — AI draws it" gold onClick={() => onPick('generate_diagram')} />
         </div>
       </div>
     </aside>
@@ -165,7 +166,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
       disabled={disabled}
       type="button"
     >
-      <div className="sv-bp-ic">{icon}</div>
+      <div className="sv-bp-ic"><Icon name={icon} size={20} /></div>
       <strong>{title}</strong>
       <small>{hint}</small>
     </button>
@@ -217,8 +218,8 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
-        <h3 className="serif">✨ Zed AI Assistant<small>Context-aware help for this paper</small></h3>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
+        <h3 className="serif"><Icon name="ai" size={17} /> Zed AI Assistant<small>Context-aware help for this paper</small></h3>
       </div>
       <div className="sv-slideover-body">
         <button
@@ -226,7 +227,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           onClick={onCreatePaper}
           style={{ marginBottom: 12 }}
         >
-          📄 Create paper with AI
+          <Icon name="ai" size={15} /> Create paper with AI
         </button>
         <div className="sv-ai-msg" style={{ marginBottom: 16 }}>
           A full {form.subject} paper for Grade {form.grade} — pick the topics,
@@ -364,7 +365,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           disabled={generating}
           style={{ marginTop: 12 }}
         >
-          {generating ? '✦ Generating…' : '✦ Generate questions'}
+          <Icon name={generating ? 'spinner' : 'ai'} size={15} spin={generating} /> {generating ? 'Generating…' : 'Generate questions'}
         </button>
 
         {generating && (
@@ -380,7 +381,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             onClick={onScan}
             disabled={importing}
           >
-            <div className="sv-ic">📷</div>
+            <div className="sv-ic"><Icon name="camera" size={20} /></div>
             <div><strong>Scan full test paper</strong><small>Photograph every page, preview them, then convert the whole paper at once</small></div>
           </button>
           <button
@@ -388,7 +389,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             onClick={() => docInputRef.current?.click()}
             disabled={importing}
           >
-            <div className="sv-ic">📥</div>
+            <div className="sv-ic"><Icon name="import" size={20} /></div>
             <div><strong>{importing ? 'Importing…' : 'Import Word / PDF / Pictures'}</strong><small>Convert an existing paper (or photos of it) into editable blocks</small></div>
             <input
               ref={docInputRef}
@@ -404,23 +405,20 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             />
           </button>
           <button className="sv-ai-action" onClick={onOpenMarkingKey}>
-            <div className="sv-ic">📑</div>
+            <div className="sv-ic"><Icon name="key" size={20} /></div>
             <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
           </button>
           <button className="sv-ai-action" onClick={onVerifyPaper} disabled={!questions?.length}>
-            <div className="sv-ic">🔍</div>
+            <div className="sv-ic"><Icon name="verify" size={20} /></div>
             <div><strong>Check this paper</strong><small>Vex verifies answers, grade fit and clarity before you print</small></div>
           </button>
           <button className="sv-ai-action" onClick={onOpenDiagramFix}>
-            <div className="sv-ic">🖼</div>
+            <div className="sv-ic"><Icon name="diagrams" size={20} /></div>
             <div>
               <strong>
                 Fix missing diagrams
                 {diagramsNeeded > 0 && (
-                  <span style={{
-                    marginLeft: 6, background: 'var(--sv-primary)', color: '#fff',
-                    borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 800,
-                  }}>{diagramsNeeded}</span>
+                  <span className="sv-ai-badge">{diagramsNeeded}</span>
                 )}
               </strong>
               <small>Match from the picture bank or generate from the AI&apos;s description</small>
@@ -428,7 +426,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           </button>
           {onOpenDiagramScanner && (
             <button className="sv-ai-action" onClick={onOpenDiagramScanner}>
-              <div className="sv-ic">📷</div>
+              <div className="sv-ic"><Icon name="camera" size={20} /></div>
               <div>
                 <strong>Diagram Scanner</strong>
                 <small>Photograph one diagram, clean it for printing, then add it to a question or save it to the bank</small>
@@ -471,7 +469,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🎨</div>
+        <div className="sv-ic"><Icon name="shape" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Generate diagram</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art or a photoreal image</small>
@@ -497,7 +495,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('recraft')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                🖋 Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
+                <Icon name="scratch" size={13} /> Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
               </button>
               <button
                 type="button"
@@ -505,7 +503,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('openai')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                📷 Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
+                <Icon name="camera" size={13} /> Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
               </button>
               <button
                 type="button"
@@ -513,7 +511,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 onClick={() => setProvider('kie')}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
-                🎨 Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
+                <Icon name="drawLabel" size={13} /> Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
               </button>
             </div>
           </div>
@@ -523,7 +521,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
             disabled={disabled || !prompt.trim()}
             onClick={() => onGenerate(prompt.trim(), provider).then(() => setPrompt(''))}
           >
-            {disabled ? '⏳ Generating…' : '✨ Generate image'}
+            <Icon name={disabled ? 'spinner' : 'ai'} size={15} spin={disabled} /> {disabled ? 'Generating…' : 'Generate image'}
           </button>
           <small style={{ color: 'var(--sv-muted)', fontSize: 11 }}>
             The image is added as a new structured question with the prompt as its question text. Counts toward your monthly diagram quota.
@@ -559,7 +557,7 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
     return (
       <aside className={`sv-slideover ${open ? 'open' : ''}`}>
         <div className="sv-slideover-head">
-          <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+          <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
           <h3 className="serif">Edit Question<small>Select a question to edit</small></h3>
         </div>
         <div className="sv-slideover-body">
@@ -584,7 +582,7 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
-        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
         <h3 className="serif">Edit Question<small>Q{num} · {type.toUpperCase()}</small></h3>
       </div>
       <div className="sv-slideover-body">

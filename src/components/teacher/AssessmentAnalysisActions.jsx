@@ -21,6 +21,7 @@ import {
   BLOOM_LEVELS,
 } from '../../utils/assessmentBloom'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
+import Icon from './studio/studioIcons'
 
 /* ==================================================================
  * BALANCE / MAP / DETECT — lightweight analyses over the current paper
@@ -87,7 +88,7 @@ export function BalanceDifficultyAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">⚖</div>
+        <div className="sv-ic"><Icon name="difficulty" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Balance paper difficulty</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -182,7 +183,7 @@ export function BloomBalanceAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🧠</div>
+        <div className="sv-ic"><Icon name="bloom" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Thinking skills (Bloom&apos;s)</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -383,7 +384,7 @@ export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🎯</div>
+        <div className="sv-ic"><Icon name="target" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Map to competencies</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
@@ -505,7 +506,7 @@ export function DetectDuplicatesAction({ questions, questionNumbers }) {
         onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
-        <div className="sv-ic">🔍</div>
+        <div className="sv-ic"><Icon name="verify" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Detect duplicates</strong>
           <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
