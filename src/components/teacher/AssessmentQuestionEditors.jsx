@@ -12,6 +12,7 @@ import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
 import Icon from './studio/studioIcons'
+import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 
 export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
   const options = Array.isArray(question.options) && question.options.length
@@ -1286,5 +1287,48 @@ export function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, 
         </div>
       </div>
     </div>
+  )
+}
+
+export function toEditableText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    // If it looks like rich text (HTML or Tiptap JSON), strip to plain text.
+    // The new builder uses plain textarea; rich formatting is preserved
+    // round-trip only on questions that aren't edited here.
+    if (value.startsWith('<') || value.trim().startsWith('{')) {
+      return richTextToPlainText(value)
+    }
+    return value
+  }
+  if (typeof value === 'object') return richTextToPlainText(value)
+  return String(value)
+}
+
+// Question-text field for the inline builder cards. A plain textarea is fine
+// while the content is plain (editing it can't lose formatting that isn't
+// there). But once a question carries formatting — bold, sup/sub, a fraction,
+// a table, etc. (typically from the detailed editor, AI, or an import) — a
+// quick textarea edit would silently flatten it. In that case we show a
+// read-only plain view plus an "edit in detail" affordance, so the rich
+// content is only ever changed in the full RichEditor (which preserves it).
+export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text' }) {
+  if (richTextHasFormatting(value)) {
+    return (
+      <div className="sv-q-text-formatted">
+        <div className="sv-q-text-plain">{toEditableText(value) || <span className="sv-q-text-empty">(formatted question)</span>}</div>
+        <button type="button" className="sv-q-text-editlink" onClick={onEditDetail}>
+          <Icon name="edit" size={12} /> Formatted — edit in detail to keep formatting
+        </button>
+      </div>
+    )
+  }
+  return (
+    <textarea
+      className="sv-q-text-input"
+      value={toEditableText(value)}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
   )
 }
