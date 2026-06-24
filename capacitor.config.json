@@ -13,7 +13,7 @@
       "style": "DARK"
     },
     "EdgeToEdge": {
-      "backgroundColor": "#4C1D95"
+      "backgroundColor": "#00000000"
     },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
