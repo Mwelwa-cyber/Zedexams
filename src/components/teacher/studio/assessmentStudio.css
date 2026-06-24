@@ -5,7 +5,10 @@
    at /assessment-studio-preview.html (kept for reference).
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+/* Studio fonts (Fraunces / Geist / Geist Mono) are loaded once, non-blocking,
+   from index.html alongside the rest of the app fonts. Loading them here via a
+   CSS @import was render-blocking and late-discovered (only fetched after this
+   stylesheet parsed), which hurt the studio's first paint. */
 
 .studio-v2 {
   /* Surfaces */
