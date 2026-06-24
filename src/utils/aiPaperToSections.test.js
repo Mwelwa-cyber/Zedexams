@@ -370,10 +370,54 @@ console.log('aiPaperToSections')
   assert.strictEqual(sec.passage.title, 'Warthog and Lion')
   assert.strictEqual(sec.passage.questions.length, 2)
   assert.strictEqual(sec.passage.questions[1].correctAnswer, 0)
-  assert.strictEqual(blocks.parts.length, 0, 'passage blocks need no Part wrapper')
+  // The comprehension section is a lettered Part now — so it prints UNDER its
+  // own "Section A" heading instead of floating above the first section as an
+  // unlabelled story. The Part carries the section heading + instruction; the
+  // passage block carries the story title + text.
+  assert.strictEqual(blocks.parts.length, 1, 'comprehension section becomes a Part')
+  assert.strictEqual(blocks.parts[0].title, 'SECTION B: COMPREHENSION', 'Part keeps the AI section heading')
+  assert.strictEqual(sec.partId, blocks.parts[0].id, 'passage section is attached to its Part')
+  assert.strictEqual(sec.passage.questions[0].partId, blocks.parts[0].id, 'passage sub-questions inherit the Part')
   assert.strictEqual(blocks.questionCount, 2)
   assert.strictEqual(blocks.totalMarks, 3)
-  ok('AI comprehension sections map to native passage blocks', true)
+  ok('AI comprehension sections become a lettered Part with the passage attached', true)
+}
+
+// ── A comprehension-first paper does not float the story above Section A ───
+{
+  // Mirrors the reported bug: the generator put the comprehension FIRST and a
+  // multiple-choice section SECOND. The passage must land in Part A (so it
+  // prints under "Section A"), and the MCQ section in Part B — not the other
+  // way round with the story floating, unlabelled, at the very top.
+  const blocks = aiAssessmentToStudioBlocks({
+    sections: [
+      {
+        title: 'SECTION A: COMPREHENSION',
+        instructions: 'Read the story carefully and answer the questions which follow.',
+        passage: { title: 'Chanda’s Garden', text: 'Chanda lives in a village near Kabwe. She grows vegetables…' },
+        questions: [
+          { type: 'short_answer', prompt: 'Where does Chanda live?', marks: 1, answer: 'In a village near Kabwe.' },
+          { type: 'short_answer', prompt: 'Name TWO plants Chanda grows.', marks: 2, answer: 'Any two vegetables.' },
+        ],
+      },
+      {
+        title: 'SECTION B: MULTIPLE CHOICE',
+        instructions: 'Circle the correct answer for each question.',
+        questions: [
+          { type: 'multiple_choice', prompt: 'Which group has only fruits?', options: ['Mango, orange', 'Mango, onion'], marks: 1, answer: 'Mango, orange' },
+        ],
+      },
+    ],
+  })
+  assert.strictEqual(blocks.parts.length, 2, 'two sections → two lettered Parts')
+  // Part A is the comprehension; its passage section points at Part A.
+  const passageSec = blocks.sections.find((s) => s.kind === 'passage')
+  assert.ok(passageSec, 'a passage section exists')
+  assert.strictEqual(passageSec.partId, blocks.parts[0].id, 'comprehension is Part A, not floating')
+  // Part B holds the multiple-choice question.
+  const mcqSec = blocks.sections.find((s) => s.kind === 'standalone')
+  assert.strictEqual(mcqSec.question.partId, blocks.parts[1].id, 'MCQ section is Part B')
+  ok('a comprehension-first paper keeps the story inside Section A', true)
 }
 
 // ── Short-answer sub-parts: explicit `parts` map to subParts ──────────────

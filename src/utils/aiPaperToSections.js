@@ -316,12 +316,21 @@ export function mapAiQuestion(q, { partId = null } = {}) {
  * Convert a whole AI assessment into studio blocks.
  * Returns { sections, parts, questionCount, totalMarks, warnings }.
  *
- * Sections WITHOUT a passage become a Part (numbered group heading) of
- * standalone questions. Sections WITH a passage (schema v1.2 comprehension)
- * become the studio's native passage block — story on top, questions
- * attached — which already prints/exports in the Zambian comprehension
- * layout, so no Part wrapper is added (the passage carries its own title
- * and instructions).
+ * EVERY AI section becomes a lettered Part (Section A, B, C…) in the order the
+ * generator emitted them, so the printed paper shows proper Zambian sectioning
+ * with no loose questions floating above the first heading.
+ *
+ * Sections WITHOUT a passage hold standalone questions under their Part
+ * heading. Sections WITH a passage (schema v1.2 comprehension) attach the
+ * native passage block — story on top, questions beneath — to that same Part,
+ * so a comprehension prints UNDER its own "Section A — Comprehension" heading.
+ *
+ * (Previously a passage section was emitted with NO Part wrapper, which made it
+ * an *ungrouped* block. buildPaperLayout pins the ungrouped block to the very
+ * top of the paper [ungroupedOrder defaults to 0], so a paper whose first
+ * section was a comprehension printed the story first — unlabelled — and the
+ * NEXT section became "SECTION A". That is the "started with a story, then
+ * Section A" defect this conversion now prevents.)
  *
  * Never throws on malformed input — skips junk and reports it.
  */
@@ -347,13 +356,27 @@ export function aiAssessmentToStudioBlocks(assessment) {
         out.warnings.push(...warnings)
       }
       if (mapped.length === 0) return
-      out.sections.push(createPassageSection({
-        title: String(sec?.passage?.title || sec?.title || `Section ${sIdx + 1}`).trim(),
+      // The comprehension section becomes a lettered Part like any other. The
+      // Part carries the section heading + its instruction ("Read the story and
+      // answer the questions which follow."); the passage block beneath it
+      // carries the story's own title + text. Attaching the passage to the Part
+      // (partId) is what keeps it under its section heading instead of floating
+      // to the top of the paper.
+      const part = createPartGroup({
+        title: String(sec?.title || `Section ${sIdx + 1}`).trim(),
         instructions: String(sec?.instructions || '').trim(),
+        order: out.parts.length,
+      })
+      out.parts.push(part)
+      const passageSection = createPassageSection({
+        title: String(sec?.passage?.title || '').trim(),
         passageText,
         passageKind: 'comprehension',
-        questions: mapped,
-      }))
+        partId: part.id,
+        questions: mapped.map((o) => ({ ...o, partId: part.id })),
+      })
+      passageSection.partId = part.id
+      out.sections.push(passageSection)
       return
     }
 
