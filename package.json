@@ -143,6 +143,7 @@
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:cors": "node functions/cors.test.js",
+    "test:image-proxy": "node functions/imageProxy.test.js",
     "test:visitor-tracking": "node functions/visitorTrackingCore.test.js",
     "test:visual-safety": "node functions/visualSafety.test.js",
     "test:lenco": "node functions/lencoService.test.js",

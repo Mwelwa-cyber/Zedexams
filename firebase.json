@@ -147,6 +147,13 @@
         }
       },
       {
+        "source": "/api/image-proxy",
+        "function": {
+          "functionId": "apiImageProxy",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
