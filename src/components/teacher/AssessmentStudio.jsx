@@ -1843,7 +1843,14 @@ export default function AssessmentStudio({ variant = 'test' }) {
     const safeSections = tplSections.length ? tplSections : [createStandaloneSection()]
     setSections(empty ? safeSections : [...sections, ...tplSections])
     setParts(empty ? orderedParts : [...parts, ...orderedParts])
-    if (formPatch.duration) setF('duration', form.duration || formPatch.duration)
+    // Apply the template's suggested duration when it's seeding a fresh paper
+    // (replace mode) — the template defines the paper, so its duration should
+    // win. When appending to existing work, keep the teacher's own duration.
+    // (form.duration always defaults to 60, so the old `form.duration ||
+    // formPatch.duration` fallback could never actually apply a template's
+    // duration — the template's "90 min"/"30 min" shown on the card was silently
+    // dropped and every templated paper stayed at 60.)
+    if (formPatch.duration && empty) setF('duration', Number(formPatch.duration))
     setTemplateOpen(false)
     closeSlide()
     changeView('builder')
