@@ -28,6 +28,7 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { sanitizeXmlText } from './xmlText.js'
+import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
 
 /* ────────────────────────────────────────────────────────────────────
  * Lesson illustration (black-and-white drawing) embedding.
@@ -83,6 +84,29 @@ async function fetchLessonDiagramImage(diagram) {
       return { bytes, type: detectDocxImageType(bytes) }
     } catch {
       // CORS rejection or network error — try the next cache strategy.
+    }
+  }
+  // Last resort: the same-origin image proxy (see assessmentToDocx.fetchImageBytes).
+  // Fixes the case the cache:'reload' retry can't — a bucket whose CORS config is
+  // missing or applied to the wrong bucket name returns no CORS headers at all.
+  const proxied = toProxyImageUrl(diagram.url)
+  if (proxied) {
+    try {
+      const res = await fetch(proxied, { cache: 'reload' })
+      if (res.ok) {
+        const contentType = res.headers && res.headers.get
+          ? (res.headers.get('content-type') || '')
+          : ''
+        const bytes = new Uint8Array(await res.arrayBuffer())
+        // Only accept a real image — if the rewrite isn't live the proxy path
+        // resolves to the SPA index.html (200/text/html); embedding that would
+        // be a fresh broken-image bug, so fail closed to the visible note.
+        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          return { bytes, type: detectDocxImageType(bytes) }
+        }
+      }
+    } catch {
+      // Proxy unreachable — fall through to the visible "could not embed" note.
     }
   }
   return { failed: true }

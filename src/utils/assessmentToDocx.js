@@ -40,6 +40,7 @@ import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
 import { sanitizeXmlText } from './xmlText.js'
+import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
 
 const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
 
@@ -371,6 +372,33 @@ async function fetchImageBytes(url) {
       return new Uint8Array(buffer)
     } catch {
       // CORS rejection or network error — fall through to the next strategy.
+    }
+  }
+  // Last resort: route through the same-origin image proxy. The retries above
+  // only fix a poisoned cache; they can't fix a Storage bucket whose CORS
+  // config is missing or applied to the wrong bucket name, which returns NO
+  // Access-Control-Allow-Origin header at all. The proxy reads the bytes
+  // server-side (no CORS there) and re-serves them same-origin, so the figure
+  // embeds regardless of the bucket's CORS state.
+  const proxied = toProxyImageUrl(url)
+  if (proxied) {
+    try {
+      const response = await fetch(proxied, { cache: 'reload' })
+      if (response.ok) {
+        const contentType = response.headers && response.headers.get
+          ? (response.headers.get('content-type') || '')
+          : ''
+        const buffer = await response.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        // Accept ONLY a genuine image. If the rewrite isn't live the proxy
+        // path resolves to the SPA's index.html (200/text/html) — embedding
+        // that as a PNG would be a fresh broken-image bug, so fail closed.
+        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          return bytes
+        }
+      }
+    } catch {
+      // Proxy unreachable (offline / not deployed) — give up gracefully.
     }
   }
   return null

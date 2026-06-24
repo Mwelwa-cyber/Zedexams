@@ -14,6 +14,7 @@
  * main bundle — they're only fetched the first time a teacher exports a PDF.
  */
 import { saveBlob } from './saveBlob.js'
+import { toProxyImageUrl } from './imageProxy.js'
 
 // 210mm at 96dpi — the CSS pixel width of an A4 page. Rendering at this width
 // makes the rasterised layout line up with the @page A4 print CSS.
@@ -84,6 +85,26 @@ function collectBreakGeometry(idoc, scale) {
     return { atomic, forced: forced.filter((y) => y > 0) }
   } catch {
     return empty
+  }
+}
+
+// Route cross-origin Storage images through the same-origin proxy BEFORE
+// html2canvas reads them. html2canvas(useCORS) rasterises each <img> by reading
+// its pixels, which the browser blocks (or renders blank) when the Storage
+// bucket's CORS config is missing/misapplied — the same root cause that drops
+// diagrams from the Word download. The proxy serves the bytes same-origin so the
+// canvas read always succeeds. Best-effort: any failure leaves the original src.
+function rewriteImagesToProxy(doc) {
+  try {
+    const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || ''
+    if (!origin) return
+    for (const img of Array.from(doc.images || [])) {
+      const src = img.getAttribute('src') || ''
+      const proxied = toProxyImageUrl(src)
+      if (proxied) img.setAttribute('src', `${origin}${proxied}`)
+    }
+  } catch {
+    // Never let a rewrite hiccup abort the export.
   }
 }
 
@@ -169,6 +190,7 @@ export async function htmlToPdfBlob(html, { scale = 2 } = {}) {
     idoc.write(html)
     idoc.close()
 
+    rewriteImagesToProxy(idoc)
     await waitForAssets(idoc)
 
     const target = idoc.body

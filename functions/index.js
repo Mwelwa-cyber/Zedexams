@@ -3146,6 +3146,12 @@ exports.createLibraryDownloadTicket = libraryDownload.createLibraryDownloadTicke
 exports.apiLibraryDownload = libraryDownload.apiLibraryDownload;
 exports.reapDownloadTickets = libraryDownload.reapDownloadTickets;
 
+// Same-origin image proxy: fetches a Storage image's bytes server-side (where
+// CORS doesn't apply) so the Word/PDF exporters can embed diagrams even when the
+// bucket's CORS config is missing/misapplied. See functions/imageProxy.js.
+const imageProxy = require('./imageProxy');
+exports.apiImageProxy = imageProxy.apiImageProxy;
+
 // Admin dashboard overhaul — user lifecycle callables.
 //
 // TEMPORARILY DISABLED to unblock the Deploy Firebase workflow that

@@ -122,6 +122,66 @@ console.log('\nCORS-poisoned cache → exporter retries and still embeds the ima
   }
 }
 
+console.log('\nBucket CORS missing → exporter falls back to the same-origin image proxy')
+// When the bucket returns NO CORS headers at all (config missing or applied to
+// the wrong bucket name), every direct fetch — including the cache:'reload'
+// retry — rejects. The exporter must then read the bytes through the same-origin
+// /api/image-proxy and still embed the figure, instead of dropping a placeholder.
+{
+  let proxyHit = false
+  globalThis.fetch = async (url, _opts) => {
+    if (String(url).includes('/api/image-proxy')) {
+      proxyHit = true
+      return { ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) }
+    }
+    // Every direct (cross-origin) attempt fails with a CORS error.
+    throw new TypeError('Failed to fetch (CORS)')
+  }
+  try {
+    const proxiedDoc = await buildAssessmentDocument(
+      { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
+      [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/examsprepzambia.firebasestorage.app/o/x.png?alt=media&token=t', marks: 1 }],
+      { mode: 'paper' },
+    )
+    const proxiedText = Buffer.from(await Packer.toBuffer(proxiedDoc)).toString('latin1')
+    assert(proxyHit, 'direct CORS fetch failed → exporter requested the same-origin proxy')
+    assert(proxiedText.includes('media/') && proxiedText.includes('.png'), 'proxy fetch → image embedded as a real media part')
+    assert(!proxiedText.includes('could not be embedded'), 'proxy fetch → no fallback placeholder')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
+console.log('\nProxy returns the SPA fallback (rewrite not live) → fail closed, no garbage embed')
+// If the /api/image-proxy Hosting rewrite isn't live yet, the request resolves
+// to the SPA's index.html (HTTP 200, text/html). The exporter must NOT embed
+// those HTML bytes as a PNG (a fresh broken-image bug) — it must reject the
+// non-image response and drop the visible placeholder instead.
+{
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/api/image-proxy')) {
+      return {
+        ok: true,
+        headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) },
+        arrayBuffer: async () => new TextEncoder().encode('<!doctype html><html><body>app</body></html>').buffer,
+      }
+    }
+    throw new TypeError('Failed to fetch (CORS)')
+  }
+  try {
+    const htmlDoc = await buildAssessmentDocument(
+      { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
+      [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/examsprepzambia.firebasestorage.app/o/x.png?alt=media&token=t', marks: 1 }],
+      { mode: 'paper' },
+    )
+    const docXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(htmlDoc)))['word/document.xml'])
+    assert(docXml.includes('could not be embedded'), 'HTML fallback response → visible placeholder, not embedded')
+    assert(!docXml.includes('media/'), 'HTML fallback response → no media part written')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
 console.log('\nUnreadable image → visible fallback placeholder (not a silent gap)')
 // When the image bytes can't be read (e.g. Storage CORS not applied, or a
 // dead URL), fetchImageBytes returns null. The exporter must drop a visible
