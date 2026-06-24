@@ -160,20 +160,37 @@ export default function TopicSubtopicPicker({
 
   const topicPickEmpty = !loading && topicOptions.length === 0
 
-  // Start in "write" for any value the syllabus doesn't know — so a custom
-  // topic/sub-topic shows instead of looking blank in the drop-down. This
-  // re-evaluates whenever the grade/subject changes underneath the picker:
-  // otherwise a topic picked for one grade stays in form state (and gets
-  // submitted) while the drop-down silently renders it blank against the new
-  // grade's options. Only ever flips 'pick'→'write', so it never interrupts
-  // free-text typing.
+  // React to the grade/subject changing underneath the picker.
+  //
+  // A genuine change AFTER mount means any topic/sub-topic chosen for the
+  // PREVIOUS grade/subject no longer belongs here — so clear it. Without this,
+  // a topic picked for (say) Grade 4 Mathematics stayed in form state and was
+  // submitted after the teacher switched to Grade 1 Numeracy, stamping an
+  // off-grade topic ("Grade 4 ... Fractions") onto the wrong paper. This
+  // mirrors the Assessment modal (CreatePaperModal.setMeta), which already
+  // clears its topics on every grade/subject/framework change. Reset to the
+  // drop-down for the new selection (the topicPickEmpty effect drops back to
+  // free text when the new selection has no syllabus rows).
+  //
+  // On the FIRST evaluation (initial mount / deep-link / restored draft) we
+  // keep whatever value was passed in and only surface an off-syllabus value
+  // in "Write my own" — clearing a deep-linked topic on mount would be wrong.
   const lastEvalKey = useRef(null)
   useEffect(() => {
     if (loading || lastEvalKey.current === innerKey) return
+    const isRealChange = lastEvalKey.current !== null
     lastEvalKey.current = innerKey
+    if (isRealChange) {
+      if (topic) onChangeTopic('')
+      if (subtopic) onChangeSubtopic('')
+      setTopicMode('pick')
+      setSubtopicMode('pick')
+      return
+    }
     if (topic && !topicOptions.includes(topic)) setTopicMode('write')
     if (subtopic && !subtopicOptions.includes(subtopic)) setSubtopicMode('write')
-  }, [loading, innerKey, topic, subtopic, topicOptions, subtopicOptions])
+  }, [loading, innerKey, topic, subtopic, topicOptions, subtopicOptions,
+    onChangeTopic, onChangeSubtopic])
 
   // No syllabus rows at all → the drop-down would be a dead end.
   useEffect(() => {
