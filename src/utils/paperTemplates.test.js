@@ -74,6 +74,13 @@ console.log('\ninstantiateTemplate — passage block')
   assert(section.passage.passageKind === 'comprehension', 'passage uses the comprehension kind')
   assert(Array.isArray(section.passage.questions) && section.passage.questions.length === 5, 'passage carries its 5 sub-questions')
   assert(section.passage.questions.every((q) => q.marks === 2), 'passage sub-questions carry their marks')
+  // Regression: a short-answer comprehension sub-question must be seeded as a
+  // text answer (no MCQ option slots, blank string answer), not left with
+  // emptyPassageQuestion's MCQ defaults — otherwise it reopens looking like a
+  // multiple-choice question with four empty options.
+  assert(section.passage.questions.every((q) => q.type === 'short_answer'), 'passage sub-questions keep their short-answer type')
+  assert(section.passage.questions.every((q) => Array.isArray(q.options) && q.options.length === 0), 'short-answer passage sub-questions carry no MCQ options')
+  assert(section.passage.questions.every((q) => q.correctAnswer === ''), 'short-answer passage sub-questions have a blank text answer')
 }
 
 console.log('\ninstantiateTemplate — every catalogue template instantiates cleanly')

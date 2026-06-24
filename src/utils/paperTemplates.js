@@ -222,9 +222,16 @@ export function instantiateTemplate(template) {
     if (block.passage) {
       const subQuestions = []
       for (const q of block.passage.questions || []) {
-        const type = q.type === 'structured' ? 'diagram' : (q.type || 'short_answer')
+        // Use the same per-type seed the standalone path + the studio's block
+        // picker use, so a templated short-answer/structured sub-question gets
+        // the right shape (options:[] + correctAnswer:'' for text answers, the
+        // 'structured'→diagram mapping with its diagramText). Passing only
+        // {type, marks} used to leave emptyPassageQuestion's MCQ defaults
+        // (four option slots + correctAnswer 0) on a short-answer comprehension
+        // question, so it reopened looking like a multiple-choice.
+        const seed = seedFor(q.type)
         for (let n = 0; n < (Number(q.count) || 1); n += 1) {
-          subQuestions.push(emptyPassageQuestion({ type, detectedType: type, marks: Number(q.marks) || 1 }))
+          subQuestions.push(emptyPassageQuestion({ ...seed, marks: Number(q.marks) || 1 }))
         }
       }
       sections.push(createPassageSection({
