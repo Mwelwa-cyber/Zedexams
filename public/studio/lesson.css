@@ -79,7 +79,8 @@
 .doc-wrap{width:100%;max-width:794px;margin:0 auto;background:#fff;box-shadow:0 1px 0 rgba(28,22,18,.04),0 12px 40px -8px rgba(28,22,18,.12),0 4px 12px -4px rgba(28,22,18,.08);border-radius:4px;overflow:hidden;position:relative}
 .doc-wrap::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent) 0%,var(--accent) 33%,var(--gold) 33%,var(--gold) 66%,var(--accent-2) 66%,var(--accent-2) 100%)}
 .doc{padding:14mm 18mm 22mm;font-family:var(--font-doc);font-size:var(--doc-font-size);line-height:1.55;color:var(--ink);min-height:1080px}
-@media(max-width:720px){.doc{padding:18mm 12mm}}
+@media(max-width:720px){.doc{padding:14mm 8mm}}
+@media screen and (max-width:480px){.doc{padding:10mm 5mm}}
 .doc:focus{outline:none}
 .doc[contenteditable="true"]{outline:2px dashed var(--accent);outline-offset:-8px}
 .doc-head{text-align:center;margin-bottom:10px;padding-bottom:8px}
@@ -253,6 +254,7 @@
 .modal-head .close{background:none;border:none;cursor:pointer;padding:6px;border-radius:4px;color:var(--ink-2)}
 .modal-head .close:hover{background:rgba(0,0,0,.06)}
 .modal-body{padding:20px 22px}
+@media(max-width:600px){.modal-scrim{padding:0}.modal{border-radius:0;max-height:100svh;max-height:100vh}.modal-head{border-radius:0}}
 .diagram-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
 .diagram-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center}
 .diagram-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}

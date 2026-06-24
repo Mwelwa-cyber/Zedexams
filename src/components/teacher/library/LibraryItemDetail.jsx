@@ -673,7 +673,7 @@ export default function LibraryItemDetail() {
         )}
 
         {/* Content */}
-        <div className="studio-card p-5">
+        <div className="studio-card px-2 py-4 sm:p-5">
           {item.tool === 'lesson_plan' && item.output && <LessonPlanView plan={item.output} />}
           {item.tool === 'lesson_plan' && !item.output && item.html && (
             <LegacyStudioFrame html={item.html} />
@@ -879,8 +879,13 @@ function LegacyStudioFrame({ html }) {
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="/studio/lesson.css" />
     <style>
-      body { margin: 0; padding: 24px 16px; background: transparent; }
+      body { margin: 0; padding: 0; background: transparent; }
       .doc-wrap { box-shadow: none !important; margin: 0 auto; }
+      @media(max-width:520px){
+        #view-plans .workspace{padding:8px 0 40px}
+        #view-plans .doc{padding:8mm 4mm !important}
+        #view-plans .doc-head .school{font-size:15pt}
+      }
     </style>
   </head><body><div id="view-plans"><div class="workspace">${safeHtml}</div></div>
     <script>
