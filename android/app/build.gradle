@@ -104,6 +104,9 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    // Provides androidx.activity.EdgeToEdge for MainActivity (capacitor-android
+    // pulls activity via implementation, so it isn't on the app classpath).
+    implementation "androidx.activity:activity:$androidxActivityVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

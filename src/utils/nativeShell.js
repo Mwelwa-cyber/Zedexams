@@ -1,14 +1,12 @@
 import { App as CapacitorApp } from '@capacitor/app'
-import { StatusBar, Style } from '@capacitor/status-bar'
-import { EdgeToEdge } from '@capawesome/capacitor-android-edge-to-edge-support'
+import { SafeArea, SystemBarsStyle } from '@capacitor-community/safe-area'
 import { isNativePlatform } from './runtime'
 
 let initialized = false
 
-// Themes whose page background is dark — over those, the transparent status
-// bar's network/time/battery icons must be light to stay legible. Every other
-// palette is light → dark icons. Keep this list in sync with the dark entries
-// in THEMES (src/contexts/ThemeContext.jsx).
+// Themes whose page background is dark — over those the system-bar icons must
+// be light. Everything else is a light palette → dark icons. Keep in sync with
+// the dark entries in THEMES (src/contexts/ThemeContext.jsx).
 const DARK_THEMES = ['midnight', 'vivid']
 
 function themeIsDark() {
@@ -16,40 +14,34 @@ function themeIsDark() {
   return DARK_THEMES.some((t) => document.body.classList.contains(`theme-${t}`))
 }
 
-// Status-bar *icon* appearance. Style.Dark = "dark status bar" → light/white
-// icons (for a dark background); Style.Light = dark icons (for a light
-// background). We follow the active theme so the icons stay visible over
-// whatever content scrolls beneath the now-transparent bar.
-function syncStatusBarIcons() {
-  const style = themeIsDark() ? Style.Dark : Style.Light
-  StatusBar.setStyle({ style }).catch(() => {})
+// The system bars are fully transparent (true edge-to-edge) — the page draws
+// underneath them and @capacitor-community/safe-area feeds the real bar insets
+// into CSS env(safe-area-inset-*) so content stays clear of the icons. All we
+// own here is the *content* (icon) style so the OS network/time/battery +
+// back/home icons stay legible over whatever shows through.
+// SystemBarsStyle.Light = dark icons (for a light page); .Dark = light icons.
+function syncSystemBarIcons() {
+  const style = themeIsDark() ? SystemBarsStyle.Dark : SystemBarsStyle.Light
+  SafeArea.setSystemBarsStyle({ style }).catch(() => {})
 }
 
 /**
- * Initialise the Capacitor wrapper-only behaviours (edge-to-edge system bars,
- * status-bar icon colour, hardware back button). No-ops on the web. Safe to
- * call multiple times.
+ * Initialise the Capacitor wrapper-only behaviours (system-bar icon colour,
+ * hardware back button). Edge-to-edge + inset handling is owned natively by
+ * MainActivity + the SafeArea plugin. No-ops on the web. Safe to call multiple
+ * times.
  */
 export function initNativeShell() {
   if (initialized) return
   if (!isNativePlatform()) return
   initialized = true
 
-  // True edge-to-edge (LinkedIn-style). The @capawesome edge-to-edge plugin
-  // normally insets the WebView and paints solid colour bars behind the status
-  // and navigation bars. disable() drops both: it removes the WebView margins
-  // (so the page draws *under* the bars) and the colour overlays (so the bars
-  // are fully transparent). The OS network/time/battery + back/home icons stay
-  // on top, and the safe-area CSS (env(safe-area-inset-*), viewport-fit=cover)
-  // keeps content clear of them.
-  EdgeToEdge.disable().catch(() => {})
-
-  // Keep the status-bar icons readable as the theme (and route-based brand pin)
-  // changes the page background. The MutationObserver re-runs on every body
-  // class change — covers the theme switcher and the public-route theme pin.
-  syncStatusBarIcons()
+  // Flip the bar icon colour to match the active theme, and re-run whenever the
+  // theme (body class) changes — covers the theme switcher and the public-route
+  // brand-default pin.
+  syncSystemBarIcons()
   if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
-    const observer = new MutationObserver(syncStatusBarIcons)
+    const observer = new MutationObserver(syncSystemBarIcons)
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
   }
 
