@@ -17,6 +17,7 @@ import DiagramSvg from '../../diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
 import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../../utils/questionParts'
+import { DEFAULT_ANSWER_LINES } from '../../../utils/assessmentPaperLayout'
 import '../studio/assessmentStudio.css'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -274,7 +275,7 @@ function PaperQuestionBlock({ block }) {
       {(block.type === 'short_answer' || block.type === 'short' || block.type === 'fill') && (
         block.subParts?.length > 0
           ? <PaperSubParts block={block} />
-          : <PaperAnswerSpace block={block} defaultLines={2} />
+          : <PaperAnswerSpace block={block} defaultLines={DEFAULT_ANSWER_LINES.short} />
       )}
       {block.type === 'numeric' && (
         <div className="sv-paper-numeric-line" style={{ display: 'flex', alignItems: 'flex-end', gap: 8, margin: '6px 0' }}>
@@ -300,10 +301,10 @@ function PaperQuestionBlock({ block }) {
         }} aria-label="Drawing canvas" />
       )}
       {block.type === 'diagram' && (
-        <PaperAnswerSpace block={block} defaultLines={4} />
+        <PaperAnswerSpace block={block} defaultLines={DEFAULT_ANSWER_LINES.diagram} />
       )}
       {block.type === 'essay' && (
-        <PaperAnswerSpace block={block} defaultLines={8} />
+        <PaperAnswerSpace block={block} defaultLines={DEFAULT_ANSWER_LINES.essay} />
       )}
       {block.showAnswer && <PaperAnswerBlock block={block} />}
     </div>
@@ -386,7 +387,7 @@ function PaperSubParts({ block }) {
             <span style={{ flex: 1 }}>
               {renderSubPartBody(part, format)}
               {marks > 0 && <span style={{ whiteSpace: 'nowrap' }}> [{marks}]</span>}
-              {format === 'lines' && <PaperAnswerSpace block={part} defaultLines={2} />}
+              {format === 'lines' && <PaperAnswerSpace block={part} defaultLines={DEFAULT_ANSWER_LINES.short} />}
             </span>
           </div>
         )
@@ -440,7 +441,11 @@ function PaperAnswerSpace({ block, defaultLines = 2 }) {
       </div>
     )
   }
-  const count = Number.isFinite(Number(block.answerLines)) && Number(block.answerLines) >= 0
+  // `answerLines == null` means "not set → use the default". Without the
+  // `!= null` guard, Number(null) === 0 satisfies `isFinite && >= 0` and
+  // collapses every default-spaced question (essay / short / diagram) to ZERO
+  // ruled lines. An explicit 0 still renders no lines (answerFormat 'none' too).
+  const count = block.answerLines != null && Number.isFinite(Number(block.answerLines)) && Number(block.answerLines) >= 0
     ? Number(block.answerLines)
     : defaultLines
   return (
