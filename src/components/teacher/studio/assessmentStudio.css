@@ -1857,7 +1857,7 @@
 .studio-v2 .sv-paper p { margin: 0 0 0.55em; }
 .studio-v2 .sv-paper p:last-child { margin-bottom: 0; }
 @media (max-width: 640px) {
-  .studio-v2 .sv-paper { padding: 28px 20px; font-size: 12.5px; }
+  .studio-v2 .sv-paper { padding: 26px 16px; font-size: 12.5px; }
 }
 
 .studio-v2 .sv-paper-banner {
@@ -2640,7 +2640,9 @@
        fields side-by-side can't force a horizontal scroll.
    ============================================================ */
 @media (max-width: 640px) {
-  .studio-v2 .sv-preview-shell { padding: var(--sv-s2); }
+  /* Hand the gutters back to the page so it fills the phone width. */
+  .studio-v2 .sv-preview-shell { padding: var(--sv-s1); }
+  .studio-v2 .sv-paper { max-width: 100%; }
 
   /* Options stay readable: 2-up and free to wrap onto a second line. */
   .studio-v2 .sv-paper-options:not(.stacked) {
@@ -2660,8 +2662,8 @@
 }
 
 @media (max-width: 400px) {
-  .studio-v2 .sv-preview-shell { padding: 6px; }
-  .studio-v2 .sv-paper { padding: 20px 14px; }
+  .studio-v2 .sv-preview-shell { padding: 2px; }
+  .studio-v2 .sv-paper { padding: 18px 12px; }
 
   /* Narrowest phones: one option per line so nothing is squeezed. */
   .studio-v2 .sv-paper-options { grid-template-columns: 1fr; padding-left: 12px; }

@@ -672,7 +672,7 @@ export default function LibraryItemDetail() {
           </div>
         )}
 
-        {/* Content */}
+        {/* Content — slim horizontal padding on phones so the paper preview uses the full screen width */}
         <div className="studio-card px-2 py-4 sm:p-5">
           {item.tool === 'lesson_plan' && item.output && <LessonPlanView plan={item.output} />}
           {item.tool === 'lesson_plan' && !item.output && item.html && (
