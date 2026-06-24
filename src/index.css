@@ -2896,6 +2896,34 @@ select option {
     );
   }
 
+  /* LinkedIn-style auto-hide chrome.
+   * The glass header slides up and the bottom nav slides down on scroll-down,
+   * then reveal again on scroll-up — driven by useHideOnScroll. Mobile only:
+   * desktop (>=lg, where the bottom nav is already hidden) keeps the sticky
+   * header pinned. Transform+opacity only, so the content underneath is never
+   * blocked by a solid background and the OS status-bar icons stay visible. */
+  .zx-nav-autohide {
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.28s ease;
+    will-change: transform;
+  }
+  @media (max-width: 1023px) {
+    .zx-nav-autohide.zx-nav-hidden-top {
+      transform: translateY(-115%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .zx-nav-autohide.zx-nav-hidden-bottom {
+      transform: translateY(115%);
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+  /* Honour reduced-motion: snap instead of slide, but still hide/show. */
+  @media (prefers-reduced-motion: reduce) {
+    .zx-nav-autohide { transition: none; }
+  }
+
   /* Logo wrapper inside the glass navbar */
   .zx-logo-pill {
     display: inline-flex;
