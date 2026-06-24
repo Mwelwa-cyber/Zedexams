@@ -729,6 +729,15 @@
   font-weight: 600;
 }
 .studio-v2 .sv-chip.sv-chip-warn:hover { background: #efdcb4; }
+/* Destructive "Clear all" chip — quiet until hovered so it doesn't compete
+   with the additive tools, then reads clearly as a danger action. */
+.studio-v2 .sv-chip.sv-chip-danger {
+  color: var(--sv-primary-dark);
+  border-color: rgba(139,38,53,0.3);
+}
+.studio-v2 .sv-chip.sv-chip-danger:hover { background: var(--sv-primary-soft); }
+.studio-v2 .sv-chip.sv-chip-danger:disabled { opacity: 0.45; cursor: default; }
+.studio-v2 .sv-chip.sv-chip-danger:disabled:hover { background: var(--sv-paper); }
 .studio-v2 .sv-builder-bar .sv-pages {
   margin-left: auto;
   font-family: 'Geist Mono', monospace;
