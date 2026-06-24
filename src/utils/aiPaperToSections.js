@@ -9,6 +9,7 @@ import {
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
+  serializeQuizSections,
 } from './quizSections.js'
 import {
   importMarkupToRichHtml,
@@ -334,6 +335,75 @@ export function mapAiQuestion(q, { partId = null } = {}) {
  *
  * Never throws on malformed input — skips junk and reports it.
  */
+/**
+ * Normalise the FLAT exam-paper shape (`generateExamPaper` → `tool:'exam_paper'`:
+ * `{ header, questions: [{ number, question, options, correctAnswer, explanation }] }`)
+ * into the sectioned assessment shape `aiAssessmentToStudioBlocks` understands.
+ * The exam paper is a single block of multiple-choice questions, so it becomes
+ * one untitled section. A payload that already carries `sections` (the assessment
+ * shape) is returned unchanged.
+ */
+export function examPaperToAssessmentShape(output) {
+  if (output && Array.isArray(output.sections)) return output
+  const header = (output && output.header) || {}
+  const questions = Array.isArray(output?.questions) ? output.questions : []
+  return {
+    header,
+    sections: [{
+      title: '',
+      instructions: String(header.instructions || '').trim(),
+      questions: questions.map((q) => ({
+        type: q?.type === 'true_false' ? 'true_false' : 'multiple_choice',
+        prompt: String(q?.question ?? q?.prompt ?? '').trim(),
+        options: Array.isArray(q?.options) ? q.options : [],
+        answer: String(q?.correctAnswer ?? q?.answer ?? '').trim(),
+        marks: Number.isFinite(Number(q?.marks)) && Number(q.marks) > 0 ? Math.round(Number(q.marks)) : 1,
+        markingGuide: String(q?.explanation ?? q?.markingGuide ?? '').trim(),
+      })),
+    }],
+  }
+}
+
+/**
+ * Convert a saved AI paper generation (`aiGenerations` doc `output`, tool
+ * `'assessment'` or `'exam_paper'`) into the Assessment Studio's render shape
+ * `{ doc, questions }` — exactly what `buildPaperLayout` and `downloadAssessmentDocx`
+ * consume. This is what lets the library detail view print an AI-generated paper
+ * instead of showing a blank card. Pure (no React / Firebase) so it stays
+ * node-testable.
+ *
+ * Returns { doc, questions, questionCount, totalMarks, warnings }.
+ */
+export function aiPaperToStudioDoc(output, tool = 'assessment') {
+  const assessment = tool === 'exam_paper' ? examPaperToAssessmentShape(output) : (output || {})
+  const blocks = aiAssessmentToStudioBlocks(assessment)
+  const serialized = serializeQuizSections(blocks.sections, blocks.parts)
+  const header = (output && output.header) || {}
+  const doc = {
+    title: String(header.title || '').trim(),
+    subject: String(header.subject || '').trim(),
+    grade: header.grade ?? '',
+    term: header.term ?? '',
+    year: header.year ?? '',
+    duration: header.durationMinutes ?? header.duration ?? '',
+    assessmentType: header.assessmentType || '',
+    schoolName: String(header.schoolName || '').trim(),
+    paperName: String(header.paperName || '').trim(),
+    coverInstructions: String(header.instructions || '').trim(),
+    passages: serialized.passages,
+    pagebreaks: serialized.pagebreaks,
+    parts: serialized.parts,
+    ungroupedOrder: 0,
+  }
+  return {
+    doc,
+    questions: serialized.questions,
+    questionCount: serialized.questions.length,
+    totalMarks: serialized.totalMarks,
+    warnings: blocks.warnings,
+  }
+}
+
 export function aiAssessmentToStudioBlocks(assessment) {
   const out = { sections: [], parts: [], questionCount: 0, totalMarks: 0, warnings: [] }
   const aiSections = Array.isArray(assessment?.sections) ? assessment.sections : []

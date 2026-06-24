@@ -4,6 +4,8 @@
 import assert from 'node:assert'
 import {
   aiAssessmentToStudioBlocks,
+  aiPaperToStudioDoc,
+  examPaperToAssessmentShape,
   mapAiQuestion,
   matchAnswerIndex,
 } from './aiPaperToSections.js'
@@ -473,6 +475,83 @@ console.log('aiPaperToSections')
     assert.strictEqual(blocks.questionCount, 0)
   }
   ok('malformed input degrades to zero blocks', true)
+}
+
+// ── aiPaperToStudioDoc: an AI ASSESSMENT generation becomes a printable paper ─
+// Regression for the "library not auto saving" bug: a generateAssessment doc
+// (tool 'assessment') landed in the library but the detail view had no renderer,
+// so it opened BLANK. aiPaperToStudioDoc must turn the saved `output` into a
+// non-empty { doc, questions } the paper layout can render.
+{
+  const out = {
+    header: {
+      title: 'Grade 4 Mathematics — End of Term 2 Test',
+      grade: 'G4', subject: 'Mathematics', term: 2,
+      durationMinutes: 60, totalMarks: 4,
+      instructions: 'Answer ALL questions.',
+    },
+    sections: [
+      {
+        title: 'SECTION A: Multiple choice',
+        instructions: 'Circle the correct answer.',
+        questions: [
+          { type: 'multiple_choice', prompt: 'What is 2 + 2?', options: ['3', '4', '5'], marks: 1, answer: '4' },
+          { type: 'multiple_choice', prompt: 'What is 5 - 1?', options: ['3', '4', '5'], marks: 1, answer: '4' },
+        ],
+      },
+      {
+        title: 'SECTION B: Short answer',
+        questions: [
+          { type: 'structured', prompt: 'Explain how to add two fractions.', marks: 2, answer: 'Find a common denominator…' },
+        ],
+      },
+    ],
+  }
+  const { doc, questions, questionCount } = aiPaperToStudioDoc(out, 'assessment')
+  assert.strictEqual(questionCount, 3, 'all questions survive the conversion')
+  assert.strictEqual(questions.length, 3)
+  assert.strictEqual(doc.subject, 'Mathematics', 'header subject carried onto the paper doc')
+  assert.strictEqual(doc.grade, 'G4')
+  assert.strictEqual(doc.coverInstructions, 'Answer ALL questions.')
+  assert.strictEqual(doc.parts.length, 2, 'two AI sections become two paper parts')
+  ok('aiPaperToStudioDoc turns an AI assessment into a non-empty paper doc', true)
+}
+
+// ── examPaperToAssessmentShape: flat exam_paper normalises to sections ────────
+{
+  const flat = {
+    header: { title: 'G7 Science Mock', grade: 'G7', subject: 'Science', instructions: 'Choose ONE best answer.' },
+    questions: [
+      { number: 1, question: 'Which organ pumps blood?', options: ['Heart', 'Lung', 'Liver', 'Kidney'], correctAnswer: 'Heart', explanation: 'The heart is a pump.' },
+      { number: 2, question: 'Water freezes at?', options: ['0°C', '50°C', '100°C', '-10°C'], correctAnswer: '0°C', explanation: '' },
+    ],
+  }
+  const shaped = examPaperToAssessmentShape(flat)
+  assert.strictEqual(shaped.sections.length, 1, 'flat exam paper → one section')
+  assert.strictEqual(shaped.sections[0].questions.length, 2)
+  assert.strictEqual(shaped.sections[0].questions[0].prompt, 'Which organ pumps blood?', 'question text mapped to prompt')
+  assert.strictEqual(shaped.sections[0].questions[0].answer, 'Heart', 'correctAnswer mapped to answer')
+
+  const { questionCount, questions } = aiPaperToStudioDoc(flat, 'exam_paper')
+  assert.strictEqual(questionCount, 2, 'exam paper converts to a non-empty paper')
+  assert.strictEqual(questions[0].type, 'mcq', 'multiple_choice maps to the studio mcq type')
+  ok('a flat exam_paper generation also renders as a non-empty paper', true)
+
+  // An already-sectioned payload passed through examPaperToAssessmentShape is
+  // returned unchanged (defensive — both generators share this path).
+  const sectioned = { header: {}, sections: [{ questions: [] }] }
+  assert.strictEqual(examPaperToAssessmentShape(sectioned), sectioned, 'sectioned payload passes through')
+  ok('examPaperToAssessmentShape leaves an assessment-shaped payload alone', true)
+}
+
+// ── A failed/empty generation degrades to an empty (not crashing) paper ──────
+{
+  for (const junk of [null, undefined, {}, { header: {} }, { sections: [] }]) {
+    const { questionCount, questions, doc } = aiPaperToStudioDoc(junk, 'assessment')
+    assert.strictEqual(questionCount, 0, 'no questions from empty output')
+    assert.ok(Array.isArray(questions) && Array.isArray(doc.parts), 'shape stays consistent')
+  }
+  ok('aiPaperToStudioDoc never throws on an empty/failed generation', true)
 }
 
 console.log(`aiPaperToSections: ${passed} checks passed`)
