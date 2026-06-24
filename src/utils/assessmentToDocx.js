@@ -16,6 +16,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Header,
   HeadingLevel,
   HeightRule,
   ImageRun,
@@ -31,8 +32,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
+import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
@@ -567,17 +568,32 @@ function bytesToBase64(bytes) {
   return btoa(binary)
 }
 
-// Build an SVG that draws the question image with the identify-mode markers
-// (numbered black circles at each hotspot + a leader line to the part it
-// points at) baked on top. Word can't reliably overlay positioned elements on
-// an inline image, so we composite them into one PNG instead — this is what
-// makes a downloaded identify paper match the studio preview / PDF, where the
-// markers are absolutely-positioned DOM (src/components/teacher/views/PaperBlocks.jsx).
+// Escape text destined for an SVG <text> node. The href is a data: URL (safe
+// chars only) so it's left alone, but a label can carry &, <, > from a teacher.
+function escapeSvgText(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+// Build an SVG that draws the question image with its label markers baked on
+// top. Word can't reliably overlay positioned elements on an inline image, so
+// we composite them into one PNG instead — this is what makes a downloaded
+// diagram paper match the studio preview / PDF, where the markers are
+// absolutely-positioned DOM (src/components/teacher/views/PaperBlocks.jsx).
+//
+// Two `mode`s, mirroring the preview's two diagram modes:
+//   - 'identify' (default): numbered black circles (1, 2, 3…) — the on-image
+//     marker is just the number; the answer text goes on the blanks below.
+//   - 'labeled': white text pills carrying each label's text, the way a labelled
+//     diagram prints. Without this the Word export flattened labelled diagrams to
+//     a "Labels: 1. … 2. …" text list that threw away which label points where.
 //
 // `labels` carry x/y (0..1 ratios of the image) for the marker and optional
 // tx/ty for the leader-tip. Pure string builder so the geometry is unit-tested;
 // the raster step (svgToPngBytes) is the only browser-only part.
-export function buildDiagramIdentifySvg({ href, width, height, labels = [] }) {
+export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode = 'identify' }) {
   const W = Math.max(1, Math.round(width))
   const H = Math.max(1, Math.round(height))
   const clamp01 = n => Math.max(0, Math.min(1, Number(n) || 0))
@@ -592,24 +608,43 @@ export function buildDiagramIdentifySvg({ href, width, height, labels = [] }) {
   labels.forEach((l, i) => {
     const cx = clamp01(l.x) * W
     const cy = clamp01(l.y) * H
+    // Leader line + tip dot on the part the label points at (both modes).
     if (Number.isFinite(Number(l.tx)) && Number.isFinite(Number(l.ty))) {
       const tx = clamp01(l.tx) * W
       const ty = clamp01(l.ty) * H
       parts.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
       parts.push(`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${dot}" fill="#000"/>`)
     }
+    if (mode === 'labeled') {
+      // A white text pill carrying the label, mirroring the preview's
+      // absolutely-positioned label badge. The layout already drops empty
+      // labelled pills, but guard so a stray blank never draws an empty box.
+      const labelText = String(l.text == null ? '' : l.text).trim()
+      if (!labelText) return
+      const padX = Math.max(4, Math.round(fs * 0.5))
+      const boxW = Math.round(labelText.length * fs * 0.6 + padX * 2)
+      const boxH = Math.round(fs * 1.7)
+      const x = cx - boxW / 2
+      const y = cy - boxH / 2
+      const rad = Math.max(2, Math.round(boxH * 0.18))
+      parts.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${boxW}" height="${boxH}" rx="${rad}" ry="${rad}" fill="#fff" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#000" font-size="${fs}" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${escapeSvgText(labelText)}</text>`)
+      return
+    }
+    // identify: numbered black circle with white text.
     parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="#000" stroke="#fff" stroke-width="${sw}"/>`)
     parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#fff" font-size="${fs}" font-weight="700" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`)
   })
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${parts.join('')}</svg>`
 }
 
-// Render a question image with identify-mode numbered markers composited on
-// top, returning a centered ImageRun paragraph. Browser-only: needs a canvas
-// to decode the image and rasterize the overlay SVG. Returns null in a DOM-less
-// context (node tests) or on any failure, so the caller falls back to the plain
-// image — the numbered answer blanks below still print either way.
-async function diagramIdentifyImageParagraph(url, labels, opts = {}) {
+// Render a question image with its label markers composited on top, returning a
+// centered ImageRun paragraph. `opts.mode` is 'identify' (numbered circles) or
+// 'labeled' (text pills). Browser-only: needs a canvas to decode the image and
+// rasterize the overlay SVG. Returns null in a DOM-less context (node tests) or
+// on any failure, so the caller falls back to the plain image (+ a text list for
+// labelled diagrams, the numbered answer blanks for identify).
+async function diagramLabelImageParagraph(url, labels, opts = {}) {
   try {
     const bytes = await fetchImageBytes(url)
     if (!bytes) return null
@@ -619,7 +654,7 @@ async function diagramIdentifyImageParagraph(url, labels, opts = {}) {
     // decodeImage transcodes WEBP→PNG; everything else keeps its original mime.
     const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
     const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
-    const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels })
+    const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels, mode: opts.mode || 'identify' })
     const baseWidth = opts.width || 360
     const baseHeight = opts.height || 220
     const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
@@ -680,7 +715,11 @@ export async function renderPaperBlocksToDocx(blocks = []) {
 
 async function renderBlock(block) {
   switch (block.kind) {
-    case 'header': return renderHeader(block)
+    // The paper banner (school / title / subject / paper) is NOT body content —
+    // it is rendered as a real Word page header by paperSectionShell(), so it
+    // sits in the header region and matches the preview's banner instead of
+    // being the first lines of body text. Skip it here.
+    case 'header': return []
     case 'learnerFields': return renderLearnerFields(block)
     case 'instructions': return renderInstructions(block)
     case 'sectionHeader': return renderSectionHeader(block)
@@ -702,14 +741,62 @@ async function renderBlock(block) {
   }
 }
 
-async function renderHeader(b) {
+// The banner paragraphs (school / title / subject / paper) for the paper's real
+// Word header. Word can't reproduce the preview's marble banner, so we render
+// the same 2–4 line centred stack the body version used, capped with a thin
+// rule that divides the header region from the body — mirroring the bottom edge
+// of the preview's `.sv-paper-banner` box.
+function headerParagraphs(b) {
+  if (!b) return []
   const out = []
-  out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 })))
-  out.push(centeredPara(runText(b.title, { bold: true, size: 22 })))
-  if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 })))
-  if (b.paperName) out.push(centeredPara(runText(b.paperName, { bold: true, size: 22 })))
-  out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 }), { spacing: { after: 40 } }))
+  out.push(centeredPara(runText(b.title, { bold: true, size: 22 }), { spacing: { after: 40 } }))
+  if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 }), { spacing: { after: 40 } }))
+  if (b.paperName) out.push(centeredPara(runText(b.paperName, { bold: true, size: 22 }), { spacing: { after: 40 } }))
+  out.push(new Paragraph({
+    children: [runText('')],
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000', space: 1 } },
+    spacing: { after: 60 },
+  }))
   return out
+}
+
+/**
+ * Build the Word section shell (page headers / footers / title-page flag) for a
+ * paper export from its layout blocks. The banner becomes a real **first-page**
+ * Word header so it appears once at the top — matching the preview and the PDF,
+ * which both show the banner a single time — rather than repeating on every page
+ * or living as the opening lines of body text.
+ *
+ * Free-plan exports (`attribution`) keep the diagonal ZedExams watermark: a Word
+ * section has only one header per type, so the watermark is composed INTO the
+ * first-page header (above the banner) and a running `default` header carries it
+ * onto pages 2+. Paid/admin exports stay clean.
+ *
+ * Spread into the section literal: `{ ...paperSectionShell(blocks, opts), children }`.
+ */
+export function paperSectionShell(blocks = [], { attribution = false } = {}) {
+  const headerBlock = blocks.find((b) => b.kind === 'header')
+  const banner = headerParagraphs(headerBlock)
+  const shell = {}
+  const headers = {}
+
+  if (banner.length) {
+    headers.first = new Header({
+      children: [...(attribution ? [attributionWatermarkParagraph()] : []), ...banner],
+    })
+    // titlePage routes the FIRST page to `headers.first` (the banner) and every
+    // later page to `headers.default`, so the banner is printed exactly once.
+    shell.properties = { titlePage: true }
+  }
+
+  if (attribution) {
+    headers.default = new Header({ children: [attributionWatermarkParagraph()] })
+    shell.footers = { default: attributionFooter() }
+  }
+
+  if (Object.keys(headers).length) shell.headers = headers
+  return shell
 }
 
 // Pupil's Name / Date / Class render as plain underlined lines — NOT a
@@ -761,12 +848,16 @@ function renderLearnerFields(b) {
 }
 
 function renderInstructions(b) {
-  if (!b.text) return []
-  return [
-    para(runText('Instructions', { bold: true, size: 22 })),
-    ...instructionParagraphs(b.text),
-    new Paragraph({ children: [runText('')], spacing: { after: 100 } }),
-  ]
+  // The preview labels this box "Marking key" in scheme mode and "Instructions"
+  // otherwise, and shows it even with no prose (the label alone). The DOCX used
+  // to hardcode "Instructions" and drop the whole block when the text was empty,
+  // so a marking key with no cover instructions lost its "Marking key" heading.
+  const label = b.isMarkingKey ? 'Marking key' : 'Instructions'
+  if (!b.text && !b.isMarkingKey) return []
+  const out = [para(runText(label, { bold: true, size: 22 }))]
+  if (b.text) out.push(...instructionParagraphs(b.text))
+  out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  return out
 }
 
 function renderSectionHeader(b) {
@@ -824,7 +915,12 @@ function answerSpaceParas(b, defaultLines) {
       runText('________________________________________', { size: 20 }),
     ]))
   }
-  const n = Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0
+  // `answerLines == null` means "not set → use the default". The `!= null`
+  // guard matters because Number(null) is 0, which would otherwise satisfy
+  // `isFinite && >= 0` and collapse every default-spaced question (essay /
+  // short / diagram) to ZERO ruled lines — the default-lines fallback was dead.
+  // An explicit 0 still prints no lines (use answerFormat 'none' for that too).
+  const n = b.answerLines != null && Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0
     ? Number(b.answerLines)
     : defaultLines
   const out = []
@@ -868,9 +964,9 @@ function subPartParas(subParts) {
     if (marksTag) runs.push(runText(marksTag, { size: 20, color: '6b7280', italics: true }))
     out.push(new Paragraph({ children: runs, spacing: { before: 60, after: format === 'lines' ? 20 : 40 } }))
     if (format === 'lines') {
-      const lines = Number.isFinite(Number(part?.answerLines)) && Number(part.answerLines) >= 0
+      const lines = part?.answerLines != null && Number.isFinite(Number(part.answerLines)) && Number(part.answerLines) >= 0
         ? Number(part.answerLines)
-        : 2
+        : DEFAULT_ANSWER_LINES.short
       for (let k = 0; k < lines; k += 1) out.push(para(runText(ANSWER_RULE, { size: 20 })))
     }
   })
@@ -909,33 +1005,43 @@ async function renderQuestion(b) {
   if (b.imageUrl) {
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
-    // Identify mode: bake the numbered hotspot markers onto the image so the
-    // numbered answer blanks below actually point at something (Word can't
-    // overlay positioned elements). Falls back to the plain image when the
-    // composite is unavailable (no DOM / fetch failure).
+    // Bake the hotspot markers onto the image — identify: numbered circles so
+    // the answer blanks below point at something; labeled: the label text pills
+    // the preview overlays — since Word can't overlay positioned elements. Falls
+    // back to the plain image (+ a text list for labelled diagrams) when the
+    // composite is unavailable (no DOM / fetch failure). Skipped for MCQs, whose
+    // image lives in the option grid, not the stem.
     let img = null
-    if (isIdentify && b.type !== 'mcq' && labels.length) {
-      img = await diagramIdentifyImageParagraph(b.imageUrl, labels, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
+    let composited = false
+    if (b.type !== 'mcq' && labels.length) {
+      img = await diagramLabelImageParagraph(b.imageUrl, labels, {
+        mode: isIdentify ? 'identify' : 'labeled',
+        alt: b.imageAlt || '',
+        widthPreset: b.imageWidth,
+      })
+      composited = Boolean(img)
     }
     if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
     out.push(img || imageFallbackBlock(b.imageAlt || ''))
     if (labels.length) {
       if (isIdentify && b.type !== 'mcq') {
         // Identify mode: emit numbered blank-answer lines below the image
-        // for the student to fill in. The expected answers go into the
-        // marking key paragraph (below, in the showAnswer branch). Skipped
-        // for MCQs, whose A/B/C/D options already are the answer space.
+        // for the student to fill in (the preview shows the same list). The
+        // expected answers go into the marking key paragraph (below, in the
+        // showAnswer branch). Skipped for MCQs, whose A/B/C/D options already
+        // are the answer space.
         for (let i = 0; i < labels.length; i += 1) {
           out.push(para([
             runText(`${i + 1}. `, { bold: true, size: 20 }),
             runText('______________________________________________________', { size: 20 }),
           ]))
         }
-      } else if (!isIdentify) {
-        // Word can't reliably overlay positioned labels on top of an
-        // inline image, so we drop the labels as a numbered text list
-        // below — same information, ordered top-to-bottom then
-        // left-to-right.
+      } else if (!isIdentify && !composited) {
+        // Labelled mode, but the on-image pill composite wasn't available (no
+        // DOM / unreadable image) — fall back to a numbered text list so the
+        // labels aren't lost, ordered top-to-bottom then left-to-right. When the
+        // composite DID render, the pills are on the image and this would be a
+        // duplicate, so it's skipped (matching the preview, which shows no list).
         const sorted = [...labels].sort((a, c) => (a.y - c.y) || (a.x - c.x))
         const text = sorted.map((l, i) => `${i + 1}. ${l.text}`).join('   ')
         out.push(para([
@@ -1104,7 +1210,7 @@ async function renderQuestion(b) {
     if (Array.isArray(b.subParts) && b.subParts.length > 0) {
       subPartParas(b.subParts).forEach(p => out.push(p))
     } else {
-      answerSpaceParas(b, 2).forEach(p => out.push(p))
+      answerSpaceParas(b, DEFAULT_ANSWER_LINES.short).forEach(p => out.push(p))
     }
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
@@ -1155,12 +1261,13 @@ async function renderQuestion(b) {
         runText(String(it || ''), { size: 20 }),
       ]))
     }
-  } else if (b.type === 'diagram') {
-    answerSpaceParas(b, 4).forEach(p => out.push(p))
-  } else if (b.type === 'essay') {
-    answerSpaceParas(b, 10).forEach(p => out.push(p))
   }
 
+  // Drawing canvas, THEN (for diagram/essay) the ruled answer lines — the same
+  // block order the preview uses (PaperBlocks.jsx draws the canvas above the
+  // type-specific answer space). The DOCX used to print the ruled lines first
+  // and drop the canvas underneath, flipping the layout for a Draw-&-Label /
+  // essay question that also carried a drawing canvas.
   if (Number.isFinite(Number(b.drawingHeight)) && Number(b.drawingHeight) > 0) {
     // Word doesn't have a native "blank canvas" primitive, but a single
     // 1×1 table with a fixed row height + thin borders gives students
@@ -1176,6 +1283,12 @@ async function renderQuestion(b) {
         })],
       })],
     }))
+  }
+
+  if (b.type === 'diagram') {
+    answerSpaceParas(b, DEFAULT_ANSWER_LINES.diagram).forEach(p => out.push(p))
+  } else if (b.type === 'essay') {
+    answerSpaceParas(b, DEFAULT_ANSWER_LINES.essay).forEach(p => out.push(p))
   }
 
   if (b.showAnswer) {
@@ -1276,7 +1389,7 @@ export async function buildAssessmentDocument(assessment, questions, { mode = 'p
         document: { run: { font: 'Times New Roman', size: 22 } },
       },
     },
-    sections: [{ ...attributionSection({ attribution }), children }],
+    sections: [{ ...paperSectionShell(blocks, { attribution }), children }],
   })
 }
 

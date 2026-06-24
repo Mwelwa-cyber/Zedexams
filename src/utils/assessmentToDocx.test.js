@@ -17,6 +17,7 @@
 import { Document, ImageRun, Packer, Paragraph } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
 import { buildAssessmentDocument, buildDiagramIdentifySvg, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
+import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 
 let failures = 0
 function assert(cond, msg) {
@@ -299,6 +300,154 @@ console.log('\nTrue/False renders as a 2-option list + a marking-key answer')
   )
   const xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
   assert(xml.includes('True') && xml.includes('False'), "aliased 'truefalse' still prints True / False options")
+}
+
+console.log('\nThe paper banner is a REAL Word header, not body text')
+// The school / title / subject banner used to be the first few lines of body
+// text. It is now a real Word first-page header (paperSectionShell), so it sits
+// in the header region and prints once at the top — matching the preview / PDF.
+{
+  const doc = await buildAssessmentDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', assessmentType: 'end_of_term', term: '2', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Name a planet.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const headerParts = Object.keys(files).filter((n) => /word\/header\d+\.xml/.test(n))
+  const headerXml = headerParts.map((n) => strFromU8(files[n])).join('\n')
+  const docXml = strFromU8(files['word/document.xml'])
+  assert(headerParts.length >= 1, 'document carries a real Word header part')
+  assert(headerXml.includes('KABULONGA PRIMARY') && headerXml.includes('GRADE SEVEN'), 'school name + paper title live in the header part')
+  assert(!docXml.includes('KABULONGA PRIMARY'), 'banner is NOT duplicated into the document body')
+  assert(docXml.includes('<w:titlePg/>'), 'section is flagged titlePage so the banner prints once (page 1)')
+  assert(docXml.includes('Pupil'), 'the document body still begins at the learner fields')
+}
+
+console.log('\nFree-plan export composes the watermark INTO the paper headers')
+{
+  const doc = await buildAssessmentDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Q', marks: 1 }],
+    { mode: 'paper', attribution: true },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const headerXmls = Object.keys(files).filter((n) => /word\/header\d+\.xml/.test(n)).map((n) => strFromU8(files[n]))
+  const footerParts = Object.keys(files).filter((n) => /word\/footer\d+\.xml/.test(n))
+  // A first-page header (banner + watermark) AND a running header (watermark)
+  // for pages 2+ — a Word section has one header per type, so the banner and the
+  // watermark must share the first-page header.
+  assert(headerXmls.length >= 2, 'free-plan paper has both a first-page and a running header')
+  assert(headerXmls.every((x) => x.includes('textpath')), 'every header part carries the diagonal watermark')
+  assert(headerXmls.some((x) => x.includes('GRADE')), 'the first-page header still carries the banner')
+  assert(footerParts.length >= 1, 'free-plan paper carries the attribution footer')
+}
+{
+  // Paid / admin export stays completely clean.
+  const doc = await buildAssessmentDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Q', marks: 1 }],
+    { mode: 'paper', attribution: false },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const headerXml = Object.keys(files).filter((n) => /word\/header\d+\.xml/.test(n)).map((n) => strFromU8(files[n])).join('')
+  assert(!headerXml.includes('textpath'), 'paid export has no watermark in the header')
+  assert(!Object.keys(files).some((n) => /word\/footer\d+\.xml/.test(n)), 'paid export has no footer')
+}
+
+console.log('\nInstructions box matches the preview label (Instructions vs Marking key)')
+{
+  const paper = await buildAssessmentDocument(
+    { subject: 'Science', grade: '7', coverInstructions: 'Answer all questions.' },
+    [{ id: 'q1', order: 1, type: 'mcq', text: 'Q', options: ['a', 'b'], correctAnswer: 0, marks: 1 }],
+    { mode: 'paper' },
+  )
+  const paperXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(paper)))['word/document.xml'])
+  assert(paperXml.includes('Instructions') && !paperXml.includes('Marking key'), 'paper mode prints the "Instructions" label')
+
+  // Scheme mode with NO cover instructions still prints the "Marking key" label,
+  // matching the preview — the DOCX used to drop the whole block when text was empty.
+  const scheme = await buildAssessmentDocument(
+    { subject: 'Science', grade: '7' },
+    [{ id: 'q1', order: 1, type: 'mcq', text: 'Q', options: ['a', 'b'], correctAnswer: 0, marks: 1 }],
+    { mode: 'scheme' },
+  )
+  const schemeXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(scheme)))['word/document.xml'])
+  assert(schemeXml.includes('Marking key'), 'scheme mode prints the "Marking key" label even with no cover text')
+}
+
+console.log('\nEssay answer space honours the shared line-count constant (preview parity)')
+{
+  // Learner fields off, so the only ruled lines in the body are the essay's.
+  const doc = await buildAssessmentDocument(
+    { subject: 'English', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
+    [{ id: 'q1', order: 1, type: 'essay', text: 'Write about your school.', marks: 10 }],
+    { mode: 'paper' },
+  )
+  const docXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
+  const ruled = (docXml.match(/_{50,}/g) || []).length
+  assert(ruled === DEFAULT_ANSWER_LINES.essay, `essay prints DEFAULT_ANSWER_LINES.essay (${DEFAULT_ANSWER_LINES.essay}) ruled lines, got ${ruled}`)
+}
+
+console.log('\nDrawing canvas prints ABOVE the ruled answer lines (preview block order)')
+{
+  const doc = await buildAssessmentDocument(
+    { subject: 'Art', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
+    [{ id: 'q1', order: 1, type: 'essay', text: 'Sketch and describe a plant.', marks: 10, drawingHeight: 160 }],
+    { mode: 'paper' },
+  )
+  const docXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
+  const canvasAt = docXml.indexOf('w:trHeight')   // the fixed-height drawing-canvas table row
+  const firstLineAt = docXml.search(/_{50,}/)      // the first ruled answer line
+  assert(canvasAt > -1 && firstLineAt > -1, 'both the drawing canvas and the ruled lines are present')
+  assert(canvasAt < firstLineAt, 'drawing canvas comes before the ruled answer lines, like the preview')
+}
+
+console.log('\nLabelled-diagram markers composite onto the Word image (buildDiagramIdentifySvg mode:labeled)')
+{
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA',
+    width: 400, height: 300, mode: 'labeled',
+    labels: [
+      { x: 0.25, y: 0.25, tx: 0.4, ty: 0.4, text: 'Aorta' },
+      { x: 0.6, y: 0.6, text: 'Vena cava' },
+      { x: 0.8, y: 0.8, text: '' }, // empty → no pill
+    ],
+  })
+  assert((svg.match(/<rect /g) || []).length === 2, 'one pill box per non-empty label (the blank one is skipped)')
+  assert(svg.includes('>Aorta</text>') && svg.includes('>Vena cava</text>'), 'pills carry the label TEXT, not a number')
+  assert((svg.match(/<line /g) || []).length === 1, 'a leader line is drawn only for the label with a target tip')
+  assert(!svg.includes('>1</text>'), 'labelled mode does not number the markers (that is identify mode)')
+}
+{
+  // Special characters in a label are XML-escaped so the composited SVG stays valid.
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 100, height: 100, mode: 'labeled',
+    labels: [{ x: 0.5, y: 0.5, text: 'H2O <gas> & air' }],
+  })
+  assert(svg.includes('H2O &lt;gas&gt; &amp; air'), 'label text is XML-escaped in the pill')
+}
+
+console.log('\nLabelled diagram keeps its labels as a text list when the composite is unavailable')
+{
+  // No canvas in this node harness, so the on-image composite can't render; the
+  // labels must still survive as a "Labels:" text list so the Word download
+  // doesn't silently lose them.
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
+  try {
+    const doc = await buildAssessmentDocument(
+      { subject: 'Science', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
+      [{
+        id: 'q1', order: 1, type: 'diagram', marks: 3, text: 'Study the heart.',
+        imageUrl: 'https://example/heart.png', diagramMode: 'labeled',
+        diagramLabels: [{ x: 0.3, y: 0.3, text: 'Aorta' }, { x: 0.6, y: 0.6, text: 'Vena cava' }],
+      }],
+      { mode: 'paper' },
+    )
+    const docXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
+    assert(docXml.includes('Labels:') && docXml.includes('Aorta') && docXml.includes('Vena cava'), 'labelled diagram falls back to a text list when the composite is unavailable')
+  } finally {
+    globalThis.fetch = realFetch
+  }
 }
 
 if (failures > 0) {
