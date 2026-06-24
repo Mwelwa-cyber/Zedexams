@@ -20,6 +20,7 @@
 import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
 import { gradeFillBlanks } from './fillBlanks.js'
+import { gradeDiagramLabels } from './diagramLabelGrading.js'
 import { matchingMatches } from './matchingGrading.js'
 import { sequenceMatches } from './sequenceGrading.js'
 
@@ -40,6 +41,10 @@ export function isHotspotType(type) {
 
 export function isFillBlanksType(type) {
   return type === 'fill_blanks'
+}
+
+export function isDiagramLabelType(type) {
+  return type === 'diagram_label'
 }
 
 export function isMatchingType(type) {
@@ -75,6 +80,13 @@ export function isQuestionCorrect(question, answer) {
   // statement reading order; every blank must match for the question to score.
   if (isFillBlanksType(question.type)) {
     return gradeFillBlanks(question, answer).allCorrect
+  }
+  // Diagram labelling also grades deterministically: the learner answer is a
+  // flat array of typed labels aligned to the gradeable markers; every marker
+  // must be named correctly for the question to score (fuzzy text match per
+  // marker via gradeDiagramLabels).
+  if (isDiagramLabelType(question.type)) {
+    return gradeDiagramLabels(question, answer).allCorrect
   }
   // Matching / sequence also grade deterministically against their dedicated
   // answer keys (matchingAnswer / sequenceAnswer). Every pair / item must land

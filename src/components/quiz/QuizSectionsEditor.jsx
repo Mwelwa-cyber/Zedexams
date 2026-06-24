@@ -636,6 +636,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
   const isFillBlanks = question.type === 'fill_blanks'
   const isNumeric = question.type === 'numeric'
   const isHotspot = question.type === 'hotspot'
+  const isDiagramLabel = question.type === 'diagram_label'
   const isTextAnswer = question.type === 'short_answer' || question.type === 'diagram' || isFill
   const subtype = question.subtype ?? null
   const subtypeBadge = subtype ? SUBTYPE_LABEL[subtype] : null
@@ -747,6 +748,16 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
                 onChange(sectionIndex, 'options', [])
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
                 if (!question.correctRegion) onChange(sectionIndex, 'correctRegion', null)
+              } else if (nextType === 'diagram_label') {
+                // Label-the-Diagram: no options; each numbered marker on the
+                // image carries the expected name in diagramLabels[i].text.
+                // diagramMode 'identify' is the "numbers on the image, learner
+                // names each" presentation the printed-paper renderer also uses.
+                onChange(sectionIndex, 'options', [])
+                onChange(sectionIndex, 'correctAnswer', '')
+                onChange(sectionIndex, 'diagramMode', 'identify')
+                if (!Array.isArray(question.diagramLabels)) onChange(sectionIndex, 'diagramLabels', [])
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
               } else if (question.options.length < 4) {
                 onChange(sectionIndex, 'options', ['', '', '', ''])
                 onChange(sectionIndex, 'correctAnswer', 0)
@@ -761,6 +772,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             <option value="fill_blanks">Fill in the Blanks (statements)</option>
             <option value="numeric">Numeric (±tolerance)</option>
             <option value="hotspot">Hotspot (click on image)</option>
+            <option value="diagram_label">Label the Diagram (type the parts)</option>
             <option value="diagram">Diagram / Image</option>
           </select>
           {question.type === 'mcq' && (
@@ -890,7 +902,84 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
         </div>
       )}
 
-      {isHotspot ? (
+      {isDiagramLabel ? (
+        <div className="space-y-2">
+          <p className="theme-text-muted text-xs font-bold">
+            Label the Diagram — upload an image above, then click each part to drop a numbered marker and type its name. Learners type the name of every numbered part.
+          </p>
+          {!question.imageUrl ? (
+            <div className="theme-bg-subtle theme-text-muted rounded-xl border-2 border-dashed theme-border p-4 text-center text-xs font-bold">
+              Upload an image first to place numbered markers.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Click-to-place picker. Every click drops a NEW numbered marker
+                  at the normalised (x, y) of the click; the answer for each is
+                  typed in the list below. Capped at 20 (schema limit). */}
+              <div
+                className={joinClasses('relative cursor-crosshair overflow-hidden rounded-xl border-2', theme.cardBorder)}
+                onPointerDown={event => {
+                  const labels = Array.isArray(question.diagramLabels) ? question.diagramLabels : []
+                  if (labels.length >= 20) return
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  if (rect.width <= 0 || rect.height <= 0) return
+                  const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+                  const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+                  set('diagramLabels', [...labels, { x, y, text: '' }])
+                }}
+              >
+                <img
+                  src={question.imageUrl}
+                  alt=""
+                  draggable={false}
+                  className="block w-full select-none object-contain"
+                />
+                {(Array.isArray(question.diagramLabels) ? question.diagramLabels : []).map((label, i) => (
+                  <span
+                    key={i}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--accent)] text-xs font-black text-white shadow"
+                    style={{ left: `${(Number(label?.x) || 0) * 100}%`, top: `${(Number(label?.y) || 0) * 100}%` }}
+                  >
+                    {i + 1}
+                  </span>
+                ))}
+              </div>
+              {(Array.isArray(question.diagramLabels) ? question.diagramLabels : []).length === 0 ? (
+                <p className="text-xs font-bold text-orange-600">Click on the image to add your first numbered part.</p>
+              ) : (
+                <div className="space-y-2">
+                  {question.diagramLabels.map((label, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{i + 1}</span>
+                      <input
+                        value={String(label?.text ?? '')}
+                        onChange={event => {
+                          const next = question.diagramLabels.map((l, j) => (j === i ? { ...l, text: event.target.value } : l))
+                          set('diagramLabels', next)
+                        }}
+                        placeholder={`Name of part ${i + 1}`}
+                        className={joinClasses('theme-input flex-1 rounded-lg border px-3 py-2 text-sm outline-none', theme.focus)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => set('diagramLabels', question.diagramLabels.filter((_, j) => j !== i))}
+                        className="min-h-0 rounded-lg bg-transparent px-2 py-1 text-xs font-bold text-red-500 shadow-none hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Remove part ${i + 1}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="theme-text-muted text-xs">
+                Tip: accept alternative spellings by separating them with <span className="font-bold theme-text">/</span> (e.g. <span className="font-bold theme-text">Vegetable/Vegetables</span>). Marking ignores case and extra spaces.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : isHotspot ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
             Hotspot — upload an image above, then click on it to place the target

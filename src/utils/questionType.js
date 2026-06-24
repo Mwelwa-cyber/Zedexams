@@ -32,8 +32,8 @@
 
 // ── Editor / quiz canonical types ─────────────────────────────────────────
 export const QUESTION_TYPES = [
-  'mcq', 'tf', 'short_answer', 'diagram', 'fill', 'fill_blanks', 'short',
-  'numeric', 'hotspot', 'essay', 'matching', 'sequence',
+  'mcq', 'tf', 'short_answer', 'diagram', 'diagram_label', 'fill', 'fill_blanks',
+  'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence',
 ]
 
 // Well-known type ALIASES → canonical editor enum value. The authoring surfaces
@@ -81,7 +81,8 @@ export const QUESTION_TYPE_LABELS = {
   tf: 'True / False',
   short_answer: 'Short Answer',
   short: 'Short Answer',
-  diagram: 'Label the Diagram',
+  diagram: 'Diagram / Image',
+  diagram_label: 'Label the Diagram',
   fill: 'Fill in the Blank',
   fill_blanks: 'Fill in the Blanks',
   numeric: 'Numeric',

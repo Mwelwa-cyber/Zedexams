@@ -45,6 +45,7 @@
     "test:lesson-activities": "node functions/teacherTools/lessonActivitiesSchema.test.js && node src/utils/activityBankCore.test.js",
     "test:zambian-facts": "node functions/teacherTools/zambianFacts.test.js",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",
+    "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
     "test:question-parts": "node src/utils/questionParts.test.js",
     "test:paper-health": "node src/utils/paperHealth.test.js",
     "test:paper-templates": "node src/utils/paperTemplates.test.js",

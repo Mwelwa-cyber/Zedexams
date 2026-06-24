@@ -51,6 +51,7 @@ const FILL = 'fill'
 const FILL_BLANKS = 'fill_blanks'
 const NUMERIC = 'numeric'
 const HOTSPOT = 'hotspot'
+const DIAGRAM_LABEL = 'diagram_label'
 const MATCHING = 'matching'
 const SEQUENCE = 'sequence'
 
@@ -133,6 +134,21 @@ function hotspotIssue(question) {
   if (!region || typeof region !== 'object' ||
       !Number.isFinite(Number(region.x)) || !Number.isFinite(Number(region.y))) {
     return 'place a target on the image so it can be marked.'
+  }
+  return null
+}
+
+function diagramLabelIssue(question) {
+  const hasImage = Boolean(String(question?.imageUrl ?? '').trim()) ||
+    Boolean(question?.imageDiagram && question.imageDiagram.libraryKey)
+  if (!hasImage) return 'needs an image — upload one or pick a diagram from the library.'
+  // Every gradeable marker needs a name typed in or the question can't be
+  // marked (diagram_label is graded deterministically against each marker's
+  // expected text). An empty marker is ignored, so demand at least one named.
+  const labels = Array.isArray(question?.diagramLabels) ? question.diagramLabels : []
+  const named = labels.filter(label => String(label?.text ?? '').trim().length > 0)
+  if (named.length === 0) {
+    return 'click the image to add at least one numbered part, then type its name.'
   }
   return null
 }
@@ -230,6 +246,12 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
 
   if (qType === HOTSPOT) {
     const issue = hotspotIssue(question)
+    if (issue) { notify(`${label} ${issue}`); return false }
+    return true
+  }
+
+  if (qType === DIAGRAM_LABEL) {
+    const issue = diagramLabelIssue(question)
     if (issue) { notify(`${label} ${issue}`); return false }
     return true
   }
@@ -424,6 +446,9 @@ function collectQuestionIssues(question, label, push) {
   } else if (qType === HOTSPOT) {
     const issue = hotspotIssue(question)
     if (issue) push(`hotspot-${question.localId}`, `${label}: ${issue}`, { localId })
+  } else if (qType === DIAGRAM_LABEL) {
+    const issue = diagramLabelIssue(question)
+    if (issue) push(`diagram-label-${question.localId}`, `${label}: ${issue}`, { localId })
   } else if (qType === MATCHING) {
     const issue = matchingIssue(question)
     if (issue) push(`matching-${question.localId}`, `${label}: ${issue}`, { localId })
