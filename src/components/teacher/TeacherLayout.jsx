@@ -4,6 +4,7 @@ import {
   PencilLine,
   FolderOpen,
   GraduationCap,
+  CalendarDays,
   LogOut,
   Settings,
   Sparkles,
@@ -21,6 +22,7 @@ const NAV = [
   { to: '/teacher/test-papers',      icon: PencilLine,      label: 'Test Papers'             },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
+  { to: '/teacher/calendar',         icon: CalendarDays,    label: 'School Calendar'         },
   { to: '/my-subscription',          icon: Sparkles,        label: 'My Subscription'         },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
 ]
