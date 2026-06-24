@@ -23,10 +23,12 @@ import {
   isNumericType,
   isHotspotType,
   isFillBlanksType,
+  isDiagramLabelType,
   isMatchingType,
   isSequenceType,
 } from '../../utils/quizScoring'
 import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
+import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabelGrading'
 import { gradeMatching } from '../../utils/matchingGrading'
 import { gradeSequence } from '../../utils/sequenceGrading'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -670,7 +672,11 @@ export default function QuizRunnerV2() {
           // are set (which shouldn't happen — the editor enforces mutual
           // exclusivity — but the renderer is defensive in case stale data
           // arrives from Firestore).
-          const imageBlock = question.imageDiagram?.libraryKey ? (
+          // Diagram-label questions render their image WITH numbered markers
+          // in the branch below, so suppress the plain image here to avoid
+          // showing the picture twice (once unmarked, once marked).
+          const imageBlock = isDiagramLabelType(question.type) ? null
+            : question.imageDiagram?.libraryKey ? (
             <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
               <DiagramSvg
                 libraryKey={question.imageDiagram.libraryKey}
@@ -828,6 +834,137 @@ export default function QuizRunnerV2() {
               </div>
             )}
           </div>
+          )
+        })() : isDiagramLabelType(question.type) ? (() => {
+          // Diagram-label branch — the learner types the name of each numbered
+          // part on the image. Graded deterministically (no AI) against the
+          // per-marker answer key; the response is a flat array aligned to the
+          // gradeable markers in author order, which is exactly what
+          // computeQuizScore → gradeDiagramLabels re-runs at submit time.
+          const layout = diagramLabelLayout(question)
+          const response = Array.isArray(answers[question.id]) ? answers[question.id] : []
+          const dlResult = aiResults[question.id]
+          const dlChecked = !!dlResult
+
+          function setLabel(flatIndex, value) {
+            setAnswers(current => {
+              const prev = Array.isArray(current[question.id]) ? [...current[question.id]] : []
+              prev[flatIndex] = value
+              return { ...current, [question.id]: prev }
+            })
+            if (actionError) setActionError('')
+            // Editing invalidates a prior check.
+            if (dlChecked) {
+              setAiResults(current => {
+                const next = { ...current }
+                delete next[question.id]
+                return next
+              })
+            }
+          }
+
+          function checkDiagramLabels() {
+            const result = gradeDiagramLabels(question, answers[question.id])
+            setAiResults(current => ({
+              ...current,
+              [question.id]: {
+                correct: result.allCorrect,
+                perLabel: result.perLabel,
+                feedback: result.allCorrect
+                  ? '🌟 Every part labelled correctly!'
+                  : `${result.correctLabels} of ${result.totalLabels} parts correct.`,
+              },
+            }))
+            if (mode === 'practice') {
+              setRevealed(current => ({ ...current, [question.id]: true }))
+              setFeedbackType(result.allCorrect ? 'correct' : 'wrong')
+              setTimeout(() => setFeedbackType(null), 1300)
+            }
+          }
+
+          const anyTyped = response.some(v => String(v ?? '').trim())
+
+          return (
+            <div className="space-y-4">
+              <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${dlChecked && mode === 'practice'
+                ? dlResult.correct ? 'border-emerald-600' : 'border-orange-500'
+                : 'border-slate-900'}`}>
+                <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🏷️ Name each numbered part</div>
+                <div className="p-3">
+                  {question.imageUrl ? (
+                    <div className="relative w-full overflow-hidden rounded-xl border-2 border-slate-200">
+                      <img
+                        src={question.imageUrl}
+                        alt="Label the parts of this diagram"
+                        draggable={false}
+                        decoding="async"
+                        fetchPriority="high"
+                        className="block w-full select-none object-contain"
+                      />
+                      {layout.map(label => (
+                        <span
+                          key={label.number}
+                          aria-hidden="true"
+                          className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-orange-500 text-xs font-black text-white shadow"
+                          style={{ left: `${label.x * 100}%`, top: `${label.y * 100}%` }}
+                        >
+                          {label.number}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-bold text-orange-600">This diagram-label question is missing its image.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {layout.map(label => {
+                  const labelCorrect = dlChecked ? dlResult.perLabel?.[label.index] : null
+                  // Accepted answers may list variants ("Vegetable/Vegetables");
+                  // show just the first when revealing the expected label.
+                  const expected = label.text.split(/\s*[/|]\s*/)[0]
+                  return (
+                    <div key={label.number} className="flex items-center gap-3">
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{label.number}</span>
+                      <input
+                        type="text"
+                        value={response[label.index] ?? ''}
+                        onChange={event => setLabel(label.index, event.target.value)}
+                        disabled={dlChecked && mode === 'practice'}
+                        aria-label={`Name of part ${label.number}`}
+                        placeholder="Type the name of this part…"
+                        className={`flex-1 rounded-xl border-2 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ${
+                          labelCorrect === true ? 'border-emerald-600 text-emerald-700'
+                            : labelCorrect === false ? 'border-orange-500 text-orange-700'
+                              : 'border-slate-400 focus:border-[var(--accent)]'
+                        }`}
+                      />
+                      {dlChecked && mode === 'practice' && labelCorrect === false && (
+                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700" title="Correct answer">{expected}</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {!dlChecked && (
+                <button
+                  type="button"
+                  onClick={checkDiagramLabels}
+                  disabled={!anyTyped}
+                  className="zx-sb zx-sb-primary w-full text-sm"
+                >
+                  {mode === 'exam' ? 'Save Answer' : 'Check My Answers'}
+                </button>
+              )}
+
+              {dlChecked && mode === 'practice' && (
+                <div className={`rounded-2xl border-2 p-4 ${dlResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <p className={`text-sm font-bold ${dlResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{dlResult.feedback}</p>
+                </div>
+              )}
+            </div>
           )
         })() : isFillBlanksType(question.type) ? (() => {
           // Fill-in-the-Blanks branch — each statement renders on its own line
