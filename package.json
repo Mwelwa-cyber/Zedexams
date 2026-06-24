@@ -281,6 +281,7 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,md,mdx,html,css,scss}": "node scripts/check-file-integrity.mjs"
   },
   "dependencies": {
+    "@capacitor-community/safe-area": "^8.0.1",
     "@capacitor-firebase/authentication": "^8.3.0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
@@ -288,8 +289,6 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/share": "^8.0.1",
-    "@capacitor/status-bar": "^8.0.0",
-    "@capawesome/capacitor-android-edge-to-edge-support": "^8.0.8",
     "@heroicons/react": "^2.2.0",
     "@sentry/react": "^10.52.0",
     "@tiptap/core": "^3.22.3",
