@@ -2661,6 +2661,8 @@
   .studio-v2 .sv-paper-name-row { gap: 16px; }
 }
 
+/* Very narrow phones: shrink the gutters further so the page keeps as much
+   reading width as possible on the smallest screens. */
 @media (max-width: 400px) {
   .studio-v2 .sv-preview-shell { padding: 2px; }
   .studio-v2 .sv-paper { padding: 18px 12px; }
