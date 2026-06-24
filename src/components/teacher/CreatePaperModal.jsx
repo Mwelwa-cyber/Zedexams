@@ -67,40 +67,8 @@ function canonicalTypesFor(selectedKeys) {
 const MARKS_OPTIONS = [20, 30, 40, 50, 60, 80, 100]
 const DURATION_OPTIONS = [30, 40, 60, 90, 120, 150, 180]
 
-const overlayStyle = {
-  position: 'fixed', inset: 0, zIndex: 95,
-  background: 'rgba(14, 42, 50, 0.55)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: 16,
-}
-const modalStyle = {
-  background: 'var(--sv-paper, #fff)', borderRadius: 16,
-  width: 'min(640px, 100%)', maxHeight: '90vh',
-  display: 'flex', flexDirection: 'column', padding: 18,
-  overflowY: 'auto',
-}
-const fieldLabel = { fontSize: 12, fontWeight: 700, color: 'var(--sv-muted, #566f76)', display: 'block', marginBottom: 4 }
-const inputStyle = {
-  width: '100%', border: '1px solid var(--sv-border, #d9cfb8)',
-  borderRadius: 8, padding: '8px 10px', fontSize: 14,
-  background: '#fff', fontFamily: 'inherit',
-}
-const chipStyle = {
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-  background: 'var(--sv-tinted, #f3ead5)', borderRadius: 999,
-  padding: '4px 10px', fontSize: 13, color: 'var(--sv-text, #0e2a32)',
-}
-const checkboxListStyle = {
-  display: 'flex', flexDirection: 'column', gap: 2,
-  maxHeight: 220, overflowY: 'auto',
-  border: '1px solid var(--sv-border, #d9cfb8)', borderRadius: 8,
-  padding: 6, background: '#fff',
-}
-const checkboxRowStyle = {
-  display: 'flex', alignItems: 'flex-start', gap: 8,
-  padding: '6px', borderRadius: 6, lineHeight: 1.4,
-}
-const hintStyle = { fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: '6px 0 0' }
+// Modal form styling lives in studio/assessmentStudio.css under `.sv-cpm-*`
+// (scoped to .studio-v2, using the design tokens directly — no inline objects).
 
 // A scrollable list of tickable options — far faster than a drop-down when a
 // teacher needs to pick several topics/sub-topics at once. Unchecked rows are
@@ -109,17 +77,17 @@ const hintStyle = { fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: '6p
 // so a teacher can swap one out.
 function CheckboxList({ options, selected, onToggle, disabledMore = false }) {
   return (
-    <div style={checkboxListStyle} role="group">
+    <div className="sv-cpm-checklist" role="group">
       {options.map((opt) => {
         const checked = selected.includes(opt)
         const disabled = !checked && disabledMore
         return (
           <label key={opt}
-            style={{ ...checkboxRowStyle, opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+            className="sv-cpm-checkrow" style={{ opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
             <input type="checkbox" checked={checked} disabled={disabled}
               onChange={() => onToggle(opt)}
-              style={{ accentColor: 'var(--sv-primary, #ff7a2e)', marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: 'var(--sv-text, #0e2a32)' }}>{opt}</span>
+              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
+            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
           </label>
         )
       })}
@@ -133,14 +101,14 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
   const baseBtn = {
     border: 'none', background: 'none', cursor: 'pointer',
     fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
-    lineHeight: 1.6, color: 'var(--sv-muted, #566f76)',
+    lineHeight: 1.6, color: 'var(--sv-muted)',
   }
   const onStyle = {
-    background: 'var(--sv-tinted, #fff3e8)', color: 'var(--sv-text, #0e2a32)',
-    boxShadow: 'inset 0 0 0 1.5px var(--sv-primary, #ff7a2e)',
+    background: 'var(--sv-tinted)', color: 'var(--sv-text)',
+    boxShadow: 'inset 0 0 0 1.5px var(--sv-primary)',
   }
   return (
-    <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--sv-soft, #f3ead5)' }}>
+    <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--sv-soft)' }}>
       <button type="button"
         onClick={() => !pickDisabled && onChange('pick')}
         disabled={pickDisabled}
@@ -156,8 +124,6 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
     </div>
   )
 }
-
-const labelRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }
 
 export default function CreatePaperModal({ paperMeta, onApply, onClose, variant = 'test' }) {
   const { currentUser } = useAuth()
@@ -461,14 +427,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     form.topics.length < maxTopics
 
   return (
-    <div style={overlayStyle} onClick={status === 'generating' ? undefined : onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+    <div className="sv-cpm-overlay" onClick={status === 'generating' ? undefined : onClose}>
+      <div className="sv-cpm-modal" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontWeight: 900, fontSize: 19, color: 'var(--sv-text, #0e2a32)' }}>
+            <h3 style={{ margin: 0, fontWeight: 900, fontSize: 19, color: 'var(--sv-text)' }}>
               {isExam ? '🎓 Create exam with AI' : '📄 Create paper with AI'}
             </h3>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--sv-muted, #566f76)' }}>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--sv-muted)' }}>
               {isExam
                 ? 'The exam follows the Zambian examination format at full exam ' +
                   'standard and lands as editable blocks — review every question ' +
@@ -484,10 +450,10 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
         {status !== 'done' && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="sv-cpm-grid2">
               <div>
-                <label style={fieldLabel}>Grade</label>
-                <select style={inputStyle} value={form.grade}
+                <label className="sv-cpm-label">Grade</label>
+                <select className="sv-cpm-input" value={form.grade}
                   onChange={(e) => setMeta('grade', e.target.value)}>
                   {gradeOptions.map((g) => (
                     <option key={g.value} value={g.value}>{g.label}</option>
@@ -495,8 +461,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                 </select>
               </div>
               <div>
-                <label style={fieldLabel}>Subject</label>
-                <select style={inputStyle} value={form.subject}
+                <label className="sv-cpm-label">Subject</label>
+                <select className="sv-cpm-input" value={form.subject}
                   disabled={subjectsLoading}
                   onChange={(e) => setMeta('subject', e.target.value)}>
                   {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
@@ -507,26 +473,26 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               </div>
             </div>
             <div>
-              <label style={fieldLabel}>Curriculum</label>
+              <label className="sv-cpm-label">Curriculum</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 {CURRICULUM_FRAMEWORKS.map((f) => (
                   <button key={f.value} type="button"
                     onClick={() => setMeta('framework', f.value)}
                     style={{
                       flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
-                      border: `1.5px solid ${form.framework === f.value ? 'var(--sv-primary, #ff7a2e)' : 'var(--sv-border, #d9cfb8)'}`,
-                      background: form.framework === f.value ? 'var(--sv-tinted, #fff3e8)' : '#fff',
-                      color: 'var(--sv-text, #0e2a32)', fontWeight: form.framework === f.value ? 700 : 400,
+                      border: `1.5px solid ${form.framework === f.value ? 'var(--sv-primary)' : 'var(--sv-border)'}`,
+                      background: form.framework === f.value ? 'var(--sv-tinted)' : '#fff',
+                      color: 'var(--sv-text)', fontWeight: form.framework === f.value ? 700 : 400,
                     }}>
                     {f.label}
                   </button>
                 ))}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="sv-cpm-grid2">
               <div>
-                <label style={fieldLabel}>{isExam ? 'Exam type' : 'Test type'}</label>
-                <select style={inputStyle} value={form.assessmentType}
+                <label className="sv-cpm-label">{isExam ? 'Exam type' : 'Test type'}</label>
+                <select className="sv-cpm-input" value={form.assessmentType}
                   onChange={(e) => changeAssessmentType(e.target.value)}>
                   {paperTypes.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -534,8 +500,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                 </select>
               </div>
               <div>
-                <label style={fieldLabel}>Term</label>
-                <select style={inputStyle} value={form.term}
+                <label className="sv-cpm-label">Term</label>
+                <select className="sv-cpm-input" value={form.term}
                   onChange={(e) => set('term', e.target.value)}>
                   {['1', '2', '3'].map((t) => <option key={t} value={t}>Term {t}</option>)}
                 </select>
@@ -543,21 +509,21 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
             </div>
 
             <div>
-              <div style={labelRow}>
-                <label style={{ ...fieldLabel, marginBottom: 0 }}>
+              <div className="sv-cpm-labelrow">
+                <label className="sv-cpm-label" style={{ marginBottom: 0 }}>
                   Topics from the syllabus (up to {maxTopics}) *
                 </label>
                 <ModeToggle value={topicMode} onChange={changeTopicMode} pickDisabled={topicPickEmpty} />
               </div>
               {cumulative && (
-                <p style={{ fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: '0 0 6px' }}>
+                <p style={{ fontSize: 12, color: 'var(--sv-muted)', margin: '0 0 6px' }}>
                   This is a cumulative paper — add every topic the class has covered.
                 </p>
               )}
               {form.topics.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                   {form.topics.map((t) => (
-                    <span key={t} style={chipStyle}>
+                    <span key={t} className="sv-cpm-chip">
                       {t}
                       <button type="button" aria-label={`Remove ${t}`}
                         onClick={() => set('topics', form.topics.filter((x) => x !== t))}
@@ -568,9 +534,9 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               )}
               {topicMode === 'pick' ? (
                 syllabiLoading ? (
-                  <p style={hintStyle}>Loading syllabus topics…</p>
+                  <p className="sv-cpm-hint">Loading syllabus topics…</p>
                 ) : topicOptions.length === 0 ? (
-                  <p style={hintStyle}>No syllabus topics on file — switch to “Write my own”.</p>
+                  <p className="sv-cpm-hint">No syllabus topics on file — switch to “Write my own”.</p>
                 ) : (
                   <>
                     <CheckboxList
@@ -590,20 +556,20 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                           Clear
                         </button>
                       )}
-                      <span style={{ ...hintStyle, margin: 0, marginLeft: 'auto' }}>
+                      <span className="sv-cpm-hint" style={{ margin: 0, marginLeft: 'auto' }}>
                         {form.topics.length}/{maxTopics} selected
                       </span>
                     </div>
                   </>
                 )
               ) : form.topics.length >= maxTopics ? (
-                <p style={{ fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: 0 }}>
+                <p style={{ fontSize: 12, color: 'var(--sv-muted)', margin: 0 }}>
                   Maximum of {maxTopics} topics added — remove one to change it.
                 </p>
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input
-                    style={{ ...inputStyle, flex: 1 }}
+                    className="sv-cpm-input" style={{ flex: 1 }}
                     list="cpm-topic-options"
                     value={form.topicInput}
                     onChange={(e) => set('topicInput', e.target.value)}
@@ -623,19 +589,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
             </div>
 
             <div>
-              <div style={labelRow}>
-                <label style={{ ...fieldLabel, marginBottom: 0 }}>Sub-topics (optional)</label>
+              <div className="sv-cpm-labelrow">
+                <label className="sv-cpm-label" style={{ marginBottom: 0 }}>Sub-topics (optional)</label>
                 <ModeToggle value={subtopicMode} onChange={changeSubtopicMode}
                   pickDisabled={subtopicOptions.length === 0} />
               </div>
-              <p style={{ fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: '0 0 6px' }}>
+              <p style={{ fontSize: 12, color: 'var(--sv-muted)', margin: '0 0 6px' }}>
                 Pick the sub-topics actually covered — handy for a monthly test
                 that only did part of a topic. Leave empty to cover the whole topic.
               </p>
               {form.subtopics.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                   {form.subtopics.map((s) => (
-                    <span key={s} style={chipStyle}>
+                    <span key={s} className="sv-cpm-chip">
                       {s}
                       <button type="button" aria-label={`Remove ${s}`}
                         onClick={() => set('subtopics', form.subtopics.filter((x) => x !== s))}
@@ -646,7 +612,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               )}
               {subtopicMode === 'pick' ? (
                 subtopicOptions.length === 0 ? (
-                  <p style={hintStyle}>Add a topic first to see its sub-topics.</p>
+                  <p className="sv-cpm-hint">Add a topic first to see its sub-topics.</p>
                 ) : (
                   <>
                     <CheckboxList
@@ -664,7 +630,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                 )
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...inputStyle, flex: 1 }} list="cpm-subtopic-options"
+                  <input className="sv-cpm-input" style={{ flex: 1 }} list="cpm-subtopic-options"
                     value={form.subtopicInput}
                     onChange={(e) => set('subtopicInput', e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubtopic() } }}
@@ -681,17 +647,17 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="sv-cpm-grid2">
               <div>
-                <label style={fieldLabel}>Total marks</label>
-                <select style={inputStyle} value={String(form.totalMarks)}
+                <label className="sv-cpm-label">Total marks</label>
+                <select className="sv-cpm-input" value={String(form.totalMarks)}
                   onChange={(e) => set('totalMarks', Number(e.target.value))}>
                   {MARKS_OPTIONS.map((m) => <option key={m} value={m}>{m} marks</option>)}
                 </select>
               </div>
               <div>
-                <label style={fieldLabel}>Duration</label>
-                <select style={inputStyle} value={String(form.durationMinutes)}
+                <label className="sv-cpm-label">Duration</label>
+                <select className="sv-cpm-input" value={String(form.durationMinutes)}
                   onChange={(e) => set('durationMinutes', Number(e.target.value))}>
                   {DURATION_OPTIONS.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
@@ -699,37 +665,27 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
             </div>
 
             <div>
-              <label style={fieldLabel}>Question types</label>
+              <label className="sv-cpm-label">Question types</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {QUESTION_TYPE_OPTIONS.map((t) => {
                   const on = form.questionTypes.includes(t.key)
                   return (
                     <button key={t.key} type="button" onClick={() => toggleType(t.key)}
-                      style={{
-                        padding: '6px 12px', borderRadius: 999, fontSize: 13, cursor: 'pointer',
-                        border: `1.5px solid ${on ? 'var(--sv-primary, #ff7a2e)' : 'var(--sv-border, #d9cfb8)'}`,
-                        background: on ? 'var(--sv-tinted, #fff3e8)' : '#fff',
-                        color: 'var(--sv-text, #0e2a32)', fontWeight: on ? 700 : 400,
-                      }}>
+                      className={`sv-cpm-pill ${on ? 'active' : ''}`}>
                       {t.label}
                     </button>
                   )
                 })}
                 <button type="button" onClick={() => set('comprehension', !form.comprehension)}
-                  style={{
-                    padding: '6px 12px', borderRadius: 999, fontSize: 13, cursor: 'pointer',
-                    border: `1.5px solid ${form.comprehension ? 'var(--sv-primary, #ff7a2e)' : 'var(--sv-border, #d9cfb8)'}`,
-                    background: form.comprehension ? 'var(--sv-tinted, #fff3e8)' : '#fff',
-                    color: 'var(--sv-text, #0e2a32)', fontWeight: form.comprehension ? 700 : 400,
-                  }}>
+                  className={`sv-cpm-pill ${form.comprehension ? 'active' : ''}`}>
                   Comprehension passage
                 </button>
               </div>
             </div>
 
             <div>
-              <label style={fieldLabel}>Anything else? (optional)</label>
-              <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2}
+              <label className="sv-cpm-label">Anything else? (optional)</label>
+              <textarea className="sv-cpm-input" style={{ resize: 'vertical' }} rows={2}
                 maxLength={300}
                 value={form.extra}
                 onChange={(e) => set('extra', e.target.value)}
@@ -738,14 +694,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
             <label style={{
               display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
-              border: '1px solid var(--sv-border, #d9cfb8)', borderRadius: 10, padding: '10px 12px',
+              border: '1px solid var(--sv-border)', borderRadius: 10, padding: '10px 12px',
             }}>
               <input type="checkbox" checked={form.autoDiagrams}
                 onChange={(e) => set('autoDiagrams', e.target.checked)}
                 style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 13, color: 'var(--sv-text, #0e2a32)' }}>
+              <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>
                 <strong>Draw diagrams automatically</strong>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--sv-muted, #566f76)', marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--sv-muted)', marginTop: 2 }}>
                   When the paper needs figures (science diagrams, picture options,
                   shapes), generate black-and-white line art for them right away.
                   Adds a few seconds per figure; you can still fine-tune or replace any of them.
@@ -781,9 +737,9 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
         {status === 'done' && result && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ borderRadius: 10, border: '1px solid var(--sv-border, #d9cfb8)', padding: 12, fontSize: 14, color: 'var(--sv-text, #0e2a32)' }}>
+            <div style={{ borderRadius: 10, border: '1px solid var(--sv-border)', padding: 12, fontSize: 14, color: 'var(--sv-text)' }}>
               <strong>{result.assessment?.header?.title || 'Paper ready'}</strong>
-              <div style={{ fontSize: 13, color: 'var(--sv-muted, #566f76)', marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: 'var(--sv-muted)', marginTop: 4 }}>
                 {result.blocks.questionCount} questions · {result.blocks.totalMarks} marks ·{' '}
                 {result.blocks.parts.length} section{result.blocks.parts.length === 1 ? '' : 's'} —
                 with answers and a marking guide on every question.

@@ -2557,3 +2557,65 @@
   .studio-v2 .sv-paper-banner { padding: 16px 12px; }
   .studio-v2 .sv-paper-banner-text .sv-pbn-school { font-size: 17px; }
 }
+
+
+/* ==================================================================
+ * CREATE PAPER MODAL — AI paper-generation modal (CreatePaperModal.jsx)
+ * Scoped form styles that replace the inline style-objects the modal used
+ * to carry. Uses the design tokens directly (no hardcoded fallbacks).
+ * ================================================================== */
+.studio-v2 .sv-cpm-overlay {
+  position: fixed; inset: 0; z-index: 95;
+  background: rgba(14, 42, 50, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.studio-v2 .sv-cpm-modal {
+  background: var(--sv-paper); border-radius: 16px;
+  width: min(640px, 100%); max-height: 90vh;
+  display: flex; flex-direction: column; padding: 18px;
+  overflow-y: auto;
+}
+.studio-v2 .sv-cpm-label {
+  font-size: 12px; font-weight: 700; color: var(--sv-muted);
+  display: block; margin-bottom: 4px;
+}
+.studio-v2 .sv-cpm-input {
+  width: 100%; border: 1px solid var(--sv-border);
+  border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  background: #fff; font-family: inherit;
+}
+.studio-v2 .sv-cpm-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--sv-tinted); border-radius: 999px;
+  padding: 4px 10px; font-size: 13px; color: var(--sv-text);
+}
+.studio-v2 .sv-cpm-checklist {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--sv-border); border-radius: 8px;
+  padding: 6px; background: #fff;
+}
+.studio-v2 .sv-cpm-checkrow {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px; border-radius: 6px; line-height: 1.4;
+}
+.studio-v2 .sv-cpm-hint {
+  font-size: 12px; color: var(--sv-muted); margin: 6px 0 0;
+}
+.studio-v2 .sv-cpm-labelrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 4px;
+}
+.studio-v2 .sv-cpm-grid2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+/* Selectable pill — question-type + comprehension toggles */
+.studio-v2 .sv-cpm-pill {
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+  border: 1.5px solid var(--sv-border); background: #fff;
+  color: var(--sv-text); font-weight: 400;
+}
+.studio-v2 .sv-cpm-pill.active {
+  border-color: var(--sv-primary); background: var(--sv-tinted); font-weight: 700;
+}
