@@ -25,6 +25,8 @@ import SbaTaskView from '../views/SbaTaskView'
 import LessonActivitiesView from '../views/LessonActivitiesView'
 import SbaTrackerView from '../views/SbaTrackerView'
 import SbaPlanView from '../views/SbaPlanView'
+import AssessmentPaperView from '../views/AssessmentPaperView'
+import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
@@ -67,6 +69,8 @@ const TOOL_DOC_TYPES = {
   sba_mark_sheet: 'SBA Mark Schedule',
   sba_plan: 'SBA Year Plan',
   lesson_activities: 'Exercise & Homework',
+  assessment: 'Test Paper',
+  exam_paper: 'Exam Paper',
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
@@ -287,6 +291,14 @@ export default function LibraryItemDetail() {
     } else if (item.tool === 'sba_mark_sheet') {
       await downloadSbaTrackerDocx(item.output, name())
       recordExport(item.id, 'docx')
+    } else if (item.tool === 'assessment' || item.tool === 'exam_paper') {
+      // AI-generated test/exam papers: convert to the studio shape and reuse the
+      // same DOCX exporter the Assessment Studio uses, honouring the marking-key
+      // toggle. assessmentToDocx (+ the heavy `docx` lib) is loaded on demand.
+      const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+      const { doc, questions } = aiPaperToStudioDoc(item.output, item.tool)
+      await downloadAssessmentDocx(doc, questions, name(), { mode: showAnswers ? 'scheme' : 'paper' })
+      recordExport(item.id, 'docx')
     } else if (item.tool === 'sba_plan') {
       const h = item.output?.header || {}
       const plan = buildSbaPlan(h.subject, h.grade, item.output?.statuses || {})
@@ -457,7 +469,8 @@ export default function LibraryItemDetail() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            {(item.tool === 'worksheet' || item.tool === 'lesson_activities') && (
+            {(item.tool === 'worksheet' || item.tool === 'lesson_activities' ||
+              item.tool === 'assessment' || item.tool === 'exam_paper') && (
               <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
                 <input
                   type="checkbox"
@@ -465,7 +478,7 @@ export default function LibraryItemDetail() {
                   onChange={(e) => setShowAnswers(e.target.checked)}
                   style={{ accentColor: '#ff7a2e' }}
                 />
-                Show answers
+                {item.tool === 'assessment' || item.tool === 'exam_paper' ? 'Marking key' : 'Show answers'}
               </label>
             )}
             {item.tool === 'mark_schedule' && (
@@ -710,6 +723,9 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
           {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
+          {(item.tool === 'assessment' || item.tool === 'exam_paper') && item.output && (
+            <AssessmentPaperView assessment={item.output} tool={item.tool} showAnswers={showAnswers} />
+          )}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.

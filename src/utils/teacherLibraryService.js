@@ -489,6 +489,21 @@ export const TOOL_META = {
     route: '/teacher/generate/lesson-plan',
     colour: 'orange',
   },
+  // AI-generated test/exam papers (generateAssessment / generateExamPaper land
+  // these in aiGenerations). The Library detail view renders them as a printed
+  // paper. No `route`: the studio's "Create with AI" modal owns generation and
+  // doesn't pre-fill from a query string, so "Generate similar" is intentionally
+  // hidden rather than dumping the teacher on a blank studio.
+  assessment: {
+    label: 'Test Paper',
+    icon: '📋',
+    colour: 'rose',
+  },
+  exam_paper: {
+    label: 'Exam Paper',
+    icon: '📄',
+    colour: 'rose',
+  },
 }
 
 export const TOOL_FILTER_OPTIONS = [
@@ -601,6 +616,13 @@ export function titleForGeneration(gen) {
     const g = gen.inputs?.grade || out?.header?.grade || ''
     const s = gen.inputs?.subject || out?.header?.subject || ''
     return `${g} ${s} exam questions`.trim() || 'Exam questions'
+  }
+  if (gen.tool === 'assessment') {
+    if (out?.header?.title) return out.header.title
+    const g = gen.inputs?.grade || out?.header?.grade || ''
+    const s = gen.inputs?.subject || out?.header?.subject || ''
+    const topic = gen.inputs?.topic || out?.header?.topic || ''
+    return topic || `${g} ${s} test paper`.trim() || 'Test paper'
   }
   return gen.inputs?.topic || 'Generation'
 }
