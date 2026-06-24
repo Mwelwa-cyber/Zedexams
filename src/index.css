@@ -3563,6 +3563,21 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   }
 }
 
+/* On wide desktop the hero card is roomy and a 300px illustration left a
+   large empty band between the left-aligned copy and the far-right art.
+   Growing the art on lg/xl anchors that space and balances the banner. */
+@media (min-width: 1024px) {
+  .zx-hero-art {
+    width: 360px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .zx-hero-art {
+    width: 420px;
+  }
+}
+
 body.theme-lavender .learner-page-heading {
   color: #312e81;
 }
