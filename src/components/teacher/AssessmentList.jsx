@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
+import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -52,11 +53,24 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
   const id = assessment.id
   const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || fallbackLabel
   const [exporting, setExporting] = useState(null)
+  const toast = useToast()
 
   async function handleExport(format, mode) {
+    // For PDF: open the window now, synchronously, while still in the direct
+    // click handler. Browsers block window.open once we await async work.
+    let win = null
+    if (format === 'pdf') {
+      win = openPrintWindow()
+      if (!win) {
+        toast.error('Your browser blocked the print window. Please allow pop-ups for this site and try again.')
+        return
+      }
+    }
     setExporting(`${format}-${mode}`)
     try {
-      await onExport(assessment, format, mode)
+      await onExport(assessment, format, mode, win)
+    } catch (err) {
+      toast.error(err?.message || 'Export failed — please try again.')
     } finally {
       setExporting(null)
     }
@@ -105,6 +119,15 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
           {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleExport('pdf', 'paper')}
+          disabled={!!exporting || busy}
+          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
+          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
+        >
+          {exporting === 'pdf-paper' ? 'Opening…' : '📄 Paper (PDF)'}
         </button>
         <button
           type="button"
@@ -187,25 +210,24 @@ export default function AssessmentList({ variant = 'test' }) {
     }
   }
 
-  async function handleExport(assessment, format, mode) {
+  async function handleExport(assessment, format, mode, win = null) {
     try {
-      // Fetch the full question set on-demand so the list view stays cheap.
       const questions = await getAssessmentQuestions(assessment.id)
       if (!questions || questions.length === 0) {
         toast.error('This assessment has no questions to export yet.')
         return
       }
       const variant = mode === 'paper' ? undefined : 'Marking Key'
-      // Word (.docx) is the only download format. PDF export was removed — its
-      // html2canvas rendering mangled papers; teachers "Save as PDF" from Word.
-      // Pulled in on demand so the heavy docx assembler never ships in the
-      // list's route chunk — it loads only when a teacher actually exports.
-      const { downloadAssessmentDocx } = await import('../../utils/assessmentToDocx')
-      await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
-      toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')
+      if (format === 'docx') {
+        const { downloadAssessmentDocx } = await import('../../utils/assessmentToDocx')
+        await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+        toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')
+      } else {
+        // Pass the pre-opened window so the browser doesn't treat this as a
+        // popup (window.open was already called before the async fetch above).
+        printAssessmentAsPdf(assessment, questions, { mode, win })
+      }
     } catch (err) {
-      // Previously this threw silently — the row spinner reset but the teacher
-      // got no signal the export had failed. Match the Studio's toast feedback.
       toast.error(`Export failed: ${err.message || 'unexpected error'}`)
     }
   }
