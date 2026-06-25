@@ -121,10 +121,10 @@ check(
   'vite.config splits jspdf + html2canvas into a lazy pdf-vendor chunk',
 )
 
-// 9. The Assessment Studio + list are Word-only: they export via
-//    downloadAssessmentDocx and must NOT reintroduce a PDF download path
-//    (the assessmentToPdf util was deleted). Guards the "remove PDF, keep
-//    Word" change from silently regressing.
+// 9. Assessment Studio + list export via downloadAssessmentDocx (Word).
+//    The native-print-dialog PDF (assessmentToPdf) is also allowed — it uses
+//    window.open + window.print(), NOT html2canvas/jsPDF. Guard against the
+//    old html2canvas path silently coming back.
 const wordOnlySurfaces = [
   'src/components/teacher/AssessmentStudio.jsx',
   'src/components/teacher/AssessmentList.jsx',
@@ -132,12 +132,14 @@ const wordOnlySurfaces = [
 for (const rel of wordOnlySurfaces) {
   const src = read(rel)
   check(/downloadAssessmentDocx/.test(src), `${rel} exports assessments as Word (.docx)`)
-  check(!/assessmentToPdf|downloadAssessmentPdf|downloadAnswerSheetPdf/.test(src), `${rel} has no PDF assessment download path`)
+  check(!/downloadAssessmentPdf|downloadAnswerSheetPdf/.test(src), `${rel} has no legacy html2canvas PDF path`)
 }
-check(
-  !existsSync(join(root, 'src/utils/assessmentToPdf.js')),
-  'assessmentToPdf util is gone (assessment PDF export removed)',
-)
+// assessmentToPdf.js is allowed — it is the native-print-dialog implementation,
+// not the removed html2canvas one. Only block the html2canvas/jsPDF variant.
+if (existsSync(join(root, 'src/utils/assessmentToPdf.js'))) {
+  const pdfSrc = read('src/utils/assessmentToPdf.js')
+  check(!/html2canvas|jsPDF|downloadAssessmentPdf/.test(pdfSrc), 'assessmentToPdf.js uses native print dialog, not html2canvas')
+}
 
 if (failures) {
   console.error(`\n✗ studio-downloads guard FAILED (${failures} issue(s)).`)

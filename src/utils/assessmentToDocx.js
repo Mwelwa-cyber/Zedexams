@@ -1111,7 +1111,7 @@ async function renderQuestion(b) {
       })
       out.push(para(runs, { spacing: { after: 200 } }))
     })
-  } else if (b.type === 'mcq' || b.type === 'tf') {
+  } else if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     // True/False renders identically to a 2-option MCQ — buildQuestionBlock
     // defaults its options to ['True','False'] and keeps correctAnswer as the
     // index, so the same option-row + marking-key code handles both.
@@ -1306,7 +1306,7 @@ async function renderQuestion(b) {
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),
         runText(pairs, { size: 20, color: '047857' }),
       ]))
-    } else if (b.type === 'mcq' || b.type === 'tf') {
+    } else if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
       // Plain mirror first so a rich fraction option reads as "1/3" rather than
