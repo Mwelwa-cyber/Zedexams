@@ -169,6 +169,7 @@
     "test:teacher-plans": "node functions/teacherTools/teacherPlans.test.js",
     "test:usage-meter": "node functions/teacherTools/usageMeter.test.js",
     "test:storage-cleanup": "node functions/storageCleanup/helpers.test.js",
+    "test:whatsapp-agent": "node functions/agents/bonga.test.js",
     "test:tmp-download-reaper": "node functions/storageCleanup/tmpDownloadReaper.test.js",
     "test:download-headers": "node functions/downloadHeaders.test.js",
     "test:lesson-plan-docx": "node functions/teacherTools/lessonPlanDocx.test.js",

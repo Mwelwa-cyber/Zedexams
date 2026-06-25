@@ -134,7 +134,7 @@ functions/                      — Cloud Functions v2, Node 22, codebase=defaul
   classManagement.js / classAnalytics.js — teacher classes, rosters, invites, assignments, stats
   parentPortal.js / weeklyParentDigest.js — parent portal data + weekly digest email
   invoiceGenerator.js / lencoService.js / subscriptionActivation.js / subscriptionLifecycle.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW), idempotent activation, invoices, expiry/cancellation lifecycle
-  metaWhatsApp.js / newsletter.js / referralRedemption.js — WhatsApp (Meta) channel, newsletter signup, referral codes
+  metaWhatsApp.js (+ metaWhatsAppCore.js, pure helpers) / newsletter.js / referralRedemption.js — WhatsApp (Meta) channel (outbound digests/reminders + the inbound Bonga reply webhook), newsletter signup, referral codes
   storageCleanup/               — Firestore triggers that cascade-delete Storage blobs when lessons/quiz/assessment questions change
   scripts/                      — CBC ingestion utilities (cbc:verify, cbc:ingest, cbc:check)
 
@@ -173,7 +173,7 @@ content job written to agentJobs collection (by an admin tool or a cron)
 
 Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in one hour pauses the agent automatically.
 
-Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `functions/agents/cron.js` (each writes an `agentJobs` rollup the `/admin/agents` dashboard surfaces — all are read-only/draft-only, none message users directly):
+Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `functions/agents/cron.js` (each writes an `agentJobs` rollup the `/admin/agents` dashboard surfaces — all are read-only/draft-only; the one agent that messages users directly is **Bonga**, the WhatsApp reply agent described below):
 
 | Agent | Schedule | Job |
 |-------|----------|-----|
@@ -188,6 +188,8 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 | **Dawn** (`deliverDawnBriefings`/`runDawnBriefing`) | on-demand | Claude Managed Agent morning briefing; "Run Dawn now" button in `/admin/agents` |
 
 **Vex** is the **only** AI agent that bypasses the whole pipeline (synchronous callable from the quiz editor). **Mendi** (bug-fixer), **Rex** (code review), and **Ledger** (release notes) are subagents invoked from CI/locally, not crons.
+
+**Bonga** (`apiWhatsAppWebhook`, runner `functions/agents/runners/bonga.js`) is the one agent that talks to people directly. It's an `onRequest` webhook Meta calls on every inbound WhatsApp message: it classifies the message (study / support / sales), drafts a reply with Claude Haiku (`functions/agents/runners/bonga.js` is the pure, unit-testable brain; the model + Firestore I/O live in the webhook), and **auto-sends** the reply inside WhatsApp's 24-hour customer-service window via `metaWhatsApp.sendWhatsAppText`. Safety rails: the `X-Hub-Signature-256` HMAC is validated against `META_WHATSAPP_APP_SECRET` (fail-closed once set), `agentControl/bonga.paused` is an instant kill-switch, replies dedupe per Meta message id, and the system prompt forbids fabricating account/payment state. Conversations + reply status log to `whatsappConversations/{phone}`. New secrets: `META_WHATSAPP_VERIFY_TOKEN` (GET handshake) + `META_WHATSAPP_APP_SECRET` (payload HMAC), alongside the existing `META_WHATSAPP_TOKEN` / `META_WHATSAPP_PHONE_NUMBER_ID`. The pure webhook helpers (handshake match, signature check, payload parse) live in `functions/metaWhatsAppCore.js` so they test under plain `node` with no firebase-functions dep (the `*Core.js` split). Meta's webhook URL is `https://zedexams.com/api/whatsapp/webhook`.
 
 ### Hosting + Functions wiring
 

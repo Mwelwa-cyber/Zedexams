@@ -3131,6 +3131,162 @@ exports.lencoWebhook = onRequest({
   }
 });
 
+// Bonga — inbound WhatsApp reply agent. Meta calls this webhook on every
+// message to the ZedExams WhatsApp number. GET is the one-time subscription
+// handshake; POST delivers messages. Bonga classifies (study / support /
+// sales), drafts a reply with Claude Haiku, and AUTO-SENDS it inside WhatsApp's
+// 24-hour customer-service window (the inbound message opens that window).
+//
+// Safety: the X-Hub-Signature-256 HMAC is validated against META_WHATSAPP_APP_
+// SECRET (fail-closed once that secret is set) so only Meta can trigger a send;
+// an agentControl/bonga.paused flag is an instant kill-switch; replies are
+// deduped per Meta message id; and the model is told it has no account/payment
+// powers so it can't fabricate state. See functions/agents/runners/bonga.js.
+exports.apiWhatsAppWebhook = onRequest({
+  secrets: [...require("./metaWhatsApp").WHATSAPP_WEBHOOK_SECRETS, anthropicApiKey],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (req, res) => {
+  const meta = require("./metaWhatsApp");
+
+  // GET — Meta subscription verification handshake.
+  if (req.method === "GET") {
+    const result = meta.verifyWebhookSubscription(req.query || {});
+    if (result.ok) {
+      res.status(200).send(result.challenge);
+    } else {
+      console.warn("[whatsappWebhook] verify handshake rejected", result.reason);
+      res.status(403).send("verification failed");
+    }
+    return;
+  }
+  if (req.method !== "POST") {
+    res.status(405).send("Use POST.");
+    return;
+  }
+
+  // Authenticate the payload. Fail-closed when the app secret is configured;
+  // during staged rollout (secret unset) accept-but-warn so the wiring can be
+  // proven first, matching metaWhatsApp's soft-fail posture.
+  const auth = meta.verifyInboundSignature({
+    rawBody: req.rawBody,
+    signature: req.get("x-hub-signature-256") || req.get("X-Hub-Signature-256"),
+  });
+  if (auth.configured && !auth.ok) {
+    console.warn("[whatsappWebhook] rejected: bad X-Hub-Signature-256");
+    res.status(403).send("invalid signature");
+    return;
+  }
+  if (!auth.configured) {
+    console.warn("[whatsappWebhook] app secret unset — accepting unverified payload (staged rollout)");
+  }
+
+  // Always ack Meta with 200 at the end so it doesn't retry a payload we've
+  // already accepted; processing errors are logged, not surfaced as non-200.
+  try {
+    const inbound = meta.parseInboundMessages(req.body || {});
+    if (!inbound.length) {
+      // Status callbacks (delivered/read) and non-text messages land here.
+      res.status(200).send("ok");
+      return;
+    }
+
+    const db = admin.firestore();
+
+    // Kill-switch — if an admin paused Bonga, log the inbound but don't reply.
+    let paused = false;
+    try {
+      const ctrl = await db.collection("agentControl").doc("bonga").get();
+      paused = Boolean(ctrl.exists && ctrl.data() && ctrl.data().paused);
+    } catch (_e) { /* default to active */ }
+
+    // Resolve the Anthropic key once; degrade to the templated reply if unbound.
+    let apiKey = "";
+    try {
+      apiKey = getAnthropicApiKey(anthropicApiKey) || "";
+    } catch (_e) { apiKey = ""; }
+
+    const draftReply = async ({systemPrompt, messages}) => {
+      if (!apiKey || paused) return "";
+      return await callAnthropic(apiKey, {
+        systemPrompt,
+        messages,
+        model: "claude-haiku-4-5-20251001",
+        maxTokens: 600,
+        temperature: 0.4,
+        track: {tool: "bonga-whatsapp"},
+      });
+    };
+
+    const {runBongaReply} = require("./agents/runners/bonga");
+    const {normalizeToWhatsApp, sendWhatsAppText} = meta;
+
+    // Process at most a handful per delivery (Meta batches; abuse-bound).
+    for (const msg of inbound.slice(0, 5)) {
+      const convRef = db.collection("whatsappConversations").doc(msg.from);
+      let conv = {};
+      try {
+        const snap = await convRef.get();
+        conv = (snap.exists && snap.data()) || {};
+      } catch (_e) { conv = {}; }
+
+      // Dedupe Meta redeliveries of the same inbound message id.
+      if (msg.messageId && conv.lastInboundId === msg.messageId) continue;
+
+      const history = Array.isArray(conv.history) ? conv.history : [];
+      const {kind, reply, usedFallback} = await runBongaReply({
+        inbound: msg,
+        history,
+        draftReply,
+      });
+
+      const to = normalizeToWhatsApp(msg.from);
+      let sendResult = {status: "skipped", reason: paused ? "agent-paused" : "no-recipient"};
+      if (to && !paused) {
+        sendResult = await sendWhatsAppText({to, body: reply});
+      }
+
+      // Append both turns, trimmed, so the next message has context.
+      const nextHistory = [
+        ...history,
+        {role: "user", text: msg.text, at: msg.timestamp || Date.now()},
+        {role: "assistant", text: reply, at: Date.now()},
+      ].slice(-16);
+
+      try {
+        await convRef.set({
+          phone: msg.from,
+          name: msg.name || conv.name || null,
+          lastInboundId: msg.messageId || null,
+          lastInboundText: msg.text.slice(0, 500),
+          lastInboundAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastKind: kind,
+          lastReplyText: reply.slice(0, 1000),
+          lastReplyStatus: sendResult.status,
+          lastReplyError: sendResult.error || null,
+          lastReplyUsedFallback: Boolean(usedFallback),
+          lastReplyAt: admin.firestore.FieldValue.serverTimestamp(),
+          messageCount: admin.firestore.FieldValue.increment(1),
+          history: nextHistory,
+        }, {merge: true});
+      } catch (err) {
+        console.error("[whatsappWebhook] conversation write failed", err);
+      }
+
+      console.log("[whatsappWebhook] replied", {
+        from: msg.from, kind, status: sendResult.status, usedFallback,
+      });
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.error("[whatsappWebhook] processing error", err);
+    // 200 so Meta doesn't hammer us with retries for an already-read payload.
+    res.status(200).send("ok");
+  }
+});
+
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
 // Website visitor tracker — unauthenticated beacon the SPA POSTs on each
