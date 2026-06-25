@@ -1333,7 +1333,7 @@ export default function AssessmentStudio() {
       )}
 
       {view === 'preview' && (
-        <StudioOutputBoundary onRetry={() => setView('builder')}>
+        <StudioOutputBoundary onRetry={() => changeView('builder')}>
           <PaperRenderView
             mode="paper"
             blocks={paperBlocks}
@@ -1349,7 +1349,7 @@ export default function AssessmentStudio() {
       )}
 
       {view === 'marking-key' && (
-        <StudioOutputBoundary onRetry={() => setView('builder')}>
+        <StudioOutputBoundary onRetry={() => changeView('builder')}>
           <PaperRenderView
             mode="scheme"
             blocks={markingKeyBlocks}
