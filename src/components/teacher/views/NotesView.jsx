@@ -50,6 +50,19 @@ export default function NotesView({ notes }) {
                   {i + 1}. {c.name}
                 </p>
                 <p className="text-sm theme-text leading-relaxed">{c.explanation}</p>
+                {c.diagramUrl && (
+                  <figure className="mt-3">
+                    <img
+                      src={c.diagramUrl}
+                      alt={`Diagram: ${c.name}`}
+                      className="max-w-full rounded-lg border theme-border"
+                      style={{ maxHeight: 320 }}
+                    />
+                    <figcaption className="text-xs theme-text-secondary mt-1">
+                      {c.name}
+                    </figcaption>
+                  </figure>
+                )}
               </li>
             ))}
           </ol>
