@@ -36,6 +36,9 @@ function clamp(value, min, max) {
 export default function ImageZoomOverlay({ src, alt, onClose }) {
   const surfaceRef = useRef(null)
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 })
+  // Track load state so a slow or failed image shows a message instead of
+  // a mysterious all-black screen.
+  const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
   // Live gesture bookkeeping kept in refs so the pointer maths reads the
   // freshest values without re-subscribing handlers on every frame.
@@ -188,11 +191,45 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label={alt || 'Zoom image'}
-      className="fixed inset-0 z-[120] flex flex-col bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[120] bg-black"
     >
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 text-white">
-        <span className="text-xs font-bold tabular-nums opacity-80">
+      {/* Zoom surface — sized by `inset-0` (not a flex child) so it always
+          fills the viewport even on old Android WebViews where a percentage
+          height through a flex-grown parent collapses to zero. */}
+      <div
+        ref={surfaceRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onWheel={onWheel}
+        className="absolute inset-0 overflow-hidden select-none"
+        style={{ touchAction: 'none', cursor: zoomed ? 'grab' : 'zoom-in' }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          draggable={false}
+          onLoad={() => setStatus('ready')}
+          onError={() => setStatus('error')}
+          className="absolute inset-0 w-full h-full object-contain"
+          style={{
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: '0 0',
+          }}
+        />
+        {status !== 'ready' && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 text-center pointer-events-none">
+            <p className="text-white/80 text-sm font-bold">
+              {status === 'error' ? 'Could not load this page image.' : 'Loading…'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar — floats above the surface so the image fills the screen. */}
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-2 px-3 py-2 text-white">
+        <span className="text-xs font-bold tabular-nums opacity-80 drop-shadow">
           {Math.round(transform.scale * 100)}%
         </span>
         <div className="flex items-center gap-1.5">
@@ -201,7 +238,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
             onClick={() => handleButtonZoom(1 / 1.4)}
             disabled={transform.scale <= MIN_SCALE}
             aria-label="Zoom out"
-            className="w-10 h-10 rounded-full bg-white/15 text-xl font-black leading-none hover:bg-white/25 disabled:opacity-35"
+            className="w-10 h-10 rounded-full bg-white/20 text-xl font-black leading-none hover:bg-white/30 disabled:opacity-35"
           >
             −
           </button>
@@ -210,7 +247,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
             onClick={() => handleButtonZoom(1.4)}
             disabled={transform.scale >= MAX_SCALE}
             aria-label="Zoom in"
-            className="w-10 h-10 rounded-full bg-white/15 text-xl font-black leading-none hover:bg-white/25 disabled:opacity-35"
+            className="w-10 h-10 rounded-full bg-white/20 text-xl font-black leading-none hover:bg-white/30 disabled:opacity-35"
           >
             +
           </button>
@@ -219,7 +256,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
             onClick={reset}
             disabled={!zoomed}
             aria-label="Reset zoom"
-            className="h-10 px-3 rounded-full bg-white/15 text-xs font-black hover:bg-white/25 disabled:opacity-35"
+            className="h-10 px-3 rounded-full bg-white/20 text-xs font-black hover:bg-white/30 disabled:opacity-35"
           >
             Reset
           </button>
@@ -234,30 +271,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
         </div>
       </div>
 
-      {/* Zoom surface */}
-      <div
-        ref={surfaceRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onWheel={onWheel}
-        className="relative flex-1 overflow-hidden select-none"
-        style={{ touchAction: 'none', cursor: zoomed ? 'grab' : 'zoom-in' }}
-      >
-        <img
-          src={src}
-          alt={alt}
-          draggable={false}
-          className="absolute left-0 top-0 w-full h-full object-contain will-change-transform"
-          style={{
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-            transformOrigin: '0 0',
-          }}
-        />
-      </div>
-
-      <p className="text-center text-white/60 text-[11px] font-bold py-1.5">
+      <p className="absolute bottom-0 left-0 right-0 z-10 text-center text-white/70 text-[11px] font-bold py-1.5 drop-shadow pointer-events-none">
         Pinch or double-tap to zoom · drag to move
       </p>
     </div>
