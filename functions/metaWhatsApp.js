@@ -84,8 +84,11 @@ const metaWhatsAppPhoneNumberId = defineSecret("META_WHATSAPP_PHONE_NUMBER_ID");
 //                                 X-Hub-Signature-256 HMAC on every inbound
 //                                 POST so a stranger can't forge messages that
 //                                 trigger an auto-reply.
-const metaWhatsAppVerifyToken = defineSecret("META_WHATSAPP_VERIFY_TOKEN");
-const metaWhatsAppAppSecret = defineSecret("META_WHATSAPP_APP_SECRET");
+// These are read from process.env rather than defineSecret() so Firebase CLI
+// does not require them to exist in Secret Manager before deploy. Set them
+// via `firebase functions:secrets:set` and add them back as defineSecret()
+// once they are stored.
+function readEnvSecret(name) { return String(process.env[name] || "").trim(); }
 
 // Exported so the consuming function can declare them in its
 // `secrets: [...]` block.
@@ -365,7 +368,7 @@ async function sendWhatsAppText({to, body}) {
 function verifyWebhookSubscription(query) {
   return verifyWebhookSubscriptionMatch({
     query,
-    expectedToken: readSecret(metaWhatsAppVerifyToken),
+    expectedToken: readEnvSecret("META_WHATSAPP_VERIFY_TOKEN"),
   });
 }
 
@@ -380,7 +383,7 @@ function verifyWebhookSubscription(query) {
  * @returns {{ok: boolean, configured: boolean}}
  */
 function verifyInboundSignature({rawBody, signature}) {
-  const appSecret = readSecret(metaWhatsAppAppSecret);
+  const appSecret = readEnvSecret("META_WHATSAPP_APP_SECRET");
   if (!appSecret) return {ok: false, configured: false};
   return {ok: verifyWebhookSignature({rawBody, signature, appSecret}), configured: true};
 }
