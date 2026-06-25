@@ -98,6 +98,7 @@ import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { normalizeSubject } from '../../config/curriculum'
 
 import './studio/assessmentStudio.css'
+import StudioOutputBoundary from './StudioOutputBoundary'
 
 /* ------------------------------------------------------------------
  * Constants — kept compatible with library taxonomy and save schema.
@@ -2313,31 +2314,35 @@ export default function AssessmentStudio({ variant = 'test' }) {
       )}
 
       {view === 'preview' && (
-        <PaperRenderView
-          mode="paper"
-          blocks={paperBlocks}
-          assessment={assessmentDoc}
-          changeView={changeView}
-          onExport={(kind) => handleExport(kind, 'paper')}
-          onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
-          onSave={handleSave}
-          saving={saving}
-          exporting={exporting}
-          showSave
-        />
+        <StudioOutputBoundary onRetry={() => changeView('builder')}>
+          <PaperRenderView
+            mode="paper"
+            blocks={paperBlocks}
+            assessment={assessmentDoc}
+            changeView={changeView}
+            onExport={(kind) => handleExport(kind, 'paper')}
+            onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
+            onSave={handleSave}
+            saving={saving}
+            exporting={exporting}
+            showSave
+          />
+        </StudioOutputBoundary>
       )}
 
       {view === 'marking-key' && (
-        <PaperRenderView
-          mode="scheme"
-          blocks={markingKeyBlocks}
-          assessment={assessmentDoc}
-          changeView={changeView}
-          onExport={(kind) => handleExport(kind, 'scheme')}
-          onSave={handleSave}
-          saving={saving}
-          exporting={exporting}
-        />
+        <StudioOutputBoundary onRetry={() => changeView('builder')}>
+          <PaperRenderView
+            mode="scheme"
+            blocks={markingKeyBlocks}
+            assessment={assessmentDoc}
+            changeView={changeView}
+            onExport={(kind) => handleExport(kind, 'scheme')}
+            onSave={handleSave}
+            saving={saving}
+            exporting={exporting}
+          />
+        </StudioOutputBoundary>
       )}
 
       <BottomBar

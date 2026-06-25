@@ -31,6 +31,7 @@ import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import WorksheetView from '../views/WorksheetView'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -123,7 +124,7 @@ export default function WorksheetGenerator() {
             grade:          form.grade,
             subject:        form.subject,
             assessmentType: 'topic',
-          }).catch(() => {})
+          }).catch((err) => console.error('[library attach]', err))
         }
       },
       onError: (err) => {
@@ -318,6 +319,7 @@ export default function WorksheetGenerator() {
           </form>
 
           {/* Output panel */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && (
@@ -384,6 +386,7 @@ export default function WorksheetGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

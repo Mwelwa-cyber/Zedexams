@@ -27,6 +27,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
 import { FieldText, FieldTextarea, FieldSelect } from './studioFields'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 export default function SchemeOfWorkGenerator() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -260,6 +261,7 @@ export default function SchemeOfWorkGenerator() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && (
@@ -305,6 +307,7 @@ export default function SchemeOfWorkGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

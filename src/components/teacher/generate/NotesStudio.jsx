@@ -28,6 +28,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
@@ -189,7 +190,7 @@ export default function NotesStudio() {
         grade,
         term,
         subject,
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -347,6 +348,7 @@ export default function NotesStudio() {
           </form>
 
           {/* ── Output panel ────────────────────────────────────── */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState mode={mode} />}
             {status === 'generating' && (
@@ -391,6 +393,7 @@ export default function NotesStudio() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>
