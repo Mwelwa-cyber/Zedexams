@@ -304,6 +304,17 @@ function loadHtmlDocxLib() {
   return _htmlDocxPromise;
 }
 
+// Mobile Word (Android / iOS / Web) cannot open the w:altChunk / afchunk.mht
+// MHTML part that html-docx-js produces ("can't open files that contain
+// alternate formats"). So when the native OOXML bridge is unavailable or fails,
+// mobile must SKIP the html-docx-js fallback and go straight to the .doc
+// (HTML-as-Word) path, which opens everywhere. Desktop Word converts altChunk
+// fine, so it keeps the higher-fidelity html-docx fallback.
+function isMobileUA() {
+  try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); }
+  catch (e) { return false; }
+}
+
 async function exportWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
   const html = await buildWordHtml();
@@ -326,15 +337,18 @@ async function exportWord() {
   }
 
   // Secondary: real .docx via the locally-vendored html-docx-js converter
-  // (altChunk format — desktop Word only; kept as a fallback).
-  try {
-    await loadHtmlDocxLib();
-    const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
-    triggerDownload(blob, filename);
-    if (typeof toast === 'function') toast('Word document downloaded');
-    return;
-  } catch (e) {
-    console.error('docx export failed, falling back to .doc:', e);
+  // (altChunk format — DESKTOP Word only). Skipped on mobile, where altChunk is
+  // unopenable; mobile drops straight to the .doc fallback below.
+  if (!isMobileUA()) {
+    try {
+      await loadHtmlDocxLib();
+      const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
+      triggerDownload(blob, filename);
+      if (typeof toast === 'function') toast('Word document downloaded');
+      return;
+    } catch (e) {
+      console.error('docx export failed, falling back to .doc:', e);
+    }
   }
 
   // Fallback: a .doc (Word-readable HTML) built from a plain Blob — no network,
@@ -445,15 +459,18 @@ async function exportBatchWord() {
   }
 
   // Secondary: real .docx via the locally-vendored html-docx-js converter
-  // (altChunk format — desktop Word only; kept as a fallback).
-  try {
-    await loadHtmlDocxLib();
-    const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
-    triggerDownload(blob, filename);
-    if (typeof toast === 'function') toast('Word document downloaded');
-    return;
-  } catch (e) {
-    console.error('batch docx export failed, falling back to .doc:', e);
+  // (altChunk format — DESKTOP Word only). Skipped on mobile, where altChunk is
+  // unopenable; mobile drops straight to the .doc fallback below.
+  if (!isMobileUA()) {
+    try {
+      await loadHtmlDocxLib();
+      const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
+      triggerDownload(blob, filename);
+      if (typeof toast === 'function') toast('Word document downloaded');
+      return;
+    } catch (e) {
+      console.error('batch docx export failed, falling back to .doc:', e);
+    }
   }
   if (typeof toast === 'function') toast('Downloading Word (.doc) instead…');
   const b = window.__lpBatch || { meta: {}, lessons: [] };

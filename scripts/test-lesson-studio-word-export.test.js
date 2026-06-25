@@ -106,6 +106,18 @@ if (exportBatchFn) {
     'exportBatchWord(): native __zxHtmlToDocx bridge is tried BEFORE html-docx-js fallback')
 }
 
+// 7. Mobile must NEVER fall back to the altChunk html-docx-js path (mobile Word
+//    can't open it). Both functions guard the html-docx fallback behind
+//    !isMobileUA() so mobile drops straight to the .doc fallback instead.
+check(/function isMobileUA\(/.test(exp), '10-export.js defines isMobileUA()')
+for (const [label, fn] of [['exportWord', exportWordMatch && exportWordMatch[0]], ['exportBatchWord', exportBatchFn]]) {
+  if (!fn) { check(false, `${label}() found for mobile-guard check`); continue }
+  const guardPos = fn.indexOf('isMobileUA()')
+  const libPos = fn.indexOf('await loadHtmlDocxLib()')
+  check(guardPos !== -1 && libPos !== -1 && guardPos < libPos,
+    `${label}(): html-docx-js (altChunk) fallback is gated behind !isMobileUA()`)
+}
+
 if (failures) {
   console.error(`\n✗ lesson Word-export guard FAILED (${failures} issue(s)).`)
   process.exit(1)
