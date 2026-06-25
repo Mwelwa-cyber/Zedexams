@@ -17,6 +17,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
+import { downloadWorksheetPdf } from '../../../utils/worksheetToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -178,6 +179,30 @@ export default function WorksheetGenerator() {
     const filename = buildFilename('answer_key')
     guardDownload(filename)
     downloadWorksheetDocx(worksheet, filename, { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
+  function onExportPupilPdf() {
+    if (!worksheet) return
+    const filename = buildDownloadName({
+      docType: 'Worksheet', grade: form.grade, subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic, ext: 'pdf',
+    })
+    downloadWorksheetPdf(worksheet, filename, {
+      mode: 'worksheet',
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+    })
+  }
+
+  function onExportAnswerKeyPdf() {
+    if (!worksheet) return
+    const filename = buildDownloadName({
+      docType: 'Worksheet', grade: form.grade, subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic, variant: 'Answer Key', ext: 'pdf',
+    })
+    downloadWorksheetPdf(worksheet, filename, {
+      mode: 'answer_key',
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+    })
   }
 
   return (
@@ -367,8 +392,14 @@ export default function WorksheetGenerator() {
                     <button onClick={onExportPupil} className="studio-btn-ghost">
                       📄 Worksheet .docx
                     </button>
+                    <button onClick={onExportPupilPdf} className="studio-btn-ghost">
+                      📄 Worksheet .pdf
+                    </button>
                     <button onClick={onExportAnswerKey} className="studio-btn-primary">
                       🔑 Answer Key .docx
+                    </button>
+                    <button onClick={onExportAnswerKeyPdf} className="studio-btn-ghost">
+                      🔑 Answer Key .pdf
                     </button>
                   </div>
                 </div>
