@@ -79,6 +79,8 @@ import { publishShare, revokeShare, listSharesForGeneration } from '../../../uti
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
+import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
+import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
@@ -104,6 +106,14 @@ export default function LibraryItemDetail() {
   // Admin-only: acknowledge a failed generation so it drops out of the
   // dashboard "Needs attention" queue without deleting the audit record.
   const [resolvingFailure, setResolvingFailure] = useState(false)
+
+  // Flashcard study mode
+  const [studyIndex, setStudyIndex] = useState(0)
+  const [studyFlipped, setStudyFlipped] = useState(false)
+  const [studyOpen, setStudyOpen] = useState(false)
+  const { masteredCards, markMastered, markReview } = useFlashcardProgress(
+    item?.tool === 'flashcards' ? item?.id : null,
+  )
 
   // Pro vs Premium access — Pro can download own generations only,
   // Premium can download / print / export everything.
@@ -536,6 +546,14 @@ export default function LibraryItemDetail() {
                 📊 Export .xlsx
               </button>
             )}
+            {item.tool === 'flashcards' && item.output?.cards?.length > 0 && (
+              <button
+                onClick={() => { setStudyIndex(0); setStudyFlipped(false); setStudyOpen(true) }}
+                className="studio-btn-primary"
+              >
+                ▶ Study
+              </button>
+            )}
             {item.tool === 'lesson_plan' && (item.output || item.data) && (
               <button
                 onClick={onExportPdf}
@@ -728,7 +746,13 @@ export default function LibraryItemDetail() {
           {item.tool === 'worksheet' && (
             <WorksheetView worksheet={item.output} showAnswers={showAnswers} />
           )}
-          {item.tool === 'flashcards' && <FlashcardsView flashcards={item.output} />}
+          {item.tool === 'flashcards' && (
+            <FlashcardsView
+              flashcards={item.output}
+              masteredCards={masteredCards}
+              onStudy={() => { setStudyIndex(0); setStudyFlipped(false); setStudyOpen(true) }}
+            />
+          )}
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
           {item.tool === 'mark_schedule' && item.output && (
             <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
@@ -788,6 +812,21 @@ export default function LibraryItemDetail() {
         onConfirm={confirmDelete}
         onCancel={() => setConfirmingDelete(false)}
       />
+
+      {studyOpen && item?.tool === 'flashcards' && item.output?.cards?.length > 0 && (
+        <FlashcardStudyOverlay
+          cards={item.output.cards}
+          index={studyIndex}
+          isFlipped={studyFlipped}
+          masteredCards={masteredCards}
+          onPrev={() => { setStudyIndex((i) => Math.max(i - 1, 0)); setStudyFlipped(false) }}
+          onNext={() => { setStudyIndex((i) => Math.min(i + 1, item.output.cards.length - 1)); setStudyFlipped(false) }}
+          onFlip={() => setStudyFlipped((f) => !f)}
+          onClose={() => setStudyOpen(false)}
+          onMarkMastered={(i) => markMastered(i, item.output.cards.length)}
+          onMarkReview={(i) => markReview(i, item.output.cards.length)}
+        />
+      )}
     </div>
   )
 }
