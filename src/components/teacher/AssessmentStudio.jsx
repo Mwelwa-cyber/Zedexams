@@ -48,6 +48,7 @@ import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
 
+import StudioOutputBoundary from './StudioOutputBoundary'
 import './studio/assessmentStudio.css'
 
 /* ------------------------------------------------------------------
@@ -1332,30 +1333,34 @@ export default function AssessmentStudio() {
       )}
 
       {view === 'preview' && (
-        <PaperRenderView
-          mode="paper"
-          blocks={paperBlocks}
-          assessment={assessmentDoc}
-          changeView={changeView}
-          onExport={(kind) => handleExport(kind, 'paper')}
-          onSave={handleSave}
-          saving={saving}
-          exporting={exporting}
-          showSave
-        />
+        <StudioOutputBoundary onRetry={() => setView('builder')}>
+          <PaperRenderView
+            mode="paper"
+            blocks={paperBlocks}
+            assessment={assessmentDoc}
+            changeView={changeView}
+            onExport={(kind) => handleExport(kind, 'paper')}
+            onSave={handleSave}
+            saving={saving}
+            exporting={exporting}
+            showSave
+          />
+        </StudioOutputBoundary>
       )}
 
       {view === 'marking-key' && (
-        <PaperRenderView
-          mode="scheme"
-          blocks={markingKeyBlocks}
-          assessment={assessmentDoc}
-          changeView={changeView}
-          onExport={(kind) => handleExport(kind, 'scheme')}
-          onSave={handleSave}
-          saving={saving}
-          exporting={exporting}
-        />
+        <StudioOutputBoundary onRetry={() => setView('builder')}>
+          <PaperRenderView
+            mode="scheme"
+            blocks={markingKeyBlocks}
+            assessment={assessmentDoc}
+            changeView={changeView}
+            onExport={(kind) => handleExport(kind, 'scheme')}
+            onSave={handleSave}
+            saving={saving}
+            exporting={exporting}
+          />
+        </StudioOutputBoundary>
       )}
 
       <BottomBar
