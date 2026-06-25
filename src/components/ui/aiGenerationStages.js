@@ -48,15 +48,37 @@ export const AI_STAGES = {
  * stage appears only when it will really run.
  */
 export const STAGE_PRESETS = {
-  quiz:       ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
-  assessment: ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
-  worksheet:  ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
-  homework:   ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
-  notes:      ['reading', 'curriculum', 'content', 'preview'],
-  lessonPlan: ['reading', 'curriculum', 'content', 'preview'],
-  flashcards: ['reading', 'curriculum', 'content', 'preview'],
-  rubric:     ['reading', 'curriculum', 'content', 'preview'],
-  scheme:     ['reading', 'curriculum', 'content', 'preview'],
+  quiz:        ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
+  assessment:  ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
+  worksheet:   ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
+  homework:    ['reading', 'curriculum', 'content', 'answerKey', 'preview'],
+  notes:       ['reading', 'curriculum', 'content', 'preview'],
+  lessonPlan:  ['reading', 'curriculum', 'content', 'preview'],
+  lesson_plan: ['reading', 'curriculum', 'content', 'preview'],
+  flashcards:  ['reading', 'curriculum', 'content', 'preview'],
+  rubric:      ['reading', 'curriculum', 'content', 'preview'],
+  scheme:      ['reading', 'curriculum', 'content', 'preview'],
+}
+
+/**
+ * Per-preset label overrides for specific stage IDs. Replaces the generic
+ * stage label with one that names what the tool is actually doing, so the
+ * tracker text matches the generation in progress.
+ *
+ * Only stages where a more specific label genuinely adds signal are overridden;
+ * generic stages like "Reading your request" are left as-is across all presets.
+ */
+export const PRESET_LABELS = {
+  worksheet:   { content: 'Drafting worksheet questions',   answerKey: 'Checking the marking key' },
+  homework:    { content: 'Setting homework tasks' },
+  notes:       { content: 'Writing study notes',            preview: 'Formatting your notes' },
+  lessonPlan:  { content: 'Writing your lesson plan' },
+  lesson_plan: { content: 'Writing your lesson plan' },
+  flashcards:  { content: 'Creating flashcard pairs',       preview: 'Arranging your cards' },
+  rubric:      { content: 'Writing rubric criteria',        preview: 'Building the rubric table' },
+  scheme:      { content: 'Mapping the scheme of work',     preview: 'Formatting the term plan' },
+  quiz:        { content: 'Composing quiz questions' },
+  assessment:  { content: 'Composing questions' },
 }
 
 /**
@@ -69,10 +91,16 @@ export const STAGE_PRESETS = {
  * @returns {Array<{id,label,icon,estMs}>}
  */
 export function resolveStages(presetOrStages) {
+  const key = Array.isArray(presetOrStages) ? null : presetOrStages
   const ids = Array.isArray(presetOrStages)
     ? presetOrStages
     : (STAGE_PRESETS[presetOrStages] || STAGE_PRESETS.notes)
-  return ids.map((id) => AI_STAGES[id]).filter(Boolean)
+  const overrides = (key && PRESET_LABELS[key]) || {}
+  return ids.map((id) => {
+    const stage = AI_STAGES[id]
+    if (!stage) return null
+    return overrides[id] ? { ...stage, label: overrides[id] } : stage
+  }).filter(Boolean)
 }
 
 /**

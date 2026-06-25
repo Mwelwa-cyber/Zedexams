@@ -11,6 +11,7 @@
 const {
   AI_STAGES,
   STAGE_PRESETS,
+  PRESET_LABELS,
   resolveStages,
   computeStageStates,
   mapWorksheetPhaseToStage,
@@ -163,6 +164,45 @@ test('claude_done maps to preview when the tool has no answer key', () => {
 test('unknown / missing phase returns undefined (fall back to timer)', () => {
   assert(mapWorksheetPhaseToStage(undefined) === undefined)
   assert(mapWorksheetPhaseToStage('weird') === undefined)
+})
+
+// ── PRESET_LABELS ─────────────────────────────────────────────────
+console.log('\nPRESET_LABELS / per-tool label overrides')
+
+test('resolveStages applies content label override for notes preset', () => {
+  const s = resolveStages('notes')
+  const content = s.find((x) => x.id === 'content')
+  assert(content, 'content stage missing')
+  assert(content.label === PRESET_LABELS.notes.content, `expected "${PRESET_LABELS.notes.content}", got "${content.label}"`)
+})
+
+test('resolveStages applies content and answerKey overrides for worksheet preset', () => {
+  const s = resolveStages('worksheet')
+  const content = s.find((x) => x.id === 'content')
+  const key = s.find((x) => x.id === 'answerKey')
+  assert(content?.label === PRESET_LABELS.worksheet.content, 'content label not overridden')
+  assert(key?.label === PRESET_LABELS.worksheet.answerKey, 'answerKey label not overridden')
+})
+
+test('resolveStages resolves lesson_plan preset (was previously unknown, fell back to notes)', () => {
+  const s = resolveStages('lesson_plan')
+  assert(s.length === STAGE_PRESETS.lesson_plan.length, 'stage count mismatch')
+  const content = s.find((x) => x.id === 'content')
+  assert(content?.label === PRESET_LABELS.lesson_plan.content, 'lesson_plan content label not applied')
+})
+
+test('explicit stage-id array uses base labels — no preset overrides applied', () => {
+  const base = resolveStages(['reading', 'content', 'preview'])
+  const content = base.find((x) => x.id === 'content')
+  assert(content?.label === AI_STAGES.content.label, 'array form should use base label, not an override')
+})
+
+test('every PRESET_LABELS entry references only known stage ids', () => {
+  for (const [preset, map] of Object.entries(PRESET_LABELS)) {
+    for (const id of Object.keys(map)) {
+      assert(AI_STAGES[id], `PRESET_LABELS["${preset}"] references unknown stage id "${id}"`)
+    }
+  }
 })
 
 // ── catalogue sanity ───────────────────────────────────────────────
