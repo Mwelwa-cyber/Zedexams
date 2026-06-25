@@ -11,6 +11,8 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
+import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -65,6 +67,17 @@ export default function FullLessonStudio() {
   }, [form.grade, form.subject, subjectValues])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  function onExportDocx() {
+    if (!lesson) return
+    const filename = buildDownloadName({
+      docType: 'Full Lesson',
+      grade: lesson.header?.grade || form.grade,
+      subject: lesson.header?.subject || form.subject,
+      topic: lesson.header?.topic || form.topic,
+    })
+    downloadFullLessonDocx(lesson, filename)
+  }
 
   async function onGenerate(e) {
     e.preventDefault()
@@ -266,6 +279,9 @@ export default function FullLessonStudio() {
                         />
                         Show answers
                       </label>
+                      <button onClick={onExportDocx} className="studio-btn-ghost">
+                        📄 Download .docx
+                      </button>
                       <button onClick={() => setStatus('idle')} className="studio-btn-primary">
                         ▶ Generate Another
                       </button>
