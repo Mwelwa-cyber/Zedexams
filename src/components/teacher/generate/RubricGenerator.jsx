@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 export default function RubricGenerator() {
   const urlDefaults = useFormDefaultsFromUrl()
@@ -90,7 +91,7 @@ export default function RubricGenerator() {
         grade:          form.grade,
         subject:        form.subject,
         assessmentType: 'topic',
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -192,6 +193,7 @@ export default function RubricGenerator() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && <GeneratingState />}
@@ -234,6 +236,7 @@ export default function RubricGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

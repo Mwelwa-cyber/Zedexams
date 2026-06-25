@@ -16,6 +16,7 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -98,7 +99,7 @@ export default function FlashcardGenerator() {
         libraryType: LIBRARY_TYPES.NOTES,
         grade:       form.grade,
         subject:     form.subject,
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -234,6 +235,7 @@ export default function FlashcardGenerator() {
           </form>
 
           {/* Output panel */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && <GeneratingState />}
@@ -278,6 +280,7 @@ export default function FlashcardGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
 

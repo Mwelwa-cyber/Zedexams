@@ -18,6 +18,7 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Quiz Studio — a short formative quiz grounded on the stored curriculum
@@ -88,7 +89,7 @@ export default function QuizStudio() {
         grade: form.grade,
         subject: form.subject,
         assessmentType: 'quiz',
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -172,6 +173,7 @@ export default function QuizStudio() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <Centered emoji="❓" title="Ready to make a quiz"
@@ -226,6 +228,7 @@ export default function QuizStudio() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

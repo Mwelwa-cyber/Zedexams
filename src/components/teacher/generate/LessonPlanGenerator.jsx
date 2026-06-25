@@ -19,6 +19,7 @@ import { printLessonPlanAsPdf } from '../../../utils/lessonPlanToPdf'
 import StudioPageHeader from '../StudioPageHeader'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Zambian CBC Lesson Plan Generator — teacher-facing MVP.
@@ -118,7 +119,7 @@ export default function LessonPlanGenerator() {
             grade:       form.grade,
             term:        data.lessonPlan?.header?.termAndWeek || form.term,
             subject:     form.subject,
-          }).catch(() => {})
+          }).catch((err) => console.error('[library attach]', err))
         }
       },
       onError: (err) => {
@@ -308,6 +309,7 @@ export default function LessonPlanGenerator() {
           </form>
 
           {/* ── Output panel ────────────────────────────────────── */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <EmptyState />
@@ -367,6 +369,7 @@ export default function LessonPlanGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

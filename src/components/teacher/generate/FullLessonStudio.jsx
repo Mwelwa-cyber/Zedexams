@@ -18,6 +18,7 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Full Lesson Studio — a complete, ready-to-deliver CBC lesson, grounded on
@@ -90,7 +91,7 @@ export default function FullLessonStudio() {
         libraryType: LIBRARY_TYPES.LESSON_PLANS,
         grade: form.grade,
         subject: form.subject,
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -179,6 +180,7 @@ export default function FullLessonStudio() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <Centered emoji="🎓" title="Ready to build a full lesson"
@@ -224,6 +226,7 @@ export default function FullLessonStudio() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 export default function SchemeOfWorkGenerator() {
   const { userProfile } = useAuth()
@@ -85,7 +86,7 @@ export default function SchemeOfWorkGenerator() {
         grade:       form.grade,
         term:        form.term,
         subject:     form.subject,
-      }).catch(() => { /* non-fatal — doc still readable via legacy path */ })
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -187,6 +188,7 @@ export default function SchemeOfWorkGenerator() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && <GeneratingState />}
@@ -229,6 +231,7 @@ export default function SchemeOfWorkGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

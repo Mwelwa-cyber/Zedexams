@@ -16,6 +16,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Exam Studio — generates fresh practice questions in the authentic ECZ
@@ -101,7 +102,7 @@ export default function ExamStudio() {
         grade: form.grade,
         subject: form.subject,
         assessmentType: 'exam',
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -200,6 +201,7 @@ export default function ExamStudio() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <Centered emoji="📝" title="Ready to write exam questions"
@@ -255,6 +257,7 @@ export default function ExamStudio() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>
