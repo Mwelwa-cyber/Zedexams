@@ -309,7 +309,24 @@ async function exportWord() {
   const html = await buildWordHtml();
   const filename = currentFilename() + '.docx';
 
-  // Primary: real .docx via the locally-vendored converter.
+  // Primary: native OOXML via the bundled docx library (no altChunk parts —
+  // safe for Word on Android / iOS / Web). The bridge is registered by
+  // LessonPlanStudio.jsx as window.__zxHtmlToDocx.
+  if (typeof window !== 'undefined' && typeof window.__zxHtmlToDocx === 'function') {
+    try {
+      const blob = await window.__zxHtmlToDocx(html);
+      if (blob) {
+        triggerDownload(blob, filename);
+        if (typeof toast === 'function') toast('Word document downloaded');
+        return;
+      }
+    } catch (e) {
+      console.error('native docx export failed, falling back to html-docx:', e);
+    }
+  }
+
+  // Secondary: real .docx via the locally-vendored html-docx-js converter
+  // (altChunk format — desktop Word only; kept as a fallback).
   try {
     await loadHtmlDocxLib();
     const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
@@ -404,12 +421,31 @@ function batchFilename() {
   return (name || 'Lesson Plans').slice(0, 120).trim();
 }
 
-// Export the whole series as one .docx. Mirrors exportWord(): real .docx via the
-// vendored converter, .doc fallback if it fails to load.
+// Export the whole series as one .docx. Mirrors exportWord(): native OOXML first,
+// then the vendored html-docx-js converter, then the .doc fallback.
 async function exportBatchWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
   const html = await buildBatchWordHtml();
   const filename = batchFilename() + '.docx';
+
+  // Primary: native OOXML via the bundled docx library (no altChunk parts —
+  // safe for Word on Android / iOS / Web). The bridge is registered by
+  // LessonPlanStudio.jsx as window.__zxHtmlToDocx.
+  if (typeof window !== 'undefined' && typeof window.__zxHtmlToDocx === 'function') {
+    try {
+      const blob = await window.__zxHtmlToDocx(html);
+      if (blob) {
+        triggerDownload(blob, filename);
+        if (typeof toast === 'function') toast('Word document downloaded');
+        return;
+      }
+    } catch (e) {
+      console.error('native batch docx export failed, falling back to html-docx:', e);
+    }
+  }
+
+  // Secondary: real .docx via the locally-vendored html-docx-js converter
+  // (altChunk format — desktop Word only; kept as a fallback).
   try {
     await loadHtmlDocxLib();
     const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });

@@ -79,6 +79,33 @@ for (const cls of ['.word-meta-table', '.field-line', '.diagram-wrap', '.diagram
 check(/if \(typeof DOMParser === 'undefined'\) return html/.test(exp),
   'prepareWordBody() is a no-op when DOMParser is unavailable (non-browser)')
 
+// 6. altChunk→native-OOXML fix (Word for Android/iOS/Web).
+//    Both exportWord() and exportBatchWord() must try window.__zxHtmlToDocx
+//    BEFORE the html-docx-js path. Check that in each function the bridge call
+//    appears before the await loadHtmlDocxLib() call.
+check(/window\.__zxHtmlToDocx/.test(exp), 'exportWord/exportBatchWord references window.__zxHtmlToDocx')
+check(/loadHtmlDocxLib\(\)/.test(exp), 'html-docx-js fallback (loadHtmlDocxLib) is still present')
+// In exportWord(): find the async exportWord function block and verify order.
+const exportWordMatch = exp.match(/async function exportWord\(\)[^]*?(?=async function exportBatchWord)/)
+check(!!exportWordMatch, 'exportWord() function exists')
+if (exportWordMatch) {
+  const fn = exportWordMatch[0]
+  const bridgePos = fn.indexOf('window.__zxHtmlToDocx')
+  const libPos = fn.indexOf('await loadHtmlDocxLib()')
+  check(bridgePos !== -1 && libPos !== -1 && bridgePos < libPos,
+    'exportWord(): native __zxHtmlToDocx bridge is tried BEFORE html-docx-js fallback')
+}
+// In exportBatchWord(): check the block after exportWord.
+const exportBatchIdx = exp.indexOf('async function exportBatchWord()')
+const exportBatchFn = exportBatchIdx !== -1 ? exp.slice(exportBatchIdx) : ''
+check(exportBatchFn.includes('window.__zxHtmlToDocx'), 'exportBatchWord() contains the native bridge call')
+if (exportBatchFn) {
+  const bridgePosB = exportBatchFn.indexOf('window.__zxHtmlToDocx')
+  const libPosB = exportBatchFn.indexOf('await loadHtmlDocxLib()')
+  check(bridgePosB !== -1 && libPosB !== -1 && bridgePosB < libPosB,
+    'exportBatchWord(): native __zxHtmlToDocx bridge is tried BEFORE html-docx-js fallback')
+}
+
 if (failures) {
   console.error(`\n✗ lesson Word-export guard FAILED (${failures} issue(s)).`)
   process.exit(1)
