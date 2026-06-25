@@ -22,6 +22,8 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
+import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
+import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -53,6 +55,7 @@ export default function FlashcardGenerator() {
   const [viewMode, setViewMode] = useState('grid') // grid | study
   const [studyIndex, setStudyIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
+  const { masteredCards, markMastered, markReview } = useFlashcardProgress(generationId)
 
   const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
@@ -291,14 +294,17 @@ export default function FlashcardGenerator() {
 
       {/* Study-mode overlay */}
       {viewMode === 'study' && flashcards && (
-        <StudyOverlay
+        <FlashcardStudyOverlay
           cards={cards}
           index={studyIndex}
           isFlipped={isFlipped}
+          masteredCards={masteredCards}
           onPrev={() => { setStudyIndex((i) => Math.max(i - 1, 0)); setIsFlipped(false) }}
           onNext={() => { setStudyIndex((i) => Math.min(i + 1, cards.length - 1)); setIsFlipped(false) }}
           onFlip={() => setIsFlipped((f) => !f)}
           onClose={() => setViewMode('grid')}
+          onMarkMastered={(i) => markMastered(i, cards.length)}
+          onMarkReview={(i) => markReview(i, cards.length)}
         />
       )}
     </div>
@@ -387,88 +393,3 @@ function GridView({ cards, onStudy }) {
   )
 }
 
-/* ── Study overlay ──────────────────────────────────────────── */
-
-function StudyOverlay({ cards, index, isFlipped, onPrev, onNext, onFlip, onClose }) {
-  const card = cards[index]
-  const isLast = index === cards.length - 1
-  const isFirst = index === 0
-
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-2xl flex items-center justify-between mb-4 text-white/80 text-sm">
-        <div>
-          Card <span className="font-black">{index + 1}</span> of {cards.length}
-        </div>
-        <button
-          onClick={onClose}
-          className="px-3 py-1 rounded-lg text-sm font-bold bg-white/10 hover:bg-white/20 transition"
-        >
-          Close (Esc)
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={onFlip}
-        className="w-full max-w-2xl min-h-[320px] rounded-3xl border-4 p-10 text-left transition-all"
-        style={
-          isFlipped
-            ? { background: '#fff5e6', borderColor: '#ff7a2e' }
-            : { background: '#ffffff', borderColor: '#0e2a32' }
-        }
-      >
-        <span className="block text-[11px] font-black uppercase tracking-wide text-slate-500 mb-4">
-          {isFlipped ? 'Answer' : 'Question'} · {card.category}
-        </span>
-        {!isFlipped ? (
-          <p className="text-2xl sm:text-3xl font-black text-slate-900 leading-snug">
-            {card.front}
-          </p>
-        ) : (
-          <div>
-            <p className="text-xl sm:text-2xl text-slate-900 leading-snug">
-              {card.back}
-            </p>
-            {card.example && (
-              <p className="mt-4 text-slate-600 italic">
-                Example: {card.example}
-              </p>
-            )}
-            {card.hint && (
-              <p className="mt-2 text-slate-600 italic">
-                💡 {card.hint}
-              </p>
-            )}
-          </div>
-        )}
-      </button>
-
-      <div className="mt-6 flex items-center gap-3">
-        <button
-          onClick={onPrev}
-          disabled={isFirst}
-          className="px-5 py-3 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          ← Prev
-        </button>
-        <button
-          onClick={onFlip}
-          className="px-5 py-3 rounded-xl font-black text-slate-900 bg-white hover:bg-slate-100"
-        >
-          {isFlipped ? 'Show question' : 'Show answer'} (Space)
-        </button>
-        <button
-          onClick={onNext}
-          disabled={isLast}
-          className="px-5 py-3 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Next →
-        </button>
-      </div>
-      <p className="mt-4 text-xs text-white/60">
-        Space/Enter to flip · ← → to navigate · Esc to close
-      </p>
-    </div>
-  )
-}

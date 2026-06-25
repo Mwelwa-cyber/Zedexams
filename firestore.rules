@@ -1119,6 +1119,36 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── flashcardProgress (per-user mastery state for a saved deck) ──
+    // One doc per user+deck, id `{uid}_{deckId}`.  The learner records which
+    // cards they've mastered in study mode; the library reads it back to show
+    // progress badges and a resume point.  Owner-only; admin may read for
+    // support, only admin may delete.
+    //
+    // Document shape:
+    //   { uid, deckId, masteredCards: list<int>, totalCards: int,
+    //     status: 'not-started'|'in-progress'|'completed',
+    //     startedAt?, lastStudiedAt?, updatedAt }
+    function validFlashcardProgressFields() {
+      return (!('uid' in incoming())           || (incoming().uid is string && incoming().uid.size() <= 64))
+        && (!('deckId' in incoming())          || (incoming().deckId is string && incoming().deckId.size() <= 64))
+        && (!('masteredCards' in incoming())   || incoming().masteredCards is list)
+        && (!('totalCards' in incoming())      || (incoming().totalCards is int && incoming().totalCards >= 0 && incoming().totalCards <= 200))
+        && (!('status' in incoming())          || (incoming().status is string && incoming().status in ['not-started', 'in-progress', 'completed']));
+    }
+    match /flashcardProgress/{progressId} {
+      allow read:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthed()
+                    && incoming().uid == request.auth.uid
+                    && incoming().keys().hasAll(['uid', 'deckId'])
+                    && validFlashcardProgressFields();
+      allow update: if isAuthed()
+                    && resource.data.uid == request.auth.uid
+                    && incoming().uid == request.auth.uid
+                    && validFlashcardProgressFields();
+      allow delete: if isAdmin();
+    }
+
     // ── noteInsights (AI Summary + Key Points, one doc per note) ──────
     // Generated + cached server-side by the generateNoteInsights callable
     // (admin SDK bypasses these rules). Readable by any signed-in user —
