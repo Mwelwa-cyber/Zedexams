@@ -35,10 +35,14 @@ function renderInstructionsHtml(text) {
   return paras.map(p => `<p>${p}</p>`).join('')
 }
 
-export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } = {}) {
+export function openPrintWindow() {
+  return window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+}
+
+export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', win: preWin = null } = {}) {
   if (!assessment) throw new Error('No assessment to export.')
 
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  const win = preWin || window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }

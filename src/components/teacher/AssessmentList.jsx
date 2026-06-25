@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
-import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -47,11 +47,24 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
   const id = assessment.id
   const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || 'Assessment'
   const [exporting, setExporting] = useState(null)
+  const toast = useToast()
 
   async function handleExport(format, mode) {
+    // For PDF: open the window now, synchronously, while still in the direct
+    // click handler. Browsers block window.open once we await async work.
+    let win = null
+    if (format === 'pdf') {
+      win = openPrintWindow()
+      if (!win) {
+        toast.error('Your browser blocked the print window. Please allow pop-ups for this site and try again.')
+        return
+      }
+    }
     setExporting(`${format}-${mode}`)
     try {
-      await onExport(assessment, format, mode)
+      await onExport(assessment, format, mode, win)
+    } catch (err) {
+      toast.error(err?.message || 'Export failed — please try again.')
     } finally {
       setExporting(null)
     }
@@ -192,7 +205,7 @@ export default function AssessmentList() {
     }
   }
 
-  async function handleExport(assessment, format, mode) {
+  async function handleExport(assessment, format, mode, win = null) {
     // Fetch the full question set on-demand so the list view stays cheap.
     const questions = await getAssessmentQuestions(assessment.id)
     const filename = safeFileName(
@@ -202,7 +215,9 @@ export default function AssessmentList() {
     if (format === 'docx') {
       await downloadAssessmentDocx(assessment, questions, `${filename}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
     } else {
-      printAssessmentAsPdf(assessment, questions, { mode })
+      // Pass the pre-opened window so the browser doesn't treat this as a
+      // popup (window.open was already called before the async fetch above).
+      printAssessmentAsPdf(assessment, questions, { mode, win })
     }
   }
 

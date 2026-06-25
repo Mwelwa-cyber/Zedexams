@@ -557,7 +557,7 @@ async function renderQuestion(b) {
     ]))
   }
 
-  if (b.type === 'mcq') {
+  if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     const optsHtml = b.optionsHtml || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
@@ -722,7 +722,7 @@ async function renderQuestion(b) {
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),
         runText(pairs, { size: 20, color: '047857' }),
       ]))
-    } else if (b.type === 'mcq') {
+    } else if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
       const opt = b.options?.[i] ?? ''
@@ -824,5 +824,7 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  // Delay revocation — revoking synchronously after click() can abort the
+  // download before the browser has queued it on slow or mobile browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
