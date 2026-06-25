@@ -231,8 +231,15 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          npx firebase-tools@latest deploy \
+          deploy_out=$(npx firebase-tools@latest deploy \
             --only hosting \
             --non-interactive \
             --project examsprepzambia \
-            --force
+            --force 2>&1)
+          exit_code=$?
+          echo "$deploy_out"
+          if [ $exit_code -ne 0 ] && echo "$deploy_out" | grep -q "is the current active version"; then
+            echo "Version already live — no-op deploy, treating as success."
+            exit 0
+          fi
+          exit $exit_code
