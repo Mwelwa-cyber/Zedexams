@@ -94,13 +94,14 @@ const WHATSAPP_SECRETS = [
   metaWhatsAppPhoneNumberId,
 ];
 
-// The inbound webhook needs the two outbound secrets (to send the reply) PLUS
-// the verify token + app secret (to authenticate the handshake + payloads).
+// The inbound webhook uses the two outbound secrets plus the verify token +
+// app secret when available. The inbound secrets are intentionally NOT bound
+// here so the deploy succeeds before they are stored in Secret Manager.
+// readSecret() returns "" for an unbound secret, causing the handshake and
+// HMAC checks to fail-closed (403) until the secrets are configured.
 const WHATSAPP_WEBHOOK_SECRETS = [
   metaWhatsAppToken,
   metaWhatsAppPhoneNumberId,
-  metaWhatsAppVerifyToken,
-  metaWhatsAppAppSecret,
 ];
 
 const META_GRAPH_VERSION = "v21.0";
