@@ -21,6 +21,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect } from './studioFields'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Exam Paper Generator ("Exam Studio") — fresh ECZ Grade 7 PSLE-style
@@ -111,7 +112,7 @@ export default function ExamPaperGenerator() {
         grade: form.grade,
         subject: form.subject,
         assessmentType: 'exam_paper',
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
@@ -187,6 +188,7 @@ export default function ExamPaperGenerator() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <Centered emoji="🎓" title="Ready to build an exam paper"
@@ -243,6 +245,7 @@ export default function ExamPaperGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>

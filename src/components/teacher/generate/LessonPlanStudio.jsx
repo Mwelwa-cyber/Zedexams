@@ -20,6 +20,7 @@ import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import AssessmentActivitiesPanel from './AssessmentActivitiesPanel'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -493,7 +494,7 @@ export default function LessonPlanStudio() {
   }, [userProfile, isAdmin])
 
   return (
-    <>
+    <StudioOutputBoundary onRetry={() => navigate('/teacher')}>
       <SeoHelmet title="Lesson plan studio" noIndex />
       {/* Mobile sidebar scrim */}
       <div className="scrim" id="scrim"></div>
@@ -1086,6 +1087,6 @@ export default function LessonPlanStudio() {
         </div>
       </div>
       <div className="toast" id="toast">Saved</div>
-    </>
+    </StudioOutputBoundary>
   )
 }
