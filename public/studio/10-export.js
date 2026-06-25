@@ -17,6 +17,7 @@ function __studioInitExport() {
   $$('#export-pop button').forEach(b => b.addEventListener('click', () => {
     const t = b.dataset.export; exportPop.classList.remove('open');
     if (t === 'word') exportWord();
+    if (t === 'pdf')  exportPdf();
   }));
 }
 
@@ -363,6 +364,87 @@ function exportWordLegacy() {
   const html = withWatermark(`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plan</title><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${doc.innerHTML}</div></body></html>`);
   download(html, currentFilename() + '.doc', 'application/msword');
 }
+// PDF export — grabs the live rendered plan from #doc, wraps it in a
+// print-ready HTML document, and calls the bundled html2canvas+jsPDF path via
+// the window.__zxDownloadPdf bridge registered by LessonPlanStudio.jsx.
+// Falls back to a print-dialog window if the bridge is absent.
+async function exportPdf() {
+  if (typeof toast === 'function') toast('Preparing PDF…');
+  const bodyHtml = doc ? doc.innerHTML : '';
+  const html = withWatermark(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lesson Plan</title>
+<link rel="stylesheet" href="/studio/lesson.css">
+<style>
+  @page { size: A4; margin: 14mm 16mm; }
+  @media print { body { padding: 14mm 16mm; max-width: none; } .empty-state { display: none; } }
+</style>
+</head>
+<body>
+<div class="doc" style="max-width:794px;margin:0 auto;padding:22px 28px">${bodyHtml}</div>
+</body>
+</html>`);
+  const filename = currentFilename() + '.pdf';
+  if (typeof window !== 'undefined' && typeof window.__zxDownloadPdf === 'function') {
+    try {
+      await window.__zxDownloadPdf(html, filename);
+      if (typeof toast === 'function') toast('PDF downloaded');
+      return;
+    } catch (err) {
+      console.error('PDF export failed, falling back to print:', err);
+    }
+  }
+  // Fallback: open the HTML in a new window and trigger print.
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  if (!win) { if (typeof toast === 'function') toast('Allow pop-ups then try again.'); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+  const ready = () => { try { win.focus(); win.print(); } catch { /* leave for manual Ctrl+P */ } };
+  if (win.document.readyState === 'complete') setTimeout(ready, 150);
+  else win.addEventListener('load', () => setTimeout(ready, 150));
+}
+
+// Whole-series PDF — one PDF containing every lesson in the multi-lesson run.
+async function exportBatchPdf() {
+  if (typeof toast === 'function') toast('Preparing PDF…');
+  const b = window.__lpBatch || { meta: {}, lessons: [] };
+  const lessons = Array.isArray(b.lessons) ? b.lessons : [];
+  const brk = '<div style="page-break-before:always"></div>';
+  const parts = [buildBatchCoverHtml(b.meta, lessons)].concat(lessons.map(l => l.html));
+  const html = withWatermark(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lesson Plans</title>
+<link rel="stylesheet" href="/studio/lesson.css">
+<style>
+  @page { size: A4; margin: 14mm 16mm; }
+  @media print { body { padding: 14mm 16mm; max-width: none; } .empty-state { display: none; } }
+</style>
+</head>
+<body>
+<div class="doc" style="max-width:794px;margin:0 auto;padding:22px 28px">${parts.join(brk)}</div>
+</body>
+</html>`);
+  const filename = batchFilename() + '.pdf';
+  if (typeof window !== 'undefined' && typeof window.__zxDownloadPdf === 'function') {
+    try {
+      await window.__zxDownloadPdf(html, filename);
+      if (typeof toast === 'function') toast('PDF downloaded');
+      return;
+    } catch (err) {
+      console.error('Batch PDF export failed, falling back to print:', err);
+    }
+  }
+  const win = window.open('', '_blank', 'width=900,height=1100');
+  if (!win) { if (typeof toast === 'function') toast('Allow pop-ups then try again.'); return; }
+  win.document.open(); win.document.write(html); win.document.close();
+  const ready = () => { try { win.focus(); win.print(); } catch { /* leave for manual Ctrl+P */ } };
+  if (win.document.readyState === 'complete') setTimeout(ready, 150);
+  else win.addEventListener('load', () => setTimeout(ready, 150));
+}
+
 // ── Whole-series batch export ───────────────────────────────────────────────
 //
 // A multi-lesson run (Multiple / Full week / Let AI suggest) generates and
@@ -497,12 +579,16 @@ function refreshBatchExportButtons() {
   const frag = document.createElement('div');
   frag.className = 'lp-batch-export';
   frag.style.cssText = 'border-top:1px solid var(--line,#e5ddd0);margin-top:6px;padding-top:6px';
+  const PDF_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>';
   frag.innerHTML =
     `<div class="lp-batch-export-label" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7a6d5d;padding:4px 12px">Whole series (${n} lessons)</div>` +
-    `<button type="button" data-batch="word">${BATCH_WORD_ICON} All ${n} lessons (Word)</button>`;
+    `<button type="button" data-batch="word">${BATCH_WORD_ICON} All ${n} lessons (Word)</button>` +
+    `<button type="button" data-batch="pdf">${PDF_ICON} All ${n} lessons (PDF)</button>`;
   exportPop.appendChild(frag);
   const wordBtn = frag.querySelector('[data-batch="word"]');
   if (wordBtn) wordBtn.addEventListener('click', () => { exportPop.classList.remove('open'); exportBatchWord(); });
+  const pdfBtn = frag.querySelector('[data-batch="pdf"]');
+  if (pdfBtn) pdfBtn.addEventListener('click', () => { exportPop.classList.remove('open'); exportBatchPdf(); });
 }
 
 // Human-readable download name — "Reception Pre-Mathematics and Science Lesson
