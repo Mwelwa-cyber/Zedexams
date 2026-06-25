@@ -417,6 +417,18 @@ export default function LessonPlanStudio() {
     // under a random UUID name.
     window.__zxSaveBlob = (blob, filename) => saveBlob(blob, filename)
 
+    // Native OOXML bridge: the studio's 10-export.js prefers this over the
+    // vendored html-docx-js converter, which wraps the document body in a
+    // w:altChunk / afchunk.mht MHTML part that Word for Android / iOS / Web
+    // cannot open ("This version of Word can't open files that contain alternate
+    // formats"). This bridge produces real WordprocessingML via the docx npm
+    // library — no altChunk parts — so mobile Word opens the file correctly.
+    // Lazy-imported so the ~500 kB docx bundle stays out of the eager chunk.
+    window.__zxHtmlToDocx = async (html) => {
+      const { htmlToDocxBlob } = await import('../../../utils/studioHtmlToDocx.js')
+      return htmlToDocxBlob(html)
+    }
+
     // ---- Load scripts in dependency order ----
     const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
@@ -480,6 +492,7 @@ export default function LessonPlanStudio() {
       delete window.esc
       delete window.toast
       delete window.__zxSaveBlob
+      delete window.__zxHtmlToDocx
       delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

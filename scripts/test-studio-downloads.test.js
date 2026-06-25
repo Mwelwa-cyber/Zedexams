@@ -91,6 +91,9 @@ check(!/__zxDownloadPdf/.test(exportJs), '10-export.js no longer uses the PDF br
 // large files aren't truncated into "unreadable content" on Android Chrome.
 check(/window\.__zxSaveBlob/.test(exportJs), '10-export.js prefers the bundled saveBlob bridge for downloads')
 check(/legacyTriggerDownload/.test(exportJs), '10-export.js keeps a legacy download fallback when the bridge is absent')
+// altChunk→native-OOXML fix: exportWord() and exportBatchWord() must try the
+// native OOXML bridge before falling through to html-docx-js.
+check(/window\.__zxHtmlToDocx/.test(exportJs), '10-export.js references the native OOXML bridge (__zxHtmlToDocx)')
 
 // 6. Vendored converter is actually present.
 check(
@@ -107,6 +110,9 @@ check(/data-export="word"/.test(studioJsx), 'LessonPlanStudio keeps the Word exp
 check(!/data-export="pdf"|data-export="html"/.test(studioJsx), 'LessonPlanStudio has no PDF/HTML export buttons')
 check(/window\.__zxSaveBlob\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxSaveBlob bridge')
 check(/delete window\.__zxSaveBlob/.test(studioJsx), 'LessonPlanStudio cleans up the saveBlob bridge on unmount')
+// altChunk→native-OOXML fix: the native docx bridge must be registered and cleaned up.
+check(/window\.__zxHtmlToDocx\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxHtmlToDocx native-OOXML bridge')
+check(/delete window\.__zxHtmlToDocx/.test(studioJsx), 'LessonPlanStudio cleans up the __zxHtmlToDocx bridge on unmount')
 
 // 8. The PDF libraries get their own lazy chunk (kept out of the eager vendor).
 const viteConfig = read('vite.config.js')
