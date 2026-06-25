@@ -13,7 +13,7 @@ import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
-import ErrorBoundary from '../../ui/ErrorBoundary'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -405,7 +405,7 @@ export default function LessonPlanStudio() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <ErrorBoundary inline>
+    <StudioOutputBoundary onRetry={() => navigate('/teacher')}>
       <SeoHelmet title="Lesson plan studio" noIndex />
       {/* Mobile sidebar scrim */}
       <div className="scrim" id="scrim"></div>
@@ -908,6 +908,6 @@ export default function LessonPlanStudio() {
 
       {/* Loader overlay + spinner animation */}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} #loader.show{display:flex!important}`}</style>
-    </ErrorBoundary>
+    </StudioOutputBoundary>
   )
 }
