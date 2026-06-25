@@ -43,6 +43,7 @@ import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
+import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { downloadLessonActivitiesDocx } from '../../../utils/activityToDocx'
@@ -330,7 +331,28 @@ export default function LibraryItemDetail() {
   }
 
   async function onExportPdf() {
-    if (item?.tool !== 'class_timetable' || !item.output || !permissions.canDownload) return
+    if (!permissions.canDownload) return
+
+    if (item?.tool === 'lesson_plan') {
+      const plan = item.output || item.data
+      if (!plan) return
+      try {
+        const filename = buildDownloadName({
+          docType: 'Lesson Plan',
+          grade: item.inputs?.grade || item.meta?.klass,
+          subject: item.inputs?.subject || item.meta?.subject,
+          topic: item.inputs?.topic || item.meta?.topic,
+          ext: 'pdf',
+        })
+        await downloadLessonPlanPdf(plan, titleForGeneration(item), filename)
+        recordExport(item.id, 'pdf')
+      } catch (err) {
+        console.error('[LibraryItemDetail] lesson plan pdf failed', err)
+      }
+      return
+    }
+
+    if (item?.tool !== 'class_timetable' || !item.output) return
     try {
       const name = buildDownloadName({
         docType: TOOL_DOC_TYPES[item.tool] || 'Class Timetable',
@@ -512,6 +534,18 @@ export default function LibraryItemDetail() {
                   : 'Premium only — upgrade to download library documents'}
               >
                 📊 Export .xlsx
+              </button>
+            )}
+            {item.tool === 'lesson_plan' && (item.output || item.data) && (
+              <button
+                onClick={onExportPdf}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download a PDF copy'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🖨️ Export PDF
               </button>
             )}
             {item.tool === 'class_timetable' && (
