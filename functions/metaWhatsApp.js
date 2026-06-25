@@ -66,15 +66,41 @@
  */
 
 const {defineSecret} = require("firebase-functions/params");
+const {
+  verifyWebhookSubscriptionMatch,
+  verifyWebhookSignature,
+  parseInboundMessages,
+} = require("./metaWhatsAppCore");
 
 const metaWhatsAppToken = defineSecret("META_WHATSAPP_TOKEN");
 const metaWhatsAppPhoneNumberId = defineSecret("META_WHATSAPP_PHONE_NUMBER_ID");
+// Inbound-webhook secrets (Bonga, the WhatsApp reply agent):
+//   META_WHATSAPP_VERIFY_TOKEN  — the arbitrary string you type into Meta's
+//                                 "Verify token" box when subscribing the
+//                                 webhook. Meta echoes it back on the GET
+//                                 verification handshake; we compare + return
+//                                 hub.challenge only when it matches.
+//   META_WHATSAPP_APP_SECRET    — your Meta App's secret. Used to validate the
+//                                 X-Hub-Signature-256 HMAC on every inbound
+//                                 POST so a stranger can't forge messages that
+//                                 trigger an auto-reply.
+const metaWhatsAppVerifyToken = defineSecret("META_WHATSAPP_VERIFY_TOKEN");
+const metaWhatsAppAppSecret = defineSecret("META_WHATSAPP_APP_SECRET");
 
 // Exported so the consuming function can declare them in its
 // `secrets: [...]` block.
 const WHATSAPP_SECRETS = [
   metaWhatsAppToken,
   metaWhatsAppPhoneNumberId,
+];
+
+// The inbound webhook needs the two outbound secrets (to send the reply) PLUS
+// the verify token + app secret (to authenticate the handshake + payloads).
+const WHATSAPP_WEBHOOK_SECRETS = [
+  metaWhatsAppToken,
+  metaWhatsAppPhoneNumberId,
+  metaWhatsAppVerifyToken,
+  metaWhatsAppAppSecret,
 ];
 
 const META_GRAPH_VERSION = "v21.0";
@@ -256,6 +282,109 @@ async function sendWhatsAppDigest({to, body, contentVariables}) {
 }
 
 /**
+ * Send a free-form WhatsApp text reply. Unlike `sendWhatsAppDigest`, this
+ * NEVER uses a message template — it always sends a plain `text` message, which
+ * is only deliverable inside WhatsApp's 24-hour customer-service window (i.e.
+ * within 24h of the user's last inbound message). Bonga only ever replies to a
+ * just-received message, so the window is always open. Soft-fails the same way.
+ *
+ * @param {Object} args
+ * @param {string} args.to    Normalised E.164 digits (no `+`).
+ * @param {string} args.body  Reply text.
+ * @returns {Promise<{status: 'sent'|'skipped'|'failed', messageId?: string,
+ *                    messageStatus?: string, httpStatus?: number,
+ *                    error?: string, reason?: string}>}
+ */
+async function sendWhatsAppText({to, body}) {
+  const token = readSecret(metaWhatsAppToken);
+  const phoneNumberId = readSecret(metaWhatsAppPhoneNumberId);
+
+  if (!token || !phoneNumberId) {
+    return {status: "skipped", reason: "meta-not-configured"};
+  }
+  if (!to || !/^[1-9]\d{6,14}$/.test(to)) {
+    return {status: "skipped", reason: "invalid-to-address"};
+  }
+  if (!body || !String(body).trim()) {
+    return {status: "skipped", reason: "empty-body"};
+  }
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "text",
+    text: {body: String(body).slice(0, 1600), preview_url: false},
+  };
+  const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${encodeURIComponent(phoneNumberId)}/messages`;
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    return {status: "failed", error: String(err?.message || err).slice(0, 500)};
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch (_e) { /* not JSON */ }
+    const errMessage = parsed?.error?.message || text || `HTTP ${res.status}`;
+    const errCode = parsed?.error?.code != null ? `code=${parsed.error.code}` : "";
+    return {
+      status: "failed",
+      httpStatus: res.status,
+      error: `${errMessage} ${errCode}`.trim().slice(0, 500),
+    };
+  }
+
+  const json = await res.json().catch(() => null);
+  const messageId = json?.messages?.[0]?.id || null;
+  const messageStatus = json?.messages?.[0]?.message_status || "accepted";
+  return {status: "sent", messageId, messageStatus};
+}
+
+/**
+ * GET webhook verification handshake. Reads META_WHATSAPP_VERIFY_TOKEN and
+ * delegates the comparison to the pure core. Echoes `hub.challenge` only when
+ * mode is `subscribe` and the token matches.
+ *
+ * @param {Object} query  The request query map (`req.query`).
+ * @returns {{ok: boolean, challenge?: string, reason?: string}}
+ */
+function verifyWebhookSubscription(query) {
+  return verifyWebhookSubscriptionMatch({
+    query,
+    expectedToken: readSecret(metaWhatsAppVerifyToken),
+  });
+}
+
+/**
+ * Secret-aware wrapper around `verifyWebhookSignature` that reads the app
+ * secret from the bound Firebase secret. `configured` is false when the secret
+ * is unset (staged rollout) so the caller can decide whether to fail closed.
+ *
+ * @param {Object} args
+ * @param {Buffer|string} args.rawBody
+ * @param {string} args.signature
+ * @returns {{ok: boolean, configured: boolean}}
+ */
+function verifyInboundSignature({rawBody, signature}) {
+  const appSecret = readSecret(metaWhatsAppAppSecret);
+  if (!appSecret) return {ok: false, configured: false};
+  return {ok: verifyWebhookSignature({rawBody, signature, appSecret}), configured: true};
+}
+
+/**
  * Build the WhatsApp message body for a weekly digest. Plain text
  * only — WhatsApp doesn't render HTML. Emoji are fine; UTF-8 throughout.
  */
@@ -290,8 +419,14 @@ function buildWhatsAppDigestBody({learnerName, learnerGrade, summary, subjectBre
 
 module.exports = {
   WHATSAPP_SECRETS,
+  WHATSAPP_WEBHOOK_SECRETS,
   isConfigured,
   normalizeToWhatsApp,
   sendWhatsAppDigest,
+  sendWhatsAppText,
   buildWhatsAppDigestBody,
+  verifyWebhookSubscription,
+  verifyWebhookSignature,
+  verifyInboundSignature,
+  parseInboundMessages,
 };

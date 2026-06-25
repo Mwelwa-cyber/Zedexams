@@ -133,6 +133,13 @@
         }
       },
       {
+        "source": "/api/whatsapp/webhook",
+        "function": {
+          "functionId": "apiWhatsAppWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/teacher/download",
         "function": {
           "functionId": "apiLibraryDownload",
