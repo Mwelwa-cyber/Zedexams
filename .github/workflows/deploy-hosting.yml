@@ -231,15 +231,17 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          deploy_out=$(npx firebase-tools@latest deploy \
+          # Stream output in real-time (visible in logs) AND write to a file so
+          # we can grep it afterward. PIPESTATUS[0] gives firebase-tools' exit
+          # code; tee always exits 0, so `set -e` won't abort the script here.
+          npx firebase-tools@latest deploy \
             --only hosting \
             --non-interactive \
             --project examsprepzambia \
-            --force 2>&1)
-          exit_code=$?
-          echo "$deploy_out"
-          if [ $exit_code -ne 0 ] && echo "$deploy_out" | grep -q "is the current active version"; then
+            --force 2>&1 | tee /tmp/firebase-deploy.log
+          firebase_exit=${PIPESTATUS[0]}
+          if [ "$firebase_exit" -ne 0 ] && grep -q "is the current active version" /tmp/firebase-deploy.log; then
             echo "Version already live — no-op deploy, treating as success."
             exit 0
           fi
-          exit $exit_code
+          exit "$firebase_exit"
