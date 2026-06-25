@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   PencilLine,
@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
+import ErrorBoundary from '../ui/ErrorBoundary'
 import TeacherTopBar from './TeacherTopBar'
 import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
@@ -32,6 +33,7 @@ const NAV = [
 export default function TeacherLayout({ children }) {
   const { logout, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   async function handleLogout() {
     await logout()
@@ -139,7 +141,9 @@ export default function TeacherLayout({ children }) {
       <main className="flex-1 min-w-0 pt-20 lg:pt-0">
         <div className="app-container py-6 pb-24 lg:pb-6">
           <TeacherTopBar />
-          {children}
+          <ErrorBoundary inline resetKey={pathname}>
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
 
