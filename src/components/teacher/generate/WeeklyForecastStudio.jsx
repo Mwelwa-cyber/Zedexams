@@ -537,7 +537,7 @@ export default function WeeklyForecastStudio() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Weekly focus" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -551,7 +551,7 @@ export default function WeeklyForecastStudio() {
           {/* ── Plan details (select first) ── */}
           <section className="studio-card p-5 space-y-4">
             <div>
-              <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>1. Choose what you're planning</h2>
+              <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>1. Choose what you're planning</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 Pick the grade first — the subject and topic lists become specific to it. The week's dates fill from the MoE calendar.
               </p>
@@ -634,7 +634,7 @@ export default function WeeklyForecastStudio() {
           {/* ── Sources: scheme + timetable ── */}
           <section className="studio-card p-5 space-y-4">
             <div>
-              <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>2. Pull from your curriculum</h2>
+              <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>2. Pull from your curriculum</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 Start from a saved scheme of work, set the teaching days from your class timetable, or just pick topics per day from the syllabus below.
               </p>
@@ -754,7 +754,7 @@ export default function WeeklyForecastStudio() {
           {/* ── Day editors ── */}
           <section className="studio-card p-5">
             <div className="mb-4">
-              <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>3. The week, day by day</h2>
+              <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>3. The week, day by day</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 Pick a topic and the sub-topic, competence, activities and expected standard fill in from the syllabus. One line per activity / resource.
               </p>
@@ -833,7 +833,7 @@ export default function WeeklyForecastStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your weekly forecast</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your weekly forecast</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Exactly what prints — the remarks column travels with it for the classroom.
                 </p>

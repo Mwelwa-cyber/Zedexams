@@ -473,7 +473,10 @@ body.theme-midnight .moe-calendar {
   .studio-theme h1,
   .studio-theme h2,
   .studio-theme h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; }
+  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; color: var(--sv-ink, #0e2a32); }
+  .studio-theme .studio-page { background: var(--sv-canvas, #f5efe1); min-height: 100vh; padding: 1rem; }
+  @media (min-width: 640px)  { .studio-theme .studio-page { padding: 1.5rem; } }
+  @media (min-width: 1024px) { .studio-theme .studio-page { padding: 2rem; } }
   .studio-theme .studio-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; letter-spacing: 1.4px;

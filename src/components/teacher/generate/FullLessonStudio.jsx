@@ -120,7 +120,7 @@ export default function FullLessonStudio() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Full Lesson Studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -257,7 +257,7 @@ export default function FullLessonStudio() {
                     <div>
                       <h2
                         className="studio-display"
-                        style={{ fontSize: 22, color: '#0e2a32', margin: '0 0 2px' }}
+                        style={{ fontSize: 22, margin: '0 0 2px' }}
                       >
                         {lesson.header?.title || 'Full Lesson'}
                       </h2>
@@ -312,7 +312,7 @@ function Centered({ emoji, title, body, action }) {
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
       <div className="text-5xl mb-3">{emoji}</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>{title}</h3>
+      <h3 className="studio-display" style={{ fontSize: 20 }}>{title}</h3>
       <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>{body}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>

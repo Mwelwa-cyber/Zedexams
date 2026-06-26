@@ -121,7 +121,7 @@ export default function LockedStudio({ tool }) {
   }, [tool])
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title={`${eyebrow} — Sample`} noIndex />
       <div className="max-w-5xl mx-auto px-3 sm:px-4">
         <StudioPageHeader
@@ -185,7 +185,7 @@ export default function LockedStudio({ tool }) {
           </div>
 
           <div className="mb-4">
-            <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: '0 0 2px' }}>
+            <h2 className="studio-display" style={{ fontSize: 20, margin: '0 0 2px' }}>
               Example output
             </h2>
             <p className="text-xs" style={{ color: '#566f76' }}>

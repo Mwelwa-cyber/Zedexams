@@ -245,7 +245,7 @@ export default function RecordOfWorkStudio() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Record of work" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -259,7 +259,7 @@ export default function RecordOfWorkStudio() {
           {/* ── Build from a scheme ── */}
           <section className="studio-card p-5 space-y-3">
             <div>
-              <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Start from your scheme of work</h2>
+              <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Start from your scheme of work</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 {schemesStatus === 'ready' && schemes.length === 0
                   ? 'No saved schemes yet — generate one first, or log the weeks manually below.'
@@ -328,7 +328,7 @@ export default function RecordOfWorkStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>The term, week by week</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>The term, week by week</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   One line per item of work done. Mark coverage after each week — remarks are for what to re-teach or carry over.
                 </p>
@@ -394,7 +394,7 @@ export default function RecordOfWorkStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your record of work</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your record of work</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Exactly what prints — with the signature block the head teacher checks.
                   {artifact && ` Coverage so far: ${summary.full} full · ${summary.partial} partial · ${summary.none} not covered · ${summary.blank} not logged.`}

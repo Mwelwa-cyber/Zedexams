@@ -200,7 +200,7 @@ export default function TeacherTopBar() {
             />
             <kbd
               className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
-              style={{ background: '#f5efe1', color: '#566f76', border: '1px solid #d4cab2' }}
+              style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)', border: '1px solid #d4cab2' }}
             >
               ⌘K
             </kbd>

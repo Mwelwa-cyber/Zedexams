@@ -241,7 +241,7 @@ export default function SbaMarkTracker() {
   })
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="SBA Mark Tracker" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -300,7 +300,7 @@ export default function SbaMarkTracker() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Pupils and task marks</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and task marks</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   {named.length} pupil{named.length === 1 ? '' : 's'} · rows without a name are ignored
                 </p>
@@ -395,7 +395,7 @@ export default function SbaMarkTracker() {
 
           {/* ── Final cumulative combiner ── */}
           <section className="studio-card p-5">
-            <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>
+            <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>
               Final SBA mark (entered in Grade 7)
             </h2>
             <p className="text-xs mt-0.5 mb-3" style={{ color: '#566f76' }}>

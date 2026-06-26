@@ -43,7 +43,7 @@ export default function TimetableUploadPanel({ grade, days, onExtracted }) {
   return (
     <section className="studio-card p-5 space-y-3">
       <div>
-        <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Already have a timetable? Upload it</h2>
+        <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Already have a timetable? Upload it</h2>
         <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
           Bring in a timetable you already have — a PDF, Word or Excel file, or a photo of one on paper. We&apos;ll read it into the
           editable grid below so you can correct it, then the curriculum check confirms it matches this grade.
