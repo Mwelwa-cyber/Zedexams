@@ -42,12 +42,6 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Fashion & Fabrics Syllabus (Forms 1-4)':        'home_economics',
   'Hospitality Management Syllabus (Forms 1-4)':   'home_economics',
   'Travel & Tourism Syllabus (Forms 1-4)':         'social_studies',
-  // Sections added by patch-curriculum-data.mjs
-  'Biology Syllabus (Forms 1-5)':                  'biology',
-  'Chemistry Syllabus (Forms 1-5)':                'chemistry',
-  'English Language Syllabus (Forms 1-5)':         'english',
-  'Civic Education Syllabus (Grades 5-9)':         'civic_education',
-  'Cinyanja Syllabus (Grades 4-9)':                'cinyanja',
 }
 
 // ── Sheet-name → grade ───────────────────────────────────────────────────
