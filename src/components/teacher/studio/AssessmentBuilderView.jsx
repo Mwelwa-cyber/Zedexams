@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react'
 import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/quizSections.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
-import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
+import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
 import Icon from './studioIcons'
 import {
