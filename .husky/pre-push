@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Pre-push hook — lint + .env secret guard.
+#
+# Safe on Windows: no stash, no file movement. Reads working tree and
+# checks the diff vs upstream. Blocks the push on lint errors or if any
+# .env file (non-example) is included in the commits being pushed.
+#
+# To bypass in an emergency: git push --no-verify
+# (The ECC block-no-verify hook in Claude Code will warn you if you do.)
+
+# 1. Lint
+npm run lint || exit 1
+
+# 2. Guard: block if .env files appear in commits being pushed
+if git rev-parse @{u} > /dev/null 2>&1; then
+  ENV_FILES=$(git diff --name-only @{u}..HEAD | grep -E "^\.env$|^\.env\." | grep -vE "example|sample|template" || true)
+  if [ -n "$ENV_FILES" ]; then
+    echo "[pre-push] BLOCKED: .env file detected in push:"
+    echo "$ENV_FILES"
+    echo "Remove the file from git history or add it to .gitignore before pushing."
+    exit 1
+  fi
+fi
