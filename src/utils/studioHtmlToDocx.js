@@ -58,6 +58,30 @@ const CELL_BORDER = {
   right:  { style: BorderStyle.SINGLE, size: 4, color: '888888' },
 }
 
+// The reflowed metadata header (.word-meta-table — built by
+// convertMetaGridsToTables in 10-export.js from the .official-meta /
+// .meta-compact grids) is NOT a boxed grid. On screen it renders as a plain
+// two-column block fenced by a single rule top and bottom only (lesson.css
+// `.official-meta { border-top/border-bottom: 1.5px }`, mirrored by
+// `.word-meta-table` in WORD_DOC_STYLES). Boxing every cell here made the
+// download's header come out looking nothing like the preview — so meta cells
+// get NO borders and the rule is drawn as the first row's top edge + the last
+// row's bottom edge (size 12 = 1.5pt, black, matching the preview's --ink rule).
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' }
+const META_RULE = { style: BorderStyle.SINGLE, size: 12, color: '000000' }
+function metaCellBorders(isFirstRow, isLastRow) {
+  return {
+    top:    isFirstRow ? META_RULE : NO_BORDER,
+    bottom: isLastRow ? META_RULE : NO_BORDER,
+    left:   NO_BORDER,
+    right:  NO_BORDER,
+  }
+}
+const META_TABLE_BORDERS = {
+  top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+  insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
+}
+
 // Decode a base64 data URI to a Uint8Array.  Uses the browser-safe atob path so
 // the same code works in jsdom (tests) and in the bundled SPA — avoids Node
 // Buffer which is absent in the browser.
@@ -313,9 +337,14 @@ function buildList(listEl, ordered) {
 }
 
 function buildTable(tableEl) {
+  // The metadata header is a borderless top/bottom-ruled block, not a boxed
+  // grid (see metaCellBorders). Every other table (lesson progression, batch
+  // cover sheet) keeps the full single-line cell box.
+  const isMeta = !!(tableEl.classList && tableEl.classList.contains('word-meta-table'))
   const rows = []
   const trEls = Array.from(tableEl.querySelectorAll('tr'))
-  for (const trEl of trEls) {
+  const lastRowIdx = trEls.length - 1
+  trEls.forEach((trEl, rowIdx) => {
     const cells = []
     const tdEls = Array.from(trEl.children).filter(c =>
       c.tagName.toUpperCase() === 'TH' || c.tagName.toUpperCase() === 'TD'
@@ -332,15 +361,16 @@ function buildTable(tableEl) {
         : [para(runs.length ? runs : [run('')])]
       cells.push(new TableCell({
         children: cellChildren,
-        borders: CELL_BORDER,
+        borders: isMeta ? metaCellBorders(rowIdx === 0, rowIdx === lastRowIdx) : CELL_BORDER,
         ...(colspan > 1 ? { columnSpan: colspan } : {}),
       }))
     }
     if (cells.length) rows.push(new TableRow({ children: cells }))
-  }
+  })
   if (!rows.length) return []
   return [new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    ...(isMeta ? { borders: META_TABLE_BORDERS } : {}),
     rows,
   })]
 }
