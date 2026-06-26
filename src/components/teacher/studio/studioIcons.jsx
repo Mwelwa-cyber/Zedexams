@@ -74,6 +74,7 @@ const ICONS = {
   duplicate: Copy,
   edit: PencilSquareIcon,
   bank: StarIcon,
+  paste: ClipboardList,
   reset: RefreshCw,
   remove: X,
   add: Plus,
