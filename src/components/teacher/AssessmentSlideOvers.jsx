@@ -7,7 +7,8 @@
 // parent's `.studio-v2` CSS scope and reach the extracted analysis widgets
 // and question-type editors via sibling imports.
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { parsePastedQuestions } from '../../utils/pasteQuestionParser.js'
 import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
@@ -140,6 +141,12 @@ export function BlockPickerSlide({ open, onClose, onPick }) {
             hint="Insert a question you saved earlier"
             onClick={() => onPick('question_bank')}
           />
+          <BlockPickerItem
+            icon="paste"
+            title="Paste questions"
+            hint="Numbered list → auto-detect MCQ / short-answer / essay"
+            onClick={() => onPick('paste_import')}
+          />
         </div>
 
         <div className="sv-block-cat">AI-powered</div>
@@ -170,6 +177,93 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
       <strong>{title}</strong>
       <small>{hint}</small>
     </button>
+  )
+}
+
+/* ==================================================================
+ * PASTE IMPORT SLIDE-OVER
+ * ================================================================== */
+export function PasteImportSlide({ open, onClose, onInsert }) {
+  const [text, setText] = useState('')
+  const preview = useMemo(() => (text.trim() ? parsePastedQuestions(text) : []), [text])
+  const mcqCount = preview.filter(q => q.type === 'mcq').length
+  const saCount  = preview.filter(q => q.type === 'short_answer').length
+  const essayCount = preview.filter(q => q.type === 'essay').length
+  const tfCount  = preview.filter(q => q.type === 'true_false').length
+
+  const handleInsert = useCallback(() => {
+    if (!preview.length) return
+    onInsert(preview)
+    setText('')
+  }, [preview, onInsert])
+
+  return (
+    <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+      <div className="sv-slideover-head">
+        <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close">
+          <Icon name="remove" size={20} />
+        </button>
+        <h3 className="serif">
+          Paste questions
+          <small>Numbered list — MCQ, short-answer, essay auto-detected</small>
+        </h3>
+      </div>
+      <div className="sv-slideover-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p className="text-xs theme-text-secondary" style={{ lineHeight: 1.5 }}>
+          Paste numbered questions below. MCQ: include A) B) C) D) options.
+          Add <code>[2]</code> or <code>(3 marks)</code> for marks.
+          Optionally add <code>Answer: A</code> after each question.
+        </p>
+
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={16}
+          placeholder={`1. What is the capital of Zambia? [2]\nA) Lusaka\nB) Ndola\nC) Kitwe\nD) Livingstone\nAnswer: A\n\n2. Explain the water cycle. (5 marks)\nAnswer: Water evaporates…`}
+          style={{
+            width: '100%', resize: 'vertical', fontFamily: 'monospace',
+            fontSize: 12, lineHeight: 1.55, padding: '10px 12px',
+            border: '1.5px solid var(--sv-border, #d4cfc8)',
+            borderRadius: 10, background: 'var(--sv-surface, #fff)',
+            color: 'var(--sv-text, #0e2a32)',
+          }}
+        />
+
+        {preview.length > 0 && (
+          <div style={{
+            background: '#f0faf4', border: '1.5px solid #6ee7b7',
+            borderRadius: 10, padding: '10px 14px', fontSize: 12,
+          }}>
+            <strong style={{ color: '#065f46' }}>
+              {preview.length} question{preview.length !== 1 ? 's' : ''} detected
+            </strong>
+            <span style={{ color: '#374151', marginLeft: 8 }}>
+              {[
+                mcqCount  && `${mcqCount} MCQ`,
+                saCount   && `${saCount} short-answer`,
+                essayCount && `${essayCount} essay`,
+                tfCount   && `${tfCount} true/false`,
+              ].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        )}
+
+        {text.trim() && !preview.length && (
+          <p className="text-xs" style={{ color: '#b91c1c' }}>
+            No questions detected. Make sure each question starts with a number followed by a period or bracket (e.g. <code>1.</code> or <code>1)</code>).
+          </p>
+        )}
+
+        <button
+          className="sv-btn sv-btn-primary"
+          onClick={handleInsert}
+          disabled={!preview.length}
+          style={{ marginTop: 4 }}
+        >
+          Insert {preview.length > 0 ? preview.length : ''} question{preview.length !== 1 ? 's' : ''}
+        </button>
+      </div>
+    </aside>
   )
 }
 

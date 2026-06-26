@@ -93,6 +93,7 @@ import {
   BlockPickerSlide,
   AiSlide,
   EditorSlide,
+  PasteImportSlide,
 } from './AssessmentSlideOvers'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { normalizeSubject } from '../../config/curriculum'
@@ -340,6 +341,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // Question-bank insert modal. afterIndex is captured when the block picker
   // hands off, because closeSlide() resets insertAfterIndex.
   const [bankPicker, setBankPicker] = useState({ open: false, afterIndex: null })
+  const [pasteSlide, setPasteSlide] = useState({ open: false, afterIndex: null })
   const [toast, setToast] = useState(null)
 
   // Data state (compatible with existing schema)
@@ -2136,9 +2138,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
         openSlide('ai')
         return
       case 'question_bank':
-        // Capture the insert position before closeSlide() clears it, then
-        // open the bank picker. Insertion happens on pick.
         setBankPicker({ open: true, afterIndex: insertAfterIndex })
+        closeSlide()
+        return
+      case 'paste_import':
+        setPasteSlide({ open: true, afterIndex: insertAfterIndex })
         closeSlide()
         return
       default:
@@ -2168,6 +2172,19 @@ export default function AssessmentStudio({ variant = 'test' }) {
     } catch (error) {
       showToast(`Could not save: ${getErrorMessage(error)}`, true)
     }
+  }
+
+  // Insert questions parsed from pasted plain text at the captured position.
+  function handlePasteInsert(parsedQuestions) {
+    let afterIdx = pasteSlide.afterIndex
+    for (const q of parsedQuestions) {
+      const section = buildStandaloneSection(q)
+      insertSectionAfter(afterIdx, section)
+      afterIdx = afterIdx + 1
+    }
+    setPasteSlide({ open: false, afterIndex: null })
+    if (view !== 'builder') changeView('builder')
+    showToast(`${parsedQuestions.length} question${parsedQuestions.length === 1 ? '' : 's'} inserted.`)
   }
 
   // Insert a fresh copy of a banked question at the captured position.
@@ -2483,6 +2500,12 @@ export default function AssessmentStudio({ variant = 'test' }) {
           onClose={() => setBankPicker({ open: false, afterIndex: null })}
         />
       )}
+
+      <PasteImportSlide
+        open={pasteSlide.open}
+        onClose={() => setPasteSlide({ open: false, afterIndex: null })}
+        onInsert={handlePasteInsert}
+      />
 
       {toast && (
         <div className={`sv-action-toast show ${toast.isErr ? 'err' : ''}`}>
