@@ -30,6 +30,9 @@ document.addEventListener('click', () => { if (exportPop) exportPop.classList.re
 
 window.__studioRebinders = window.__studioRebinders || [];
 window.__studioRebinders.push(__studioInitExport);
+// React download bridge — LessonPlanStudio renders a Download button that calls
+// this so teachers can download without finding the toolbar export menu.
+window.__studioExportWord = () => exportWord();
 function gatherStyles() {
   return Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
 }
