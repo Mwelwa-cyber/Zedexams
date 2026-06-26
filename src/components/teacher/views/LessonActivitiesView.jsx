@@ -99,7 +99,7 @@ function ActivityCard({ activity, showAnswers }) {
   const { words, instructions } = resolveActivityWordBank(activity)
   return (
     <div style={{ marginBottom: 24 }}>
-      <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>
+      <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>
         {header.title || (activity.kind === 'homework' ? 'Homework' : 'Class Exercise')}
       </h2>
       <MetaStrip header={header} kind={activity.kind} />

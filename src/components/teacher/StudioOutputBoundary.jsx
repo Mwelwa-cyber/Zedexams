@@ -7,7 +7,7 @@ export default function StudioOutputBoundary({ children, onRetry }) {
       fallback={({ retry }) => (
         <div className="flex flex-col items-center justify-center py-16 gap-4 text-center px-4">
           <div className="text-4xl">⚠️</div>
-          <p className="studio-display" style={{ fontSize: 18, color: '#0e2a32' }}>
+          <p className="studio-display" style={{ fontSize: 18 }}>
             Couldn&apos;t display the result
           </p>
           <p className="text-sm" style={{ color: '#566f76', maxWidth: 360 }}>

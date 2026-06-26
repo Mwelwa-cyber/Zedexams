@@ -328,12 +328,12 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
 
             {/* Sliders */}
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <label style={{ fontSize: 12, color: '#0e2a32' }}>
+              <label style={{ fontSize: 12 }}>
                 Brightness
                 <input type="range" min={-100} max={100} value={brightness} style={{ width: '100%' }}
                   onChange={(e) => { setBrightness(Number(e.target.value)); setDirty(true) }} />
               </label>
-              <label style={{ fontSize: 12, color: '#0e2a32' }}>
+              <label style={{ fontSize: 12 }}>
                 Contrast
                 <input type="range" min={-100} max={100} value={contrast} style={{ width: '100%' }}
                   onChange={(e) => { setContrast(Number(e.target.value)); setDirty(true) }} />
