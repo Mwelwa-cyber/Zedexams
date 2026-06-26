@@ -14,6 +14,15 @@ export function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>
 }
 
+export function FieldWrapper({ label, children }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </div>
+  )
+}
+
 export function FieldText({ label, value, onChange, placeholder, maxLength }) {
   return (
     <div>
