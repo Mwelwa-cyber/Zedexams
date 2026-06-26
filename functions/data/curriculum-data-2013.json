@@ -10572,2015 +10572,537 @@
       ]
     }
   },
-  "Design & Technology Syllabus (Grades 5-7, 2013)": {
+  "Technology Studies Syllabus (Grades 5-7, 2013)": {
     "Grade 5": {
-      "title": "DESIGN AND TECHNOLOGY SYLLABUS  —  GRADE 5",
+      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 5",
       "columns": [
-        "COLUMN 1",
         "THEME",
-        "COLUMN 3",
         "SUB TOPIC",
-        "COLUMN 5",
-        "COLUMN 6",
-        "COLUMN 7",
         "SPECIFIC OUTCOMES",
-        "COLUMN 9",
+        "KNOWLEDGE",
         "SKILLS",
-        "COLUMN 11",
         "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "SKILLS": "SKILLS",
-            "COLUMN 11": "",
-            "VALUES": "VALUES"
+            "THEME": "5.1 Safety",
+            "SUB TOPIC": "5.1.1 Introduction to the work room",
+            "SPECIFIC OUTCOMES": "5.1.1.1 Apply workroom rules and safety precautions",
+            "KNOWLEDGE": "• Open workshops, workrooms, safety rules",
+            "SKILLS": "• Observing safety rules while working",
+            "VALUES": "• Applying safety rules effectively"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.1 Safety",
             "THEME": "",
-            "COLUMN 3": "5.1.1 Introduction to the work room 5.1.2 Storage of tools.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.1.1.1 Apply workroom rules and safety Precautions 5.1.2.3 Outline different ways of storing tools.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Open workshops workrooms, Safety rules. • Cabinet and tool box • Care of tools",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Observing safety rules while working",
+            "SUB TOPIC": "5.1.2 Storage of tools",
+            "SPECIFIC OUTCOMES": "5.1.2.1 Outline different ways of storing tools",
+            "KNOWLEDGE": "• Cabinet and tool box • Care of tools",
             "SKILLS": "",
-            "COLUMN 11": "• Applying safety rules effectively",
             "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "THEME": "",
-            "COLUMN 3": "5.1.3 First Aid box",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.1.3.1 Explain the importance of First Aid 5.1.3.2 Describe the content of the First Aid Box 5.1.3.3 Demonstrate the basic application of First Aid.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Handling of accidental minor injuries. • Content such as Sterile bandages, burn dressing, bicarbonate of soda, scissors, adhesive plaster • Use of first-aid content: Sterile bandages, burn dressing, bicarbonate of soda, scissors, adhesive plaster",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Communicating knowledge on handling First-Aid. • Communicating contents in the first-aid box. • Demonstrating first-aid box.",
+            "SUB TOPIC": "5.1.3 First Aid box",
+            "SPECIFIC OUTCOMES": "5.1.3.1 Explain the importance of First Aid 5.1.3.2 Describe the content of the First Aid Box 5.1.3.3 Demonstrate the basic application of First Aid",
+            "KNOWLEDGE": "• Handling of accidental minor injuries • Content such as sterile bandages, burn dressing, bicarbonate of soda, scissors, adhesive plaster • Use of first-aid content",
+            "SKILLS": "• Communicating knowledge on handling First-Aid • Communicating contents in the first-aid box • Demonstrating use of the first-aid box",
+            "VALUES": "• Applying first-aid during accidents • Using content in the first-aid box during emergency • Appreciating use of the first-aid in everyday life"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.4 Tools",
+            "SUB TOPIC": "5.4.1 The work bench",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Identify parts and use of the workbench",
+            "KNOWLEDGE": "• Parts of the workbench: table, bench stop, shelf/tool rack, well",
+            "SKILLS": "• Identifying parts of the work bench and marking out tools",
+            "VALUES": "• Applying knowledge on the use of the work bench, marking out and holding tools"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.4.2 Marking tools",
+            "SPECIFIC OUTCOMES": "5.4.2.1 Identify marking out tools",
+            "KNOWLEDGE": "• Marking out tools: marking gauge, try-square, mortice and marking knife",
+            "SKILLS": "• Identifying marking out and holding tools",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.4.3 Holding tools",
+            "SPECIFIC OUTCOMES": "5.4.3.1 Identify holding tools",
+            "KNOWLEDGE": "• Holding tools: vices, cramps",
             "SKILLS": "",
-            "COLUMN 11": "• Applying first- aid during accidents. • Using of content in the first-aid box during emergency • Appreciating use of the first- aid everyday life.",
             "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "5.4 Tools",
+            "THEME": "5.6 Material preparation",
+            "SUB TOPIC": "5.6.1 Material preparation",
+            "SPECIFIC OUTCOMES": "5.6.1.1 Demonstrate the procedure of preparing materials before use",
+            "KNOWLEDGE": "• Preparing wood: cutting and planing timber procedure • Preparing metal: cutting and filing",
+            "SKILLS": "• Show ability to cut and use the planing procedure to prepare wood • Show knowledge of cutting and filing metals",
+            "VALUES": "• Appreciating the process of planing and filing before using wood and metal"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
             "THEME": "",
-            "COLUMN 3": "5.4.1 The work bench",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.4.1.1Identify parts and use of the Workbench.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Parts of the workbench: Table, bench stop, shelf/tool rack, well",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Identifying parts of the work bench and marking out tools.",
-            "SKILLS": "",
-            "COLUMN 11": "• Applying knowledge on the use of the work bench, marking out and holding tools.",
+            "SUB TOPIC": "5.6.2 Joining materials",
+            "SPECIFIC OUTCOMES": "5.6.2.1 Apply basic methods of joining materials",
+            "KNOWLEDGE": "• Joining wood: through housing, cross halving • Joining metal: seaming • Joining plastic: gluing",
+            "SKILLS": "• Using joints on wood, metal and plastics",
+            "VALUES": "• Applying joints to make simple articles"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.6.3 Building materials",
+            "SPECIFIC OUTCOMES": "5.6.3.1 Describe materials used to construct various houses 5.6.3.2 Demonstrate how to mould / make blocks and bricks",
+            "KNOWLEDGE": "• Clay, mud, poles, grass, iron sheets • Blocks and bricks",
+            "SKILLS": "• Identifying building materials to use for houses • Measuring and mixing materials to mould",
+            "VALUES": "• Appreciating use of different materials in structures • Applying knowledge to mould blocks/bricks"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.7 Window Manipulation",
+            "SUB TOPIC": "5.7.1 Window navigation",
+            "SPECIFIC OUTCOMES": "5.7.1.1 Demonstrate the navigation of windows",
+            "KNOWLEDGE": "• Navigating windows",
+            "SKILLS": "• Closing of windows forms • Maximizing windows forms • Minimizing of windows forms",
+            "VALUES": "• Application of maximize and minimize button • Curiosity in opening and closing windows form"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.7.2 Cursor shapes",
+            "SPECIFIC OUTCOMES": "5.7.2.1 Identify and explain the meaning of cursor status",
+            "KNOWLEDGE": "• Cursor shapes for Busy and Ready status",
+            "SKILLS": "• Position point and select • Identification of cursor shapes • Observation of cursor shapes and events as they change",
+            "VALUES": "• Awareness of maximized and minimized windows"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.8 Programme running and exiting",
+            "SUB TOPIC": "5.8.1 Locating a cursor",
+            "SPECIFIC OUTCOMES": "5.8.1.1 Locate and move a cursor",
+            "KNOWLEDGE": "• Cursor symbol • Moving the cursor using the mouse and arrow keys • Manipulation of cursor movement using mouse and arrow keys",
+            "SKILLS": "• Identification of cursor symbol depending on location",
+            "VALUES": "• Application of cursor event using mouse movement and arrow keys • Awareness of cursor events • Problem solving in locating the cursor using arrow keys or the mouse"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.9 Lettering",
+            "SUB TOPIC": "5.9.1 Printing",
+            "SPECIFIC OUTCOMES": "5.9.1.1 Use stencils and cut out letters to print words",
+            "KNOWLEDGE": "• Printing words using stencils • Stencils and cut out letters",
+            "SKILLS": "• Identifying correct stencils • Cutting out stencils for letters",
+            "VALUES": "• Appreciating the use of stencils in printing"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.10 Drawing",
+            "SUB TOPIC": "5.10.1 Construction of angles",
+            "SPECIFIC OUTCOMES": "5.10.1.1 Construct and bisect angles",
+            "KNOWLEDGE": "• Angles 120°, 90°, 45°",
+            "SKILLS": "• Constructing angles",
+            "VALUES": "• Applying angles to draw shapes/designs"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.10.2 Construction of triangles",
+            "SPECIFIC OUTCOMES": "5.10.2.1 Construct triangles satisfying given measurements",
+            "KNOWLEDGE": "• Equilateral, isosceles, scalene triangles",
+            "SKILLS": "• Constructing triangles",
+            "VALUES": "• Appreciation of triangles in designing"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.10.3 Construction of rectangles and squares",
+            "SPECIFIC OUTCOMES": "5.10.3.1 Construct squares and rectangles given sides",
+            "KNOWLEDGE": "• Square, rectangles",
+            "SKILLS": "• Constructing rectangles and squares",
+            "VALUES": "• Applying rectangles and squares in design"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.10.4 Construction of circles",
+            "SPECIFIC OUTCOMES": "5.10.4.1 Identify basic parts of the circle 5.10.4.2 Construct circles satisfying given measurements",
+            "KNOWLEDGE": "• Diameter, radius, centre-lines, centre • Construction of circles",
+            "SKILLS": "• Communicating basic parts of the circle • Constructing circles",
+            "VALUES": "• Appreciating properties of the circle • Applying circles and arcs in design"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.11 Graphics",
+            "SUB TOPIC": "5.11.1 Graphic packages and pattern creation",
+            "SPECIFIC OUTCOMES": "5.11.1.1 Open graphic package 5.11.1.2 Manipulate graphic image and change colour",
+            "KNOWLEDGE": "• Opening graphic package and image • Resize, fill colour and change colour",
+            "SKILLS": "• Manipulation of graphic images • Demonstration of how to resize, fill colour and change colour • Identification of resize, fill colour and change buttons",
+            "VALUES": "• Creativity in creating graphic images • Application of graphic package to create graphic images • Inquisitiveness in using graphic packages"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.12 Designing",
+            "SUB TOPIC": "5.12.1 Elements of designing",
+            "SPECIFIC OUTCOMES": "5.12.1.1 Add text to drawing",
+            "KNOWLEDGE": "• Adding text to drawing graphics",
+            "SKILLS": "• Manipulation",
+            "VALUES": "• Application • Creativity"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.13 Saving",
+            "SUB TOPIC": "5.13.1 Saving files",
+            "SPECIFIC OUTCOMES": "5.13.1.1 Distinguish between Save and Save As 5.13.1.2 Name and save file in a specific location",
+            "KNOWLEDGE": "• Save and Save As • Naming and saving files",
+            "SKILLS": "• Manipulation • Demonstration • Identification • Exploration",
+            "VALUES": "• Application • Creative thinking"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.14 Design and Technology",
+            "SUB TOPIC": "5.14.1 Inventions in Technology",
+            "SPECIFIC OUTCOMES": "5.14.1.1 Identify factors that led to different types of inventions 5.14.1.2 Apply the stages of design process in making an artifact",
+            "KNOWLEDGE": "• Existing problems such as: technology advances, climate change, growing population, transport challenge • Stages of the design process (problem identification, brief, research, making, evaluation)",
+            "SKILLS": "• Investigating factors that led to ancient inventions influencing technology advancement • Observing stages involved in design process",
+            "VALUES": "• Recognizing problems in the community and applying design process to suggest possible solutions"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.15 Energy",
+            "SUB TOPIC": "5.15.1 Electricity",
+            "SPECIFIC OUTCOMES": "5.15.1.1 Demonstrate the generation of hydro-electric power 5.15.1.2 Observe safety precautions when using electricity",
+            "KNOWLEDGE": "• Water, generator, turbines • Safety precautions: avoid naked wires, wet hands, insulation",
+            "SKILLS": "• Investigating effects of water, generators and turbines on hydro-electricity • Observing safety when working with naked wires",
+            "VALUES": "• Applying simple electrical mechanisms (generators) in designing systems"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "5.16 Entrepreneurship",
+            "SUB TOPIC": "5.16.1 Costing and pricing",
+            "SPECIFIC OUTCOMES": "5.16.1.1 Demonstrate how to cost and price crafts and services",
+            "KNOWLEDGE": "• Costing and pricing",
+            "SKILLS": "• Investigating effects of correct costing and pricing on services",
+            "VALUES": "• Appreciation of keeping different records of accounts"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "THEME": "",
+            "SUB TOPIC": "5.16.2 Record keeping",
+            "SPECIFIC OUTCOMES": "5.16.2.1 Demonstrate how to keep financial records",
+            "KNOWLEDGE": "• Financial records: cash, stock and sales book",
+            "SKILLS": "• Investigating the importance of keeping financial records",
             "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "KNOWLEDGE",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": "SKILLS"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.4.2 Marking tools 5.4.3 Holding tools",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.4.2.1 Identify marking out tools. 5.4.3.1 Identify holding tools.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Marking out tools: marking gauge, try- square, mortice and marking knife. • Holding tools: Vices, cramps.",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "• Identifying marking out and holding tools",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.6 Material",
-            "THEME": "",
-            "COLUMN 3": "5.6.1 Material preparation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.6.1.1 Demonstrate the procedure of preparing materials before use.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Preparing wood: cutting and planing procedure • Preparing metal: cutting and filing",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "• Show ability to cut timber and use the planing procedure to prepare wood. • Show knowledge of cutting and filing metals.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "to • S of fi",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.6.2 Joining materials",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.6.2.1",
-            "COLUMN 6": "",
-            "COLUMN 7": "Apply basic methods of joining materials.",
-            "SPECIFIC OUTCOMES": "• Joining - Thr - Cro • Joining - Sea • Joinin Gluing",
-            "COLUMN 9": "",
-            "SKILLS": "Wood: ough housing, ss halving Metal: ming g Plastic:",
-            "COLUMN 11": "• U w pl",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.6.3 Building Materials",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.6.3.1 Describe materials used to construct various houses. 5.6.3.2 Demonstrate how to mould / make blocks and bricks.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Clay, mud, poles, grass, iron sheets. • Blocks and bricks",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "• Identifying building materials to use for houses. • Measuring and mixing materials to mould.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.7 Window Manipulation",
-            "THEME": "",
-            "COLUMN 3": "5.7.1 Window navigation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.7.1.1 Demonstrate the navigation of windows.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Navigating Windows. • Cursor shapes for Busy and Ready • Position point and",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "• Closing of windows forms. • Maximizing windows forms. • Minimizing of",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.7.2 Cursor shapes",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.7.2.1 Identify and Explain the meaning of Cursor Status",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "SKILLS": "SKILLS",
-            "COLUMN 11": "",
-            "VALUES": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "select.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "windows forms. • Identification of cursor shapes. • Observation of cursor shapes and events as they change.",
-            "SKILLS": "",
-            "COLUMN 11": "maximized and minimized windows. • Curiosity in opening and closing windows form.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.8 Programme running and exiting",
-            "THEME": "",
-            "COLUMN 3": "5.8.1 Locating a cursor",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.8.1.1 Locate and move a cursor.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Cursor symbol • Moving the cursor using the mouse and arrow keys.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Identification of cursor symbol depending on location. • Observation of cursor shapes and events as they change. • Manipulation of cursor movement mouse and arrow keys.",
-            "SKILLS": "",
-            "COLUMN 11": "• Application of cursor event using mouse movement and arrow keys. • Awareness of cursor events • Problem solving in locating the cursor using arrow keys or the mouse.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "de lo • O cu ev ch • M cu m ke",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.9 Lettering",
-            "THEME": "",
-            "COLUMN 3": "Printing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.9.1.1 Use stencils and cut out letters to print words.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Printing the words • Stencils and cut out letters.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Identifying correct stencils to print words. • Cutting out stencils for letters",
-            "SKILLS": "",
-            "COLUMN 11": "• Appreciating the use of stencils in printing.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.10 Drawing",
-            "THEME": "",
-            "COLUMN 3": "5.10.1 Construction of Angles",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.10.1.1 Construct and bisect angles.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Angles 120⁰, 90⁰, 45⁰",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Constructing angles",
-            "SKILLS": "",
-            "COLUMN 11": "• Applying angles to draw shapes/designs.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.10.2 Construction of triangles",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.10.1.2 Construct triangles satisfying given measurements",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Equilateral, isosceles scalene",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Constructing triangles",
-            "SKILLS": "",
-            "COLUMN 11": "• Appreciation triangles in designing.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.10.3 Construction of Rectangles and squares",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.10.1.3 Construct squares and rectangles given sides.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Square, rectangles",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Constructing rectangles and",
-            "SKILLS": "",
-            "COLUMN 11": "• Apply rectangles and",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "SKILLS": "SKILLS",
-            "COLUMN 11": "",
-            "VALUES": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "squares.",
-            "SKILLS": "",
-            "COLUMN 11": "squares in design.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.10.4 Construction of circles",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.10.4.1 Identify basic parts of the circle.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Diameter, radius, centre-lines, centre",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Communicating basic parts of the circle.",
-            "SKILLS": "",
-            "COLUMN 11": "• Appreciating properties of the circle.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.10.4.2 Construct circles satisfying given measurements.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Construction of circles",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Constructing circles.",
-            "SKILLS": "",
-            "COLUMN 11": "• Applying circles and arcs in design.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.11 Graphics",
-            "THEME": "",
-            "COLUMN 3": "5.11.1Graphic packages 5.11.2 Pattern creation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.11.1.1 Open graphic package 5.11.1.2 Manipulate graphic image",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Opening graphic package and image • Resize, fill colour and change colour",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Manipulation of graphic images • Demonstration how to resize, fill colour and change colour. • Identification of resize, fill colour and change buttons.",
-            "SKILLS": "",
-            "COLUMN 11": "• Creativity in creating graphic images • Application of graphic package to create graphic images. • Inquisitiveness in using graphic packages.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "gr • D ho co co • Id re an",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.12Designing",
-            "THEME": "",
-            "COLUMN 3": "5.12.1 Elements of designing Graphics",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.12.1.1 Add text to drawing",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Adding text to drawing",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Manipulation",
-            "SKILLS": "",
-            "COLUMN 11": "• Application • Creativity",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.13Saving",
-            "THEME": "",
-            "COLUMN 3": "5.13.1Saving files",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.13.1.1 Distinguish between Save and Save As 5.13.1.2 Name and save file in a Specific location.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Save and save as • Naming and saving files.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Manipulation • Demonstration • Identification",
-            "SKILLS": "",
-            "COLUMN 11": "• Application • Creative thinking • Exploration",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.14 Design and Technology",
-            "THEME": "",
-            "COLUMN 3": "5.14.1 Inventions in Technology",
-            "SUB TOPIC": "",
-            "COLUMN 5": "5.14.1.1 Identify factors that led to different types of inventions. 5.14.1.2 Apply the stages of design process in making an artifact.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Existing problems such as: Technology advances, climate change, growing population, transport challenge. • Stages of the design process (problem identification, brief,",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Investigating factors that led to ancient inventions influencing technology advancement. • Observing stages involved in design process.",
-            "SKILLS": "",
-            "COLUMN 11": "• Recognizing problems in the community and apply design process to suggest possible solutions.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "KNOWLEDGE",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "research, making, evaluation)",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.15 Energy",
-            "THEME": "",
-            "COLUMN 3": "5.15.1 Electricity",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "5.15.1.1 Demonstrate the generation of the hydro-electric power. 5.15.2 Observe safety precautions when using electricity.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "• Water, generator, turbines. • Safety precautions: (avoid naked wires, wet hands, insulation).",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.16 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "5.16.1 Costi Pricin",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ng g.",
-            "COLUMN 6": "and",
-            "COLUMN 7": "5.16.1. and pri",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "1 Demonstrate how to cost ce crafts and services.",
-            "SKILLS": "• Costin",
-            "COLUMN 11": "",
-            "VALUES": "g and pricing"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "5.16.2 Reco keeping",
-            "SUB TOPIC": "",
-            "COLUMN 5": "rd",
-            "COLUMN 6": "",
-            "COLUMN 7": "5.16.2. financi",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "1 Demonstrate how to keep al records.",
-            "SKILLS": "• Financ Cash, S book.",
-            "COLUMN 11": "",
-            "VALUES": "ial records: tock and Sales"
           }
         }
       ]
     },
     "Grade 6": {
-      "title": "DESIGN AND TECHNOLOGY SYLLABUS  —  GRADE 6",
+      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 6",
       "columns": [
-        "COLUMN 1",
         "THEME",
-        "COLUMN 3",
         "SUB TOPIC",
-        "COLUMN 5",
-        "COLUMN 6",
-        "COLUMN 7",
         "SPECIFIC OUTCOMES",
-        "COLUMN 9",
+        "KNOWLEDGE",
         "SKILLS",
-        "COLUMN 11",
         "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "SKILLS": "SKILLS",
-            "COLUMN 11": "",
-            "VALUES": "VALUES"
+            "THEME": "6.1 Formatting",
+            "SUB TOPIC": "6.1.1 Text formatting and alignment",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Identify different text formats 6.1.1.2 Demonstrate formatting text 6.1.2.1 Identify different text alignments 6.1.2.2 Demonstrate alignment of text",
+            "KNOWLEDGE": "• Normal, bold and italic • Underline text, remove underline, font size, font type and font drop-down menu • Left, right and centre • Left, right, centre icons and the tab key for text alignment",
+            "SKILLS": "• Formatting text • Identification of formatting drop-down menu • Demonstration of underlining, sizing and colour • Aligning text according to requirements and needs",
+            "VALUES": "• Application of formatting buttons and keys • Inquisitiveness on how to format text and align it • Awareness that different buttons do different functions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "6.1 Formatting",
-            "THEME": "",
-            "COLUMN 3": "6.1.1Text formatting 6.1.2 Text alignment",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.1.1.1 Identify different Text formats 6.1.1.2 Demonstrate formatting text 6.1.2.1 Identify different text alignments 6.1.2.2 Demonstrate alignment of text",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Normal, bold and Italic. • Underline text, remove under line, font size, font type and font colour. • Left, right and centre. • Left, right, centre icons and the tab key for text alignment.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Formatting text • Identification of formatting drop down menu. • Demonstration of underlining, sizing of font and colour • Aligning text according to requirements and needs.",
-            "SKILLS": "",
-            "COLUMN 11": "• Application of formatting buttons and keys. • Inquisitiveness on how to format text and align it. • Awareness that different buttons do different functions.",
-            "VALUES": ""
+            "THEME": "6.2 Materials",
+            "SUB TOPIC": "6.2.1 Joining materials",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Apply basic methods of joining materials",
+            "KNOWLEDGE": "• Methods of joining wood (common mortice and tenon, common bridle)",
+            "SKILLS": "• Applying knowledge of common mortice and tenon and common bridle to join wood",
+            "VALUES": "• Realizing simple wooden artifacts"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "for dow • De und of f • Ali acc req nee",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
+            "SUB TOPIC": "6.2.2 Gluing",
+            "SPECIFIC OUTCOMES": "6.2.2.1 Apply the gluing procedure when joining materials",
+            "KNOWLEDGE": "• Gluing procedure when using PVA and contact adhesives on wood, metal and plastics (laminating)",
+            "SKILLS": "• Distinguishing the strength of PVA and contact adhesive on materials",
+            "VALUES": "• Realizing simple artifacts"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "6.2 Materials",
             "THEME": "",
-            "COLUMN 3": "6.2.1 Joining materials",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.1.1 Apply basic methods of joining materials.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Methods of joining wood (Common mortice and tenon, common bridle)",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Applying knowledge of mortice and tenon and common bridle to join wood",
-            "SKILLS": "",
-            "COLUMN 11": "• Realizing of simple wooden artifacts.",
-            "VALUES": ""
+            "SUB TOPIC": "6.2.3 Finishes",
+            "SPECIFIC OUTCOMES": "6.2.3.1 Apply the procedure of finishing artifacts",
+            "KNOWLEDGE": "• Applying finishes such as varnish and paint",
+            "SKILLS": "• Investigating effects of certain finishes on materials/products",
+            "VALUES": "• Appreciating beauty and harmony of finished products"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "THEME": "",
-            "COLUMN 3": "6.2.2 Gluing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.2.1 Apply the gluing procedure when joining materials.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Gluing procedure when using PVA and contact adhesives on wood, metal and plastics (Laminating)",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Distinguishing the strength of PVA and contact adhesive on materials.",
-            "SKILLS": "",
-            "COLUMN 11": "• Realizing simple artifacts • Appreciate beauty and harmony of finished products.",
-            "VALUES": ""
+            "SUB TOPIC": "6.2.4 Construction",
+            "SPECIFIC OUTCOMES": "6.2.4.1 Identify basic building tools 6.2.4.2 Explain the basic stages in preparing land to construct a structure 6.2.4.3 Demonstrate the ability to construct a simple structure",
+            "KNOWLEDGE": "• Wheel barrow, trowel, spirit level • Stages in preparing site: clearing, setting, digging, construction • Chicken run, user-friendly pit latrine, kennel or a barn",
+            "SKILLS": "• Recognizing basic building tools • Communicating basic stages in land preparation for construction • Constructing simple structures",
+            "VALUES": "• Constructing simple structures • Applying basic knowledge to construct simple structures"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "6.2.3 Finishes",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.3.1 Apply the procedure of finishing artifacts.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Applying varnish such as varnish and paint.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Investigate effects of certain finishes on materials / products.",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
+            "THEME": "6.3 Lettering",
+            "SUB TOPIC": "6.3.1 Printing",
+            "SPECIFIC OUTCOMES": "6.3.1.1 Apply printing styles using a computer",
+            "KNOWLEDGE": "• Normal • Tiling",
+            "SKILLS": "• Identification of printing icons • Manipulation of text for printing • Presentation of well printed documents",
+            "VALUES": "• Creativity in creating posters • Application of word to print text • Awareness of wastage in printing and environmental impact"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "6.2.4 Construction.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.4.1 Identify basic building tools",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Wheel barrow, Trowel, spirit level.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Recognizing basic building tools.",
-            "SKILLS": "",
-            "COLUMN 11": "• Constructing simple",
-            "VALUES": ""
+            "THEME": "6.4 Editing",
+            "SUB TOPIC": "6.4.1 Text editing",
+            "SPECIFIC OUTCOMES": "6.4.1.1 Manipulate text",
+            "KNOWLEDGE": "• Selecting, cutting, copying, deleting and pasting",
+            "SKILLS": "• Manipulation of text • Identification of cutting, copying, deleting • Editing",
+            "VALUES": "• Creativity in creating posters • Application of word to print text • Awareness of wastage in printing and environmental impact"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "SKILLS": "SKILLS",
-            "COLUMN 11": "",
-            "VALUES": "VALUES"
+            "THEME": "6.5 Designing",
+            "SUB TOPIC": "6.5.1 Design process",
+            "SPECIFIC OUTCOMES": "6.5.1.1 Apply the design process in a problem solving situation",
+            "KNOWLEDGE": "• Identifying the problem in the community design process",
+            "SKILLS": "• Applying the design process",
+            "VALUES": "• Application of the design process in a problem solving situation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.4.2 Explain the basic stages in preparing land to construct a structure.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Stages in preparing site: Clearing, setting, digging, construction.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Communicating basic stages in land preparation for construction.",
-            "SKILLS": "",
-            "COLUMN 11": "structures. • Applying basic knowledge to construct simple structures.",
-            "VALUES": ""
+            "THEME": "6.7 Drawing",
+            "SUB TOPIC": "6.7.1 Polygons",
+            "SPECIFIC OUTCOMES": "6.7.1.1 Construct regular polygons",
+            "KNOWLEDGE": "• Hexagon when given a circle • Octagon when given a square",
+            "SKILLS": "• Displaying knowledge to construct a hexagon and octagon",
+            "VALUES": "• Applying knowledge of hexagon and octagon in designing artifacts"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
             "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.2.4.3 Demonstrate the ability to construct a simple structure.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Chicken run, user friendly pit latrine, kennel or a barn.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Constructing simple structures.",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
+            "SUB TOPIC": "6.7.2 Isometric drawing",
+            "SPECIFIC OUTCOMES": "6.7.2.1 Construct simple objects in isometric",
+            "KNOWLEDGE": "• Isometric drawings",
+            "SKILLS": "• Constructing objects in isometric views",
+            "VALUES": "• Communicating in isometric views"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "6.3 Lettering",
-            "THEME": "",
-            "COLUMN 3": "6.3.1 Printing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.3.1.1 Apply printing styles using a computer",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Normal • Tiling",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Identification of printing icons. • Manipulation of text for printing. • Presentation of well printed documents.",
-            "SKILLS": "",
-            "COLUMN 11": "• Creativity in creating posters. • Application of word to print text. • Awareness of wastage in printing and environmental impact.",
-            "VALUES": ""
+            "THEME": "6.9 Energy",
+            "SUB TOPIC": "6.9.1 Electricity",
+            "SPECIFIC OUTCOMES": "6.9.1.1 Construct simple circuits",
+            "KNOWLEDGE": "• Construction of simple circuits involving bulbs, switches, cells, basic circuit boards, bulb holder",
+            "SKILLS": "• Observing the use of insulation, circuits, bulbs, cells, switches, circuit boards and bulb holder in systems",
+            "VALUES": "• Applying simple circuits to design artifacts/systems"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Ma text • Pre wel doc",
-            "SKILLS": "",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.4 Editing",
-            "THEME": "",
-            "COLUMN 3": "6.4.1 Text Editing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.4.1.1 Manipulate text.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Selecting, cutting, copying, deleting and pasting.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Manipulation of text. • Identification of cutting, copying deleting. • Editing",
-            "SKILLS": "",
-            "COLUMN 11": "• Creativity in creating posters. • Application of word to print text. • Awareness of wastage in printing and environmental impact.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.5 Designing.",
-            "THEME": "",
-            "COLUMN 3": "6.5.1 Design process.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.5.1.1 Apply the design process in a problem solving situation.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Identifying the problem in the community design process.",
-            "SKILLS": "",
-            "COLUMN 11": "• Application of the design process in a problem solving situation.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.7 Drawing.",
-            "THEME": "",
-            "COLUMN 3": "6.7.1 Polygons",
-            "SUB TOPIC": "",
-            "COLUMN 5": "6.7.1.1 Construct regular polygons. - Hexagon - Octagon",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Hexagon when given a circle. • Octagon when given a",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Displaying knowledge to construct a hexagon",
-            "SKILLS": "",
-            "COLUMN 11": "• Applying knowledge of hexagon and",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "",
-            "COLUMN 11": "KNOWLEDGE",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "square.",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "6.7.2 Isometric drawing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "6.7.2.1 Construct simple objects in Isometric.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "• Isometric drawings",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.9 Energy",
-            "THEME": "",
-            "COLUMN 3": "6.9.1 Electricity",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "6.9.1.1 Construction of the simple circuits.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "SKILLS": "• Construction of simple circuits involving bulbs, switches, cells, basic circuit boards, bulb holder.",
-            "COLUMN 11": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.10 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "6.10.1 Entrepreneu career",
-            "SUB TOPIC": "",
-            "COLUMN 5": "rsh",
-            "COLUMN 6": "ip as a",
-            "COLUMN 7": "6.10.1.1 E entrepren",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "xplain why eurship is a good career.",
-            "SKILLS": "• Source of i creation, se employme",
-            "COLUMN 11": "",
-            "VALUES": "ncome, job lf- nt."
+            "THEME": "6.10 Entrepreneurship",
+            "SUB TOPIC": "6.10.1 Entrepreneurship as a career",
+            "SPECIFIC OUTCOMES": "6.10.1.1 Explain why entrepreneurship is a good career",
+            "KNOWLEDGE": "• Source of income, job creation, self-employment",
+            "SKILLS": "• Communicating importance of entrepreneurship as a good career",
+            "VALUES": "• Enterprising"
           }
         }
       ]
     },
     "Grade 7": {
-      "title": "DESIGN AND TECHNOLOGY SYLLABUS  —  GRADE 7",
+      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 7",
       "columns": [
-        "COLUMN 1",
         "THEME",
-        "COLUMN 3",
         "SUB TOPIC",
-        "COLUMN 5",
         "SPECIFIC OUTCOMES",
-        "COLUMN 7",
-        "COLUMN 8",
-        "COLUMN 9",
-        "COLUMN 10",
         "KNOWLEDGE",
-        "COLUMN 12"
+        "SKILLS",
+        "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 12": ""
+            "THEME": "7.1 Drawing",
+            "SUB TOPIC": "7.1.1 Introduction to orthographic projection",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Convert simple solids from isometric to orthographic projection",
+            "KNOWLEDGE": "• Front elevation, plan, end elevation",
+            "SKILLS": "• Constructing solids into orthographic projection • Interpreting building elevations on paper",
+            "VALUES": "• Appreciating and communicating orthographic projection"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.1 Drawing",
             "THEME": "",
-            "COLUMN 3": "7.1.1 Introduction to orthographic projection 7.1.2 Basic building drawing.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "7.2.1.1 Convert simple solids from isometric to orthographic projection. 7.1.2.1 Draw elevations of a simple conventional house.",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Front Elevation, plan, End Elevation",
+            "SUB TOPIC": "7.1.2 Basic building drawing",
+            "SPECIFIC OUTCOMES": "7.1.2.1 Draw elevations of a simple conventional house",
             "KNOWLEDGE": "",
-            "COLUMN 12": "• Constructing of solids into orthographic projection • Interpreting building elevations on paper."
+            "SKILLS": "",
+            "VALUES": "• Applying orthographic drawing to design simple conventional houses"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.2 Materials",
-            "THEME": "",
-            "COLUMN 3": "7.2.1 Join mate",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ing rials",
-            "SPECIFIC OUTCOMES": "7.2.1.1 A jo",
-            "COLUMN 7": "",
-            "COLUMN 8": "ppl ini",
-            "COLUMN 9": "y basic methods of ng materials.",
-            "COLUMN 10": "• Butt joint • Lap joint • Screws",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Applyin of butt j and scre wood."
+            "THEME": "7.2 Materials",
+            "SUB TOPIC": "7.2.1 Joining materials",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Apply basic methods of joining materials",
+            "KNOWLEDGE": "• Butt joint • Lap joint • Screws",
+            "SKILLS": "• Applying knowledge of butt joint, lap joint and screws to join wood",
+            "VALUES": "• Realizing simple wood artifacts"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.3 Calculator",
-            "THEME": "",
-            "COLUMN 3": "7.3.1 System calculator",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "THEME": "7.3 Calculator",
+            "SUB TOPIC": "7.3.1 System calculator",
             "SPECIFIC OUTCOMES": "7.3.1.1 Use the system calculator to perform elementary operations",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Changing calculator type (standard, scientific) • Calculations. • Copying from calculator to word",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Demonstration on the use of calculator • Manipulation of the calculator keys. • Computation of various operations using the calculator."
+            "KNOWLEDGE": "• Changing calculator type (standard, scientific) • Calculations • Copying from calculator to word",
+            "SKILLS": "• Demonstration on the use of calculator • Manipulation of the calculator keys • Computation of various operations using the calculator",
+            "VALUES": "• Application of calculator to carry out arithmetic problems • Interpretation of keys on the calculator • Awareness that the calculator is just a tool to aid arithmetic operations"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.4 Energy",
-            "THEME": "",
-            "COLUMN 3": "7.4.1 Electricity",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "7.4.1.1 Demonstrate ability to use a",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Heater, fan, bell.",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Communicating the"
+            "THEME": "7.4 Energy",
+            "SUB TOPIC": "7.4.1 Electricity",
+            "SPECIFIC OUTCOMES": "7.4.1.1 Demonstrate ability to use a simple circuit",
+            "KNOWLEDGE": "• Heater, fan, bell",
+            "SKILLS": "• Communicating the use of heater, fan and bell",
+            "VALUES": "• Applying heater, fan and bell to design artifacts/systems"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "KNOWLEDGE",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "SKILLS",
-            "COLUMN 12": ""
+            "THEME": "7.5 The Internet",
+            "SUB TOPIC": "7.5.1 Internet risks",
+            "SPECIFIC OUTCOMES": "7.5.1.1 Identify the risks associated with the internet 7.5.1.2 Protect oneself from financial risk",
+            "KNOWLEDGE": "• Web risk awareness (cyber crimes, undesirable materials) • Not disclosing identity and passwords online or on phones and ATM cards",
+            "SKILLS": "• Communication with internet to search for information • Analysis of web risks and implications • Identification of search engines • Interpretation of passwords",
+            "VALUES": "• Responsibility in browsing the web • Awareness that the web can have some risks • Safety consciousness about risks on the internet"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "simple circuit.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "use of heater, fan and bell.",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "fan and bell to design artifacts / systems."
+            "THEME": "7.6 Searching and Retrieving Information",
+            "SUB TOPIC": "7.6.1 External storage devices and the World Wide Web",
+            "SPECIFIC OUTCOMES": "7.6.1.1 Save and retrieve information from external storage devices 7.6.2.1 Search for specific information from the internet",
+            "KNOWLEDGE": "• CD ROM and flash disc • World Wide Web (www) • Selecting relevant information (sifting)",
+            "SKILLS": "• Identification of external storage devices • Demonstration on how to get data from external drives • Application of external drives",
+            "VALUES": "• Application • Productivity • Awareness • Appreciation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "7.5 The Internet",
-            "THEME": "",
-            "COLUMN 3": "7.5.1 Internet risks",
-            "SUB TOPIC": "",
-            "COLUMN 5": "7.5.1.1 Identify the risks associated with the internet. 7.5.1.2 Protect oneself from financial risk.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Web risk awareness (cyber crimes, undesirable materials) • Not disclosing of identity, and passwords on line or phones and ATM cards.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Communication with internet to search for information. • Analysis of web risks and implications. • Identification of search engines. • Interpretation of passwords.",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Responsibility in blousing the web. • Awareness that the web can have some risks on the internet. • Safety consciousness about risks on the internet."
+            "THEME": "7.7 Designing",
+            "SUB TOPIC": "7.7.1 Design and making",
+            "SPECIFIC OUTCOMES": "7.7.1.1 Demonstrate the ability to produce a portfolio",
+            "KNOWLEDGE": "• Stages in design process to realize an artifact",
+            "SKILLS": "• Monitoring portfolio process to realize an artifact",
+            "VALUES": "• Realizing an artifact from a portfolio to solve a problem"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "n line d",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.6 Searching and Retrieving Information",
-            "THEME": "",
-            "COLUMN 3": "7.6 1 External storage devices 7.6.2 The World Wide Web (www)",
-            "SUB TOPIC": "",
-            "COLUMN 5": "7.7.1.1 Save and retrieve information from external storage devices 7.7.2.1 Search for specific information from the internet",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• CD ROM and flash Disc • World Wide Web • Selecting relevant information (sifting)",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Identification of external storage devices • Demonstration on how to get data from external drives. • Application of external drives.",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Application • Productivity • Awareness • Appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.7 Designing.",
-            "THEME": "",
-            "COLUMN 3": "7.7.1 Design and making",
-            "SUB TOPIC": "",
-            "COLUMN 5": "7.7.1.1 Demonstrate the ability to produce a portfolio",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Stages in design process",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Monitoring portifolio to realize an artifact.",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Realizing an artifact from a portfolio to solve a problem."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.8 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "7.8.1 Entrepreneurship as a career",
-            "SUB TOPIC": "",
-            "COLUMN 5": "7.8.1.1 Form small entrepreneurship groups for small scale businesses.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "• Entrepreneurship groups",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Communicating business ideas",
-            "KNOWLEDGE": "",
-            "COLUMN 12": "• Enterprising groups to earn money through marketing / advertising their produce."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "How well did I work on the project?",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "YES",
-            "SPECIFIC OUTCOMES": "NO",
-            "COLUMN 7": "REASON FOR MY ANSWER",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.",
-            "THEME": "I managed my time",
-            "COLUMN 3": "w",
-            "SUB TOPIC": "ell.",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.",
-            "THEME": "I selected and used",
-            "COLUMN 3": "m",
-            "SUB TOPIC": "y equipment.",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.",
-            "THEME": "I kept my work are",
-            "COLUMN 3": "a ti",
-            "SUB TOPIC": "dy.",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.",
-            "THEME": "I worked well with",
-            "COLUMN 3": "ot",
-            "SUB TOPIC": "hers.",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "5.",
-            "THEME": "I have enjoyed my work.",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "6.",
-            "THEME": "I did some research on the project",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "7.",
-            "THEME": "I have learnt something new from the project",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "8.",
-            "THEME": "If I were to make the project again, I would make some modifications",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "9.",
-            "THEME": "I made some changes on my drawings",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "10.",
-            "THEME": "I want to tell others about my success.",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "A Graphic Commun",
-            "THEME": "ications Equipment",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "A3 Drawing Board",
-            "THEME": "s",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "300 mm Rule",
-            "COLUMN 7": "Compass a",
-            "COLUMN 8": "nd",
-            "COLUMN 9": "Dividers",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Drawing Boards Clip",
-            "THEME": "s",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "A3 Tee Squares",
-            "COLUMN 7": "Set Square",
-            "COLUMN 8": "s",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "B Tools and Equipm",
-            "THEME": "en",
-            "COLUMN 3": "t",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Measuring and Mark",
-            "THEME": "ing",
-            "COLUMN 3": "Out Tools",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Measuring Tape",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "Punches: Centre and dot",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Marking K",
-            "COLUMN 8": "nif",
-            "COLUMN 9": "e",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Steel Rules",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "Ga",
-            "SPECIFIC OUTCOMES": "uges: Marking, Mortice",
-            "COLUMN 7": "Pencil",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Try Squares, Sliding",
-            "THEME": "Bev",
-            "COLUMN 3": "el",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Compass",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Cutting Tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Saws:",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "Planes:",
-            "COLUMN 7": "Files: Flat, Hal",
-            "COLUMN 8": "f ro",
-            "COLUMN 9": "und, Triangular, Square",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Bench: Rip, Cross cut",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Jack, smoothing, spoke shaves",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "rasp",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Back:Tenon, Dovetail",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Chisels (Wood):Mortice, Paring,",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Frame: Coping, Bow, hacksaw,",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Bevel edged",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Metal: Flat cold, Half round, Cross cut",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Driving Tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Hammers:",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Mallets:",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Screwdrivers:",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Claw, Ball pein, Cross pein,",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Carpenter’s, Bossing, Rubber",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Flat, Phillips",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Holding Tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Boring: Ratchet brace, Twist bits,",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Vices: Wood bench vice, Metal bench vice,",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "G- Cramp, Sash Cramp",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Centre bit, Countersunk, Auger bit",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Hand vice",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Bench holdfast",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "Drills: Hand drill, Breast drill",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "G5",
-            "COLUMN 3": "G6",
-            "SUB TOPIC": "G7",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Introduction to workroom",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Storage of tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "First Aid Box",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Marking tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Holding tools",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Material preparation",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Joining materials",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Joining materials - Rivets, gluing",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "Basic methods of joining - Butt, Lap, Screws",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Applying common finishes",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Building materials",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Construction - basic tools, simple structure",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Inventions in Technology - factors that led to inventions",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Basic stages in design process",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "Artifact production with portfolio",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Use of stencil",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Construction of basic a",
-            "THEME": "ngl",
-            "COLUMN 3": "es",
-            "SUB TOPIC": "Po",
-            "COLUMN 5": "lygons",
-            "SPECIFIC OUTCOMES": "Introduction to",
-            "COLUMN 7": "or",
-            "COLUMN 8": "thographic drawing",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Is",
-            "COLUMN 5": "ometric drawing",
-            "SPECIFIC OUTCOMES": "Basic building",
-            "COLUMN 7": "dra",
-            "COLUMN 8": "wing",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Electricity safety and h",
-            "THEME": "ydr",
-            "COLUMN 3": "o electricity.",
-            "SUB TOPIC": "C",
-            "COLUMN 5": "onstruction of simple circuits",
-            "SPECIFIC OUTCOMES": "Use a simple c",
-            "COLUMN 7": "irc",
-            "COLUMN 8": "uits",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Costing and Pricing",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "Entrepreneurship as a career",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "Formation of s",
-            "COLUMN 7": "ma",
-            "COLUMN 8": "ll Entrepreneurial groups",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Record keeping",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "KNOWLEDGE": "",
-            "COLUMN 12": ""
+            "THEME": "7.8 Entrepreneurship",
+            "SUB TOPIC": "7.8.1 Entrepreneurship as a career",
+            "SPECIFIC OUTCOMES": "7.8.1.1 Form small entrepreneurship groups for small scale businesses",
+            "KNOWLEDGE": "• Entrepreneurship groups",
+            "SKILLS": "• Communicating business ideas",
+            "VALUES": "• Enterprising groups to earn money through marketing/advertising their produce"
           }
         }
       ]
@@ -20413,6 +18935,162 @@
         }
       ]
     },
+    "Grade 3": {
+      "title": "INTEGRATED SCIENCE SYLLABUS  —  GRADE 3",
+      "columns": [
+        "TOPIC",
+        "SUBTOPIC",
+        "SPECIFIC OUTCOMES",
+        "CONTENT",
+        "SKILLS",
+        "VALUES"
+      ],
+      "rows": [
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "",
+            "CONTENT": "KNOWLEDGE",
+            "SKILLS": "SKILLS",
+            "VALUES": "VALUES"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.1.0 The human body",
+            "SUBTOPIC": "3.1.1 Mouth",
+            "SPECIFIC OUTCOMES": "3.1.1.1 State the function of the mouth",
+            "CONTENT": "• Functions; teeth for chewing food, tongue for tasting",
+            "SKILLS": "• Communicating information on the function of the mouth",
+            "VALUES": "• Appreciating the function of the teeth and tongue • Cooperating in group work"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.1.2 Nose",
+            "SPECIFIC OUTCOMES": "3.1.2.1 State the function of the nose",
+            "CONTENT": "• Function of the nose: for smelling and breathing",
+            "SKILLS": "• Communicating information on the function of the nose",
+            "VALUES": "• Participating actively in class activities"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.1.3 Structure of the Body",
+            "SPECIFIC OUTCOMES": "3.1.3.1 Demonstrate the movement of arms and legs 3.1.3.2 Name the major movable joints in the body. 3.1.3.3 Explain the role played by bones, joints and muscles. 3.1.3.4 Explain what happens if a bone gets broken. 3.1.3.5 Identify the major parts of the human skeleton",
+            "CONTENT": "• Movement of arms and legs • Movable joints (Elbow, knee, shoulder, hip, wrist and ankle) • Function of bones and muscles (Hold structure, support the body and help in movement) • Broken arm or leg: pain, no movement or playing • Parts of the human skeleton (Skull, neck, arms, ribs, hip, legs, feet, spine)",
+            "SKILLS": "• Comparing movement of legs and arms • Observing major movable joints of the body • Communicating information on the human skeleton",
+            "VALUES": "• Appreciating body movements • Asking questions for more understanding"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.2.0 Health",
+            "SUBTOPIC": "3.2.1 Food",
+            "SPECIFIC OUTCOMES": "3.2.1.1 State the importance of food 3.2.1.2 Classify foods according to their nutrients 3.2.1.3 Demonstrate the composition of a balanced diet for health from available foods",
+            "CONTENT": "• Importance of food for: Energy, body building and protection • Food nutrients such as Energy foods: rice, nshima, potatoes; Body building foods: meat, eggs, beans; Protective foods: fruits, vegetables • Composition of balanced diet: e.g. nshima, meat and vegetables",
+            "SKILLS": "• Classifying foods according to food nutrients • Communicating the composition of a balanced diet for health",
+            "VALUES": "• Appreciating food nutrients • Cooperating in group activities • Applying the knowledge of a balanced diet in everyday life"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.2.2 Drug Abuse",
+            "SPECIFIC OUTCOMES": "3.2.2.1 Identify common drugs in the community. 3.2.2.2 Explain the effects of taking too much drugs",
+            "CONTENT": "• Common drugs: paracetamol, quinine, vermox, alcohol • Effects of too much drugs: addiction, death, poor/bad health",
+            "SKILLS": "• Investigating common drugs • Communicating the effects of taking drugs",
+            "VALUES": "• Awareness of common drugs • Using drugs correctly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.2.3 Illnesses and diseases",
+            "SPECIFIC OUTCOMES": "3.2.3.1 Identify the common causes of diseases 3.2.3.2 List common diseases in the community 3.2.3.3 Distinguish between infectious and non-infectious diseases 3.2.3.4 Explain different ways of preventing diseases",
+            "CONTENT": "• Common causes of diseases: Parasites, bacteria and viruses • Common diseases: Malaria, cholera, dysentery, colds, bilharzia • Infectious (HIV, TB, Measles, chicken pox); Non-infectious (Asthma, Malnutrition) • Personal hygiene, good sanitation, vaccination, healthy food",
+            "SKILLS": "• Investigating the common causes of diseases • Comparing infectious and non-infectious diseases • Communicating ways of preventing diseases",
+            "VALUES": "• Awareness of common diseases, their causes and prevention • Cooperating in group work • Caring for the sick"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.3.0 The Environment",
+            "SUBTOPIC": "3.3.1 Soil formation",
+            "SPECIFIC OUTCOMES": "3.3.1.1 State what weathering is. 3.3.1.2 Identify the agents of weathering 3.3.1.3 Demonstrate the formation of soil layers",
+            "CONTENT": "• Weathering as the breaking up of rocks to form soil • Agents of weathering: Wind, trees, water, animals • Soil layers: top soil, subsoil and bedrock",
+            "SKILLS": "• Communicating the agents of weathering in soil formation • Investigating the layers of soil",
+            "VALUES": "• Appreciating the formation of soil • Cooperating in group work"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.4.0 Plants and Animals",
+            "SUBTOPIC": "3.4.1 Plant Classification",
+            "SPECIFIC OUTCOMES": "3.4.1.1 Classify plants into flowering and non-flowering plants",
+            "CONTENT": "• Flowering plants (e.g. maize, beans, rose flower) and non-flowering plants (e.g. ferns, moss, pine)",
+            "SKILLS": "• Classifying plants into flowering and non-flowering",
+            "VALUES": "• Appreciating classes of plants"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.4.2 Animal Classification",
+            "SPECIFIC OUTCOMES": "3.4.2.1 Classify animals into vertebrates and invertebrates. 3.4.2.2 Classify vertebrates into their groups",
+            "CONTENT": "• Vertebrates e.g. Man, chicken, snake, fish, frog; Invertebrates e.g. Worms, spiders, insects • Groups of vertebrates: Mammals, birds, amphibians, fish, reptiles",
+            "SKILLS": "• Classifying vertebrate and invertebrates • Grouping vertebrates into their five groups",
+            "VALUES": "• Participating actively in class discussion • Appreciating groups of animals"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.4.3 Homes of living things",
+            "SPECIFIC OUTCOMES": "3.4.3.1 Identify different places where animals and plants live",
+            "CONTENT": "• Place of living e.g. Land (forest, soil, plains, moulds), water (ponds, rivers, seas)",
+            "SKILLS": "• Comparing places where animals and plants live",
+            "VALUES": "• Caring for environment where plants and animals live"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.5.0 Materials and energy",
+            "SUBTOPIC": "3.5.1 Three States of matter",
+            "SPECIFIC OUTCOMES": "3.5.1.1 Demonstrate the effect of heating and cooling on matter 3.5.1.2 Demonstrate the process of melting, evaporation and freezing",
+            "CONTENT": "• Effects of heating and cooling on matter: change of state into solid, liquid and gas • Process of: Melting, Evaporation, freezing and condensation",
+            "SKILLS": "• Investigating the effect of heating and cooling on change of state of matter • Communicating the process of melting, evaporation and condensation",
+            "VALUES": "• Cooperating in group activities • Appreciating change of state of matter • Applying safety rules during demonstration on heating/cooling"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUBTOPIC": "3.5.2 Solutions",
+            "SPECIFIC OUTCOMES": "3.5.2.1 Demonstrate the existence of saturated and unsaturated solutions of: Salt and sugar",
+            "CONTENT": "• Saturated and unsaturated solution",
+            "SKILLS": "• Observing the existence of saturated and unsaturated solutions",
+            "VALUES": "• Cooperating in group activities"
+          }
+        }
+      ]
+    },
     "Grade 4": {
       "title": "INTEGRATED SCIENCE SYLLABUS  —  GRADE 4",
       "columns": [
@@ -20998,6 +19676,206 @@
         }
       ]
     },
+    "Grade 5": {
+      "title": "GRADE 5",
+      "columns": [
+        "5.1.1 The Heart",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "KNOWLEDGE",
+        "SKILLS",
+        "VALUES"
+      ],
+      "rows": [
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.1.1 The Heart",
+            "TOPIC": "5.1.0 The human body",
+            "SPECIFIC OUTCOMES": "5.1.1.1 State the function of the heart. 5.1.1.2 Describe the structure of the heart. 5.1.1.3 Demonstrate how to take the pulse.",
+            "KNOWLEDGE": "• Function of the heart: pumping blood • Structure of the heart • How to take the pulse",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.1.2 Puberty",
+            "TOPIC": "5.1.0 The human body",
+            "SPECIFIC OUTCOMES": "5.1.2.1 Identify male and female parts of the body. 5.1.2.2 Describe changes that occur at puberty in human beings.",
+            "KNOWLEDGE": "• Male and female parts of the body (private and non-private parts) • Changes at puberty — Physical: pubic hair, beards, breaking of voice, pimples, pelvic girdle, enlargement of breasts • Emotional: moods, sexual feelings",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.1 Fresh Air",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.1.1 Explain the importance of good ventilation. 5.2.1.2 Explain ways of providing good ventilation in buildings. 5.2.1.3 Demonstrate ways of treating a suffocated person.",
+            "KNOWLEDGE": "• Ventilation is good for health • Ways of providing good ventilation: air conditioners, air vents, windows, fans • Treating a suffocated person: removing the source of suffocation, artificial breathing, First Aid",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.2 Air and water borne diseases",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.2.1 Name common airborne and water borne diseases in Zambia. 5.2.2.2 Describe symptoms of common airborne and water borne diseases. 5.2.2.3 Describe how to prevent air and water borne diseases.",
+            "KNOWLEDGE": "• Common airborne and waterborne diseases: Tuberculosis, pneumonia, cholera, typhoid, dysentery, measles, bilharzia • Symptoms (TB: prolonged cough, sweating at night, fever, loss of weight and appetite; Dysentery: bloody stool) • Ways of preventing airborne and waterborne diseases",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.3 Malaria",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.3.1 Identify causes of malaria. 5.2.3.2 State the symptoms of malaria. 5.2.3.3 Describe ways of preventing and treating malaria.",
+            "KNOWLEDGE": "• Causes of malaria: Anopheles mosquito bite (plasmodium) • Symptoms: fever, vomiting, headache, body pains, loss of appetite • Ways of preventing malaria: sleeping under Insecticide Treated Nets, spraying and clearing mosquito breeding places",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.6 HIV and AIDS and STIs",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.6.1 Describe ways in which STIs and HIV are transmitted. 5.2.6.2 Identify ways of preventing the spread of HIV and STIs. 5.2.6.3 Describe the care and treatment for AIDS patients.",
+            "KNOWLEDGE": "• Ways of STIs and HIV transmission: unprotected sexual activities, contaminated blood, breast milk, sharp instruments • Ways of prevention: abstinence, use of condoms • Care and treatment of AIDS patients: good nutrition, good hygiene, love and support, ART",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.2.7 Harmful Substances",
+            "TOPIC": "5.2.0 Health",
+            "SPECIFIC OUTCOMES": "5.2.7.1 Mention the substances which are harmful to the human body. 5.2.7.2 State the harmful effects of substance abuse on the body. 5.2.7.3 Explain the effects of drinking alcohol.",
+            "KNOWLEDGE": "• Harmful substances: cocaine, mandrax, heroin, petrol, alcohol, dagga • Harmful effects: aggressiveness, brain damage, unconsciousness, restlessness, nausea, addiction • Effects of alcohol: poor health, violence, accidents",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.3.1 Soil",
+            "TOPIC": "5.3.0 The Environment",
+            "SPECIFIC OUTCOMES": "5.3.1.1 Explain the importance of water in the soil. 5.3.1.2 Mention ways in which water can be retained in the soil. 5.3.1.3 Demonstrate the drainage rates of soils.",
+            "KNOWLEDGE": "• Importance of water: seed germination and photosynthesis • Retention of water in soil: mulching, shading, terracing, weeding and intercropping • Drainage rates of clay, loamy and sandy soils",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.3.2 Fertilizers",
+            "TOPIC": "5.3.0 The Environment",
+            "SPECIFIC OUTCOMES": "5.3.2.1 Explain what organic and inorganic fertilizers are. 5.3.2.2 Demonstrate how to prepare compost manure. 5.3.2.3 Explain the importance of maintaining a supply of compost materials. 5.3.2.4 Explain the advantages and disadvantages of chemical fertilizers in agriculture.",
+            "KNOWLEDGE": "• Organic (natural) and inorganic (man-made) fertilizers • Preparing compost manure: layers under the shade • Advantages: required plant nutrients, quick absorption • Disadvantages: spoil soil, leaching, cost",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.1 Non Flowering Plants",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Identify different types of non-flowering plants. 5.4.1.2 Identify the use of ferns and fungi.",
+            "KNOWLEDGE": "• Types of non-flowering plants: algae, ferns, moss, fungi (e.g. mushroom) • Uses of fungi: baking, beer brewing, food, medicine (e.g. penicillin)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.2 Invertebrate Animals",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.2.1 Identify the different types of invertebrate animals. 5.4.2.2 Investigate the basic structure of insects. 5.4.2.3 Explain the difference between insects and spiders. 5.4.2.4 State ways in which insects are useful.",
+            "KNOWLEDGE": "• Invertebrate animals: insects (bees, ants, grasshoppers, beetles, butterflies), worms, spiders, crabs, lobsters, snails • Basic structure of insects: head, thorax, abdomen, antennae, six legs, wings; spider: eight legs, two body sections • Usefulness of insects: source of food, assist in pollination",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.4.3 Pest and Parasites",
+            "TOPIC": "5.4.0 Plants and Animals",
+            "SPECIFIC OUTCOMES": "5.4.3.1 Identify common pests and parasites in the local environment. 5.4.3.2 Describe the harm caused by pests and parasites on plants and animals. 5.4.3.3 Explain how pests and parasites can be controlled using local plant materials and commercial chemicals. 5.4.3.4 Explain how chemical pesticides can cause harm to the environment.",
+            "KNOWLEDGE": "• Common pests and parasites: aphids, locusts, caterpillars, ticks, beetles, worms, weevils, termites, tsetse fly, lice • Harm caused: suck nutrients, cause diseases, affect growth of the host • Control: local (garlic, red pepper, ash); commercial (Doom, Boom, Rogor) • Harm to the environment from chemical pesticides: contamination, killing beneficial living things",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.1 Electricity",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.1.1 State what electricity can do. 5.5.1.2 Identify sources of electricity. 5.5.1.3 Identify electrical appliances used at home, school and in the community. 5.5.1.4 Identify good and bad conductors of electricity. 5.5.1.5 Describe the uses of good and bad conductors. 5.5.1.6 Explain methods of conserving electricity in homes and schools.",
+            "KNOWLEDGE": "• What electricity does: powers up appliances and lights • Sources of electricity: battery, hydroelectric and thermal power stations, generator, solar cells • Electrical appliances: heater, stove, iron, fridge, fan • Good conductors: copper wire, iron sheets, carbon; Bad conductors: wood, plastic, rubber • Conserving electricity: energy saver bulbs, switch off and save, alternative sources of energy",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.2 Heat Conductors",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.2.1 Describe what heat is. 5.5.2.2 Determine the temperature of the human body, boiling water and air inside and outside the classroom. 5.5.2.3 Distinguish good and bad conductors of heat. 5.5.2.4 Identify materials which are good insulators.",
+            "KNOWLEDGE": "• Heat: the flow of thermal energy from warm to cooler objects • Temperature measurement of human body, boiling water and air • Good conductors: metals; Bad conductors / insulators: wood, rubber, wool, plastic • Uses: good conductors for cooking utensils; bad conductors for handles",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.3 Measuring Matter",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.3.1 Identify instruments used to compare how heavy objects are. 5.5.3.2 Demonstrate the effect of gravity on objects. 5.5.3.3 Distinguish between mass and weight.",
+            "KNOWLEDGE": "• Measuring mass and weight: beam balance, spring balance • Effect of gravity: pulling objects towards the centre of the earth • Difference between mass (amount of matter) and weight (pull of gravity, measured in newtons)",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.4 Volume",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.4.1 Identify various instruments and apparatus used to measure volume. 5.5.4.2 Measure the volume of liquids. 5.5.4.3 Measure the volume of various regular and irregular solid objects.",
+            "KNOWLEDGE": "• Instruments for measuring volume: beaker, measuring cylinder • Measuring volume of given liquids • Measuring volume of regular (l × b × h) and irregular (displacement method) solid objects",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "5.1.1 The Heart": "5.5.5 Simple Machines",
+            "TOPIC": "5.5.0 Materials and energy",
+            "SPECIFIC OUTCOMES": "5.5.5.1 Explain what a simple machine is. 5.5.5.2 Identify six kinds of simple machines used in the home and school. 5.5.5.3 Demonstrate the use of simple machines in doing work.",
+            "KNOWLEDGE": "• A simple machine makes work easier by allowing us to push or pull over increased distances • Six kinds of simple machines: Lever, Wheel and Axle, Inclined Plane, Wedge, Screw • Application: pulling, cutting, transportation, watering, digging",
+            "SKILLS": "Application of knowledge",
+            "VALUES": "Awareness and appreciation"
+          }
+        }
+      ]
+    },
     "Grade 6": {
       "title": "INTEGRATED SCIENCE SYLLABUS  —  GRADE 6",
       "columns": [
@@ -21559,206 +20437,6 @@
             "CONTENT": "• Communicating metals mined in Zambia • Investigating how much copper is exported annually and from where • Communicating the need to make copper products within Zambia",
             "SKILLS": "• Appreciation the importance of copper • Cooperating in group activities • Applying entrepreneurial skills",
             "VALUES": ""
-          }
-        }
-      ]
-    },
-    "Grade 5": {
-      "title": "GRADE 5",
-      "columns": [
-        "5.1.1 The Heart",
-        "TOPIC",
-        "SPECIFIC OUTCOMES",
-        "KNOWLEDGE",
-        "SKILLS",
-        "VALUES"
-      ],
-      "rows": [
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.1.1 The Heart",
-            "TOPIC": "5.1.0 The human body",
-            "SPECIFIC OUTCOMES": "5.1.1.1 State the function of the heart. 5.1.1.2 Describe the structure of the heart. 5.1.1.3 Demonstrate how to take the pulse.",
-            "KNOWLEDGE": "• Function of the heart: pumping blood • Structure of the heart • How to take the pulse",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.1.2 Puberty",
-            "TOPIC": "5.1.0 The human body",
-            "SPECIFIC OUTCOMES": "5.1.2.1 Identify male and female parts of the body. 5.1.2.2 Describe changes that occur at puberty in human beings.",
-            "KNOWLEDGE": "• Male and female parts of the body (private and non-private parts) • Changes at puberty — Physical: pubic hair, beards, breaking of voice, pimples, pelvic girdle, enlargement of breasts • Emotional: moods, sexual feelings",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.1 Fresh Air",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.1.1 Explain the importance of good ventilation. 5.2.1.2 Explain ways of providing good ventilation in buildings. 5.2.1.3 Demonstrate ways of treating a suffocated person.",
-            "KNOWLEDGE": "• Ventilation is good for health • Ways of providing good ventilation: air conditioners, air vents, windows, fans • Treating a suffocated person: removing the source of suffocation, artificial breathing, First Aid",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.2 Air and water borne diseases",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.2.1 Name common airborne and water borne diseases in Zambia. 5.2.2.2 Describe symptoms of common airborne and water borne diseases. 5.2.2.3 Describe how to prevent air and water borne diseases.",
-            "KNOWLEDGE": "• Common airborne and waterborne diseases: Tuberculosis, pneumonia, cholera, typhoid, dysentery, measles, bilharzia • Symptoms (TB: prolonged cough, sweating at night, fever, loss of weight and appetite; Dysentery: bloody stool) • Ways of preventing airborne and waterborne diseases",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.3 Malaria",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.3.1 Identify causes of malaria. 5.2.3.2 State the symptoms of malaria. 5.2.3.3 Describe ways of preventing and treating malaria.",
-            "KNOWLEDGE": "• Causes of malaria: Anopheles mosquito bite (plasmodium) • Symptoms: fever, vomiting, headache, body pains, loss of appetite • Ways of preventing malaria: sleeping under Insecticide Treated Nets, spraying and clearing mosquito breeding places",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.6 HIV and AIDS and STIs",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.6.1 Describe ways in which STIs and HIV are transmitted. 5.2.6.2 Identify ways of preventing the spread of HIV and STIs. 5.2.6.3 Describe the care and treatment for AIDS patients.",
-            "KNOWLEDGE": "• Ways of STIs and HIV transmission: unprotected sexual activities, contaminated blood, breast milk, sharp instruments • Ways of prevention: abstinence, use of condoms • Care and treatment of AIDS patients: good nutrition, good hygiene, love and support, ART",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.7 Harmful Substances",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.7.1 Mention the substances which are harmful to the human body. 5.2.7.2 State the harmful effects of substance abuse on the body. 5.2.7.3 Explain the effects of drinking alcohol.",
-            "KNOWLEDGE": "• Harmful substances: cocaine, mandrax, heroin, petrol, alcohol, dagga • Harmful effects: aggressiveness, brain damage, unconsciousness, restlessness, nausea, addiction • Effects of alcohol: poor health, violence, accidents",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.3.1 Soil",
-            "TOPIC": "5.3.0 The Environment",
-            "SPECIFIC OUTCOMES": "5.3.1.1 Explain the importance of water in the soil. 5.3.1.2 Mention ways in which water can be retained in the soil. 5.3.1.3 Demonstrate the drainage rates of soils.",
-            "KNOWLEDGE": "• Importance of water: seed germination and photosynthesis • Retention of water in soil: mulching, shading, terracing, weeding and intercropping • Drainage rates of clay, loamy and sandy soils",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.3.2 Fertilizers",
-            "TOPIC": "5.3.0 The Environment",
-            "SPECIFIC OUTCOMES": "5.3.2.1 Explain what organic and inorganic fertilizers are. 5.3.2.2 Demonstrate how to prepare compost manure. 5.3.2.3 Explain the importance of maintaining a supply of compost materials. 5.3.2.4 Explain the advantages and disadvantages of chemical fertilizers in agriculture.",
-            "KNOWLEDGE": "• Organic (natural) and inorganic (man-made) fertilizers • Preparing compost manure: layers under the shade • Advantages: required plant nutrients, quick absorption • Disadvantages: spoil soil, leaching, cost",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.4.1 Non Flowering Plants",
-            "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.1.1 Identify different types of non-flowering plants. 5.4.1.2 Identify the use of ferns and fungi.",
-            "KNOWLEDGE": "• Types of non-flowering plants: algae, ferns, moss, fungi (e.g. mushroom) • Uses of fungi: baking, beer brewing, food, medicine (e.g. penicillin)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.4.2 Invertebrate Animals",
-            "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.2.1 Identify the different types of invertebrate animals. 5.4.2.2 Investigate the basic structure of insects. 5.4.2.3 Explain the difference between insects and spiders. 5.4.2.4 State ways in which insects are useful.",
-            "KNOWLEDGE": "• Invertebrate animals: insects (bees, ants, grasshoppers, beetles, butterflies), worms, spiders, crabs, lobsters, snails • Basic structure of insects: head, thorax, abdomen, antennae, six legs, wings; spider: eight legs, two body sections • Usefulness of insects: source of food, assist in pollination",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.4.3 Pest and Parasites",
-            "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.3.1 Identify common pests and parasites in the local environment. 5.4.3.2 Describe the harm caused by pests and parasites on plants and animals. 5.4.3.3 Explain how pests and parasites can be controlled using local plant materials and commercial chemicals. 5.4.3.4 Explain how chemical pesticides can cause harm to the environment.",
-            "KNOWLEDGE": "• Common pests and parasites: aphids, locusts, caterpillars, ticks, beetles, worms, weevils, termites, tsetse fly, lice • Harm caused: suck nutrients, cause diseases, affect growth of the host • Control: local (garlic, red pepper, ash); commercial (Doom, Boom, Rogor) • Harm to the environment from chemical pesticides: contamination, killing beneficial living things",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.1 Electricity",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.1.1 State what electricity can do. 5.5.1.2 Identify sources of electricity. 5.5.1.3 Identify electrical appliances used at home, school and in the community. 5.5.1.4 Identify good and bad conductors of electricity. 5.5.1.5 Describe the uses of good and bad conductors. 5.5.1.6 Explain methods of conserving electricity in homes and schools.",
-            "KNOWLEDGE": "• What electricity does: powers up appliances and lights • Sources of electricity: battery, hydroelectric and thermal power stations, generator, solar cells • Electrical appliances: heater, stove, iron, fridge, fan • Good conductors: copper wire, iron sheets, carbon; Bad conductors: wood, plastic, rubber • Conserving electricity: energy saver bulbs, switch off and save, alternative sources of energy",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.2 Heat Conductors",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.2.1 Describe what heat is. 5.5.2.2 Determine the temperature of the human body, boiling water and air inside and outside the classroom. 5.5.2.3 Distinguish good and bad conductors of heat. 5.5.2.4 Identify materials which are good insulators.",
-            "KNOWLEDGE": "• Heat: the flow of thermal energy from warm to cooler objects • Temperature measurement of human body, boiling water and air • Good conductors: metals; Bad conductors / insulators: wood, rubber, wool, plastic • Uses: good conductors for cooking utensils; bad conductors for handles",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.3 Measuring Matter",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.3.1 Identify instruments used to compare how heavy objects are. 5.5.3.2 Demonstrate the effect of gravity on objects. 5.5.3.3 Distinguish between mass and weight.",
-            "KNOWLEDGE": "• Measuring mass and weight: beam balance, spring balance • Effect of gravity: pulling objects towards the centre of the earth • Difference between mass (amount of matter) and weight (pull of gravity, measured in newtons)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.4 Volume",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.4.1 Identify various instruments and apparatus used to measure volume. 5.5.4.2 Measure the volume of liquids. 5.5.4.3 Measure the volume of various regular and irregular solid objects.",
-            "KNOWLEDGE": "• Instruments for measuring volume: beaker, measuring cylinder • Measuring volume of given liquids • Measuring volume of regular (l × b × h) and irregular (displacement method) solid objects",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.5 Simple Machines",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.5.1 Explain what a simple machine is. 5.5.5.2 Identify six kinds of simple machines used in the home and school. 5.5.5.3 Demonstrate the use of simple machines in doing work.",
-            "KNOWLEDGE": "• A simple machine makes work easier by allowing us to push or pull over increased distances • Six kinds of simple machines: Lever, Wheel and Axle, Inclined Plane, Wedge, Screw • Application: pulling, cutting, transportation, watering, digging",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
           }
         }
       ]
@@ -29489,202 +28167,125 @@
         }
       ]
     },
-    "Grade 7": {
-      "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 7",
+    "Grade 3": {
+      "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 3",
       "columns": [
         "TOPIC",
-        "SUB-TOPIC",
+        "SUBTOPIC",
         "SPECIFIC OUTCOMES",
         "CONTENT",
-        "SKILLS",
-        "VALUES"
+        "KNOWLEDGE",
+        "SKILLS"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "",
+            "SUBTOPIC": "",
             "SPECIFIC OUTCOMES": "",
-            "CONTENT": "KNOWLEDGE",
-            "SKILLS": "SKILLS",
-            "VALUES": "VALUES"
+            "CONTENT": "",
+            "KNOWLEDGE": "KNOWLEDGE",
+            "SKILLS": "SKILLS"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "7.1 Governance",
-            "SUB-TOPIC": "7.1.1 Democratic Governance",
-            "SPECIFIC OUTCOMES": "7.1.1.1 Describe democracy 7.1.1.2 Mention characteristics of democracy 7.1.1.3 Explain how democracy protects and promotes human rights 7.1.1.4 Describe ways in which women and girls are discriminated against 7.1.1.5 Explain forms of child abuse 7.1.1.6 Describe types of child labour",
-            "CONTENT": "• Democracy • Rule of law, freedom, fair elections • Rule of law and respecting human rights • Decision making, job opportunities, access to resources, access to education • Defilement, rape, child labour, child neglect, human trafficking • Domestic servants, farm work, street vending",
-            "SKILLS": "",
-            "VALUES": ""
+            "TOPIC": "3.1 Direction and Location",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.1.1 Location on a Map",
+            "CONTENT": "3.1.1.1 Identify the location of home, school and nearby places on a map",
+            "KNOWLEDGE": "• Location of places on a map",
+            "SKILLS": "• Identification of places on a map"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.1.2 Organs of Government",
-            "SPECIFIC OUTCOMES": "7.1.2.1 Identify the organs of government 7.1.2.2 Explain the functions of the Executive, Legislature, and Judiciary",
-            "CONTENT": "• Legislature, Executive and Judiciary • Legislature: making laws • Executive: carrying out laws • Judiciary: enforcing law",
-            "SKILLS": "•",
-            "VALUES": ""
+            "TOPIC": "3.2 Governance",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.2.1 The National Anthem",
+            "CONTENT": "3.2.1.1 Sing the Zambian National Anthem in English",
+            "KNOWLEDGE": "• Zambian National Anthem in English",
+            "SKILLS": "• Patriotism"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.1.3 Government Ministries",
-            "SPECIFIC OUTCOMES": "7.1.3.1 identify government ministries",
-            "CONTENT": "• Education, Health, Defence, Home Affairs",
-            "SKILLS": "",
-            "VALUES": ""
+            "TOPIC": "3.3 Religion",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.3.1 Different Religions and Places of Worship",
+            "CONTENT": "3.3.1.1 Name different religions in Zambia 3.3.1.2 Mention places where members of different religions worship",
+            "KNOWLEDGE": "• Religions in Zambia: Traditional religion, Christianity, Islam, Hinduism • Places of worship: shrines, churches, mosques, temples",
+            "SKILLS": "• Identification • Classification • Awareness • Appreciation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.1.4 Constitution",
-            "SPECIFIC OUTCOMES": "7.1.4.1 State the importance of the Constitution",
-            "CONTENT": "• Constitution: supreme law of the land • Safeguarding citizens’ rights",
-            "SKILLS": "",
-            "VALUES": ""
+            "TOPIC": "3.4 Christian Living",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.4.1 Division and Forgiveness",
+            "CONTENT": "3.4.1.1 Identify causes of division among people 3.4.1.2 Mention effects of division 3.4.1.3 State different ways of showing remorse 3.4.1.4 Describe the importance of forgiveness",
+            "KNOWLEDGE": "• Nepotism, favouritism, theft, greed, unfairness, jealousy • Conflict, underdevelopment, hatred • Saying sorry, looking sad, crying • Unity, peace, love, happiness, good health",
+            "SKILLS": "• Identification • Creative thinking • Classification • Application • Patience • Responsibility • Tolerance • Reconciliation • Cooperation • Respect • Remorsefulness"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "7.2 The World",
-            "SUB-TOPIC": "7.2.1Continents",
-            "SPECIFIC OUTCOMES": "7.2.1.1 Identify the continents of the world",
-            "CONTENT": "• Africa, Europe, Asia, Australia, North America, South America, Antarctica",
-            "SKILLS": "•",
-            "VALUES": "•"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.2.2 Physical Features",
-            "SPECIFIC OUTCOMES": "7.2.1.1 Locate on a world map major physical features",
-            "CONTENT": "• Rivers, lakes, mountains, seas, island oceans, deserts, valleys",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "7.3 World Challenges",
-            "SUB-TOPIC": "7.3.1 Population Growth",
-            "SPECIFIC OUTCOMES": "7.3.1.1 Identify the causes of rapid world population growth 7.1.1.2 Mention the effects of rapid world population growth 7.1.1.3 State possible solutions to rapid world population growth",
-            "CONTENT": "• Poor family planning, early marriages, poverty, polygamy • High mortality rate, illiteracy, unemployment, crime, diseases • Family planning, education",
-            "SKILLS": "",
-            "VALUES": ""
+            "TOPIC": "3.5 Festivals",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.5.1 Cultural Celebrations and Festivals",
+            "CONTENT": "3.5.1.1 Mention occasions celebrated by local communities 3.5.1.2 Explain the importance of celebrations/festivals",
+            "KNOWLEDGE": "• Birth of a child, initiation ceremonies, installation of leaders, marriage • Identity, unity, happiness",
+            "SKILLS": "• Identification • Critical thinking • Self identity • Awareness • Appreciation"
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "7.3.2 Corruption",
-            "SPECIFIC OUTCOMES": "7.3.1.1 State different forms of corruption",
-            "CONTENT": "• Petty corruption, grand corruption and political corruption",
-            "SKILLS": "",
-            "VALUES": ""
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.5.2 Religious Celebrations and Festivals",
+            "CONTENT": "3.5.2.1 Identify religious festivals in the locality 3.5.2.2 Mention the significance of religious festivals",
+            "KNOWLEDGE": "• Christmas, Good Friday, Easter, Ramadan • Identification with God, thanksgiving",
+            "SKILLS": "• Identification • Classification • Self identity • Appreciation • Awareness"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.6 Ceremonies",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.6.1 Traditional Ceremonies",
+            "CONTENT": "3.6.1.1 Describe traditional ceremonies 3.6.1.2 State the significance of traditional ceremonies",
+            "KNOWLEDGE": "• Local traditional ceremonies • Identity, unity, happiness",
+            "SKILLS": "• Identification • Classification • Appreciation • Awareness • Self identity"
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "7.3.3 Food Shortages",
-            "SPECIFIC OUTCOMES": "7.3.1.1 State causes of food shortages in some parts of the world 7.3.1.2 Explain the importance of food security",
-            "CONTENT": "• Droughts, floods, Wars, Pests and Diseases, laziness, ignorance • Autonomy, good health, high productivity",
-            "SKILLS": "",
-            "VALUES": ""
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.6.2 Initiation Ceremonies",
+            "CONTENT": "3.6.2.1 Describe local initiation ceremonies 3.6.2.2 State the significance of local initiation ceremonies 3.6.2.3 Describe the initiation of Jesus (Luke 2:41) 3.6.2.4 Describe the relevance of traditional teachings and practices today",
+            "KNOWLEDGE": "• Local initiation ceremonies • Identity, unity, happiness • Initiation of Jesus (Luke 2:41) • Relevance of traditional teachings and practices today",
+            "SKILLS": "• Identification • Classification • Appreciation • Awareness • Self identity"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.3.4 HIV and AIDS",
-            "SPECIFIC OUTCOMES": "7.3.4.1 Explain the consequences of HIV and AIDS on food security",
-            "CONTENT": "• Low productivity",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.3.5 Pollution",
-            "SPECIFIC OUTCOMES": "7.3.5.1 Explain causes of pollution 7.3.5.2 Outline effects of pollution on the environment 7.3.5.3 State possible solutions to pollution",
-            "CONTENT": "• Mining, solid waste disposal, chemical processing, forest fires, combustion • Acid rain, land degradation, contamination of water sources, diseases • Waste management, protection of water sources, environmental education",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.3.6 Other World Challenges",
-            "SPECIFIC OUTCOMES": "7.3.6.1 State other world challenges 7.3.6.2 Suggest possible solutions to these challenges",
-            "CONTENT": "• War, global warming, poverty • Conflict resolution, education, increased productivity",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "7.4 Religion",
-            "SUB-TOPIC": "7.4.1 The Family",
-            "SPECIFIC OUTCOMES": "7.4.1.1 State the importance of belonging to a family 7.4.1.2 Describe the relationship between parents and children in a Zambian family",
-            "CONTENT": "• Security, protection, love, care • Acceptance, respect, love, tolerance, obedience",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "7.5 Farming",
-            "SUB-TOPIC": "7.5.1 World Farming Regions",
-            "SPECIFIC OUTCOMES": "7.5.1.1 Locate on the world map major farming regions",
-            "CONTENT": "• Prairies, Pampas, Downs, Steppes, Veldt",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "7.6 Transport and Communication",
-            "SUB-TOPIC": "7.6.1 Transport and Communication services among SADC and COMESA Countries",
-            "SPECIFIC OUTCOMES": "7.6.1.1 Mention the benefits of improved regional communication services and transport network to Zambia",
-            "CONTENT": "• Easy flow of information • Increase in trade • Easy movement of goods and services • Employment opportunities",
-            "SKILLS": "• Awareness of safe cycling • Appreciation of the benefits of improved regional transport and communication services",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7.6.2 Road Safety",
-            "SPECIFIC OUTCOMES": "7.5.1 Identify parts of the bicycle 7.5.2 Demonstrate safe cycling",
-            "CONTENT": "• Parts of the bicycle and their use • Correct side of the road to cycle on",
-            "SKILLS": "",
-            "VALUES": ""
+            "TOPIC": "3.7 Transport and Communication",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "3.7.1 Safety Precautions",
+            "CONTENT": "3.7.1.1 Identify safety precautions applied on vehicles 3.7.1.2 Explain risky behaviour on the road",
+            "KNOWLEDGE": "• Safety precautions: using seat belts, no hanging on moving vehicles, no jumping on and off moving vehicles, using roadworthy modes of transport • Risky behaviour: playing on the road, running back onto the road to pick an object",
+            "SKILLS": "• Care on the road"
           }
         }
       ]
@@ -29890,601 +28491,203 @@
           }
         }
       ]
-    }
-  },
-  "Technology Studies Syllabus (Grades 4-6)": {
-    "Grade 4": {
-      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 4",
-      "columns": [
-        "TOPIC",
-        "SUB-TOPIC",
-        "SPECIFIC COMPETENCES",
-        "LEARNING ACTIVITIES",
-        "EXPECTED STANDARD"
-      ],
-      "rows": [
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.1 INTRODUCTION TO TECHNOLOGY STUDIES",
-            "SUB-TOPIC": "4.1.1 Career Prospects in Technology Studies",
-            "SPECIFIC COMPETENCES": "4.1.1.1 Explore career prospects in Technology Studies",
-            "LEARNING ACTIVITIES": "• Discussing components of Technology Studies (ICT and D &T)\n• Identifying career prospects in Technology Studies (architecture, civil engineering, computer programming, electrical engineering, surveying…)\n• Identifying entrepreneurial activities",
-            "EXPECTED STANDARD": "• Career prospects in Technology Studies explored appropriately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.2 SAFETY",
-            "SUB-TOPIC": "4.2.1 Personal Safety",
-            "SPECIFIC COMPETENCES": "4.2.1.1 Apply safety precautions in a work environment",
-            "LEARNING ACTIVITIES": "• Discussing personal safety precautions in a work environment (safety attire, behaviour in a work room, waste disposal…)\n• Identifying types of safety attire to be used in a work environment\n• Applying safety precautions while in the work environment (wearing safety attire, wearing antistatic wrist bands…)",
-            "EXPECTED STANDARD": "• Safety precautions applied in a work environment correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.3 WORD PROCESSING",
-            "SUB-TOPIC": "4.3.1 Introduction to Word Processing",
-            "SPECIFIC COMPETENCES": "4.3.1.1 Create a word document",
-            "LEARNING ACTIVITIES": "• Opening a word document\n• Typing a word document\n• Saving a word document (Save, Save As)\n• Formatting text (bold, italic, underline…)",
-            "EXPECTED STANDARD": "• A word document created accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.4 TOOLS AND EQUIPMENT",
-            "SUB-TOPIC": "4.4.1 Work Bench",
-            "SPECIFIC COMPETENCES": "4.4.1.1 Use parts of a work bench",
-            "LEARNING ACTIVITIES": "• Identifying parts of a work bench\n• Discussing functions of parts of a work bench\n• Using parts of a work bench when measuring, marking, cutting and holding materials",
-            "EXPECTED STANDARD": "• Parts of a work bench used accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.4 TOOLS AND EQUIPMENT",
-            "SUB-TOPIC": "4.4.2 Classification and Use of Tools and Equipment",
-            "SPECIFIC COMPETENCES": "4.4.2.1 Use tools and equipment to make products",
-            "LEARNING ACTIVITIES": "• Classifying tools and equipment according to their use (Measuring tools: Steel rule Measuring tape Marking out tools: Scriber, Marking gauge, Marking knife Cutting tools: Saws, Planes, Chisels Testing tools: Try square, Spirit level Holding tools: G-clamps, bench vice, sash clamps Driving tools: Hammer, mallet Building tools: Trowel, Building square)\n• Using tools and equipment to make products",
-            "EXPECTED STANDARD": "• Tools and equipment used to make products correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.5 MATERIALS",
-            "SUB-TOPIC": "4.5.1 Joining of Materials",
-            "SPECIFIC COMPETENCES": "4.5.1.1 Join materials",
-            "LEARNING ACTIVITIES": "• Selecting tools for joining materials\n• Joining materials using simple joints (nailing, butt, lap, housing, bolt and nut…)\n• Applying joints in product making",
-            "EXPECTED STANDARD": "• Materials joined correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.5 MATERIALS",
-            "SUB-TOPIC": "4.5.2 Finishing Materials",
-            "SPECIFIC COMPETENCES": "4.5.2.1 Apply finishes to materials",
-            "LEARNING ACTIVITIES": "• Exploring methods of finishing materials\n• Preparing materials in readiness for finishing (sanding, grinding, polishing…)\n• Applying finishes to products (varnish, paint, wax…)\n• Practising safety precautions when applying finishes",
-            "EXPECTED STANDARD": "• Finishes applied to materials appropriately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.6 PRESENTATION",
-            "SUB-TOPIC": "4.6.1 Basics of Presentations",
-            "SPECIFIC COMPETENCES": "4.6.1.1 Create presentations",
-            "LEARNING ACTIVITIES": "• Exploring presentation software\n• Creating presentations with text and images\n• Exploring different slide layouts and designs.",
-            "EXPECTED STANDARD": "• Presentations created appropriately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.7 ENERGY",
-            "SUB-TOPIC": "4.7.1 Electricity",
-            "SPECIFIC COMPETENCES": "4.7.1.1 Make electrical Circuits",
-            "LEARNING ACTIVITIES": "• Identifying components of an electrical circuit (cells, switch, bulb…)\n• Sketching electrical components in a circuit (cell, switch and bulb).\n• Identifying terminals on the cells (positive and negative)\n• Connecting cells in series\n• Making circuits using electrical components",
-            "EXPECTED STANDARD": "• Electrical Circuits made correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.8 SPREAD SHEET",
-            "SUB-TOPIC": "4.8.1 Basicso f pSreadsheet",
-            "SPECIFIC COMPETENCES": "4.8.1.1 Use spreadsheet applications",
-            "LEARNING ACTIVITIES": "• Exploring features of the spreadsheet (insertion, active cell, rows, columns…)\n• Navigating the ribbon of the spreadsheet\n• Identifying cells, rows and columns of a spreadsheet\n• Naming cells by column and row (A1, C5, D6…)\n• Entering data in cells",
-            "EXPECTED STANDARD": "• Spreadsheet application used accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.1 Lettering",
-            "SPECIFIC COMPETENCES": "4.9.1.1 Print letters and numbers",
-            "LEARNING ACTIVITIES": "• Printing letters between construction lines\n• Printing numbers in upper and lower case between construction lines",
-            "EXPECTED STANDARD": "• Letters and numbers printed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.2 Types of Lines",
-            "SPECIFIC COMPETENCES": "4.9.2.1 Draw lines used in construction",
-            "LEARNING ACTIVITIES": "• Drawing types of lines used in construction (hidden line, centre line, outline…)\n• Drawing lines used in construction using free hand\n• Drawing lines used in construction using drawing instruments (perpendicular line, bisecting a line...)",
-            "EXPECTED STANDARD": "• Lines used in construction drawn correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.3 Angles",
-            "SPECIFIC COMPETENCES": "4.9.3.1 Construct angles",
-            "LEARNING ACTIVITIES": "• Identifying types of angles (acute, right angle, obtuse, reflex)\n• Constructing angles (60o,90,120o …)\n• Bisecting angles (60o ,90o ,180°…)",
-            "EXPECTED STANDARD": "• Angles constructed accurately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.4 Triangles",
-            "SPECIFIC COMPETENCES": "4.9.4.1 Construct triangles from given data",
-            "LEARNING ACTIVITIES": "• Naming types of triangles (Equilateral, right-angled and Isosceles triangles)\n• Analysing characteristics of types of triangles\n• Constructing types of triangles (Equilateral, right- angled and Isosceles)\n• Designing products using triangles\n• Applying triangles in product development",
-            "EXPECTED STANDARD": "• Triangles constructed from given data accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.5 Quadrilaterals",
-            "SPECIFIC COMPETENCES": "4.9.5.1 Construct quadrilaterals",
-            "LEARNING ACTIVITIES": "• Identifying types of quadrilaterals (square, rectangle, kite, rhombus and trapezium)\n• Analysing characteristics of quadrilaterals\n• Constructingquadrilaterals (square, rectangle, kite, rhombus and trapezium)\n• Designingproductsusing quadrilaterals",
-            "EXPECTED STANDARD": "• Quadrilaterals constructed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.6Circles",
-            "SPECIFIC COMPETENCES": "4.9.6.1Construct circles",
-            "LEARNING ACTIVITIES": "• Identifying parts of a circle (radius,diameter,centre-line, centre, circumference)\n• Constructingcirclesgiventhe radius or diameter\n• Recordingdimensionsof a circle inmillimetresor centimetres\n• Makingdesigns usingcircles",
-            "EXPECTED STANDARD": "• Circles constructed correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.9 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "4.9.7Graphic Software",
-            "SPECIFIC COMPETENCES": "4.9.7.1Usegraphic softwarein prod uct design",
-            "LEARNING ACTIVITIES": "• Identifying graphic software (CorelDRAW,paint,photoshop, publisher…)\n• Exploringtoolsfordrawingand editing shapes.\n• Creatinggraphicimages (stickers, logos… ).",
-            "EXPECTED STANDARD": "• Graphic software used in product designcorrectly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.10 TECHNOLOGY",
-            "SUB-TOPIC": "4.10.1 Technological Innovations",
-            "SPECIFIC COMPETENCES": "4.10.1.1 Explore technological Innovations",
-            "LEARNING ACTIVITIES": "• Exploring technological Innovations\n• Performing reverse engineering on innovations (dis-assembling and assembling products)",
-            "EXPECTED STANDARD": "• Technological Innovations explored appropriately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.11 CODING",
-            "SUB-TOPIC": "4.11.1 Block- Based Coding",
-            "SPECIFIC COMPETENCES": "4.11.1.1 Use Block- based coding Platforms",
-            "LEARNING ACTIVITIES": "• Using block-based coding platforms (scratch, code monkey, codingal…)\n• Exploring programming concepts (sequence, loops, events…)",
-            "EXPECTED STANDARD": "• Block-based coding platforms used accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.12 STRUCTURES",
-            "SUB-TOPIC": "4.12.1 Types of Structures",
-            "SPECIFIC COMPETENCES": "4.12.1.1 Classify Structures",
-            "LEARNING ACTIVITIES": "• Researching on types of structures (frame, shell...)\n• Classifying structures according to their attributes\n• Drawing different types of structures (house, cup, bicycle, bridge…)",
-            "EXPECTED STANDARD": "• Structures classified accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.13 INTERNET",
-            "SUB-TOPIC": "4.13.1 Internet",
-            "SPECIFIC COMPETENCES": "4.13.1.1 Use the Internet",
-            "LEARNING ACTIVITIES": "• Using internet browsers (chrome, safari, Firefox, Edge...)\n• Practising safety and responsible internet usage (passwords, privacy…)\n• Searching tasks on specific topics.",
-            "EXPECTED STANDARD": "• Internet used accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "4.1 4 ENTREPRENEUR SHIP",
-            "SUB-TOPIC": "4.14.1 Business Idea",
-            "SPECIFIC COMPETENCES": "4.14.1.1 Develop a business idea",
-            "LEARNING ACTIVITIES": "• Identifying needs in the immediate environment\n• Analysing factors to consider when selecting a product or service to be offered\n• Costing a product\n• Forming companies (sole trader, partnership…)\n• Suggesting a name of the company/business\n• Identifying the location of the business/company",
-            "EXPECTED STANDARD": "• Business idea developed appropriately"
-          }
-        }
-      ]
     },
-    "Grade 5": {
-      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 5",
+    "Grade 7": {
+      "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 7",
       "columns": [
         "TOPIC",
         "SUB-TOPIC",
-        "SPECIFIC COMPETENCES",
-        "LEARNING ACTIVITIES",
-        "EXPECTED STANDARD"
+        "SPECIFIC OUTCOMES",
+        "CONTENT",
+        "SKILLS",
+        "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.1 SAFETY",
-            "SUB-TOPIC": "5.1.1 Care and Maintenance of tools and Equipment",
-            "SPECIFIC COMPETENCES": "5.1.1.1 Maintain tools and equipment",
-            "LEARNING ACTIVITIES": "• Sorting damaged/broken tools\n• Cleaning tools and equipment\n• Oiling specific tools (Hand drill, Rip saw blades, wheelbarrow…)\n• Fixing broken equipment (desks, chairs, shelves, cabinets…)\n• Sharpening tools\n• Storing tools and equipment in safe places",
-            "EXPECTED STANDARD": "• Tools and equipment maintained properly"
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "",
+            "CONTENT": "KNOWLEDGE",
+            "SKILLS": "SKILLS",
+            "VALUES": "VALUES"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.2 WORD PROCESSING",
-            "SUB-TOPIC": "5.2.1 Formatting",
-            "SPECIFIC COMPETENCES": "5.2.1 Format a word document",
-            "LEARNING ACTIVITIES": "• Formatting text\n• Formatting images and objects",
-            "EXPECTED STANDARD": "• Word document formatted correctly"
+            "TOPIC": "7.1 Governance",
+            "SUB-TOPIC": "7.1.1 Democratic Governance",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Describe democracy 7.1.1.2 Mention characteristics of democracy 7.1.1.3 Explain how democracy protects and promotes human rights 7.1.1.4 Describe ways in which women and girls are discriminated against 7.1.1.5 Explain forms of child abuse 7.1.1.6 Describe types of child labour",
+            "CONTENT": "• Democracy • Rule of law, freedom, fair elections • Rule of law and respecting human rights • Decision making, job opportunities, access to resources, access to education • Defilement, rape, child labour, child neglect, human trafficking • Domestic servants, farm work, street vending",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.3 TOOLS AND EQUIPMENT",
-            "SUB-TOPIC": "5.3.1 Hand tools",
-            "SPECIFIC COMPETENCES": "5.3.1.1 Use hand tools to make products",
-            "LEARNING ACTIVITIES": "• Identifying hand tools for making products (saws, planes, files, hammers…)\n• Utilising hand tools to make products\n• Practising safety precautions when using hand tools",
-            "EXPECTED STANDARD": "• Hand tools to make products used correctly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.1.2 Organs of Government",
+            "SPECIFIC OUTCOMES": "7.1.2.1 Identify the organs of government 7.1.2.2 Explain the functions of the Executive, Legislature, and Judiciary",
+            "CONTENT": "• Legislature, Executive and Judiciary • Legislature: making laws • Executive: carrying out laws • Judiciary: enforcing law",
+            "SKILLS": "•",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.4 MATERIALS",
-            "SUB-TOPIC": "5.4.1 Joining Materials",
-            "SPECIFIC COMPETENCES": "5.4.1.1 Join materials",
-            "LEARNING ACTIVITIES": "• Identifying the following joints (mortise and tenon, halving, dovetail, seam, rebate…)\n• Joining materials using various joints (mortise and tenon, halving, dovetail, seam, rebate…)\n• Practising safety precautions when joining materials\n• Repairing and maintaining items",
-            "EXPECTED STANDARD": "• Materials joined correctly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.1.3 Government Ministries",
+            "SPECIFIC OUTCOMES": "7.1.3.1 identify government ministries",
+            "CONTENT": "• Education, Health, Defence, Home Affairs",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.5 PRESENTATION",
-            "SUB-TOPIC": "5.5.1 Multimedia Presentations",
-            "SPECIFIC COMPETENCES": "5.5.1.1 Develop multimedia presentations",
-            "LEARNING ACTIVITIES": "• Adding multimedia elements (audio, video) to presentations.\n• Adding animation effects and transitions to a presentation",
-            "EXPECTED STANDARD": "• Multimedia presentations developed appropriately"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.1.4 Constitution",
+            "SPECIFIC OUTCOMES": "7.1.4.1 State the importance of the Constitution",
+            "CONTENT": "• Constitution: supreme law of the land • Safeguarding citizens’ rights",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.6 ENERGY",
-            "SUB-TOPIC": "5.6.1 Design Circuits",
-            "SPECIFIC COMPETENCES": "5.6.1.1 Construct circuits in series and parallel",
-            "LEARNING ACTIVITIES": "• Identifying Circuit Symbols (Bulb, battery, wire, switch…)\n• Sketching symbols of electrical components.\n• Designing circuit diagrams (in series and parallel) using circuit symbols\n• Making series and parallel circuits",
-            "EXPECTED STANDARD": "• Circuits constructed in series and parallel correctly"
+            "TOPIC": "7.2 The World",
+            "SUB-TOPIC": "7.2.1Continents",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Identify the continents of the world",
+            "CONTENT": "• Africa, Europe, Asia, Australia, North America, South America, Antarctica",
+            "SKILLS": "•",
+            "VALUES": "•"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.7 SPREADSHEET",
-            "SUB-TOPIC": "5.7.1 Addition and Subtraction in Spreadsheet",
-            "SPECIFIC COMPETENCES": "5.7.1.1 Perform addition and subtraction in spreadsheet",
-            "LEARNING ACTIVITIES": "• Using addition, subtraction and equal signs (+, -, =) to perform calculations in spreadsheet\n• Adding at least two real numbers in spreadsheet\n• Subtracting at least two real numbers in spreadsheet",
-            "EXPECTED STANDARD": "• Addition and subtraction in spreadsheet performed correctly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.2.2 Physical Features",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Locate on a world map major physical features",
+            "CONTENT": "• Rivers, lakes, mountains, seas, island oceans, deserts, valleys",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "5.8.1 Polygons",
-            "SPECIFIC COMPETENCES": "5.8.1.1Construct regular polygons",
-            "LEARNING ACTIVITIES": "• Identifying types of polygons (Pentagon, Hexagon, Heptagon and Octagon)\n• Constructing regular polygons using the general method (pentagon, hexagon, octagon…)\n• Designing products using polygons\n• Applying regular polygons in product development",
-            "EXPECTED STANDARD": "• Regular polygons constructed correctly"
+            "TOPIC": "7.3 World Challenges",
+            "SUB-TOPIC": "7.3.1 Population Growth",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Identify the causes of rapid world population growth 7.1.1.2 Mention the effects of rapid world population growth 7.1.1.3 State possible solutions to rapid world population growth",
+            "CONTENT": "• Poor family planning, early marriages, poverty, polygamy • High mortality rate, illiteracy, unemployment, crime, diseases • Family planning, education",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "5.8.2",
-            "SPECIFIC COMPETENCES": "5.8.2.1 Construct irregular polygons",
-            "LEARNING ACTIVITIES": "• Analysing characteristics of irregular polygons\n• Constructing irregular polygons (given sides, angles…)\n• Applying irregular polygons in product development",
-            "EXPECTED STANDARD": "• Irregular polygons constructed correctly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.3.2 Corruption",
+            "SPECIFIC OUTCOMES": "7.3.1.1 State different forms of corruption",
+            "CONTENT": "• Petty corruption, grand corruption and political corruption",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "5.8.3 Pictorial Drawing",
-            "SPECIFIC COMPETENCES": "5.8.3.1 Construct objects in pictorial view",
-            "LEARNING ACTIVITIES": "• Identifying objects in isometric and oblique view\n• Constructing an isometric box\n• Constructing objects in isometric\n• Constructing objects in oblique\n• Drawing pictorial objects using Free Hand",
-            "EXPECTED STANDARD": "• Objects in pictorial view constructed appropriately"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.3.3 Food Shortages",
+            "SPECIFIC OUTCOMES": "7.3.1.1 State causes of food shortages in some parts of the world 7.3.1.2 Explain the importance of food security",
+            "CONTENT": "• Droughts, floods, Wars, Pests and Diseases, laziness, ignorance • Autonomy, good health, high productivity",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "5.8.3 Pictorial Drawing",
-            "SPECIFIC COMPETENCES": "5.8.3.2 Apply Rendering on pictorial drawings",
-            "LEARNING ACTIVITIES": "• Rendering different materials (wood, glass, metal, concrete…)\n• Rendering pictorial drawings",
-            "EXPECTED STANDARD": "• Rendering on pictorial drawings applied appropriately"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.3.4 HIV and AIDS",
+            "SPECIFIC OUTCOMES": "7.3.4.1 Explain the consequences of HIV and AIDS on food security",
+            "CONTENT": "• Low productivity",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "5.8.4 Image Editing tools",
-            "SPECIFIC COMPETENCES": "5.8.4.1 Edit images",
-            "LEARNING ACTIVITIES": "• Exploring image editing tools (paint, adobe photoshop, CorelDRAW…)\n• Editing images (static images)\n• Creating illustrations on digital images",
-            "EXPECTED STANDARD": "• Images edited correctly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.3.5 Pollution",
+            "SPECIFIC OUTCOMES": "7.3.5.1 Explain causes of pollution 7.3.5.2 Outline effects of pollution on the environment 7.3.5.3 State possible solutions to pollution",
+            "CONTENT": "• Mining, solid waste disposal, chemical processing, forest fires, combustion • Acid rain, land degradation, contamination of water sources, diseases • Waste management, protection of water sources, environmental education",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.9 TECHNOLOGY",
-            "SUB-TOPIC": "5.9.1 Sustainable Technology",
-            "SPECIFIC COMPETENCES": "5.9.1.1 Use sustainable Technology",
-            "LEARNING ACTIVITIES": "• Researching on sustainable technologies (solar power, wind power, hydropower, green buildings, biodegradable plastics…)\n• Researching on unsustainable technologies (fossil fuel energy, single-use plastics, non-rechargeable batteries, e- waste…)\n• Disposing e-waste\n• Using sustainable technologies in product making (models of houses with solar panels, wind turbine, birdhouses, mini hydroponic…)",
-            "EXPECTED STANDARD": "• Sustainable Technology used accordingly"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.3.6 Other World Challenges",
+            "SPECIFIC OUTCOMES": "7.3.6.1 State other world challenges 7.3.6.2 Suggest possible solutions to these challenges",
+            "CONTENT": "• War, global warming, poverty • Conflict resolution, education, increased productivity",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.10 CODING",
-            "SUB-TOPIC": "5.10.1 Block-Based Coding",
-            "SPECIFIC COMPETENCES": "5.10.1.1 Animate situations",
-            "LEARNING ACTIVITIES": "• Exploring animation concepts (sequencing, timing, loops, events…)\n• Animating situations (stories, games…)",
-            "EXPECTED STANDARD": "• Situations animated accordingly"
+            "TOPIC": "7.4 Religion",
+            "SUB-TOPIC": "7.4.1 The Family",
+            "SPECIFIC OUTCOMES": "7.4.1.1 State the importance of belonging to a family 7.4.1.2 Describe the relationship between parents and children in a Zambian family",
+            "CONTENT": "• Security, protection, love, care • Acceptance, respect, love, tolerance, obedience",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.11 STRUCTURES",
-            "SUB-TOPIC": "5.11.1 Designing Structures",
-            "SPECIFIC COMPETENCES": "5.11.1.1 Make strong and stable structures",
-            "LEARNING ACTIVITIES": "• Discussing causes of structural failure (overloading, poor material selection, poor design...)\n• Designing strong and stable structures\n• Strengthening and stabilising structures (ties, struts, cross member, widening the base, lowering the centre of mass, making the base heavier…)\n• Making stable structures (desks, chair, TV stand…)",
-            "EXPECTED STANDARD": "• Strong and stable structures made correctly"
+            "TOPIC": "7.5 Farming",
+            "SUB-TOPIC": "7.5.1 World Farming Regions",
+            "SPECIFIC OUTCOMES": "7.5.1.1 Locate on the world map major farming regions",
+            "CONTENT": "• Prairies, Pampas, Downs, Steppes, Veldt",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.11 STRUCTURES",
-            "SUB-TOPIC": "5.11.2Site Preparation",
-            "SPECIFIC COMPETENCES": "5.11.2. 1Prepare a site for construction",
-            "LEARNING ACTIVITIES": "• Investigating the site (checking soil type, slope, drainage system…)\n• Clearing the site (clearing shrubs/vegetation, slashing, removing loose rocks…)\n• Leveling the site",
-            "EXPECTED STANDARD": "• Site for construction prepared properly"
+            "TOPIC": "7.6 Transport and Communication",
+            "SUB-TOPIC": "7.6.1 Transport and Communication services among SADC and COMESA Countries",
+            "SPECIFIC OUTCOMES": "7.6.1.1 Mention the benefits of improved regional communication services and transport network to Zambia",
+            "CONTENT": "• Easy flow of information • Increase in trade • Easy movement of goods and services • Employment opportunities",
+            "SKILLS": "• Awareness of safe cycling • Appreciation of the benefits of improved regional transport and communication services",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "5.12 INTERNET",
-            "SUB-TOPIC": "5.12.1Onl ine Communication",
-            "SPECIFIC COMPETENCES": "5.12.1. 1Use online communication tools responsibly",
-            "LEARNING ACTIVITIES": "• Exploring social media platforms and their features (Facebook, WhatsApp, Messenger…)\n• Practising online etiquette\n• Creating accounts on social media platforms\n• Communicating using online tools (email, video conferencing…)",
-            "EXPECTED STANDARD": "• Online communication tools used responsibly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "5.13 ENTREPRENEURSHIP",
-            "SUB-TOPIC": "5.13.1Marketing",
-            "SPECIFIC COMPETENCES": "5.13.1. 1Design a Marketingplan",
-            "LEARNING ACTIVITIES": "• Identifying products/services to be offered\n• Identifying potential customers",
-            "EXPECTED STANDARD": "• Marketing plan designed correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "5.13 ENTREPRENEURSHIP",
-            "SUB-TOPIC": "5.13.1Marketing",
-            "SPECIFIC COMPETENCES": "",
-            "LEARNING ACTIVITIES": "• Identifying competitors\n• Pricing a product\n• Designing promotion materials",
-            "EXPECTED STANDARD": ""
-          }
-        }
-      ]
-    },
-    "Grade 6": {
-      "title": "TECHNOLOGY STUDIES SYLLABUS  —  GRADE 6",
-      "columns": [
-        "TOPIC",
-        "SUB-TOPIC",
-        "SPECIFIC COMPETENCES",
-        "LEARNING ACTIVITIES",
-        "EXPECTED STANDARD"
-      ],
-      "rows": [
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.1 SAFETY",
-            "SUB-TOPIC": "6.1.1 First Aid",
-            "SPECIFIC COMPETENCES": "6.1.1.1 Apply First Aid",
-            "LEARNING ACTIVITIES": "• Researching on first aid\n• Identifying items in the First Aid Kit\n• Demonstrating the use of First Aid Kit contents (Surgical blade, scissors, plaster…)\n• Making First Aid Carrier (Box, bag…)\n• Role-playing how to care for an injured person",
-            "EXPECTED STANDARD": "• First Aid applied accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.2 WORD PROCESSING",
-            "SUB-TOPIC": "6.2.1 Document Collaboration",
-            "SPECIFIC COMPETENCES": "6.2.1.1 Perform collaborative document editing and version control",
-            "LEARNING ACTIVITIES": "• Exploring document collaborative tools (Docs, sheets, only office...)\n• Collaborative document editing\n• Exploring version history and revision tracking features",
-            "EXPECTED STANDARD": "• Collaborative document editing and version control performed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.3 TOOLS AND EQUIPMENT",
-            "SUB-TOPIC": "6.3.1 Building Tools",
-            "SPECIFIC COMPETENCES": "6.3.1.1 Classify building tools",
-            "LEARNING ACTIVITIES": "• Identifying building tools (spirit level, building square, trowel, wooden float…)\n• Classifying building tools according to use (laying tools, wall straightening, finishing tools…)\n• Using building tools to build a structure",
-            "EXPECTED STANDARD": "• Building tools classified accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.4 MATERIALS",
-            "SUB-TOPIC": "6.4.1 Building Materials",
-            "SPECIFIC COMPETENCES": "6.4.1.1C lassifyb uilding Materials",
-            "LEARNING ACTIVITIES": "• Identifying building materials (sand, quarry, clay, stones, bricks cement, lime…)\n• Classifying building materials (fine aggregates, coarse aggregates, binders, bricks…)",
-            "EXPECTED STANDARD": "• Building materials classified accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.4 MATERIALS",
-            "SUB-TOPIC": "6.4.1 Building Materials",
-            "SPECIFIC COMPETENCES": "6.4.1.2 Make bricks",
-            "LEARNING ACTIVITIES": "• Kneading the clay\n• Moulding clay bricks\n• Curing of clay bricks",
-            "EXPECTED STANDARD": "• Bricks made accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6. 5PRESENTATION",
-            "SUB-TOPIC": "6.5.1 Animations",
-            "SPECIFIC COMPETENCES": "6.5.1.1 Create interactive presentations",
-            "LEARNING ACTIVITIES": "• Creating custom animations and transitions.\n• Using motion paths and effects.\n• Developing Interactive presentations (hyperlinks, menus…)",
-            "EXPECTED STANDARD": "• Interactive presentations created appropriately"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6. 6ENERGY",
-            "SUB-TOPIC": "6.6.1 Installation of electrical components",
-            "SPECIFIC COMPETENCES": "6.6.1.1 Installe lectrical components",
-            "LEARNING ACTIVITIES": "• Identifying types of switches (single pole-single throw, single-pole-double throw…)\n• Designing and making switches\n• Designing circuits (using: cells, bulbs and switches)\n• Installing electrical components\n• Practising safety when installing electrical components",
-            "EXPECTED STANDARD": "• Electrical components installed correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.7 SPREADSHEET 6.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "6.7.1 Multiplication and division in spreadsheet",
-            "SPECIFIC COMPETENCES": "6.7.1.1 Perform multiplication and division in spreadsheet",
-            "LEARNING ACTIVITIES": "• Using multiplication and division signs (*, /)\n• Multiplying at least two real numbers in spreadsheet\n• Dividing at least two real numbers in spreadsheet\n• Multiplying and adding at least two real numbers in spreadsheet\n• Dividing and subtracting at least two real numbers in spreadsheet",
-            "EXPECTED STANDARD": "• Multiplication and division in spreadsheet performed correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.7 SPREADSHEET 6.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "6.8.1 Orthographic Projection",
-            "SPECIFIC COMPETENCES": "6.8.1.1 Construct Orthographic views",
-            "LEARNING ACTIVITIES": "• Identifying orthographic projection views (Front, plan, End)\n• Converting pictorial drawing to orthographic views\n• Dimensioning of the elevations",
-            "EXPECTED STANDARD": "• Orthographic views constructed correctly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.7 SPREADSHEET 6.8 GRAPHIC COMMUNICATION",
-            "SUB-TOPIC": "6.8.2 Modeling",
-            "SPECIFIC COMPETENCES": "6.8.2.1 Create 3D models",
-            "LEARNING ACTIVITIES": "• Exploring 3D modeling software (Paint 3D, sketch up, blender…)\n• Creating 3D models of simple objects.\n• Applyingtexturesto3D models\n• Applying 3D animation and rendering.",
-            "EXPECTED STANDARD": "• 3D models created accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.9 DESIGNING",
-            "SUB-TOPIC": "6.9.1 Product Design",
-            "SPECIFIC COMPETENCES": "6.9.1.1 Design products to solve real life problems",
-            "LEARNING ACTIVITIES": "• Identifying situations that need solutions in the immediate environment\n• Designing products to solve problems\n• Developing products\n• Evaluating product designs",
-            "EXPECTED STANDARD": "• Products designed appropriately to solve real life problems"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.10 CODING",
-            "SUB-TOPIC": "6.10.1 Block Based Coding",
-            "SPECIFIC COMPETENCES": "6.10.1.1 Create simple computer programs",
-            "LEARNING ACTIVITIES": "• Creating simple computer programs (animations, games…) using block-based coding.",
-            "EXPECTED STANDARD": "• Simple computer programs created accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.11 STRUCTURES",
-            "SUB-TOPIC": "6.11.1 Building Structures",
-            "SPECIFIC COMPETENCES": "6.11.1.1 Construct buildings",
-            "LEARNING ACTIVITIES": "• Making designs of buildings (floor plan)\n• Setting out the structure using the square method.\n• Mixing building materials in correct proportions\n• Constructing the building using bricks and mortar (pit latrine, chicken run, kennel…)\n• Practising safety precautions when constructing buildings",
-            "EXPECTED STANDARD": "• Buildings constructed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.12 INTERNET",
-            "SUB-TOPIC": "6.12.1Digital Citizenship",
-            "SPECIFIC COMPETENCES": "6.12.1.1 Apply digital citizenship ethics",
-            "LEARNING ACTIVITIES": "• Discussing digital rights and responsibilities.\n• Exploring online privacy and security issues.\n• Utilising strategies to evade Cyberbullying",
-            "EXPECTED STANDARD": "• Digital citizenship ethics applied accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "6.13 ENTREPRENEURSHIP",
-            "SUB-TOPIC": "6.13.1 Business Plan",
-            "SPECIFIC COMPETENCES": "6.13.1.1 Develop business plans",
-            "LEARNING ACTIVITIES": "• Researching on the main parts of a Business plan (Name of the business, location, product/service, marketing)\n• Developing a Business plan (Writing a Business plan)",
-            "EXPECTED STANDARD": "• Business plans developed appropriately"
+            "TOPIC": "",
+            "SUB-TOPIC": "7.6.2 Road Safety",
+            "SPECIFIC OUTCOMES": "7.5.1 Identify parts of the bicycle 7.5.2 Demonstrate safe cycling",
+            "CONTENT": "• Parts of the bicycle and their use • Correct side of the road to cycle on",
+            "SKILLS": "",
+            "VALUES": ""
           }
         }
       ]
