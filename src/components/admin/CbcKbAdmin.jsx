@@ -40,7 +40,7 @@ const META = {
   'Science Syllabus (Grades 4-6)':                       { icon: '🔬', cat: 'Upper Primary',   short: 'Science (Gr. 4–6)' },
   'Social Studies Syllabus (Grades 4-6)':                { icon: '🌍', cat: 'Upper Primary',   short: 'Social Studies (Gr. 4–6)' },
   'Home Economics & Hospitality Syllabus (Grades 4-6)':  { icon: '🏠', cat: 'Upper Primary',   short: 'Home Economics (Gr. 4–6)' },
-  'Technology Studies Syllabus (Grades 4-6)':            { icon: '⚙️', cat: 'Upper Primary',   short: 'Technology Studies (Gr. 4–6)' },
+  'Technology Studies Syllabus (Grades 4-6)':            { icon: '⚙️', cat: 'Upper Primary',   short: 'Technology Studies (Gr. 4)' },
   'Mathematics Syllabus (Forms 1-4)':                    { icon: '📐', cat: 'Secondary',       short: 'Mathematics' },
   'Mathematics II Syllabus (Forms 1-4)':                 { icon: '📏', cat: 'Secondary',       short: 'Mathematics II' },
   'Physics Syllabus (Forms 1-4)':                        { icon: '⚡', cat: 'Secondary',       short: 'Physics' },

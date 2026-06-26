@@ -16,7 +16,7 @@ export const STUDIO_SUBJECT_TO_KB_2013 = {
   'English Language Syllabus (Grades 2-7, 2013)': 'english',
   'Creative & Technology Studies Syllabus (2013)': 'creative_and_technology_studies',
   'Home Economics Syllabus (Grades 5-7, 2013)': 'home_economics',
-  'Design & Technology Syllabus (Grades 5-7, 2013)': 'design_and_technology',
+  'Technology Studies Syllabus (Grades 5-7, 2013)': 'technology_studies',
   'Expressive Arts Syllabus (Grades 5-7, 2013)': 'expressive_arts',
   'Zambian Language Syllabus (Grades 5-7, 2013)': 'zambian_language',
   'Physical Education Syllabus (Grades 8-9, 2013)': 'physical_education',
