@@ -10,8 +10,8 @@
  * Plan ids match the marketing tiers (src/utils/subscriptionConfig.js,
  * src/components/marketing/Plans.jsx):
  *   free → Free
- *   pro  → Pro  (K79/mo, "for the everyday teacher")    — stored as "individual" before 2026-06
- *   max  → Max  (K199/mo, "unlimited" with fair-use cap) — stored as "school" before 2026-06
+ *   pro  → Pro  (K59/mo, "for the everyday teacher")    — stored as "individual" before 2026-06
+ *   max  → Max  (K149/mo, "unlimited" with fair-use cap) — stored as "school" before 2026-06
  *
  * users/{uid}.teacherPlan values written before the rename may still carry
  * the legacy ids; normalizeTeacherPlan() maps those forever — do not remove
@@ -25,18 +25,25 @@
  */
 
 const PLAN_LIMITS = {
+  // Free can only use the Lesson Plan studio — every other generator studio is
+  // closed (0) and shown as a read-only sample until the teacher upgrades (the
+  // client gates the route in StudioGate; this is the authoritative server gate
+  // for direct calls). Keep lesson_plan + the quiz-editor micro-helpers
+  // (suggest_answer / revise_question) and the in-studio diagram tool funded.
   free: {
-    lesson_plan: 5,
-    worksheet: 3,
-    flashcards: 20,
+    lesson_plan: 2,
+    worksheet: 0,
+    flashcards: 0,
     quiz: 0,
     rubric: 0,
     scheme_of_work: 0,
-    notes: 3,
-    full_lesson: 2,
-    homework: 3,
-    assessment: 1,
-    exam_paper: 1,
+    notes: 0,
+    full_lesson: 0,
+    homework: 0,
+    lesson_activities: 0,
+    assessment: 0,
+    sba_task: 0,
+    exam_paper: 0,
     diagram: 3,
     slide_notes: 0,
     slide_notes_images: 0,
@@ -53,8 +60,15 @@ const PLAN_LIMITS = {
     notes: 25,
     full_lesson: 20,
     homework: 30,
-    assessment: 15,
-    exam_paper: 10,
+    // Exercise + homework generated together from the Lesson Plan Studio.
+    lesson_activities: 30,
+    // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): the
+    // most expensive generations on the platform. Pro (and Free) get a single
+    // taster per month so teachers can feel the quality before upgrading to
+    // Max for unlimited use — the 2nd generation hits the Max paywall.
+    assessment: 1,
+    sba_task: 15,
+    exam_paper: 1,
     diagram: 30,
     slide_notes: 5,
     slide_notes_images: 60,
@@ -71,7 +85,9 @@ const PLAN_LIMITS = {
     notes: 200,
     full_lesson: 200,
     homework: 200,
+    lesson_activities: 200,
     assessment: 200,
+    sba_task: 200,
     exam_paper: 200,
     diagram: 200,
     slide_notes: 100,
@@ -113,7 +129,9 @@ const DAILY_COUNTED_TOOLS = [
   "notes",
   "full_lesson",
   "homework",
+  "lesson_activities",
   "assessment",
+  "sba_task",
   "exam_paper",
   "diagram",
   "slide_notes",
@@ -121,6 +139,19 @@ const DAILY_COUNTED_TOOLS = [
 
 function isDailyCountedTool(tool) {
   return DAILY_COUNTED_TOOLS.includes(tool);
+}
+
+// Studios reserved for the Max plan. These are the two most compute-heavy
+// generations (Assessment ~250s/60+ items, Exam Paper ~185s), so they anchor
+// the Max tier rather than being sold purely on volume. Free and Pro keep a
+// single monthly taster (PLAN_LIMITS.{free,pro}.{assessment,exam_paper} = 1)
+// so a teacher can try the studio once; the next attempt routes to the Max
+// paywall instead of the generic monthly-limit copy. Keep this list in sync
+// with the client mirror in src/utils/teacherPlans.js.
+const MAX_ONLY_TOOLS = ["assessment", "exam_paper"];
+
+function isMaxOnlyTool(tool) {
+  return MAX_ONLY_TOOLS.includes(tool);
 }
 
 // users.teacherPlan values written before the 2026-06 pro/max rename.
@@ -148,7 +179,9 @@ module.exports = {
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,
+  MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
   isDailyCountedTool,
+  isMaxOnlyTool,
 };

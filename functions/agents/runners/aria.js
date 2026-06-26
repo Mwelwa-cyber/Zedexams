@@ -10,26 +10,34 @@
  */
 
 const admin = require("firebase-admin");
-const {runLessonPlan} = require("../../teacherTools/generateLessonPlan");
-const {runWorksheet} = require("../../teacherTools/generateWorksheet");
-const {runFlashcards} = require("../../teacherTools/generateFlashcards");
-const {runRubric} = require("../../teacherTools/generateRubric");
-const {runSchemeOfWork} = require("../../teacherTools/generateSchemeOfWork");
-const {runNotes} = require("../../teacherTools/generateNotes");
-const {getAnthropicApiKey} = require("../../aiService");
 
-// Maps the agentJobs `input.tool` value to {runner, draftKey}. The draft
-// key tells Aria which field on the runner's return value carries the
+// Maps the agentJobs `input.tool` value to {run, draftKey}. The draft key
+// tells Aria which field on the runner's return value carries the
 // teacher-facing artifact (every runner uses a different key today; we
 // accept that and just look them up).
+//
+// The underlying teacher-tool runners are required lazily (inside each
+// `run`) rather than at module load: those modules pull in the
+// firebase-functions framework, which is a `functions/`-only dependency.
+// Requiring them eagerly would make this module unimportable from the
+// plain-node test suite (which installs root deps only). Deferring the
+// require keeps `require('./aria')` import-light while production behaviour
+// is unchanged — the real generator is loaded the first time a job runs.
 const RUNNERS = {
-  lesson_plan:    {run: runLessonPlan,    draftKey: "lessonPlan"},
-  worksheet:      {run: runWorksheet,     draftKey: "worksheet"},
-  flashcards:     {run: runFlashcards,    draftKey: "flashcards"},
-  rubric:         {run: runRubric,        draftKey: "rubric"},
-  scheme_of_work: {run: runSchemeOfWork,  draftKey: "schemeOfWork"},
-  notes:          {run: runNotes,         draftKey: "notes"},
+  lesson_plan:    {run: (a) => require("../../teacherTools/generateLessonPlan").runLessonPlan(a),   draftKey: "lessonPlan"},
+  worksheet:      {run: (a) => require("../../teacherTools/generateWorksheet").runWorksheet(a),     draftKey: "worksheet"},
+  flashcards:     {run: (a) => require("../../teacherTools/generateFlashcards").runFlashcards(a),   draftKey: "flashcards"},
+  rubric:         {run: (a) => require("../../teacherTools/generateRubric").runRubric(a),           draftKey: "rubric"},
+  scheme_of_work: {run: (a) => require("../../teacherTools/generateSchemeOfWork").runSchemeOfWork(a), draftKey: "schemeOfWork"},
+  notes:          {run: (a) => require("../../teacherTools/generateNotes").runNotes(a),             draftKey: "notes"},
 };
+
+// Lazy default for the API-key resolver — same reasoning as RUNNERS:
+// aiService requires firebase-functions, so we only pull it in at call
+// time (and never in tests, which inject their own getApiKey).
+function defaultGetApiKey(secret) {
+  return require("../../aiService").getAnthropicApiKey(secret);
+}
 
 const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
 
@@ -37,12 +45,22 @@ const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
  * @param {object} args
  * @param {object} args.job - The agentJobs document data (with id).
  * @param {object} args.anthropicApiKeySecret - Firebase secret param.
+ * @param {object} [args.runners] - Tool→runner map. Defaults to RUNNERS;
+ *   injected by the unit test so the routing/draft-mapping logic runs
+ *   without calling the real teacher-tool generators.
+ * @param {Function} [args.getApiKey] - Resolves the Anthropic key from the
+ *   secret. Injected by the unit test.
  * @returns {Promise<object>} { generationId, draft, modelUsed }
  */
-async function runAria({job, anthropicApiKeySecret}) {
+async function runAria({
+  job,
+  anthropicApiKeySecret,
+  runners = RUNNERS,
+  getApiKey = defaultGetApiKey,
+}) {
   const input = job.input || {};
   const tool = String(input.tool || "").toLowerCase();
-  const runner = RUNNERS[tool];
+  const runner = runners[tool];
   if (!runner) {
     throw new Error(
       `Aria does not drive the "${tool || "<missing>"}" generator. ` +
@@ -58,7 +76,7 @@ async function runAria({job, anthropicApiKeySecret}) {
     );
   }
 
-  const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+  const apiKey = getApiKey(anthropicApiKeySecret);
   const result = await runner.run({uid, rawInputs: input, apiKey});
 
   return {

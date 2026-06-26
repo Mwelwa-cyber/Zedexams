@@ -17,7 +17,8 @@ import {
   serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db, storage } from '../firebase/config'
 import { generateDiagram } from './generateDiagram'
 
 export const PICTURE_BANK_SUBJECTS_GENERIC = '_generic'
@@ -189,6 +190,120 @@ export async function uploadBankPicture(file, { name, keywords, subject, gradeBa
 }
 
 /**
+ * Derive a human-ish placeholder name from a file name: drop the extension,
+ * swap separators for spaces, collapse whitespace. Used as the staged name
+ * until the AI (or admin) supplies a real one.
+ */
+function nameFromFile(fileName) {
+  const base = String(fileName || '').replace(/\.[^.]+$/, '')
+  const pretty = base.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return pretty.slice(0, 120) || 'Untitled picture'
+}
+
+/**
+ * Admin: upload one picture into the bank as STAGED (awaiting tagging). Used
+ * by bulk upload — files land in "Needs tagging", then the AI naming agent
+ * (or the admin) fills in name + keywords + subject before activation. No
+ * keywords required up front, unlike the single active upload.
+ */
+export async function uploadStagedBankPicture(file, { subject, gradeBand, uid } = {}) {
+  if (!file) throw new Error('Pick an image file.')
+  if (!file.type?.startsWith('image/')) throw new Error('Only image files are supported.')
+  if (file.size > MAX_PICTURE_BYTES) throw new Error('Image is over the 10 MB limit.')
+
+  const ref = doc(collection(db, 'pictureBank'))
+  const ext = (String(file.name || '').split('.').pop() || 'png').toLowerCase()
+  const storagePath = `picture-bank/uploads/${ref.id}.${ext}`
+  const snap = await uploadBytes(storageRef(storage, storagePath), file, {
+    contentType: file.type,
+  })
+  const url = await getDownloadURL(snap.ref)
+  const placeholder = nameFromFile(file.name)
+  await setDoc(ref, {
+    id: ref.id,
+    name: placeholder,
+    nameLower: placeholder.toLowerCase(),
+    subject: String(subject || PICTURE_BANK_SUBJECTS_GENERIC).toLowerCase(),
+    gradeBand: String(gradeBand || ''),
+    keywords: [],
+    storagePath,
+    url,
+    contentType: file.type,
+    source: 'upload',
+    status: 'staged',
+    sourceNote: `Bulk upload: ${String(file.name || '').slice(0, 180)}`,
+    createdBy: uid || null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+/**
+ * Admin: bulk-upload many pictures as staged. Uploads run with limited
+ * concurrency so a big drop doesn't open hundreds of parallel Storage
+ * connections. Returns { ids, failures } — failures are per-file so one bad
+ * image doesn't sink the batch.
+ */
+export async function bulkUploadStagedPictures(files, { subject, gradeBand, uid, onProgress } = {}) {
+  const list = Array.from(files || [])
+  const ids = []
+  const failures = []
+  let done = 0
+  const CONCURRENCY = 3
+
+  async function worker(queue) {
+    for (;;) {
+      const item = queue.shift()
+      if (!item) return
+      try {
+        const id = await uploadStagedBankPicture(item, { subject, gradeBand, uid })
+        ids.push(id)
+      } catch (err) {
+        failures.push({ name: item?.name || 'file', error: err?.message || String(err) })
+      } finally {
+        done += 1
+        if (typeof onProgress === 'function') onProgress({ done, total: list.length })
+      }
+    }
+  }
+
+  const queue = [...list]
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, queue.length) }, () => worker(queue)),
+  )
+  return { ids, failures }
+}
+
+const functions = getFunctions(app, 'us-central1')
+const nameBankPicturesCallable = httpsCallable(functions, 'nameBankPictures')
+
+/**
+ * Admin: ask the AI naming agent to look at staged pictures and suggest a
+ * name, keywords and subject for each. Writes the suggestions onto the docs
+ * (as aiSuggested* fields) server-side; returns { named, total, warnings }.
+ * The pictures stay staged — the admin reviews the suggestions and activates.
+ */
+export async function nameStagedPictures(pictureIds) {
+  const ids = (Array.isArray(pictureIds) ? pictureIds : [])
+    .map((x) => String(x || '').trim()).filter(Boolean)
+  if (!ids.length) throw new Error('No pictures selected to name.')
+  try {
+    const res = await nameBankPicturesCallable({ pictureIds: ids })
+    return res?.data || { named: 0, total: ids.length, warnings: [] }
+  } catch (err) {
+    const code = err?.code || ''
+    if (code.includes('permission-denied')) {
+      throw new Error('Only admins can auto-name pictures.')
+    }
+    if (code.includes('resource-exhausted')) {
+      throw new Error('The AI is busy right now — wait a moment and try again.')
+    }
+    throw new Error(err?.message || 'Auto-naming failed. Please try again.')
+  }
+}
+
+/**
  * Admin: generate a picture with AI (existing generateDiagram callable —
  * Recraft line art by default) and save it into the bank as active.
  */
@@ -218,4 +333,38 @@ export async function generateBankPicture({ prompt, name, keywords, subject, gra
     updatedAt: serverTimestamp(),
   })
   return { id: ref.id, url }
+}
+
+/**
+ * Teacher submission: send a finished Visual Studio picture into the shared
+ * bank as STAGED, awaiting admin review/tagging. firestore.rules lets a teacher
+ * CREATE a staged doc (source:'teacher', createdBy == uid) but not activate,
+ * edit or delete bank pictures — the admin does that via the existing
+ * "Needs tagging" queue in PictureBankAdmin.
+ */
+export async function submitPictureToBank({ url, storagePath = '', name, keywords, subject, gradeBand, uid }) {
+  if (!url) throw new Error('Nothing to submit — generate or open a picture first.')
+  if (!uid) throw new Error('Please sign in.')
+  const cleanName = String(name || 'Untitled picture').trim().slice(0, 120)
+  const kw = normaliseKeywords(keywords?.length ? keywords : cleanName)
+
+  const ref = doc(collection(db, 'pictureBank'))
+  await setDoc(ref, {
+    id: ref.id,
+    name: cleanName,
+    nameLower: cleanName.toLowerCase(),
+    subject: String(subject || PICTURE_BANK_SUBJECTS_GENERIC).toLowerCase(),
+    gradeBand: String(gradeBand || ''),
+    keywords: kw,
+    storagePath: storagePath || '',
+    url,
+    contentType: 'image/png',
+    source: 'teacher',
+    status: 'staged',
+    sourceNote: `Submitted from Visual Studio${uid ? ` by ${uid}` : ''}`,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
 }

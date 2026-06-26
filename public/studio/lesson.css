@@ -6,7 +6,7 @@
 #view-plans .app{display:grid;grid-template-columns:360px 1fr;min-height:100vh}
 @media(max-width:980px){#view-plans .app{grid-template-columns:1fr}.sidebar{position:fixed;inset:0 12% 0 0;z-index:50;transform:translateX(-100%);transition:transform .3s;box-shadow:4px 0 24px rgba(0,0,0,.35);width:auto;max-width:420px}.sidebar.open{transform:translateX(0)}.scrim{position:fixed;inset:0;background:rgba(28,22,18,.55);z-index:49;opacity:0;pointer-events:none;transition:opacity .3s}.scrim.show{opacity:1;pointer-events:all}}
 @media(max-width:600px){#view-plans .sidebar{inset:0;max-width:none;padding:20px 18px 28px}}
-.sidebar{background:#fffaf0;color:#0e2a32;padding:24px 22px 32px;overflow-y:auto;border-right:1px solid #0e2a32;box-shadow:inset -1px 0 0 rgba(14,42,50,.04)}
+.sidebar{background:rgba(255,250,240,.78);-webkit-backdrop-filter:blur(14px) saturate(135%);backdrop-filter:blur(14px) saturate(135%);color:#0e2a32;padding:24px 22px 32px;overflow-y:auto;border-right:1px solid rgba(14,42,50,.18);box-shadow:inset -1px 0 0 rgba(14,42,50,.04)}
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid rgba(255,255,255,.08)}
 .brand-mark{width:42px;height:42px;border-radius:8px;background:linear-gradient(135deg,var(--accent) 0%,#0d6b6b 100%);display:grid;place-items:center;font:800 22px/1 var(--font-display);color:#faf6ef;box-shadow:inset 0 -2px 0 rgba(0,0,0,.2),0 4px 12px rgba(10,84,84,.4)}
 .brand-text h1{margin:0;font:700 16px/1.1 var(--font-display);color:#faf6ef;letter-spacing:-.01em}
@@ -79,7 +79,8 @@
 .doc-wrap{width:100%;max-width:794px;margin:0 auto;background:#fff;box-shadow:0 1px 0 rgba(28,22,18,.04),0 12px 40px -8px rgba(28,22,18,.12),0 4px 12px -4px rgba(28,22,18,.08);border-radius:4px;overflow:hidden;position:relative}
 .doc-wrap::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent) 0%,var(--accent) 33%,var(--gold) 33%,var(--gold) 66%,var(--accent-2) 66%,var(--accent-2) 100%)}
 .doc{padding:14mm 18mm 22mm;font-family:var(--font-doc);font-size:var(--doc-font-size);line-height:1.55;color:var(--ink);min-height:1080px}
-@media(max-width:720px){.doc{padding:18mm 12mm}}
+@media(max-width:720px){.doc{padding:14mm 8mm}}
+@media screen and (max-width:480px){.doc{padding:10mm 5mm}}
 .doc:focus{outline:none}
 .doc[contenteditable="true"]{outline:2px dashed var(--accent);outline-offset:-8px}
 .doc-head{text-align:center;margin-bottom:10px;padding-bottom:8px}
@@ -215,12 +216,26 @@
 .c2-stage-table{table-layout:fixed}
 .c2-stage-table th.col-head,.c2-stage-table td{width:33.33%}
 .c2-stage-table td + td{border-left:1px solid var(--line)}
+/* Honour the declared column percentages on every progression table — not
+   just c2-stage-table. Without table-layout:fixed the browser falls back to
+   auto sizing on narrow viewports: the multi-column table grows past 100% of
+   the page and the .doc-wrap{overflow:hidden} clips the right-most column
+   (e.g. ASSESSMENT CRITERIA vanishes off-screen on phones). Fixed layout pins
+   each column to its percentage; overflow-wrap lets long tokens (formulae like
+   R/100)^T) break instead of pushing the table wide. */
+.lp-table,.stage-table{table-layout:fixed}
+.lp-table th,.lp-table td,.stage-table th,.stage-table td{overflow-wrap:break-word;word-break:break-word}
 .idc-table{width:calc(100% - 16px);margin:6px 0 10px 16px;border-collapse:collapse;font-size:10pt}
 .idc-table th,.idc-table td{padding:6px 9px;text-align:left;vertical-align:top;border:1px solid var(--line)}
 .idc-table thead th{background:var(--paper-2);font:700 9.5pt/1.2 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
 .idc-table th:first-child{width:25%}
 .diagram-wrap{position:relative;margin:14px 0;padding:10px;border:1px dashed var(--line-2);border-radius:4px;display:inline-block;max-width:100%}
 .diagram-caption{font:italic 10pt/1.2 var(--font-doc);text-align:center;margin-top:6px;color:var(--muted)}
+/* AI-supplied diagrams rendered inside a stage cell — keep the SVG within the
+   column width so the progression table never blows out on narrow cells. */
+.stage-diagrams{margin-top:8px}
+.stage-diagrams .diagram-wrap{display:block;margin:8px 0;padding:6px}
+.lp-table .diagram-wrap svg,.stage-table .diagram-wrap svg,.stage-diagrams svg{max-width:100%;height:auto}
 .empty-state{text-align:center;padding:80px 20px;color:var(--muted)}
 .empty-state .glyph{width:84px;height:84px;margin:0 auto 18px;background:var(--paper-2);border-radius:50%;display:grid;place-items:center;border:1px dashed var(--line-2)}
 .empty-state h2{font:600 22px/1.2 var(--font-display);color:var(--ink);margin:0 0 8px}
@@ -239,6 +254,7 @@
 .modal-head .close{background:none;border:none;cursor:pointer;padding:6px;border-radius:4px;color:var(--ink-2)}
 .modal-head .close:hover{background:rgba(0,0,0,.06)}
 .modal-body{padding:20px 22px}
+@media(max-width:600px){.modal-scrim{padding:0}.modal{border-radius:0;max-height:100svh;max-height:100vh}.modal-head{border-radius:0}}
 .diagram-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
 .diagram-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center}
 .diagram-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
@@ -257,7 +273,24 @@
 .btn-solid:hover{background:#0d6b6b}
 .btn-outline{padding:9px 16px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:5px;font-weight:600;font-size:13px;cursor:pointer}
 .btn-outline:hover{background:var(--paper-2)}
+.btn-solid:disabled{opacity:.55;cursor:not-allowed}
 .helper{font-size:11px;color:#a89880;margin-top:4px;line-height:1.4}
+/* ---- AI Illustration panel (Insert Diagram modal) ---- */
+.ai-illus-intro{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 14px}
+.ai-illus .config-field{margin-bottom:12px}
+.ai-illus label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.ai-illus textarea,.ai-illus input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:5px;font-family:var(--font-body);font-size:13px;background:#fff;resize:vertical}
+.ai-illus textarea:focus,.ai-illus input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,84,84,.1)}
+.ai-illus-status{margin-top:10px;font-size:12.5px;line-height:1.4}
+.ai-illus-busy{color:var(--accent)}
+.ai-illus-err{color:#b8492a}
+.ai-illus-result{margin-top:14px}
+.ai-illus-preview{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;place-items:center;min-height:160px}
+.ai-illus-preview img{max-width:100%;max-height:340px;display:block}
+/* Sidebar "Add an AI picture" entry point (Format & Options) */
+.lp-illustrate-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:10px 14px;background:#fff;color:var(--accent);border:1.5px solid var(--accent);border-radius:7px;font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;transition:background .15s,color .15s}
+.lp-illustrate-btn:hover{background:var(--accent);color:#fff}
+.lp-illustrate-btn svg{flex-shrink:0}
 
 /* ============ BRAND LOGO IMAGE ============ */
 .brand picture{display:inline-flex;flex-shrink:0}
@@ -497,6 +530,39 @@
   .format-preview-scale .doc{padding:10mm 8mm;font-size:9.5pt}
   .format-preview-scale .doc-head .school{font-size:16pt}
   .format-preview-scale .doc-head .lp-title{font-size:13pt}
+}
+
+/* ============ REVIEW & GENERATE MODAL (13-review.js) ============
+   A consolidated confirmation card shown before a generation runs: echoes the
+   teacher's choices and the targeted CBC competence, so they generate with
+   confidence (and don't burn a daily-cap credit on a wrong setup). Styled to
+   sit inside the shared .modal shell. */
+.lp-review{font-family:var(--font-body)}
+.lp-review-banner{background:linear-gradient(135deg,#0e2a32 0%,#13414a 100%);color:#f5ebd9;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+.lp-review-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9fc9c2;margin-bottom:6px}
+.lp-review-title{font:700 20px/1.2 var(--font-display);margin-bottom:4px}
+.lp-review-sub{font-size:12.5px;color:#cfe3df}
+.lp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+.lp-review-cell-full{grid-column:1/-1}
+.lp-review-k{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9a8b76;margin-bottom:3px}
+.lp-review-v{font-size:13.5px;color:var(--ink);line-height:1.45}
+.lp-review-muted{color:#a89880;font-style:italic}
+.lp-review-chip{display:inline-block;background:rgba(255,122,46,.1);border:1px solid rgba(255,122,46,.28);color:#b8492a;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:0 5px 5px 0}
+.lp-review-breakdown{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.lp-review-foci{list-style:none;margin:6px 0 0;padding:0}
+.lp-review-foci li{font-size:13px;color:var(--ink);padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:10px;align-items:baseline}
+.lp-review-foci li:last-child{border-bottom:none}
+.lp-review-ln{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ff7a2e;min-width:64px}
+.lp-review-cbc{margin-top:16px;background:var(--paper-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:13px 15px}
+.lp-review-cbc-label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
+.lp-review-comp{font-size:13.5px;color:var(--ink);line-height:1.5}
+.lp-review-standard{font-size:12px;color:#6e6253;margin-top:7px;line-height:1.45}
+.lp-review-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--line);background:var(--paper-2);position:sticky;bottom:0}
+.lp-review-actions .btn-solid{display:inline-flex;align-items:center;gap:7px}
+@media(max-width:600px){
+  .lp-review-grid{grid-template-columns:1fr;gap:12px}
+  .lp-review-actions{flex-direction:column-reverse}
+  .lp-review-actions .btn-solid,.lp-review-actions .btn-outline{width:100%}
 }
 
 /* ── Print: only the lesson plan, never the studio chrome ──────────────────

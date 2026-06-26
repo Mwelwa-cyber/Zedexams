@@ -3,6 +3,8 @@
  * matching the school-printed handout style head teachers expect.
  */
 
+import { saveBlob } from './saveBlob.js'
+import { sanitizeXmlText } from './xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -18,15 +20,19 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 
-const CELL_BORDER = {
-  top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-  bottom: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-  left:   { style: BorderStyle.SINGLE, size: 4, color: '888888' },
-  right:  { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+// Brand ink for the title rules + a fully-borderless cell, so the metadata
+// strip reads as plain "Label: value" lines (like a lesson plan header) rather
+// than a boxed grid.
+const RULE = { style: BorderStyle.SINGLE, size: 8, color: '0E2A32' }
+const NONE = { style: BorderStyle.NONE, size: 0, color: 'auto' }
+const NO_CELL_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE }
+
+function formatSubject(s) {
+  return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function text(str, opts = {}) {
-  return new TextRun({ text: str == null ? '' : String(str), ...opts })
+  return new TextRun({ text: sanitizeXmlText(str), ...opts })
 }
 
 function para(runs, opts = {}) {
@@ -34,15 +40,6 @@ function para(runs, opts = {}) {
     children: Array.isArray(runs) ? runs : [runs],
     spacing: { after: 80 },
     ...opts,
-  })
-}
-
-function h1(str) {
-  return new Paragraph({
-    children: [text(str, { bold: true, size: 32 })],
-    heading: HeadingLevel.HEADING_1,
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 200 },
   })
 }
 
@@ -77,33 +74,59 @@ function numbered(str, idx) {
   })
 }
 
-function cell(content, {width, shading} = {}) {
-  const paras = Array.isArray(content) ? content : [content]
-  return new TableCell({
-    children: paras,
-    width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
-    borders: CELL_BORDER,
-    ...(shading ? { shading: { fill: shading } } : {}),
+// School name, centred and large — the top line of the document, like a
+// lesson plan.
+function schoolHeading(name) {
+  return new Paragraph({
+    children: [text(name, { bold: true, size: 34 })],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 40 },
   })
 }
 
-function metadataTable(header) {
+// "<Subject> Teaching Notes" — centred, spaced caps, ruled top and bottom, so
+// it mirrors the lesson plan's title block.
+function docTitle(str) {
+  return new Paragraph({
+    children: [text(String(str).toUpperCase(), { bold: true, size: 26, color: '0E2A32' })],
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 40, after: 160 },
+    border: { top: { ...RULE, space: 4 }, bottom: { ...RULE, space: 4 } },
+  })
+}
+
+// Borderless "Label: value" strip ruled top and bottom — the lesson date and
+// the rest of the lesson metadata, laid out to the left. Subject lives in the
+// title above, so it's left out here.
+function metaStrip(header) {
   const rows = [
+    ['Teacher', header.teacherName],
+    ['Date', header.date],
+    ['Class', header.grade],
     ['Topic', header.topic],
     ['Sub-topic', header.subtopic],
-    ['Grade', header.grade],
-    ['Subject', header.subject],
     ['Duration', header.durationMinutes ? `${header.durationMinutes} min` : ''],
     ['Medium', header.language],
-    ['School', header.school],
-    ['Teacher', header.teacherName],
   ].filter(([, v]) => v)
+  if (rows.length === 0) return null
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: RULE, bottom: RULE, left: NONE, right: NONE,
+      insideHorizontal: NONE, insideVertical: NONE,
+    },
     rows: rows.map(([k, v]) => new TableRow({
       children: [
-        cell(para(text(k, { bold: true, size: 18 })), { width: 30, shading: 'F3F4F6' }),
-        cell(para(text(String(v), { size: 18 })), { width: 70 }),
+        new TableCell({
+          width: { size: 26, type: WidthType.PERCENTAGE },
+          borders: NO_CELL_BORDERS,
+          children: [para(text(`${k}:`, { bold: true, size: 18 }))],
+        }),
+        new TableCell({
+          width: { size: 74, type: WidthType.PERCENTAGE },
+          borders: NO_CELL_BORDERS,
+          children: [para(text(String(v), { size: 18 }))],
+        }),
       ],
     })),
   })
@@ -112,9 +135,13 @@ function metadataTable(header) {
 export function buildNotesDocument(notes, opts = {}) {
   const children = []
   const header = notes.header || {}
+  const subjectLabel = formatSubject(header.subject)
+  const docTitleText = subjectLabel ? `${subjectLabel} Teaching Notes` : 'Teaching Notes'
 
-  children.push(h1(header.title || 'Teacher Notes'))
-  children.push(metadataTable(header))
+  if (header.school) children.push(schoolHeading(header.school))
+  children.push(docTitle(docTitleText))
+  const strip = metaStrip(header)
+  if (strip) children.push(strip)
   children.push(para(text(' ', { size: 14 })))
 
   // Lesson Opener
@@ -240,7 +267,7 @@ export function buildNotesDocument(notes, opts = {}) {
 
   return new Document({
     creator: 'zedexams.com',
-    title: header.title || 'Teacher Notes',
+    title: sanitizeXmlText(docTitleText),
     description: 'Generated by ZedExams Teacher Tools',
     styles: {
       default: { document: { run: { font: 'Calibri', size: 20 } } },
@@ -252,17 +279,5 @@ export function buildNotesDocument(notes, opts = {}) {
 export async function downloadNotesDocx(notes, filename = 'teacher-notes.docx', opts = {}) {
   const doc = buildNotesDocument(notes, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

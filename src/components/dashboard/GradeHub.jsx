@@ -47,22 +47,24 @@ import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
 import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
+import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import AssignmentsCard          from './AssignmentsCard'
-import ClassesQuickCard         from './ClassesQuickCard'
 import StudyPlanCard            from './StudyPlanCard'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
 import ThemeSelector            from '../ui/ThemeSelector'
 import MobileBottomNav          from '../layout/MobileBottomNav'
+import SuggestionNudge          from '../feedback/SuggestionNudge'
 import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
 import SeoHelmet                from '../seo/SeoHelmet'
 import { computeStreak }        from '../../utils/streak'
-import { getTodaysExamsBySubject, checkDailyLock } from '../../utils/examService'
+import { getTodaysExamsBySubject, checkTodaysLocks } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -85,7 +87,7 @@ const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // hosting weight. Intrinsic pixel dimensions are passed to the <img> so
 // the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
-  hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
+  hero:  { src: '/images/characters/zed-zara-reading.webp?v=2', width: 1200, height: 960 },
   exams: { src: '/images/characters/todays-exams.webp?v=1',     width: 1075, height: 971 },
   games: { src: '/images/characters/zed-games.webp?v=1',        width: 1140, height: 866 },
   notes:     { src: '/images/characters/notes-notebook.webp?v=1',       width: 822, height: 887 },
@@ -609,6 +611,9 @@ export default function GradeHub() {
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
   const navigate                             = useNavigate()
+  // LinkedIn-style: slide the dashboard header away on scroll-down for more
+  // reading space, reveal it on scroll-up.
+  const headerHidden = useHideOnScroll()
 
   // Learner's own grade as a number, validated against the supported set.
   // Null when the profile has no grade (e.g. teacher/admin viewing the
@@ -652,10 +657,18 @@ export default function GradeHub() {
   // "still loading" apart from "genuinely zero (coming soon)".
   const [quizCounts, setQuizCounts] = useState({})
 
+  // One results read drives the streak count, the recent-results strip, AND
+  // (when not pre-aggregated) the per-subject performance bars. These were two
+  // separate effects firing getUserResults(30) + getUserResults(50) on every
+  // mount; merged into a single getUserResults(50). The first 30 are sliced off
+  // for the streak/recent count so those numbers stay identical to before, and
+  // the full 50 feed the per-subject averages exactly as the old derived path
+  // did.
   useEffect(() => {
     if (!currentUser) {
       setRecentResults([])
       setStats({ quizzes: 0, streak: 0 })
+      setPerfBySubject({})
       setLoading(false)
       return undefined
     }
@@ -663,43 +676,14 @@ export default function GradeHub() {
     let cancelled = false
     setLoading(true)
 
-    // Fetch 30 most recent so the streak count is accurate up to a 30-day
-    // run; the recent-results section below slices to the first 5 for
-    // display. The total payload is still small (~30 result docs).
-    getUserResults(currentUser.uid, 30).then(results => {
-      if (cancelled) return
-      setRecentResults(results)
-      // Streak is computed client-side from the loaded attempt timestamps;
-      // userProfile.currentStreak isn't written by the app today, so this
-      // replaces the previous always-0 fallback. Once a Cloud Function /
-      // user document field is added (audit A5), prefer that and keep this
-      // as the offline / first-load fallback.
-      const streak = computeStreak(results.map(r => r.completedAt ?? r.createdAt))
-      setStats({ quizzes: results.length, streak })
-      setLoading(false)
-    }).catch(err => {
-      if (cancelled) return
-      console.error('GradeHub results:', err)
-      setRecentResults([])
-      setStats({ quizzes: 0, streak: 0 })
-      setLoading(false)
-    })
-
-    return () => { cancelled = true }
-  }, [currentUser, userProfile, getUserResults])
-
-  // Per-subject performance: prefer pre-aggregated userProfile.performance
-  // when available, otherwise derive from the last 50 results. One extra
-  // Firestore read per session in the derived path.
-  useEffect(() => {
-    if (!currentUser) {
-      setPerfBySubject({})
-      return undefined
-    }
-    // Always re-key onto the canonical subject label so the subject cards
-    // (which read perfBySubject[subject.label]) line up no matter whether the
-    // source keyed by id, label, or a legacy spelling.
-    if (userProfile?.performance && typeof userProfile.performance === 'object') {
+    // Prefer pre-aggregated userProfile.performance when present; re-key onto
+    // the canonical subject label so the subject cards (which read
+    // perfBySubject[subject.label]) line up no matter whether the source keyed
+    // by id, label, or a legacy spelling. When absent, we derive it from the
+    // fetched results below.
+    const haveAggregatedPerf =
+      userProfile?.performance && typeof userProfile.performance === 'object'
+    if (haveAggregatedPerf) {
       const norm = {}
       Object.entries(userProfile.performance).forEach(([s, v]) => {
         if (typeof v !== 'number') return
@@ -707,28 +691,46 @@ export default function GradeHub() {
         norm[key] = v
       })
       setPerfBySubject(norm)
-      return undefined
     }
 
-    let cancelled = false
     getUserResults(currentUser.uid, 50).then(results => {
       if (cancelled) return
-      const acc = {}
-      results.forEach(r => {
-        if (!r.subject || typeof r.percentage !== 'number') return
-        const key = resolveSubject(r.subject)?.label ?? r.subject
-        acc[key] ??= { sum: 0, n: 0 }
-        acc[key].sum += r.percentage
-        acc[key].n   += 1
-      })
-      const out = {}
-      Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
-      setPerfBySubject(out)
+      // First 30 → streak + count (identical to the old getUserResults(30)).
+      const recent = results.slice(0, 30)
+      setRecentResults(recent)
+      // Streak is computed client-side from the loaded attempt timestamps;
+      // userProfile.currentStreak isn't written by the app today, so this
+      // replaces the previous always-0 fallback. Once a Cloud Function /
+      // user document field is added (audit A5), prefer that and keep this
+      // as the offline / first-load fallback.
+      const streak = computeStreak(recent.map(r => r.completedAt ?? r.createdAt))
+      setStats({ quizzes: recent.length, streak })
+      setLoading(false)
+
+      // Full 50 → per-subject averages (identical to the old derived path).
+      if (!haveAggregatedPerf) {
+        const acc = {}
+        results.forEach(r => {
+          if (!r.subject || typeof r.percentage !== 'number') return
+          const key = resolveSubject(r.subject)?.label ?? r.subject
+          acc[key] ??= { sum: 0, n: 0 }
+          acc[key].sum += r.percentage
+          acc[key].n   += 1
+        })
+        const out = {}
+        Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
+        setPerfBySubject(out)
+      }
     }).catch(err => {
       if (cancelled) return
-      console.error('GradeHub performance:', err)
-      setPerfBySubject({})
+      console.error('GradeHub results:', err)
+      setRecentResults([])
+      setStats({ quizzes: 0, streak: 0 })
+      // Leave a pre-aggregated perf map intact on a results-fetch failure.
+      if (!haveAggregatedPerf) setPerfBySubject({})
+      setLoading(false)
     })
+
     return () => { cancelled = true }
   }, [currentUser, userProfile, getUserResults])
 
@@ -765,14 +767,15 @@ export default function GradeHub() {
     }
     let cancelled = false
     const grade = userProfile?.grade || '5'
-    getTodaysExamsBySubject(grade).then(examMap => Promise.all(
-      SUBJECTS.map(async subject => {
-        const exam = examMap.get(subject.label) || null
-        const lock = await checkDailyLock(currentUser.uid, subject.label)
-        return { exam, lock }
-      }),
-    )).then(rows => {
+    Promise.all([
+      getTodaysExamsBySubject(grade),
+      checkTodaysLocks(currentUser.uid),
+    ]).then(([examMap, lockMap]) => {
       if (cancelled) return
+      const rows = SUBJECTS.map(subject => ({
+        exam: examMap.get(subject.label) || null,
+        lock: lockMap.get(subject.label) || null,
+      }))
       const scheduled = rows.filter(r => r.exam)
       const submitted = scheduled.filter(r => r.lock?.status === 'submitted')
       setDailyGoal({ done: submitted.length, total: scheduled.length })
@@ -1042,11 +1045,13 @@ export default function GradeHub() {
       <GameStickerStyles />
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
-      <header className="learner-dashboard-header sticky top-0 z-30 theme-card border-b theme-border shadow-sm">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-          <Logo variant="full" size="sm" />
+      <header className={`learner-dashboard-header sticky top-0 z-30 border-b zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0 shrink">
+            <Logo variant="full" size="sm" />
+          </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2">
             <HeaderIconLink to="/my-results" label="Progress" icon={BarChart3} />
 
             <ThemeSelector dashboardStyle={true} />
@@ -1119,12 +1124,10 @@ export default function GradeHub() {
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={User} size="sm" strokeWidth={2.1} /> My Profile
                     </Link>
-                    {!isAdmin && !isTeacher && (
-                      <Link to="/classes" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-                        <Icon as={GraduationCap} size="sm" strokeWidth={2.1} /> My Classes
-                      </Link>
-                    )}
+                    <Link to="/my-subscription" onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
+                      <Icon as={Sparkles} size="sm" strokeWidth={2.1} /> My Subscription
+                    </Link>
                     <Link to="/my-results" onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={BarChart3} size="sm" strokeWidth={2.1} /> My Results
@@ -1165,37 +1168,46 @@ export default function GradeHub() {
           }`}
           data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
-          {/* Large character art blended into the hero as a background layer.
-              Skipped in data-saver so the image never downloads on metered
-              connections. The wash re-paints the themed gradient over the text
-              column for contrast, then fades out so the art melts into the
-              card on the right instead of looking pasted on top. */}
+          {/* Ambient sparkle. The big character art used to be a half-card
+              background layer here (with a gradient "wash" for text contrast),
+              which forced the welcome content into a narrow left column so the
+              stats, buttons and pills each wrapped onto their own line and made
+              the hero very tall. The art now lives as a compact top-right
+              thumbnail (see below) and the content spans the full width, so it
+              collapses onto far fewer rows. Skipped in data-saver. */}
           {!dataSaver && (
             <>
-              <img
-                src={DASHBOARD_CHARACTERS.hero.src}
-                alt=""
-                aria-hidden="true"
-                width={DASHBOARD_CHARACTERS.hero.width}
-                height={DASHBOARD_CHARACTERS.hero.height}
-                loading="eager"
-                decoding="async"
-                className="zx-hero-bg"
-              />
-              <div className="zx-hero-wash" aria-hidden="true" />
-              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s',   zIndex: 2 }} />
-              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s', zIndex: 2 }} />
+              {/* Kept clear of the left-hand welcome copy / button column so
+                  they read as ambient sparkle rather than artifacts sitting on
+                  top of the text. Anchored to the upper band and right edge. */}
+              <FloatingStar style={{ top: '10%', left: '52%', fontSize: 12, animationDelay: '0s', zIndex: 2 }} />
+              <FloatingStar style={{ top: '46%', left: '93%', fontSize: 10, animationDelay: '1s', zIndex: 2 }} />
+              <FloatingStar style={{ top: '76%', left: '88%', fontSize: 9,  animationDelay: '2s', zIndex: 2 }} />
             </>
           )}
 
-          <div className="relative z-10 max-w-[58%] min-w-0">
-            <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-              Welcome back
-            </p>
-            <h1 className="text-display-xl text-white">{firstName}!</h1>
-            <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="mb-1 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  Welcome back
+                </p>
+                <h1 className="text-display-xl text-white">{firstName}!</h1>
+                <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
+              </div>
+              {!dataSaver && (
+                <img
+                  src={DASHBOARD_CHARACTERS.hero.src}
+                  alt=""
+                  aria-hidden="true"
+                  width={DASHBOARD_CHARACTERS.hero.width}
+                  height={DASHBOARD_CHARACTERS.hero.height}
+                  loading="eager"
+                  decoding="async"
+                  className="zx-hero-art"
+                />
+              )}
+            </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-4">
               <div>
@@ -1225,7 +1237,7 @@ export default function GradeHub() {
               </Link>
               <Link
                 to="/my-results"
-                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-white/30 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/70 bg-white/15 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/25"
               >
                 <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
                 My Results
@@ -1234,7 +1246,7 @@ export default function GradeHub() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {userProfile?.grade && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/55 bg-white/15 px-2.5 py-1 text-xs font-black text-white">
                   <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
                   Grade {userProfile.grade}
                 </span>
@@ -1242,7 +1254,7 @@ export default function GradeHub() {
               {dailyGoal.total > 0 && (
                 <Link
                   to="/exams"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-50 transition-colors hover:bg-amber-400/30"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-500/35 px-2.5 py-1 text-xs font-black text-white transition-colors hover:bg-amber-500/45"
                 >
                   <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
                   Today&rsquo;s Goal · {dailyGoal.done}/{dailyGoal.total} activities
@@ -1252,6 +1264,10 @@ export default function GradeHub() {
           </div>
         </section>
 
+        {/* Subscription reminder — Free/Expired learners get an upgrade card
+            listing their Pro benefits; self-hides once they're Pro/Trial. */}
+        <SubscriptionReminderCard audience="learner" />
+
         {/* Audit A8 — verify-email reminder. Self-hides for already-
             verified accounts (incl. Google sign-in) and dismissed sessions. */}
         <VerifyEmailBanner />
@@ -1259,9 +1275,6 @@ export default function GradeHub() {
             Self-hides when the learner has no classes or no active
             assignments yet. */}
         <AssignmentsCard />
-        {/* "My classes" surface — exposes /classes/join from the
-            dashboard so learners can paste a teacher invite code. */}
-        <ClassesQuickCard />
         <StudyPlanCard
           results={recentResults}
           weakTopics={weakTopics}
@@ -1588,43 +1601,6 @@ export default function GradeHub() {
             </div>
           </div>
 
-          {/* ── Past papers shortcut ────────────────────────────
-                ECZ only ships papers for Grades 7 and 12 (Grade 9 was
-                phased out). Of the GradeHub universe (4-7) that's just
-                Grade 7, so the contextual tile only renders for those
-                learners — the rest still reach /papers via the top-
-                level Past Papers action card and the navbar. Pre-
-                filtering the link with ?grade=7 lands them on a list
-                that's already scoped to their grade so they don't see
-                Grade 12 papers up top. */}
-          {userGrade === 7 && (
-            <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-violet-100 ring-1 ring-violet-200 text-violet-700">
-                  <Icon as={Files} size="lg" strokeWidth={2.2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-black theme-text text-sm">Past papers for Grade {userGrade}</p>
-                    <span className="rounded-full bg-violet-100 ring-1 ring-violet-200 px-2 py-0.5 text-[10px] font-black text-violet-700">
-                      ECZ
-                    </span>
-                  </div>
-                  <p className="theme-text-muted text-xs font-bold mt-0.5">
-                    Practise the questions from real ECZ exams · Timed mode · Mark schemes
-                  </p>
-                </div>
-                <Link
-                  to={`/papers?grade=${userGrade}`}
-                  className="min-h-0 inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-black shadow-sm bg-violet-600 text-white hover:opacity-90"
-                >
-                  Browse
-                  <Icon as={ChevronRight} size="xs" strokeWidth={2.4} />
-                </Link>
-              </div>
-            </div>
-          )}
-
           {/* ── Personalized For You (weak-topic chips) ──────── */}
           {weakTopics.length > 0 && (
             <div className="zx-card theme-card rounded-2xl border theme-border p-4">
@@ -1789,6 +1765,11 @@ export default function GradeHub() {
 
       {/* ──────────── MOBILE BOTTOM NAV ──────────────────────── */}
       <MobileBottomNav className="learner-bottom-nav" />
+
+      {/* Occasional, dismissible "suggest a subject / paper / feature" nudge —
+          mirrors the teacher dashboard. The once-a-day payment reminder popup
+          is mounted globally in App.jsx, so it already covers this surface. */}
+      <SuggestionNudge source="learner-dashboard" />
     </div>
   )
 }

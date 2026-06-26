@@ -20,6 +20,8 @@ import { LearnerNoteCard }     from '../components/LearnerNoteCard'
 import { isStudyTipsNote }     from '../lib/noteMeta'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import SeoHelmet               from '../../../components/seo/SeoHelmet'
+import Skeleton                from '../../../components/ui/Skeleton'
+import ContentLoadError        from '../../../components/ui/ContentLoadError'
 import '../styles/notes.css'
 
 export function LearnerNotesList() {
@@ -30,7 +32,7 @@ export function LearnerNotesList() {
   const [activeSubject, setActiveSubject] = useState('all')
   const [search, setSearch] = useState('')
 
-  const { notes, allNotes, countsBySubject, loading } =
+  const { notes, allNotes, countsBySubject, loading, error, reload } =
     useLearnerNotes({ grade, subject: activeSubject, search })
 
   const { progressById } = useNoteProgressMap()
@@ -77,9 +79,11 @@ export function LearnerNotesList() {
               Welcome back, <span className="font-display-italic">{firstName}.</span>
             </h1>
             <p className="text-base text-[#4A5A6E]">
-              {allNotes.length === 0
-                ? `Notes for Grade ${grade} are on the way.`
-                : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
+              {error && allNotes.length === 0
+                ? 'We hit a snag loading your notes.'
+                : allNotes.length === 0
+                  ? `Notes for Grade ${grade} are on the way.`
+                  : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
             </p>
           </div>
           {allNotes.length > 0 && (
@@ -115,10 +119,22 @@ export function LearnerNotesList() {
           </div>
         )}
 
-        {loading && allNotes.length === 0 && <SkeletonGrid />}
+        {/* A read failure must not masquerade as "no notes yet" — show a
+            retryable error instead of the empty state. */}
+        {error && allNotes.length === 0 ? (
+          <ContentLoadError
+            title="Couldn’t load your notes"
+            message="We couldn’t load your notes right now. Please check your connection and try again."
+            onRetry={reload}
+          />
+        ) : (
+          <>
+            {loading && allNotes.length === 0 && <SkeletonGrid />}
 
-        {!loading && allNotes.length === 0 && (
-          <EmptyState grade={grade} />
+            {!loading && allNotes.length === 0 && (
+              <EmptyState grade={grade} />
+            )}
+          </>
         )}
 
         {!loading && showTips && (
@@ -218,14 +234,14 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="notes-card p-5 animate-pulse">
+        <div key={i} className="notes-card p-5">
           <div className="flex gap-2 mb-3">
-            <div className="h-5 w-16 bg-neutral-100 rounded-full" />
-            <div className="h-5 w-12 bg-neutral-100 rounded-full" />
+            <Skeleton width={64} height={20} className="!rounded-full" />
+            <Skeleton width={48} height={20} className="!rounded-full" />
           </div>
-          <div className="h-7 bg-neutral-100 rounded w-3/4 mb-2" />
-          <div className="h-4 bg-neutral-100 rounded w-full mb-1" />
-          <div className="h-4 bg-neutral-100 rounded w-2/3" />
+          <Skeleton width="75%" height={28} className="!rounded mb-2" />
+          <Skeleton height={16} className="!rounded mb-1" />
+          <Skeleton width="66%" height={16} className="!rounded" />
         </div>
       ))}
     </div>

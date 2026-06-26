@@ -31,10 +31,23 @@ export const PLANS = {
     features: ['Demo quizzes (one per subject)', 'Basic results', 'Practice mode only'],
     locked:   ['All quizzes', 'Exam mode (timed)', 'Weakness analysis'],
   },
+  weekly: {
+    id: 'weekly',
+    name: 'Weekly',
+    tagline: 'Try it — pay by the week',
+    priceZMW: 15,
+    durationDays: 7,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '⚡',
+    features: ['Unlimited quizzes', 'Exam mode (timed)', 'Weakness analysis'],
+    locked: [],
+  },
   monthly: {
     id: 'monthly',
     name: 'Monthly',
-    tagline: 'Flexible — cancel anytime',
+    tagline: 'Best value — save vs weekly',
     priceZMW: 50,
     durationDays: 30,
     dailyQuizLimit: Infinity,
@@ -42,32 +55,6 @@ export const PLANS = {
     examMode: true,
     badge: '⭐',
     features: ['Unlimited quizzes', 'Exam mode (timed)', 'Weakness analysis', 'Priority support'],
-    locked: [],
-  },
-  termly: {
-    id: 'termly',
-    name: 'Termly',
-    tagline: 'Best value per term',
-    priceZMW: 120,
-    durationDays: 91,
-    dailyQuizLimit: Infinity,
-    weaknessAnalysis: true,
-    examMode: true,
-    badge: '🏆',
-    features: ['Everything in Monthly', 'Save 20% vs monthly', 'Valid for a full term'],
-    locked: [],
-  },
-  yearly: {
-    id: 'yearly',
-    name: 'Yearly',
-    tagline: 'Best deal — whole year',
-    priceZMW: 400,
-    durationDays: 365,
-    dailyQuizLimit: Infinity,
-    weaknessAnalysis: true,
-    examMode: true,
-    badge: '💎',
-    features: ['Everything in Termly', 'Save 33% vs monthly', 'Valid for a full year'],
     locked: [],
   },
 
@@ -168,15 +155,15 @@ export const PLANS = {
   },
 
   // ── Pro / Max tiers (matches /pricing marketing page) ──────────────────
-  // Kept alongside the legacy monthly/termly/yearly plans so existing
-  // subscribers keep their access; new subscriptions use these.
+  // Teacher plans. Kept alongside the learner weekly/monthly plans so
+  // existing subscribers keep their access; new subscriptions use these.
   pro_monthly: {
     id: 'pro_monthly',
     tier: 'pro',
     billing: 'monthly',
     name: 'Pro · Monthly',
     tagline: 'For the everyday teacher',
-    priceZMW: 79,
+    priceZMW: 59,
     durationDays: 30,
     dailyQuizLimit: Infinity,
     weaknessAnalysis: true,
@@ -185,14 +172,14 @@ export const PLANS = {
     features: [
       '40 lesson plans / month',
       '25 worksheets & teacher notes',
-      '8 assessments / month',
       '2 schemes of work / month',
+      '1 free assessment + exam paper to try',
       'Daily cap of 10 generations',
       'DOCX + PDF export',
       'Library kept forever',
       'Premium model quality',
     ],
-    locked: [],
+    locked: ['Unlimited assessments & exam papers (Max)'],
   },
   pro_yearly: {
     id: 'pro_yearly',
@@ -200,8 +187,8 @@ export const PLANS = {
     billing: 'yearly',
     name: 'Pro · Yearly',
     tagline: 'Two months free vs monthly',
-    priceZMW: 790,
-    monthlyEquivalentZMW: 65,
+    priceZMW: 590,
+    monthlyEquivalentZMW: 50,
     durationDays: 365,
     dailyQuizLimit: Infinity,
     weaknessAnalysis: true,
@@ -219,20 +206,20 @@ export const PLANS = {
     tier: 'max',
     billing: 'monthly',
     name: 'Max · Monthly',
-    tagline: 'For HoDs & heavy users',
-    priceZMW: 199,
+    tagline: 'For heavy users',
+    priceZMW: 149,
     durationDays: 30,
     dailyQuizLimit: Infinity,
     weaknessAnalysis: true,
     examMode: true,
     badge: '🦅',
     features: [
+      'Unlimited assessments & exam papers',
+      'The Assessment & Exam Paper studios — Max only',
       'Unlimited plans, notes & worksheets*',
-      'Unlimited assessments & schemes',
       'Daily cap of 30 generations',
       'Bulk export (whole term in one click)',
-      'Priority queue when servers are busy',
-      'Early access to new studios',
+      'Priority queue + early access to new studios',
       'Email support, 24h reply',
       '*Fair use ~200/month',
     ],
@@ -244,8 +231,8 @@ export const PLANS = {
     billing: 'yearly',
     name: 'Max · Yearly',
     tagline: 'Two months free vs monthly',
-    priceZMW: 1990,
-    monthlyEquivalentZMW: 165,
+    priceZMW: 1490,
+    monthlyEquivalentZMW: 125,
     durationDays: 365,
     dailyQuizLimit: Infinity,
     weaknessAnalysis: true,
@@ -305,17 +292,13 @@ export function hasPremiumAccess(userProfile) {
 // - Admins: always.
 // - Learners: their existing premium subscription IS their learner-portal
 //   subscription, so we fall back to hasPremiumAccess().
-// - Teachers: must have a SEPARATE active learner-portal subscription. Their
-//   teacher-portal premium does NOT grant learner access.
+// - Teachers: NEVER. The teacher and learner portals are fully separate — a
+//   teacher account cannot access the learner side (and there is no learner-
+//   portal subscription to buy from a teacher account).
 export function hasLearnerPortalAccess(userProfile) {
   if (!userProfile) return false
   if (isSuperAdmin(userProfile)) return true
-  if (userProfile.role === ROLES.TEACHER) {
-    if (userProfile.learnerPortalActive !== true) return false
-    const expiry = toDateValue(userProfile.learnerPortalExpiry)
-    if (!expiry) return true
-    return expiry > new Date()
-  }
+  if (userProfile.role === ROLES.TEACHER) return false
   // Learners (and anyone unknown) use the legacy premium gate so existing
   // free-tier rules (demo-only) still apply for non-premium learners.
   return hasPremiumAccess(userProfile)
@@ -327,6 +310,15 @@ export function getActivePlan(userProfile) {
   if (isSuperAdmin(userProfile)) return PLANS.max_yearly
   if (!hasPremiumAccess(userProfile)) return PLANS.free
   return PLANS[userProfile.subscriptionPlan] ?? PLANS.monthly
+}
+
+// Plain tier name for display: 'free' | 'pro' | 'max'.
+// Premium learner plans (weekly/monthly, grade7_*, etc. — which have no
+// `tier` field) count as 'max' per product naming.
+export function getPlanTier(userProfile) {
+  if (!hasPremiumAccess(userProfile)) return 'free'
+  const plan = getActivePlan(userProfile)
+  return plan?.tier === 'pro' ? 'pro' : 'max'
 }
 
 export function daysUntilExpiry(userProfile) {

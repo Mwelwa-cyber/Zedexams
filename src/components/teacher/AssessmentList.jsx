@@ -2,22 +2,26 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { getStudioVariant, isExamPaperType } from './studioVariant'
 
 const ASSESSMENT_TYPE_LABELS = {
-  weekly: 'Weekly test',
+  topic: 'Topic Test',
+  weekly: 'Weekly Test',
+  mid_term: 'Mid-Term Test',
+  end_of_term: 'End-of-Term Test',
+  mock: 'Mock Exam',
+  examination: 'Examination',
+  exam: 'Exam',
   monthly: 'Monthly test',
-  mid_term: 'Mid-term test',
-  end_of_term: 'End-of-term test',
-  topic: 'Topic test',
-  mock: 'Mock exam',
   diagnostic: 'Diagnostic / baseline',
   pre_test: 'Pre-test',
   post_test: 'Post-test',
@@ -35,17 +39,19 @@ function formatDate(ts) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function safeFileName(title, suffix) {
-  const base = String(title || 'assessment')
-    .replace(/[^a-zA-Z0-9 _-]/g, '')
-    .replace(/\s+/g, '-')
-    .slice(0, 80) || 'assessment'
-  return `${base}-${suffix}`
+function assessmentFileName(assessment, variant, ext = 'docx') {
+  return buildAssessmentName({
+    title: assessment.title,
+    grade: assessment.grade,
+    subject: assessment.subject,
+    variant,
+    ext,
+  })
 }
 
-function AssessmentRow({ assessment, onDelete, onExport, busy }) {
+function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallbackLabel }) {
   const id = assessment.id
-  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || 'Assessment'
+  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || fallbackLabel
   const [exporting, setExporting] = useState(null)
   const toast = useToast()
 
@@ -77,12 +83,12 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           🦅
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-sm leading-snug" style={{ color: '#0e2a32' }}>{assessment.title || 'Untitled assessment'}</p>
+          <p className="font-black text-sm leading-snug" style={{ color: '#0e2a32' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
           <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
             <span className="text-xs font-bold" style={{ color: '#566f76' }}>{typeLabel}</span>
             {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: '#0a5a35' }}>Grade {assessment.grade}</span>}
             {assessment.subject && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e3eef0', color: '#16505d' }}>{assessment.subject}</span>}
-            {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#f5efe1', color: '#566f76' }}>T{assessment.term}</span>}
+            {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>T{assessment.term}</span>}
             {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
             {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#c2531a' }}>{assessment.duration} min</span>}
             {/* Phase 7: surface import-review state on the list so the teacher
@@ -99,7 +105,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          to={`/teacher/assessments/${id}/edit`}
+          to={`${routeBase}/${id}/edit`}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold no-underline transition-colors"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
@@ -112,7 +118,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
-          {exporting === 'docx-paper' ? 'Building…' : '📄 Paper (DOCX)'}
+          {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
         </button>
         <button
           type="button"
@@ -130,16 +136,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
           style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
         >
-          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (DOCX)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf', 'scheme')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
-        >
-          {exporting === 'pdf-scheme' ? 'Opening…' : '🗒️ Scheme (PDF)'}
+          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (Word)'}
         </button>
         <button
           type="button"
@@ -155,11 +152,16 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
   )
 }
 
-export default function AssessmentList() {
+export default function AssessmentList({ variant = 'test' }) {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
+  // Shared library backs both the Test Paper Studio and the Exam Studio; `cfg`
+  // carries the route base + wording, and we filter the one collection so each
+  // studio's library only lists its own papers.
+  const cfg = getStudioVariant(variant)
+  const isExamStudio = cfg.key === 'exam'
 
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -179,7 +181,10 @@ export default function AssessmentList() {
       setLoading(true)
       try {
         const items = await getMyAssessments(currentUser.uid)
-        if (!cancelled) setAssessments(items)
+        const scoped = (Array.isArray(items) ? items : []).filter(
+          a => isExamPaperType(a.assessmentType) === isExamStudio,
+        )
+        if (!cancelled) setAssessments(scoped)
       } catch (err) {
         if (!cancelled) setError(err.message || 'Failed to load assessments.')
       } finally {
@@ -188,7 +193,7 @@ export default function AssessmentList() {
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser?.uid, getMyAssessments])
+  }, [currentUser?.uid, getMyAssessments, isExamStudio])
 
   async function confirmDelete() {
     const assessment = pendingDelete
@@ -206,18 +211,24 @@ export default function AssessmentList() {
   }
 
   async function handleExport(assessment, format, mode, win = null) {
-    // Fetch the full question set on-demand so the list view stays cheap.
-    const questions = await getAssessmentQuestions(assessment.id)
-    const filename = safeFileName(
-      assessment.title,
-      mode === 'paper' ? 'paper' : 'marking-scheme',
-    )
-    if (format === 'docx') {
-      await downloadAssessmentDocx(assessment, questions, `${filename}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
-    } else {
-      // Pass the pre-opened window so the browser doesn't treat this as a
-      // popup (window.open was already called before the async fetch above).
-      printAssessmentAsPdf(assessment, questions, { mode, win })
+    try {
+      const questions = await getAssessmentQuestions(assessment.id)
+      if (!questions || questions.length === 0) {
+        toast.error('This assessment has no questions to export yet.')
+        return
+      }
+      const variant = mode === 'paper' ? undefined : 'Marking Key'
+      if (format === 'docx') {
+        const { downloadAssessmentDocx } = await import('../../utils/assessmentToDocx')
+        await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+        toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')
+      } else {
+        // Pass the pre-opened window so the browser doesn't treat this as a
+        // popup (window.open was already called before the async fetch above).
+        printAssessmentAsPdf(assessment, questions, { mode, win })
+      }
+    } catch (err) {
+      toast.error(`Export failed: ${err.message || 'unexpected error'}`)
     }
   }
 
@@ -225,7 +236,7 @@ export default function AssessmentList() {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(n => (
-          <div key={n} className="h-24 animate-pulse rounded-2xl" style={{ background: '#ece4d2', border: '2px solid #d9cfb8' }} />
+          <Skeleton key={n} height={96} className="!rounded-2xl" />
         ))}
       </div>
     )
@@ -233,7 +244,7 @@ export default function AssessmentList() {
 
   return (
     <div>
-      <SeoHelmet title="Assessments" noIndex />
+      <SeoHelmet title={cfg.NounPlural} noIndex />
       {/* Page header — brand on the left, action on the right */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
@@ -243,7 +254,7 @@ export default function AssessmentList() {
               ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
             </p>
             <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
-              Assessment Studio
+              {cfg.studioName}
             </p>
           </div>
         </Link>
@@ -271,25 +282,27 @@ export default function AssessmentList() {
             🦅 Sharp Eagle
           </span>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            My assessments
+            {cfg.heroTitle}
           </h1>
           <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Tests and exam papers you've created for your class — private to you, never shown to learners. Print, download as DOCX or PDF, or open the marking scheme.
+            {isExamStudio
+              ? "Mock and final examination papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."
+              : "Tests and exam papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."}
           </p>
           <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📄 DOCX + PDF export</span>
+            <span>📝 Word (.docx) export</span>
             <span>🗒️ Marking scheme</span>
             <span>🔒 Teacher-private</span>
           </div>
           <button
             type="button"
-            onClick={() => navigate('/teacher/assessments/new')}
+            onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
             style={{ background: '#ff7a2e', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
           >
-            ▶ New assessment
+            ▶ New {cfg.noun}
           </button>
         </div>
         <div
@@ -313,20 +326,22 @@ export default function AssessmentList() {
         >
           <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
           <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', marginBottom: 6 }}>
-            No assessments yet
+            No {cfg.nounPlural} yet
           </p>
           <p style={{ fontSize: 13, color: '#8a9aa1', margin: '0 0 16px' }}>
-            Create your first weekly test, mid-term, or end-of-term paper.
+            {isExamStudio
+              ? 'Create your first mock, examination, or exam paper.'
+              : 'Create your first weekly test, mid-term, or end-of-term paper.'}
           </p>
           <button
             type="button"
-            onClick={() => navigate('/teacher/assessments/new')}
+            onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2 rounded-xl font-bold transition-colors"
             style={{ background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
             onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
           >
-            + Create assessment
+            + Create {cfg.noun}
           </button>
         </div>
       ) : (() => {
@@ -351,7 +366,7 @@ export default function AssessmentList() {
               <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
                 {needsReviewOnly
                   ? `${visible.length} of ${assessments.length} need review`
-                  : `${assessments.length} assessment${assessments.length === 1 ? '' : 's'}`}
+                  : `${assessments.length} ${cfg.noun}${assessments.length === 1 ? '' : 's'}`}
               </h2>
               <button
                 type="button"
@@ -365,9 +380,9 @@ export default function AssessmentList() {
                   color: needsReviewOnly ? '#92400e' : '#374151',
                 }}
                 title={needsReviewOnly
-                  ? 'Click to show all assessments'
+                  ? `Click to show all ${cfg.nounPlural}`
                   : needsReviewCount > 0
-                    ? `${needsReviewCount} imported assessment${needsReviewCount === 1 ? '' : 's'} flagged for review`
+                    ? `${needsReviewCount} imported ${cfg.noun}${needsReviewCount === 1 ? '' : 's'} flagged for review`
                     : 'No imports currently need review'}
               >
                 ⚠️ Needs review
@@ -389,12 +404,14 @@ export default function AssessmentList() {
                   onDelete={setPendingDelete}
                   onExport={handleExport}
                   busy={busyId === a.id}
+                  routeBase={cfg.routeBase}
+                  fallbackLabel={cfg.Noun}
                 />
               ))}
             </div>
             {needsReviewOnly && visible.length === 0 && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
-                No assessments need review right now. Click the chip again to see all of them.
+                No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
               </p>
             )}
           </>
@@ -403,8 +420,8 @@ export default function AssessmentList() {
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        title="Delete this assessment?"
-        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || 'this assessment'}"</strong>. This cannot be undone.</>}
+        title={`Delete this ${cfg.noun}?`}
+        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
         confirmLabel="Delete"
         variant="danger"
         loading={Boolean(pendingDelete) && busyId === pendingDelete.id}

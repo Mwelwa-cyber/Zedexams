@@ -260,7 +260,7 @@ function TopicTreeSection({ topic, subtopics, expanded, onToggleTopic, expandedS
 
 function TopicSkeleton() {
   return (
-    <div className="zx-card theme-card rounded-2xl border theme-border p-4 animate-pulse">
+    <div className="zx-card theme-card rounded-2xl border theme-border p-4">
       <div className="flex items-center gap-3">
         <Skeleton shape="circle" size={44} />
         <div className="flex-1 space-y-2">

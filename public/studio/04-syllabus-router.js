@@ -119,6 +119,16 @@ function classToCbcGrade(klass) {
 // hardcoded syllabus, so an inexact alias is strictly better than missing.
 const SUBJECT_ALIAS = {
   'Mathematics': 'mathematics',
+  // Lower-Primary / ECE store the combined "Maths & Science" sheet under the
+  // `numeracy` slug, but the subject dropdown shows the 2023 learning-area
+  // label "Mathematics and Science" (see STUDIO_SUBJECT_LABELS in
+  // LessonPlanStudio.jsx + TEACHER_SUBJECTS). Without this explicit alias the
+  // generic slugify below turns the label into `mathematics_and_science`,
+  // which matches no curriculum-data.json rows — so the KB bridge fell through
+  // to a stale Firestore copy whose topic/sub-topic names were truncated
+  // ("2.1 EXPLORING MY" instead of "2.1 EXPLORING MY WORLD"). Mapping the
+  // label back to `numeracy` lets the merged source serve the full names.
+  'Mathematics and Science': 'numeracy',
   'Additional Mathematics': 'mathematics',
   'Advanced Mathematics': 'mathematics',
   'Further Mathematics': 'mathematics',
@@ -183,20 +193,23 @@ async function fetchTopicsForCurrentSelection() {
   // old-syllabus dropdowns, which is what teachers were noticing in the
   // wild. The Old syllabus has its own hardcoded data in 03-syllabus-old.js
   // and must use that exclusively.
-  if (syllabusVersion === 'new' && typeof window.__studioFetchSyllabusTopics === 'function') {
+  if (typeof window.__studioFetchSyllabusTopics === 'function') {
     const grade = classToCbcGrade(klass);
     const subject = subjectToCbcSubject(subj);
+    const framework = syllabusVersion === 'old' ? '2013' : '2023';
     if (grade && subject) {
-      const remote = await window.__studioFetchSyllabusTopics({ grade, subject });
+      const remote = await window.__studioFetchSyllabusTopics({ grade, subject, framework });
       if (remote && Object.keys(remote).length > 0) return remote;
     }
   }
 
   // 2. Manual curriculumTopics map (02b-curriculum-topics.js) — keyed by
-  // grade only. A fallback the user can extend by editing that file when
-  // the KB has no rows for the (grade, subject) pair.
-  if (window.curriculumTopics && window.curriculumTopics[klass]) {
-    return window.curriculumTopics[klass];
+  // grade THEN subject. A fallback the user can extend by editing that file
+  // when the KB has no rows for the (grade, subject) pair. The lookup is
+  // subject-scoped so one grade's topics can't leak into a sibling subject.
+  if (typeof window.curatedTopicsFor === 'function') {
+    const curated = window.curatedTopicsFor(klass, subj);
+    if (curated && Object.keys(curated).length > 0) return curated;
   }
 
   // 3. Legacy hardcoded syllabus.
@@ -260,6 +273,13 @@ function __studioInitSyllabus() {
       if (descEl) descEl.textContent = pair[1];
     });
   }
+  // The "write whole plan in local language" toggle only applies to the new
+  // (2023 CBC) syllabus — old-format system prompts don't handle it.
+  function refreshMediumToggleVisibility() {
+    const row = document.getElementById('t-plan-in-medium');
+    if (row) row.style.display = syllabusVersion === 'old' ? 'none' : '';
+  }
+  refreshMediumToggleVisibility();
   refreshFormatCardLabels();
 
   document.querySelectorAll('#syllabus-toggle .seg').forEach(btn => {
@@ -269,7 +289,9 @@ function __studioInitSyllabus() {
       const newVersion = btn.dataset.version;
       if (newVersion === syllabusVersion) return;
       syllabusVersion = newVersion;
+      try { localStorage.setItem('zx_studio_syllabus', newVersion); } catch (e) { /* private mode */ }
       document.querySelectorAll('#syllabus-toggle .seg').forEach(b => b.classList.toggle('active', b === btn));
+      refreshMediumToggleVisibility();
       refreshFormatCardLabels();
       populateClasses();
       updateSubjects().catch(err => console.warn('updateSubjects failed', err));

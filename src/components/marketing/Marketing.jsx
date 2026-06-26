@@ -20,7 +20,6 @@ import {
   Users,
   CheckCircleIcon,
   Lock,
-  FileText,
   Send,
   Mail,
   ChevronRight,
@@ -88,7 +87,7 @@ const PRICING = [
   },
   {
     title: 'Teachers',
-    price: 'Free, then K79/mo',
+    price: 'Free, then K59/mo',
     note: 'Pro · 10 generations a day',
     bullets: ['AI lesson plans', 'Worksheets & rubrics', 'DOCX / PDF export'],
     cta: { label: 'See teacher plans', to: '/pricing' },
@@ -115,7 +114,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K79/month for 10 a day and Max at K199/month for heavy users. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes.",
+    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K59/month for 10 a day and Max at K149/month for heavy users. Pay with Airtel Money, MTN MoMo or card right inside the app — your account unlocks instantly.",
   },
   {
     q: 'Is ZedExams safe for children?',
@@ -298,8 +297,9 @@ function DailyExamPreview() {
   )
 }
 
-// Mock teacher worksheet output — proves the "DOCX/PDF in seconds" claim.
-function WorksheetPreview() {
+// Mock teacher lesson-plan output — styled like a real printed A4 sheet to
+// prove the CBC lesson plan generator drafts a full, structured plan in seconds.
+function LessonPlanPreview() {
   return (
     <Card variant="elevated" size="lg" className="overflow-hidden">
       <div className="flex items-center justify-between mb-5">
@@ -308,14 +308,14 @@ function WorksheetPreview() {
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
             style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
           >
-            <Icon as={FileText} size="md" />
+            <Icon as={BookOpen} size="md" />
           </div>
           <div>
             <p className="text-xs font-black uppercase tracking-wider theme-text-muted">
-              Generated in 6 seconds
+              Generated in 7 seconds
             </p>
             <h3 className="font-display font-black text-lg leading-tight">
-              Grade 9 Maths · Percentages &amp; Money worksheet
+              Grade 6 Science · The Water Cycle lesson plan
             </h3>
           </div>
         </div>
@@ -324,31 +324,78 @@ function WorksheetPreview() {
         </span>
       </div>
 
-      <div className="rounded-2xl border theme-border bg-[color:var(--bg-subtle)] p-5 sm:p-6 space-y-4 font-body text-sm">
-        <p className="font-black theme-text">Name: ____________________   Date: __________</p>
-        <ol className="list-decimal pl-5 space-y-2.5 theme-text">
-          <li>
-            A shop marks up a bag of mealie-meal that costs{' '}
-            <span className="font-bold">K180</span> by <span className="font-bold">25%</span>.
-            Find the selling price.
-          </li>
-          <li>
-            Mwila deposits <span className="font-bold">K2 500</span> at{' '}
-            <span className="font-bold">8%</span> simple interest per year. How much interest
-            does she earn after 3 years?
-          </li>
-          <li>
-            A phone costs <span className="font-bold">K3 200</span> cash, or a{' '}
-            <span className="font-bold">K400</span> deposit plus 8 monthly payments of{' '}
-            <span className="font-bold">K380</span>. How much more is the hire-purchase price?
-          </li>
-          <li>Chanda scored 45 out of 60 in a test. Express this as a percentage.</li>
-          <li>
-            The price of a chitenge rose from <span className="font-bold">K90</span> to{' '}
-            <span className="font-bold">K117</span>. Calculate the percentage increase.
-          </li>
-        </ol>
-        <p className="theme-text-muted text-xs italic">…3 more questions on the printable page</p>
+      {/* A real printed A4 sheet — white page, ruled red margin, print serif type */}
+      <div className="relative overflow-hidden rounded-sm bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_24px_-6px_rgba(0,0,0,0.25)] ring-1 ring-slate-200">
+        {/* punched binder holes down the left edge */}
+        <div className="pointer-events-none absolute left-2 top-0 hidden h-full flex-col justify-center gap-8 sm:flex">
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />
+        </div>
+        {/* red ruled margin line */}
+        <div className="pointer-events-none absolute inset-y-0 left-8 hidden w-px bg-red-300/70 sm:block" />
+
+        <div className="px-6 py-6 font-serif text-[13px] leading-relaxed sm:pl-12 sm:pr-8">
+          {/* printed letterhead */}
+          <div className="border-b-2 border-double border-slate-400 pb-3 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-900">
+              Lesson Plan
+            </p>
+            <p className="mt-0.5 text-[11px] uppercase tracking-widest text-slate-500">
+              Republic of Zambia · CBC Syllabus
+            </p>
+          </div>
+
+          {/* form-style meta grid */}
+          <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Grade:</dt>
+              <dd className="text-slate-800">6</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Subject:</dt>
+              <dd className="text-slate-800">Science</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Topic:</dt>
+              <dd className="text-slate-800">The Water Cycle</dd>
+            </div>
+            <div className="flex gap-1.5">
+              <dt className="font-semibold text-slate-500">Duration:</dt>
+              <dd className="text-slate-800">80 min</dd>
+            </div>
+          </dl>
+
+          <div className="mt-4">
+            <p className="font-bold uppercase tracking-wide text-slate-900">Learning outcomes</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-700">
+              <li>Describe how water moves through evaporation, condensation and precipitation.</li>
+              <li>Relate the water cycle to rainfall and rivers in Zambia.</li>
+            </ul>
+          </div>
+
+          <div className="mt-4">
+            <p className="font-bold uppercase tracking-wide text-slate-900">Lesson development</p>
+            <ol className="mt-1 list-decimal space-y-1.5 pl-5 text-slate-700">
+              <li>
+                <span className="font-semibold text-slate-900">Introduction (10 min):</span> ask where
+                the water in the Zambezi comes from to surface prior ideas.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">Development (45 min):</span> demonstrate
+                evaporation with a kettle, then map each stage of the cycle on the board.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">Conclusion (15 min):</span> learners
+                draw and label their own water cycle in their books.
+              </li>
+            </ol>
+          </div>
+
+          <p className="mt-4 border-t border-dashed border-slate-300 pt-2 text-[11px] italic text-slate-400">
+            …materials, assessment and homework continue on the printable page
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -376,7 +423,7 @@ export default function Marketing() {
     setContactOpen(true)
   }
   return (
-    <div className="min-h-screen theme-bg theme-text font-body">
+    <div className="marketing-page min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
         title="Zambian CBC exam prep that fits the classroom"
         description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 4–7 learners. Printable lesson tools for Zambian teachers, all in one place."
@@ -402,10 +449,15 @@ export default function Marketing() {
       {/* Hero */}
       <section className="marketing-hero">
         <img
-          src="/images/characters/zed-zara-reading.webp"
+          src="/images/characters/zed-zara-reading.webp?v=2"
           alt=""
           className="marketing-hero-art"
           aria-hidden="true"
+          width="1402"
+          height="1122"
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
         />
         <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
           <div className="max-w-3xl">
@@ -552,7 +604,7 @@ export default function Marketing() {
         </div>
       </Section>
 
-      {/* Teacher proof — realistic worksheet output preview */}
+      {/* Teacher proof — realistic lesson-plan output preview */}
       <Section className="py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
           <div className="lg:col-span-5">
@@ -560,17 +612,17 @@ export default function Marketing() {
               For teachers
             </p>
             <h2 className="font-display font-black text-3xl sm:text-4xl mb-4">
-              Generate a worksheet in seconds.
+              Generate a lesson plan in seconds.
             </h2>
             <p className="theme-text-muted text-lg mb-6">
-              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned document drafted by
-              AI, ready to edit in Word — same lesson, less prep.
+              Give ZedExams the grade, subject, and topic. Get a structured, CBC-aligned lesson
+              plan — outcomes, lesson development, and assessment — ready to teach or edit in Word.
             </p>
             <ul className="space-y-2.5 theme-text-muted mb-7">
               {[
-                'Lesson plans, schemes of work, weekly forecasts, worksheets, term tests, flashcards and rubrics',
-                'Mark schedules that rank the class and turn into per-pupil report cards',
-                'Locally relevant examples (kwacha, Zambian names, local context)',
+                'Clear learning outcomes mapped to the official CBC syllabus',
+                'Timed introduction, development and conclusion you can teach straight from',
+                'Built-in assessment, materials list and homework — no extra prep',
               ].map((b) => (
                 <li key={b} className="flex gap-2.5">
                   <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
@@ -588,7 +640,7 @@ export default function Marketing() {
             </div>
           </div>
           <div className="lg:col-span-7">
-            <WorksheetPreview />
+            <LessonPlanPreview />
           </div>
         </div>
       </Section>
@@ -636,7 +688,7 @@ export default function Marketing() {
                 ))}
               </ul>
               {tier.upgradeIncludes && (
-                <p className="mb-5 text-xs leading-relaxed theme-text-muted/90 italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
+                <p className="mb-5 text-xs leading-relaxed theme-text-muted italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
                   {tier.upgradeIncludes}
                 </p>
               )}
@@ -777,9 +829,13 @@ export default function Marketing() {
       {/* Footer with visible contact */}
       <footer className="border-t theme-border">
         <Section className="py-10">
-          {/* Newsletter signup — audit C6, list builder. */}
-          <div className="mb-10 pb-8 border-b theme-border">
-            <NewsletterSignup source="marketing-footer" />
+          {/* Newsletter signup — audit C6, list builder. White card on the
+              cream footer so it reads as a sharp, deliberate surface rather
+              than fading into the background band. */}
+          <div className="mb-10">
+            <div className="theme-card border theme-border rounded-2xl shadow-elev-sm p-5 sm:p-6">
+              <NewsletterSignup source="marketing-footer" />
+            </div>
           </div>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -799,6 +855,7 @@ export default function Marketing() {
                 <li><Link to="/papers" className="hover:theme-text">ECZ past papers</Link></li>
                 <li><Link to="/games" className="hover:theme-text">CBC games</Link></li>
                 <li><Link to="/blog" className="hover:theme-text">Revision blog</Link></li>
+                <li><Link to="/company" className="hover:theme-text">Meet our AI team</Link></li>
               </ul>
             </div>
             <div>
@@ -808,6 +865,7 @@ export default function Marketing() {
               <ul className="space-y-2 text-sm theme-text-muted">
                 <li><Link to="/privacy" className="hover:theme-text">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="hover:theme-text">Terms &amp; Conditions</Link></li>
+                <li><Link to="/preferences" className="hover:theme-text">Privacy preferences</Link></li>
                 <li><Link to="/status" className="hover:theme-text">Service Status</Link></li>
               </ul>
             </div>
@@ -846,7 +904,7 @@ export default function Marketing() {
                     Contact form
                   </button>
                 </li>
-                <li className="theme-text-muted/80">
+                <li className="theme-text-muted">
                   <span className="inline-flex items-center gap-2">
                     <Icon as={ShieldCheck} size="sm" />
                     Schools & admins welcome
@@ -855,12 +913,13 @@ export default function Marketing() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-muted flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-help flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ZedExams. All rights reserved.</span>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <Link to="/privacy" className="hover:theme-text">Privacy</Link>
-              <Link to="/terms"   className="hover:theme-text">Terms</Link>
-              <Link to="/status"  className="hover:theme-text">Status</Link>
+              <Link to="/privacy"     className="hover:theme-text">Privacy</Link>
+              <Link to="/terms"       className="hover:theme-text">Terms</Link>
+              <Link to="/preferences" className="hover:theme-text">Preferences</Link>
+              <Link to="/status"      className="hover:theme-text">Status</Link>
               <span aria-hidden="true">·</span>
               <span>Made in Zambia.</span>
             </nav>

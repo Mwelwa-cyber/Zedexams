@@ -2,14 +2,20 @@ import { useState } from 'react'
 import { Lock, Sparkles, X } from '../ui/icons'
 import { useSubscription } from '../../hooks/useSubscription'
 import { PLANS } from '../../utils/subscriptionConfig'
-import UpgradeModal from './UpgradeModal'
+import { lockedFeature } from '../../utils/lockedFeature'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
+
+// Friendly names for the locked-feature modal so the heading reads
+// "Exam mode is part of ZedExams Pro" rather than "This feature is…".
+const FEATURE_LABELS = {
+  examMode: 'Exam mode',
+  weaknessAnalysis: 'Weakness analysis',
+}
 
 // ── PremiumGate — locks a feature behind full access ─────────────────────────
 export default function PremiumGate({ feature, children }) {
   const { canAccessFullContent, canUseExamMode, canUseWeaknessAnalysis } = useSubscription()
-  const [showUpgrade, setShowUpgrade] = useState(false)
 
   const allowed = feature === 'examMode'           ? canUseExamMode
     : feature === 'weaknessAnalysis'               ? canUseWeaknessAnalysis
@@ -17,20 +23,23 @@ export default function PremiumGate({ feature, children }) {
 
   if (allowed) return children
 
+  // Open the shared, audience-aware locked-feature modal ("This feature is
+  // part of ZedExams Pro. Upgrade to continue.") instead of a bare checkout.
+  function openLock() {
+    lockedFeature.show({ feature: FEATURE_LABELS[feature] })
+  }
+
   return (
-    <>
-      <div onClick={() => setShowUpgrade(true)} className="cursor-pointer select-none relative">
-        <div className="opacity-40 pointer-events-none">{children}</div>
-        <div className="absolute inset-0 flex items-center justify-center theme-card/80 backdrop-blur-[1px] rounded-2xl">
-          <div className="text-center px-4">
-            <Icon as={Lock} size="lg" className="mx-auto mb-1 theme-text-muted" />
-            <p className="font-black theme-text text-sm">Upgrade required</p>
-            <p className="theme-accent-text font-bold text-xs underline mt-0.5">Upgrade to unlock</p>
-          </div>
+    <div onClick={openLock} className="cursor-pointer select-none relative">
+      <div className="opacity-40 pointer-events-none">{children}</div>
+      <div className="absolute inset-0 flex items-center justify-center theme-card/80 backdrop-blur-[1px] rounded-2xl">
+        <div className="text-center px-4">
+          <Icon as={Lock} size="lg" className="mx-auto mb-1 theme-text-muted" />
+          <p className="font-black theme-text text-sm">ZedExams Pro</p>
+          <p className="theme-accent-text font-bold text-xs underline mt-0.5">Upgrade to unlock</p>
         </div>
       </div>
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
-    </>
+    </div>
   )
 }
 

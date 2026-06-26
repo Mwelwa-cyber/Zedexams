@@ -12,6 +12,10 @@
 
 import { richTextToPlainText } from './quizRichText.js'
 import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
+import { analyzeTiming } from './assessmentTiming.js'
+import { canonicalizeQuestionType } from '../editor/schema/question.js'
+import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+import { orderPaperGroups } from './quizSections.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly Test',
@@ -37,6 +41,20 @@ const GRADE_WORDS = {
 }
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+/**
+ * Default number of ruled answer lines per written-answer type, shared by the
+ * preview (PaperBlocks.jsx), the PDF (window.print of the preview) and the
+ * DOCX export (assessmentToDocx.js). Keeping the counts here — instead of three
+ * literals scattered across the renderers — is what stops the Word download
+ * drifting from the on-screen paper (e.g. essays printing 10 lines in Word but
+ * showing 8 in the preview).
+ */
+export const DEFAULT_ANSWER_LINES = {
+  short: 2,
+  diagram: 4,
+  essay: 8,
+}
 
 export function buildPaperTitle(assessment = {}) {
   const grade = assessment.grade ?? ''
@@ -70,6 +88,62 @@ function plain(value) {
   if (!value) return ''
   const out = richTextToPlainText(String(value))
   return out.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Drop an option-letter prefix the author (or the AI generator) baked into
+ * the option text, e.g. "A. digestive system" stored at index 0. Every
+ * renderer prepends its own A/B/C/D label, so without this the paper shows
+ * "A. A. digestive system". Only strips when the leading letter matches the
+ * expected label for that slot and is followed by a real delimiter, so legit
+ * content like "Arteries" or "A car is faster" is never touched.
+ */
+function stripOptionLabel(value, index) {
+  if (typeof value !== 'string') return value
+  const expected = SECTION_LETTERS[index]
+  if (!expected) return value
+  const m = value.match(/^\s*([A-Za-z])\s*[.):\-–—]\s+/)
+  if (m && m[1].toUpperCase() === expected) return value.slice(m[0].length)
+  return value
+}
+
+/**
+ * Strip a leading "SECTION A:" / "PART 1 —" label the author or generator put
+ * in the part title. The renderers always render "Section <letter> — <title>",
+ * so a baked-in label produced "Section A — SECTION A: Multiple choice".
+ * Requires a clear delimiter (or the label standing alone) so a real title
+ * such as "Sections of a plant" survives.
+ */
+function stripSectionLabel(title) {
+  const t = String(title || '').trim()
+  if (!t) return ''
+  // "SECTION A: Foo" | "PART 1 - Foo" | "SECTION A. Foo" | "SECTION A — Foo"
+  const labelled = t.match(/^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*[:.)\-–—]+\s*(.*)$/i)
+  if (labelled) return labelled[1].trim()
+  // Bare label with no title after it ("SECTION A", "PART 1").
+  if (/^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*$/i.test(t)) return ''
+  return t
+}
+
+/**
+ * Some generated papers stuffed a full name/date/marks header into the cover
+ * instructions ("NAME: ___ DATE: ___ TOTAL MARKS: ___ INSTRUCTIONS: Answer
+ * ALL questions."), which then printed twice because the learner-fields block
+ * already draws those lines. When the text before an "Instructions:" marker is
+ * just field labels, drop it and keep the real instruction prose.
+ */
+function cleanCoverInstructions(text) {
+  const t = String(text || '').trim()
+  if (!t) return ''
+  const m = t.match(/^(.*?)\binstructions?\b\s*[:\-–—]\s*(.+)$/is)
+  if (m) {
+    const preamble = m[1]
+    const rest = m[2].trim()
+    if (rest && /\b(?:pupil'?s?\s*name|name|date|class|total\s*marks|marks)\b\s*[:_]/i.test(preamble)) {
+      return rest
+    }
+  }
+  return t
 }
 
 /**
@@ -131,7 +205,7 @@ function cachedOptionPlain(value) {
   return out
 }
 
-function groupQuestionsByPart(questions, parts) {
+function groupQuestionsByPart(questions, parts, ungroupedOrder = 0) {
   const partsById = new Map()
   for (const part of parts || []) {
     partsById.set(part.id, { ...part, questions: [] })
@@ -145,9 +219,12 @@ function groupQuestionsByPart(questions, parts) {
       standalone.questions.push(q)
     }
   }
-  const ordered = [...partsById.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  if (standalone.questions.length) return [standalone, ...ordered]
-  return ordered
+  // The loose-questions block is positioned relative to the sections by
+  // `ungroupedOrder` (default 0 = lead the paper) rather than being pinned to
+  // the top, so a teacher can place a section header above questions that
+  // aren't in any section yet.
+  return orderPaperGroups(parts || [], ungroupedOrder, standalone.questions.length > 0)
+    .map(group => (group.type === 'ungrouped' ? standalone : partsById.get(group.part.id)))
 }
 
 function passageMembersByPart(passages, parts) {
@@ -208,6 +285,48 @@ export function computeSmartWarnings(assessment, questions = []) {
   if (repeats > 0) {
     warnings.push({ key: 'repeats', severity: 'info', message: `${repeats} possibly repeated question${repeats === 1 ? '' : 's'} detected.` })
   }
+  // MCQ option quality: duplicate options, or option images with no alt text.
+  // The save-time validator already blocks these, but surfacing them as soft
+  // warnings while editing means the teacher fixes them before they hit a
+  // wall at export. We count questions (not options) so the badge stays calm.
+  let dupOptionQs = 0
+  let missingAltQs = 0
+  for (const q of questions) {
+    if ((q?.type || 'mcq') !== 'mcq') continue
+    const opts = Array.isArray(q.options) ? q.options : []
+    const media = Array.isArray(q.optionMedia) ? q.optionMedia : []
+    const seen = new Map()
+    let hasDup = false
+    opts.forEach((opt, i) => {
+      const key = plain(opt).toLowerCase()
+      if (!key) return
+      if (seen.has(key)) hasDup = true
+      else seen.set(key, i)
+    })
+    if (hasDup) dupOptionQs += 1
+    const altMissing = media.some((m) => {
+      const hasMedia = Boolean(m?.imageUrl) || Boolean(m?.diagram && m.diagram.libraryKey)
+      const hasAlt = String(m?.alt || '').trim().length > 0
+      return hasMedia && !hasAlt
+    })
+    if (altMissing) missingAltQs += 1
+  }
+  if (dupOptionQs > 0) {
+    warnings.push({ key: 'dup-options', severity: 'warn', message: `${dupOptionQs} question${dupOptionQs === 1 ? ' has' : 's have'} duplicate answer options.` })
+  }
+  if (missingAltQs > 0) {
+    warnings.push({ key: 'option-alt', severity: 'warn', message: `${missingAltQs} question${missingAltQs === 1 ? ' has an' : 's have'} image option${missingAltQs === 1 ? '' : 's'} missing alt text — add a description so it can be saved.` })
+  }
+  // Timing budget: compare the estimated completion time to the duration set
+  // on the paper. Only fires when a duration is set and questions exist.
+  if (questions.length > 0) {
+    const timing = analyzeTiming(assessment, questions)
+    if (timing.verdict === 'over') {
+      warnings.push({ key: 'timing-over', severity: 'warn', message: `Estimated ~${timing.estimatedMinutes} min to complete, but the paper allows ${timing.duration} min — it may be too long.` })
+    } else if (timing.verdict === 'under') {
+      warnings.push({ key: 'timing-under', severity: 'info', message: `Estimated ~${timing.estimatedMinutes} min — well under the ${timing.duration} min allowed; there's room for more.` })
+    }
+  }
   return warnings
 }
 
@@ -223,7 +342,21 @@ export function computeSmartWarnings(assessment, questions = []) {
 export function buildPaperLayout(assessment = {}, questions = [], { mode = 'paper' } = {}) {
   const includeAnswers = mode === 'scheme'
   const sortedQs = [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const groups = groupQuestionsByPart(sortedQs, assessment.parts || [])
+  const groups = groupQuestionsByPart(sortedQs, assessment.parts || [], assessment.ungroupedOrder)
+
+  // Paper-level MCQ presentation. Both are optional; when unset the
+  // renderers keep their legacy auto behaviour (4-up grid, auto-stack on
+  // long options, render every stored option).
+  //   mcqOptionLayout      — 'vertical' | 'horizontal' (text options only)
+  //   mcqAnswerChoiceCount — 2 | 3 | 4: cap every MCQ to the first N options
+  const mcqOpts = {
+    mcqLayout: (assessment.mcqOptionLayout === 'vertical' || assessment.mcqOptionLayout === 'horizontal')
+      ? assessment.mcqOptionLayout
+      : null,
+    mcqCount: [2, 3, 4].includes(Number(assessment.mcqAnswerChoiceCount))
+      ? Number(assessment.mcqAnswerChoiceCount)
+      : null,
+  }
 
   const blocks = []
 
@@ -234,8 +367,6 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
     title: buildPaperTitle(assessment),
     subject: String(assessment.subject || '').trim().toUpperCase(),
     paperName: String(assessment.paperName || '').trim().toUpperCase(),
-    logoUrl: assessment.schoolLogoUrl || '',
-    logoTransform: assessment.schoolLogoTransform || null,
     mode,
   })
 
@@ -253,7 +384,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   blocks.push({ kind: 'learnerFields', ...nameFieldsConfig })
 
   // 3. Instructions
-  const instructions = plain(assessment.coverInstructions)
+  const instructions = cleanCoverInstructions(plain(assessment.coverInstructions))
   if (instructions || includeAnswers) {
     blocks.push({
       kind: 'instructions',
@@ -293,7 +424,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       blocks.push({
         kind: 'sectionHeader',
         letter,
-        title: plain(group.title),
+        title: stripSectionLabel(plain(group.title)),
         marks: partMarks,
         instructions: plain(group.instructions),
       })
@@ -331,17 +462,21 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
           title: plain(item.passage.title),
           text: plain(item.passage.passageText),
           imageUrl: item.passage.imageUrl || '',
+          imageAlt: plain(item.passage.imageAlt) || plain(item.passage.title) || '',
           passageKind: item.passage.passageKind || 'comprehension',
+          ...passageMarksFields(item.passage, passageQuestions),
         })
         for (const q of passageQuestions) {
           runningNumber += 1
-          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
+          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers, mcqOpts))
         }
+        const footer = passageTotalFooter(item.passage, passageQuestions)
+        if (footer) blocks.push(footer)
       } else if (item.kind === 'pagebreak') {
         blocks.push({ kind: 'pagebreak' })
       } else {
         runningNumber += 1
-        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers))
+        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers, mcqOpts))
       }
     }
   })
@@ -355,7 +490,9 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       title: plain(passage.title),
       text: plain(passage.passageText),
       imageUrl: passage.imageUrl || '',
+      imageAlt: plain(passage.imageAlt) || plain(passage.title) || '',
       passageKind: passage.passageKind || 'comprehension',
+      ...passageMarksFields(passage, []),
     })
   }
 
@@ -370,14 +507,69 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   return blocks
 }
 
-function buildQuestionBlock(q, number, includeAnswer) {
-  const type = q.type || 'mcq'
-  const options = Array.isArray(q.options) ? q.options : []
-  const optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
+// Stimulus passages (diagram / source / map) auto-total the marks of their
+// sub-questions and print "Total: N marks" beneath them. A teacher can pin an
+// explicit total via passage.manualMarks. Comprehension passages keep their
+// historical behaviour (no total line) to avoid changing existing papers.
+const STIMULUS_PASSAGE_KINDS = new Set(['diagram', 'source', 'map'])
+
+function sumQuestionMarks(questions = []) {
+  return (questions || []).reduce((sum, q) => sum + (Number(q?.marks) || 0), 0)
+}
+
+function passageMarksFields(passage, questions) {
+  const auto = sumQuestionMarks(questions)
+  const manual = Number.isFinite(Number(passage?.manualMarks)) && passage?.manualMarks != null
+    ? Math.max(0, Math.round(Number(passage.manualMarks)))
+    : null
+  return { autoMarks: auto, manualMarks: manual, totalMarks: manual != null ? manual : auto }
+}
+
+function passageTotalFooter(passage, questions) {
+  const kind = passage?.passageKind || 'comprehension'
+  const { totalMarks, manualMarks } = passageMarksFields(passage, questions)
+  // Show the total for stimulus-style passages, or whenever a manual total was
+  // pinned. Skip when there's nothing to count.
+  const show = STIMULUS_PASSAGE_KINDS.has(kind) || manualMarks != null
+  if (!show || totalMarks <= 0) return null
+  return { kind: 'passageTotal', totalMarks }
+}
+
+function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
+  // Fold any authoring alias ('truefalse' → 'tf', 'fill_in_blank' →
+  // 'fill_blanks') onto the canonical type so every downstream renderer (the
+  // preview, the PDF print window, the DOCX export, the answer sheet) switches
+  // on one spelling. Without this a legacy 'truefalse' doc slipped past every
+  // `=== 'tf'` check and printed a true/false question with no options.
+  const type = canonicalizeQuestionType(q.type) || 'mcq'
+  const { mcqLayout = null, mcqCount = null } = mcqOpts
+  // True/False is a 2-choice MCQ — same options/correctAnswer model — so it
+  // flows through the MCQ option pipeline below.
+  const isChoice = type === 'mcq' || type === 'tf'
+  let options = Array.isArray(q.options) ? q.options : []
+  // A true/false question authored without an explicit options array (or saved
+  // by a surface that only set correctAnswer) still prints "A. True / B. False".
+  if (type === 'tf' && options.filter(o => String(o ?? '').trim()).length < 2) {
+    options = ['True', 'False']
+  }
+  let optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
+  // Paper-level "answer choices" cap. When the teacher fixes the whole
+  // paper to 2/3/4 choices we render only the first N — non-destructive,
+  // the stored question keeps every option so switching back restores them.
+  // True/False is always exactly two choices, so the cap never applies to it.
+  if (type === 'mcq' && mcqCount && options.length > mcqCount) {
+    options = options.slice(0, mcqCount)
+    optionMedia = optionMedia.slice(0, mcqCount)
+  }
+  // Drop any letter prefix baked into the option text ("A. digestive system")
+  // so the renderers' own A/B/C/D labels don't double up ("A. A. …").
+  if (isChoice) {
+    options = options.map((o, i) => stripOptionLabel(o, i))
+  }
   // optionsMode: 'text', 'image', or 'mixed'. Tells the renderer how to draw.
   let optionsMode = 'text'
-  if (type === 'mcq') {
-    const hasImage = optionMedia.some(m => m?.imageUrl)
+  if (isChoice) {
+    const hasImage = optionMedia.some(m => m?.imageUrl || m?.diagram)
     const hasText = options.some(o => String(o ?? '').trim())
     if (hasImage && hasText) optionsMode = 'mixed'
     else if (hasImage) optionsMode = 'image'
@@ -394,10 +586,23 @@ function buildQuestionBlock(q, number, includeAnswer) {
   const optionsHtml = options.length ? options.map(cachedOptionRichHtml) : []
   const optionsPlain = options.length ? options.map(cachedOptionPlain) : []
 
+  // Short-answer sub-parts: "(a) … (b) … (c) …" under the question's instruction
+  // stem. When present the question owns no marks of its own — the total is the
+  // sum of the parts' marks. Text + answer are flattened to plain (sub-parts are
+  // short sentences, not rich-math blocks).
+  const subParts = normalizeSubParts(q.subParts).map(p => ({
+    text: plain(p.text),
+    answer: plain(p.answer),
+    marks: p.marks,
+    answerFormat: p.answerFormat,
+    answerLines: p.answerLines,
+  }))
+
   return {
     kind: 'question',
     number,
     text: plain(q.text),
+    subParts,
     // Rich-text HTML for the question body. The editor preview, PDF
     // print window, and DOCX export all prefer this when present so
     // Grade-7 math blocks (vertical sums, fractions, number bases)
@@ -405,17 +610,45 @@ function buildQuestionBlock(q, number, includeAnswer) {
     textHtml: richHtml(q.text),
     optionsHtml,
     optionsPlain,
-    marks: q.marks ?? 1,
+    marks: subParts.length ? sumSubPartMarks(subParts) : (q.marks ?? 1),
     type,
     options,
     optionMedia,
     optionsMode,
+    // Paper-level layout hint for text MCQ options ('vertical' | 'horizontal'
+    // | null). Null means "use the renderer's auto behaviour".
+    mcqLayout: type === 'mcq' ? mcqLayout : null,
     correctAnswer: q.correctAnswer,
     explanation: includeAnswer ? plain(q.explanation) : '',
     imageUrl: q.imageUrl || '',
+    // Exact library figure on the stem ({libraryKey, params}); preview/PDF
+    // render it via the diagram catalog, DOCX rasterises it.
+    imageDiagram: q.imageDiagram && q.imageDiagram.libraryKey
+      ? { libraryKey: q.imageDiagram.libraryKey, params: q.imageDiagram.params || {} }
+      : null,
+    imageAlt: plain(q.imageAlt) || '',
+    imageWidth: q.imageWidth || 'full',
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
+    // Whether word-bank words may be reused across blanks (fill_blanks only).
+    wordBankReuse: Boolean(q.wordBankReuse),
+    // Fill-in-the-Blanks statements — each prints "A. … ____ …" on its own
+    // line. Keep the raw text (underscore runs intact) so the renderers can
+    // turn each blank into a long ruled gap or an interactive input. `plain`
+    // strips any stray markup without disturbing the underscores.
+    statements: Array.isArray(q.statements)
+      ? q.statements.map(s => ({
+        text: plain(s?.text),
+        answers: Array.isArray(s?.answers) ? s.answers.map(a => plain(a)) : [],
+      }))
+      : [],
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,
+    // Answer-space format: 'lines' (default), 'none', or 'labelled_blanks'.
+    // 'labelled_blanks' prints one "Label: ____" row per blankLabels entry.
+    answerFormat: q.answerFormat === 'none' || q.answerFormat === 'labelled_blanks' ? q.answerFormat : 'lines',
+    blankLabels: Array.isArray(q.blankLabels)
+      ? q.blankLabels.map(l => plain(l)).map(l => l.trim()).filter(Boolean)
+      : [],
     // Numeric-only fields. Defaulted to safe values for every block so
     // renderers can read them unconditionally.
     numericTolerance: Number.isFinite(Number(q.numericTolerance)) ? Number(q.numericTolerance) : 0,
@@ -431,15 +664,29 @@ function buildQuestionBlock(q, number, includeAnswer) {
     sequenceAnswer: Array.isArray(q.sequenceAnswer)
       ? q.sequenceAnswer.map(v => (Number.isInteger(Number(v)) && Number(v) >= 1 ? Number(v) : 0))
       : [],
-    // Diagram label overlays (x/y are 0..1 ratios of image dimensions).
+    // Diagram label overlays (x/y are 0..1 ratios of image dimensions; tx/ty,
+    // when present, are the part the label's leader line points at).
     diagramLabels: Array.isArray(q.diagramLabels)
       ? q.diagramLabels
-        .map(l => ({
-          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
-          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
-          text: plain(l?.text),
-        }))
-        .filter(l => l.text.length > 0)
+        .map(l => {
+          const out = {
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: plain(l?.text),
+          }
+          if (Number.isFinite(Number(l?.tx)) && Number.isFinite(Number(l?.ty))) {
+            out.tx = Math.max(0, Math.min(1, Number(l.tx)))
+            out.ty = Math.max(0, Math.min(1, Number(l.ty)))
+          }
+          return out
+        })
+        // In identify mode the label TEXT is the expected answer — which a
+        // teacher legitimately leaves blank (hand-marked, or the answer is
+        // obvious from the part) — while the on-image marker is just its
+        // NUMBER. So a blank-text identify hotspot is still a real, numbered
+        // hotspot and must be kept; dropping it silently deletes a marker and
+        // renumbers the rest. In labeled mode an empty pill is just noise.
+        .filter(l => q.diagramMode === 'identify' || l.text.length > 0)
       : [],
     diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
     // Inline data table (null when the question has no attached table).

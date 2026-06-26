@@ -22,29 +22,17 @@
 
 const {HttpsError} = require("firebase-functions/v2/https");
 const {anthropicFetch} = require("../anthropicFetch");
+const {buildSystemBlocks} = require("./systemBlocks");
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
-
-// Block order matters for prompt-cache economics: caches hit on stable
-// prefixes left-to-right. The system prompt never changes; the format block
-// has only a few dozen variants (assessment type × grade band × subject);
-// the CBC block varies per topic. Format-before-CBC means the
-// system+format prefix stays cached across requests for the same paper
-// shape even when topics differ.
-function buildSystemBlocks(systemPrompt, cbcContextBlock, formatContextBlock) {
-  if (!systemPrompt) return undefined;
-  return [
-    {type: "text", text: systemPrompt, cache_control: {type: "ephemeral"}},
-    ...(formatContextBlock ? [
-      {type: "text", text: formatContextBlock, cache_control: {type: "ephemeral"}},
-    ] : []),
-    ...(cbcContextBlock ? [
-      {type: "text", text: cbcContextBlock, cache_control: {type: "ephemeral"}},
-    ] : []),
-  ];
-}
+// When the primary model is exhausted/overloaded after anthropicFetch's own
+// HTTP-level retries, or returns unusable output, we re-attempt on this sibling
+// model so the teacher still receives the generation they paid a quota slot for
+// — rather than refunding the credit and leaving them empty-handed. Override per
+// runtime with ANTHROPIC_FALLBACK_MODEL.
+const FALLBACK_MODEL = process.env.ANTHROPIC_FALLBACK_MODEL || "claude-sonnet-4-5";
 
 function buildHeaders(apiKey) {
   return {
@@ -79,6 +67,78 @@ function extractUsage(data) {
     cacheReadTokens: Number(data?.usage?.cache_read_input_tokens || 0),
     cacheCreationTokens: Number(data?.usage?.cache_creation_input_tokens || 0),
   };
+}
+
+/**
+ * Classify a callClaude failure for the deliver-the-product retry loop.
+ *
+ *   "shape"        — the model replied but the structured output was unusable
+ *                    (missing tool_use block / malformed tool JSON). A re-roll
+ *                    on the SAME model usually fixes a one-off bad generation.
+ *   "unavailable"  — the request never produced a usable reply (rate-limited
+ *                    after anthropicFetch's own retries, overloaded, 5xx, or a
+ *                    network error). Worth re-attempting on the FALLBACK model.
+ *   null           — not worth re-attempting (bad input, budget ceiling, or an
+ *                    unrecognised error). Propagate immediately.
+ */
+function isDeliverableRetry(err) {
+  if (!err) return null;
+  const code = err.code;
+  if (code === "resource-exhausted" || code === "unavailable") return "unavailable";
+  if (code === "internal") return "shape";
+  return null;
+}
+
+/**
+ * Ordered model ladder: the requested (or default) model first, then the
+ * configured fallback when it differs. De-duped so a single-model ladder still
+ * gets its one shape re-roll.
+ */
+function buildModelLadder(requestedModel) {
+  const primary = requestedModel || DEFAULT_MODEL;
+  const ladder = [primary];
+  if (FALLBACK_MODEL && FALLBACK_MODEL !== primary) ladder.push(FALLBACK_MODEL);
+  return ladder;
+}
+
+/**
+ * Run `dispatch(model)` across the model ladder so a transient failure still
+ * delivers a result instead of burning the teacher's quota. Per model: one
+ * re-roll on a "shape" error, then fall forward to the next model on any
+ * deliverable-retryable error. Streaming callers pass `streamProgressed()` —
+ * once any token has reached the client we must NOT retry (it would double-send
+ * progress), so we propagate the error instead.
+ */
+async function attemptWithFallback({models, dispatch, streamProgressed}) {
+  let lastErr;
+  for (let mi = 0; mi < models.length; mi++) {
+    // Two tries per model: the initial attempt plus one shape re-roll.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await dispatch(models[mi]);
+      } catch (err) {
+        lastErr = err;
+        // Never re-run a stream that already streamed content to the client.
+        if (typeof streamProgressed === "function" && streamProgressed()) throw err;
+        const kind = isDeliverableRetry(err);
+        if (!kind) throw err;
+        if (kind === "shape" && attempt === 0) {
+          console.warn(
+            `[teacherTools] unusable output from ${models[mi]} — re-rolling`,
+          );
+          continue; // re-roll on the same model
+        }
+        if (models[mi + 1]) {
+          console.warn(
+            `[teacherTools] ${models[mi]} ${kind} — falling back to ` +
+            `${models[mi + 1]}`,
+          );
+        }
+        break; // move to the next model in the ladder
+      }
+    }
+  }
+  throw lastErr;
 }
 
 async function callClaude(apiKey, opts = {}) {
@@ -124,40 +184,59 @@ async function callClaude(apiKey, opts = {}) {
     console.warn("[anthropicClient] budget check failed (allowing call)", err);
   }
 
+  // Validate mode + required params up front so config errors fail fast and
+  // never enter the retry loop (they are not "deliverable").
+  if (mode !== "json" && mode !== "tool" && mode !== "stream") {
+    throw new HttpsError("invalid-argument", `Unknown callClaude mode: ${mode}`);
+  }
+  if (mode === "tool" && (!toolName || !toolInputSchema)) {
+    throw new HttpsError(
+      "internal",
+      "callClaude(mode:'tool') requires toolName and toolInputSchema.",
+    );
+  }
+  if (mode === "stream" && typeof onToken !== "function") {
+    throw new HttpsError(
+      "internal",
+      "callClaude(mode:'stream') requires an onToken callback.",
+    );
+  }
+
+  // Track whether the stream has emitted anything yet; once it has, a retry
+  // would double-send progress to the client, so attemptWithFallback bails.
+  let streamProgressed = false;
+  const wrappedOnToken = (typeof onToken === "function") ?
+    (text, kind) => {
+      streamProgressed = true;
+      return onToken(text, kind);
+    } : onToken;
+
   const sharedArgs = {
     apiKey, systemPrompt, cbcContextBlock, formatContextBlock, messages,
-    maxTokens, temperature, model, thinking, outputConfig,
+    maxTokens, temperature, thinking, outputConfig,
   };
 
-  if (mode === "json") {
-    return callClaudeJson(sharedArgs);
-  }
-  if (mode === "tool") {
-    if (!toolName || !toolInputSchema) {
-      throw new HttpsError(
-        "internal",
-        "callClaude(mode:'tool') requires toolName and toolInputSchema.",
-      );
-    }
-    return callClaudeTool({
-      ...sharedArgs, toolName, toolDescription, toolInputSchema,
-    });
-  }
-  if (mode === "stream") {
-    if (typeof onToken !== "function") {
-      throw new HttpsError(
-        "internal",
-        "callClaude(mode:'stream') requires an onToken callback.",
-      );
+  const dispatch = (attemptModel) => {
+    const args = {...sharedArgs, model: attemptModel};
+    if (mode === "json") return callClaudeJson(args);
+    if (mode === "tool") {
+      return callClaudeTool({
+        ...args, toolName, toolDescription, toolInputSchema,
+      });
     }
     return callClaudeStream({
-      ...sharedArgs, onToken,
+      ...args, onToken: wrappedOnToken,
       // Optional tool params — when set, stream tool input_json_delta
       // and return parsed JSON instead of plain text.
       toolName, toolDescription, toolInputSchema,
     });
-  }
-  throw new HttpsError("invalid-argument", `Unknown callClaude mode: ${mode}`);
+  };
+
+  return attemptWithFallback({
+    models: buildModelLadder(model),
+    dispatch,
+    streamProgressed: () => streamProgressed,
+  });
 }
 
 // Helper: build the optional reasoning-control fields. Caller passes the
@@ -421,4 +500,12 @@ async function postAnthropic(apiKey, body) {
   return res;
 }
 
-module.exports = {callClaude, DEFAULT_MODEL};
+module.exports = {
+  callClaude,
+  DEFAULT_MODEL,
+  FALLBACK_MODEL,
+  // Exported for unit tests of the deliver-the-product retry/fallback logic.
+  isDeliverableRetry,
+  buildModelLadder,
+  attemptWithFallback,
+};

@@ -222,7 +222,10 @@ export default function SchoolCalendar() {
     setTermIdx(detectCurrentTerm(year));
   }, [year]);
 
-  const terms            = MOE_CALENDAR[year].terms;
+  // detectCurrentYear() always resolves to a year present in MOE_CALENDAR, so
+  // this never reads `.terms` off undefined even if `year` drifts out of range.
+  const yearData         = MOE_CALENDAR[year] || MOE_CALENDAR[detectCurrentYear()];
+  const terms            = yearData.terms;
   const selected         = terms[termIdx];
   const status           = getTermStatus(selected);
   const totalWorkingDays = terms.reduce((sum, t) => sum + t.workingDays, 0);

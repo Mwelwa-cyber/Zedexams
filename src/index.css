@@ -122,7 +122,9 @@ body.theme-oatmeal {
   --text:         #1C1917;
   --text-muted:   #78716C;
   --border:       #E7D5C0;
-  --accent:       #D97706;
+  /* amber-700, not amber-600: white-on-#D97706 was only 3.18:1 (fails WCAG AA
+     for normal text); #B45309 lifts white text to ~5:1 while staying amber. */
+  --accent:       #B45309;
   --accent-text:  #FFFFFF;
   --accent-bg:    #FEF3C7;
   --accent-fg:    #92400E;
@@ -471,7 +473,10 @@ body.theme-midnight .moe-calendar {
   .studio-theme h1,
   .studio-theme h2,
   .studio-theme h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; }
+  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; color: var(--sv-ink, #0e2a32); }
+  .studio-theme .studio-page { background: var(--sv-canvas, #f5efe1); min-height: 100vh; padding: 1rem; }
+  @media (min-width: 640px)  { .studio-theme .studio-page { padding: 1.5rem; } }
+  @media (min-width: 1024px) { .studio-theme .studio-page { padding: 2rem; } }
   .studio-theme .studio-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
@@ -822,6 +827,21 @@ body.theme-midnight .moe-calendar {
     color: var(--studio-tone-fg);
   }
 
+  /* 3D image icons ship with their own rounded tile + shadow, so the tinted
+     tone square would clash — render the artwork edge to edge instead. */
+  .studio-theme .teacher-studio-card__icon--img {
+    background: transparent;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .studio-theme .teacher-studio-card__icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
   .studio-theme .teacher-studio-card__badge {
     display: inline-flex;
     align-items: center;
@@ -986,6 +1006,195 @@ body.theme-midnight .moe-calendar {
 
   .studio-theme .teacher-recent-card__arrow {
     color: #566f76;
+  }
+
+  /* ── Teacher Workspace (app-style card grid) ─────────────────────────
+     Compact tile grid grouped under labelled section heads (icon + label +
+     "View all"). Replaces the tall studio cards on the dashboard tools area
+     to match the ZedExams mobile workspace design. */
+  .studio-theme .teacher-workspace-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 8px 0 22px;
+  }
+
+  .studio-theme .teacher-workspace-header__icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 12px;
+    background: #fff5e6;
+    color: #c2531a;
+    border: 1.5px solid #f3d4b0;
+  }
+
+  .studio-theme .teacher-workspace-header__title {
+    margin: 0;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .studio-theme .teacher-workspace-header__text {
+    margin: 3px 0 0;
+    color: #566f76;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .studio-theme .teacher-workspace-section {
+    margin-bottom: 26px;
+  }
+
+  .studio-theme .teacher-workspace-section__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .studio-theme .teacher-workspace-section__icon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--ws-icon-bg, #faecb8);
+    color: var(--ws-icon-fg, #8a5d00);
+  }
+
+  .studio-theme .teacher-workspace-section__icon--amber  { --ws-icon-bg: #faecb8; --ws-icon-fg: #8a5d00; }
+  .studio-theme .teacher-workspace-section__icon--blue   { --ws-icon-bg: #dbe7f4; --ws-icon-fg: #1d4e89; }
+  .studio-theme .teacher-workspace-section__icon--violet { --ws-icon-bg: #e8d8f0; --ws-icon-fg: #6b21a8; }
+  .studio-theme .teacher-workspace-section__icon--green  { --ws-icon-bg: #d8ecd0; --ws-icon-fg: #166534; }
+  .studio-theme .teacher-workspace-section__icon--slate  { --ws-icon-bg: #e3dcc8; --ws-icon-fg: #334155; }
+
+  .studio-theme .teacher-workspace-section__label {
+    flex: 1;
+    min-width: 0;
+    color: #0e2a32;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .studio-theme .teacher-workspace-section__viewall {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    color: #c2531a;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  .studio-theme .teacher-workspace-section__viewall:hover {
+    color: #ff7a2e;
+  }
+
+  .studio-theme .teacher-workspace-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 12px;
+  }
+
+  .studio-theme .teacher-workspace-card {
+    display: flex;
+    min-height: 150px;
+    flex-direction: column;
+    padding: 14px;
+    border: 1.5px solid #e4dcc6;
+    border-radius: 16px;
+    background: #fff;
+    color: #0e2a32;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(14,42,50,.04);
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .studio-theme a.teacher-workspace-card:hover {
+    border-color: #ff7a2e;
+    box-shadow: 0 10px 24px rgba(14,42,50,.10);
+    transform: translateY(-2px);
+  }
+
+  .studio-theme .teacher-workspace-card.is-disabled,
+  .studio-theme .teacher-workspace-card.is-inactive {
+    opacity: .68;
+    cursor: default;
+  }
+
+  .studio-theme .teacher-workspace-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .studio-theme .teacher-workspace-card__icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .studio-theme .teacher-workspace-card__icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .studio-theme .teacher-workspace-card__badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .studio-theme .teacher-workspace-card__badge--accent { background: #ff7a2e; color: #fff; }
+  .studio-theme .teacher-workspace-card__badge--saved { background: #0e2a32; color: #fde9b8; }
+  .studio-theme .teacher-workspace-card__badge--success { background: #10864e; color: #fff; }
+  .studio-theme .teacher-workspace-card__badge--muted { background: #e7e1cf; color: #7a6a4a; }
+
+  .studio-theme .teacher-workspace-card__title {
+    margin: 0 0 5px;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 15.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+
+  .studio-theme .teacher-workspace-card__text {
+    flex: 1;
+    margin: 0;
+    color: #6a7c82;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   @media (max-width: 720px) {
@@ -2690,6 +2899,34 @@ select option {
     );
   }
 
+  /* LinkedIn-style auto-hide chrome.
+   * The glass header slides up and the bottom nav slides down on scroll-down,
+   * then reveal again on scroll-up — driven by useHideOnScroll. Mobile only:
+   * desktop (>=lg, where the bottom nav is already hidden) keeps the sticky
+   * header pinned. Transform+opacity only, so the content underneath is never
+   * blocked by a solid background and the OS status-bar icons stay visible. */
+  .zx-nav-autohide {
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.28s ease;
+    will-change: transform;
+  }
+  @media (max-width: 1023px) {
+    .zx-nav-autohide.zx-nav-hidden-top {
+      transform: translateY(-115%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .zx-nav-autohide.zx-nav-hidden-bottom {
+      transform: translateY(115%);
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+  /* Honour reduced-motion: snap instead of slide, but still hide/show. */
+  @media (prefers-reduced-motion: reduce) {
+    .zx-nav-autohide { transition: none; }
+  }
+
   /* Logo wrapper inside the glass navbar */
   .zx-logo-pill {
     display: inline-flex;
@@ -2883,6 +3120,58 @@ select option {
   .dev-tools.expanded .chev { transform: rotate(180deg); }
 }
 
+/* ── Marketing / public landing contrast pass ──────────────────────────
+ * The public landing pages (Marketing, Plans, TeachersLanding,
+ * GradePackLanding) are pinned to the oatmeal brand theme — a cream
+ * background. Oatmeal's default --text-muted (#78716C warm stone) and
+ * near-white --card (#FFFDF7) wash out on that cream: body copy reads
+ * faint and cards barely separate from the page. Applied via
+ * .marketing-page on each landing root, this scope strengthens the text
+ * ramp (main #1F1F1F / secondary #4B5563 / help #6B7280), makes cards
+ * true-white with a firmer border + shadow, and bolds the orange CTA to a
+ * high-contrast amber-on-ink fill. The learner app's oatmeal theme is
+ * untouched because nothing else carries .marketing-page. Kept unlayered
+ * (outside @layer) so it wins over the themed utility/component classes. */
+.marketing-page {
+  --text:         #1F1F1F;   /* main text — was #1C1917 */
+  --text-muted:   #4B5563;   /* secondary copy — was #78716C (too faint) */
+  --border:       #E2D6C0;   /* firmer hairline on cream */
+  --card:         #FFFFFF;   /* true-white cards, not the cream #FFFDF7 */
+  --card-hover:   #FFFBF3;
+  --accent:       #F59E0B;   /* amber-500 CTA fill */
+  --accent-text:  #111827;   /* dark ink on the orange fill */
+  --input-bg:     #FFFFFF;
+  --input-border: #D8C9AE;
+  /* Cooler, deeper shadows so white cards lift cleanly off the cream bg. */
+  --shadow-sm:    0 1px 2px rgba(28,25,23,0.06), 0 1px 3px rgba(28,25,23,0.10);
+  --shadow-md:    0 2px 6px rgba(28,25,23,0.08), 0 10px 24px rgba(28,25,23,0.12);
+  --shadow-lg:    0 8px 18px rgba(28,25,23,0.12), 0 22px 48px rgba(28,25,23,0.16);
+}
+
+/* Muted/help fine print — the one tier lighter than secondary copy. Kept dark
+   enough to clear WCAG AA on the cream --bg-subtle (#FEF3C7) preview cards,
+   where the old #6B7280 only reached 4.34:1. #586273 lands at ~5.5:1. */
+.marketing-page .theme-text-help { color: #586273; }
+
+/* Flat feature/pricing cards ship with no shadow; give them a subtle one
+ * so they still read as cards on cream. Elevated/hero cards already carry
+ * a shadow-elev-* utility and are excluded so they keep their stronger lift
+ * (which now resolves through the strengthened --shadow-* above). */
+.marketing-page .theme-card:not([class*="shadow-elev"]) {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Primary CTAs: max weight so the amber fill reads as the strong action
+ * (covers the newsletter Subscribe button, which ships at font-bold). */
+.marketing-page .theme-accent-fill { font-weight: 900; }
+
+/* Form inputs (newsletter, contact) render solid white, never the faded
+ * transparent fill that disappears into the cream footer. */
+.marketing-page input,
+.marketing-page textarea {
+  background-color: var(--input-bg);
+}
+
 /* ── No scrollbar (for horizontal filter rows) ──────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -2902,6 +3191,18 @@ select option {
 @keyframes shake        { 0%,100% { transform:translateX(0) } 20% { transform:translateX(-6px) } 40% { transform:translateX(6px) } 60% { transform:translateX(-4px) } 80% { transform:translateX(4px) } }
 @keyframes pulse-green  { 0%,100% { box-shadow:0 0 0 0 rgba(22,163,74,0.4) } 50% { box-shadow:0 0 0 10px rgba(22,163,74,0) } }
 @keyframes star-burst   { 0% { transform:scale(0) rotate(-30deg);opacity:0 } 60% { transform:scale(1.3) rotate(10deg);opacity:1 } 100% { transform:scale(1) rotate(0deg);opacity:1 } }
+/* Gentle score-circle settle — scales in 0.9 → 1.0 over the same 1s the
+   results stroke takes to draw, so the ring and the number arrive together. */
+@keyframes score-draw   { 0% { transform:scale(0.9) } 100% { transform:scale(1) } }
+/* Countdown urgency — a quick scale "heartbeat" for a timer that's running
+   out. Reads as hurry far better than the old flat opacity flash. */
+@keyframes timer-urgent { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+/* Live-status ping — an expanding, fading ring around a status dot, the
+   classic "this is live" radar pulse. Ring colour comes from `--live-ring`
+   (defaults to the element's own currentColor). */
+@keyframes live-dot     { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--live-ring, currentColor) 55%, transparent) } 100% { box-shadow:0 0 0 6px color-mix(in srgb, var(--live-ring, currentColor) 0%, transparent) } }
+/* Typing dot — a soft bounce for the "Zed is typing…" indicator. */
+@keyframes typing-dot   { 0%,80%,100% { transform:translateY(0);opacity:0.4 } 40% { transform:translateY(-3px);opacity:1 } }
 
 /* Phase 0 — shimmer sweep replaces animate-pulse on skeletons */
 @keyframes shimmer      { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
@@ -2993,6 +3294,17 @@ body.data-saver [data-bg-gradient] {
 .animate-shake      { animation: shake     0.45s ease-in-out both; }
 .animate-pulse-green{ animation: pulse-green 1.5s ease-out; }
 .animate-star-burst { animation: star-burst 0.5s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+.animate-score-draw { animation: score-draw 1s var(--ease-out) both; }
+.animate-timer-urgent { animation: timer-urgent 0.85s var(--ease-in-out) infinite; }
+.animate-live-dot   { animation: live-dot 1.6s var(--ease-out) infinite; }
+.animate-typing-dot { animation: typing-dot 1.2s var(--ease-in-out) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-score-draw,
+  .animate-timer-urgent,
+  .animate-live-dot { animation: none; }
+  /* Keep the typing dots visible (not mid-bounce-transparent) at rest. */
+  .animate-typing-dot { animation: none; opacity: 0.6; }
+}
 
 /* Phase 0 — shimmer: applies a sweeping gradient; element must be
    empty / a fixed height placeholder. Swap `animate-pulse` for this
@@ -3221,72 +3533,51 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 }
 
 /* ── Learner dashboard welcome card art ──────────────────────────────────
-   The welcome/hero card keeps its existing themed background and border
-   untouched. The character art is enlarged into a background-style
-   illustration anchored to the card's bottom-right; the text and buttons stay
-   above it via z-index. The optional wash repaints the card's *own*
-   var(--hero-gradient) over the text column so the copy stays readable and the
-   art blends in — no fixed colours are introduced, so every theme is honoured. */
-.zx-hero-bg {
-  position: absolute;
-  right: -12px;
-  bottom: 0;
-  width: 64%;
-  height: 112%;
+   The character art used to be a half-card background illustration anchored to
+   the bottom-right, which squeezed the welcome copy into a narrow left column
+   and made the hero very tall. It's now a compact thumbnail that floats at the
+   top-right of the card, letting the stats/buttons/pills use the full width and
+   sit on far fewer rows. The card's own themed background/border are untouched,
+   so every theme is honoured. */
+.zx-hero-art {
+  flex: none;
+  /* Kept compact on phones so the welcome copy ("Welcome back" + name +
+     tagline) keeps enough width to sit on single lines instead of
+     double-wrapping next to the art. Steps up at sm/md below. */
+  width: 150px;
+  height: auto;
   object-fit: contain;
-  object-position: bottom right;
-  opacity: 0.96;
-  z-index: 1;
+  border-radius: 1rem;
+  opacity: 0.98;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.zx-hero-wash {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: var(--hero-gradient);
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    #000 0%,
-    #000 40%,
-    rgba(0, 0, 0, 0.55) 60%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    #000 0%,
-    #000 40%,
-    rgba(0, 0, 0, 0.55) 60%,
-    transparent 100%
-  );
+@media (min-width: 640px) {
+  .zx-hero-art {
+    width: 264px;
+  }
 }
 
-@media (max-width: 640px) {
-  /* Very small screens: keep the art large and nudge it further right so it
-     never fights the copy. Stays within ~55-60% so the text column breathes. */
-  .zx-hero-bg {
-    width: 60%;
-    right: -18px;
-    opacity: 0.94;
+@media (min-width: 768px) {
+  .zx-hero-art {
+    width: 300px;
   }
-  .zx-hero-wash {
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      #000 0%,
-      #000 46%,
-      rgba(0, 0, 0, 0.6) 64%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      #000 0%,
-      #000 46%,
-      rgba(0, 0, 0, 0.6) 64%,
-      transparent 100%
-    );
+}
+
+/* On wide desktop the hero card is roomy and a 300px illustration left a
+   large empty band between the left-aligned copy and the far-right art.
+   Growing the art on lg/xl anchors that space and balances the banner. */
+@media (min-width: 1024px) {
+  .zx-hero-art {
+    width: 360px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .zx-hero-art {
+    width: 420px;
   }
 }
 
@@ -3692,6 +3983,56 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
+}
+
+/* ── Zed chat markdown ─────────────────────────────────────────
+ * Scoped to the assistant bubble (.zed-chat-prose). Tight spacing so a
+ * formatted answer (bold labels, bullet lists) reads naturally inside a
+ * small chat bubble instead of printing raw **asterisks**. Inherits the
+ * bubble's theme colour. */
+.zed-chat-prose > span > :first-child { margin-top: 0; }
+.zed-chat-prose > span > :last-child { margin-bottom: 0; }
+.zed-chat-prose p { margin: 0 0 0.6em; }
+.zed-chat-prose strong, .zed-chat-prose b { font-weight: 800; }
+.zed-chat-prose em, .zed-chat-prose i { font-style: italic; }
+.zed-chat-prose ul, .zed-chat-prose ol {
+  margin: 0.4em 0 0.6em;
+  padding-left: 1.3rem;
+}
+.zed-chat-prose ul { list-style: disc; }
+.zed-chat-prose ol { list-style: decimal; }
+.zed-chat-prose li { margin: 0.2em 0; }
+.zed-chat-prose h1, .zed-chat-prose h2, .zed-chat-prose h3, .zed-chat-prose h4 {
+  font-weight: 800;
+  font-size: 1.02em;
+  margin: 0.7em 0 0.3em;
+  line-height: 1.3;
+}
+.zed-chat-prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--bg-subtle);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+.zed-chat-prose pre {
+  background: var(--bg-subtle);
+  padding: 0.6em 0.8em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.zed-chat-prose pre code { background: transparent; padding: 0; }
+.zed-chat-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  font-weight: 600;
+}
+.zed-chat-prose blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.8em;
+  margin: 0.5em 0;
+  opacity: 0.85;
 }
 
 /* ── Accessibility preferences (audit: learner settings) ───────

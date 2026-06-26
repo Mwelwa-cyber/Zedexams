@@ -356,7 +356,7 @@ export default function TeachersLanding() {
         description="Generate CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts, records of work and flashcards in about a minute. See real samples, start free — no card required."
         path="/teachers"
       />
-      <div className="min-h-screen theme-bg theme-text font-body">
+      <div className="marketing-page min-h-screen theme-bg theme-text font-body">
         {/* Top nav */}
         <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
           <Section className="flex items-center justify-between py-3">

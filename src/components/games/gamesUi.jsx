@@ -27,6 +27,7 @@ import {
 import { isDemoGame } from '../../data/gamesSeed'
 import { gradeByValue } from '../../utils/gamesService'
 import { SUBJECT_MASCOTS, getSubjectMascot } from './subjectMascots'
+import MascotAvatar from './MascotAvatar'
 
 export const NAV_ICON_MAP = {
   dashboard: HomeIcon,
@@ -440,8 +441,8 @@ export function SubjectProgressCard({
         )}
       </span>
 
-      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none sm:h-20 sm:w-20 sm:text-[44px] ${tileBg}`}>
-        <span aria-hidden="true">{mascot.emoji}</span>
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-[18px] border-2 border-slate-900 sm:h-20 sm:w-20 ${tileBg}`}>
+        <MascotAvatar slug={subject.slug} className="h-full w-full p-1.5" />
       </div>
 
       <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>

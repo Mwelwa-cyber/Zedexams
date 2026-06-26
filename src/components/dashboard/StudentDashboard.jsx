@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
@@ -11,6 +11,7 @@ import RenewalBanner from '../subscription/RenewalBanner'
 import Mascot from '../ui/Mascot'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import ContentLoadError from '../ui/ContentLoadError'
 import SeoHelmet from '../seo/SeoHelmet'
 import Icon from '../ui/Icon'
 import {
@@ -26,6 +27,7 @@ import {
 import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
 import StudyPlanCard from './StudyPlanCard'
+import FeedbackButton from '../feedback/FeedbackButton'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',
@@ -75,19 +77,31 @@ export default function StudentDashboard() {
   const [results, setResults]   = useState([])
   const [weakness, setWeakness] = useState([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      if (!userProfile?.id) return
+  // A failed read must clear the loading state and surface a retryable error
+  // instead of leaving the stats/widgets stuck on their placeholder skeletons
+  // forever (the infinite-loading bug this fixes).
+  const load = useCallback(async () => {
+    if (!userProfile?.id) return
+    setLoading(true)
+    setError(null)
+    try {
       const [r, w] = await Promise.all([
         getUserResults(userProfile.id, 30),
         canUseWeaknessAnalysis ? getWeaknessAnalysis(userProfile.id) : Promise.resolve([]),
       ])
-      setResults(r); setWeakness(w); setLoading(false)
+      setResults(r); setWeakness(w)
+    } catch (err) {
+      console.error('StudentDashboard load failed', err)
+      setError('We couldn’t load your progress just now. Please check your connection and try again.')
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [userProfile?.id, canUseWeaknessAnalysis, getUserResults, getWeaknessAnalysis])
+
+  useEffect(() => { load() }, [load])
 
   const totalQuizzes = results.length
   const avgScore = totalQuizzes > 0
@@ -161,6 +175,17 @@ export default function StudentDashboard() {
 
       {/* Attempt counter */}
       <AttemptCounter onUpgradeClick={() => setShowUpgrade(true)} />
+
+      {/* Read-failure notice — the stats/widgets below show placeholders when a
+          read fails, so make the failure explicit and retryable rather than
+          letting it read as "no activity yet". */}
+      {error && (
+        <ContentLoadError
+          title="Couldn’t load your progress"
+          message={error}
+          onRetry={load}
+        />
+      )}
 
       {/* Stats */}
       <div className="stats-row stats-row-3">
@@ -243,6 +268,9 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Suggestion & request box */}
+      <FeedbackButton source="learner-dashboard" />
 
       {/* Weakness analysis (premium) */}
       <PremiumGate feature="weaknessAnalysis">

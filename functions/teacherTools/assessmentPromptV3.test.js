@@ -44,7 +44,7 @@ console.log("assessmentPromptV3");
   ok("user prompt JSON shape includes the passage object",
     prompt.includes("\"passage\": {\"title\": string, \"text\": string} | null"));
   ok("user prompt names the assessment type",
-    prompt.includes("- Assessment type: End of Term Test"));
+    prompt.includes("- Assessment type: End-of-Term Test"));
 }
 
 // ── Schema ────────────────────────────────────────────────────────────────

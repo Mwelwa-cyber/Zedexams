@@ -1,33 +1,37 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   PencilLine,
   FolderOpen,
   GraduationCap,
+  CalendarDays,
   LogOut,
   Settings,
-  Users,
+  Sparkles,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import TeacherTopBar from './TeacherTopBar'
+import ErrorBoundary from '../ui/ErrorBoundary'
 import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
 
 const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
   { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
-  { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
+  { to: '/teacher/test-papers',      icon: PencilLine,      label: 'Test Papers'             },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
-  { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
+  { to: '/teacher/calendar',         icon: CalendarDays,    label: 'School Calendar'         },
+  { to: '/my-subscription',          icon: Sparkles,        label: 'My Subscription'         },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
 ]
 
 export default function TeacherLayout({ children }) {
   const { logout, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   async function handleLogout() {
     await logout()
@@ -61,7 +65,7 @@ export default function TeacherLayout({ children }) {
           <Link to="/teacher" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
             <Logo variant="icon" size="md" />
             <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 16, margin: 0, color: '#0e2a32' }}>
+              <p className="studio-display" style={{ fontSize: 16, margin: 0 }}>
                 ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
               </p>
               <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
@@ -132,10 +136,12 @@ export default function TeacherLayout({ children }) {
       <TeacherGlassHeader />
 
       {/* ── Main Content ────────────────────────────────── */}
-      <main className="flex-1 min-w-0 pt-20 lg:pt-0">
+      <main className="flex-1 min-w-0 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-0">
         <div className="app-container py-6 pb-24 lg:pb-6">
           <TeacherTopBar />
-          {children}
+          <ErrorBoundary inline resetKey={pathname}>
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
 

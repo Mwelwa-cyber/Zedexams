@@ -23,11 +23,16 @@ import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import CharacterAvatar from '../profile/CharacterAvatar'
 import MobileBottomNav from './MobileBottomNav'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 
 export default function Navbar() {
   const { userProfile, logout, isAdmin, isTeacher } = useAuth()
   const { accessBadge } = useSubscription()
   const [open, setOpen] = useState(false)
+  // LinkedIn-style: hide the header on scroll-down for full-screen reading.
+  // Keep it pinned while the mobile drawer is open so the menu stays reachable.
+  const scrolledHidden = useHideOnScroll()
+  const headerHidden = scrolledHidden && !open
   const navigate = useNavigate()
   const homePath = getRoleLandingPath(userProfile)
   // Admins and teachers already see dedicated "Admin"/"Teacher" links below
@@ -104,7 +109,7 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="zx-glass-nav sticky top-0 z-40">
+    <nav className={`zx-glass-nav safe-top sticky top-0 z-40 zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
       <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
         {/* Logo (glass pill) */}

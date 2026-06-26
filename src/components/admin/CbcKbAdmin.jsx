@@ -4,6 +4,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import BulkGenerateButton from './BulkGenerateButton'
 import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
+import ExamPaperLibraryPanel from './ExamPaperLibraryPanel'
 import {
   getActiveKbVersion, KB_VERSION,
   listCbcTopics, saveCbcTopic, deleteCbcTopic,
@@ -14,6 +15,8 @@ import {
   uploadAssessmentFormatSample, extractAssessmentFormat,
   listAssessmentFormatDrafts, deleteAssessmentFormatDraft,
   approveAssessmentFormatDraft, listPastPapersForExtraction,
+  analyzeExamPaper, listExamPaperSamples, deleteExamPaperSample,
+  synthesizeAssessmentFormat,
 } from '../../utils/adminCbcKbService'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -164,6 +167,7 @@ export default function CbcKbAdmin() {
   const [editingFormat, setEditingFormat] = useState(null) // profile, or 'new'
   const [formatDrafts, setFormatDrafts] = useState([])
   const [reviewingDraft, setReviewingDraft] = useState(null) // draft doc under review
+  const [examPaperSamples, setExamPaperSamples] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -190,14 +194,16 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const [merged, firestoreTopics, formats, drafts] = await Promise.all([
+      const [merged, firestoreTopics, formats, drafts, samples] = await Promise.all([
         getMergedSyllabi({ forceOverrides: true }),
         listCbcTopics().catch(() => []),
         listAssessmentFormats().catch(() => []),
         listAssessmentFormatDrafts().catch(() => []),
+        listExamPaperSamples().catch(() => []),
       ])
       setFormatProfiles(formats)
       setFormatDrafts(drafts)
+      setExamPaperSamples(samples)
       setRawData(enrichSubjects(merged))
       // A Firestore topic is "custom" when it doesn't shadow an entry in
       // the syllabi-data layer. The merged-source rebuild already covers
@@ -460,6 +466,81 @@ export default function CbcKbAdmin() {
     }
   }
 
+  // ── Exam Paper Library ────────────────────────────────────────────────
+  // Upload + analyse a batch of real papers (shared classification), then
+  // synthesise a bucket into a format-profile draft for the existing review
+  // flow. `batch` is { files[], grade, subject, assessmentType, year, region }.
+  async function onAnalyzeExamPapers(batch) {
+    const files = Array.isArray(batch.files) ? batch.files : []
+    if (files.length === 0) return false
+    // Each paper is dominated by a ~30s Claude read, so analysing them strictly
+    // one-by-one made big batches painfully slow. Run a small fixed-size pool of
+    // workers instead — same total work, ~PAPER_CONCURRENCY× less wall-clock time,
+    // without hammering the API. One paper failing never stops the others.
+    const PAPER_CONCURRENCY = 3
+    let analyzed = 0
+    let done = 0
+    const errors = []
+
+    async function analyzeOne(file) {
+      try {
+        const storagePath = await uploadAssessmentFormatSample(file, currentUser?.uid)
+        const res = await analyzeExamPaper({
+          storagePath,
+          grade: batch.grade,
+          subject: batch.subject,
+          assessmentType: batch.assessmentType,
+          title: file.name,
+          year: batch.year ? Number(batch.year) : null,
+          region: batch.region || '',
+        })
+        if (res.ok) analyzed += 1
+        else errors.push(`${file.name}: ${res.error}`)
+      } catch (err) {
+        errors.push(`${file.name}: ${err?.message || err}`)
+      } finally {
+        done += 1
+        flashToast(`Analysing papers… ${done} of ${files.length} done`, 0)
+      }
+    }
+
+    flashToast(`Analysing ${files.length} paper${files.length === 1 ? '' : 's'}…`, 0)
+    let cursor = 0
+    async function worker() {
+      while (cursor < files.length) {
+        const idx = cursor++
+        await analyzeOne(files[idx])
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(PAPER_CONCURRENCY, files.length) }, () => worker()),
+    )
+    await load()
+    if (errors.length === 0) {
+      flashToast(`Analysed ${analyzed} paper${analyzed === 1 ? '' : 's'} into the library.`, 8000)
+      return true
+    }
+    flashToast(`Analysed ${analyzed} of ${files.length}. ${errors.length} failed: ${errors[0]}`, 12000)
+    return analyzed > 0
+  }
+
+  async function onDeleteExamPaperSample(sample) {
+    const ok = await deleteExamPaperSample(sample.id)
+    flashToast(ok ? 'Paper removed from the library.' : 'Delete failed — check console.')
+    if (ok) await load()
+  }
+
+  async function onSynthesizeFormat({ assessmentType, gradeBand, subject }) {
+    flashToast('Merging the analysed papers into one format profile…', 0)
+    const res = await synthesizeAssessmentFormat({ assessmentType, gradeBand, subject })
+    if (!res.ok) { flashToast(`Synthesis failed: ${res.error}`); return false }
+    flashToast(res.warning ?
+      `Draft created from ${res.sampleCount} paper(s) — ${res.warning}` :
+      `Draft created from ${res.sampleCount} paper(s). Review it under "Pending review" in Assessment Formats.`, 12000)
+    await load()
+    return true
+  }
+
   async function performDeleteCustomTopic(topic) {
     setDeleteBusy(true)
     try {
@@ -597,6 +678,10 @@ export default function CbcKbAdmin() {
               onExtractFormat={onExtractFormat}
               onReviewDraft={(d) => setReviewingDraft(d)}
               onRejectDraft={onRejectDraft}
+              examPaperSamples={examPaperSamples}
+              onAnalyzeExamPapers={onAnalyzeExamPapers}
+              onDeleteExamPaperSample={onDeleteExamPaperSample}
+              onSynthesizeFormat={onSynthesizeFormat}
             />
           )}
 
@@ -751,6 +836,8 @@ function HomeView({
   onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
   formatProfiles, onAddFormat, onEditFormat, onDeleteFormat, onImportFormats,
   formatDrafts, onExtractFormat, onReviewDraft, onRejectDraft,
+  examPaperSamples, onAnalyzeExamPapers, onDeleteExamPaperSample,
+  onSynthesizeFormat,
 }) {
   return (
     <div className="ss-home">
@@ -804,6 +891,15 @@ function HomeView({
         onExtract={onExtractFormat}
         onReviewDraft={onReviewDraft}
         onRejectDraft={onRejectDraft}
+      />
+
+      <ExamPaperLibraryPanel
+        samples={examPaperSamples}
+        profiles={formatProfiles}
+        drafts={formatDrafts}
+        onAnalyzeBatch={onAnalyzeExamPapers}
+        onDelete={onDeleteExamPaperSample}
+        onSynthesize={onSynthesizeFormat}
       />
 
       {CAT_ORDER.map(cat => {
@@ -974,6 +1070,36 @@ const FORMAT_BAND_LABELS = Object.fromEntries(
   ASSESSMENT_FORMAT_BANDS.map((b) => [b.value, b.label]),
 )
 
+// Where a profile's house style came from. Surfaced as a badge on each card
+// so an admin can tell at a glance whether the generator is grounded on a
+// hand-written profile, the built-in seed corpus, a one-off extracted sample,
+// or — the green one — a profile distilled from real uploaded papers in the
+// Exam Paper Library. `origin` is set server-side (assessmentFormats.js) and
+// survives draft approval (saveAssessmentFormat).
+const FORMAT_ORIGIN_BADGES = {
+  builtin_seed: { label: 'Built-in seed', bg: '#eef2f7', fg: '#475569' },
+  manual: { label: 'Manual', bg: '#eef2f7', fg: '#475569' },
+  pdf_extract: { label: 'From sample paper', bg: '#fef6e7', fg: '#92600a' },
+  docx_extract: { label: 'From sample paper', bg: '#fef6e7', fg: '#92600a' },
+  library_synthesis: { label: '✦ From paper library', bg: '#e7f6ee', fg: '#13683b' },
+}
+
+function FormatOriginBadge({ origin, sourceNote }) {
+  const meta = FORMAT_ORIGIN_BADGES[origin] || FORMAT_ORIGIN_BADGES.manual
+  return (
+    <span
+      title={sourceNote || undefined}
+      style={{
+        display: 'inline-block', fontSize: 11, fontWeight: 600,
+        padding: '1px 8px', borderRadius: 999,
+        background: meta.bg, color: meta.fg,
+      }}
+    >
+      {meta.label}
+    </span>
+  )
+}
+
 function AssessmentFormatsPanel({
   profiles, onAdd, onEdit, onDelete, onImport,
   drafts, onExtract, onReviewDraft, onRejectDraft,
@@ -1072,12 +1198,17 @@ function AssessmentFormatsPanel({
                 </div>
                 <div className="ss-custom-card-title">{d.label || '(untitled draft)'}</div>
                 <div className="ss-custom-card-subs">
-                  Extracted from {d.sourceNote || d.sourceKind || 'a sample paper'}.
+                  {d.origin === 'library_synthesis' ?
+                    `Synthesised from ${d.synthesizedFromCount || (d.synthesizedFromIds || []).length || 'several'} real papers.` :
+                    `Extracted from ${d.sourceNote || d.sourceKind || 'a sample paper'}.`}
                   {Array.isArray(d.validationErrors) && d.validationErrors.length > 0 && (
                     <span style={{ color: '#b91c1c' }}>
                       {' '}Needs fixes: {d.validationErrors.join('; ')}
                     </span>
                   )}
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <FormatOriginBadge origin={d.origin} />
                 </div>
                 <div className="ss-custom-card-actions">
                   <button
@@ -1126,6 +1257,9 @@ function AssessmentFormatsPanel({
                   <div className="ss-custom-card-title">{p.label}</div>
                   <div className="ss-custom-card-subs">
                     {(p.paperStructure || []).map((s) => s.name).filter(Boolean).join(' · ')}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <FormatOriginBadge origin={p.origin} sourceNote={p.sourceNote} />
                   </div>
                   <div className="ss-custom-card-actions">
                     <button
@@ -1243,7 +1377,7 @@ function FormatExtractIntake({ onExtract }) {
         <div className="ss-field">
           <label>Source</label>
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="upload">Upload a sample paper (.pdf / .docx)</option>
+            <option value="upload">Upload a sample paper (.pdf / .docx / photo)</option>
             <option value="past-paper">Use an uploaded past paper</option>
           </select>
         </div>
@@ -1252,7 +1386,7 @@ function FormatExtractIntake({ onExtract }) {
             <label>Sample paper file</label>
             <input
               type="file"
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.jpg,.jpeg,.png,.webp"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </div>

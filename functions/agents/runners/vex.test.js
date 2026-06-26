@@ -87,4 +87,41 @@ test("number-base and inline-maths options do NOT block publishing", () => {
   assert.strictEqual(blockers.length, 0, JSON.stringify(blockers));
 });
 
+test("picture-answer options (blank text + optionMedia image) do NOT block", () => {
+  // Regression: image-based MCQs carry the answer choice in a picture, so the
+  // option text is intentionally blank. Before the fix every such option
+  // tripped the "empty option" blocker, flagging the whole question for no
+  // reason. With optionMedia images present they must pass.
+  const blockers = runStructuralChecks([
+    {
+      type: "mcq",
+      text: "Which picture shows a triangle?",
+      options: ["", "", "", ""],
+      optionMedia: [
+        {imageUrl: "https://example.com/a.png", alt: "triangle"},
+        {imageUrl: "https://example.com/b.png", alt: "square"},
+        {imageUrl: "https://example.com/c.png", alt: "circle"},
+        {imageUrl: "https://example.com/d.png", alt: "star"},
+      ],
+      correctAnswer: 0,
+    },
+  ]);
+  assert.strictEqual(blockers.length, 0, JSON.stringify(blockers));
+});
+
+test("a blank option with no image is still blocked", () => {
+  // The image exemption is per-slot: a blank text option whose optionMedia
+  // slot has no image is still a genuine empty option.
+  const blockers = runStructuralChecks([
+    {
+      type: "mcq",
+      text: "Pick one",
+      options: ["Lusaka", "", "Kitwe"],
+      optionMedia: [{imageUrl: "https://example.com/a.png", alt: "x"}, null, null],
+      correctAnswer: 0,
+    },
+  ]);
+  assert.ok(blockers.some((b) => /empty option/i.test(b.message)), JSON.stringify(blockers));
+});
+
 console.log(`\n✓ vex.test.js — ${passed} checks passed`);

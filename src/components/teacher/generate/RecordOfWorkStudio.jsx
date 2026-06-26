@@ -19,11 +19,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
   listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import RecordOfWorkView from '../views/RecordOfWorkView'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -57,7 +60,7 @@ export default function RecordOfWorkStudio() {
   const uid = currentUser?.uid
 
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     teacherName: userProfile?.displayName || '',
     grade: 'G4',
     subject: '',
@@ -76,6 +79,9 @@ export default function RecordOfWorkStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
+  // Skip the mount + draft-restore runs of the dirty-marking effect so a
+  // freshly-loaded saved record isn't flagged "Update in library".
+  const dirtySkipRef = useRef(1)
 
   // Saved schemes for the picker — quietly degrades to manual entry.
   useEffect(() => {
@@ -93,9 +99,11 @@ export default function RecordOfWorkStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-    if (Array.isArray(draft.weeks) && draft.weeks.length) setWeeks(draft.weeks)
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
+    if (Array.isArray(draft.weeks) && draft.weeks.length) { setWeeks(draft.weeks); restoredDirtyState = true }
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   // Debounced autosave.
@@ -109,9 +117,36 @@ export default function RecordOfWorkStudio() {
     return () => clearTimeout(t)
   }, [uid, header, weeks, generationId])
 
-  useEffect(() => { setDirtySinceSave(true) }, [header, weeks])
+  useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
+    setDirtySinceSave(true)
+  }, [header, weeks])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+
+  // Subjects come from the Syllabi Studio for the chosen grade (with the
+  // curriculum-valid fall-back). The record stores the printed subject label,
+  // so we map the slug options to label-valued ones and keep any custom value
+  // already on the record (e.g. an older draft) selectable.
+  const { subjectOptions: curriculumSubjectOptions } = useCurriculumOptions(header.grade)
+  const subjectOptions = useMemo(() => {
+    const opts = curriculumSubjectOptions.map((o) =>
+      (o.group !== undefined ? o : { value: o.label, label: o.label }))
+    if (header.subject && !opts.some((o) => o.value === header.subject)) {
+      return [{ value: header.subject, label: header.subject }, ...opts]
+    }
+    return opts
+  }, [curriculumSubjectOptions, header.subject])
+  const subjectGroups = useMemo(() => {
+    const groups = []
+    let cur = null
+    for (const o of subjectOptions) {
+      if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
+      else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
+    }
+    if (cur) groups.push(cur)
+    return groups
+  }, [subjectOptions])
 
   const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
 
@@ -160,7 +195,7 @@ export default function RecordOfWorkStudio() {
 
   function clearAll() {
     setHeader({
-      school: userProfile?.schoolName || '',
+      school: userProfile?.school || userProfile?.schoolName || '',
       teacherName: userProfile?.displayName || '',
       grade: 'G4', subject: '', term: 1,
       year: String(new Date().getFullYear()),
@@ -173,25 +208,33 @@ export default function RecordOfWorkStudio() {
     toast.info('Cleared. Starting a fresh record of work.')
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!artifact || saving) return
     setSaving(true)
     try {
       const id = await saveRecordOfWorkGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[RecordOfWorkStudio] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
 
+  // Auto-save to the library so a hand-built record of work is never lost.
+  useLibraryAutoSave({
+    enabled: !!artifact,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
+
   async function onExportDocx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_record-of-work.docx`
+    const name = buildDownloadName({ docType: 'Record of Work', grade: header.grade, subject: header.subject, term: header.term })
     try {
       await downloadRecordOfWorkDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Record of work downloaded.')
@@ -202,7 +245,7 @@ export default function RecordOfWorkStudio() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Record of work" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -216,7 +259,7 @@ export default function RecordOfWorkStudio() {
           {/* ── Build from a scheme ── */}
           <section className="studio-card p-5 space-y-3">
             <div>
-              <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Start from your scheme of work</h2>
+              <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Start from your scheme of work</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                 {schemesStatus === 'ready' && schemes.length === 0
                   ? 'No saved schemes yet — generate one first, or log the weeks manually below.'
@@ -260,7 +303,13 @@ export default function RecordOfWorkStudio() {
               </div>
               <div>
                 <label className="studio-label">Subject</label>
-                <input type="text" value={header.subject} maxLength={60} onChange={(e) => setH('subject', e.target.value)} placeholder="e.g. Integrated Science" className="studio-input" />
+                <select value={header.subject} onChange={(e) => setH('subject', e.target.value)} className="studio-input">
+                  <option value="">Choose a subject…</option>
+                  {subjectGroups.map((g, i) => (g.label
+                    ? <optgroup key={i} label={g.label}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+                    : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="studio-label">Term</label>
@@ -279,7 +328,7 @@ export default function RecordOfWorkStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>The term, week by week</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>The term, week by week</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   One line per item of work done. Mark coverage after each week — remarks are for what to re-teach or carry over.
                 </p>
@@ -345,7 +394,7 @@ export default function RecordOfWorkStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your record of work</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your record of work</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Exactly what prints — with the signature block the head teacher checks.
                   {artifact && ` Coverage so far: ${summary.full} full · ${summary.partial} partial · ${summary.none} not covered · ${summary.blank} not logged.`}

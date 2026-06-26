@@ -13,6 +13,8 @@ import { useLearnerLessons } from '../hooks/useLearnerLessons'
 import { LearnerLessonCard } from '../components/LearnerLessonCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
+import ContentLoadError from '../../../components/ui/ContentLoadError'
 import '../../notes/styles/notes.css'
 
 export function LearnerLessonsList() {
@@ -23,7 +25,7 @@ export function LearnerLessonsList() {
   const [activeSubject, setActiveSubject] = useState('all')
   const [search, setSearch] = useState('')
 
-  const { lessons, allLessons, countsBySubject, loading } =
+  const { lessons, allLessons, countsBySubject, loading, error, reload } =
     useLearnerLessons({ grade, subject: activeSubject, search })
 
   const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
@@ -49,9 +51,11 @@ export function LearnerLessonsList() {
             Ready to learn, <span className="font-display-italic">{firstName}.</span>
           </h1>
           <p className="text-base text-neutral-600">
-            {allLessons.length === 0
-              ? `Interactive lessons for Grade ${grade} are on the way.`
-              : `${allLessons.length} lesson${allLessons.length === 1 ? '' : 's'} ready for Grade ${grade}.`}
+            {error && allLessons.length === 0
+              ? 'We hit a snag loading your lessons.'
+              : allLessons.length === 0
+                ? `Interactive lessons for Grade ${grade} are on the way.`
+                : `${allLessons.length} lesson${allLessons.length === 1 ? '' : 's'} ready for Grade ${grade}.`}
           </p>
         </div>
 
@@ -83,10 +87,22 @@ export function LearnerLessonsList() {
           </div>
         )}
 
-        {loading && allLessons.length === 0 && <SkeletonGrid />}
+        {/* A read failure must not masquerade as "no lessons yet" — show a
+            retryable error instead of the empty state. */}
+        {error && allLessons.length === 0 ? (
+          <ContentLoadError
+            title="Couldn’t load your lessons"
+            message="We couldn’t load your lessons right now. Please check your connection and try again."
+            onRetry={reload}
+          />
+        ) : (
+          <>
+            {loading && allLessons.length === 0 && <SkeletonGrid />}
 
-        {!loading && allLessons.length === 0 && (
-          <EmptyState grade={grade} />
+            {!loading && allLessons.length === 0 && (
+              <EmptyState grade={grade} />
+            )}
+          </>
         )}
 
         {!loading && Object.keys(grouped).length > 0 && (
@@ -148,14 +164,14 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-neutral-200 p-5 animate-pulse">
+        <div key={i} className="bg-white rounded-xl border border-neutral-200 p-5">
           <div className="flex gap-2 mb-3">
-            <div className="h-5 w-16 bg-neutral-100 rounded-full" />
-            <div className="h-5 w-12 bg-neutral-100 rounded-full" />
+            <Skeleton width={64} height={20} className="!rounded-full" />
+            <Skeleton width={48} height={20} className="!rounded-full" />
           </div>
-          <div className="h-7 bg-neutral-100 rounded w-3/4 mb-2" />
-          <div className="h-4 bg-neutral-100 rounded w-full mb-1" />
-          <div className="h-4 bg-neutral-100 rounded w-2/3" />
+          <Skeleton width="75%" height={28} className="!rounded mb-2" />
+          <Skeleton height={16} className="!rounded mb-1" />
+          <Skeleton width="66%" height={16} className="!rounded" />
         </div>
       ))}
     </div>

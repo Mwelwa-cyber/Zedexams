@@ -2,16 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { useSubscription } from '../../hooks/useSubscription'
 import {
   listMyGenerations,
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
-import UpgradeModal from '../subscription/UpgradeModal'
+import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
+import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
+import FeedbackButton from '../feedback/FeedbackButton'
+import SuggestionNudge from '../feedback/SuggestionNudge'
 import Icon from '../ui/Icon'
 import {
   ArrowRight,
@@ -27,153 +29,290 @@ import {
   FolderOpen,
   GraduationCap,
   Layers,
+  LayoutGrid,
   PencilLine,
   Sparkles,
   Target,
 } from '../ui/icons'
+// 3D studio tile icons (optimised WebP, ~2KB each). Replaces the flat line
+// icons on the workspace grid; one per tile, keyed to each studio below.
+import iconClassRegister from '../../assets/teacher-icons/class-register.webp'
+import iconVisualStudio from '../../assets/teacher-icons/visual-studio.webp'
+import iconSchemeOfWork from '../../assets/teacher-icons/scheme-of-work.webp'
+import iconWeeklyForecast from '../../assets/teacher-icons/weekly-forecast.webp'
+import iconRecordOfWork from '../../assets/teacher-icons/record-of-work.webp'
+import iconMarkSchedule from '../../assets/teacher-icons/mark-schedule.webp'
+import iconClassTimetable from '../../assets/teacher-icons/class-timetable.webp'
+import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
+import iconNotesStudio from '../../assets/teacher-icons/notes-studio.webp'
+import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
+import iconFlashcards from '../../assets/teacher-icons/flashcards.webp'
+import iconRubric from '../../assets/teacher-icons/rubric.webp'
+import iconAssessments from '../../assets/teacher-icons/assessments.webp'
+import iconSbaStudio from '../../assets/teacher-icons/sba-studio.webp'
+import iconLibrary from '../../assets/teacher-icons/library.webp'
+import iconSchoolCalendar from '../../assets/teacher-icons/school-calendar.webp'
+import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
 
-const STUDIOS = [
+// Tiles are grouped into the teacher workflows the "Teacher Workspace" renders
+// as labelled sections (each with a header icon + "View all" link, matching the
+// app design). `NEW` is reserved for genuinely recent tools so the badge keeps
+// its signal; every other tile shows either its saved-count or no badge. Keep
+// each group's items in their display order.
+const STUDIO_GROUPS = [
   {
-    icon: CalendarDays,
-    tone: 'amber',
-    badge: 'NEW',
-    libraryKey: 'scheme-of-work',
-    title: 'Schemes of Work',
-    tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
-    to: '/teacher/generate/scheme-of-work',
-    meta: 'Term planning',
-  },
-  {
-    icon: Clock,
-    tone: 'blue',
-    badge: 'NEW',
-    libraryKey: 'weekly-forecast',
-    title: 'Weekly Forecast',
-    tagline: "Pull a week from your scheme and plan it day by day.",
-    to: '/teacher/generate/weekly-forecast',
-    meta: 'Weekly prep',
-  },
-  {
+    label: 'Planning',
     icon: ClipboardList,
-    tone: 'cyan',
-    badge: 'NEW',
-    libraryKey: 'record-of-work',
-    title: 'Record of Work',
-    tagline: 'Log what you actually taught each week, checked against your scheme.',
-    to: '/teacher/generate/record-of-work',
-    meta: 'Weekly log',
+    accent: 'amber',
+    viewAll: '/teacher/library',
+    items: [
+      {
+        img: iconSyllabiStudio,
+        tone: 'sky',
+        badge: null,
+        title: 'Syllabus Studio',
+        tagline: 'Browse CBC subjects, topics, competences, and standards.',
+        to: '/teacher/syllabi',
+      },
+      {
+        img: iconSchemeOfWork,
+        tone: 'amber',
+        badge: null,
+        libraryKey: 'scheme-of-work',
+        title: 'Schemes of Work',
+        tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
+        to: '/teacher/generate/scheme-of-work',
+      },
+      {
+        img: iconSchoolCalendar,
+        tone: 'indigo',
+        badge: null,
+        title: 'School Calendar',
+        tagline: 'Check MoE terms, public holidays, and working days.',
+        to: '/teacher/calendar',
+      },
+      {
+        img: iconWeeklyForecast,
+        tone: 'blue',
+        badge: null,
+        libraryKey: 'weekly-forecast',
+        title: 'Weekly Forecast',
+        tagline: 'Plan the week day by day from your scheme, syllabus and timetable.',
+        to: '/teacher/generate/weekly-forecast',
+      },
+      {
+        img: iconLessonPlan,
+        tone: 'orange',
+        badge: null,
+        libraryKey: 'lesson-plan',
+        title: 'Lesson Plans',
+        tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
+        to: '/teacher/generate/lesson-plan',
+      },
+      {
+        img: iconRecordOfWork,
+        tone: 'cyan',
+        badge: null,
+        libraryKey: 'record-of-work',
+        title: 'Record of Work',
+        tagline: 'Log what you actually taught each week, checked against your scheme.',
+        to: '/teacher/generate/record-of-work',
+      },
+      {
+        img: iconClassRegister,
+        tone: 'green',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Class Register',
+        tagline: 'Build one class list per class — SBA, marks and reports load every learner.',
+        to: '/teacher/register',
+      },
+      {
+        img: iconClassTimetable,
+        tone: 'violet',
+        badge: null,
+        libraryKey: 'class-timetable',
+        title: 'Class Timetable',
+        tagline: 'Auto-fill a balanced week from the curriculum subjects.',
+        to: '/teacher/generate/class-timetable',
+      },
+    ],
   },
   {
-    icon: Calculator,
-    tone: 'green',
-    badge: 'NEW',
-    libraryKey: 'mark-schedule',
-    title: 'Mark Schedule',
-    tagline: 'Marks in — totals, class positions and report comments out.',
-    to: '/teacher/generate/mark-schedule',
-    meta: 'After tests',
-  },
-  {
-    icon: PencilLine,
-    tone: 'orange',
-    badge: null,
-    libraryKey: 'lesson-plan',
-    title: 'Lesson Plans',
-    tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
-    to: '/teacher/generate/lesson-plan',
-    meta: 'Daily prep',
-  },
-  {
-    icon: DocumentTextIcon,
-    tone: 'blue',
-    badge: 'NEW',
-    libraryKey: 'notes',
-    title: 'Notes Studio',
-    tagline: 'Turn a lesson plan into delivery notes and examples.',
-    to: '/teacher/generate/notes',
-    meta: 'Instruction support',
-  },
-  {
-    icon: FileText,
-    tone: 'green',
-    badge: 'NEW',
-    libraryKey: 'worksheet',
-    title: 'Worksheets',
-    tagline: 'Create classroom practice, exercises, and consolidation tasks.',
-    to: '/teacher/generate/worksheet',
-    meta: 'Practice material',
-  },
-  {
-    icon: Layers,
-    tone: 'yellow',
-    badge: 'NEW',
-    libraryKey: 'flashcards',
-    title: 'Flashcards',
-    tagline: 'Build short revision prompts for recall and practice.',
-    to: '/teacher/generate/flashcards',
-    meta: 'Revision',
-  },
-  {
-    icon: ClipboardCheckList,
-    tone: 'rose',
-    badge: 'NEW',
-    libraryKey: 'rubric',
-    title: 'Rubrics',
-    tagline: 'Define criteria, levels, and marking guidance.',
-    to: '/teacher/generate/rubric',
-    meta: 'Marking guide',
-  },
-  {
-    icon: BarChart3,
-    tone: 'violet',
-    badge: 'NEW',
-    title: 'Assessments',
-    tagline: 'Manage topic, monthly, mid-term, and end-of-term assessments.',
-    to: '/teacher/assessments',
-    meta: 'Assessment bank',
-  },
-  {
-    icon: FolderOpen,
-    tone: 'slate',
-    badge: null,
-    isLibrary: true,
-    title: 'Library',
-    tagline: 'Browse saved plans, notes, worksheets, rubrics, and assessments.',
-    to: '/teacher/library',
-    meta: 'Saved work',
-  },
-  {
-    icon: CalendarDays,
-    tone: 'indigo',
-    badge: 'NEW',
-    title: 'School Calendar',
-    tagline: 'Check MoE terms, public holidays, and working days.',
-    to: '/teacher/calendar',
-    meta: 'Academic year',
-  },
-  {
+    label: 'Content & Teaching Materials',
     icon: BookOpen,
-    tone: 'sky',
-    badge: 'NEW',
-    title: 'Syllabi Studio',
-    tagline: 'Browse CBC subjects, topics, competences, and standards.',
-    to: '/teacher/syllabi',
-    meta: 'Curriculum reference',
+    accent: 'blue',
+    viewAll: '/teacher/library',
+    items: [
+      {
+        img: iconNotesStudio,
+        tone: 'blue',
+        badge: null,
+        libraryKey: 'notes',
+        title: 'Notes Studio',
+        tagline: 'Turn a lesson plan into delivery notes and examples.',
+        to: '/teacher/generate/notes',
+      },
+      {
+        img: iconWorksheet,
+        tone: 'green',
+        badge: null,
+        libraryKey: 'worksheet',
+        title: 'Worksheets',
+        tagline: 'Create classroom practice, exercises, and consolidation tasks.',
+        to: '/teacher/generate/worksheet',
+      },
+      {
+        img: iconFlashcards,
+        tone: 'yellow',
+        badge: null,
+        libraryKey: 'flashcards',
+        title: 'Flashcards',
+        tagline: 'Build short revision prompts for recall and practice.',
+        to: '/teacher/generate/flashcards',
+      },
+      {
+        img: iconVisualStudio,
+        tone: 'orange',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Visual Studio',
+        tagline: 'Make labelled diagrams & test pictures, then send to a studio.',
+        to: '/teacher/visual-studio',
+      },
+    ],
+  },
+  {
+    label: 'Assessment & Marking',
+    icon: ClipboardCheckList,
+    accent: 'violet',
+    viewAll: '/teacher/library',
+    items: [
+      {
+        img: iconAssessments,
+        tone: 'violet',
+        badge: null,
+        title: 'Test Papers',
+        tagline: 'Build topic, weekly, mid-term, and end-of-term test papers.',
+        to: '/teacher/test-papers',
+      },
+      {
+        img: iconAssessments,
+        tone: 'indigo',
+        badge: 'NEW',
+        libraryKey: 'exam-paper',
+        title: 'Exam Studio',
+        tagline: 'Build mock, examination, and exam papers at full exam standard.',
+        to: '/teacher/exam-papers',
+      },
+      {
+        img: iconRubric,
+        tone: 'rose',
+        badge: null,
+        libraryKey: 'rubric',
+        title: 'Rubrics',
+        tagline: 'Define criteria, levels, and marking guidance.',
+        to: '/teacher/generate/rubric',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'sky',
+        badge: null,
+        libraryKey: 'sba',
+        title: 'SBA Studio',
+        tagline: 'ECZ School Based Assessment — create tasks, record marks, track coverage.',
+        to: '/teacher/sba',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'cyan',
+        badge: null,
+        title: 'SBA Mark Tracker',
+        tagline: 'Record SBA marks and watch task coverage build up over the term.',
+        to: '/teacher/generate/sba-tracker',
+      },
+      {
+        img: iconMarkSchedule,
+        tone: 'green',
+        badge: null,
+        libraryKey: 'mark-schedule',
+        title: 'Mark Schedule',
+        tagline: 'Marks in — totals, class positions and report comments out.',
+        to: '/teacher/generate/mark-schedule',
+      },
+    ],
+  },
+  {
+    label: 'SBA Planning',
+    icon: Target,
+    accent: 'green',
+    viewAll: '/teacher/sba',
+    items: [
+      {
+        img: iconSbaStudio,
+        tone: 'sky',
+        badge: null,
+        title: 'SBA Year Planner',
+        tagline: 'Plan SBA tasks across the year and track planned vs marked.',
+        to: '/teacher/generate/sba-planner',
+      },
+    ],
+  },
+  {
+    label: 'Library',
+    icon: FolderOpen,
+    accent: 'slate',
+    viewAll: '/teacher/library',
+    items: [
+      {
+        img: iconLibrary,
+        tone: 'slate',
+        badge: null,
+        isLibrary: true,
+        title: 'My Library',
+        tagline: 'All saved plans, notes, worksheets, rubrics, and assessments.',
+        to: '/teacher/library',
+      },
+    ],
   },
 ]
+
+// Studio tile routes that are Pro/Max only — a Free teacher who opens one sees a
+// read-only sample (StudioGate), so the tile is badged "Sample" for them. The
+// Lesson Plan tile and the non-generator utilities (Syllabus, Calendar,
+// Register, Visual Studio, SBA hub, Library) stay open and are absent here.
+const LOCKED_STUDIO_PATHS = new Set([
+  '/teacher/generate/scheme-of-work',
+  '/teacher/generate/weekly-forecast',
+  '/teacher/generate/record-of-work',
+  '/teacher/generate/class-timetable',
+  '/teacher/generate/notes',
+  '/teacher/generate/worksheet',
+  '/teacher/generate/flashcards',
+  '/teacher/generate/rubric',
+  '/teacher/generate/mark-schedule',
+  '/teacher/test-papers',
+  '/teacher/exam-papers',
+  '/teacher/generate/sba-tracker',
+  '/teacher/generate/sba-planner',
+])
 
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
   scheme_of_work: { icon: CalendarDays, accent: '#faecb8', label: 'Scheme of Work' },
+  class_timetable: { icon: CalendarDays, accent: '#e3dcf5', label: 'Class Timetable' },
   worksheet: { icon: FileText, accent: '#d8ecd0', label: 'Worksheet' },
   flashcards: { icon: Layers, accent: '#fde9b8', label: 'Flashcards' },
   rubric: { icon: ClipboardCheckList, accent: '#f0d6e0', label: 'Rubric' },
   notes: { icon: DocumentTextIcon, accent: '#dbe7f4', label: 'Teacher Notes' },
-  assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Assessment' },
+  assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Test Paper' },
   // 'quiz' stays for generations saved before the studio was retired (#909).
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
   full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
+  sba_task: { icon: GraduationCap, accent: '#d8e6f0', label: 'SBA Task' },
+  sba_mark_sheet: { icon: Calculator, accent: '#dcefe2', label: 'SBA Mark Sheet' },
+  sba_plan: { icon: Target, accent: '#dbe7f4', label: 'SBA Year Plan' },
 }
 
 function SectionLabel({ children }) {
@@ -184,7 +323,24 @@ function SectionLabel({ children }) {
   )
 }
 
-function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
+function WorkspaceSectionHead({ icon, accent, label, viewAll }) {
+  return (
+    <div className="teacher-workspace-section__head">
+      <span className={`teacher-workspace-section__icon teacher-workspace-section__icon--${accent || 'amber'}`}>
+        <Icon as={icon} size="sm" />
+      </span>
+      <span className="teacher-workspace-section__label">{label}</span>
+      {viewAll && (
+        <Link to={viewAll} className="teacher-workspace-section__viewall">
+          View all
+          <Icon as={ArrowRight} size="xs" />
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary, locked }) {
   const isSoon = badge === 'SOON'
   // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
   // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
@@ -194,39 +350,55 @@ function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, 
     : isLibrary
     ? (librarySummary?.total ?? 0)
     : null
-  const badgeText = badge !== null ? badge : `${count} saved`
-  const badgeClass = badge === 'FREE'
-    ? 'teacher-studio-card__badge--success'
+  // Only show a badge when there's something real to show: an explicit badge
+  // (NEW/FREE/SOON) or a saved-count for library-backed tiles. Without this
+  // guard, a badge-less tile with no count would render the literal "null saved".
+  // A locked (Free-plan, Pro/Max-only) tile shows a "🔒 Sample" badge that
+  // takes priority over the saved-count / NEW badge — it's the more useful
+  // signal: clicking opens a read-only sample, not the studio.
+  const showBadge = locked || badge !== null || count !== null
+  const badgeText = locked ? '🔒 Sample' : badge !== null ? badge : `${count} saved`
+  const badgeClass = locked
+    ? 'teacher-workspace-card__badge--muted'
+    : badge === 'FREE'
+    ? 'teacher-workspace-card__badge--success'
     : badge === 'SOON'
-    ? 'teacher-studio-card__badge--muted'
+    ? 'teacher-workspace-card__badge--muted'
     : badge === 'NEW'
-    ? 'teacher-studio-card__badge--accent'
-    : 'teacher-studio-card__badge--saved'
+    ? 'teacher-workspace-card__badge--accent'
+    : 'teacher-workspace-card__badge--saved'
   const cardClass = [
-    'teacher-studio-card',
-    `teacher-studio-card--${tone || 'slate'}`,
+    'teacher-workspace-card',
+    `teacher-workspace-card--${tone || 'slate'}`,
     isSoon ? 'is-disabled' : '',
   ].filter(Boolean).join(' ')
 
   const inner = (
     <>
-      <div className="teacher-studio-card__top">
-        <span className="teacher-studio-card__icon">
-          <Icon as={icon} size="lg" />
+      <div className="teacher-workspace-card__top">
+        <span className="teacher-workspace-card__icon">
+          <img
+            className="teacher-workspace-card__icon-img"
+            src={img}
+            alt=""
+            aria-hidden="true"
+            width="44"
+            height="44"
+            loading="lazy"
+            decoding="async"
+          />
         </span>
-        <span className={`teacher-studio-card__badge ${badgeClass}`}>
-          {badgeText}
-        </span>
+        {showBadge && (
+          <span className={`teacher-workspace-card__badge ${badgeClass}`}>
+            {badgeText}
+          </span>
+        )}
       </div>
-      <p className="teacher-studio-card__title">
+      <p className="teacher-workspace-card__title">
         {title}
       </p>
-      <p className="teacher-studio-card__text">
+      <p className="teacher-workspace-card__text">
         {tagline}
-      </p>
-      <p className="teacher-studio-card__meta">
-        {isSoon ? 'Coming soon' : meta}
-        {!isSoon && <Icon as={ArrowRight} size="xs" />}
       </p>
     </>
   )
@@ -309,7 +481,7 @@ function ProgressWidget({ generations, quizzes }) {
       <div className="flex flex-wrap gap-3">
         <StatPill value={stats.lessonsThisMonth} label="Lesson plans · 30 days" accent="#ff7a2e" />
         <StatPill value={stats.notesThisMonth}   label="Notes · 30 days"        accent="#16505d" />
-        <StatPill value={stats.assessmentsThisMonth} label="Assessments · 30 days" accent="#10864e" />
+        <StatPill value={stats.assessmentsThisMonth} label="Test papers · 30 days" accent="#10864e" />
         <StatPill value={stats.itemsThisWeek}    label="New this week"          accent="#b8651a" />
         <StatPill value={stats.totalSaved}       label="Total in library"       accent="#0e2a32" />
       </div>
@@ -338,14 +510,22 @@ function formatSubject(s) {
 }
 
 export default function TeacherDashboard() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const { getMyQuizzes } = useFirestore()
-  const { isPremium } = useSubscription()
+
+  // "Current plan" reflects the teacher's actual studio entitlement
+  // (users.teacherPlan, same field the usage meter + server gate on), not the
+  // learner-style isPremium flag — otherwise a premium learner with no Pro
+  // teacher plan would falsely read "Pro" while the meter still showed Free.
+  const teacherPlan = resolveTeacherPlan(userProfile)
+  const teacherPlanLabel = PLAN_LABELS[teacherPlan] || 'Free'
+  // Free teachers can only open the Lesson Plan studio; other tiles open a
+  // read-only sample, so they're badged "Sample" on the workspace grid.
+  const isFreePlan = teacherPlan === 'free'
 
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
     if (!currentUser) return
@@ -397,7 +577,7 @@ export default function TeacherDashboard() {
         timestamp: q.createdAt,
         kind: 'assessment',
         tool: 'assessments',
-        to: `/teacher/assessments/${q.id}/edit`,
+        to: `/teacher/test-papers/${q.id}/edit`,
       })),
     ]
     const toMs = (t) => {
@@ -414,26 +594,9 @@ export default function TeacherDashboard() {
     <div className="teacher-dashboard-surface">
       <SeoHelmet title="Teacher dashboard" noIndex />
       <TeacherOnboardingTour />
-      {!isPremium && (
-        <div
-          className="teacher-subscription-banner"
-        >
-          <div>
-            <p className="teacher-subscription-banner__title">
-              Activate your teacher subscription
-            </p>
-            <p className="teacher-subscription-banner__text">
-              Pay with MTN MoMo and unlock AI lesson plan tools automatically.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowUpgrade(true)}
-            className="teacher-subscription-banner__button"
-          >
-            Pay with MTN
-          </button>
-        </div>
-      )}
+      {/* Subscription reminder — Free/Expired teachers get an upgrade card
+          listing their Pro toolkit; self-hides once they're on Pro/Max. */}
+      <SubscriptionReminderCard audience="teacher" />
 
       <section className="teacher-dashboard-hero">
         <div className="teacher-dashboard-hero__content">
@@ -494,7 +657,7 @@ export default function TeacherDashboard() {
             <p>Recent items</p>
           </div>
           <div>
-            <span>{isPremium ? 'Pro' : 'Free'}</span>
+            <span>{teacherPlanLabel}</span>
             <p>Current plan</p>
           </div>
         </div>
@@ -504,14 +667,39 @@ export default function TeacherDashboard() {
 
       {!loading && <ProgressWidget generations={generations} quizzes={quizzes} />}
 
-      <SectionLabel>Tools</SectionLabel>
-      <h2 className="teacher-dashboard-heading">
-        Choose a workspace
-      </h2>
-      <div className="teacher-studio-grid">
-        {STUDIOS.map(s => (
-          <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
-        ))}
+      <div className="teacher-workspace-header">
+        <span className="teacher-workspace-header__icon">
+          <Icon as={LayoutGrid} size="md" />
+        </span>
+        <div>
+          <h2 className="teacher-workspace-header__title">Teacher Workspace</h2>
+          <p className="teacher-workspace-header__text">Everything you need in one place</p>
+        </div>
+      </div>
+
+      {STUDIO_GROUPS.map(group => (
+        <section key={group.label} className="teacher-workspace-section">
+          <WorkspaceSectionHead
+            icon={group.icon}
+            accent={group.accent}
+            label={group.label}
+            viewAll={group.viewAll}
+          />
+          <div className="teacher-workspace-grid">
+            {group.items.map(s => (
+              <StudioCard
+                key={s.title}
+                {...s}
+                librarySummary={librarySummary}
+                locked={isFreePlan && LOCKED_STUDIO_PATHS.has(s.to)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <div className="mt-6">
+        <FeedbackButton source="teacher-dashboard" />
       </div>
 
       <SectionLabel>Recents</SectionLabel>
@@ -565,7 +753,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      <SuggestionNudge source="teacher-dashboard" />
     </div>
   )
 }

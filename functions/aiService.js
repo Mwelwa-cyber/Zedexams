@@ -92,7 +92,9 @@ async function getUserRole(uid) {
 }
 
 function isStaffRole(role) {
-  return role === "teacher" || role === "admin";
+  // superAdmin can generate exam papers, assessments, and all other teacher
+  // tools (the usage meter already maps superAdmin to Max tier and skips caps).
+  return role === "teacher" || role === "admin" || role === "superAdmin";
 }
 
 function cleanChatHistory(history = []) {
@@ -112,7 +114,12 @@ function cleanChatHistory(history = []) {
 async function assertDailyLimit(uid, role, action) {
   const day = new Date().toISOString().slice(0, 10);
   const limit = isStaffRole(role) ? 150 : 60;
-  const ref = admin.firestore().doc(`aiUsage/${uid}_${day}`);
+  // Per-user daily call counter. Deliberately in its OWN collection, NOT
+  // in aiUsage: the /admin/ai-costs dashboard lists aiUsage with
+  // `where('__name__', '>=', since)`, so a `{uid}_{day}` doc id (letter-
+  // leading) sorts after the date ids and used to surface as a bogus
+  // daily row / chart axis label. Same reasoning as aiUsageMonthly.
+  const ref = admin.firestore().doc(`aiDailyLimits/${uid}_${day}`);
 
   await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -160,12 +167,45 @@ async function assertAiBudget() {
   }
 }
 
+// Normalise an OpenAI usage block ({prompt_tokens, completion_tokens}) into
+// the Anthropic-shaped {input_tokens, output_tokens} that recordAiUsage reads,
+// so OpenAI spend lands on the same /admin/ai-costs rollup. Cost is priced by
+// the gpt-* entries in aiCostTracking's price table.
+function recordOpenAiUsage(track, model, usage) {
+  if (!track || !usage) return;
+  try {
+    const {recordAiUsage} = require("./aiCostTracking");
+    recordAiUsage({
+      uid: track.uid || null,
+      tool: track.tool || null,
+      model,
+      usage: {
+        input_tokens: usage.prompt_tokens || 0,
+        output_tokens: usage.completion_tokens || 0,
+      },
+    });
+  } catch (err) {
+    console.warn("[aiService] openai cost track failed", err);
+  }
+}
+
 async function callOpenAI(apiKey, {
+  systemPrompt,
   messages,
   maxTokens = 500,
   temperature = 0.3,
   json = false,
+  model,
+  // Audit B4 — same opt-in usage tracking as callAnthropic.
+  track = null,
 }) {
+  await assertAiBudget();
+  // Accept an Anthropic-shaped {systemPrompt, messages[]} call and fold the
+  // system prompt into OpenAI's system role, unless the caller already put a
+  // system message first.
+  const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
+    [{role: "system", content: systemPrompt}, ...messages] :
+    messages;
   let res;
   try {
     res = await fetch(OPENAI_URL, {
@@ -175,8 +215,8 @@ async function callOpenAI(apiKey, {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
-        messages,
+        model: model || MODEL,
+        messages: finalMessages,
         temperature,
         max_tokens: maxTokens,
         ...(json && {response_format: {type: "json_object"}}),
@@ -195,6 +235,12 @@ async function callOpenAI(apiKey, {
       status: res.status,
       message: body?.error?.message,
     });
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "AI is busy right now. Please wait a moment and try again.",
+      );
+    }
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -202,7 +248,108 @@ async function callOpenAI(apiKey, {
   }
 
   const data = await res.json();
+  recordOpenAiUsage(track, data?.model || model || MODEL, data?.usage);
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
+}
+
+/**
+ * Streams an OpenAI chat completion token-by-token. Calls onToken(text) for
+ * each content delta, then returns the full concatenated text. Mirrors the
+ * SSE contract of callAnthropicStream so the chat endpoints stay symmetric.
+ *
+ * `stream_options.include_usage` makes OpenAI emit a final chunk carrying the
+ * cumulative usage block (empty choices) — captured for cost tracking.
+ */
+async function callOpenAIStream(apiKey, {
+  systemPrompt,
+  messages,
+  maxTokens = 1000,
+  temperature = 0.35,
+  model,
+  track = null,
+}, onToken) {
+  await assertAiBudget();
+  const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
+    [{role: "system", content: systemPrompt}, ...messages] :
+    messages;
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || MODEL,
+        messages: finalMessages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+        stream_options: {include_usage: true},
+      }),
+    });
+  } catch (err) {
+    console.error("callOpenAIStream fetch failed", err);
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error("callOpenAIStream API error", {
+      status: res.status,
+      message: body?.error?.message,
+    });
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "AI is busy. Please wait a moment and try again.",
+      );
+    }
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let usage = null;
+  let streamModel = model || MODEL;
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw || raw === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.model) streamModel = parsed.model;
+        const token = parsed.choices?.[0]?.delta?.content;
+        if (typeof token === "string" && token) {
+          fullText += token;
+          onToken(token);
+        }
+        // The include_usage chunk arrives with empty choices + a usage block.
+        if (parsed.usage) usage = parsed.usage;
+      } catch {
+        // ignore malformed SSE lines
+      }
+    }
+  }
+
+  recordOpenAiUsage(track, streamModel, usage);
+  return fullText;
 }
 
 // Strip markdown code fences (```json ... ```) that Claude sometimes emits
@@ -584,7 +731,9 @@ function buildQuizMessages(payload) {
   // Question kind requested by the studio: mcq (default) | true_false |
   // short_answer | mixed. Anything unrecognised falls back to mcq so old
   // clients keep their exact behaviour.
-  const QUIZ_TYPES = new Set(["mcq", "true_false", "short_answer", "mixed"]);
+  const QUIZ_TYPES = new Set([
+    "mcq", "true_false", "short_answer", "fill_blank", "mixed",
+  ]);
   const rawType = cleanString(payload.type, 20).toLowerCase();
   const quizType = QUIZ_TYPES.has(rawType) ? rawType : "mcq";
 
@@ -596,6 +745,11 @@ function buildQuizMessages(payload) {
     short_answer:
       `Write ${count} SHORT-ANSWER quiz questions for the following lesson. ` +
       "Each expects a one-word or one-phrase written answer:",
+    fill_blank:
+      "Write ONE Fill-in-the-Blanks exercise for the following lesson, made " +
+      `up of EXACTLY ${count} short statements. Each statement has exactly ` +
+      "ONE blank the learner completes, and there is a word bank of the " +
+      "answers:",
     mixed:
       `Write ${count} quiz questions for the following lesson, mixing the ` +
       "three kinds roughly evenly: multiple-choice, true/false and " +
@@ -641,6 +795,22 @@ function buildQuizMessages(payload) {
       "    },",
     );
   }
+  if (quizType === "fill_blank") {
+    // ONE object that bundles the whole fill-in-the-blanks exercise: the
+    // instruction, a word bank, and `count` single-blank statements.
+    shapeLines.push(
+      "    { // a single fill-in-the-blanks exercise",
+      '      "type": "fill_blank",',
+      '      "instruction": "Fill in the blanks using the words provided below.",',
+      '      "wordBank": ["soap", "clean", "germs", "water"],',
+      '      "statements": [',
+      '        { "text": "We use ____ to wash our hands.", "answers": ["soap"] },',
+      '        { "text": "Dirty hands may carry ____.", "answers": ["germs"] }',
+      "      ],",
+      '      "topic": "The sub-topic this exercise tests"',
+      "    }",
+    );
+  }
 
   const hardRules = [
     "Hard rules (violations cause the question to be rejected):",
@@ -661,6 +831,16 @@ function buildQuizMessages(payload) {
       "- Every question has an \"answer\" that is a single word or a short",
       "  phrase a marker can check at a glance — never a full sentence essay.",
       "- The question must have ONE clearly correct answer.",
+    ] : []),
+    ...(quizType === "fill_blank" ? [
+      "- Return ONE object (not a list of separate questions) with a " +
+        `"statements" array of EXACTLY ${count} items.`,
+      "- Each statement has EXACTLY one blank, written as a run of four or " +
+        "more underscores (____), and exactly one short answer.",
+      "- Do NOT cram several blanks into one statement; one blank per line.",
+      "- The \"wordBank\" lists every answer (a word or short phrase) in a " +
+        "shuffled order, so each blank's answer appears in the bank.",
+      "- Keep each statement a short, classroom-style sentence on its own.",
     ] : []),
     ...(quizType === "mixed" ? [
       "- Follow the per-kind shape above exactly for each question's type.",
@@ -1002,8 +1182,44 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
       text: cleanString(q.text, LIMITS.question),
       explanation: cleanString(q.explanation, 500),
       topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
-      marks: Math.min(Math.max(Number(q.marks) || 1, 1), 10),
+      // Cap matches the write schema (max 20); the fill_blanks branch below
+      // already allows up to 20, so keep the MCQ/short path consistent.
+      marks: Math.min(Math.max(Number(q.marks) || 1, 1), 20),
     };
+    // Fill-in-the-Blanks: one object that bundles the whole exercise — an
+    // instruction (text), a word bank, and a list of single-blank statements.
+    if (rawType === "fill_blank" || rawType === "fill_blanks" ||
+        Array.isArray(q.statements)) {
+      const statements = (Array.isArray(q.statements) ? q.statements : [])
+        .map((s) => ({
+          text: cleanString(s && s.text, 2000),
+          answers: Array.isArray(s && s.answers) ?
+            s.answers.map((a) => cleanString(a, 200)).filter(Boolean).slice(0, 12) :
+            [],
+        }))
+        .filter((s) => s.text)
+        .slice(0, 40);
+      const wordBank = Array.isArray(q.wordBank) ?
+        q.wordBank.map((w) => cleanString(w, 120)).filter(Boolean).slice(0, 40) :
+        [];
+      const blankCount = statements.reduce(
+        (sum, s) => sum + ((s.text.match(/_{2,}/g) || []).length),
+        0,
+      );
+      return {
+        text: cleanString(
+          q.instruction || q.text ||
+            "Fill in the blanks using the words provided below.",
+          LIMITS.question,
+        ),
+        explanation: cleanString(q.explanation, 500),
+        topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
+        marks: Math.min(Math.max(blankCount, 1), 20),
+        type: "fill_blanks",
+        statements,
+        wordBank,
+      };
+    }
     // Short answers carry a string answer in correctAnswer (the studio's
     // text-answer shape) and no options.
     if (rawType === "short_answer" ||
@@ -1035,9 +1251,12 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
       type: "mcq",
     };
   }).filter((q) => q.text && (
-    q.type === "short_answer" ?
-      String(q.correctAnswer || "").trim().length > 0 :
-      q.options.length >= 2
+    q.type === "fill_blanks" ?
+      Array.isArray(q.statements) && q.statements.some(
+          (s) => /_{2,}/.test(s.text)) :
+      q.type === "short_answer" ?
+        String(q.correctAnswer || "").trim().length > 0 :
+        q.options.length >= 2
   ));
 
   const {topic, subject, grade, subtopic} =
@@ -1051,6 +1270,13 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
 
   const filtered = [];
   for (const q of shaped) {
+    // Fill-in-the-Blanks bundles many statements in one object and has no
+    // options / single correctAnswer, so the MCQ-centric validator doesn't
+    // apply — the inline filter above already enforced "has a real blank".
+    if (q.type === "fill_blanks") {
+      filtered.push(q);
+      continue;
+    }
     const {valid, reasons} = validateQuizQuestion(q, anchor);
     if (valid) {
       filtered.push(q);
@@ -1405,6 +1631,7 @@ module.exports = {
   callAnthropic,
   callAnthropicStream,
   callOpenAI,
+  callOpenAIStream,
   cleanContext,
   cleanChatHistory,
   cleanString,

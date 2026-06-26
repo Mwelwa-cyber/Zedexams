@@ -1,6 +1,7 @@
 /**
  * Read-only rendering of a validated worksheet JSON object.
- * Shared by the Worksheet Generator and the Library detail view.
+ * Shared by the Worksheet Generator, the Library detail view, the public
+ * share page and the teachers landing demo.
  */
 
 import { renderText } from '../../../utils/mathRender'
@@ -35,9 +36,14 @@ export default function WorksheetView({ worksheet, showAnswers = false }) {
           {section.instructions && (
             <p className="text-sm italic theme-text-secondary">{section.instructions}</p>
           )}
-          {(section.questions || []).map((q) => (
-            <QuestionView key={q.number} q={q} showAnswers={showAnswers} />
-          ))}
+          {section.passage && <PassageView section={section} />}
+          {section.layout === 'grid' ? (
+            <GridQuestions section={section} showAnswers={showAnswers} />
+          ) : (
+            (section.questions || []).map((q) => (
+              <QuestionView key={q.number} q={q} showAnswers={showAnswers} />
+            ))
+          )}
         </div>
       ))}
 
@@ -48,6 +54,48 @@ export default function WorksheetView({ worksheet, showAnswers = false }) {
         </div>
       )}
     </article>
+  )
+}
+
+/* A reading passage pupils read before answering (comprehension worksheets). */
+function PassageView({ section }) {
+  return (
+    <div className="rounded-xl border theme-border p-4 bg-amber-50/40 dark:bg-amber-900/10">
+      {section.passageTitle && (
+        <h4 className="font-bold text-sm theme-text mb-1 text-center">{section.passageTitle}</h4>
+      )}
+      <div className="text-sm theme-text whitespace-pre-line leading-relaxed">
+        {renderText(section.passage)}
+      </div>
+    </div>
+  )
+}
+
+/* Compact multi-column drill grid (fraction→decimal, fill-ins, mental maths). */
+function GridQuestions({ section, showAnswers }) {
+  const cols = Math.min(4, Math.max(2, Number(section.columns) || 3))
+  const colClass = {
+    2: 'sm:grid-cols-2',
+    3: 'sm:grid-cols-3',
+    4: 'sm:grid-cols-4',
+  }[cols] || 'sm:grid-cols-3'
+  return (
+    <div className={`grid grid-cols-1 ${colClass} gap-2`}>
+      {(section.questions || []).map((q) => (
+        <div key={q.number} className="rounded-lg border theme-border px-3 py-2 text-sm">
+          <div className="flex items-baseline gap-1">
+            <span className="font-black theme-text shrink-0">{q.number}.</span>
+            <span className="theme-text">{renderText(q.prompt)}</span>
+            <span className="theme-text-secondary">&nbsp;______</span>
+          </div>
+          {showAnswers && q.answer && (
+            <p className="text-xs mt-1" style={{ color: '#0a5a35' }}>
+              ✓ {renderText(q.answer)}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -68,6 +116,7 @@ function QuestionView({ q, showAnswers }) {
               ))}
             </ul>
           )}
+          {!showAnswers && <WorkingSpace q={q} />}
           {showAnswers && q.answer && (
             <div className="mt-2 pt-2 border-t theme-border">
               <p className="text-sm" style={{ color: '#0a5a35' }}>
@@ -87,4 +136,37 @@ function QuestionView({ q, showAnswers }) {
       </div>
     </div>
   )
+}
+
+/* On-screen hint of the working room the printout/DOCX will leave. The DOCX
+ * exporter is the source of truth for actual print spacing. */
+function WorkingSpace({ q }) {
+  const style = q.workingStyle || autoWorkingStyle(q.type)
+  if (style === 'none') return null
+  if (style === 'columns') {
+    return (
+      <div className="mt-2 rounded-lg border border-dashed theme-border h-28" aria-hidden="true" />
+    )
+  }
+  if (style === 'box') {
+    return (
+      <div className="mt-2 rounded-lg border border-dashed theme-border h-12" aria-hidden="true" />
+    )
+  }
+  if (style === 'lines') {
+    return (
+      <div className="mt-2 space-y-3" aria-hidden="true">
+        <div className="border-b theme-border" />
+        <div className="border-b theme-border" />
+      </div>
+    )
+  }
+  return null
+}
+
+function autoWorkingStyle(type) {
+  if (type === 'calculation') return 'columns'
+  if (type === 'essay') return 'lines'
+  if (type === 'short_answer' || type === 'fill_in_blank') return 'lines'
+  return 'none'
 }

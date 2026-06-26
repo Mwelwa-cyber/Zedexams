@@ -2,6 +2,8 @@
 // the serializeRichField / hydrateRichField / richFieldEmpty helpers below.
 // ensureRichTextHtml from the legacy module is intentionally no longer used.
 
+import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+
 let localIdCounter = 0
 
 function nextLocalId(prefix) {
@@ -34,10 +36,19 @@ export function emptyQuestion(overrides = {}) {
     subtype: null,
     partId: null,
     imageUrl: '',
+    // Alt-text description for the question image — read by screen readers in
+    // the exported paper and given to the AI marker as context for the figure.
+    imageAlt: '',
+    // Width preset for an inserted image ('small' | 'medium' | 'large' | 'full').
+    imageWidth: 'full',
     imageUploading: false,
     imageUploadStep: '',
     imageAssetId: '',
     diagramText: '',
+    // Exact library figure on the question stem: { libraryKey, params }.
+    // Rendered deterministically via the diagram catalog (DiagramSvg) in the
+    // preview/PDF and rasterised for DOCX. null when the stem has no shape.
+    imageDiagram: null,
     requiresReview: false,
     reviewNotes: [],
     importWarnings: [],
@@ -96,6 +107,37 @@ export function emptyQuestion(overrides = {}) {
     // a blank bordered rectangle of this height under the question text
     // for the student to draw their own diagram in. null = no canvas.
     drawingHeight: null,
+    // Answer-space settings — surfaced for stimulus/structured sub-questions so
+    // a teacher can pick how much blank space prints under each follow-up.
+    //   answerFormat — 'lines' (default; print N ruled lines), 'none' (no
+    //                  space at all, e.g. the sub-part is answered on the
+    //                  diagram), or 'labelled_blanks' (print "P: ____" rows).
+    //   answerLines  — explicit ruled-line count for the 'lines' format.
+    //                  null = fall back to the per-type default (2 for
+    //                  short-answer, 4 for structured/diagram, etc.).
+    //   blankLabels  — labels for the 'labelled_blanks' format, e.g.
+    //                  ['P','Q','R'] → three "P: ____" rows. Renderers also
+    //                  accept ['A','B','C'] / ['1','2','3'] / ['i','ii','iii'].
+    answerFormat: 'lines',
+    answerLines: null,
+    blankLabels: [],
+    // Optional word bank printed above the answer space (a row of candidate
+    // answers the student picks from). Stored as an array of short strings.
+    // Also the word bank for the dedicated Fill-in-the-Blanks type.
+    wordBank: [],
+    // Dedicated Fill-in-the-Blanks fields (type === 'fill_blanks').
+    //   statements    — [{ text, answers }]; each prints "A. … ____ …" on its
+    //                   own line. `text` uses underscore runs as blanks;
+    //                   `answers[i]` is the expected answer for the i-th blank.
+    //   wordBankReuse — may a word bank word be used in more than one blank?
+    statements: [],
+    wordBankReuse: false,
+    // Short-answer SUB-PARTS — "(a) … (b) … (c) …" under one instruction stem.
+    // See src/utils/questionParts.js. When non-empty, the question's `text` is
+    // the instruction stem and its `marks` auto-sum the parts' marks. Each part
+    // is { text, answer, marks, answerFormat, answerLines }; the (a)(b)(c) label
+    // is derived from position, never stored.
+    subParts: [],
     ...overrides,
   }
 
@@ -152,9 +194,55 @@ export function createPartGroup(overrides = {}) {
 
 export const PASSAGE_KIND_COMPREHENSION = 'comprehension'
 export const PASSAGE_KIND_MAP = 'map'
+// Stimulus / source-based question kinds. A 'diagram' stimulus leads with an
+// instruction, then a figure/picture/graph/table, then the follow-up
+// sub-questions underneath. A 'source' stimulus is the document-study variant
+// (passage extract, table, map, chart). Both reuse the passage data model —
+// instruction = passage.instructions, the stimulus = passageText/imageUrl, and
+// every follow-up lives in passage.questions[].
+export const PASSAGE_KIND_DIAGRAM = 'diagram'
+export const PASSAGE_KIND_SOURCE = 'source'
+
+const PASSAGE_KINDS = new Set([
+  PASSAGE_KIND_COMPREHENSION,
+  PASSAGE_KIND_MAP,
+  PASSAGE_KIND_DIAGRAM,
+  PASSAGE_KIND_SOURCE,
+])
 
 function normalizePassageKind(value) {
-  return value === PASSAGE_KIND_MAP ? PASSAGE_KIND_MAP : PASSAGE_KIND_COMPREHENSION
+  return PASSAGE_KINDS.has(value) ? value : PASSAGE_KIND_COMPREHENSION
+}
+
+// A passage's total marks normally auto-sum from its sub-questions, but a
+// teacher can pin an explicit total (e.g. to match a printed paper). Returns a
+// clamped integer or null (= auto).
+export function normalizeManualMarks(value) {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.min(999, Math.round(n))
+}
+
+// Sum the marks across a passage's sub-questions. Used for the auto total.
+export function sumPassageMarks(questions = []) {
+  return (questions || []).reduce((sum, q) => sum + (Number(q?.marks) || 0), 0)
+}
+
+const ANSWER_FORMATS = new Set(['lines', 'none', 'labelled_blanks'])
+
+// Normalise the answer-space settings on the way in/out of storage so renderers
+// can trust the shape. Returns { answerFormat, answerLines, blankLabels }.
+export function normalizeAnswerSpace(question = {}) {
+  const answerFormat = ANSWER_FORMATS.has(question.answerFormat) ? question.answerFormat : 'lines'
+  const rawLines = Number(question.answerLines)
+  const answerLines = Number.isFinite(rawLines) && rawLines >= 0
+    ? Math.min(40, Math.round(rawLines))
+    : null
+  const blankLabels = Array.isArray(question.blankLabels)
+    ? question.blankLabels.map(l => String(l ?? '').trim().slice(0, 24)).filter(Boolean).slice(0, 26)
+    : []
+  return { answerFormat, answerLines, blankLabels }
 }
 
 // A page break is a structural marker that forces a new page when the paper
@@ -181,6 +269,7 @@ export function createPassageSection(passageOverrides = {}) {
     instructions: '',
     passageText: '',
     imageUrl: '',
+    imageAlt: '',
     // imageAssetId points at the in-memory blob produced by documentQuizImporter
     // when a passage carries a diagram in the source document. It's the same
     // shape as question.imageAssetId, and the save pass uploads it to Firebase
@@ -191,6 +280,8 @@ export function createPassageSection(passageOverrides = {}) {
     collapsed: false,
     ...passageOverrides,
     passageKind: normalizePassageKind(passageOverrides.passageKind),
+    // null = total marks auto-sum from the sub-questions; a number pins it.
+    manualMarks: normalizeManualMarks(passageOverrides.manualMarks),
   }
 
   return {
@@ -334,6 +425,13 @@ export function isQuestionBlank(question = {}) {
     return false
   }
 
+  // A Fill-in-the-Blanks question is "started" as soon as it has any statement
+  // text — its answer lives on the statements, not in correctAnswer.
+  if (type === 'fill_blanks' && Array.isArray(question.statements)
+    && question.statements.some(s => String(s?.text ?? '').trim().length > 0)) {
+    return false
+  }
+
   // richFieldEmpty is format-aware (HTML string OR Tiptap JSON); the legacy
   // richTextHasContent only recognises HTML, so it would mark every Tiptap
   // JSON field as "blank" — which would make every new quiz fail validation.
@@ -445,6 +543,39 @@ export function shuffleQuizSections(sections = []) {
   ]
 }
 
+/**
+ * Order the renderable "groups" of a paper for display: the single block of
+ * loose / ungrouped questions plus every Part (section). Parts sort by their
+ * `order` field (kept in lock-step with their index in `parts[]`, which is what
+ * drives the A/B/C section letter). The ungrouped block is positioned by
+ * `ungroupedOrder` — the count of sections that should sit *before* it, so `0`
+ * (the historical default) leads the paper with the loose questions, and a
+ * higher value pushes them below that many sections. The ungrouped block sorts
+ * just *ahead* of the section at that index (the `- 0.5`) so it always slots
+ * cleanly between sections instead of tying with one.
+ *
+ * Returns an ordered array of descriptors:
+ *   { type: 'ungrouped' }                — the loose-questions block
+ *   { type: 'part', part, partIndex }    — a section; partIndex is its index in
+ *                                          `parts[]` (→ its A/B/C letter)
+ *
+ * Pure + framework-agnostic so the studio builder, the shared paper layout, and
+ * the reorder handler all agree on one ordering.
+ */
+export function orderPaperGroups(parts = [], ungroupedOrder = 0, hasUngrouped = true) {
+  const groups = (parts || []).map((part, index) => ({
+    type: 'part',
+    part,
+    partIndex: index,
+    sortKey: typeof part.order === 'number' ? part.order : index,
+  }))
+  if (hasUngrouped) {
+    const before = Number.isFinite(Number(ungroupedOrder)) ? Number(ungroupedOrder) : 0
+    groups.push({ type: 'ungrouped', sortKey: before - 0.5 })
+  }
+  return groups.sort((a, b) => a.sortKey - b.sortKey)
+}
+
 export function serializeQuizSections(sections = [], parts = []) {
   // Dual-format safe: serializeRichField writes Tiptap JSON as a JSON string
   // (keeps objects out of Firestore document fields) and passes HTML strings
@@ -490,25 +621,41 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || '',
+        imageAlt: String(passage.imageAlt || '').trim(),
         // Carried so the save pass can swap in a Firebase Storage download URL
         // before the doc reaches Firestore. Cleared on save when the upload
         // succeeds; never persisted long-term.
         imageAssetId: passage.imageAssetId || '',
         passageKind: normalizePassageKind(passage.passageKind),
+        manualMarks: normalizeManualMarks(passage.manualMarks),
         order: startOrder,
         partId: passagePartId,
       })
 
       ;(passage.questions || []).forEach(question => {
+        // Preserve the sub-question's real type. A passage can now hold
+        // short-answer sub-questions alongside MCQ; hard-coding 'mcq' here
+        // (the old behaviour) silently converted them to multiple-choice on
+        // save, corrupting the marking key and the reopened paper.
+        const subType = question.type || 'mcq'
+        const subIsTextAnswer = subType === 'short_answer' || subType === 'diagram' || subType === 'essay'
+        const subSubParts = normalizeSubParts(question.subParts)
         questions.push({
           ...question,
           sharedInstruction: serializeRichField(question.sharedInstruction),
           text: serializeRichField(question.text),
           explanation: serializeRichField(question.explanation),
-          options: serializeOptions(question.options),
+          // Text-answer sub-questions carry no options; clear any stale ones
+          // left over from a type switch so they don't round-trip as MCQ.
+          options: subIsTextAnswer ? [] : serializeOptions(question.options),
+          ...normalizeAnswerSpace(question),
+          subParts: subSubParts,
+          // A question with sub-parts owns no marks of its own — the total is
+          // the sum of its parts. Keeps the marking key + paper total honest.
+          ...(subSubParts.length ? { marks: sumSubPartMarks(subSubParts) } : {}),
           passageId,
-          type: 'mcq',
-          detectedType: 'mcq',
+          type: subType,
+          detectedType: question.detectedType ?? subType,
           subtype: question.subtype ?? null,
           partId: passagePartId,
           order: questionOrder,
@@ -519,12 +666,18 @@ export function serializeQuizSections(sections = [], parts = []) {
     }
 
     const question = section.question || emptyQuestion()
+    const stdSubParts = normalizeSubParts(question.subParts)
     questions.push({
       ...question,
       sharedInstruction: serializeRichField(question.sharedInstruction),
       text: serializeRichField(question.text),
       explanation: serializeRichField(question.explanation),
       options: serializeOptions(question.options),
+      ...normalizeAnswerSpace(question),
+      subParts: stdSubParts,
+      // A question with sub-parts owns no marks of its own — the total is the
+      // sum of its parts (auto). Otherwise keep the question's own marks.
+      ...(stdSubParts.length ? { marks: sumSubPartMarks(stdSubParts) } : {}),
       passageId: null,
       subtype: question.subtype ?? null,
       partId: resolvePartId(question.partId),
@@ -586,7 +739,9 @@ function hydrateStandaloneQuestion(question = {}) {
   // `matching` has its own correctness model (matchingAnswer index array)
   // and the legacy correctAnswer is unused, so we also flatten it here.
   // `sequence` rides the same path — correctness lives on sequenceAnswer.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
+  // `essay` has no options either — the answer is the learner's written
+  // response, graded against an optional sample answer / rubric.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay' || type === 'fill' || type === 'fill_blanks' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -615,7 +770,12 @@ function hydrateStandaloneQuestion(question = {}) {
     partId: question.partId ?? null,
     imageUrl: question.imageUrl ?? '',
     imageAssetId: question.imageAssetId ?? '',
+    imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
+    imageWidth: question.imageWidth ?? 'full',
     diagramText: question.diagramText ?? '',
+    imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
+      ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
+      : null,
     requiresReview: Boolean(question.requiresReview),
     reviewNotes: question.reviewNotes ?? [],
     importWarnings: question.importWarnings ?? [],
@@ -651,12 +811,22 @@ function hydrateStandaloneQuestion(question = {}) {
       : [],
     diagramLabels: Array.isArray(question.diagramLabels)
       ? question.diagramLabels
-        .map(l => ({
-          id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
-          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
-          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
-          text: String(l?.text ?? '').slice(0, 80),
-        }))
+        .map(l => {
+          const out = {
+            id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: String(l?.text ?? '').slice(0, 80),
+          }
+          // Preserve the leader-line target (the part the label points at) so a
+          // teacher's dragged blue tip survives save → reload. Only when both
+          // coords are finite; a target-less label keeps the renderer default.
+          if (Number.isFinite(Number(l?.tx)) && Number.isFinite(Number(l?.ty))) {
+            out.tx = Math.max(0, Math.min(1, Number(l.tx)))
+            out.ty = Math.max(0, Math.min(1, Number(l.ty)))
+          }
+          return out
+        })
         .slice(0, 20)
       : [],
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
@@ -675,22 +845,52 @@ function hydrateStandaloneQuestion(question = {}) {
     drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
       ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
       : null,
+    wordBank: Array.isArray(question.wordBank)
+      ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
+      : [],
+    // Fill-in-the-Blanks statements + reuse flag. Listed explicitly (not via a
+    // `...question` spread) so a saved fill-blanks paper reopened from
+    // Firestore keeps its statements instead of resetting to the empty default.
+    statements: Array.isArray(question.statements)
+      ? question.statements.map(s => ({
+        text: String(s?.text ?? '').slice(0, 2000),
+        answers: Array.isArray(s?.answers)
+          ? s.answers.map(a => String(a ?? '').slice(0, 200)).slice(0, 12)
+          : [],
+      })).slice(0, 40)
+      : [],
+    wordBankReuse: Boolean(question.wordBankReuse),
+    // Short-answer sub-parts — restore them across a reload so a multi-part
+    // question reopens with its (a)(b)(c) intact instead of one crammed stem.
+    subParts: normalizeSubParts(question.subParts),
+    ...normalizeAnswerSpace(question),
   })
 }
 
 function hydratePassageQuestion(question = {}, passageId, partId = null) {
+  // Preserve the sub-question's saved type. Passages can hold short-answer
+  // sub-questions, not just MCQ; hard-coding 'mcq' on reopen (the old
+  // behaviour) made a saved short-answer reopen as an empty multiple-choice.
+  const type = question.type || 'mcq'
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
+    type,
+    detectedType: question.detectedType ?? type,
     sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
     text: hydrateRichField(pickRichField(question.textJSON, question.text)),
-    options: Array.isArray(question.options) && question.options.length
-      ? hydrateOptions(question.options)
-      : ['', '', '', ''],
+    options: isTextAnswer
+      ? []
+      : Array.isArray(question.options) && question.options.length
+        ? hydrateOptions(question.options)
+        : ['', '', '', ''],
     // Persist optionMedia so image options survive a reload — same reasoning
     // as in hydrateStandaloneQuestion above.
-    optionMedia: hydrateOptionMedia(question.optionMedia),
-    correctAnswer: question.correctAnswer ?? 0,
+    optionMedia: isTextAnswer ? [] : hydrateOptionMedia(question.optionMedia),
+    correctAnswer: isTextAnswer
+      ? String(question.correctAnswer ?? '')
+      : question.correctAnswer ?? 0,
     explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
@@ -703,6 +903,58 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     passageId,
     imageUploading: false,
     imageUploadStep: '',
+    // Stimulus sub-questions may carry their own optional figure, table, word
+    // bank and answer-space settings (e.g. "(a) Label the parts P, Q, R" with
+    // labelled blanks). Preserve them across a reload instead of resetting to
+    // the empty-question defaults.
+    imageUrl: question.imageUrl ?? '',
+    imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
+    imageWidth: question.imageWidth ?? 'full',
+    imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
+      ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
+      : null,
+    diagramText: question.diagramText ?? '',
+    diagramLabels: Array.isArray(question.diagramLabels)
+      ? question.diagramLabels
+        .map(l => {
+          const out = {
+            id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+            x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+            text: String(l?.text ?? '').slice(0, 80),
+          }
+          // Preserve the leader-line target (the part the label points at) so a
+          // teacher's dragged blue tip survives save → reload. Only when both
+          // coords are finite; a target-less label keeps the renderer default.
+          if (Number.isFinite(Number(l?.tx)) && Number.isFinite(Number(l?.ty))) {
+            out.tx = Math.max(0, Math.min(1, Number(l.tx)))
+            out.ty = Math.max(0, Math.min(1, Number(l.ty)))
+          }
+          return out
+        })
+        .slice(0, 20)
+      : [],
+    diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
+    tableData: question.tableData && Array.isArray(question.tableData.headers)
+      ? {
+        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+        rows: Array.isArray(question.tableData.rows)
+          ? question.tableData.rows
+            .slice(0, 12)
+            .map(row => Array.isArray(row)
+              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6)
+              : [])
+          : [],
+      }
+      : null,
+    wordBank: Array.isArray(question.wordBank)
+      ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
+      : [],
+    drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
+      ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
+      : null,
+    subParts: normalizeSubParts(question.subParts),
+    ...normalizeAnswerSpace(question),
   })
 }
 
@@ -727,6 +979,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
       imageUrl: passage.imageUrl ?? '',
       imageAssetId: passage.imageAssetId ?? '',
       passageKind: passage.passageKind,
+      manualMarks: passage.manualMarks,
       questions: [],
     })
     section.partId = passage.partId ?? null

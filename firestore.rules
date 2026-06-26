@@ -31,7 +31,7 @@ service cloud.firestore {
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
-    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot']; }
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']; }
     function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {
@@ -130,7 +130,18 @@ service cloud.firestore {
               && incoming().correctRegion.y >= 0 && incoming().correctRegion.y <= 1
               && incoming().correctRegion.radius is number
               && incoming().correctRegion.radius >= 0 && incoming().correctRegion.radius <= 0.5
-            ));
+            ))
+        // Assessment-paper answer fields (numeric / matching / sequence).
+        // Per-element shape + completeness is enforced by the Zod schema and
+        // the pre-publish checklist client-side; mirror the size/type caps
+        // here as a server-side backstop, same convention as `tolerance`.
+        && (!('numericTolerance' in incoming()) || (incoming().numericTolerance is number && incoming().numericTolerance >= 0 && incoming().numericTolerance <= 1000000))
+        && (!('numericUnit' in incoming()) || (incoming().numericUnit is string && incoming().numericUnit.size() <= 40))
+        && (!('matchingLeft' in incoming()) || (incoming().matchingLeft is list && incoming().matchingLeft.size() <= 20))
+        && (!('matchingRight' in incoming()) || (incoming().matchingRight is list && incoming().matchingRight.size() <= 20))
+        && (!('matchingAnswer' in incoming()) || (incoming().matchingAnswer is list && incoming().matchingAnswer.size() <= 20))
+        && (!('sequenceItems' in incoming()) || (incoming().sequenceItems is list && incoming().sequenceItems.size() <= 20))
+        && (!('sequenceAnswer' in incoming()) || (incoming().sequenceAnswer is list && incoming().sequenceAnswer.size() <= 20));
     }
 
     function validLessonFields() {
@@ -263,6 +274,23 @@ service cloud.firestore {
     match /adminAuditLogs/{logId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
+    }
+
+    // ── visits + visitorStats (website visitor tracker) ───────────
+    // Written exclusively by the apiTrackVisit Cloud Function (admin SDK,
+    // which bypasses these rules). Clients can never read or write — the
+    // /admin/visitors dashboard reads them as an admin; the marker
+    // subcollections under visitorStats are server-only end to end.
+    match /visits/{visitId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /visitorStats/{day} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+      match /{markerCollection}/{markerId} {
+        allow read, write: if false;
+      }
     }
 
     // ── announcements (platform-wide banners) ─────────────────────
@@ -447,6 +475,28 @@ service cloud.firestore {
       }
     }
 
+    // ── quizSummaries (read-only library mirror) ──────────────
+    // Lightweight mirror of quizzes/{id} (minus passages/parts/description),
+    // maintained by the onQuizWritten Cloud Function so the learner library can
+    // list metadata cheaply. Reads mirror the parent quizzes rule exactly —
+    // the mirror carries the same isPublished / publicAccess / quizType /
+    // createdBy fields the rule keys on. ALL client writes are blocked: only
+    // the admin-SDK trigger (and the one-time backfill) maintain it, and they
+    // bypass these rules.
+    match /quizSummaries/{quizId} {
+      allow read: if (
+        resource.data.get('publicAccess', false) == true
+        && resource.data.get('isPublished', false) == true
+      );
+      allow read: if isAuthed() && (
+        resource.data.isPublished == true
+        || resource.data.get('quizType', '') == 'daily_exam'
+        || resource.data.createdBy == request.auth.uid
+        || isAdmin()
+      );
+      allow create, update, delete: if false;
+    }
+
     // ── results ───────────────────────────────────────────────
     match /results/{resultId} {
       allow read: if isAuthed() && (
@@ -502,19 +552,36 @@ service cloud.firestore {
       allow read:   if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
       // AI generations are created by Cloud Functions only (admin SDK
       // bypasses rules). The ONLY client-created tools are mark_schedule,
-      // weekly_forecast and record_of_work — all pure client-side
-      // derivation (no AI call, no server runner), so their studios write
-      // their own docs, tightly constrained: own uid, fixed tool/status,
-      // and no extra top-level fields (notably none of the server-only
-      // cost/token fields).
+      // weekly_forecast, record_of_work, class_timetable, sba_mark_sheet and
+      // sba_plan — all pure client-side derivation (no AI call, no server
+      // runner), so their studios write their own docs, tightly constrained:
+      // own uid, fixed tool/status, and no extra top-level fields (notably
+      // none of the server-only cost/token fields).
       allow create: if isAuthed()
                        && incoming().ownerUid == request.auth.uid
-                       && incoming().tool in ['mark_schedule', 'weekly_forecast', 'record_of_work']
+                       && incoming().tool in ['mark_schedule', 'weekly_forecast', 'record_of_work', 'class_timetable', 'sba_mark_sheet', 'sba_plan']
                        && incoming().status == 'complete'
                        && incoming().visibility == 'private'
                        && incoming().keys().hasOnly([
                          'ownerUid', 'tool', 'status', 'visibility',
                          'createdAt', 'inputs', 'output', 'library',
+                       ]);
+      // The Lesson Plan Studio (legacy vanilla-JS editor) is the one AI tool
+      // whose library copy is assembled client-side: the generate callable
+      // only logs a lightweight cost record, while the full plan (its
+      // pre-rendered `html` blob + the studio's `data`/`meta` trees) is built
+      // in the browser. Allow the owner to save it directly — fixed
+      // tool/status/visibility, constrained to the studio's field set so it
+      // still can't write the server-only cost/token fields.
+      allow create: if isAuthed()
+                       && incoming().ownerUid == request.auth.uid
+                       && incoming().tool == 'lesson_plan'
+                       && incoming().status == 'complete'
+                       && incoming().visibility == 'private'
+                       && incoming().keys().hasOnly([
+                         'ownerUid', 'tool', 'status', 'visibility',
+                         'createdAt', 'inputs', 'library',
+                         'meta', 'data', 'html', 'studioFormat',
                        ]);
       // Teachers can update their own generations' output (in-place editing),
       // the teacherEdited / visibility / exportedFormats metadata fields, and
@@ -584,6 +651,25 @@ service cloud.firestore {
       allow write:  if isAdmin();
     }
 
+    // ── Dawn (on-demand morning briefing) ─────────────────────
+    // dawnConfig/default holds the non-secret launch ids (agent /
+    // environment / vault) + recipient email an admin sets from the
+    // Dawn panel. The Anthropic key is NOT here — it stays a Cloud
+    // Functions secret. Admin-only read + write.
+    match /dawnConfig/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // dawnRuns/{sessionId} tracks each launched briefing (running →
+    // done / timeout / error) and stores the finished briefing text for
+    // the panel. The runDawnBriefing callable + the delivery poller own
+    // every write via the Admin SDK (which bypasses these rules), so
+    // clients only read.
+    match /dawnRuns/{runId} {
+      allow read:   if isAdmin();
+      allow write:  if false;
+    }
+
     // ── teacherLibraries ──────────────────────────────────────
     match /teacherLibraries/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());
@@ -595,6 +681,53 @@ service cloud.firestore {
       }
     }
 
+    // ── questionBank ──────────────────────────────────────────
+    // A teacher's personal library of reusable questions, saved from the
+    // Assessment Studio and re-inserted into future papers. Each doc carries
+    // `ownerId`; strictly owner-scoped (a saved question is private content,
+    // not shared and not admin-readable). The question itself is stored as a
+    // JSON string in `data` to sidestep Firestore's no-nested-arrays limit.
+    match /questionBank/{itemId} {
+      allow read:   if isAuthed() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthed() && isTeacherOrAbove()
+        && incoming().ownerId == request.auth.uid;
+      allow delete: if isAuthed() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── assessmentDrafts ──────────────────────────────────────
+    // One auto-saved Assessment Studio draft per teacher, mirrored from the
+    // browser's localStorage so unsaved work follows the teacher across
+    // devices. Strictly owner-only — a draft is private working content and
+    // is never read by anyone else (not even admins). The client stores the
+    // whole draft as a single JSON string field ('data') plus a 'savedAt'
+    // millisecond timestamp; it is deleted once the paper is saved to the
+    // library.
+    match /assessmentDrafts/{uid} {
+      allow read, delete: if isAuthed() && isOwner(uid);
+      // Server-side cap that mirrors the client's REMOTE_MAX_CHARS intent. We
+      // cap the JSON 'data' string at < 1,000,000 chars — deliberately under
+      // Firestore's 1 MiB (1,048,576-byte) hard document limit, leaving
+      // headroom for the savedAt/updatedAt metadata and any multi-byte chars
+      // (.size() counts characters, the limit is in bytes).
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
+    }
+
+    // ── schoolProfiles ────────────────────────────────────────
+    // One saved "school branding" doc per teacher: logo URL, school name, and
+    // the default paper duration + cover instructions, reused as the header
+    // defaults across the Assessment Studio (and other printable outputs).
+    // Owner-only writes; owner + admin reads (admins read for support, like
+    // teacherLibraries). Private working content — never learner-facing. Field
+    // sizes are bounded as a tampered-client backstop (UI caps mirror these).
+    match /schoolProfiles/{uid} {
+      allow read: if isAuthed() && (isOwner(uid) || isAdmin());
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('schoolName' in incoming()) || (incoming().schoolName is string && incoming().schoolName.size() <= 200))
+        && (!('schoolLogoUrl' in incoming()) || (incoming().schoolLogoUrl is string && incoming().schoolLogoUrl.size() <= 2000))
+        && (!('defaultCoverInstructions' in incoming()) || (incoming().defaultCoverInstructions is string && incoming().defaultCoverInstructions.size() <= 2000));
+    }
+
     // ── usageMeters ───────────────────────────────────────────
     match /usageMeters/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());
@@ -602,6 +735,14 @@ service cloud.firestore {
         allow read:  if isAuthed() && (isOwner(uid) || isAdmin());
         allow write: if false;  // Cloud Functions only (admin SDK).
       }
+    }
+
+    // Short-lived download tickets minted by createLibraryDownloadTicket and
+    // consumed by the apiLibraryDownload GET endpoint — both via the admin SDK,
+    // which bypasses these rules. The client never reads/writes them directly;
+    // the random ticket id is the bearer credential.
+    match /downloadTickets/{ticketId} {
+      allow read, write: if false;
     }
 
     // ── private CBC curriculum grounding ─────────────────────
@@ -682,6 +823,14 @@ service cloud.firestore {
       match /assessmentFormatDrafts/{draftId} {
         allow read, write: if isAdmin();
       }
+      // Exam Paper Library — per-paper analyses of real uploaded Zambian
+      // assessment papers. The corpus the format synthesiser learns the
+      // national assessment style from. Admin-curated reference material;
+      // the generator reads it server-side via the admin SDK during
+      // synthesis, so no teacher-read is needed. Admin-only.
+      match /examPaperSamples/{sampleId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // ── pictureBank ───────────────────────────────────────────
@@ -690,10 +839,74 @@ service cloud.firestore {
     // generation, or extraction from uploaded sample papers (staged for
     // tagging first). Teachers only ever see status == 'active' docs —
     // their queries must filter on it; admins see everything.
+    // ── aiGenerationLog (server-written audit of AI image generations) ─
+    // Cloud Functions write it via the admin SDK (rules bypassed). Admins may
+    // read it for the Visual Studio cost report; clients never write it.
+    match /aiGenerationLog/{logId} {
+      allow read: if isAdmin();
+    }
+
     match /pictureBank/{picId} {
       allow read: if isAdmin() ||
         (isAuthed() && resource.data.get('status', '') == 'active');
-      allow write: if isAdmin();
+      // Teachers may SUBMIT a new picture as 'staged' (awaiting admin review)
+      // from Visual Studio; they cannot activate, edit or delete bank pictures.
+      // Admins do everything (upload / activate / tag / delete).
+      allow create: if isAdmin()
+        || (isTeacherOrAbove()
+            && incoming().createdBy == request.auth.uid
+            && incoming().get('status', '') == 'staged'
+            && incoming().get('source', '') == 'teacher'
+            && (!('url' in incoming()) || (incoming().url is string && incoming().url.size() <= 2000)));
+      allow update, delete: if isAdmin();
+    }
+
+    // ── visualAssets (Visual Studio — teacher-owned pictures) ─
+    // A teacher's own saved Visual Studio diagrams ("My Visuals"). Owner is
+    // createdBy. Private by default: the owner reads/writes their own, an admin
+    // can read/moderate everything, and any signed-in user can read a picture
+    // the owner has explicitly published publicly. (School-wide sharing is a
+    // later iteration — for now non-public visibilities read as private.)
+    match /visualAssets/{assetId} {
+      allow read: if isAdmin()
+        || (isAuthed() && resource.data.createdBy == request.auth.uid)
+        || (isAuthed()
+            && resource.data.get('visibility', 'private') == 'public'
+            && resource.data.get('status', 'draft') in ['approved', 'published']);
+      // Non-admins may only create PRIVATE DRAFTS. Reaching a publicly-readable
+      // state (visibility:'public' + status:'approved'/'published' — the combo
+      // the read rule above exposes) is admin-only: that is the moderation gate
+      // (brief item 13, "approve or reject shared visuals"). Admins bypass the
+      // value constraints.
+      allow create: if isAuthed()
+        && incoming().createdBy == request.auth.uid
+        && (isAdmin() || (
+              incoming().get('status', 'draft') == 'draft'
+              && incoming().get('visibility', 'private') != 'public'))
+        && (!('imageUrl' in incoming()) || (incoming().imageUrl is string && incoming().imageUrl.size() <= 2000))
+        && (!('storagePath' in incoming()) || (incoming().storagePath is string && incoming().storagePath.size() <= 500));
+      // Owners can edit their own asset but cannot self-promote it to a
+      // published/public (admin-approved) state; admins can change anything.
+      allow update: if isAdmin()
+        || (isAuthed()
+            && resource.data.createdBy == request.auth.uid
+            && incoming().createdBy == resource.data.createdBy
+            && incoming().get('status', 'draft') == 'draft'
+            && incoming().get('visibility', 'private') != 'public');
+      allow delete: if isAuthed() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
+    // ── visualProjects (Visual Studio — editable canvas projects) ─
+    // Owner-only working documents (the editable canvas state behind a saved
+    // asset). Owner is ownerId; admins may moderate.
+    match /visualProjects/{projectId} {
+      allow read: if isAuthed() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && incoming().ownerId == request.auth.uid;
+      allow update: if isAdmin()
+        || (isAuthed()
+            && resource.data.ownerId == request.auth.uid
+            && incoming().ownerId == resource.data.ownerId);
+      allow delete: if isAuthed() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     // ── promptTemplates ───────────────────────────────────────
@@ -906,6 +1119,36 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── flashcardProgress (per-user mastery state for a saved deck) ──
+    // One doc per user+deck, id `{uid}_{deckId}`.  The learner records which
+    // cards they've mastered in study mode; the library reads it back to show
+    // progress badges and a resume point.  Owner-only; admin may read for
+    // support, only admin may delete.
+    //
+    // Document shape:
+    //   { uid, deckId, masteredCards: list<int>, totalCards: int,
+    //     status: 'not-started'|'in-progress'|'completed',
+    //     startedAt?, lastStudiedAt?, updatedAt }
+    function validFlashcardProgressFields() {
+      return (!('uid' in incoming())           || (incoming().uid is string && incoming().uid.size() <= 64))
+        && (!('deckId' in incoming())          || (incoming().deckId is string && incoming().deckId.size() <= 64))
+        && (!('masteredCards' in incoming())   || incoming().masteredCards is list)
+        && (!('totalCards' in incoming())      || (incoming().totalCards is int && incoming().totalCards >= 0 && incoming().totalCards <= 200))
+        && (!('status' in incoming())          || (incoming().status is string && incoming().status in ['not-started', 'in-progress', 'completed']));
+    }
+    match /flashcardProgress/{progressId} {
+      allow read:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthed()
+                    && incoming().uid == request.auth.uid
+                    && incoming().keys().hasAll(['uid', 'deckId'])
+                    && validFlashcardProgressFields();
+      allow update: if isAuthed()
+                    && resource.data.uid == request.auth.uid
+                    && incoming().uid == request.auth.uid
+                    && validFlashcardProgressFields();
+      allow delete: if isAdmin();
+    }
+
     // ── noteInsights (AI Summary + Key Points, one doc per note) ──────
     // Generated + cached server-side by the generateNoteInsights callable
     // (admin SDK bypasses these rules). Readable by any signed-in user —
@@ -1092,6 +1335,16 @@ service cloud.firestore {
       }
     }
 
+    // ── aiDailyLimits (per-user daily AI call counter) ───────────────
+    // {uid}_{day} counter docs written exclusively by
+    // aiService.assertDailyLimit (Cloud Functions, admin SDK) to gate
+    // the per-day call cap. Kept OUT of aiUsage so its letter-leading
+    // doc ids don't leak into the /admin/ai-costs daily chart. Internal
+    // rate-limit bookkeeping — no client read or write.
+    match /aiDailyLimits/{id} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,
@@ -1272,6 +1525,93 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ── classRegisters (Class Register — official class lists) ───────
+    //
+    // A NEW teacher-owned collection, separate from `classes` above. A
+    // register is one official class whose roster (subcollection) is the
+    // single source of learner names for SBA, mark schedules, results,
+    // reports and progress. Schema:
+    //   classRegisters/{classId} {
+    //     className, grade ('4'|'5'|'6'|'7'), term, year (int),
+    //     school?, subject?, teacherUid (owner),
+    //     status: 'active'|'archived', learnerCount (int),
+    //     createdAt, updatedAt
+    //   }
+    //   classRegisters/{classId}/roster/{rosterId} {
+    //     classId, teacherUid, learnerNumber, fullName,
+    //     gender ('M'|'F'|'other'|null), parentPhone?, linkedUid?,
+    //     status ('active'|'transferred'|'inactive'), order, ...
+    //   }
+    //   classRegisters/{classId}/records/{recordId}  (marking records +
+    //     roster snapshots — built out in a later phase)
+    //
+    // Owner-only across the board. Every roster/record doc carries
+    // teacherUid so the rule needs no parent lookup, and a query for
+    // another teacher's class returns docs that fail the rule (rejected).
+    // The Class Register is an organisational tool (roster/marks/reports), so
+    // it spans the full school ladder — early-childhood through lower-secondary
+    // — not just the CBC Upper-Primary band (4-7) the learner app ships content
+    // for. Keep this list in sync with CLASS_REGISTER_GRADE_OPTIONS in
+    // src/schemas/classRegister.js.
+    function _validRegGrade(value) { return value is string && value in ['baby', 'middle', 'reception', '1', '2', '3', '4', '5', '6', '7', 'form-1', 'form-2', 'form-3', 'form-4']; }
+    function validClassRegisterFields() {
+      return (!('className' in incoming()) || (incoming().className is string && incoming().className.size() >= 1 && incoming().className.size() <= 120))
+        && (!('grade' in incoming()) || _validRegGrade(incoming().grade))
+        && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 40))
+        && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 2000 && incoming().year <= 2100))
+        && (!('school' in incoming()) || incoming().school == null || (incoming().school is string && incoming().school.size() <= 200))
+        && (!('subject' in incoming()) || incoming().subject == null || (incoming().subject is string && incoming().subject.size() <= 100))
+        && (!('status' in incoming()) || (incoming().status is string && incoming().status in ['active', 'archived']))
+        && (!('learnerCount' in incoming()) || (incoming().learnerCount is int && incoming().learnerCount >= 0));
+    }
+    // Ownership of a register by its parent doc — used for the roster/records
+    // SUBCOLLECTION reads. A `list` query over a subcollection evaluates the
+    // rule against the collection, where `resource.data.<field>` is undefined
+    // (empty collection → rule ERRORS, not just false → permission denied), so
+    // a doc-level `resource.data.teacherUid` check cannot authorise an
+    // unconstrained list. Gating on the parent register's teacherUid is defined
+    // regardless of whether the subcollection has any docs, so list works for a
+    // brand-new (empty) class. get() is a privileged read (rules-exempt) and is
+    // cached per request, so this costs one lookup per query.
+    function _registerOwner(classId) {
+      return get(/databases/$(database)/documents/classRegisters/$(classId)).data.teacherUid;
+    }
+    match /classRegisters/{classId} {
+      allow read: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isTeacherOrAbove()
+        && validClassRegisterFields()
+        && incoming().teacherUid == request.auth.uid;
+      allow update: if isAuthed()
+        && resource.data.teacherUid == request.auth.uid
+        && validClassRegisterFields()
+        && incoming().teacherUid == resource.data.teacherUid;
+      allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+
+      match /roster/{rosterId} {
+        // Parent-owned: works for both single-doc get and unconstrained list
+        // (including an empty roster — the first-learner case).
+        allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove()
+          && incoming().teacherUid == request.auth.uid
+          && incoming().fullName is string
+          && incoming().fullName.size() >= 1 && incoming().fullName.size() <= 120;
+        allow update: if isAuthed()
+          && resource.data.teacherUid == request.auth.uid
+          && incoming().teacherUid == resource.data.teacherUid;
+        allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      }
+
+      match /records/{recordId} {
+        // Parent-owned — see roster read above (unconstrained/empty list).
+        allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove() && incoming().teacherUid == request.auth.uid;
+        allow update: if isAuthed()
+          && resource.data.teacherUid == request.auth.uid
+          && incoming().teacherUid == resource.data.teacherUid;
+        allow delete: if isAuthed() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      }
+    }
+
     // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────
     //
     // A learner can practise any published past paper under a timer.
@@ -1419,6 +1759,34 @@ service cloud.firestore {
         && incoming().createdAt == request.time
         && (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 30))
         && (!('role'  in incoming()) || (incoming().role  is string && incoming().role  in ['parent', 'teacher', 'school', 'learner', 'other']));
+    }
+
+    // ── feedback (learner/teacher suggestion & request box) ───────────
+    //
+    // Signed-in learners/teachers submit suggestions, content requests,
+    // feature requests, and bug reports here. It's a PRIVATE inbox: only
+    // admins read it (no submitter sees another's request), and only
+    // admins update status (new → planned → done / declined). The create
+    // validator mirrors src/components/feedback/feedbackOptions.js — the
+    // type + role allowlists must stay in sync with that module, which is
+    // pinned by scripts/test-firestore-rules-text.mjs.
+    match /feedback/{feedbackId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAuthed()
+        && incoming().keys().hasOnly([
+              'uid', 'role', 'type', 'message', 'status', 'source', 'context', 'name', 'email', 'createdAt'
+            ])
+        && incoming().keys().hasAll(['uid', 'role', 'type', 'message', 'status', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().role is string && incoming().role in ['parent', 'teacher', 'school', 'learner', 'admin', 'other']
+        && incoming().type is string && incoming().type in ['suggestion', 'content', 'feature', 'bug', 'other']
+        && incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 2000
+        && incoming().status == 'new'
+        && incoming().createdAt == request.time
+        && (!('source'  in incoming()) || (incoming().source  is string && incoming().source.size() <= 60))
+        && (!('context' in incoming()) || (incoming().context is string && incoming().context.size() <= 200))
+        && (!('name'    in incoming()) || (incoming().name    is string && incoming().name.size() <= 100))
+        && (!('email'   in incoming()) || (incoming().email   is string && incoming().email.size() <= 200));
     }
 
     // ── newsletterSubscribers (audit C6 — list builder) ───────────────

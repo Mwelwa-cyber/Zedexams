@@ -14,6 +14,7 @@ import { TEACHER_SUBJECTS } from '../../utils/teacherTools'
 import {
   listBankPictures, activateBankPicture, deleteBankPicture,
   uploadBankPicture, generateBankPicture, resolvePictureUrl,
+  bulkUploadStagedPictures, nameStagedPictures,
 } from '../../utils/pictureBankService'
 import { STARTER_PACK } from '../../utils/pictureBankStarterPack'
 
@@ -38,6 +39,7 @@ export default function PictureBankAdmin() {
   const [subjectFilter, setSubjectFilter] = useState('all')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [stagedBusy, setStagedBusy] = useState('') // '' | 'naming' | 'activating'
 
   const flash = useCallback((msg, ms = 5000) => {
     setToast(msg)
@@ -104,6 +106,62 @@ export default function PictureBankAdmin() {
     }
   }
 
+  // Ask the AI naming agent to look at every staged image that hasn't been
+  // named yet (no AI suggestion and still on a placeholder name).
+  async function autoNameStaged(ids) {
+    const list = ids && ids.length ? ids : staged.map((p) => p.id)
+    if (!list.length) return
+    setStagedBusy('naming')
+    try {
+      const res = await nameStagedPictures(list)
+      const warn = (res?.warnings || []).length ?
+        ` (${res.warnings.length} skipped)` : ''
+      flash(`AI named ${res?.named || 0} of ${res?.total || list.length} picture(s)${warn}. Review and add to the bank.`, 8000)
+      await load()
+    } catch (err) {
+      flash(`Auto-naming failed: ${err?.message || err}`)
+    } finally {
+      setStagedBusy('')
+    }
+  }
+
+  // Bulk-activate every staged picture that already has a usable name +
+  // keyword (AI suggestion or admin-entered). Ones still missing details are
+  // left for manual tagging.
+  async function addAllStaged() {
+    const ready = staged
+      .map((p) => {
+        const name = (p.aiSuggestedName || '').trim()
+        const keywords = Array.isArray(p.aiSuggestedKeywords) ? p.aiSuggestedKeywords : []
+        const subject = p.aiSuggestedSubject || p.subject || '_generic'
+        return { pic: p, name, keywords, subject }
+      })
+      .filter((r) => r.name && r.keywords.length)
+    if (!ready.length) {
+      flash('No staged pictures have an AI-suggested name yet — run “Auto-name” first, or tag them individually.', 7000)
+      return
+    }
+    setStagedBusy('activating')
+    let added = 0
+    try {
+      for (const r of ready) {
+        try {
+          await activateBankPicture(r.pic, {
+            name: r.name, keywords: r.keywords,
+            subject: r.subject, gradeBand: r.pic.gradeBand || '',
+          })
+          added += 1
+        } catch (err) {
+          console.warn('bulk activate failed', r.pic.id, err?.message)
+        }
+      }
+      flash(`Added ${added} picture(s) to the bank — teachers can find them now.`, 8000)
+      await load()
+    } finally {
+      setStagedBusy('')
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-8">
       <SeoHelmet title="Picture bank" noIndex />
@@ -137,9 +195,32 @@ export default function PictureBankAdmin() {
         <>
           {staged.length > 0 && (
             <section>
-              <h2 className="text-lg font-black text-gray-900 mb-3">
-                Needs tagging ({staged.length})
-              </h2>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <h2 className="text-lg font-black text-gray-900">
+                  Needs tagging ({staged.length})
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => autoNameStaged()}
+                  disabled={Boolean(stagedBusy)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-bold bg-indigo-600 text-white disabled:opacity-50"
+                >
+                  {stagedBusy === 'naming' ? 'Naming…' : '✨ Auto-name all with AI'}
+                </button>
+                <button
+                  type="button"
+                  onClick={addAllStaged}
+                  disabled={Boolean(stagedBusy)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-bold border border-emerald-300 text-emerald-700 disabled:opacity-50"
+                >
+                  {stagedBusy === 'activating' ? 'Adding…' : 'Add all named to bank'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 max-w-3xl">
+                Let the AI look at each image and suggest a name, keywords and
+                subject — then review and add. Suggestions are editable; nothing
+                goes live to teachers until you add it.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {staged.map((p) => (
                   <StagedCard
@@ -148,6 +229,8 @@ export default function PictureBankAdmin() {
                     url={urlFor(p)}
                     onActivate={onActivate}
                     onDiscard={() => setPendingDelete(p)}
+                    onAutoName={() => autoNameStaged([p.id])}
+                    naming={stagedBusy === 'naming'}
                   />
                 ))}
               </div>
@@ -225,11 +308,28 @@ export default function PictureBankAdmin() {
   )
 }
 
-function StagedCard({ pic, url, onActivate, onDiscard }) {
-  const [name, setName] = useState('')
-  const [keywords, setKeywords] = useState('')
-  const [subject, setSubject] = useState(pic.subject || '_generic')
+function StagedCard({ pic, url, onActivate, onDiscard, onAutoName, naming }) {
+  // Prefill from the AI suggestion when the agent has named this picture;
+  // otherwise start blank (extracted images carry a placeholder name we don't
+  // want to seed the field with).
+  const [name, setName] = useState(pic.aiSuggestedName || '')
+  const [keywords, setKeywords] = useState(
+    Array.isArray(pic.aiSuggestedKeywords) ? pic.aiSuggestedKeywords.join(', ') : '',
+  )
+  const [subject, setSubject] = useState(pic.aiSuggestedSubject || pic.subject || '_generic')
   const [busy, setBusy] = useState(false)
+  const [touched, setTouched] = useState(false)
+
+  // When the AI names this card (after a reload the same id is re-rendered),
+  // adopt the suggestion unless the admin has already edited the fields.
+  useEffect(() => {
+    if (touched) return
+    if (pic.aiSuggestedName) setName(pic.aiSuggestedName)
+    if (Array.isArray(pic.aiSuggestedKeywords) && pic.aiSuggestedKeywords.length) {
+      setKeywords(pic.aiSuggestedKeywords.join(', '))
+    }
+    if (pic.aiSuggestedSubject) setSubject(pic.aiSuggestedSubject)
+  }, [pic.aiSuggestedName, pic.aiSuggestedSubject, pic.aiSuggestedKeywords, touched])
 
   async function activate() {
     setBusy(true)
@@ -244,13 +344,28 @@ function StagedCard({ pic, url, onActivate, onDiscard }) {
       ) : (
         <div className="w-full h-36 bg-gray-100 rounded-lg" />
       )}
-      <p className="text-xs text-gray-500 mt-1 truncate">
-        From: {pic.sourceNote || 'sample paper'}
-      </p>
+      <div className="flex items-center justify-between gap-2 mt-1">
+        <p className="text-xs text-gray-500 truncate">
+          From: {pic.sourceNote || 'sample paper'}
+        </p>
+        {onAutoName && (
+          <button
+            type="button"
+            onClick={onAutoName}
+            disabled={naming || busy}
+            className="text-xs font-bold text-indigo-600 hover:underline disabled:opacity-50 shrink-0"
+          >
+            {naming ? '…' : '✨ Name'}
+          </button>
+        )}
+      </div>
+      {pic.aiSuggestedName && (
+        <p className="text-[11px] text-indigo-600 mt-1">✨ AI-suggested — edit if needed</p>
+      )}
       <input
         type="text"
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => { setTouched(true); setName(e.target.value) }}
         placeholder='Name, e.g. "Human ear, labelled"'
         className="mt-2 w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
         maxLength={120}
@@ -258,13 +373,13 @@ function StagedCard({ pic, url, onActivate, onDiscard }) {
       <input
         type="text"
         value={keywords}
-        onChange={(e) => setKeywords(e.target.value)}
+        onChange={(e) => { setTouched(true); setKeywords(e.target.value) }}
         placeholder="Keywords, comma-separated: ear, hearing, senses"
         className="mt-1 w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
       />
       <select
         value={subject}
-        onChange={(e) => setSubject(e.target.value)}
+        onChange={(e) => { setTouched(true); setSubject(e.target.value) }}
         className="mt-1 w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
       >
         {SUBJECT_OPTIONS.map((s) => (
@@ -361,7 +476,7 @@ function StarterPackPanel({ pictures, uid, flash, onDone }) {
             Body systems, plant parts, the water cycle, Zambia's provinces,
             shapes, Venn templates, domestic animals and more — generated with
             AI, named and keyworded so teacher searches hit immediately.
-            Roughly 4 US cents per image.
+            Roughly 4–6 US cents per image.
           </p>
         </div>
         <button
@@ -389,7 +504,7 @@ function StarterPackPanel({ pictures, uid, flash, onDone }) {
 }
 
 function IntakePanels({ uid, flash, onDone }) {
-  const [tab, setTab] = useState('') // '' | 'upload' | 'ai'
+  const [tab, setTab] = useState('') // '' | 'upload' | 'bulk' | 'ai'
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState({
     name: '', keywords: '', subject: '_generic', prompt: '', file: null,
@@ -437,6 +552,13 @@ function IntakePanels({ uid, flash, onDone }) {
         </button>
         <button
           type="button"
+          onClick={() => setTab(tab === 'bulk' ? '' : 'bulk')}
+          className={`rounded-lg px-4 py-2 text-sm font-bold border ${tab === 'bulk' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
+        >
+          📦 Bulk upload + AI naming
+        </button>
+        <button
+          type="button"
           onClick={() => setTab(tab === 'ai' ? '' : 'ai')}
           className={`rounded-lg px-4 py-2 text-sm font-bold border ${tab === 'ai' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
         >
@@ -444,7 +566,11 @@ function IntakePanels({ uid, flash, onDone }) {
         </button>
       </div>
 
-      {tab && (
+      {tab === 'bulk' && (
+        <BulkUploadPanel uid={uid} flash={flash} onDone={onDone} onClose={() => setTab('')} />
+      )}
+
+      {(tab === 'upload' || tab === 'ai') && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {tab === 'upload' ? (
             <div>
@@ -515,5 +641,125 @@ function IntakePanels({ uid, flash, onDone }) {
         </div>
       )}
     </section>
+  )
+}
+
+// Bulk upload — drop many images at once. They land as staged ("Needs
+// tagging"); when "Auto-name with AI" is on, the vision agent then suggests a
+// name + keywords + subject for each so teachers can search them, leaving the
+// admin to review and add rather than type every caption by hand.
+function BulkUploadPanel({ uid, flash, onDone, onClose }) {
+  const [files, setFiles] = useState([])
+  const [subject, setSubject] = useState('_generic')
+  const [autoName, setAutoName] = useState(true)
+  const [phase, setPhase] = useState('') // '' | 'uploading' | 'naming'
+  const [progress, setProgress] = useState(null) // { done, total }
+
+  async function run() {
+    if (!files.length) return
+    setPhase('uploading')
+    setProgress({ done: 0, total: files.length })
+    try {
+      const { ids, failures } = await bulkUploadStagedPictures(files, {
+        subject, uid,
+        onProgress: (p) => setProgress(p),
+      })
+      let nameMsg = ''
+      if (autoName && ids.length) {
+        setPhase('naming')
+        setProgress(null)
+        try {
+          const res = await nameStagedPictures(ids)
+          nameMsg = ` AI named ${res?.named || 0} of ${ids.length}.`
+        } catch (err) {
+          nameMsg = ` (auto-naming failed: ${err?.message || err} — name them in “Needs tagging”.)`
+        }
+      }
+      const failMsg = failures.length ? ` ${failures.length} failed.` : ''
+      flash(`Uploaded ${ids.length} picture(s) to “Needs tagging”.${nameMsg}${failMsg} Review and add to the bank.`, 9000)
+      setFiles([])
+      onClose?.()
+      await onDone()
+    } catch (err) {
+      flash(`Bulk upload failed: ${err?.message || err}`)
+    } finally {
+      setPhase('')
+      setProgress(null)
+    }
+  }
+
+  const busy = Boolean(phase)
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-bold text-gray-600 mb-1">
+            Image files (select many — max 10 MB each)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files || []))}
+            className="text-sm"
+            disabled={busy}
+          />
+          {files.length > 0 && (
+            <p className="text-xs text-gray-500 mt-1">{files.length} file(s) selected</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">
+            Subject hint (applied to all)
+          </label>
+          <select
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            disabled={busy}
+          >
+            {SUBJECT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={autoName}
+              onChange={(e) => setAutoName(e.target.checked)}
+              disabled={busy}
+            />
+            ✨ Auto-name with AI after upload
+          </label>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy || !files.length}
+        className="bg-emerald-600 text-white rounded-lg px-5 py-2 text-sm font-bold disabled:opacity-50"
+      >
+        {phase === 'uploading' ? 'Uploading…' :
+          phase === 'naming' ? 'AI naming…' :
+            `Upload ${files.length || ''} & stage`}
+      </button>
+      {progress && (
+        <div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Uploading {progress.done}/{progress.total}…
+          </p>
+        </div>
+      )}
+      {phase === 'naming' && (
+        <p className="text-xs text-indigo-600">AI is naming your pictures — this can take a moment…</p>
+      )}
+    </div>
   )
 }

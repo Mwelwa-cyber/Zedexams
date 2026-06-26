@@ -34,9 +34,38 @@ test('does NOT flag an MCQ that has an answer and is not flagged', () => {
   assert.equal(items.length, 0)
 })
 
+test('does NOT flag an MCQ whose answer index is a numeric string', () => {
+  // Legacy/imported quizzes can store the index as "2"; it is still answered.
+  const { items } = collectReviewItems([standalone(mcq({ localId: 'a', correctAnswer: '2' }))])
+  assert.equal(items.length, 0)
+})
+
 test('flags a requiresReview question even when answered', () => {
   const { items } = collectReviewItems([standalone(mcq({ correctAnswer: 1, requiresReview: true }))])
   assert.deepEqual(items[0].issues, ['Flagged'])
+})
+
+test('surfaces the reviewNotes so the panel can explain WHY a question is flagged', () => {
+  const { items } = collectReviewItems([standalone(mcq({
+    correctAnswer: 1,
+    requiresReview: true,
+    reviewNotes: ['Correct option was not clear.', '  ', 'Question may have come from a flattened table.'],
+  }))])
+  assert.deepEqual(items[0].notes, ['Correct option was not clear.', 'Question may have come from a flattened table.'])
+})
+
+test('falls back to importWarnings when reviewNotes is empty', () => {
+  const { items } = collectReviewItems([standalone(mcq({
+    correctAnswer: '',
+    reviewNotes: [],
+    importWarnings: ['Question text was not clear.'],
+  }))])
+  assert.deepEqual(items[0].notes, ['Question text was not clear.'])
+})
+
+test('notes is an empty array when there is no reason text', () => {
+  const { items } = collectReviewItems([standalone(mcq({ correctAnswer: '' }))])
+  assert.deepEqual(items[0].notes, [])
 })
 
 test('flags a picture option missing alt text', () => {

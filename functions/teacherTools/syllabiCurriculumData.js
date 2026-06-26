@@ -94,12 +94,19 @@ const FORM_TO_GRADE = {
   "form 5": "G12",
 };
 
-const ECE_AGE_PATTERNS = [/3-4\s*years?/i, /4-5\s*years?/i, /3-5\s*years?/i];
+// ECE age bands map to distinct grade codes (Nursery 3-4 → ECE_N,
+// Reception 4-5 → ECE_R) so KB topics are scoped per band. Mirrors
+// sheetNameToGrade in src/utils/syllabusMapping.js — keep in lock-step.
+const ECE_NURSERY_PATTERN = /3-4\s*years?/i;
+const ECE_RECEPTION_PATTERN = /4-5\s*years?/i;
+const ECE_COMBINED_PATTERN = /3-5\s*years?/i;
 
 function sheetNameToGrade(sheetName) {
   if (!sheetName) return "";
   const lower = String(sheetName).trim().toLowerCase();
-  if (ECE_AGE_PATTERNS.some((re) => re.test(lower))) return "ECE";
+  if (ECE_NURSERY_PATTERN.test(lower)) return "ECE_N";
+  if (ECE_RECEPTION_PATTERN.test(lower)) return "ECE_R";
+  if (ECE_COMBINED_PATTERN.test(lower)) return "ECE";
   const gradeMatch = lower.match(/grade\s*(\d+)/);
   if (gradeMatch) return `G${gradeMatch[1]}`;
   for (const [pattern, grade] of Object.entries(FORM_TO_GRADE)) {
@@ -200,6 +207,23 @@ function loadRawData(framework = DEFAULT_FRAMEWORK) {
   }
 }
 
+// Keep in lock-step with COLUMN_HEADER_NAMES / isHeaderEchoRow /
+// rowsWithPropagatedTopic in src/utils/syllabusMapping.js.
+const COLUMN_HEADER_NAMES = new Set([
+  "TOPIC", "SUB-TOPIC", "SUBTOPIC", "SPECIFIC COMPETENCES",
+  "LEARNING ACTIVITIES", "EXPECTED STANDARD",
+]);
+
+// True when a data row is just the sheet's column-header line repeated in the
+// body (captured at PDF page breaks). These would otherwise surface as a bogus
+// "TOPIC" topic with a "SUB-TOPIC" sub-topic.
+function isHeaderEchoRow(cells) {
+  const values = ["TOPIC", "SUB-TOPIC", "SPECIFIC COMPETENCES", "LEARNING ACTIVITIES", "EXPECTED STANDARD"]
+      .map((k) => String(cells[k] || cells[k.replace("-", "")] || "").trim().toUpperCase())
+      .filter(Boolean);
+  return values.length >= 2 && values.every((v) => COLUMN_HEADER_NAMES.has(v));
+}
+
 function rowsWithPropagatedTopic(rows) {
   const out = [];
   let topic = "";
@@ -211,6 +235,7 @@ function rowsWithPropagatedTopic(rows) {
     }
     if (row.type !== "data") continue;
     const cells = row.cells || {};
+    if (isHeaderEchoRow(cells)) continue;
     const raw = String(cells.TOPIC || "").trim();
     if (raw) topic = raw;
     out.push({
@@ -222,7 +247,17 @@ function rowsWithPropagatedTopic(rows) {
       expectedStandard: String(cells["EXPECTED STANDARD"] || "").trim(),
     });
   }
-  return out;
+
+  // Drop topics that never carry a sub-topic or any content — empty strand
+  // banners (READING / WRITING / …) mis-tagged as topics during ingestion.
+  const topicHasSubstance = new Map();
+  for (const r of out) {
+    if (topicHasSubstance.get(r.topic)) continue;
+    if (r.subtopic || r.specificCompetence || r.learningActivities || r.expectedStandard) {
+      topicHasSubstance.set(r.topic, true);
+    }
+  }
+  return out.filter((r) => !r.topic || topicHasSubstance.get(r.topic));
 }
 
 function buildTopicId(grade, subject, topic) {
@@ -364,10 +399,14 @@ function rows2013WithPropagatedTopic(rows, topicColumn) {
 }
 
 // Split a "4.1.1 Foo. 4.1.2 Bar. 4.1.3 Baz" string into discrete outcomes.
+// Codes have 2–4 dotted segments (e.g. "10.1.1" or the primary "5.1.1.1").
+// The code must start at the beginning or right after whitespace, otherwise
+// a 4-segment code like "5.1.1.1" would itself be split on its inner ".1.1"
+// boundaries into "5.", "1.", "1.1 …" fragments.
 function splitNumberedOutcomes(s) {
   const str = String(s || "").trim();
   if (!str) return [];
-  const parts = str.split(/(?=\b\d+\.\d+(?:\.\d+)?\s)/g)
+  const parts = str.split(/(?=(?:^|(?<=\s))\d+(?:\.\d+){1,3}\.?\s)/g)
       .map((p) => p.trim()).filter(Boolean);
   return parts.length ? parts : [str];
 }

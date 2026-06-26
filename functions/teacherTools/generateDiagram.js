@@ -18,8 +18,15 @@
  * same auth gate (isStaffRole), the same usageMeter, and the same
  * Firebase Storage path layout as the Assessment Studio image upload.
  *
- * Cost note: Recraft charges ~$0.04 per 1024x1024 image. The usageMeter
- * caps diagram generation per month per plan (see PLAN_LIMITS below).
+ * Cost note: Recraft charges ~$0.04 per 1024x1024 image; gpt-image-1
+ * medium is ~$0.06. The usageMeter caps diagram generation per month per
+ * plan (see PLAN_LIMITS below).
+ *
+ * Fallback (2026-06): when Recraft can't serve — balance ran dry mid
+ * starter-pack, key revoked, outage — line-art requests automatically
+ * fall back to OpenAI gpt-image-1 with the SAME B&W line-art prompt, so
+ * teachers get a printable figure instead of an error. See the recraft
+ * branch in runGenerateDiagram.
  */
 
 const crypto = require("crypto");
@@ -66,6 +73,17 @@ const KIE_ASPECT_BY_SIZE = {
   "1024x1707": "9:16", // 3:5 → nearest supported tall ratio
 };
 
+// gpt-image-1 has its own size whitelist; map our Recraft sizes onto the
+// closest equivalents. Used by both the explicit 'openai' provider and the
+// Recraft→OpenAI fallback.
+const OPENAI_SIZE_BY_RECRAFT_SIZE = {
+  "1024x1024": "1024x1024",
+  "1365x1024": "1536x1024",
+  "1024x1365": "1024x1536",
+  "1707x1024": "1536x1024",
+  "1024x1707": "1024x1536",
+};
+
 function sanitizePrompt(raw = "") {
   return String(raw)
     .replace(/\s+/g, " ")
@@ -104,7 +122,9 @@ function buildFinalPrompt(userPrompt, provider) {
     "Clean black-and-white line art on a white background.",
     "No shading, no colour, no gradients, no photorealism.",
     "Simple thin outlines suitable for printing on a school exam paper.",
-    "No text labels in the image — labels will be added separately.",
+    "Absolutely no text, no letters, no numbers, no words, no captions,",
+    "and no label markers (no X, no arrows, no pointer lines) anywhere in",
+    "the image — labels and leader lines are added separately by the studio.",
   ].join(" ");
   return `${guard}\n\n${userPrompt}`;
 }
@@ -256,7 +276,9 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
       "Colour illustrations are not available — admin needs to configure the Kie API key.",
     );
   }
-  if (provider === "recraft" && !recraftKey) {
+  // Recraft requests can be served by the OpenAI fallback, so only a
+  // missing-everything config is fatal here.
+  if (provider === "recraft" && !recraftKey && !openaiKey) {
     throw new HttpsError("failed-precondition", "Recraft API key is not configured.");
   }
 
@@ -271,6 +293,9 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
   let storageSource;
   let modelId;
   let openaiSizeUsed = null;
+  // The provider that actually produced the image — differs from the
+  // requested provider when the Recraft→OpenAI fallback kicks in.
+  let providerUsed = provider;
   if (provider === "kie") {
     // Kie is asynchronous (create task → poll). generateKieImage handles
     // the polling and returns a CDN URL we then stream into Storage like
@@ -304,16 +329,7 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
       throw err;
     }
   } else if (provider === "openai") {
-    // gpt-image-1 uses its own size whitelist; map our Recraft default
-    // (1365x1024 landscape) onto its closest equivalent (1536x1024).
-    const sizeMap = {
-      "1024x1024": "1024x1024",
-      "1365x1024": "1536x1024",
-      "1024x1365": "1024x1536",
-      "1707x1024": "1536x1024",
-      "1024x1707": "1024x1536",
-    };
-    openaiSizeUsed = sizeMap[size] || "1536x1024";
+    openaiSizeUsed = OPENAI_SIZE_BY_RECRAFT_SIZE[size] || "1536x1024";
     const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
       prompt: finalPrompt,
       size: openaiSizeUsed,
@@ -322,12 +338,48 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
     storageSource = {bytes: Buffer.from(b64, "base64")};
     modelId = usedModel || "gpt-image-1";
   } else {
-    const recraftUrl = await fetchRecraftImage(recraftKey, {finalPrompt, style, size});
-    storageSource = {url: recraftUrl};
-    modelId = "recraft-v3";
+    // Recraft (B&W line art). If the Recraft account can't serve — out of
+    // credits, key revoked/missing, outage — fall back to gpt-image-1 with
+    // the SAME line-art prompt (NOT the photoreal guard), so the teacher
+    // still gets a printable figure. The OPENAI_API_KEY is already wired
+    // in for the photoreal toggle, so the fallback needs no new config.
+    let recraftFailure = null;
+    if (recraftKey) {
+      try {
+        const recraftUrl = await fetchRecraftImage(recraftKey, {finalPrompt, style, size});
+        storageSource = {url: recraftUrl};
+        modelId = "recraft-v3";
+      } catch (err) {
+        recraftFailure = err;
+      }
+    }
+    if (!storageSource) {
+      // The key-presence gate above guarantees recraftFailure is set when
+      // there's no OpenAI key, but guard anyway — `throw null` would reach
+      // clients as a bare INTERNAL toast if that gate ever moves.
+      if (!openaiKey) {
+        throw recraftFailure ||
+          new HttpsError("failed-precondition", "Recraft API key is not configured.");
+      }
+      console.warn("generateDiagram: Recraft unavailable, falling back to gpt-image-1", {
+        uid,
+        reason: recraftFailure ?
+          String(recraftFailure.message || recraftFailure).slice(0, 300) :
+          "RECRAFT_API_KEY not configured",
+      });
+      providerUsed = "openai";
+      openaiSizeUsed = OPENAI_SIZE_BY_RECRAFT_SIZE[size] || "1536x1024";
+      const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
+        prompt: finalPrompt, // keeps the B&W line-art guard
+        size: openaiSizeUsed,
+        quality: "medium",
+      });
+      storageSource = {bytes: Buffer.from(b64, "base64")};
+      modelId = usedModel || "gpt-image-1";
+    }
   }
 
-  const {url, sizeBytes} = await downloadToStorage(uid, storageSource, userPrompt, provider, storageSubdir);
+  const {url, sizeBytes} = await downloadToStorage(uid, storageSource, userPrompt, providerUsed, storageSubdir);
 
   // Log to a per-user history so teachers can see their generated diagrams
   // and we have an audit trail for cost reconciliation.
@@ -335,7 +387,10 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
     await admin.firestore().collection("aiGenerationLog").add({
       uid,
       tool: "diagram",
-      generator: provider,
+      generator: providerUsed,
+      // Cost reconciliation: mark images billed to OpenAI because Recraft
+      // couldn't serve the original request.
+      ...(providerUsed !== provider ? {fallbackFrom: provider} : {}),
       prompt: userPrompt,
       style,
       size: openaiSizeUsed || size,
@@ -352,7 +407,7 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
     prompt: userPrompt,
     sizeBytes,
     model: modelId,
-    provider,
+    provider: providerUsed,
     style,
     size: openaiSizeUsed || size,
   };

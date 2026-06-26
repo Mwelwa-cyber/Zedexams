@@ -31,6 +31,11 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./notesPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {
+  isLessonPlanTool,
+  lessonPlanBody,
+  deriveInputsFromLessonPlan,
+} = require("./notesPlanSource");
 
 const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
@@ -48,7 +53,7 @@ const NOTES_TOOL_SCHEMA = {
 };
 
 const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
   "F1", "F2", "F3", "F4",
 ]);
@@ -64,6 +69,24 @@ const ALLOWED_SUBJECTS = new Set([
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
+
+// Turn an ISO date (YYYY-MM-DD) from the date picker into the "19 June 2026"
+// form Zambian teachers write on printed handouts. Anything that isn't a clean
+// ISO date is passed through untouched (or dropped if empty), mirroring the
+// lesson-plan studio's formatLessonDate.
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+function formatLessonDate(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s.slice(0, 40);
+  const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return s.slice(0, 40);
+  return `${d} ${MONTH_NAMES[mo - 1]} ${y}`;
+}
 
 function sanitizeInputs(raw = {}) {
   const str = (v, max) => (typeof v === "string" ?
@@ -87,6 +110,7 @@ function sanitizeInputs(raw = {}) {
     subject,
     topic: str(raw.topic, 160),
     subtopic: str(raw.subtopic, 200),
+    date: formatLessonDate(raw.date),
     term: term >= 1 && term <= 3 ? term : null,
     lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
     totalLessons: totalLessons >= 1 ? totalLessons : null,
@@ -129,33 +153,34 @@ async function loadLessonPlan(uid, lessonPlanId) {
       "You can only build notes from your own lesson plans.",
     );
   }
-  if (data.tool !== "lesson_plan" || !data.output) {
+  if (!isLessonPlanTool(data.tool)) {
     throw new HttpsError(
       "invalid-argument",
       "That generation isn't a lesson plan we can build notes from.",
     );
   }
-  return data;
-}
-
-function deriveInputsFromLessonPlan(plan, base) {
-  if (!plan || !plan.output) return base;
-  const planInputs = plan.inputs || {};
-  const planHeader = plan.output.header || {};
-  return {
-    ...base,
-    grade: base.grade || planInputs.grade || planHeader.class || "",
-    subject: base.subject || planInputs.subject || planHeader.subject || "",
-    topic: base.topic || planInputs.topic || planHeader.topic || "",
-    subtopic: base.subtopic || planInputs.subtopic || planHeader.subtopic || "",
-    durationMinutes: base.durationMinutes ||
-      planInputs.durationMinutes || planHeader.durationMinutes || 40,
-    language: base.language || planInputs.language ||
-      planHeader.mediumOfInstruction || "english",
-    teacherName: base.teacherName ||
-      planInputs.teacherName || planHeader.teacherName || "",
-    school: base.school || planInputs.school || planHeader.school || "",
-  };
+  const body = lessonPlanBody(data);
+  if (!body) {
+    // It IS a lesson plan, but it has no usable body yet — almost always
+    // because it's still generating or the generation failed. Give an
+    // actionable message instead of the misleading "isn't a lesson plan".
+    if (data.status === "generating") {
+      throw new HttpsError(
+        "failed-precondition",
+        "That lesson plan is still being written. Give it a moment to " +
+        "finish, then try again.",
+      );
+    }
+    throw new HttpsError(
+      "failed-precondition",
+      "That lesson plan didn't finish generating, so there's nothing to " +
+      "build notes from. Pick a finished plan, or switch to Standalone mode.",
+    );
+  }
+  // Hand back a normalised shape so the rest of the pipeline can rely on
+  // `.output` regardless of which writer produced the doc (the legacy
+  // studio stored the body under `data`).
+  return {...data, output: body};
 }
 
 async function runNotes({uid, rawInputs, apiKey}) {
@@ -255,6 +280,13 @@ async function runNotes({uid, rawInputs, apiKey}) {
   // the viewer can show "Built from lesson plan ↗" without an extra read.
   if (inputs.lessonPlanId && parsed && parsed.header) {
     parsed.header.lessonPlanId = inputs.lessonPlanId;
+  }
+
+  // The lesson date is teacher-supplied, not model-invented — stamp the
+  // formatted value straight onto the header so the viewer and the .docx
+  // header render it like a lesson plan.
+  if (inputs.date && parsed && parsed.header) {
+    parsed.header.date = inputs.date;
   }
 
   const validation = validateNotes(parsed);

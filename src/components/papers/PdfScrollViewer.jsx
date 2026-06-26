@@ -14,27 +14,15 @@
  *   rendering everything up front is cheap and the continuous scroll is
  *   the experience users expect from a timetable.
  *
- * Mirrors PdfJsViewer's loader/fetch approach (lazy pdfjs-dist, fetch as
+ * Mirrors PdfJsViewer's loader/fetch approach (lazy pdfjs-dist via the
+ * shared loadPdfjs() — which runs the worker on the main thread so old
+ * Android WebViews don't fail at "Setting up fake worker failed" — fetch as
  * ArrayBuffer for iOS Safari / Capacitor WebView reliability) and its
  * native-link error fallback.
  */
 
 import { useEffect, useRef, useState } from 'react'
-
-let pdfjsLoader = null
-async function loadPdfJs() {
-  if (!pdfjsLoader) {
-    pdfjsLoader = (async () => {
-      const [{ GlobalWorkerOptions, getDocument }, workerUrl] = await Promise.all([
-        import('pdfjs-dist/legacy/build/pdf.mjs'),
-        import('pdfjs-dist/legacy/build/pdf.worker.mjs?url').then((m) => m.default),
-      ])
-      GlobalWorkerOptions.workerSrc = workerUrl
-      return { getDocument }
-    })()
-  }
-  return pdfjsLoader
-}
+import { loadPdfjs } from '../../utils/pdfjsLoader'
 
 async function fetchPdfBuffer(url, { retries = 1 } = {}) {
   let lastErr
@@ -66,11 +54,12 @@ export default function PdfScrollViewer({ url, title }) {
     setPdf(null)
     ;(async () => {
       try {
-        const [{ getDocument }, buffer] = await Promise.all([
-          loadPdfJs(),
+        const [pdfjs, buffer] = await Promise.all([
+          loadPdfjs(),
           fetchPdfBuffer(url),
         ])
         if (cancelled) return
+        const { getDocument } = pdfjs
         const doc = await getDocument({ data: buffer }).promise
         if (cancelled) {
           doc.destroy?.()
@@ -179,7 +168,11 @@ export default function PdfScrollViewer({ url, title }) {
     <div
       ref={containerRef}
       className="w-full flex flex-col items-stretch gap-3"
-      style={{ touchAction: 'pinch-zoom' }}
+      // `pan-y` is essential: the canvases fill the viewport, so without it
+      // `touch-action: pinch-zoom` would block single-finger vertical scroll
+      // and the page becomes un-scrollable on touch. Keep pinch-zoom for
+      // readability on small phones.
+      style={{ touchAction: 'pan-y pinch-zoom' }}
       aria-label={title ? `${title} viewer` : 'PDF viewer'}
     >
       {loading && (

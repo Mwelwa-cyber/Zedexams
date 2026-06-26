@@ -219,6 +219,38 @@ test('studyPlanProgress is owner-only and bounded', () => {
   )
 })
 
+test('questionBank is owner-scoped and not admin-readable', () => {
+  const block = rules.match(/match \/questionBank\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'questionBank match block not found')
+  assert(
+    block[1].includes('resource.data.ownerId == request.auth.uid'),
+    'questionBank reads/deletes must be gated on the document owner',
+  )
+  assert(
+    block[1].includes('incoming().ownerId == request.auth.uid'),
+    'questionBank create must pin ownerId to the caller',
+  )
+  // Saved questions are private teacher content — no admin backdoor.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'questionBank must not grant admin access to private saved questions',
+  )
+})
+
+test('assessmentDrafts is strictly owner-only', () => {
+  const block = rules.match(/match \/assessmentDrafts\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'assessmentDrafts match block not found')
+  assert(
+    block[1].includes('isOwner(uid)'),
+    'assessmentDrafts must require document-owner access',
+  )
+  // A teacher's unsaved draft is private — it must NOT be readable by admins.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'assessmentDrafts must not grant admin access to private drafts',
+  )
+})
+
 // ── validLessonFields blocks cap ───────────────────────────────────────
 
 console.log('\nvalidLessonFields blocks cap')
@@ -267,8 +299,8 @@ test('aiGenerations client create stays locked to the client-side tools', () => 
   const create = block[1].match(/allow create:[\s\S]*?;/)
   assert(create, 'aiGenerations create rule not found')
   assert(
-    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast', 'record_of_work'\]/.test(create[0]),
-    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast + record_of_work may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
+    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast', 'record_of_work', 'class_timetable', 'sba_mark_sheet', 'sba_plan'\]/.test(create[0]),
+    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast + record_of_work + class_timetable + sba_mark_sheet + sba_plan may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
   )
   const AI_TOOLS = ['lesson_plan', 'worksheet', 'scheme_of_work', 'notes', 'flashcards', 'rubric', 'quiz', 'assessment', 'exam_paper']
   AI_TOOLS.forEach((t) => {
@@ -281,6 +313,65 @@ test('aiGenerations client create stays locked to the client-side tools', () => 
   assert(
     /keys\(\)\.hasOnly\(/.test(create[0]),
     'aiGenerations create lost its keys().hasOnly() allowlist — clients could write server-only fields',
+  )
+})
+
+test('aiGenerations lesson_plan client create cannot forge cost/token fields', () => {
+  // The Lesson Plan Studio is the one AI tool whose library copy is assembled
+  // client-side (its pre-rendered html lives only in the browser), so it has a
+  // dedicated client-create branch. It is allowed BUT must stay owner-scoped
+  // and its hasOnly() allowlist must never admit the server-only cost/token
+  // fields — otherwise a client could forge spend on the AI-cost rollup.
+  const block = rules.match(/match \/aiGenerations\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'aiGenerations match block not found')
+  const lpCreate = block[1].match(/allow create:[\s\S]*?'lesson_plan'[\s\S]*?;/)
+  assert(lpCreate, 'lesson_plan client-create branch not found')
+  assert(
+    /incoming\(\)\.ownerUid == request\.auth\.uid/.test(lpCreate[0]),
+    'lesson_plan create must require ownerUid == auth.uid',
+  )
+  assert(
+    /keys\(\)\.hasOnly\(/.test(lpCreate[0]),
+    'lesson_plan create lost its keys().hasOnly() allowlist',
+  )
+  const FORGEABLE = ['tokensIn', 'tokensOut', 'costUsdCents', 'modelUsed', 'promptVersion', 'kbVersion']
+  FORGEABLE.forEach((f) => {
+    assert(
+      !lpCreate[0].includes(`'${f}'`),
+      `lesson_plan create now allows the server-only field '${f}' — clients could forge it`,
+    )
+  })
+})
+
+test('feedback box is owner-create / admin-read', () => {
+  // The learner/teacher suggestion box. Submissions must be pinned to the
+  // caller (uid == auth.uid) and only readable by admins (private inbox).
+  // The type/role allowlists mirror src/components/feedback/feedbackOptions.js
+  // (pinned by that module's own node test) — if they drift, valid
+  // submissions are silently rejected by Firestore.
+  const block = rules.match(/match \/feedback\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'feedback match block not found')
+  assert(
+    /allow read, update, delete:\s*if isAdmin\(\)/.test(block[1]),
+    'feedback must be admin-only for read/update/delete (private inbox)',
+  )
+  assert(
+    block[1].includes('incoming().uid == request.auth.uid'),
+    'feedback create must pin uid to the caller',
+  )
+  assert(
+    block[1].includes("incoming().status == 'new'"),
+    'feedback create must pin status to new',
+  )
+  for (const t of ['suggestion', 'content', 'feature', 'bug', 'other']) {
+    assert(
+      block[1].includes(`'${t}'`),
+      `feedback type allowlist is missing '${t}' — UI offers it but the rule rejects it`,
+    )
+  }
+  assert(
+    block[1].includes('incoming().createdAt == request.time'),
+    'feedback create must use server time',
   )
 })
 

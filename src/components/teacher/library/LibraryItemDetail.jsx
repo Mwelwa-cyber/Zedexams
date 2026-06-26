@@ -18,10 +18,18 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import MarkScheduleView from '../views/MarkScheduleView'
 import WeeklyForecastView from '../views/WeeklyForecastView'
 import RecordOfWorkView from '../views/RecordOfWorkView'
+import ClassTimetableView from '../views/ClassTimetableView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
+import SbaTaskView from '../views/SbaTaskView'
+import LessonActivitiesView from '../views/LessonActivitiesView'
+import SbaTrackerView from '../views/SbaTrackerView'
+import SbaPlanView from '../views/SbaPlanView'
+import AssessmentPaperView from '../views/AssessmentPaperView'
+import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
@@ -32,13 +40,47 @@ import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
 import FullLessonView from '../views/FullLessonView'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
+import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
+import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
+import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
+import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { downloadLessonActivitiesDocx } from '../../../utils/activityToDocx'
+import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
+import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
+import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
+import { buildSbaPlan } from '../../../utils/sbaPlanner'
+import { buildDownloadName } from '../../../utils/downloadFilename'
+
+// Human-readable document-type labels, keyed by the generation's `tool`.
+const TOOL_DOC_TYPES = {
+  lesson_plan: 'Lesson Plan',
+  worksheet: 'Worksheet',
+  flashcards: 'Flashcards',
+  scheme_of_work: 'Scheme of Work',
+  rubric: 'Rubric',
+  notes: 'Notes',
+  mark_schedule: 'Mark Schedule',
+  full_lesson: 'Full Lesson',
+  weekly_forecast: 'Weekly Forecast',
+  record_of_work: 'Record of Work',
+  class_timetable: 'Class Timetable',
+  sba_task: 'SBA Task',
+  sba_mark_sheet: 'SBA Mark Schedule',
+  sba_plan: 'SBA Year Plan',
+  lesson_activities: 'Exercise & Homework',
+  assessment: 'Test Paper',
+  exam_paper: 'Exam Paper',
+}
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
-import { publishShare } from '../../../utils/shareService'
+import { resolveGeneration } from '../../../utils/adminGenerationsService'
+import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
+import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
+import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
@@ -53,11 +95,25 @@ export default function LibraryItemDetail() {
   const [editingHeader, setEditingHeader] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [sharing, setSharing] = useState(false)
-  const [shareInfo, setShareInfo] = useState(null)
+  // Live (non-revoked) share links for this item — loaded on open + updated on
+  // create/revoke, so a teacher can take down a previously-shared link.
+  const [activeShares, setActiveShares] = useState([])
+  const [revokingToken, setRevokingToken] = useState(null)
   const [shareError, setShareError] = useState('')
   // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Admin-only: acknowledge a failed generation so it drops out of the
+  // dashboard "Needs attention" queue without deleting the audit record.
+  const [resolvingFailure, setResolvingFailure] = useState(false)
+
+  // Flashcard study mode
+  const [studyIndex, setStudyIndex] = useState(0)
+  const [studyFlipped, setStudyFlipped] = useState(false)
+  const [studyOpen, setStudyOpen] = useState(false)
+  const { masteredCards, markMastered, markReview } = useFlashcardProgress(
+    item?.tool === 'flashcards' ? item?.id : null,
+  )
 
   // Pro vs Premium access — Pro can download own generations only,
   // Premium can download / print / export everything.
@@ -72,19 +128,19 @@ export default function LibraryItemDetail() {
     setSharing(true)
     setShareError('')
     try {
-      const title = item.output?.header?.topic
-        ? `Lesson plan — ${item.output.header.topic}`
-        : 'Shared lesson plan'
       const result = await publishShare({
+        // Title is derived from the actual tool (worksheet, scheme, rubric…),
+        // not hard-coded to "lesson plan".
         tool: item.tool,
         ownerUid: currentUser.uid,
-        title,
+        title: titleForGeneration(item).slice(0, 200),
         plan: item.output,
         subject: item.inputs?.subject || item.output?.header?.subject || null,
         grade: item.inputs?.grade || item.output?.header?.class || null,
         topic: item.inputs?.topic || item.output?.header?.topic || null,
+        generationId: item.id,
       })
-      setShareInfo(result)
+      setActiveShares((prev) => [{ token: result.token, url: result.url, createdAt: null }, ...prev])
     } catch (err) {
       setShareError(err?.message || 'Could not create share link.')
     } finally {
@@ -92,10 +148,23 @@ export default function LibraryItemDetail() {
     }
   }
 
-  function onCopyShare() {
-    if (!shareInfo?.url) return
+  function copyShareUrl(url) {
+    if (!url) return
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(shareInfo.url).catch(() => {})
+      navigator.clipboard.writeText(url).catch(() => {})
+    }
+  }
+
+  async function onRevokeShare(token) {
+    setRevokingToken(token)
+    setShareError('')
+    try {
+      await revokeShare(token)
+      setActiveShares((prev) => prev.filter((s) => s.token !== token))
+    } catch (err) {
+      setShareError(err?.message || 'Could not revoke that link.')
+    } finally {
+      setRevokingToken(null)
     }
   }
 
@@ -116,6 +185,29 @@ export default function LibraryItemDetail() {
         setStatus('notfound')
       })
   }, [id])
+
+  // Load any live share links the teacher already created for this item, so
+  // they can revoke a link shared in a previous session.
+  useEffect(() => {
+    if (status !== 'ready' || !id || !currentUser?.uid) return undefined
+    let cancelled = false
+    listSharesForGeneration(currentUser.uid, id)
+      .then((shares) => { if (!cancelled) setActiveShares(shares) })
+      .catch(() => { /* best-effort — listSharesForGeneration already swallows */ })
+    return () => { cancelled = true }
+  }, [status, id, currentUser?.uid])
+
+  async function onResolveFailure() {
+    if (!item) return
+    setResolvingFailure(true)
+    const ok = await resolveGeneration(item.id, true)
+    setResolvingFailure(false)
+    if (ok) {
+      setItem((prev) => ({ ...prev, adminResolved: true }))
+    } else {
+      toast.error('Could not mark this generation resolved. Please try again.')
+    }
+  }
 
   function onDelete() {
     if (!item) return
@@ -145,88 +237,172 @@ export default function LibraryItemDetail() {
       )
       return
     }
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      slug(item.inputs?.topic || item.output?.header?.topic),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
+    const name = (ext = 'docx') => buildDownloadName({
+      docType: TOOL_DOC_TYPES[item.tool] || TOOL_META[item.tool]?.label || 'Document',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      topic: item.inputs?.topic || item.output?.header?.topic,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+      week: item.inputs?.weekNumber ?? item.output?.header?.weekNumber,
+      extra: item.output?.header?.className,
+      ext,
+    })
 
     if (item.tool === 'lesson_plan') {
-      await downloadLessonPlanDocx(item.output, `${base}_lesson-plan.docx`)
+      // Prefer the server-generated download: it streams from zedexams.com with
+      // the correct filename (no Firebase, no upload) and works on browsers that
+      // mangle in-page blob: download names. Falls back to the in-app generator
+      // if the server path isn't available (unsaved item, native shell, error).
+      const served = await downloadLibraryItemViaServer({ generationId: item.id, filename: name() })
+      if (!served) await downloadLessonPlanDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'worksheet') {
-      await downloadWorksheetDocx(item.output, `${base}_worksheet.docx`, { mode: 'worksheet' })
+      await downloadWorksheetDocx(item.output, name(), { mode: 'worksheet' })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'flashcards') {
-      await downloadFlashcardsDocx(item.output, `${base}_flashcards.docx`)
+      await downloadFlashcardsDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'scheme_of_work') {
-      await downloadSchemeOfWorkDocx(item.output, `${base}_scheme-of-work.docx`)
+      await downloadSchemeOfWorkDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'rubric') {
-      await downloadRubricDocx(item.output, `${base}_rubric.docx`)
+      await downloadRubricDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'notes') {
-      await downloadNotesDocx(item.output, `${base}_teacher-notes.docx`)
+      await downloadNotesDocx(item.output, name())
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'lesson_activities') {
+      await downloadLessonActivitiesDocx(item.output, name(), {
+        includeAnswers: true,
+        includeModelAnswers: true,
+      })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'mark_schedule') {
-      await downloadMarkScheduleDocx(item.output, `${base}_mark-schedule.docx`, { mode: showPercents ? 'percent' : 'marks' })
+      await downloadMarkScheduleDocx(item.output, name(), { mode: showPercents ? 'percent' : 'marks' })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'full_lesson') {
-      await downloadFullLessonDocx(item.output, `${base}_full-lesson.docx`)
+      await downloadFullLessonDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'weekly_forecast') {
-      await downloadWeeklyForecastDocx(item.output, `${base}_weekly-forecast.docx`)
+      await downloadWeeklyForecastDocx(item.output, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'record_of_work') {
-      await downloadRecordOfWorkDocx(item.output, `${base}_record-of-work.docx`)
+      await downloadRecordOfWorkDocx(item.output, name())
       recordExport(item.id, 'docx')
+    } else if (item.tool === 'class_timetable') {
+      await downloadClassTimetableDocx(item.output, name())
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'sba_task') {
+      await downloadSbaTaskDocx(item.output, name(), {
+        includeAnswers: true,
+        schoolName: item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || '',
+      })
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'sba_mark_sheet') {
+      await downloadSbaTrackerDocx(item.output, name())
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'assessment' || item.tool === 'exam_paper') {
+      // AI-generated test/exam papers: convert to the studio shape and reuse the
+      // same DOCX exporter the Assessment Studio uses, honouring the marking-key
+      // toggle. assessmentToDocx (+ the heavy `docx` lib) is loaded on demand.
+      const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+      const { doc, questions } = aiPaperToStudioDoc(item.output, item.tool)
+      await downloadAssessmentDocx(doc, questions, name(), { mode: showAnswers ? 'scheme' : 'paper' })
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'sba_plan') {
+      const h = item.output?.header || {}
+      const plan = buildSbaPlan(h.subject, h.grade, item.output?.statuses || {})
+      if (plan) {
+        await downloadSbaPlannerDocx({ ...plan, statuses: item.output?.statuses || {} }, h, name())
+        recordExport(item.id, 'docx')
+      }
     }
   }
 
   async function onExportXlsx() {
-    if (item?.tool !== 'mark_schedule' || !item.output) return
-    if (!permissions.canDownload) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+    if (!item?.output || !permissions.canDownload) return
+    if (item.tool !== 'mark_schedule' && item.tool !== 'class_timetable') return
+    const name = buildDownloadName({
+      docType: TOOL_DOC_TYPES[item.tool] || 'Document',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+      extra: item.output?.header?.className,
+      ext: 'xlsx',
+    })
+    if (item.tool === 'class_timetable') {
+      await downloadClassTimetableXlsx(item.output, name)
+    } else {
+      await downloadMarkScheduleXlsx(item.output, name)
+    }
     recordExport(item.id, 'xlsx')
+  }
+
+  async function onExportPdf() {
+    if (!permissions.canDownload) return
+
+    if (item?.tool === 'lesson_plan') {
+      const plan = item.output || item.data
+      if (!plan) return
+      try {
+        const filename = buildDownloadName({
+          docType: 'Lesson Plan',
+          grade: item.inputs?.grade || item.meta?.klass,
+          subject: item.inputs?.subject || item.meta?.subject,
+          topic: item.inputs?.topic || item.meta?.topic,
+          ext: 'pdf',
+        })
+        await downloadLessonPlanPdf(plan, titleForGeneration(item), filename)
+        recordExport(item.id, 'pdf')
+      } catch (err) {
+        console.error('[LibraryItemDetail] lesson plan pdf failed', err)
+      }
+      return
+    }
+
+    if (item?.tool !== 'class_timetable' || !item.output) return
+    try {
+      const name = buildDownloadName({
+        docType: TOOL_DOC_TYPES[item.tool] || 'Class Timetable',
+        grade: item.inputs?.grade || item.output?.header?.grade,
+        term: item.inputs?.term ?? item.output?.header?.term,
+        year: item.inputs?.year ?? item.output?.header?.year,
+        extra: item.output?.header?.className,
+        ext: 'pdf',
+      })
+      await downloadClassTimetablePdf(item.output, { filename: name })
+      recordExport(item.id, 'pdf')
+    } catch (err) {
+      console.error('[LibraryItemDetail] timetable pdf failed', err)
+    }
   }
 
   async function onExportReportCards() {
     if (item?.tool !== 'mark_schedule' || !item.output) return
     if (!permissions.canDownload) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    await downloadReportCardsDocx(item.output, `${base}_report-cards.docx`)
+    const name = buildDownloadName({
+      docType: 'Report Cards',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+    })
+    await downloadReportCardsDocx(item.output, name)
     recordExport(item.id, 'report_cards')
   }
 
   async function onExportAnswerKey() {
     if (item?.tool !== 'worksheet' || !item.output) return
     if (!permissions.canDownload) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const base = [
-      slug(item.inputs?.grade),
-      slug(item.inputs?.subject),
-      slug(item.inputs?.topic || item.output?.header?.topic),
-      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    await downloadWorksheetDocx(item.output, `${base}_ANSWER-KEY.docx`, { mode: 'answer_key' })
+    const name = buildDownloadName({
+      docType: 'Worksheet',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      topic: item.inputs?.topic || item.output?.header?.topic,
+      variant: 'Answer Key',
+    })
+    await downloadWorksheetDocx(item.output, name, { mode: 'answer_key' })
     recordExport(item.id, 'docx_answer_key')
   }
 
@@ -255,7 +431,7 @@ export default function LibraryItemDetail() {
   }
 
   // Edit-details is currently supported for tools with an editable `output.header`.
-  const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet']
+  const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet', 'sba_task']
     .includes(item.tool)
 
   if (status === 'loading') {
@@ -289,7 +465,7 @@ export default function LibraryItemDetail() {
   const meta = TOOL_META[item.tool] || { label: item.tool, icon: '📄' }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
       <div className="max-w-5xl mx-auto">
         {/* Breadcrumb */}
@@ -311,7 +487,7 @@ export default function LibraryItemDetail() {
                 </span>
               )}
             </div>
-            <h1 className="studio-display" style={{ fontSize: 28, color: '#0e2a32', margin: 0 }}>
+            <h1 className="studio-display" style={{ fontSize: 28, margin: 0 }}>
               {titleForGeneration(item)}
             </h1>
             <div className="mt-1 text-xs flex flex-wrap gap-3" style={{ color: '#566f76' }}>
@@ -320,18 +496,13 @@ export default function LibraryItemDetail() {
               <span>{formatSubject(item.inputs?.subject || item.meta?.subject)}</span>
               <span>·</span>
               <span>{formatDate(item.createdAt)}</span>
-              {item.modelUsed && (
-                <>
-                  <span>·</span>
-                  <span className="font-mono">{item.modelUsed}</span>
-                </>
-              )}
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            {item.tool === 'worksheet' && (
+            {(item.tool === 'worksheet' || item.tool === 'lesson_activities' ||
+              item.tool === 'assessment' || item.tool === 'exam_paper') && (
               <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
                 <input
                   type="checkbox"
@@ -339,7 +510,7 @@ export default function LibraryItemDetail() {
                   onChange={(e) => setShowAnswers(e.target.checked)}
                   style={{ accentColor: '#ff7a2e' }}
                 />
-                Show answers
+                {item.tool === 'assessment' || item.tool === 'exam_paper' ? 'Marking key' : 'Show answers'}
               </label>
             )}
             {item.tool === 'mark_schedule' && (
@@ -363,16 +534,48 @@ export default function LibraryItemDetail() {
             >
               📄 Export .docx
             </button>
-            {item.tool === 'mark_schedule' && (
+            {(item.tool === 'mark_schedule' || item.tool === 'class_timetable') && (
               <button
                 onClick={onExportXlsx}
                 disabled={!permissions.canDownload}
                 className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
                 title={permissions.canDownload
-                  ? 'Download an Excel workbook with live total and position formulas'
+                  ? 'Download an Excel workbook'
                   : 'Premium only — upgrade to download library documents'}
               >
                 📊 Export .xlsx
+              </button>
+            )}
+            {item.tool === 'flashcards' && item.output?.cards?.length > 0 && (
+              <button
+                onClick={() => { setStudyIndex(0); setStudyFlipped(false); setStudyOpen(true) }}
+                className="studio-btn-primary"
+              >
+                ▶ Study
+              </button>
+            )}
+            {item.tool === 'lesson_plan' && (item.output || item.data) && (
+              <button
+                onClick={onExportPdf}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download a PDF copy'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🖨️ Export PDF
+              </button>
+            )}
+            {item.tool === 'class_timetable' && (
+              <button
+                onClick={onExportPdf}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Open a print view to save as PDF'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🖨️ Export PDF
               </button>
             )}
             {item.tool === 'mark_schedule' && (
@@ -416,7 +619,8 @@ export default function LibraryItemDetail() {
                 🔁 Generate similar
               </button>
             )}
-            {item.tool === 'lesson_plan' && (
+            {item.tool === 'lesson_plan' &&
+              (item.output || item.data) && (
               <button
                 onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
                 className="studio-btn-primary"
@@ -434,32 +638,47 @@ export default function LibraryItemDetail() {
           </div>
         </div>
 
-        {/* Share banner — shown once a share link has been created */}
-        {shareInfo && (
+        {/* Active share links — listed so each can be revoked individually. */}
+        {activeShares.length > 0 && (
           <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm">
-            <p className="font-black text-emerald-900 mb-1">Share link ready</p>
-            <p className="text-emerald-800 text-xs mb-2">Anyone with this link can view this plan (read-only). You can revoke it from the Library at any time.</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                value={shareInfo.url}
-                readOnly
-                onFocus={(e) => e.target.select()}
-                className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-emerald-300 bg-white text-emerald-900 text-xs font-mono"
-              />
-              <button onClick={onCopyShare} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
-                Copy
-              </button>
-              {/* WhatsApp is how Zambian teachers actually pass documents
-                  around — one tap beats copy-switch-paste. */}
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${shareInfo.url}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
-              >
-                <span aria-hidden="true">💬</span> WhatsApp
-              </a>
+            <p className="font-black text-emerald-900 mb-1">
+              {activeShares.length === 1 ? 'Share link active' : `${activeShares.length} share links active`}
+            </p>
+            <p className="text-emerald-800 text-xs mb-2">
+              Anyone with a link can view this (read-only). Revoke a link to stop it working immediately.
+            </p>
+            <div className="space-y-2">
+              {activeShares.map((s) => (
+                <div key={s.token} className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={s.url}
+                    readOnly
+                    onFocus={(e) => e.target.select()}
+                    className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-emerald-300 bg-white text-emerald-900 text-xs font-mono"
+                  />
+                  <button onClick={() => copyShareUrl(s.url)} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
+                    Copy
+                  </button>
+                  {/* WhatsApp is how Zambian teachers actually pass documents
+                      around — one tap beats copy-switch-paste. */}
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${s.url}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
+                  >
+                    <span aria-hidden="true">💬</span> WhatsApp
+                  </a>
+                  <button
+                    onClick={() => onRevokeShare(s.token)}
+                    disabled={revokingToken === s.token}
+                    className="px-3 py-2 rounded-lg text-xs font-black text-rose-700 border-2 border-rose-200 bg-white hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    {revokingToken === s.token ? 'Revoking…' : 'Revoke'}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -494,13 +713,32 @@ export default function LibraryItemDetail() {
 
         {item.status === 'failed' && (
           <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
-            ⚠️ This generation failed: {item.errorMessage || 'unknown error'}.
-            Try regenerating from the same inputs.
+            <p>
+              ⚠️ This generation failed: {item.errorMessage || 'unknown error'}.
+              Try regenerating from the same inputs.
+            </p>
+            {isAdmin && (
+              <div className="mt-2">
+                {item.adminResolved ? (
+                  <span className="text-xs font-bold text-rose-700/70">
+                    ✓ Marked resolved — cleared from the admin attention queue.
+                  </span>
+                ) : (
+                  <button
+                    onClick={onResolveFailure}
+                    disabled={resolvingFailure}
+                    className="text-xs font-black underline disabled:opacity-50"
+                  >
+                    {resolvingFailure ? 'Resolving…' : 'Mark resolved'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Content */}
-        <div className="studio-card p-5">
+        <div className="studio-card px-2 py-4 sm:p-5">
           {item.tool === 'lesson_plan' && item.output && <LessonPlanView plan={item.output} />}
           {item.tool === 'lesson_plan' && !item.output && item.html && (
             <LegacyStudioFrame html={item.html} />
@@ -508,10 +746,19 @@ export default function LibraryItemDetail() {
           {item.tool === 'worksheet' && (
             <WorksheetView worksheet={item.output} showAnswers={showAnswers} />
           )}
-          {item.tool === 'flashcards' && <FlashcardsView flashcards={item.output} />}
+          {item.tool === 'flashcards' && (
+            <FlashcardsView
+              flashcards={item.output}
+              masteredCards={masteredCards}
+              onStudy={() => { setStudyIndex(0); setStudyFlipped(false); setStudyOpen(true) }}
+            />
+          )}
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
           {item.tool === 'mark_schedule' && item.output && (
             <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
+          )}
+          {item.tool === 'class_timetable' && item.output && (
+            <ClassTimetableView timetable={item.output} />
           )}
           {item.tool === 'weekly_forecast' && item.output && (
             <WeeklyForecastView forecast={item.output} />
@@ -522,6 +769,21 @@ export default function LibraryItemDetail() {
           {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
+          {item.tool === 'sba_task' && (
+            <SbaTaskView
+              task={item.output}
+              showAnswers
+              schoolName={item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || ''}
+            />
+          )}
+          {item.tool === 'lesson_activities' && item.output && (
+            <LessonActivitiesView activities={item.output} showAnswers={showAnswers} />
+          )}
+          {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
+          {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
+          {(item.tool === 'assessment' || item.tool === 'exam_paper') && item.output && (
+            <AssessmentPaperView assessment={item.output} tool={item.tool} showAnswers={showAnswers} />
+          )}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.
@@ -550,6 +812,21 @@ export default function LibraryItemDetail() {
         onConfirm={confirmDelete}
         onCancel={() => setConfirmingDelete(false)}
       />
+
+      {studyOpen && item?.tool === 'flashcards' && item.output?.cards?.length > 0 && (
+        <FlashcardStudyOverlay
+          cards={item.output.cards}
+          index={studyIndex}
+          isFlipped={studyFlipped}
+          masteredCards={masteredCards}
+          onPrev={() => { setStudyIndex((i) => Math.max(i - 1, 0)); setStudyFlipped(false) }}
+          onNext={() => { setStudyIndex((i) => Math.min(i + 1, item.output.cards.length - 1)); setStudyFlipped(false) }}
+          onFlip={() => setStudyFlipped((f) => !f)}
+          onClose={() => setStudyOpen(false)}
+          onMarkMastered={(i) => markMastered(i, item.output.cards.length)}
+          onMarkReview={(i) => markReview(i, item.output.cards.length)}
+        />
+      )}
     </div>
   )
 }
@@ -578,6 +855,9 @@ const HEADER_FIELDS_BY_TOOL = {
     { key: 'title',        label: 'Title',        type: 'text' },
     { key: 'instructions', label: 'Instructions', type: 'textarea' },
     { key: 'duration',     label: 'Duration',     type: 'text', placeholder: '30 minutes' },
+  ],
+  sba_task: [
+    { key: 'schoolName', label: 'School name', type: 'text', placeholder: 'Your school name' },
   ],
 }
 
@@ -688,8 +968,13 @@ function LegacyStudioFrame({ html }) {
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="/studio/lesson.css" />
     <style>
-      body { margin: 0; padding: 24px 16px; background: transparent; }
+      body { margin: 0; padding: 0; background: transparent; }
       .doc-wrap { box-shadow: none !important; margin: 0 auto; }
+      @media(max-width:520px){
+        #view-plans .workspace{padding:8px 0 40px}
+        #view-plans .doc{padding:8mm 4mm !important}
+        #view-plans .doc-head .school{font-size:15pt}
+      }
     </style>
   </head><body><div id="view-plans"><div class="workspace">${safeHtml}</div></div>
     <script>

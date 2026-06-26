@@ -32,6 +32,8 @@
  * it without dragging in Firebase or React.
  */
 
+import { canonicalizeImportedQuestionType, MARKS_BOUNDS } from './questionType.js'
+
 // ── Canonical CSV schema ─────────────────────────────────────────
 
 export const CSV_HEADERS = [
@@ -192,24 +194,18 @@ export function parseCsv(text) {
 
 // ── Row → question conversion + validation ───────────────────────
 
-const TYPE_ALIASES = {
-  'mcq': 'mcq',
-  'multiple-choice': 'mcq',
-  'multiple choice': 'mcq',
-  'tf': 'tf',
-  'truefalse': 'tf',
-  'true/false': 'tf',
-  'true_false': 'tf',
-  'short_answer': 'short_answer',
-  'short-answer': 'short_answer',
-  'short': 'short_answer',
-  'numeric': 'numeric',
-  'number': 'numeric',
-}
+// CSV import supports a restricted subset of the editor's question types —
+// the ones that translate cleanly to spreadsheet columns (diagram/fill/essay/
+// matching/sequence stay with the editor surfaces). Spelling normalization is
+// delegated to the shared canonicalizeImportedQuestionType (src/utils/
+// questionType.js) so the alias logic lives in one place; this gate just
+// restricts to the CSV-supported subset and returns null for anything else so
+// the row validator can flag it.
+const CSV_SUPPORTED_TYPES = new Set(['mcq', 'tf', 'short_answer', 'numeric'])
 
 function normaliseType(raw) {
-  const key = String(raw ?? '').trim().toLowerCase()
-  return TYPE_ALIASES[key] || null
+  const canonical = canonicalizeImportedQuestionType(raw)
+  return CSV_SUPPORTED_TYPES.has(canonical) ? canonical : null
 }
 
 const DIFFICULTY_ALIASES = {
@@ -329,10 +325,15 @@ export function rowToQuestion(cells) {
   }
 
   const marksRaw = cellByHeader.marks
-  let marks = 1
+  let marks = MARKS_BOUNDS.quiz.min
   if (marksRaw) {
     const m = Number(marksRaw)
-    if (!Number.isInteger(m) || m < 1 || m > 10) errors.push('marks must be an integer 1–10')
+    // Bounds come from the shared marks policy (MARKS_BOUNDS.quiz) so the CSV
+    // gate, the write schema, and the read-side coerce can never disagree.
+    // Unlike coerce this REJECTS out-of-range (a teacher's typo) rather than
+    // silently clamping, so the bad row surfaces in the import preview.
+    const { min, max } = MARKS_BOUNDS.quiz
+    if (!Number.isInteger(m) || m < min || m > max) errors.push(`marks must be an integer ${min}–${max}`)
     else marks = m
   }
 

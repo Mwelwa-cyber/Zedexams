@@ -12,6 +12,7 @@ import { shuffle } from '../../utils/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
@@ -73,7 +74,7 @@ export default function SortingFactoryGame({ game }) {
   // the countdown interval's closure where the state values are stale.
   const statsRef = useRef({ score: 0, correct: 0, wrong: 0, bestStreak: 0 })
 
-  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   // Countdown (only when the game doc sets a timer)
   useEffect(() => {
@@ -199,6 +200,8 @@ export default function SortingFactoryGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -295,9 +298,11 @@ function ReadyCard({ game, bins, itemCount, points, duration, onStart }) {
   )
 }
 
-function DoneCard({ game, score, correct, attempted, accuracy, bestStreak, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, correct, attempted, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -316,6 +321,9 @@ function DoneCard({ game, score, correct, attempted, accuracy, bestStreak, saveR
           <DoneStat label="Best combo"  value={bestStreak} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct, wrong: attempted - correct, bestStreak }}

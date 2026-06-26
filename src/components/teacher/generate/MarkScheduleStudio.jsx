@@ -17,12 +17,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { SUBJECTS } from '../../../config/curriculum'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
 import MarkScheduleView from '../views/MarkScheduleView'
@@ -42,6 +45,19 @@ const DEFAULT_SUBJECTS = [
   { key: 's4', label: 'SOCIAL STUDIES', max: 26 },
   { key: 's5', label: 'C.T.S', max: 25 },
 ]
+
+// Combobox suggestions for the "Subjects and maximum marks" row. Both fields
+// stay free-text (rendered as inputs backed by a <datalist>), so a teacher can
+// pick a value from the dropdown OR type their own — picking is faster than
+// typing, but nothing is locked to the list.
+//
+// The subject suggestions are exactly the CBC syllabus learning areas
+// (uppercased to match the schedule's house style); a teacher who runs a
+// subject that isn't in the syllabus just types it in.
+const SUBJECT_SUGGESTIONS = SUBJECTS.map((s) => s.label.toUpperCase())
+// Common out-of marks teachers set per subject. Not exhaustive — the field
+// still accepts any 1–300 value typed by hand.
+const MAX_MARK_SUGGESTIONS = [10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 100]
 
 let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {}, comment: '' })
@@ -63,7 +79,7 @@ export default function MarkScheduleStudio() {
   const uid = currentUser?.uid
 
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     grade: 'G4',
     term: 1,
     year: String(new Date().getFullYear()),
@@ -79,6 +95,10 @@ export default function MarkScheduleStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
+  // The dirty-marking effect below fires on the initial mount and again on the
+  // re-render the draft-restore triggers. Skip those runs so a freshly-loaded
+  // saved sheet shows "✓ Saved" rather than "Update in library".
+  const dirtySkipRef = useRef(1)
 
   // Restore a saved draft once per mount.
   useEffect(() => {
@@ -86,11 +106,13 @@ export default function MarkScheduleStudio() {
     loadedRef.current = true
     const draft = loadDraft(uid)
     if (!draft) return
-    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-    if (Array.isArray(draft.subjects) && draft.subjects.length) setSubjects(draft.subjects)
-    if (Array.isArray(draft.pupils) && draft.pupils.length) setPupils(draft.pupils)
+    let restoredDirtyState = false
+    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
+    if (Array.isArray(draft.subjects) && draft.subjects.length) { setSubjects(draft.subjects); restoredDirtyState = true }
+    if (Array.isArray(draft.pupils) && draft.pupils.length) { setPupils(draft.pupils); restoredDirtyState = true }
     if (draft.mode) setMode(draft.mode)
     if (draft.generationId) setGenerationId(draft.generationId)
+    if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
   // Debounced autosave (the library doc id rides along so "Update in
@@ -105,8 +127,10 @@ export default function MarkScheduleStudio() {
     return () => clearTimeout(t)
   }, [uid, header, subjects, pupils, mode, generationId])
 
-  // Any data edit marks the library copy stale.
+  // Any data edit marks the library copy stale. (Skips the mount + restore
+  // runs via dirtySkipRef so a just-loaded saved sheet isn't flagged dirty.)
   useEffect(() => {
+    if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
     setDirtySinceSave(true)
   }, [header, subjects, pupils])
 
@@ -165,7 +189,7 @@ export default function MarkScheduleStudio() {
   }, [named, subjects, header])
 
   function clearAll() {
-    setHeader({ school: userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()), nextTermOpens: '' })
+    setHeader({ school: userProfile?.school || userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()), nextTermOpens: '' })
     setSubjects(DEFAULT_SUBJECTS)
     setPupils(blankPupils(5))
     setMode('marks')
@@ -175,25 +199,33 @@ export default function MarkScheduleStudio() {
     toast.info('Cleared. Starting a fresh schedule.')
   }
 
-  async function onSaveToLibrary() {
+  async function onSaveToLibrary({ silent = false } = {}) {
     if (!artifact || saving) return
     setSaving(true)
     try {
       const id = await saveMarkScheduleGeneration({ uid, existingId: generationId, artifact })
       setGenerationId(id)
       setDirtySinceSave(false)
-      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
     } catch (err) {
       console.error('[MarkScheduleStudio] save failed', err)
-      toast.error(err?.message || 'Could not save to your library. Please try again.')
+      if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
     } finally {
       setSaving(false)
     }
   }
 
+  // Auto-save to the library so a hand-built schedule is never lost.
+  useLibraryAutoSave({
+    enabled: !!artifact,
+    dirty: dirtySinceSave,
+    saving,
+    onSave: () => onSaveToLibrary({ silent: true }),
+  })
+
   async function onExportDocx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.docx`
+    const name = buildDownloadName({ docType: 'Mark Schedule', grade: header.grade, term: header.term, year: header.year })
     try {
       await downloadMarkScheduleDocx(artifact, name, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Mark schedule downloaded.')
@@ -205,7 +237,7 @@ export default function MarkScheduleStudio() {
 
   async function onExportXlsx() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.xlsx`
+    const name = buildDownloadName({ docType: 'Mark Schedule', grade: header.grade, term: header.term, year: header.year, ext: 'xlsx' })
     try {
       await downloadMarkScheduleXlsx(artifact, name)
       toast.success('Excel workbook downloaded — totals and positions stay live when you edit marks.')
@@ -217,7 +249,7 @@ export default function MarkScheduleStudio() {
 
   async function onExportReportCards() {
     if (!artifact) return
-    const name = `${header.grade}_term${header.term}_${header.year}_report-cards.docx`
+    const name = buildDownloadName({ docType: 'Report Cards', grade: header.grade, term: header.term, year: header.year })
     try {
       await downloadReportCardsDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success(`Report cards downloaded — one page per pupil (${artifact.pupils.length}).`)
@@ -228,7 +260,7 @@ export default function MarkScheduleStudio() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Mark schedule" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -279,26 +311,39 @@ export default function MarkScheduleStudio() {
             {/* Subjects + max marks */}
             <div>
               <label className="studio-label">Subjects and maximum marks</label>
+              <p className="text-xs mb-1.5" style={{ color: '#566f76' }}>
+                Pick a subject and an out-of mark from the dropdowns, or type your own.
+              </p>
+              {/* Shared option lists for the comboboxes below — a teacher chooses
+                  from the dropdown or keeps typing (both fields stay free-text). */}
+              <datalist id="markschedule-subject-options">
+                {SUBJECT_SUGGESTIONS.map((label) => <option key={label} value={label} />)}
+              </datalist>
+              <datalist id="markschedule-marks-options">
+                {MAX_MARK_SUGGESTIONS.map((m) => <option key={m} value={m} />)}
+              </datalist>
               <div className="flex flex-wrap gap-2">
                 {subjects.map((s) => (
                   <div key={s.key} className="flex items-center gap-1.5 rounded-xl border theme-border bg-white px-2 py-1.5">
                     <input
                       type="text"
+                      list="markschedule-subject-options"
                       value={s.label}
                       maxLength={20}
                       aria-label="Subject name"
                       onChange={(e) => updateSubject(s.key, 'label', e.target.value.toUpperCase())}
-                      className="w-28 text-xs font-bold outline-none"
+                      className="w-28 text-xs font-bold outline-none bg-transparent"
                     />
                     <span className="text-xs theme-text-secondary">/</span>
                     <input
                       type="number"
+                      list="markschedule-marks-options"
                       min={1}
                       max={300}
                       value={s.max}
                       aria-label="Maximum marks"
                       onChange={(e) => updateSubject(s.key, 'max', clampInt(e.target.value, 1, 300))}
-                      className="w-14 text-xs font-bold outline-none text-center"
+                      className="w-14 text-xs font-bold outline-none text-center bg-transparent"
                     />
                     <button
                       type="button"
@@ -322,7 +367,7 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Pupils and marks</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and marks</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   {named.length} pupil{named.length === 1 ? '' : 's'} entered · rows without a name are ignored
                 </p>
@@ -408,7 +453,7 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your mark schedule</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your mark schedule</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Positions update as you type — ties share a position.
                 </p>

@@ -9,11 +9,13 @@
 
 ## Current status (2026-06-07)
 
-The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **most P3 cleanup is done**. One non-blocking cosmetic item remains.
+The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **all P3 cleanup is done**. No open items remain.
 
 ### Still open
 
-1. **`console.log` lines in a test** — `src/components/quiz/documentQuizParserCore.test.js` logs a few "test passed" lines. Test-only, excluded from the production bundle. Cosmetic; optional.
+_None._
+
+_(The console-log cleanup item — scattered intermediate "test passed" lines in `src/components/quiz/documentQuizParserCore.test.js` — was resolved on 2026-06-18: the per-section logs were removed and consolidated into a single final `All documentQuizParserCore tests passed.` summary, matching the convention used by the other node test scripts.)_
 
 _(The two orphaned editor files — `src/editor/QuizEditor.jsx` and `src/editor/QuizViewer.jsx` — were deleted on 2026-05-29; see P3-1 below. They're recoverable from git history if the Tiptap-editor switch is ever revived.)_
 

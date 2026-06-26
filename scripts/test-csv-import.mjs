@@ -231,8 +231,17 @@ test('missing text reports error', () => {
 })
 
 test('marks out of range reports error', () => {
-  const r = rowToQuestion(mcqRow({ marks: '15' }))
+  // Cap is 20 (matches the write schema); 21 is over the line.
+  const r = rowToQuestion(mcqRow({ marks: '21' }))
   assert(r.status === 'error')
+})
+
+test('marks in the 11-20 band import without error', () => {
+  // Long-answer past-paper questions carry up to 20 marks. They used to error
+  // at the old 1–10 limit; now they parse with the value preserved.
+  const r = rowToQuestion(mcqRow({ marks: '15' }))
+  assert(r.status !== 'error', `marks=15 should import, got ${r.status}`)
+  assert(r.question.marks === 15, `expected marks=15, got ${r.question?.marks}`)
 })
 
 test('unknown difficulty warns, doesn\'t error', () => {

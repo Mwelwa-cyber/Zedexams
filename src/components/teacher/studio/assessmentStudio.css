@@ -5,13 +5,16 @@
    at /assessment-studio-preview.html (kept for reference).
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+/* Studio fonts (Fraunces / Geist / Geist Mono) are loaded once, non-blocking,
+   from index.html alongside the rest of the app fonts. Loading them here via a
+   CSS @import was render-blocking and late-discovered (only fetched after this
+   stylesheet parsed), which hurt the studio's first paint. */
 
 .studio-v2 {
   /* Surfaces */
   --sv-paper: #FFFFFF;
-  --sv-canvas: #F4EFE5;
-  --sv-canvas-2: #ECE5D5;
+  --sv-canvas: #f5efe1;
+  --sv-canvas-2: #ece5d5;
   --sv-tinted: #FAF6EE;
 
   /* Ink */
@@ -124,6 +127,8 @@
   transition: background 0.15s;
 }
 .studio-v2 .sv-icon-btn:hover { background: rgba(14,44,48,0.06); }
+.studio-v2 .sv-icon-btn:disabled { opacity: 0.32; cursor: default; }
+.studio-v2 .sv-icon-btn:disabled:hover { background: transparent; }
 .studio-v2 .sv-app-bar-title {
   flex: 1;
   min-width: 0;
@@ -156,7 +161,12 @@
   background: var(--sv-canvas-2);
   border-radius: 99px;
   margin-left: var(--sv-s2);
+  white-space: nowrap;
 }
+/* Save-status tones — see describeSaveStatus() in AssessmentStudio.jsx. */
+.studio-v2 .sv-badge-mini.is-unsaved { color: #7A5A1F; background: var(--sv-gold-soft); }
+.studio-v2 .sv-badge-mini.is-local,
+.studio-v2 .sv-badge-mini.is-library { color: #2C5A41; background: var(--sv-sage-soft); }
 
 /* ============================================================
    COMPACT DOCK + FAB (replaces the chunky bottom bar)
@@ -701,6 +711,33 @@
   color: var(--sv-canvas);
   border-color: var(--sv-ink);
 }
+/* Primary "Save draft" chip — the one durable action in the tools bar. */
+.studio-v2 .sv-chip.sv-chip-save {
+  background: var(--sv-primary);
+  color: #fff;
+  border-color: var(--sv-primary);
+  font-weight: 600;
+}
+.studio-v2 .sv-chip.sv-chip-save:hover { background: var(--sv-primary-dark); }
+.studio-v2 .sv-chip.sv-chip-save:disabled { opacity: 0.45; cursor: default; }
+.studio-v2 .sv-chip.sv-chip-save:disabled:hover { background: var(--sv-primary); }
+/* "X to fix" chip — opens the pre-publish checklist. */
+.studio-v2 .sv-chip.sv-chip-warn {
+  background: var(--sv-gold-soft);
+  color: #7A5A1F;
+  border-color: rgba(200,146,61,0.35);
+  font-weight: 600;
+}
+.studio-v2 .sv-chip.sv-chip-warn:hover { background: #efdcb4; }
+/* Destructive "Clear all" chip — quiet until hovered so it doesn't compete
+   with the additive tools, then reads clearly as a danger action. */
+.studio-v2 .sv-chip.sv-chip-danger {
+  color: var(--sv-primary-dark);
+  border-color: rgba(139,38,53,0.3);
+}
+.studio-v2 .sv-chip.sv-chip-danger:hover { background: var(--sv-primary-soft); }
+.studio-v2 .sv-chip.sv-chip-danger:disabled { opacity: 0.45; cursor: default; }
+.studio-v2 .sv-chip.sv-chip-danger:disabled:hover { background: var(--sv-paper); }
 .studio-v2 .sv-builder-bar .sv-pages {
   margin-left: auto;
   font-family: 'Geist Mono', monospace;
@@ -765,6 +802,12 @@
 .studio-v2 .sv-block-head .sv-tool:hover {
   background: var(--sv-canvas);
   color: var(--sv-ink);
+}
+.studio-v2 .sv-block-head .sv-tool:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+  color: var(--sv-muted);
 }
 .studio-v2 .sv-block-head .sv-tool.danger:hover {
   background: var(--sv-primary-soft);
@@ -900,43 +943,8 @@
   align-items: stretch;
   margin-bottom: var(--sv-s4);
 }
-.studio-v2 .sv-logo-drop {
-  width: 100px;
-  flex-shrink: 0;
-  border: 2px dashed var(--sv-border-strong);
-  border-radius: var(--sv-r);
-  display: grid;
-  place-items: center;
-  text-align: center;
-  font-size: 24px;
-  color: var(--sv-muted);
-  background: var(--sv-tinted);
-  cursor: pointer;
-  transition: all 0.15s;
-  overflow: hidden;
-  position: relative;
-}
-.studio-v2 .sv-logo-drop small {
-  display: block;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-top: 3px;
-  font-weight: 600;
-}
-.studio-v2 .sv-logo-drop:hover {
-  border-color: var(--sv-primary);
-  background: var(--sv-primary-soft);
-  color: var(--sv-primary);
-}
-.studio-v2 .sv-logo-drop img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
 @media (max-width: 540px) {
   .studio-v2 .sv-identity-row { flex-direction: column; }
-  .studio-v2 .sv-logo-drop { width: 100%; min-height: 80px; }
 }
 
 .studio-v2 .sv-title-preview-card {
@@ -1015,6 +1023,44 @@
 }
 .studio-v2 .sv-tg.on { background: var(--sv-sage); }
 .studio-v2 .sv-tg.on::after { left: 17px; }
+
+/* Segmented control — paper-level MCQ layout / choice-count pickers */
+.studio-v2 .sv-seg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.studio-v2 .sv-seg-row .sv-lbl { display: flex; align-items: center; gap: 8px; }
+.studio-v2 .sv-seg {
+  display: inline-flex;
+  background: var(--sv-border-strong);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--sv-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.studio-v2 .sv-seg-btn.on {
+  background: white;
+  color: var(--sv-ink, #1a1a1a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
 
 .studio-v2 .sv-preset-row {
   display: flex;
@@ -1272,6 +1318,35 @@
   box-shadow: 0 0 0 3px rgba(139,38,53,0.10);
 }
 
+/* Read-only view shown in the card when a question carries formatting that a
+   plain textarea would flatten. The teacher edits it in the detailed editor. */
+.studio-v2 .sv-q-text-formatted {
+  width: 100%;
+  border: 1px dashed var(--sv-border-strong, var(--sv-border));
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  padding: 12px 14px;
+}
+.studio-v2 .sv-q-text-plain {
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--sv-text);
+}
+.studio-v2 .sv-q-text-empty { color: var(--sv-muted); font-style: italic; }
+.studio-v2 .sv-q-text-editlink {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: var(--sv-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.studio-v2 .sv-q-text-editlink:hover { text-decoration: underline; }
+
 .studio-v2 .sv-q-media {
   background: var(--sv-tinted);
   border: 1.5px dashed var(--sv-border-strong);
@@ -1381,6 +1456,22 @@
 }
 .studio-v2 .sv-mcq-option .sv-check { font-size: 14px; color: var(--sv-sage); }
 
+/* Per-option alt-text row, shown under an option once it carries an image. */
+.studio-v2 .sv-mcq-option-wrap { display: grid; gap: 4px; }
+.studio-v2 .sv-opt-alt { padding-left: 30px; }
+.studio-v2 .sv-opt-alt-input {
+  width: 100%;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-sm);
+  padding: 5px 8px;
+  font-size: 12px;
+  background: var(--sv-paper);
+  color: var(--sv-text);
+}
+.studio-v2 .sv-opt-alt-input::placeholder { color: var(--sv-muted); }
+.studio-v2 .sv-opt-alt-input.missing { border-color: var(--sv-tomato, #c0392b); }
+.studio-v2 .sv-opt-alt-input:focus { outline: none; border-color: var(--sv-primary); }
+
 .studio-v2 .sv-answer-lines {
   margin-top: var(--sv-s2);
   padding: var(--sv-s3);
@@ -1412,6 +1503,48 @@
   font-size: 11px;
   text-transform: none;
   letter-spacing: 0;
+}
+
+/* Inline how-to guidance shown under an advanced question type's header —
+   one calm sentence so a teacher meeting Matching / Sequence / Numeric for
+   the first time knows what each field is for. Not an error, not a warning. */
+.studio-v2 .sv-input-hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--sv-muted);
+  margin: 2px 0 8px;
+}
+.studio-v2 .sv-input-hint code {
+  background: var(--sv-canvas-2);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+/* Quiet empty-state for an advanced type whose rows are all still blank —
+   sits inside .sv-answer-lines so it reads as a placeholder, not a problem. */
+.studio-v2 .sv-empty-hint {
+  font-size: 12px;
+  color: var(--sv-muted);
+  font-style: italic;
+  padding: 2px 0 6px;
+}
+
+/* Coverage meter for the competency-mapping tool. A thin bar so a teacher
+   sees at a glance how much of the CBC taxonomy the paper touches. */
+.studio-v2 .sv-coverage-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--sv-canvas-2);
+  overflow: hidden;
+  margin: 8px 0 2px;
+}
+.studio-v2 .sv-coverage-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--sv-primary);
+  transition: width 0.2s ease;
 }
 
 .studio-v2 .sv-q-footer {
@@ -1724,7 +1857,7 @@
 .studio-v2 .sv-paper p { margin: 0 0 0.55em; }
 .studio-v2 .sv-paper p:last-child { margin-bottom: 0; }
 @media (max-width: 640px) {
-  .studio-v2 .sv-paper { padding: 32px 24px; font-size: 12.5px; }
+  .studio-v2 .sv-paper { padding: 26px 16px; font-size: 12.5px; }
 }
 
 .studio-v2 .sv-paper-banner {
@@ -1736,47 +1869,9 @@
   border: 1px solid #c8c8c8;
   padding: 22px 32px;
   margin-bottom: 20px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 16px;
+  display: flex;
+  justify-content: center;
   align-items: center;
-}
-.studio-v2 .sv-banner-left { justify-self: start; min-width: 0; }
-.studio-v2 .sv-banner-right { justify-self: end; min-width: 0; }
-.studio-v2 .sv-paper-logo {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #7d3aa8, #4a1d6e 70%, #2d0e47);
-  display: grid;
-  place-items: center;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-}
-.studio-v2 .sv-paper-logo::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 18% 28%, white 1.2px, transparent 1.8px),
-    radial-gradient(circle at 72% 22%, white 1.6px, transparent 2.4px),
-    radial-gradient(circle at 28% 72%, white 1px, transparent 1.6px),
-    radial-gradient(circle at 78% 76%, white 1.2px, transparent 1.8px);
-}
-.studio-v2 .sv-paper-logo span {
-  position: relative;
-  z-index: 1;
-  font-size: 30px;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
-}
-.studio-v2 .sv-paper-logo img {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
 }
 .studio-v2 .sv-paper-banner-text {
   text-align: center;
@@ -1988,6 +2083,402 @@
 .studio-v2 .sv-action-toast.err { background: var(--sv-primary); }
 
 /* ============================================================
+   ICONS — shared line-icon vocabulary (studioIcons.jsx)
+   Replaces the emoji that used to sit in buttons/chips/cards.
+   Icons inherit currentColor so they tint with their button.
+   ============================================================ */
+.studio-v2 .sv-icon {
+  flex: none;
+  vertical-align: -0.12em;
+}
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+.studio-v2 .sv-icon-spin { animation: sv-spin 0.9s linear infinite; }
+/* Compact square icon button used in slide-over / modal headers (was an
+   inline { width:32, height:32, borderRadius:6 } island). */
+.studio-v2 .sv-icon-btn.sv-icon-btn-sm { width: 32px; height: 32px; border-radius: var(--sv-r-sm); }
+
+/* ============================================================
+   EMPTY / NO-CONTENT STATE — builder blank canvas + home
+   Recovery routes (template / AI / import / scratch) that used
+   to be inline-styled. Tokenised here so spacing, dark/light
+   and mobile all stay consistent.
+   ============================================================ */
+.studio-v2 .sv-empty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--sv-s3);
+  margin: var(--sv-s3) 0;
+}
+.studio-v2 .sv-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  border: 1.5px dashed var(--sv-border-strong);
+  border-radius: var(--sv-r-lg);
+  padding: var(--sv-s4);
+  background: var(--sv-paper);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.studio-v2 .sv-empty-card:hover {
+  border-color: var(--sv-border-strong);
+  box-shadow: var(--sv-shadow-md);
+}
+.studio-v2 .sv-empty-card:active { transform: translateY(1px); }
+.studio-v2 .sv-empty-card:disabled { opacity: 0.55; cursor: default; box-shadow: none; }
+/* The lead card (template / AI) gets a solid accent + warm tint. */
+.studio-v2 .sv-empty-card.primary {
+  border-style: solid;
+  border-color: var(--sv-primary);
+  background: var(--sv-tinted);
+}
+.studio-v2 .sv-empty-card .sv-empty-ic {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--sv-r);
+  background: var(--sv-canvas-2);
+  color: var(--sv-ink);
+  margin-bottom: var(--sv-s2);
+}
+.studio-v2 .sv-empty-card.primary .sv-empty-ic { background: var(--sv-primary-soft); color: var(--sv-primary); }
+.studio-v2 .sv-empty-card strong { color: var(--sv-text); font-size: 14px; }
+.studio-v2 .sv-empty-card small { color: var(--sv-muted); font-size: 12px; line-height: 1.35; }
+
+/* Home view "no saved papers yet" panel (was inline-styled). */
+.studio-v2 .sv-empty-panel {
+  padding: var(--sv-s6) var(--sv-s5);
+  text-align: center;
+  background: var(--sv-paper);
+  border: 1px dashed var(--sv-border-strong);
+  border-radius: var(--sv-r-lg);
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-empty-panel .sv-empty-panel-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sv-r);
+  background: var(--sv-canvas-2);
+  color: var(--sv-ink);
+  margin-bottom: var(--sv-s3);
+}
+.studio-v2 .sv-empty-panel strong { display: block; color: var(--sv-text); margin-bottom: var(--sv-s1); }
+.studio-v2 .sv-empty-panel-sub { font-size: 13px; }
+.studio-v2 .sv-empty-panel-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s2);
+  justify-content: center;
+  margin-top: var(--sv-s4);
+}
+
+/* ============================================================
+   PAPER HEALTH GATE (PaperHealthModal.jsx) + TEMPLATE PICKER
+   Centred modal cards in the studio's own warm-paper styling.
+   ============================================================ */
+.studio-v2 .sv-health-scrim {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sv-s4);
+  z-index: 120;
+}
+.studio-v2 .sv-health-modal,
+.studio-v2 .sv-template-modal {
+  width: 100%;
+  background: var(--sv-paper);
+  border-radius: var(--sv-r-xl);
+  box-shadow: var(--sv-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+  overflow: hidden;
+}
+.studio-v2 .sv-health-modal { max-width: 520px; }
+.studio-v2 .sv-template-modal { max-width: 720px; }
+
+.studio-v2 .sv-health-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sv-s3);
+  padding: var(--sv-s4) var(--sv-s5);
+  border-bottom: 1px solid var(--sv-border);
+}
+.studio-v2 .sv-health-head-text h3 { font-size: 19px; margin: 4px 0 2px; color: var(--sv-text); }
+.studio-v2 .sv-health-head-text p { font-size: 13px; color: var(--sv-muted); margin: 0; }
+.studio-v2 .sv-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 99px;
+}
+.studio-v2 .sv-health-badge.ready { background: var(--sv-sage-soft); color: #1F5B3D; }
+.studio-v2 .sv-health-badge.attention { background: var(--sv-gold-soft); color: #7A5A1F; }
+.studio-v2 .sv-health-badge.blocked { background: var(--sv-primary-soft); color: var(--sv-primary-dark); }
+
+.studio-v2 .sv-health-body {
+  padding: var(--sv-s4) var(--sv-s5);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-s4);
+}
+.studio-v2 .sv-health-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s2) var(--sv-s4);
+  padding: var(--sv-s3) var(--sv-s4);
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+}
+.studio-v2 .sv-health-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-health-stat strong { color: var(--sv-text); font-size: 14px; }
+.studio-v2 .sv-health-stat .sv-icon { color: var(--sv-ink-soft); }
+
+.studio-v2 .sv-health-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 var(--sv-s2);
+}
+.studio-v2 .sv-health-group.blocked h4 { color: var(--sv-primary-dark); }
+.studio-v2 .sv-health-group.attention h4 { color: #7A5A1F; }
+.studio-v2 .sv-health-group.checks h4 { color: var(--sv-muted); }
+.studio-v2 .sv-health-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.studio-v2 .sv-health-group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--sv-text);
+}
+.studio-v2 .sv-health-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: currentColor;
+}
+.studio-v2 .sv-health-group.blocked li { color: #7a2230; }
+.studio-v2 .sv-health-group.attention li { color: #6e5320; }
+.studio-v2 .sv-health-group.checks li.ok { color: var(--sv-muted); }
+.studio-v2 .sv-health-group.checks li.missing { color: var(--sv-text); font-weight: 600; }
+.studio-v2 .sv-health-check-ic { margin-top: 1px; }
+.studio-v2 .sv-health-group.checks li.ok .sv-health-check-ic { color: var(--sv-sage); }
+.studio-v2 .sv-health-group.checks li.missing .sv-health-check-ic { color: var(--sv-primary); }
+
+.studio-v2 .sv-health-allclear {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s4);
+  background: var(--sv-sage-soft);
+  color: #1F5B3D;
+  border-radius: var(--sv-r);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.studio-v2 .sv-health-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s5);
+  border-top: 1px solid var(--sv-border);
+}
+.studio-v2 .sv-health-foot-right { display: inline-flex; gap: var(--sv-s2); margin-left: auto; }
+
+/* Builder-bar "Paper health" status chip (replaces the X-to-fix pill). */
+.studio-v2 .sv-chip.sv-chip-health.ready { background: var(--sv-sage-soft); color: #1F5B3D; border-color: rgba(62,123,90,0.3); }
+.studio-v2 .sv-chip.sv-chip-health.attention { background: var(--sv-gold-soft); color: #7A5A1F; border-color: rgba(200,146,61,0.35); }
+.studio-v2 .sv-chip.sv-chip-health.blocked { background: var(--sv-primary-soft); color: var(--sv-primary-dark); border-color: rgba(139,38,53,0.3); font-weight: 600; }
+
+/* Template picker grid + cards. */
+.studio-v2 .sv-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--sv-s3);
+  padding: var(--sv-s4) var(--sv-s5) var(--sv-s5);
+  overflow-y: auto;
+}
+.studio-v2 .sv-template-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sv-s1);
+  text-align: left;
+  padding: var(--sv-s4);
+  background: var(--sv-paper);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-lg);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.studio-v2 .sv-template-card:hover {
+  border-color: var(--sv-primary);
+  box-shadow: var(--sv-shadow-md);
+}
+.studio-v2 .sv-template-card:active { transform: translateY(1px); }
+.studio-v2 .sv-template-badge {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-gold);
+  background: var(--sv-gold-soft);
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: var(--sv-s1);
+}
+.studio-v2 .sv-template-name { font-size: 14.5px; color: var(--sv-text); }
+.studio-v2 .sv-template-desc { font-size: 12px; color: var(--sv-muted); line-height: 1.4; margin: 0; }
+.studio-v2 .sv-template-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s1) var(--sv-s3);
+  margin-top: var(--sv-s2);
+  font-size: 11.5px;
+  color: var(--sv-muted-2);
+}
+.studio-v2 .sv-template-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ============================================================
+   MIGRATED INLINE-STYLE ISLANDS
+   Small style objects/inline blocks pulled out of the JSX so
+   spacing + theming live with the rest of the studio.
+   ============================================================ */
+/* Sub-part reorder/remove buttons (was subPartIconBtnStyle). */
+.studio-v2 .sv-subpart-btn {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-sm);
+  background: var(--sv-paper);
+  cursor: pointer;
+  padding: 0;
+  color: var(--sv-ink);
+}
+.studio-v2 .sv-subpart-btn:disabled { opacity: 0.4; cursor: default; }
+.studio-v2 .sv-subpart-btn.danger { color: var(--sv-primary); }
+
+/* Builder tools bar — wraps on small screens; the save/health group sits
+   to the right (was an inline flexWrap + per-chip marginLeft island). */
+.studio-v2 .sv-builder-bar.sv-builder-tools {
+  flex-wrap: wrap;
+  row-gap: var(--sv-s1);
+}
+.studio-v2 .sv-builder-bar-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+}
+
+/* Count badge on the "fix missing diagrams" AI action (was inline-styled). */
+.studio-v2 .sv-ai-badge {
+  margin-left: 6px;
+  background: var(--sv-primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Header "import an existing paper" row (was an inline flex island). */
+.studio-v2 .sv-import-row {
+  margin-top: var(--sv-s4);
+  padding: var(--sv-s3);
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  display: flex;
+  gap: var(--sv-s2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-import-row-hint { font-size: 12.5px; color: var(--sv-muted); }
+.studio-v2 .sv-import-row .sv-import-row-scan { margin-left: auto; }
+
+/* Marking-key explainer note (was an inline-styled island). */
+.studio-v2 .sv-key-note {
+  max-width: 720px;
+  margin: 0 auto var(--sv-s3);
+  padding: var(--sv-s2) var(--sv-s3);
+  border-radius: var(--sv-r);
+  background: var(--sv-tinted);
+  border: 1px solid var(--sv-border);
+  font-size: 12.5px;
+  color: var(--sv-muted);
+  line-height: 1.5;
+}
+.studio-v2 .sv-key-note strong { color: var(--sv-text); }
+.studio-v2 .sv-key-note .sv-icon { color: var(--sv-gold); vertical-align: -0.18em; }
+
+/* Preview/marking-key export action row (was an inline flex island). */
+.studio-v2 .sv-export-actions {
+  max-width: 720px;
+  margin: var(--sv-s4) auto 0;
+  display: flex;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-export-actions .sv-export-save { margin-left: auto; }
+
+/* Auto-diagram progress pill (was a fixed inline-styled div). */
+.studio-v2 .sv-autodiagram-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 96;
+  background: var(--sv-ink);
+  color: #fff;
+  border-radius: 99px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--sv-shadow-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+}
+
+@media (max-width: 540px) {
+  .studio-v2 .sv-template-grid { grid-template-columns: 1fr; }
+  .studio-v2 .sv-empty-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
    PRINT
    ============================================================ */
 @media print {
@@ -2013,6 +2504,108 @@
   .studio-v2 .sv-scrim,
   .studio-v2 .sv-slideover,
   .studio-v2 .sv-action-toast { display: none !important; }
+
+  /* ----------------------------------------------------------------
+     Printed-paper refinements.
+
+     The preview (.sv-paper) is tuned for on-screen reading; on paper we
+     want a cleaner exam-paper masthead and sane page-break behaviour.
+     These rules are print-ONLY, so the in-studio preview keeps the
+     design shipped in #1277 / #1280 / #1281 — only the printout changes.
+     ---------------------------------------------------------------- */
+
+  /* Point-based body type reads truer on paper than the px preview size. */
+  .studio-v2 .sv-paper {
+    font-size: 11.5pt;
+    line-height: 1.45;
+  }
+
+  /* Header: drop the on-screen "marble" banner decoration for a plain
+     exam masthead — school name, paper title, a large subject heading,
+     then a single rule under the lot. */
+  .studio-v2 .sv-paper-banner {
+    background: #fff;
+    border: 0;
+    border-bottom: 1.5pt solid #000;
+    padding: 0 0 8pt;
+    margin-bottom: 12pt;
+  }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-school { font-size: 17pt; }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-title {
+    font-size: 11pt;
+    margin-top: 6pt;
+    text-transform: uppercase;
+  }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-subject {
+    font-size: 20pt;
+    font-weight: 900;
+    margin-top: 10pt;
+  }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-paper {
+    font-size: 12pt;
+    margin-top: 4pt;
+    text-transform: uppercase;
+  }
+
+  /* Instructions: the grey label-box reads as UI chrome on paper. Strip
+     it back to plain prose. The "Marking key" heading on the answer key
+     (.is-key) stays — only the redundant "Instructions" label is hidden. */
+  .studio-v2 .sv-paper-instr-box {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0 0 14pt;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  .studio-v2 .sv-paper-instr-box .sv-instr-label:not(.is-key) { display: none; }
+
+  /* MCQ options: let option text wrap instead of being cut off with an
+     ellipsis (the fix the phone preview already applies at <=640px). A
+     truncated option on a printed paper silently drops the answer text. */
+  .studio-v2 .sv-paper-options > div {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* Long answer blocks and table-bearing questions may break across a
+     page so a tall block doesn't leave a half-page gap behind it; the
+     stem still stays with the start of its body. */
+  .studio-v2 .sv-paper-q.has-table,
+  .studio-v2 .sv-paper-q.is-long {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .studio-v2 .sv-paper-q.has-table > .sv-qline,
+  .studio-v2 .sv-paper-q.is-long > .sv-qline {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Data tables: repeat the header row on every page a long table spans,
+     keep individual rows whole, wrap long cell text, and print a plain
+     white header (saves ink and matches the rest of the paper). The
+     specificity here overrides the generic `table { break-inside: avoid }`
+     in index.css so wide tables are free to flow. */
+  .studio-v2 .sv-paper-table-wrap { overflow-x: visible; }
+  .studio-v2 .sv-paper-table {
+    width: 100%;
+    table-layout: fixed;
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .studio-v2 .sv-paper-table thead { display: table-header-group; }
+  .studio-v2 .sv-paper-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .studio-v2 .sv-paper-table th,
+  .studio-v2 .sv-paper-table td {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .studio-v2 .sv-paper-table th { background: #fff !important; }
 }
 
 /* ============================================================
@@ -2027,4 +2620,117 @@
   .studio-v2 .sv-block.b-part,
   .studio-v2 .sv-block.b-question.nested { margin-left: var(--sv-s3); }
   .studio-v2 .sv-block-picker-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   RESPONSIVE — printed-paper preview "fit to screen"
+
+   The A4 preview (.sv-paper) is designed at a fixed reading size,
+   so on a phone it has to give back the wasted gutters and stop
+   clipping content. These rules live LAST in the file on purpose:
+   at equal specificity, source order wins, so they override the
+   desktop paper rules above without an !important arms race.
+
+     • Trim the preview-shell + paper padding so the page actually
+       uses the screen width instead of two fat gutters.
+     • Collapse the 4-up MCQ option grid (2-up, then 1-up) and let
+       option text WRAP instead of being cut off with an ellipsis —
+       the single biggest "it doesn't fit" offender on a phone.
+     • Tame the banner + name row so a long school name or two
+       fields side-by-side can't force a horizontal scroll.
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Hand the gutters back to the page so it fills the phone width. */
+  .studio-v2 .sv-preview-shell { padding: var(--sv-s1); }
+  .studio-v2 .sv-paper { max-width: 100%; }
+
+  /* Options stay readable: 2-up and free to wrap onto a second line. */
+  .studio-v2 .sv-paper-options:not(.stacked) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 14px;
+  }
+  .studio-v2 .sv-paper-options > div {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* A long school name shouldn't blow the banner past the screen edge. */
+  .studio-v2 .sv-paper-banner { padding: 18px 16px; }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-school { font-size: 19px; }
+  .studio-v2 .sv-paper-name-row { gap: 16px; }
+}
+
+/* Very narrow phones: shrink the gutters further so the page keeps as much
+   reading width as possible on the smallest screens. */
+@media (max-width: 400px) {
+  .studio-v2 .sv-preview-shell { padding: 2px; }
+  .studio-v2 .sv-paper { padding: 18px 12px; }
+
+  /* Narrowest phones: one option per line so nothing is squeezed. */
+  .studio-v2 .sv-paper-options { grid-template-columns: 1fr; padding-left: 12px; }
+  .studio-v2 .sv-paper-banner { padding: 16px 12px; }
+  .studio-v2 .sv-paper-banner-text .sv-pbn-school { font-size: 17px; }
+}
+
+
+/* ==================================================================
+ * CREATE PAPER MODAL — AI paper-generation modal (CreatePaperModal.jsx)
+ * Scoped form styles that replace the inline style-objects the modal used
+ * to carry. Uses the design tokens directly (no hardcoded fallbacks).
+ * ================================================================== */
+.studio-v2 .sv-cpm-overlay {
+  position: fixed; inset: 0; z-index: 95;
+  background: rgba(14, 42, 50, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.studio-v2 .sv-cpm-modal {
+  background: var(--sv-paper); border-radius: 16px;
+  width: min(640px, 100%); max-height: 90vh;
+  display: flex; flex-direction: column; padding: 18px;
+  overflow-y: auto;
+}
+.studio-v2 .sv-cpm-label {
+  font-size: 12px; font-weight: 700; color: var(--sv-muted);
+  display: block; margin-bottom: 4px;
+}
+.studio-v2 .sv-cpm-input {
+  width: 100%; border: 1px solid var(--sv-border);
+  border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  background: #fff; font-family: inherit;
+}
+.studio-v2 .sv-cpm-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--sv-tinted); border-radius: 999px;
+  padding: 4px 10px; font-size: 13px; color: var(--sv-text);
+}
+.studio-v2 .sv-cpm-checklist {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--sv-border); border-radius: 8px;
+  padding: 6px; background: #fff;
+}
+.studio-v2 .sv-cpm-checkrow {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px; border-radius: 6px; line-height: 1.4;
+}
+.studio-v2 .sv-cpm-hint {
+  font-size: 12px; color: var(--sv-muted); margin: 6px 0 0;
+}
+.studio-v2 .sv-cpm-labelrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 4px;
+}
+.studio-v2 .sv-cpm-grid2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+/* Selectable pill — question-type + comprehension toggles */
+.studio-v2 .sv-cpm-pill {
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+  border: 1.5px solid var(--sv-border); background: #fff;
+  color: var(--sv-text); font-weight: 400;
+}
+.studio-v2 .sv-cpm-pill.active {
+  border-color: var(--sv-primary); background: var(--sv-tinted); font-weight: 700;
 }

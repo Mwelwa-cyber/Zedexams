@@ -16,9 +16,12 @@ const admin = require("firebase-admin");
 /**
  * @param {object} args
  * @param {object} args.job - The approved agentJobs document data (with id).
+ * @param {object} [args.db] - Firestore instance. Defaults to the real
+ *   admin Firestore; injected by the unit test so the publish gate and
+ *   override logic can run without touching Firebase.
  * @returns {Promise<object>} { publishedRefs }
  */
-async function runPubo({job}) {
+async function runPubo({job, db = admin.firestore()}) {
   if (job.status !== "approved") {
     throw new Error(
       `Pubo refuses: job status is ${job.status}, expected "approved".`,
@@ -38,7 +41,6 @@ async function runPubo({job}) {
     throw new Error("Pubo refuses: missing review (Reva must run).");
   }
 
-  const db = admin.firestore();
   const genRef = db.collection("aiGenerations").doc(generationId);
   const genSnap = await genRef.get();
   if (!genSnap.exists) {

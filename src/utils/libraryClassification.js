@@ -14,7 +14,7 @@ import {
   SYLLABUS_TYPES,
   buildLibraryCoords,
   getSubjectsForGradeForm,
-} from '../config/library'
+} from '../config/library.js'
 
 /* ── Grade / Form translation ────────────────────────────────── */
 
@@ -22,7 +22,9 @@ import {
 // Multiple grades map to multiple academic levels; for ECE we treat it as
 // CBC Grade 1 because the library has no separate ECE bucket yet.
 const GRADE_FORM_MAP = {
-  ECE: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE:   { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE_N: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
+  ECE_R: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
   G1:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
   G2:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 2' },
   G3:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 3' },
@@ -185,8 +187,12 @@ export const TOOL_TO_LIBRARY_TYPE = {
   weekly_forecast:   LIBRARY_TYPES.WEEKLY_FORECASTS,
   record_of_work:    LIBRARY_TYPES.RECORDS_OF_WORK,
   mark_schedule:     LIBRARY_TYPES.MARK_SCHEDULES,
+  class_timetable:   LIBRARY_TYPES.CLASS_TIMETABLES,
   notes:             LIBRARY_TYPES.NOTES,
   worksheet:         LIBRARY_TYPES.ASSESSMENTS, // worksheets read as assessments
   rubric:            LIBRARY_TYPES.ASSESSMENTS,
+  sba_task:          LIBRARY_TYPES.SBA_TASKS,
+  sba_mark_sheet:    LIBRARY_TYPES.SBA_MARK_SHEETS,
+  sba_plan:          LIBRARY_TYPES.SBA_PLANS,
   flashcards:        LIBRARY_TYPES.NOTES,
 }

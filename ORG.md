@@ -45,8 +45,22 @@ while a human owner approves what reaches learners and teachers.
    └──────────────────┘                       └────────────────────┘
 ```
 
-V1 covers Content + QA/Eng only. Growth and Support are deliberately out of
-scope until the queue and approval flow are proven.
+The chart above is the V1 skeleton. The company has since grown to five
+departments — Revenue, Support and Growth shipped once the queue and
+approval flow were proven. Current authoritative roster (mirrored for the
+HQ in `src/utils/companyOrg.js`):
+
+| Department | Agents | Trigger |
+|---|---|---|
+| **Content** | Aria, Cala, Reva, Pubo, Compass, Gate | agentJobs pipeline + cron |
+| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI |
+| **Revenue** | Till | hourly cron (Lenco reconcile) |
+| **Support** | Echo | 2-hourly cron (feedback triage) |
+| **Growth** | Anchor, Dawn | weekly cron / on-demand managed agent |
+
+Finance is not a department of agents but a *function*: the nightly
+`ai-cost-daily-summary` cron feeds the Treasury, and the revenue-linked
+budget governor (below) is the company's CFO.
 
 ## Agent Cards
 
@@ -165,6 +179,23 @@ scope until the queue and approval flow are proven.
   instant feedback; queueing breaks that loop. Cost is metered through
   the existing `aiUsage/{uid}_{day}` per-user daily limit.
 
+#### Marshal — Operations Supervisor
+- **Mission:** The watchdog for the watchdogs. Every hour, confirm each
+  scheduled agent actually ran within its expected window, and surface stuck
+  jobs (running/queued far too long), tripped `agentControl` breakers, and
+  recent failures — rolled into one company-health verdict.
+- **Schedule:** `every 1 hours` (`hourlyAgentSupervisor`, Africa/Lusaka).
+- **Watches (fixed-cadence rollups only):** Vigil, Till (hourly), Echo (2h),
+  Quill (daily), Cala-audit, Compass, Anchor (weekly). Event-driven /
+  on-demand agents (the content Gate, Dawn, the Aria-Reva pipeline, Vex) have
+  no fixed cadence and are deliberately not freshness-checked.
+- **Outputs:** an `agentJobs` rollup (`output.marshal`, status
+  `awaiting_approval` when something is wrong so it joins the approvals badge),
+  surfaced as the health strip on `/admin/company`.
+- **Wraps:** `functions/agents/runners/marshal.js` — deterministic, no LLM, no
+  secrets, only indexed reads. `assessFleet` is pure + unit-tested
+  (`marshal.test.js`). db injected.
+
 ## Handoff: Lesson-Plan Pipeline
 
 ```
@@ -242,6 +273,79 @@ Caps are enforced via `functions/teacherTools/usageMeter.js` keyed by a
 synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
 `usageMeters/`.
 
+## Treasury & Self-Funding
+
+> How the company pays for its own API. Model: `functions/treasury.js`
+> (pure, node-tested in `functions/treasury.test.js`), mirrored on the
+> client in `src/utils/treasury.js`. Read-out: **/admin/company** ("AI
+> Company HQ").
+
+The company has exactly one material running cost — AI API spend
+(Anthropic / OpenAI / Gemini), tracked in USD by `aiCostTracking.js`
+(`aiUsage/{date}`, `aiUsageMonthly/{month}`). It has exactly one income —
+subscriptions in ZMW through Lenco (`payments/{id}`, `amountZMW`). The
+agents exist to make those subscriptions worth buying.
+
+**The self-funding rule.** The company may spend at most a fixed
+*reinvestment fraction* of the revenue it has **actually earned this
+month** on model calls:
+
+```
+revenueUsd       = month-to-date ZMW revenue ÷ assumed ZMW/USD rate
+derivedBudgetUsd = revenueUsd × reinvestRatio        (default 30%)
+```
+
+Because the existing month-to-date budget gate in `aiCostTracking.js`
+(`getBudgetStatus` → `callAnthropic` / `callClaude`) already refuses new
+AI calls once spend reaches the ceiling, pointing that ceiling at
+`derivedBudgetUsd` instead of a fixed env number makes spend *structurally
+incapable of outrunning income*. The company self-funds.
+
+**Key numbers the HQ surfaces** (all from `computeTreasury`):
+
+| Metric | Meaning |
+|---|---|
+| Self-funding ratio | `revenueUsd / apiCostUsd` — must stay ≥ 1× to be sustainable |
+| Gross margin | revenue minus AI cost, as a % of revenue |
+| Derived AI budget | the revenue-linked ceiling above |
+| Budget headroom / runway | how much / how many days of spend remain under the ceiling at today's burn |
+| Status | `idle` · `bootstrapping` · `healthy` · `tight` (≥80%) · `over` (governor would pause) |
+
+**Assumptions, made explicit.** The ZMW/USD rate only puts ZMW revenue on the
+same axis as USD spend, and is editable in the HQ. A daily cron
+(`dailyFxRefresh`) fetches the live rate and writes it to `settings/fxRate`;
+the budget path reads that **cached** value (never a live network call, so an
+FX outage can't block AI) and falls back to `AI_TREASURY_ZMW_PER_USD` / 26
+whenever the doc is missing, stale (> 8 days), or out of the sane 5–100 band.
+The fetched value is range-checked before it's written, and a bad fetch leaves
+the last good rate untouched (`functions/fxRate.test.js`).
+
+**Arming the governor (off by default).** The governor is **wired** into
+`aiCostTracking.getBudgetStatus()` (tested in
+`functions/aiBudgetRevenueLinked.test.js`) but dormant: `AI_BUDGET_MODE`
+defaults to `static`, so production behaviour is unchanged until the owner
+arms it. Both ceiling paths fail open, and a $0 derived ceiling (no revenue,
+no floor) falls back to the static budget so arming can never brick AI. To
+switch the static `AI_MONTHLY_BUDGET_USD` ceiling over to the revenue-linked
+one, set on the Cloud Functions runtime:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `AI_BUDGET_MODE` | `static` | `revenue_linked` arms the self-funding ceiling |
+| `AI_REVENUE_REINVEST_RATIO` | `0.30` | fraction of revenue spendable on AI |
+| `AI_TREASURY_ZMW_PER_USD` | `26` | FX assumption for the read-out |
+| `AI_BUDGET_FLOOR_USD` | `0` | minimum AI budget for the pre-revenue bootstrap |
+
+## Company HQ (`/admin/company`)
+
+A single admin surface that renders the whole company at a glance: the
+Treasury read-out above, the org chart across all five departments (live
+paused/active state from `agentControl`), and a recent-activity feed from
+`agentJobs`. It reads live Firestore data and falls back to a clearly
+labelled **Preview** (representative seed numbers) when a month has no real
+revenue or spend yet, so the HQ is legible from day one. Read-only —
+agent pause/resume controls stay in `/admin/agents`.
+
 ## Changelog of the Org Itself
 
 - **2026-05-08** — Operating model bootstrapped. Roster: Aria, Cala, Reva,
@@ -258,3 +362,33 @@ synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
   fixes (Haiku) and escalates failures via email + a GitHub `bug` issue
   (→ Mendi), de-duplicated to once per failure per 24h. Closes the
   detect → fix loop.
+- **2026-06-20** — Treasury & self-funding model landed. `functions/treasury.js`
+  (pure, node-tested) + `src/utils/treasury.js` mirror compute the
+  revenue-linked AI budget (`revenueUsd × reinvestRatio`) so the company can
+  pay for its own API out of the subscriptions it earns. New **/admin/company**
+  ("AI Company HQ") surfaces the Treasury read-out, the five-department org
+  chart with live `agentControl` state, and a recent-activity feed; it reads
+  live data and falls back to a labelled Preview. Roster doc refreshed to the
+  real five departments (Revenue/Support/Growth + Compass/Gate/Echo/Anchor/Dawn).
+  The governor ships **dormant** — arm it with `AI_BUDGET_MODE=revenue_linked`.
+- **2026-06-21** — Revenue-linked governor **wired** into
+  `aiCostTracking.getBudgetStatus()`: with `AI_BUDGET_MODE=revenue_linked`
+  the monthly AI ceiling becomes `monthRevenueUsd × reinvestRatio` (read from
+  `payments`, cached 5 min) instead of the static `AI_MONTHLY_BUDGET_USD`.
+  Defaults to `static` (no behaviour change); both paths fail open and a $0
+  ceiling falls back to the static budget so arming can't brick AI. Covered by
+  `functions/aiBudgetRevenueLinked.test.js` (13 assertions).
+- **2026-06-21** — Marshal (Operations Supervisor) added to QA / Eng — the
+  watchdog for the watchdogs. Hourly `hourlyAgentSupervisor` cron confirms each
+  fixed-cadence scheduled agent ran within its window and surfaces stuck jobs,
+  tripped breakers and recent failures into one company-health verdict, shown
+  as the health strip on `/admin/company`. Deterministic, no LLM/secrets, only
+  indexed reads; `assessFleet` is pure + unit-tested
+  (`functions/agents/runners/marshal.test.js`, 23 assertions).
+- **2026-06-21** — Daily FX auto-refresh for the treasury. A new
+  `dailyFxRefresh` cron fetches the live ZMW/USD rate and writes
+  `settings/fxRate`; the budget governor + `/admin/company` read that cached
+  value (never a live network call) and fall back to `AI_TREASURY_ZMW_PER_USD`
+  / 26 when it's missing, stale, or out of band. Range-checked before write; a
+  bad fetch keeps the last good rate. `functions/fxRate.js` +
+  `functions/fxRate.test.js` (29 assertions).

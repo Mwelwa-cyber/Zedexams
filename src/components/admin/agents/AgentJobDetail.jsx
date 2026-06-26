@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
@@ -8,6 +8,8 @@ import { AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import Button from '../../ui/Button'
+import { isAuditSummary } from './CbcAlignmentCard'
+import AgentOutput, { ReadablePanel } from './AgentOutputCards'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
@@ -55,116 +57,6 @@ function JsonBlock({ label, value, defaultOpen = true }) {
         <pre className="theme-card theme-border overflow-x-auto rounded-xl border p-3 text-xs leading-relaxed">
           {formatted}
         </pre>
-      )}
-    </section>
-  )
-}
-
-// Structured renderer for Cala's alignment output. Replaces the raw JSON
-// dump in the common case; the full JSON stays available below via the
-// "Raw output" toggle so devs can still see everything.
-function CbcAlignmentCard({ alignment }) {
-  if (!alignment || typeof alignment !== 'object') return null
-  const {
-    aligned, citations = [], gaps = [], drift = [], kbVersion, kbWarning,
-  } = alignment
-
-  const citationCount = Array.isArray(citations) ? citations.length : 0
-  const gapCount      = Array.isArray(gaps) ? gaps.length : 0
-  const driftCount    = Array.isArray(drift) ? drift.length : 0
-
-  const headerCls = aligned
-    ? 'border-emerald-200 bg-emerald-50'
-    : 'border-amber-200 bg-amber-50'
-  const headerText = aligned
-    ? 'text-emerald-800'
-    : 'text-amber-800'
-
-  return (
-    <section className={`rounded-2xl border ${headerCls} p-4 space-y-3`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={`text-sm font-black ${headerText}`}>
-            CBC alignment — {aligned ? 'aligned' : 'review needed'}
-          </p>
-          <p className={`text-xs mt-0.5 ${headerText} opacity-80`}>
-            {citationCount} citation{citationCount === 1 ? '' : 's'} ·{' '}
-            {gapCount} gap{gapCount === 1 ? '' : 's'} ·{' '}
-            {driftCount} drift item{driftCount === 1 ? '' : 's'}
-            {kbVersion ? <> · KB <code className="font-mono">{kbVersion}</code></> : null}
-          </p>
-        </div>
-      </div>
-
-      {kbWarning && (
-        <p className="rounded-lg bg-white/60 px-3 py-2 text-xs text-amber-900">
-          <span className="font-black">KB warning:</span> {kbWarning}
-        </p>
-      )}
-
-      {citationCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-emerald-900 mb-1.5">
-            Citations
-          </h4>
-          <ul className="space-y-1.5">
-            {citations.map((c, i) => (
-              <li key={`${c.outcome || 'c'}-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                <div className="font-mono text-[11px] text-emerald-800 font-black">
-                  {c.outcome || '—'}
-                </div>
-                {c.text && (
-                  <div className="theme-text mt-0.5">{c.text}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {gapCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-amber-900 mb-1.5">
-            Gaps
-          </h4>
-          <ul className="space-y-1.5">
-            {gaps.map((g, i) => (
-              <li key={`g-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                {g.outcome && (
-                  <div className="font-mono text-[11px] text-amber-800 font-black">
-                    {g.outcome}
-                  </div>
-                )}
-                {g.text && (
-                  <div className="theme-text mt-0.5">{g.text}</div>
-                )}
-                {g.note && (
-                  <div className="theme-text-muted mt-0.5 italic">{g.note}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {driftCount > 0 && (
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-wide text-red-900 mb-1.5">
-            Drift
-          </h4>
-          <ul className="space-y-1.5">
-            {drift.map((d, i) => (
-              <li key={`d-${i}`} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
-                <div className="font-mono text-[11px] text-red-800 font-black">
-                  {d.outcome || '—'}
-                </div>
-                {d.note && (
-                  <div className="theme-text-muted mt-0.5 italic">{d.note}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </section>
   )
@@ -322,6 +214,51 @@ function ApprovalPanel({ job }) {
   )
 }
 
+// Read-only rollups (the weekly CBC audit) also land in awaiting_approval,
+// but there's nothing to publish — agentJobsOnApproved/Pubo only act on
+// `content` jobs, so an audit is a qaEng no-op. Show a plain "Acknowledge"
+// instead of the misleading "Approve & publish" flow. Firestore rules only
+// permit admins to move an agentJob to 'approved' or 'rejected', so
+// acknowledging writes 'approved' (harmless for a qaEng job) while still
+// recording who reviewed it and when.
+function AcknowledgePanel({ job }) {
+  const { currentUser } = useAuth()
+  const [busy, setBusy]   = useState(false)
+  const [errMsg, setErrMsg] = useState(null)
+
+  async function acknowledge() {
+    setBusy(true)
+    setErrMsg(null)
+    try {
+      await updateDoc(doc(db, `agentJobs/${job.id}`), {
+        status: 'approved',
+        reviewedBy: currentUser?.uid || null,
+        reviewedAt: serverTimestamp(),
+      })
+    } catch (e) {
+      setErrMsg(e.message || 'Update failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-black text-sky-800">Review this audit</p>
+        <p className="text-xs text-sky-700 mt-0.5">
+          This is a read-only report — nothing is published. Acknowledge it to clear
+          it from the approval queue once you&apos;ve looked over the findings below.
+        </p>
+      </div>
+      <Button variant="primary" size="md" disabled={busy} onClick={acknowledge}>
+        {busy ? 'Saving…' : 'Acknowledge'}
+      </Button>
+      {errMsg && <p className="text-xs text-red-700">{errMsg}</p>}
+    </div>
+  )
+}
+
 // "Retry Cala" affordance for jobs that failed inside Cala or Reva. The
 // callable re-runs the deterministic Cala step on the existing Aria
 // draft, then continues to Reva. Aria's tokens are not re-spent.
@@ -394,8 +331,6 @@ export default function AgentJobDetail() {
     return () => unsub()
   }, [jobId])
 
-  const alignment = useMemo(() => job?.output?.cala || null, [job])
-
   if (loading) return <Skeleton height={400} className="!rounded-2xl" />
 
   if (error) {
@@ -458,7 +393,11 @@ export default function AgentJobDetail() {
         )}
       </header>
 
-      {job.status === 'awaiting_approval' && <ApprovalPanel job={job} />}
+      {job.status === 'awaiting_approval' && (
+        isAuditSummary(job.output?.cala)
+          ? <AcknowledgePanel job={job} />
+          : <ApprovalPanel job={job} />
+      )}
       {job.status === 'failed' && <RetryPanel job={job} />}
 
       {job.error && (
@@ -485,8 +424,6 @@ export default function AgentJobDetail() {
         </div>
       )}
 
-      {alignment && <CbcAlignmentCard alignment={alignment} />}
-
       {job.overrideReason && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-xs font-black uppercase tracking-wide text-amber-800 mb-1">
@@ -496,14 +433,21 @@ export default function AgentJobDetail() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <JsonBlock label="Input"  value={job.input} />
-        <JsonBlock label="Raw output" value={job.output} defaultOpen={false} />
-      </div>
+      {job.input && <ReadablePanel label="Input / brief" value={job.input} />}
+
+      <AgentOutput output={job.output} />
 
       {job.publishedRefs?.length > 0 && (
-        <JsonBlock label="Published refs" value={job.publishedRefs} />
+        <ReadablePanel label="Published refs" value={job.publishedRefs} />
       )}
+
+      {/* Raw document stays available for debugging, but collapsed and out
+          of the way — the readable cards above are the default view. */}
+      <JsonBlock
+        label="Raw job data (advanced)"
+        value={{ input: job.input, output: job.output }}
+        defaultOpen={false}
+      />
     </div>
   )
 }

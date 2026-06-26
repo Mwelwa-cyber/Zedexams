@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribeToRecentActivity, timeAgo } from '../../utils/gamificationService'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * LiveActivityFeed — a "feel-alive" side panel that streams the latest
@@ -42,7 +43,7 @@ export default function LiveActivityFeed({ subject, grade, date }) {
       {loading ? (
         <div className="space-y-1.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="h-8 rounded-lg bg-slate-100 animate-pulse" />
+            <Skeleton key={i} height={32} className="!rounded-lg" />
           ))}
         </div>
       ) : rows.length === 0 ? (

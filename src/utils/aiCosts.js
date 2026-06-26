@@ -15,17 +15,45 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 function isoDate(d) { return d.toISOString().slice(0, 10) }
 
-/** Last `days` days of dailyrollups, oldest → newest. */
+// A YYYY-MM-DD daily-rollup doc id. Anything else in aiUsage (e.g. the
+// historical `{uid}_{day}` rate-limit counters that used to be written
+// here) is not a daily row and must be skipped so it can't surface as a
+// bogus bar / chart axis label.
+const DATE_ID_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Last `days` days of daily rollups, oldest → newest. */
 export async function listDailyUsage({ days = 30 } = {}) {
   const since = isoDate(new Date(Date.now() - (days - 1) * ONE_DAY_MS))
   const q = query(
     collection(db, COLLECTION),
     where('__name__', '>=', since),
     orderBy('__name__', 'asc'),
-    fsLimit(days + 5),
+    fsLimit(days + 40),
   )
   const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ date: d.id, ...d.data() }))
+  return snap.docs
+    .filter((d) => DATE_ID_RE.test(d.id))
+    .map((d) => ({ date: d.id, ...d.data() }))
+}
+
+/**
+ * Resolve a list of uids to display labels via the users collection.
+ * Admin-only reads. Returns a Map<uid, { name, email }>; uids that
+ * don't resolve are simply absent (caller falls back to the raw uid).
+ */
+export async function resolveUserLabels(uids = []) {
+  const unique = [...new Set(uids.filter(Boolean))]
+  const entries = await Promise.all(unique.map(async (uid) => {
+    try {
+      const snap = await getDoc(doc(db, 'users', uid))
+      if (!snap.exists()) return null
+      const d = snap.data() || {}
+      return [uid, { name: d.displayName || '', email: d.email || '' }]
+    } catch {
+      return null
+    }
+  }))
+  return new Map(entries.filter(Boolean))
 }
 
 /** Top consumers for a given day (defaults to today). Sorted desc. */

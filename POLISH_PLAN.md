@@ -1,12 +1,13 @@
 # ZedExams — Premium Polish Plan
 
-> **⚠️ STATUS — re-verified 2026-05-29:** Most of this plan has shipped. Phase 0 (design tokens) and the Phase 1 primitives — `Button`, `Card`, `Skeleton`, `Icon`, the global focus ring, shimmer — are all in `src/components/ui/` + `src/index.css`, and most of the Phase 2–3 surface passes are done. **~17 of the 25 items are complete.** Before using this as a to-do list:
+> **⚠️ STATUS — re-verified 2026-06-23:** Effectively complete. Phase 0 (design tokens) and the Phase 1 primitives — `Button`, `Card`, `Skeleton`, `Icon`, the global focus ring, shimmer — are all in `src/components/ui/` + `src/index.css`, and the Phase 2–3 surface passes are done. Before using this as a to-do list:
 >
 > - **"lucide-react" is wrong throughout.** The repo never used lucide — icons are `@heroicons/react` (see `package.json`), wrapped by `src/components/ui/Icon.jsx`. Read every "Lucide" reference below as Heroicons.
 > - **Items #11 and 1F (OS `prefers-color-scheme` dark-mode default) will NOT be done** — `ThemeContext` deliberately ignores the OS preference (a standing product decision). Skip them.
-> - **What actually remains:** finish migrating the ~36 files still using `animate-pulse` to `<Skeleton>` (items 1C / #10), and the optional QuizResults confetti (2F). Everything else below is shipped.
+> - **The `animate-pulse` → `<Skeleton>` migration (items 1C / #10) is done.** As of 2026-06-23 only 10 `animate-pulse` usages remain, and every one is an intentional *live-status / countdown / typing* indicator (agent status dots, low-time exam timers, the Zed-chat typing dots, mic "listening") — none is a loading skeleton, so they're correctly left as pulses.
+> - **The QuizResults celebration (2F) shipped 2026-06-23** — `QuizResultsV2` now renders a one-shot `animate-star-burst` confetti burst over the score card on the pass state (≥ 50%), plus a gentle `animate-score-draw` scale-in on the score ring timed to the stroke draw; both respect `prefers-reduced-motion`. Covered by `src/components/quiz/QuizResultsV2.spec.jsx`.
 >
-> _Original plan kept below for context._
+> **Nothing actionable remains in this plan.** _Original plan kept below for context._
 
 **Goal:** bring the visual language and interaction quality up to feel like a paid consumer product, while keeping the warm, K–7-friendly personality that's already there.
 

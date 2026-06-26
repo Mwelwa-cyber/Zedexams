@@ -15,9 +15,11 @@ const {
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,
+  MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
   isDailyCountedTool,
+  isMaxOnlyTool,
 } = require("./teacherPlans");
 
 let passed = 0;
@@ -117,14 +119,58 @@ test("pro limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.pro.lesson_plan, 40); // "40 lesson plans / month"
   assert.strictEqual(PLAN_LIMITS.pro.worksheet, 25); // "25 worksheets & teacher notes"
   assert.strictEqual(PLAN_LIMITS.pro.notes, 25);
-  assert.strictEqual(PLAN_LIMITS.pro.quiz, 8); // "8 assessments / month"
+  assert.strictEqual(PLAN_LIMITS.pro.quiz, 8); // formative quiz studio
   assert.strictEqual(PLAN_LIMITS.pro.scheme_of_work, 2); // "2 schemes of work / term"
 });
 
-test("free limits match the published marketing numbers", () => {
-  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 5);
-  assert.strictEqual(PLAN_LIMITS.free.worksheet, 3);
-  assert.strictEqual(PLAN_LIMITS.free.notes, 3);
+// ── Max-only studios (assessment + exam paper) ───────────────────────
+test("MAX_ONLY_TOOLS lists exactly the assessment + exam paper studios", () => {
+  assert.deepStrictEqual([...MAX_ONLY_TOOLS].sort(), ["assessment", "exam_paper"]);
+});
+
+test("isMaxOnlyTool flags only the Max studios", () => {
+  assert.ok(isMaxOnlyTool("assessment"));
+  assert.ok(isMaxOnlyTool("exam_paper"));
+  assert.ok(!isMaxOnlyTool("lesson_plan"));
+  assert.ok(!isMaxOnlyTool("worksheet"));
+});
+
+test("free is sample-only for the Max studios; pro keeps a single taster", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    // Free can only open the Lesson Plan studio — the Max studios (like every
+    // other generator) are locked to a read-only sample (0), not a taster.
+    assert.strictEqual(PLAN_LIMITS.free[tool], 0, `free.${tool} locked`);
+    assert.strictEqual(PLAN_LIMITS.pro[tool], 1, `pro.${tool} taster`);
+  }
+});
+
+test("max unlocks the Max studios well beyond the taster", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    assert.ok(PLAN_LIMITS.max[tool] > 1, `max.${tool} must exceed the taster`);
+  }
+});
+
+test("every Max-only tool is a registered, daily-counted tool", () => {
+  for (const tool of MAX_ONLY_TOOLS) {
+    assert.ok(tool in PLAN_LIMITS.free, `${tool} must exist in PLAN_LIMITS`);
+    assert.ok(isDailyCountedTool(tool), `${tool} should count daily`);
+  }
+});
+
+test("free can only use the Lesson Plan studio; every other studio is locked", () => {
+  // The Lesson Plan studio is the one generator a Free teacher can use.
+  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 2);
+  // Tools that stay funded on Free even though they aren't full studios: the
+  // quiz-editor micro-helpers and the in-studio diagram tool.
+  const stillFunded = new Set(["suggest_answer", "revise_question", "diagram"]);
+  for (const [tool, limit] of Object.entries(PLAN_LIMITS.free)) {
+    if (tool === "lesson_plan") continue;
+    if (stillFunded.has(tool)) {
+      assert.ok(limit > 0, `free.${tool} stays funded`);
+    } else {
+      assert.strictEqual(limit, 0, `free.${tool} must be locked (sample only)`);
+    }
+  }
 });
 
 // ── daily caps (marketing: "Daily cap of 2/10/30 generations") ───────

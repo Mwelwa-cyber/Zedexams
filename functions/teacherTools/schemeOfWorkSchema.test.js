@@ -109,6 +109,25 @@ test("junk values are normalised, never crash", () => {
   assert.equal(w.references, "");
 });
 
+test("per-week source is normalised to a known label", () => {
+  const res = validateSchemeOfWork({
+    header: goodHeader,
+    weeks: [
+      {...goodWeek, source: "syllabi_studio"},
+      {...goodWeek, source: "MODULE"},
+      {...goodWeek, source: "general"},
+      {...goodWeek, source: "nonsense value"},
+      {...goodWeek},
+    ],
+  });
+  assert.equal(res.ok, true);
+  assert.equal(res.value.weeks[0].source, "syllabi_studio");
+  assert.equal(res.value.weeks[1].source, "uploaded_module");
+  assert.equal(res.value.weeks[2].source, "ai_inferred");
+  assert.equal(res.value.weeks[3].source, "");
+  assert.equal(res.value.weeks[4].source, "");
+});
+
 test("empty weeks fails validation", () => {
   const res = validateSchemeOfWork({header: goodHeader, weeks: []});
   assert.equal(res.ok, false);
@@ -120,6 +139,20 @@ test("missing grade and subject are reported", () => {
   assert.equal(res.ok, false);
   assert.ok(res.errors.some((e) => /grade/.test(e)));
   assert.ok(res.errors.some((e) => /subject/.test(e)));
+});
+
+test("null/garbage payload returns a usable value, never crashes the runner", () => {
+  // generateSchemeOfWork stamps scheme.header.* unconditionally before the
+  // ok-check, so a missing `value` here would throw and strand the generation
+  // doc in status:"generating". Every malformed shape must still carry a value.
+  for (const bad of [null, undefined, "a string", 42, true, []]) {
+    const res = validateSchemeOfWork(bad);
+    assert.equal(res.ok, false, `ok should be false for ${JSON.stringify(bad)}`);
+    assert.ok(res.value, `value must be present for ${JSON.stringify(bad)}`);
+    assert.ok(res.value.header, "value.header must exist so the runner can stamp it");
+    assert.deepEqual(res.value.weeks, []);
+    assert.equal(res.value.schemaVersion, SCHEMA_VERSION);
+  }
 });
 
 console.log(`\n─── ${passed + failed} tests · ${passed} passed · ${failed} failed ───`);

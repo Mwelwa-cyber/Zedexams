@@ -23,6 +23,13 @@ const FRIENDLY = {
   'auth/popup-blocked':          'Your browser blocked the Google sign-in popup. Please allow popups and try again.',
   'auth/account-exists-with-different-credential':
                                  'An account already exists with this email. Sign in with the original method.',
+  // Native (Android app) Google sign-in failure modes — see signInWithGoogleNative
+  // in AuthContext. These are surfaced instead of being masked as the generic
+  // "Google sign-in failed" so users get an actionable message.
+  'auth/operation-not-supported-in-this-environment':
+                                 'Google sign-in isn’t available in this app build. Please update the app from the Play Store, or sign in with your email and password.',
+  'auth/google-no-id-token':     'Google sign-in could not be completed. Please update the app, or sign in with your email and password.',
+  'auth/google-developer-error': 'Google sign-in isn’t set up for this app version yet. Please sign in with your email and password for now.',
 }
 
 // Firebase silently replaces an email/password account's password provider
@@ -60,7 +67,7 @@ const INPUT_CLASS =
   'focus:ring-[3px] focus:ring-black/5'
 
 export default function Login() {
-  const { login, loginWithGoogle, logout, resetPassword, ensureUserProfile } = useAuth()
+  const { login, loginWithGoogle, resetPassword, ensureUserProfile } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail]         = useState('')
@@ -96,11 +103,15 @@ export default function Login() {
     try {
       const cred = await login(email.trim(), password)
       const profile = await ensureUserProfile(cred.user)
-      if (!profile) {
-        try { await logout() } catch { /* ignore secondary failure */ }
-        setError('Your account signed in, but we could not finish restoring your ZedExams profile. Please try again or contact support.')
-        return
-      }
+      // A null profile after a successful auth is almost always a transient
+      // read failure on a flaky network (Zambia), NOT a missing profile.
+      // AuthContext's onSnapshot listener (subscribeProfile) runs concurrently
+      // and will populate the profile — or surface profileIssue — on its own.
+      // Calling logout() here would destroy a perfectly valid Firebase session.
+      // Navigate to "/" and let RootRedirect / MissingProfileRecovery handle
+      // the profileIssue state (they already do: 'unreadable' shows Repair,
+      // 'missing' shows Bootstrap + Sign Out). Only hard-fail if Firebase Auth
+      // itself threw (caught below).
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       let message = FRIENDLY[err.code] ?? 'Login failed. Please try again.'
@@ -118,14 +129,17 @@ export default function Login() {
     try {
       const cred = await loginWithGoogle()
       const profile = await ensureUserProfile(cred.user)
-      if (!profile) {
-        try { await logout() } catch { /* ignore secondary failure */ }
-        setError('Signed in with Google, but we could not finish setting up your ZedExams profile. Please try again or contact support.')
-        return
-      }
+      // Same reasoning as handleSubmit: a null profile is most likely a
+      // transient network read failure, not a genuinely missing profile.
+      // Do not call logout() — the Firebase session is valid. Navigate to "/"
+      // and let RootRedirect / MissingProfileRecovery handle the profileIssue.
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
+      // Log the raw code+message so an unmapped failure (e.g. a native Google
+      // Play Services error) is diagnosable from the device console / Sentry
+      // rather than hidden behind the generic fallback copy.
+      console.error('[Google sign-in]', err?.code, err?.message)
       setError(FRIENDLY[err.code] ?? 'Google sign-in failed. Please try again.')
     } finally { setGoogleLoading(false) }
   }
@@ -153,7 +167,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
         '--accent': '#EA580C',

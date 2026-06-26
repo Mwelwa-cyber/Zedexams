@@ -9,14 +9,19 @@
     "androidScheme": "https"
   },
   "plugins": {
-    "StatusBar": {
-      "overlaysWebView": false,
-      "style": "LIGHT",
-      "backgroundColor": "#ffffff"
+    "SafeArea": {
+      "statusBarStyle": "LIGHT",
+      "navigationBarStyle": "LIGHT"
+    },
+    "SystemBars": {
+      "insetsHandling": "disable"
     },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
       "providers": ["google.com"]
+    },
+    "Keyboard": {
+      "resize": "native"
     }
   }
 }

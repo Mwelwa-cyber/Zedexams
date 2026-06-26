@@ -1302,8 +1302,8 @@ function TabBar({ active, onChange, tabs }) {
 
 function StatusDot({ status }) {
   const map = {
-    uploading: { c: 'bg-sky-400 animate-pulse', l: 'Up' },
-    parsing: { c: 'bg-amber-400 animate-pulse', l: 'Pa' },
+    uploading: { c: 'bg-sky-400 animate-live-dot [--live-ring:#38bdf8]', l: 'Up' },
+    parsing: { c: 'bg-amber-400 animate-live-dot [--live-ring:#fbbf24]', l: 'Pa' },
     parsed: { c: 'bg-emerald-500', l: '✓' },
     error: { c: 'bg-rose-500', l: '!' },
   }

@@ -67,6 +67,11 @@ const WORKSHEET_TOOL_SCHEMA = {
         additionalProperties: true,
         properties: {
           title: {type: "string"},
+          instructions: {type: "string"},
+          passageTitle: {type: "string"},
+          passage: {type: "string"},
+          layout: {type: "string", enum: ["standard", "grid"]},
+          columns: {type: "number"},
           questions: {
             type: "array",
             items: {type: "object", additionalProperties: true},
@@ -74,7 +79,18 @@ const WORKSHEET_TOOL_SCHEMA = {
         },
       },
     },
-    answerKey: {type: "array", items: {type: "object", additionalProperties: true}},
+    // answerKey is a single object — the prompt and validator both treat it as
+    // { markingNotes, totalMarks }. (It was previously declared as an array,
+    // which steered Claude toward the wrong shape and silently dropped the
+    // marking guidance whenever the model obeyed the schema over the prose.)
+    answerKey: {
+      type: "object",
+      properties: {
+        markingNotes: {type: "string"},
+        totalMarks: {type: "number"},
+      },
+      additionalProperties: true,
+    },
   },
   required: ["header", "sections"],
 };
@@ -92,7 +108,7 @@ function worksheetMaxTokens({count, includeAnswerKey}) {
 }
 
 const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
@@ -110,6 +126,14 @@ const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard", "mixed"]);
+// Teacher-facing worksheet style. "auto" lets the model pick a layout from the
+// topic; the rest force a specific layout (see worksheetPrompt styleDirective).
+const ALLOWED_STYLES = new Set([
+  "auto", "standard", "grid", "comprehension", "working",
+  "matching", "word_problems", "true_false",
+]);
+// Reading-passage length for comprehension worksheets; "" = let the model choose.
+const ALLOWED_PASSAGE_LENGTHS = new Set(["", "short", "medium", "long"]);
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 function sanitizeInputs(raw = {}) {
@@ -121,6 +145,10 @@ function sanitizeInputs(raw = {}) {
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
   const difficulty = str(raw.difficulty || "mixed", 10).toLowerCase();
+  const style = str(raw.style || "auto", 20).toLowerCase();
+  const passageLength = str(raw.passageLength, 10).toLowerCase();
+  // Grid column override; 0 (or out of range) means "let the model choose".
+  const gridColumns = Math.round(num(raw.gridColumns, 0));
 
   // Optional curriculum-module selectors. Absent/0 → null so behaviour is
   // unchanged from before this upgrade when they aren't supplied.
@@ -142,6 +170,9 @@ function sanitizeInputs(raw = {}) {
       learningEnvironment : "",
     count: Math.min(25, Math.max(3, Math.round(num(raw.count, 10)))),
     difficulty: ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : "mixed",
+    style: ALLOWED_STYLES.has(style) ? style : "auto",
+    gridColumns: gridColumns >= 2 && gridColumns <= 4 ? gridColumns : 0,
+    passageLength: ALLOWED_PASSAGE_LENGTHS.has(passageLength) ? passageLength : "",
     durationMinutes: Math.min(120, Math.max(10, Math.round(num(raw.durationMinutes, 30)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     includeAnswerKey: raw.includeAnswerKey !== false,

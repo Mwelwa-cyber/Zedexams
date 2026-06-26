@@ -16,38 +16,77 @@ import {
 // load; admins who need a longer view should use the dedicated reports.
 export const ADMIN_QUERY_LIMIT = 200
 
+// Safety cap on the learner-facing quiz library query. Without it, getQuizzes
+// reads *every* published practice quiz for a grade on each load — and each
+// quiz doc carries its full embedded `passages[]` (comprehension text + image
+// URLs) that the list view never renders, so the payload (and the time-to-show
+// on a slow mobile connection) grows unbounded with the catalogue. 400 is far
+// above any realistic per-grade practice count, so it never trims the visible
+// library; it only stops a runaway full-collection read. Ordered newest-first.
+export const LEARNER_QUIZ_LIMIT = 400
+
+// Same safety cap for the learner lesson library: getLessons reads every
+// published lesson for a grade/subject on each filter change, and a lesson doc
+// carries its full slide/content payload. 400 is well above any realistic
+// per-(grade, subject) lesson count, so it never trims the library — it only
+// stops an unbounded read as the catalogue grows. Newest-first.
+export const LEARNER_LESSON_LIMIT = 400
+
 // How far back the admin "recent activity" queries reach. 90 days is the
 // rolling window the dashboards visualise; reading the entire history on
 // every admin reload was a major Firestore read-amplifier.
 const ADMIN_RECENT_WINDOW_DAYS = 90
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
-import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
-import { migrateContent } from '../editor/utils/migration.js'
-import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
+import { questionWriteSchema, coerceQuestion, canonicalizeQuestionType } from '../editor/schema/question.js'
+import { normalizeMarks, MARKS_BOUNDS } from '../utils/questionType.js'
+import { normalizeSubParts } from '../utils/questionParts.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
 import { normalizeSubject } from '../config/curriculum.js'
+import { normaliseImageWidth } from '../utils/imageWidth.js'
 import { PLANS } from '../utils/subscriptionConfig.js'
 
+// Map a granted/confirmed plan id onto the teacher studio tier the usage
+// meter reads (users.teacherPlan — see functions/teacherTools/usageMeter.js),
+// which is a SEPARATE axis from subscriptionPlan/premium. Mirrors the
+// server-side Lenco activation (functions/subscriptionActivation.js) so an
+// admin-granted Pro/Max teacher gets studio quotas, not just premium content
+// access. Returns {} for learner plans (which carry no `tier`).
+function teacherTierFields(planId, expiryDate) {
+  const tier = PLANS[planId]?.tier
+  if (tier !== 'pro' && tier !== 'max') return {}
+  return {
+    teacherPlan: tier,
+    teacherPlanExpiresAt: expiryDate ? Timestamp.fromDate(expiryDate) : null,
+    teacherPlanActivatedAt: serverTimestamp(),
+  }
+}
+
 /**
- * Convert a rich-text field to its Tiptap JSON representation for persistence.
- *
- * Accepts anything the editor or the legacy pipeline might hand us:
- *   - null / undefined / '' → null
- *   - Tiptap JSON object     → returned as-is
- *   - HTML string            → parsed via migrateContent()
- *   - Plain text             → wrapped into a paragraph node
- *
- * migrateContent() already handles every case defensively; this is just a
- * named wrapper so the intent ("turn this into JSON for Firestore") is
- * visible at the call site.
+ * The rich-text write pipeline — `migrateContent` (HTML/legacy → Tiptap JSON)
+ * and `normalizeRichTextPayload` (sanitised canonical HTML) — lives in the
+ * editor runtime, which statically pulls @tiptap/core + ProseMirror + KaTeX
+ * (~1.5 MB). It is only needed when SAVING question content, yet useFirestore
+ * is imported by ~36 components, so importing it at module scope hoisted the
+ * entire editor into the eager `index` chunk — every learner downloaded it on
+ * first paint. Loading it lazily (memoised, fetched once) keeps the editor out
+ * of the entry chunk; the save path awaits normalizeQuestionPayload(), which
+ * resolves this before it touches any rich-text field. See vite.config.js.
  */
-function toRichTextJSON(value) {
-  if (value == null) return null
-  if (typeof value === 'string' && !value.trim()) return null
-  return migrateContent(value)
+let _writePipelinePromise
+function loadWritePipeline() {
+  if (!_writePipelinePromise) {
+    _writePipelinePromise = Promise.all([
+      import('../editor/utils/migration.js'),
+      import('../utils/quizRichText.js'),
+    ]).then(([migration, quizRichText]) => ({
+      migrateContent: migration.migrateContent,
+      normalizeRichTextPayload: quizRichText.normalizeRichTextPayload,
+    }))
+  }
+  return _writePipelinePromise
 }
 
 /**
@@ -79,9 +118,26 @@ function normalizeDiagramParams(params) {
  * in a field name, an over-size payload, or an invalid question type fails
  * loudly on the client instead of silently writing garbage.
  */
-function normalizeQuestionPayload(q, order) {
-  const type = q.type || 'mcq'
-  const isShortAnswer = type === 'short_answer' || type === 'diagram'
+async function normalizeQuestionPayload(q, order) {
+  // Lazily fetch the editor-backed rich-text helpers (see loadWritePipeline).
+  // The promise is memoised, so this resolves instantly after the first call.
+  const { migrateContent, normalizeRichTextPayload } = await loadWritePipeline()
+  // Convert a rich-text field to its Tiptap JSON for persistence. null/empty →
+  // null; HTML/plain string or Tiptap JSON → migrateContent handles every case.
+  const toRichTextJSON = (value) => {
+    if (value == null) return null
+    if (typeof value === 'string' && !value.trim()) return null
+    return migrateContent(value)
+  }
+  // Fold known type aliases onto the schema enum BEFORE deriving the per-type
+  // flags below, so a question authored as 'truefalse' (QuizSectionsEditor, the
+  // document importer) or 'fill_in_blank' (Assessment Studio picker) saves as
+  // 'tf' / 'fill_blanks' instead of throwing "Invalid question payload at 'type'"
+  // — the bug where MCQ questions save but true/false ones silently fail.
+  const type = canonicalizeQuestionType(q.type) || 'mcq'
+  // Short-answer / diagram / essay collect a written response, not an option
+  // list — no options array, correctAnswer is a (possibly blank) string.
+  const isShortAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
   // Numeric questions also have no options array — they collect a single
   // typed number from the learner instead. Treated alongside short-answer
   // for option-clearing; correctAnswer normalisation diverges below.
@@ -90,7 +146,16 @@ function normalizeQuestionPayload(q, order) {
   // options array. The "answer" is a normalised (x, y) coordinate, graded
   // against the teacher-placed correctRegion at submit time.
   const isHotspot = type === 'hotspot'
-  const options = isShortAnswer || isNumeric || isHotspot
+  // Matching / sequence carry their answer in dedicated arrays
+  // (matchingAnswer / sequenceAnswer); they have no options either.
+  const isMatching = type === 'matching'
+  const isSequence = type === 'sequence'
+  // Fill-in-the-Blanks stores its prompt/answer in dedicated `statements[]`
+  // (each with its own answers) + an optional `wordBank`; no options array and
+  // correctAnswer is an (often empty) string, like short-answer.
+  const isFillBlanks = type === 'fill_blanks'
+  const noOptions = isShortAnswer || isNumeric || isHotspot || isMatching || isSequence || isFillBlanks
+  const options = noOptions
     ? []
     : Array.isArray(q.options)
       ? q.options.map(opt => String(opt ?? '').trim())
@@ -100,7 +165,7 @@ function normalizeQuestionPayload(q, order) {
   // truncate or pad with nulls so the parallel arrays stay in lock-step.
   // A slot collapses to null when it has neither an imageUrl nor a diagram.
   const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
-  const optionMedia = isShortAnswer || isNumeric || isHotspot
+  const optionMedia = noOptions
     ? []
     : options.map((_, i) => {
         const m = rawMedia[i]
@@ -136,7 +201,10 @@ function normalizeQuestionPayload(q, order) {
     passageId:     q.passageId || null,
     partId:        q.partId ?? null,
     subtype:       q.subtype ?? null,
-    correctAnswer: isShortAnswer
+    correctAnswer: isShortAnswer || isMatching || isSequence || isFillBlanks
+      // Short-answer/essay store the written answer; matching/sequence keep
+      // their correctness in their own arrays below, and fill-blanks keeps its
+      // answers on each statement, so correctAnswer is an (often empty) string.
       ? String(q.correctAnswer ?? '').trim()
       : isNumeric
         // Numeric questions store a real number — Number() converts strings
@@ -147,10 +215,35 @@ function normalizeQuestionPayload(q, order) {
         : Number.isInteger(q.correctAnswer)
           ? q.correctAnswer
           : Number(q.correctAnswer) || 0,
+    // Type-specific answer fields. Spread only for the relevant type so a
+    // plain MCQ never carries empty matching/sequence arrays, and the
+    // schema's .strict() gate never sees an unexpected key.
+    ...(isNumeric ? {
+      numericTolerance: Number.isFinite(Number(q.numericTolerance)) && Number(q.numericTolerance) >= 0
+        ? Number(q.numericTolerance)
+        : 0,
+      numericUnit: String(q.numericUnit ?? '').trim().slice(0, 40),
+    } : {}),
+    ...(isMatching ? {
+      matchingLeft: (Array.isArray(q.matchingLeft) ? q.matchingLeft : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      matchingRight: (Array.isArray(q.matchingRight) ? q.matchingRight : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      matchingAnswer: (Array.isArray(q.matchingAnswer) ? q.matchingAnswer : [])
+        .map(v => { const n = Number(v); return Number.isInteger(n) && n >= -1 ? n : -1 }).slice(0, 20),
+    } : {}),
+    ...(isSequence ? {
+      sequenceItems: (Array.isArray(q.sequenceItems) ? q.sequenceItems : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      sequenceAnswer: (Array.isArray(q.sequenceAnswer) ? q.sequenceAnswer : [])
+        .map(v => { const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : 0 }).slice(0, 20),
+    } : {}),
     // Tolerance only matters for numeric. Stored as null on every other type
-    // so the schema's union-with-null lines up across the board.
+    // so the schema's union-with-null lines up across the board. The learner
+    // quiz runner reads `tolerance`; the assessment studio writes
+    // `numericTolerance` — keep them in lock-step so a numeric question grades
+    // the same whichever surface created it.
     tolerance:    isNumeric
-      ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0 ? Number(q.tolerance) : 0)
+      ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0
+          ? Number(q.tolerance)
+          : (Number.isFinite(Number(q.numericTolerance)) && Number(q.numericTolerance) >= 0 ? Number(q.numericTolerance) : 0))
       : null,
     // correctRegion only matters for hotspot. Coerce x/y to [0, 1] and
     // radius to a sensible cap. A teacher who never clicked the image
@@ -170,14 +263,116 @@ function normalizeQuestionPayload(q, order) {
     // ("[15 marks]" in an imported past-paper question, or a UI bug
     // overshoot) never throws "Invalid question payload at 'marks'" on
     // auto-save. The cap exactly matches questionWriteSchema's max.
-    marks:         Math.max(1, Math.min(20, Number(q.marks) || 1)),
+    marks:         normalizeMarks(q.marks, MARKS_BOUNDS.quiz),
     type,
     detectedType:  q.detectedType || type,
     difficulty:    q.difficulty || undefined,
+    bloom:         q.bloom || undefined,
     imageUrl:      q.imageUrl || null,
+    imageAlt:      String(q.imageAlt ?? '').trim(),
     imageDiagram,
     imagePosition: q.imagePosition || null,
+    imageWidth:    normaliseImageWidth(q.imageWidth),
     diagramText:   q.diagramText || null,
+    // Answer-space settings. Only persisted when the teacher set a non-default
+    // value so a plain MCQ never carries them (keeps the .strict() schema happy
+    // and the doc small). 'lines' + null + [] is the implicit default.
+    ...(q.answerFormat && q.answerFormat !== 'lines' ? { answerFormat: q.answerFormat } : {}),
+    ...(Number.isInteger(q.answerLines) && q.answerLines >= 0
+      ? { answerLines: Math.min(40, q.answerLines) }
+      : {}),
+    ...(Array.isArray(q.blankLabels) && q.blankLabels.length
+      ? { blankLabels: q.blankLabels.map(l => String(l ?? '').trim().slice(0, 24)).filter(Boolean).slice(0, 26) }
+      : {}),
+    ...(Array.isArray(q.wordBank) && q.wordBank.length
+      ? { wordBank: q.wordBank.map(w => String(w ?? '').trim().slice(0, 120)).filter(Boolean).slice(0, 40) }
+      : {}),
+    // Fill-in-the-Blanks statements + word-bank-reuse flag. Only persisted for
+    // the dedicated type so other questions never carry an empty array
+    // (keeps the .strict() schema lean). Each statement clamps to the schema's
+    // caps (text ≤ 2000, ≤ 12 answers ≤ 200 chars, ≤ 40 statements).
+    ...(isFillBlanks ? {
+      statements: (Array.isArray(q.statements) ? q.statements : [])
+        .map(s => ({
+          text: String(s?.text ?? '').slice(0, 2000),
+          answers: (Array.isArray(s?.answers) ? s.answers : [])
+            .map(a => String(a ?? '').trim().slice(0, 200))
+            .slice(0, 12),
+        }))
+        .slice(0, 40),
+      wordBankReuse: Boolean(q.wordBankReuse),
+    } : {}),
+    // Short-answer sub-parts — "(a) … (b) … (c) …" under the question's
+    // instruction stem. Only persisted when present so a plain question never
+    // carries an empty array (keeps the .strict() schema lean). Each part maps
+    // to the exact schema shape; answerLines is omitted unless it's a number so
+    // Firestore never sees `undefined`.
+    ...((() => {
+      const sp = normalizeSubParts(q.subParts)
+      if (!sp.length) return {}
+      return {
+        subParts: sp.map(p => ({
+          text: String(p.text ?? '').slice(0, 2000),
+          answer: String(p.answer ?? '').slice(0, 1000),
+          marks: Math.max(0, Math.min(99, Math.round(Number(p.marks) || 0))),
+          answerFormat: ['inline', 'lines', 'none'].includes(p.answerFormat) ? p.answerFormat : 'inline',
+          ...(Number.isInteger(p.answerLines) && p.answerLines >= 0
+            ? { answerLines: Math.min(20, p.answerLines) }
+            : {}),
+        })),
+      }
+    })()),
+    // Diagram label overlays, identify-mode flag, inline data table, and the
+    // Draw & Label canvas height. These power the Assessment Studio's labelled
+    // diagram / image-identify / data-table / draw-and-label questions. Without
+    // persisting them, a saved paper reopened from Firestore (rather than the
+    // local draft) lost its labels, table and canvas. Only written when set so
+    // a plain MCQ never carries them (keeps the .strict() schema lean).
+    ...(Array.isArray(q.diagramLabels) && q.diagramLabels.length
+      ? {
+        diagramLabels: q.diagramLabels
+          .map(l => {
+            const label = {
+              id: typeof l?.id === 'string' && l.id ? l.id : `lbl-${Math.random().toString(36).slice(2, 10)}`,
+              x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+              y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+              text: String(l?.text ?? '').slice(0, 80),
+            }
+            // Leader-line target — the point on the image the label POINTS at
+            // (the teacher drags a tip onto the exact part). Persist only when
+            // both coords are real numbers; an absent tx/ty means "no leader
+            // line" to the renderer. Dropping these silently lost every
+            // teacher-placed leader line when a saved paper was reopened from
+            // Firestore — the same "saved → reopened → gone" failure the rest
+            // of this block guards against.
+            const tx = Number(l?.tx)
+            const ty = Number(l?.ty)
+            if (Number.isFinite(tx) && Number.isFinite(ty)) {
+              label.tx = Math.max(0, Math.min(1, tx))
+              label.ty = Math.max(0, Math.min(1, ty))
+            }
+            return label
+          })
+          .slice(0, 20),
+        // diagramMode only matters alongside labels; persist it with them.
+        diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
+      }
+      : {}),
+    ...(q.tableData && Array.isArray(q.tableData.headers) && q.tableData.headers.length
+      ? {
+        tableData: {
+          headers: q.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+          rows: Array.isArray(q.tableData.rows)
+            ? q.tableData.rows
+              .slice(0, 12)
+              .map(row => Array.isArray(row) ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6) : [])
+            : [],
+        },
+      }
+      : {}),
+    ...(Number.isFinite(Number(q.drawingHeight)) && Number(q.drawingHeight) > 0
+      ? { drawingHeight: Math.max(80, Math.min(500, Math.round(Number(q.drawingHeight)))) }
+      : {}),
     requiresReview: Boolean(q.requiresReview),
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],
     importWarnings: Array.isArray(q.importWarnings) ? q.importWarnings.map(note => String(note ?? '').trim()).filter(Boolean) : [],
@@ -216,16 +411,38 @@ function normalizeQuestionPayload(q, order) {
   return parsed.data
 }
 
+// One-shot, process-cached read of the quiz-library cutover flag. getQuizzes
+// reads the lightweight `quizSummaries` mirror (quiz docs minus the heavy
+// passages[]/parts[]/description — maintained by the onQuizWritten Cloud
+// Function) only once an operator flips `settings/quizLibrary.useSummaries` to
+// true. The backfill script (scripts/backfill-quiz-summaries.mjs) sets it after
+// it populates existing docs, so the cutover is atomic and operator-controlled:
+// until then — and on any mirror read error — the library keeps reading the
+// full `quizzes` collection, so the migration can never blank the catalogue.
+// Cached for the session because the flag only flips once, at cutover.
+let _useQuizSummariesPromise
+function shouldUseQuizSummaries() {
+  if (!_useQuizSummariesPromise) {
+    _useQuizSummariesPromise = getDoc(doc(db, 'settings', 'quizLibrary'))
+      .then(s => (s.exists() ? s.data()?.useSummaries === true : false))
+      .catch(() => false)
+  }
+  return _useQuizSummariesPromise
+}
+
 export function useFirestore() {
 
   // ── Quizzes ──────────────────────────────────────────────────
   async function getQuizzes(filters = {}) {
-    try {
-      // Only quizzes explicitly assigned as practice by admin are visible to students.
-      // `isPublished == true` is required to stay inside firestore.rules: without it,
-      // a single orphan (practice but unpublished — e.g. after EditQuizV2's
-      // handleTogglePublish) would cause Firestore to deny the whole query and
-      // blank the library for every learner.
+    // Build the constraint list fresh per source so the mirror query and the
+    // source-of-truth query stay byte-for-byte identical.
+    //
+    // Only quizzes explicitly assigned as practice by admin are visible to
+    // students. `isPublished == true` is required to stay inside
+    // firestore.rules: without it, a single orphan (practice but unpublished —
+    // e.g. after EditQuizV2's handleTogglePublish) would cause Firestore to
+    // deny the whole query and blank the library for every learner.
+    const constraints = () => {
       const c = [
         where('isPublished', '==', true),
         where('quizType', '==', 'practice'),
@@ -235,7 +452,25 @@ export function useFirestore() {
       if (filters.term)     c.push(where('term',    '==', filters.term))
       if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
       c.push(orderBy('createdAt', 'desc'))
-      const snap = await getDocs(query(collection(db, 'quizzes'), ...c))
+      c.push(limit(LEARNER_QUIZ_LIMIT))
+      return c
+    }
+    // Prefer the lightweight mirror once cut over. coerceQuiz still defaults a
+    // missing passages[] to [], so a runner that somehow received a summary
+    // object would degrade gracefully — but the runner reads quizzes/{id}
+    // directly via getQuizById, so it always gets the full doc.
+    if (await shouldUseQuizSummaries()) {
+      try {
+        const snap = await getDocs(query(collection(db, 'quizSummaries'), ...constraints()))
+        return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
+      } catch (e) {
+        // Index still building, rules race, etc. — fall through to the full
+        // collection so the library is never empty because of the mirror.
+        console.warn('getQuizzes: quizSummaries read failed, using quizzes', e)
+      }
+    }
+    try {
+      const snap = await getDocs(query(collection(db, 'quizzes'), ...constraints()))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzes:', e); return [] }
   }
@@ -308,10 +543,10 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const batch = writeBatch(db)
-      chunk.forEach((q, offset) => {
+      for (const [offset, q] of chunk.entries()) {
         const ref = doc(collection(db, 'quizzes', quizId, 'questions'))
-        batch.set(ref, normalizeQuestionPayload(q, i + offset + 1))
-      })
+        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
+      }
       await batch.commit()
     }
   }
@@ -392,10 +627,10 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const batch = writeBatch(db)
-      chunk.forEach((q, offset) => {
+      for (const [offset, q] of chunk.entries()) {
         const ref = doc(collection(db, 'assessments', assessmentId, 'questions'))
-        batch.set(ref, normalizeQuestionPayload(q, i + offset + 1))
-      })
+        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
+      }
       await batch.commit()
     }
   }
@@ -424,14 +659,14 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const upsertBatch = writeBatch(db)
-      chunk.forEach((q, offset) => {
-        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
+      for (const [offset, q] of chunk.entries()) {
+        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'assessments', assessmentId, 'questions', q._id), cleanQ)
         } else {
           upsertBatch.set(doc(collection(db, 'assessments', assessmentId, 'questions')), cleanQ)
         }
-      })
+      }
       await upsertBatch.commit()
     }
   }
@@ -679,6 +914,7 @@ export function useFirestore() {
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_override',
       subscriptionPaymentId: paymentId,
+      ...teacherTierFields(plan, expiry),
     })
     batch.update(doc(db, 'payments', paymentId), {
       status: 'confirmed',
@@ -715,6 +951,7 @@ export function useFirestore() {
       subscriptionActivatedBy: adminId,
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_grant',
+      ...teacherTierFields(plan, durationDays === 0 ? null : expiry),
     })
   }
 
@@ -810,6 +1047,7 @@ export function useFirestore() {
       // Reset the reminder cooldown so the next near-expiry window is
       // eligible to send a renewal nudge to this customer.
       expiryReminderSentAt: null,
+      ...teacherTierFields(planId, expiry),
     }
     if (cleanPhone) {
       userUpdate.subscriptionPhoneNumber = cleanPhone
@@ -967,6 +1205,7 @@ export function useFirestore() {
       if (filters.grade)   c.push(where('grade',   '==', filters.grade))
       if (filters.subject) c.push(where('subject', '==', filters.subject))
       c.push(orderBy('createdAt', 'desc'))
+      c.push(limit(LEARNER_LESSON_LIMIT))
       const snap = await getDocs(query(collection(db, 'lessons'), ...c))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getLessons:', e); return [] }
@@ -1124,8 +1363,8 @@ export function useFirestore() {
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
       const upsertBatch = writeBatch(db)
-      chunk.forEach((q, offset) => {
-        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
+      for (const [offset, q] of chunk.entries()) {
+        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
           idMap.push({ localId: q.localId, id: q._id })
@@ -1134,7 +1373,7 @@ export function useFirestore() {
           upsertBatch.set(newRef, cleanQ)
           idMap.push({ localId: q.localId, id: newRef.id })
         }
-      })
+      }
       await upsertBatch.commit()
     }
     return idMap

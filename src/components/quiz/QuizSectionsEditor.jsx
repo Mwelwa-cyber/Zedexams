@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
+import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
 import { clampInt } from '../../utils/inputs.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
 import DiagramPicker from '../diagrams/DiagramPicker.jsx'
@@ -19,6 +20,165 @@ const PART_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
 function partLabel(index) {
   return `Part ${PART_LETTERS[index] ?? index + 1}`
+}
+
+// Dedicated Fill-in-the-Blanks editor for the Quiz Studio. The instruction is
+// the question text (edited above); here the teacher manages the word bank (or
+// open mode), the reuse rule, and the A/B/C/D statements — each with its own
+// blank(s) and expected answer(s). `set(field, value)` patches the question.
+function FillBlanksFields({ question, theme, set }) {
+  const statements = Array.isArray(question.statements) ? question.statements : []
+  const wordBank = Array.isArray(question.wordBank) ? question.wordBank : []
+  const useWordBank = wordBank.length > 0
+  const totalBlanks = statements.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+  const inputClass = joinClasses('theme-input w-full rounded-lg border px-3 py-2 text-sm outline-none', theme.focus)
+
+  function commitStatements(next) {
+    set('statements', next)
+    // One mark per blank, clamped to the schema's [1, 20] range.
+    const blanks = next.reduce((sum, s) => sum + countBlanks(s?.text ?? ''), 0)
+    set('marks', Math.max(1, Math.min(20, blanks || 1)))
+  }
+
+  function updateStatementText(index, text) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      const blanks = countBlanks(text)
+      const prev = Array.isArray(s.answers) ? s.answers : []
+      const answers = Array.from({ length: Math.max(blanks, 1) }, (_, k) => prev[k] ?? '')
+      return { text, answers }
+    })
+    commitStatements(next)
+  }
+
+  function setAnswer(index, blankIndex, value) {
+    const next = statements.map((s, i) => {
+      if (i !== index) return s
+      const answers = [...(Array.isArray(s.answers) ? s.answers : [])]
+      answers[blankIndex] = value
+      return { ...s, answers }
+    })
+    set('statements', next)
+  }
+
+  function insertBlank(index) {
+    const current = statements[index]?.text ?? ''
+    const needsSpace = current && !/\s$/.test(current)
+    updateStatementText(index, `${current}${needsSpace ? ' ' : ''}${BLANK_TOKEN} `)
+  }
+
+  function setCount(target) {
+    const next = statements.slice(0, target)
+    while (next.length < target) next.push({ text: '', answers: [''] })
+    commitStatements(next)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="theme-bg-subtle space-y-2 rounded-xl border-2 theme-border p-3">
+        <label className="flex items-center gap-2 text-xs font-bold theme-text">
+          <input
+            type="checkbox"
+            checked={useWordBank}
+            onChange={event => set('wordBank', event.target.checked ? (wordBank.length ? wordBank : ['']) : [])}
+            className="accent-[var(--accent)]"
+          />
+          Provide a word bank (learners pick from supplied words)
+        </label>
+        {useWordBank && (
+          <>
+            <input
+              value={wordBank.join(', ')}
+              onChange={event => set('wordBank', event.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
+              placeholder="e.g. soap, clean, germs, water"
+              className={inputClass}
+            />
+            <label className="theme-text-muted flex items-center gap-2 text-xs font-bold">
+              <input
+                type="checkbox"
+                checked={Boolean(question.wordBankReuse)}
+                onChange={event => set('wordBankReuse', event.target.checked)}
+                className="accent-[var(--accent)]"
+              />
+              Words may be used more than once
+            </label>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="theme-text-muted font-bold">Number of blanks:</span>
+        {[4, 6, 8, 10].map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setCount(n)}
+            className={joinClasses('rounded-lg border px-2.5 py-1 font-bold', theme.button)}
+          >
+            {n}
+          </button>
+        ))}
+        <span className="theme-text-muted">· {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} total</span>
+      </div>
+
+      {statements.map((statement, index) => {
+        const blanks = countBlanks(statement?.text ?? '')
+        const answers = Array.isArray(statement?.answers) ? statement.answers : []
+        return (
+          <div key={index} className="space-y-2 rounded-xl border-2 theme-border p-3">
+            <div className="flex items-center gap-2">
+              <span className="theme-text text-sm font-black">{statementLabel(index)}.</span>
+              <button
+                type="button"
+                onClick={() => insertBlank(index)}
+                className={joinClasses('rounded-lg border px-2 py-0.5 text-xs font-bold', theme.button)}
+              >
+                + Insert blank
+              </button>
+              <button
+                type="button"
+                onClick={() => commitStatements(statements.filter((_, i) => i !== index))}
+                className="ml-auto rounded-lg bg-transparent px-2 py-0.5 text-xs font-bold text-red-500 shadow-none hover:bg-red-50"
+              >
+                Remove
+              </button>
+            </div>
+            <input
+              value={statement?.text ?? ''}
+              onChange={event => updateStatementText(index, event.target.value)}
+              placeholder="e.g. We use ____ to wash our hands."
+              className={inputClass}
+            />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: Math.max(blanks, 1) }).map((_, blankIndex) => (
+                <label key={blankIndex} className="theme-text-muted flex flex-col gap-1 text-[11px] font-bold">
+                  Answer {blanks > 1 ? `#${blankIndex + 1}` : ''}
+                  <input
+                    value={answers[blankIndex] ?? ''}
+                    onChange={event => setAnswer(index, blankIndex, event.target.value)}
+                    placeholder={blanks === 0 ? 'Add a ____ blank first' : 'expected answer'}
+                    disabled={blanks === 0}
+                    className={joinClasses('theme-input rounded-lg border px-2 py-1 text-sm outline-none', theme.focus)}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      <button
+        type="button"
+        onClick={() => commitStatements([...statements, { text: '', answers: [''] }])}
+        className={joinClasses('rounded-lg border px-3 py-1.5 text-xs font-bold', theme.button)}
+      >
+        + Add statement
+      </button>
+      <p className="theme-text-muted text-xs">
+        Type underscores (<code>____</code>) where a blank goes. Use “/” to allow alternatives, e.g. <code>sunlight/sun</code>.
+      </p>
+    </div>
+  )
 }
 // Tiptap-based rich field (new). Accepts HTML strings or Tiptap JSON on the
 // way in (legacy quizzes render fine) and emits Tiptap JSON. Saving passes
@@ -468,10 +628,15 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
     onChange(sectionIndex, 'optionMedia', next)
   }
 
-  const isTrueFalse = question.type === 'truefalse'
+  // Accept both the canonical 'tf' (what the schema stores + the runner reads)
+  // and the legacy 'truefalse' spelling so a reloaded true/false question still
+  // shows its True/False editor UI.
+  const isTrueFalse = question.type === 'tf' || question.type === 'truefalse'
   const isFill = question.type === 'fill'
+  const isFillBlanks = question.type === 'fill_blanks'
   const isNumeric = question.type === 'numeric'
   const isHotspot = question.type === 'hotspot'
+  const isDiagramLabel = question.type === 'diagram_label'
   const isTextAnswer = question.type === 'short_answer' || question.type === 'diagram' || isFill
   const subtype = question.subtype ?? null
   const subtypeBadge = subtype ? SUBTYPE_LABEL[subtype] : null
@@ -540,13 +705,27 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             onChange={event => {
               const nextType = event.target.value
               set('type', nextType)
-              if (nextType === 'truefalse') {
+              if (nextType === 'tf') {
                 onChange(sectionIndex, 'options', ['True', 'False'])
                 onChange(sectionIndex, 'correctAnswer', 0)
               } else if (nextType === 'short_answer' || nextType === 'diagram' || nextType === 'fill') {
                 onChange(sectionIndex, 'options', [])
                 onChange(sectionIndex, 'correctAnswer', typeof question.correctAnswer === 'string' ? question.correctAnswer : '')
                 // Subtype only makes sense for MCQ — clear it on type change.
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
+              } else if (nextType === 'fill_blanks') {
+                // Dedicated Fill-in-the-Blanks: no options; answers live on the
+                // statements. Seed 4 empty statements so the editor has shape.
+                onChange(sectionIndex, 'options', [])
+                onChange(sectionIndex, 'correctAnswer', '')
+                if (!Array.isArray(question.statements) || question.statements.length === 0) {
+                  onChange(sectionIndex, 'statements', [
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                    { text: '', answers: [''] },
+                  ])
+                }
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
               } else if (nextType === 'numeric') {
                 // Numeric questions have no options and store correctAnswer
@@ -569,6 +748,16 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
                 onChange(sectionIndex, 'options', [])
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
                 if (!question.correctRegion) onChange(sectionIndex, 'correctRegion', null)
+              } else if (nextType === 'diagram_label') {
+                // Label-the-Diagram: no options; each numbered marker on the
+                // image carries the expected name in diagramLabels[i].text.
+                // diagramMode 'identify' is the "numbers on the image, learner
+                // names each" presentation the printed-paper renderer also uses.
+                onChange(sectionIndex, 'options', [])
+                onChange(sectionIndex, 'correctAnswer', '')
+                onChange(sectionIndex, 'diagramMode', 'identify')
+                if (!Array.isArray(question.diagramLabels)) onChange(sectionIndex, 'diagramLabels', [])
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
               } else if (question.options.length < 4) {
                 onChange(sectionIndex, 'options', ['', '', '', ''])
                 onChange(sectionIndex, 'correctAnswer', 0)
@@ -577,11 +766,13 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             className={joinClasses('theme-input rounded-lg border px-2 py-1 text-xs outline-none', theme.focus)}
           >
             <option value="mcq">MCQ (4 options)</option>
-            <option value="truefalse">True / False</option>
+            <option value="tf">True / False</option>
             <option value="short_answer">Short Answer</option>
             <option value="fill">Fill in the blank</option>
+            <option value="fill_blanks">Fill in the Blanks (statements)</option>
             <option value="numeric">Numeric (±tolerance)</option>
             <option value="hotspot">Hotspot (click on image)</option>
+            <option value="diagram_label">Label the Diagram (type the parts)</option>
             <option value="diagram">Diagram / Image</option>
           </select>
           {question.type === 'mcq' && (
@@ -711,7 +902,84 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
         </div>
       )}
 
-      {isHotspot ? (
+      {isDiagramLabel ? (
+        <div className="space-y-2">
+          <p className="theme-text-muted text-xs font-bold">
+            Label the Diagram — upload an image above, then click each part to drop a numbered marker and type its name. Learners type the name of every numbered part.
+          </p>
+          {!question.imageUrl ? (
+            <div className="theme-bg-subtle theme-text-muted rounded-xl border-2 border-dashed theme-border p-4 text-center text-xs font-bold">
+              Upload an image first to place numbered markers.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Click-to-place picker. Every click drops a NEW numbered marker
+                  at the normalised (x, y) of the click; the answer for each is
+                  typed in the list below. Capped at 20 (schema limit). */}
+              <div
+                className={joinClasses('relative cursor-crosshair overflow-hidden rounded-xl border-2', theme.cardBorder)}
+                onPointerDown={event => {
+                  const labels = Array.isArray(question.diagramLabels) ? question.diagramLabels : []
+                  if (labels.length >= 20) return
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  if (rect.width <= 0 || rect.height <= 0) return
+                  const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+                  const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+                  set('diagramLabels', [...labels, { x, y, text: '' }])
+                }}
+              >
+                <img
+                  src={question.imageUrl}
+                  alt=""
+                  draggable={false}
+                  className="block w-full select-none object-contain"
+                />
+                {(Array.isArray(question.diagramLabels) ? question.diagramLabels : []).map((label, i) => (
+                  <span
+                    key={i}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--accent)] text-xs font-black text-white shadow"
+                    style={{ left: `${(Number(label?.x) || 0) * 100}%`, top: `${(Number(label?.y) || 0) * 100}%` }}
+                  >
+                    {i + 1}
+                  </span>
+                ))}
+              </div>
+              {(Array.isArray(question.diagramLabels) ? question.diagramLabels : []).length === 0 ? (
+                <p className="text-xs font-bold text-orange-600">Click on the image to add your first numbered part.</p>
+              ) : (
+                <div className="space-y-2">
+                  {question.diagramLabels.map((label, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{i + 1}</span>
+                      <input
+                        value={String(label?.text ?? '')}
+                        onChange={event => {
+                          const next = question.diagramLabels.map((l, j) => (j === i ? { ...l, text: event.target.value } : l))
+                          set('diagramLabels', next)
+                        }}
+                        placeholder={`Name of part ${i + 1}`}
+                        className={joinClasses('theme-input flex-1 rounded-lg border px-3 py-2 text-sm outline-none', theme.focus)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => set('diagramLabels', question.diagramLabels.filter((_, j) => j !== i))}
+                        className="min-h-0 rounded-lg bg-transparent px-2 py-1 text-xs font-bold text-red-500 shadow-none hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Remove part ${i + 1}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="theme-text-muted text-xs">
+                Tip: accept alternative spellings by separating them with <span className="font-bold theme-text">/</span> (e.g. <span className="font-bold theme-text">Vegetable/Vegetables</span>). Marking ignores case and extra spaces.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : isHotspot ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
             Hotspot — upload an image above, then click on it to place the target
@@ -833,6 +1101,8 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             Worked example: correct answer <span className="font-bold theme-text">3.14</span>, tolerance <span className="font-bold theme-text">0.01</span> accepts any typed answer between 3.13 and 3.15.
           </p>
         </div>
+      ) : isFillBlanks ? (
+        <FillBlanksFields question={question} theme={theme} set={set} />
       ) : isTextAnswer ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
@@ -1116,7 +1386,10 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
 
   function setOptionMedia(optionIndex, mediaPatch) {
     const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
-    const next = (question.options.length ? question.options : QUESTION_LETTERS).map((_, i) => existing[i] ?? null)
+    // Index-align with the real options[] (NOT the fixed A–F letter list) so an
+    // image attached to option 4 of a 4-option question lands on the right slot
+    // instead of being padded onto a phantom 5th/6th option.
+    const next = question.options.map((_, i) => existing[i] ?? null)
     if (mediaPatch === null) {
       next[optionIndex] = null
     } else {
@@ -1227,7 +1500,12 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
             ? 'Sentence-ordering — paste each candidate paragraph variant as one option'
             : 'Answer choices'}
         </p>
-        {QUESTION_LETTERS.map((letter, optionIndex) => {
+        {question.options.map((_, optionIndex) => {
+          // Render one row per real option — NOT a fixed A–F list. A passage
+          // MCQ with 4 options must show 4 slots; iterating QUESTION_LETTERS
+          // painted 6 rows, where the extra two wrote `undefined` into options[]
+          // and corrupted the option count on edit.
+          const letter = QUESTION_LETTERS[optionIndex]
           const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
           const optionUploading = question.optionImageUploadingIndex === optionIndex
           const optionUploadStep = optionUploading ? question.optionImageUploadStep : null
@@ -1235,7 +1513,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
           // Passage cards use a default theme; we fall back to THEMES.create when none provided.
           const cardTheme = theme || THEMES.create
           return (
-            <div key={`${question.localId}-${letter}`} className="space-y-2">
+            <div key={`${question.localId}-${optionIndex}`} className="space-y-2">
               {/* Wrapper is a <div>, not <label> — clicking inside the
                   rich option editor must NOT auto-toggle the radio
                   (which is what a label would do with its first input
@@ -1371,9 +1649,9 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
           <input
             type="number"
             min={1}
-            max={10}
+            max={20}
             value={question.marks}
-            onChange={event => set('marks', clampInt(event.target.value, 1, 10, 1))}
+            onChange={event => set('marks', clampInt(event.target.value, 1, 20, 1))}
             className="theme-text w-10 bg-transparent text-center text-xs font-black outline-none"
           />
         </div>

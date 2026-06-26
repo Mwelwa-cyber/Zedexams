@@ -72,6 +72,14 @@ const CLAUDE_SYSTEM_PROMPT = [
   "and return it as structured JSON 'sections' via the tool, in the exact",
   "order it appears.",
   "",
+  "THESE IMAGES ARE PAGES OF THE SAME ASSESSMENT. Read them in page order and",
+  "extract the full paper into one continuous editable paper. Keep the original",
+  "numbering, sections, instructions, marks, answer options, diagrams and layout",
+  "meaning. Do NOT restart numbering on each page unless the original paper does",
+  "so. If a question (or its options, passage or diagram) continues from the",
+  "bottom of one page onto the next, combine the parts into a single question —",
+  "never emit the same printed number twice or split one item into two.",
+  "",
   "A section is either a 'passage' (shared content + its questions) or a",
   "'standalone' question. Group correctly:",
   "- COMPREHENSION (English stories, letters, poems, adverts, notices, dialogues,",
@@ -97,6 +105,31 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- hasDiagram: true when THIS question has its own figure/shape/picture/graph",
   "  printed with it (e.g. a single geometry shape, a Venn diagram, a number",
   "  line). Use the map/diagram passage instead when a figure is shared.",
+  "- DIAGRAMS — NEVER LEAVE THEM OUT. Many Zambian questions depend on a figure",
+  "  (\"study the diagram below and answer the questions\", a labelled science",
+  "  drawing, a map, a graph, a number line, a table, a shape). When a question",
+  "  has a figure printed with it, set hasDiagram=true AND return a 'diagrams'",
+  "  array — one entry per distinct figure, in reading order, each with:",
+  "    box: a TIGHT {x,y,w,h} bounding box (fractions 0-1 of the page on the",
+  "      item's sourcePageIndex) around JUST that figure, excluding the question",
+  "      text and options. Same coordinate system as optionImageBoxes.",
+  "    caption: the printed caption/figure label if any (e.g. 'Fig. 2'), else ''.",
+  "    kind: what the figure IS — one of: map, labelled_science, body_part,",
+  "      plant, animal, tool, food_chart, circuit, photo, number_line, shape,",
+  "      venn, bar_chart, line_graph, pie_chart, table, measurement, drawing,",
+  "      other.",
+  "    complexity: 'complex' for rich/realistic figures that MUST stay as an",
+  "      image (maps, labelled science diagrams, body parts, plants, animals,",
+  "      tools, food charts, circuit diagrams, realistic pictures); 'simple' for",
+  "      figures that could be redrawn accurately (number lines, simple shapes,",
+  "      Venn diagrams, bar/line graphs, tables, basic measurement drawings);",
+  "      'unsure' when you cannot tell.",
+  "    confidence: 0-1, how sure you are this is one distinct figure for this",
+  "      question.",
+  "  Attach each figure to the question it belongs to — NEVER move a figure to a",
+  "  different question or to the end of the paper, and never replace it with",
+  "  '[see diagram]'. A figure shared by several questions goes on the map",
+  "  passage (set its diagrams array too) instead of repeating on each question.",
   "- PICTORIAL OPTIONS: if the answer choices THEMSELVES are pictures/shapes/",
   "  graphs rather than text (e.g. four nets, four diagrams, four bar charts),",
   "  set optionsAreImages=true, keep each options[] entry as its printed label",
@@ -150,6 +183,9 @@ const SCANNED_TOOL_SCHEMA = {
           instructions: {type: "string"},
           passageText: {type: "string"},
           hasImage: {type: "boolean"},
+          // A shared map/figure several questions read — same shape as a
+          // question's diagrams (see $defs/diagram).
+          diagrams: {type: "array", items: {$ref: "#/$defs/diagram"}},
           sourcePageIndex: {type: "integer"},
           questions: {type: "array", items: {$ref: "#/$defs/question"}},
           // standalone field
@@ -161,6 +197,39 @@ const SCANNED_TOOL_SCHEMA = {
   },
   required: ["sections"],
   $defs: {
+    diagram: {
+      type: "object",
+      description:
+        "A figure printed with the item: picture, graph, map, table, number " +
+        "line, shape, labelled drawing or science diagram. Always attach it to " +
+        "the item it belongs to; never drop or move it.",
+      properties: {
+        box: {
+          type: "object",
+          description:
+            "Tight bounding box around just this figure, as fractions 0-1 of " +
+            "the page on the item's sourcePageIndex.",
+          properties: {
+            x: {type: "number"},
+            y: {type: "number"},
+            w: {type: "number"},
+            h: {type: "number"},
+          },
+        },
+        caption: {type: "string"},
+        kind: {
+          type: "string",
+          enum: [
+            "map", "labelled_science", "body_part", "plant", "animal", "tool",
+            "food_chart", "circuit", "photo", "number_line", "shape", "venn",
+            "bar_chart", "line_graph", "pie_chart", "table", "measurement",
+            "drawing", "other",
+          ],
+        },
+        complexity: {type: "string", enum: ["complex", "simple", "unsure"]},
+        confidence: {type: "number"},
+      },
+    },
     question: {
       type: "object",
       properties: {
@@ -196,6 +265,13 @@ const SCANNED_TOOL_SCHEMA = {
               h: {type: "number"},
             },
           },
+        },
+        diagrams: {
+          type: "array",
+          description:
+            "Every figure printed with THIS question (see $defs/diagram). " +
+            "Empty when the question is text-only. Never leave a figure out.",
+          items: {$ref: "#/$defs/diagram"},
         },
         sectionTitle: {type: "string"},
         instruction: {type: "string"},
@@ -322,6 +398,95 @@ function sanitiseOptionBoxes(rawBoxes, optionCount) {
   return out;
 }
 
+// ─── Diagram detection + classification ─────────────────────────────────────
+
+const MAX_DIAGRAMS_PER_QUESTION = 6;
+// Below this model-reported confidence (or when the model is explicitly
+// unsure / can't name the figure) a detected diagram is routed to "needs
+// teacher review" instead of being auto-handled.
+const DIAGRAM_REVIEW_CONFIDENCE = 0.45;
+// "Complex" figures must stay as an image — re-drawing them would lose
+// information (a real map, a labelled organ, a photo of an animal/plant/tool).
+const COMPLEX_DIAGRAM_KINDS = new Set([
+  "map", "labelled_science", "body_part", "plant", "animal", "tool",
+  "food_chart", "circuit", "photo",
+]);
+// "Simple" figures can be redrawn accurately as an editable diagram, so we
+// offer that — number lines, basic shapes, Venn diagrams, charts, tables.
+const SIMPLE_DIAGRAM_KINDS = new Set([
+  "number_line", "shape", "venn", "bar_chart", "line_graph", "pie_chart",
+  "table", "measurement",
+]);
+
+/**
+ * Decide how a detected diagram should be handled, per the product rules:
+ *   - preserve : keep it exactly as an image (complex/realistic figures).
+ *   - recreate : offer to rebuild it as an editable diagram (simple figures).
+ *   - clean    : keep it as an image but tidy it (a line drawing we don't
+ *                recognise as recreatable).
+ *   - review   : ask the teacher (low confidence or genuinely unsure).
+ *
+ * Uncertainty wins: a low-confidence or "unsure" figure always goes to review
+ * so we never silently mis-handle a question's figure. Exported for tests.
+ */
+function classifyDiagram({kind, complexity, confidence} = {}) {
+  const k = String(kind || "").toLowerCase();
+  const cx = String(complexity || "").toLowerCase();
+  const conf = Number(confidence);
+  const c = Number.isFinite(conf) ? conf : 1;
+
+  if (c < DIAGRAM_REVIEW_CONFIDENCE || cx === "unsure" || k === "other" || k === "") {
+    return "review";
+  }
+  if (COMPLEX_DIAGRAM_KINDS.has(k)) return "preserve";
+  if (SIMPLE_DIAGRAM_KINDS.has(k)) return "recreate";
+  // Kind not in either bucket (e.g. a generic "drawing") — lean on the
+  // complexity signal, else treat it as a keepable image to clean.
+  if (cx === "complex") return "preserve";
+  if (cx === "simple") return "recreate";
+  return "clean";
+}
+
+/**
+ * Normalise one model-reported diagram into
+ * `{ box, caption, kind, complexity, confidence, classification }`, or null
+ * when it has no usable bounding box (we can't crop it — the question's
+ * hasDiagram flag still attaches the whole page as a fallback).
+ */
+function sanitiseDiagram(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const box = sanitiseBox(raw.box);
+  if (!box) return null;
+  const kind = clampString(raw.kind, 40).toLowerCase();
+  const complexity = ["complex", "simple", "unsure"]
+    .includes(String(raw.complexity || "").toLowerCase()) ?
+    String(raw.complexity).toLowerCase() : "unsure";
+  let confidence = Number(raw.confidence);
+  confidence = Number.isFinite(confidence) ? Math.min(1, Math.max(0, confidence)) : 0.5;
+  const caption = clampString(raw.caption, 240).trim();
+  return {
+    box,
+    caption,
+    kind: kind || "other",
+    complexity,
+    confidence,
+    classification: classifyDiagram({kind, complexity, confidence}),
+  };
+}
+
+// Normalise a list of detected diagrams, dropping boxless ones and capping the
+// count. Exported for tests.
+function sanitiseDiagrams(rawList, max = MAX_DIAGRAMS_PER_QUESTION) {
+  const list = Array.isArray(rawList) ? rawList : [];
+  const out = [];
+  for (const raw of list) {
+    const diagram = sanitiseDiagram(raw);
+    if (diagram) out.push(diagram);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /**
  * Normalise one question, applying the scanned-import answer policy: answer
  * always blank, flagged for review. Returns null for an unusable item.
@@ -363,6 +528,7 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   }
 
   const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
+  const diagrams = sanitiseDiagrams(raw?.diagrams);
   return {
     sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
     text: prompt,
@@ -370,7 +536,10 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     correctAnswer: "", // never imported from a question paper
     explanation: "",
     type: "mcq",
-    hasDiagram: Boolean(raw?.hasDiagram),
+    // A figure present in diagrams[] implies hasDiagram even if the model
+    // forgot to set the flag — we must never silently drop a question's figure.
+    hasDiagram: Boolean(raw?.hasDiagram) || diagrams.length > 0,
+    diagrams,
     optionsAreImages,
     optionImageBoxes,
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
@@ -400,13 +569,15 @@ function normaliseScannedSections(rawSections, pageNumbers = []) {
       if (!questions.length) continue;
       const passageKind = clampString(raw?.passageKind, 20).toLowerCase() === "map" ?
         "map" : "comprehension";
+      const diagrams = sanitiseDiagrams(raw?.diagrams);
       out.push({
         kind: "passage",
         passageKind,
         title: clampString(raw?.title, 200).trim(),
         instructions: clampString(raw?.instructions, 2000).trim(),
         passageText: clampString(raw?.passageText, 12000).trim(),
-        hasImage: Boolean(raw?.hasImage) || passageKind === "map",
+        hasImage: Boolean(raw?.hasImage) || passageKind === "map" || diagrams.length > 0,
+        diagrams,
         sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
         questions,
       });
@@ -541,6 +712,10 @@ function buildClaudeMessages(pages, hints, geminiDraft) {
     "Digitise EVERYTHING on the pages above into 'sections' using the tool —",
     "passages/stories and maps with their questions grouped, standalone MCQs,",
     "pattern/box puzzles as tables, and all maths in the markup described.",
+    "For every question that has a figure (diagram, picture, graph, map, table,",
+    "number line, shape, labelled drawing), set hasDiagram=true and return its",
+    "diagrams[] with a bounding box, kind, complexity and confidence. Do NOT",
+    "drop figures and do NOT move a figure to another question.",
     hints?.subject ? `Subject: ${hints.subject}` : "",
     hints?.grade ? `Grade: ${hints.grade}` : "",
     geminiDraft ?
@@ -755,6 +930,9 @@ module.exports = {
   normaliseScannedSections,
   countSectionQuestions,
   sanitiseOptionBoxes,
+  classifyDiagram,
+  sanitiseDiagram,
+  sanitiseDiagrams,
   reconcileCounts,
   parseGeminiCount,
   parseGeminiNumbers,

@@ -50,6 +50,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          # Full history so the "Detect Firebase deploy dependency" step can
+          # `git diff` against github.event.before — a shallow (depth-1)
+          # checkout doesn't contain the before commit, which would make the
+          # diff fail and silently mis-detect the change as hosting-only.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -124,12 +130,118 @@ jobs:
       - name: Prerender public routes
         run: npm run prerender
 
+      - name: Detect Firebase deploy dependency
+        id: firebase_changes
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base="${{ github.event.before }}"
+          # On a brand-new branch / first push, before is the all-zero SHA and
+          # there is no prior commit to diff against.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Run the diff as its own command (not piped into grep) so that a
+          # genuine git failure aborts the step under `set -e` instead of being
+          # swallowed by the pipe and silently mis-reported as required=false.
+          # fetch-depth: 0 above guarantees both endpoints are present.
+          changed="$(git diff --name-only "$base" "${{ github.sha }}")"
+          if printf '%s\n' "$changed" | grep -Eq '^(firestore\.rules|firestore\.indexes\.json|storage\.rules|firebase\.json|\.firebaserc|functions/|\.github/workflows/deploy-firebase\.yml)'; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for Deploy Firebase run
+        if: steps.firebase_changes.outputs.required == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FIREBASE_DEPLOY_TIMEOUT_SECONDS: "720"
+          FIREBASE_DEPLOY_POLL_SECONDS: "20"
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["GITHUB_SHA"]
+          token = os.environ["GITHUB_TOKEN"]
+          timeout_seconds = int(os.environ["FIREBASE_DEPLOY_TIMEOUT_SECONDS"])
+          poll_seconds = int(os.environ["FIREBASE_DEPLOY_POLL_SECONDS"])
+          url = (
+            f"https://api.github.com/repos/{repo}/actions/workflows/"
+            f"deploy-firebase.yml/runs?head_sha={sha}&event=push&per_page=5"
+          )
+          headers = {
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          deadline = time.time() + timeout_seconds
+          while time.time() < deadline:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as response:
+              payload = json.load(response)
+
+            runs = payload.get("workflow_runs", [])
+            if not runs:
+              print(
+                f"Deploy Firebase run not visible yet; retrying in {poll_seconds}s..."
+              )
+              time.sleep(poll_seconds)
+              continue
+
+            run = runs[0]
+            status = run.get("status")
+            conclusion = run.get("conclusion")
+            print(
+              f"Deploy Firebase run {run.get('id')} status={status} conclusion={conclusion}"
+            )
+
+            if status != "completed":
+              time.sleep(poll_seconds)
+              continue
+
+            if conclusion == "success":
+              print("Deploy Firebase completed successfully.")
+              sys.exit(0)
+
+            print(
+              f"::error::Deploy Firebase concluded with '{conclusion}'. "
+              "Skipping Hosting deploy."
+            )
+            sys.exit(1)
+
+          print("::error::Timed out waiting for Deploy Firebase to complete.")
+          sys.exit(1)
+          PY
+
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
+          # Stream output in real-time (visible in logs) AND write to a file so
+          # we can grep it afterward. PIPESTATUS[0] gives firebase-tools' exit
+          # code; tee always exits 0, so `set -e` won't abort the script here.
           npx firebase-tools@latest deploy \
             --only hosting \
             --non-interactive \
             --project examsprepzambia \
-            --force
+            --force 2>&1 | tee /tmp/firebase-deploy.log
+          firebase_exit=${PIPESTATUS[0]}
+          if [ "$firebase_exit" -ne 0 ] && grep -q "is the current active version" /tmp/firebase-deploy.log; then
+            echo "Version already live — no-op deploy, treating as success."
+            exit 0
+          fi
+          exit "$firebase_exit"

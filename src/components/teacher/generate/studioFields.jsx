@@ -1,0 +1,157 @@
+/**
+ * Shared form primitives for the teacher generation studios.
+ *
+ * These (FieldLabel / FieldText / FieldTextarea / FieldSelect) were copy-pasted
+ * — character-for-character — into every studio (Assessment, Flashcard, Rubric,
+ * Notes, Homework, Worksheet, …). The duplication let the copies drift over
+ * time, so they now live here once. They lean on the global `studio-*` classes
+ * from `src/index.css`, so they look identical wherever they're used.
+ */
+
+import { useEffect, useId, useState } from 'react'
+
+export function FieldLabel({ children }) {
+  return <label className="studio-label">{children}</label>
+}
+
+export function FieldText({ label, value, onChange, placeholder, maxLength }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="studio-input"
+      />
+    </div>
+  )
+}
+
+export function FieldDate({ label, value, onChange }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="date"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="studio-input"
+      />
+    </div>
+  )
+}
+
+export function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        rows={3}
+        className="studio-input resize-none"
+      />
+    </div>
+  )
+}
+
+// A numeric combobox: a number input wired to a <datalist> of presets, so a
+// teacher can PICK a common value from the dropdown or TYPE their own. Unlike
+// FieldSelect (which locks the value to its options), this stays free-text
+// within [min, max]. `onChange` always receives a clamped number.
+//
+// The input keeps its own text state so a partial entry (e.g. "1" on the way to
+// "100") isn't clobbered or prematurely clamped while typing — the value is
+// normalised to [min, max] on blur, and the parent value is mirrored back in
+// only while the field is unfocused (so an external reset/clear still shows).
+export function FieldNumberCombo({ label, value, options, onChange, min = 1, max = 999 }) {
+  const listId = useId()
+  const [text, setText] = useState(value == null ? '' : String(value))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (focused) return
+    setText(value == null ? '' : String(value))
+  }, [value, focused])
+
+  const handleChange = (raw) => {
+    const digits = raw.replace(/[^\d]/g, '')
+    setText(digits)
+    if (digits === '') return
+    onChange(Math.min(max, Math.max(min, Number(digits))))
+  }
+  const handleBlur = () => {
+    setFocused(false)
+    const n = text === '' ? min : Math.min(max, Math.max(min, Number(text)))
+    setText(String(n))
+    onChange(n)
+  }
+
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="number"
+        inputMode="numeric"
+        list={listId}
+        min={min}
+        max={max}
+        value={text}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        className="studio-input"
+      />
+      <datalist id={listId}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </datalist>
+    </div>
+  )
+}
+
+// Options may be a flat list of { value, label } or carry { group } markers to
+// split into <optgroup>s — an option object with a `group` key starts a new
+// labelled group; subsequent plain options belong to it.
+export function FieldSelect({ label, value, options, onChange }) {
+  const groups = []
+  let cur = null
+  for (const o of options) {
+    if (o.group !== undefined) {
+      if (cur) groups.push(cur)
+      cur = { label: o.group, items: [] }
+    } else {
+      if (!cur) cur = { label: null, items: [] }
+      cur.items.push(o)
+    }
+  }
+  if (cur) groups.push(cur)
+  const flat = groups.length === 1 && !groups[0].label
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="studio-input">
+        {flat
+          ? groups[0].items.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))
+          : groups.map((g, i) => (g.label
+            ? <optgroup key={i} label={g.label}>
+              {g.items.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </optgroup>
+            : g.items.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))
+          ))}
+      </select>
+    </div>
+  )
+}

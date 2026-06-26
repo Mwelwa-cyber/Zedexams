@@ -17,6 +17,46 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 
+// A learner "passes" at 50% — the same threshold that plays the success
+// chime — so the visual celebration and the audio stay in sync.
+const PASS_THRESHOLD = 50
+
+// Pass-state celebration: a one-shot confetti burst of festive emoji around
+// the score card. Pure decoration, so it's aria-hidden + pointer-events-none,
+// and skipped entirely for learners who prefer reduced motion. Each piece
+// reuses the existing `animate-star-burst` keyframe with a staggered delay so
+// they pop in around the ring rather than all at once.
+const CELEBRATION_PIECES = [
+  { emoji: '🎉', top: '5%',  left: '8%',  delay: 0,   size: 'text-2xl' },
+  { emoji: '⭐', top: '1%',  left: '31%', delay: 90,  size: 'text-lg' },
+  { emoji: '✨', top: '8%',  left: '53%', delay: 150, size: 'text-xl' },
+  { emoji: '🎊', top: '3%',  left: '88%', delay: 60,  size: 'text-2xl' },
+  { emoji: '⭐', top: '33%', left: '4%',  delay: 200, size: 'text-xl' },
+  { emoji: '✨', top: '30%', left: '93%', delay: 260, size: 'text-lg' },
+  { emoji: '⭐', top: '57%', left: '12%', delay: 320, size: 'text-lg' },
+  { emoji: '🎉', top: '55%', left: '86%', delay: 360, size: 'text-2xl' },
+]
+
+function Celebration() {
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  if (reducedMotion) return null
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+      {CELEBRATION_PIECES.map((piece, index) => (
+        <span
+          key={index}
+          className={`absolute ${piece.size} animate-star-burst`}
+          style={{ top: piece.top, left: piece.left, animationDelay: `${piece.delay}ms` }}
+        >
+          {piece.emoji}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function ScoreCircle({ percentage }) {
   const radius = 54
   const circumference = 2 * Math.PI * radius
@@ -24,7 +64,7 @@ function ScoreCircle({ percentage }) {
   const color = percentage >= 70 ? '#16a34a' : percentage >= 50 ? '#eab308' : '#dc2626'
 
   return (
-    <div className="relative mx-auto h-36 w-36">
+    <div className="animate-score-draw relative mx-auto h-36 w-36">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--border)" strokeWidth="10" />
         <circle
@@ -276,6 +316,7 @@ export default function QuizResultsV2() {
         noIndex
       />
       <div className="theme-card theme-border relative mb-4 rounded-3xl border p-6 text-center shadow-elev-lg">
+        {percentage >= PASS_THRESHOLD && <Celebration />}
         <button
           type="button"
           onClick={() => { primeSounds(); toggleMute() }}

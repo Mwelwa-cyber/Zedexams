@@ -303,6 +303,79 @@ export async function saveRecordOfWorkGeneration({ uid, existingId, artifact }) 
   })
 }
 
+export async function saveClassTimetableGeneration({ uid, existingId, artifact }) {
+  const hasLesson = artifact?.slots && Object.values(artifact.slots)
+    .some((row) => row && Object.values(row).some(Boolean))
+  if (!hasLesson) throw new Error('Fill at least one lesson before saving.')
+  const header = artifact.header || {}
+  const cls = header.className || (header.grade ? `Grade ${String(header.grade).replace(/^G/i, '')}` : '')
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'class_timetable',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null && header.term !== '' ? String(header.term) : null,
+      subject: null,
+      topic: `${cls || 'Class'} timetable`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.CLASS_TIMETABLES,
+      grade: header.grade,
+      term: header.term,
+    },
+  })
+}
+
+export async function saveSbaMarkSheetGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'sba_mark_sheet',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: null,
+      subject: header.subject || null,
+      topic: `${header.subjectLabel || ''} ${header.gradeLabel || ''} SBA marks`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.SBA_MARK_SHEETS,
+      syllabusHint: 'OBC',
+      grade: header.grade,
+      subject: header.subject,
+    },
+  })
+}
+
+export async function saveSbaPlanGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.statuses || !Object.keys(artifact.statuses).length) {
+    throw new Error('Set at least one task status before saving.')
+  }
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'sba_plan',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: null,
+      subject: header.subject || null,
+      topic: `${header.subjectLabel || ''} ${header.gradeLabel || ''} SBA plan`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.SBA_PLANS,
+      syllabusHint: 'OBC',
+      grade: header.grade,
+      subject: header.subject,
+    },
+  })
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
@@ -378,6 +451,12 @@ export const TOOL_META = {
     route: '/teacher/generate/mark-schedule',
     colour: 'lime',
   },
+  class_timetable: {
+    label: 'Class Timetable',
+    icon: '🗓️',
+    route: '/teacher/generate/class-timetable',
+    colour: 'violet',
+  },
   worksheet: {
     label: 'Worksheet',
     icon: '📝',
@@ -402,6 +481,29 @@ export const TOOL_META = {
     route: '/teacher/generate/notes',
     colour: 'sky',
   },
+  lesson_activities: {
+    label: 'Exercise & Homework',
+    icon: '🧩',
+    // Generated from inside the Lesson Plan Studio's "Assessment Activities"
+    // section, so "Generate similar" sends the teacher back there.
+    route: '/teacher/generate/lesson-plan',
+    colour: 'orange',
+  },
+  // AI-generated test/exam papers (generateAssessment / generateExamPaper land
+  // these in aiGenerations). The Library detail view renders them as a printed
+  // paper. No `route`: the studio's "Create with AI" modal owns generation and
+  // doesn't pre-fill from a query string, so "Generate similar" is intentionally
+  // hidden rather than dumping the teacher on a blank studio.
+  assessment: {
+    label: 'Test Paper',
+    icon: '📋',
+    colour: 'rose',
+  },
+  exam_paper: {
+    label: 'Exam Paper',
+    icon: '📄',
+    colour: 'rose',
+  },
 }
 
 export const TOOL_FILTER_OPTIONS = [
@@ -412,10 +514,12 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'weekly_forecast', label: 'Weekly forecasts'},
   {value: 'record_of_work', label: 'Records of work'},
   {value: 'mark_schedule', label: 'Mark schedules'},
+  {value: 'class_timetable', label: 'Class timetables'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
   {value: 'notes', label: 'Teacher notes'},
+  {value: 'lesson_activities', label: 'Exercises & homework'},
 ]
 
 /**
@@ -470,6 +574,14 @@ export function titleForGeneration(gen) {
     const head = `${g ? `Grade ${String(g).replace(/^G/i, '')}` : ''} — Term ${t} Mark Schedule${y ? ` ${y}` : ''}`.trim()
     return n ? `${head} (${n} pupils)` : head
   }
+  if (gen.tool === 'class_timetable') {
+    const h = out?.header || {}
+    const cls = h.className || (h.grade ? `Grade ${String(h.grade).replace(/^G/i, '')}` : '')
+    const t = h.term || gen.inputs?.term || ''
+    const y = h.year || ''
+    return [cls || 'Class', `Timetable${t ? ` — Term ${t}` : ''}${y ? ` ${y}` : ''}`]
+      .filter(Boolean).join(' ').trim() || 'Class timetable'
+  }
   if (gen.tool === 'rubric') {
     return out?.header?.title ||
       `${gen.inputs?.grade || ''} ${gen.inputs?.subject || ''} — ${gen.inputs?.taskType || 'rubric'}`.trim()
@@ -487,11 +599,30 @@ export function titleForGeneration(gen) {
     const head = [topic, sub].filter(Boolean).join(' — ')
     return head ? `Lesson: ${head}` : 'Full lesson'
   }
+  if (gen.tool === 'lesson_activities') {
+    // Output is { exercise, homework }; no top-level header — derive from inputs
+    // or either activity's header.
+    const exH = out?.exercise?.header || {}
+    const hwH = out?.homework?.header || {}
+    const topic = gen.inputs?.topic || exH.topic || hwH.topic || 'Lesson'
+    const parts = []
+    if (out?.exercise) parts.push('Exercise')
+    if (out?.homework) parts.push('Homework')
+    const what = parts.join(' & ') || 'Activities'
+    return `${what} — ${topic}`
+  }
   if (gen.tool === 'exam_paper') {
     if (out?.header?.title) return out.header.title
     const g = gen.inputs?.grade || out?.header?.grade || ''
     const s = gen.inputs?.subject || out?.header?.subject || ''
     return `${g} ${s} exam questions`.trim() || 'Exam questions'
+  }
+  if (gen.tool === 'assessment') {
+    if (out?.header?.title) return out.header.title
+    const g = gen.inputs?.grade || out?.header?.grade || ''
+    const s = gen.inputs?.subject || out?.header?.subject || ''
+    const topic = gen.inputs?.topic || out?.header?.topic || ''
+    return topic || `${g} ${s} test paper`.trim() || 'Test paper'
   }
   return gen.inputs?.topic || 'Generation'
 }
@@ -609,9 +740,10 @@ export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
 }
 
 /**
- * Should this viewer's studio exports carry the "Made with ZedExams"
- * page footer? Free plan only — paid (and admin) documents stay clean.
- * Consumed by the studios together with docxAttribution.js.
+ * Should this viewer's studio exports carry the free-plan ZedExams branding
+ * (the diagonal page watermark + "Made with ZedExams" footer)? Free plan
+ * only — paid (and admin) documents stay clean. Consumed by the studios
+ * together with docxAttribution.js (DOCX) and exportWatermark.js (PDF/HTML).
  */
 export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
   return getLibraryAccessLevel({ userProfile, isAdmin }) === LIBRARY_ACCESS.FREE

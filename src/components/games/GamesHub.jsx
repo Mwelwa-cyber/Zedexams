@@ -19,6 +19,9 @@ import {
 } from '../../utils/gamesService'
 import DailyChallengeCard from './DailyChallengeCard'
 import GamesShell from './GamesShell'
+import MascotAvatar from './MascotAvatar'
+import { LevelMeter } from './Progress'
+import { levelInfo } from '../../utils/gameProgress'
 import {
   buildSubjectProgress,
   getDurationLabel,
@@ -28,6 +31,7 @@ import {
 } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
 import { GamesHubTour } from '../ui/learnerTours'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a
@@ -98,7 +102,8 @@ export default function GamesHub() {
   }, [currentUser])
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
-  const level = Math.max(1, Math.floor(totalPoints / 120) + 1)
+  const progress = levelInfo(totalPoints)
+  const level = progress.level
   const currentRank = currentUser
     ? state.leaderboardRows.findIndex((row) => row.userId === currentUser.uid) + 1
     : 0
@@ -145,6 +150,9 @@ export default function GamesHub() {
             </div>
           ))}
         </section>
+
+        {/* Level / rank progress — the goal to chase between sessions */}
+        <LevelMeter progress={progress} signedIn={!!currentUser} />
 
         {/* Hero — Daily Challenge */}
         <DailyChallengeCard
@@ -267,8 +275,8 @@ function SubjectTile({ subject, progress, href }) {
         {progress.totalGames} {progress.totalGames === 1 ? 'game' : 'games'}
       </span>
 
-      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none sm:h-20 sm:w-20 sm:text-[44px] ${skin.tile}`}>
-        <span aria-hidden="true">{mascot.emoji}</span>
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-[18px] border-2 border-slate-900 sm:h-20 sm:w-20 ${skin.tile}`}>
+        <MascotAvatar slug={subject.slug} className="h-full w-full p-1.5" />
       </div>
 
       <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>
@@ -383,11 +391,11 @@ function SubjectGridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3.5">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="zx-card animate-pulse rounded-[22px] bg-white p-4">
-          <div className="mb-3 h-16 w-16 rounded-[18px] border-2 border-slate-900 bg-slate-100" />
-          <div className="h-4 w-2/3 rounded bg-slate-100" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
-          <div className="mt-3 h-2 rounded-full border-[1.5px] border-slate-900 bg-slate-100" />
+        <div key={i} className="zx-card rounded-[22px] bg-white p-4">
+          <Skeleton width={64} height={64} className="mb-3 border-2 border-slate-900 !rounded-[18px]" />
+          <Skeleton width="66%" height={16} className="!rounded" />
+          <Skeleton width="50%" height={12} className="mt-2 !rounded" />
+          <Skeleton height={8} className="mt-3 border-[1.5px] border-slate-900 !rounded-full" />
         </div>
       ))}
     </div>
@@ -398,11 +406,11 @@ function HotGamesSkeleton() {
   return (
     <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-hidden px-[18px] pb-3 pt-1">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="zx-card w-[230px] shrink-0 animate-pulse rounded-[22px] bg-white p-4">
-          <div className="mb-3 h-11 w-11 rounded-[12px] border-2 border-slate-900 bg-slate-100" />
-          <div className="h-3 w-1/2 rounded bg-slate-100" />
-          <div className="mt-2 h-4 w-3/4 rounded bg-slate-100" />
-          <div className="mt-2 h-3 w-full rounded bg-slate-100" />
+        <div key={i} className="zx-card w-[230px] shrink-0 rounded-[22px] bg-white p-4">
+          <Skeleton width={44} height={44} className="mb-3 border-2 border-slate-900 !rounded-[12px]" />
+          <Skeleton width="50%" height={12} className="!rounded" />
+          <Skeleton width="75%" height={16} className="mt-2 !rounded" />
+          <Skeleton height={12} className="mt-2 !rounded" />
         </div>
       ))}
     </div>

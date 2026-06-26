@@ -45,8 +45,9 @@ export const STUDIO_SUBJECT_TO_KB = {
 }
 
 // ── Sheet-name → grade ───────────────────────────────────────────────────
-// Pre-primary sheets like "3-4 Years - English Language" map to ECE; the
-// per-band-language splits are not separately tracked in the CBC KB.
+// Pre-primary sheets like "3-4 Years - English Language" map to the ECE age
+// band ('ECE_N' Nursery / 'ECE_R' Reception); the per-band-language splits
+// are resolved by studioSubjectToKbSubject from the sheet name.
 //
 // Lower Primary sheets carry the grade plus an internal language/strand
 // (e.g. "Grade 1 - English Language"). The CBC KB only needs the grade,
@@ -64,12 +65,20 @@ const FORM_TO_GRADE = {
   'form 5': 'G12',
 }
 
-const ECE_AGE_PATTERNS = [/3-4\s*years?/i, /4-5\s*years?/i, /3-5\s*years?/i]
+// ECE age bands map to distinct grade codes so the topic/sub-topic pickers
+// can scope to the band the teacher picked (Nursery 3-4 vs Reception 4-5).
+// The combined "3-5 Years" band (if a sheet ever uses it) stays the generic
+// 'ECE' code. Keep in lock-step with functions/teacherTools/syllabiCurriculumData.js.
+const ECE_NURSERY_PATTERN = /3-4\s*years?/i   // Nursery (3-4)
+const ECE_RECEPTION_PATTERN = /4-5\s*years?/i // Reception (4-5)
+const ECE_COMBINED_PATTERN = /3-5\s*years?/i
 
 export function sheetNameToGrade(sheetName) {
   if (!sheetName) return ''
   const lower = String(sheetName).trim().toLowerCase()
-  if (ECE_AGE_PATTERNS.some((re) => re.test(lower))) return 'ECE'
+  if (ECE_NURSERY_PATTERN.test(lower)) return 'ECE_N'
+  if (ECE_RECEPTION_PATTERN.test(lower)) return 'ECE_R'
+  if (ECE_COMBINED_PATTERN.test(lower)) return 'ECE'
   const gradeMatch = lower.match(/grade\s*(\d+)/)
   if (gradeMatch) return `G${gradeMatch[1]}`
   for (const [pattern, grade] of Object.entries(FORM_TO_GRADE)) {
@@ -117,10 +126,40 @@ export function studioSubjectToKbSubject(studioSubject, sheetName) {
   return STUDIO_SUBJECT_TO_KB[studioSubject] || ''
 }
 
+// The column-header names the studio sheets use. When a row's cells echo
+// these names verbatim it's a duplicated header line captured during PDF
+// ingestion (the CDC PDFs repeat the header at every page break), not real
+// content — see isHeaderEchoRow below.
+const COLUMN_HEADER_NAMES = new Set([
+  'TOPIC', 'SUB-TOPIC', 'SUBTOPIC', 'SPECIFIC COMPETENCES',
+  'LEARNING ACTIVITIES', 'EXPECTED STANDARD',
+])
+
+// True when a data row is just the sheet's column-header line repeated in the
+// body (e.g. {TOPIC:"TOPIC", "SUB-TOPIC":"SUB-TOPIC", ...}). These slip in at
+// PDF page breaks and would otherwise surface as a bogus "TOPIC" topic with a
+// "SUB-TOPIC" sub-topic. Require ≥2 echoed cells so a real one-word topic that
+// happens to equal a header (unlikely, but safe) isn't dropped.
+function isHeaderEchoRow(cells) {
+  const values = ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD']
+    .map((k) => String(cells[k] || cells[k.replace('-', '')] || '').trim().toUpperCase())
+    .filter(Boolean)
+  return values.length >= 2 && values.every((v) => COLUMN_HEADER_NAMES.has(v))
+}
+
 // Each data row from the Studio carries its own "TOPIC" header in the
 // first cell, but rows under the same topic leave it blank to mimic the
 // CDC PDFs' merged cells. Walk the rows in order and propagate the most
 // recent non-empty topic forward.
+//
+// Two classes of ingestion artifact are stripped here so they never reach the
+// topic/sub-topic pickers (or the AI grounding):
+//   1. Header-echo rows — the column-header line repeated mid-sheet.
+//   2. Empty section banners stored as data rows — strand headings like
+//      "READING" / "WRITING" / "VOCABULARY" that were captured as a TOPIC with
+//      no sub-topic and no competence/activity/standard. A genuine topic always
+//      carries at least one sub-topic or some content, so a topic that has
+//      neither across all its rows is a mis-tagged banner and is dropped.
 export function rowsWithPropagatedTopic(rows) {
   const out = []
   let topic = ''
@@ -132,6 +171,7 @@ export function rowsWithPropagatedTopic(rows) {
     }
     if (row.type !== 'data') continue
     const cells = row.cells || {}
+    if (isHeaderEchoRow(cells)) continue
     const raw = String(cells.TOPIC || '').trim()
     if (raw) topic = raw
     out.push({
@@ -143,7 +183,17 @@ export function rowsWithPropagatedTopic(rows) {
       expectedStandard: String(cells['EXPECTED STANDARD'] || '').trim(),
     })
   }
-  return out
+
+  // Drop topics that never carry a sub-topic or any content — these are the
+  // empty strand banners (READING / WRITING / …) mis-tagged as topics.
+  const topicHasSubstance = new Map()
+  for (const r of out) {
+    if (topicHasSubstance.get(r.topic)) continue
+    if (r.subtopic || r.specificCompetence || r.learningActivities || r.expectedStandard) {
+      topicHasSubstance.set(r.topic, true)
+    }
+  }
+  return out.filter((r) => !r.topic || topicHasSubstance.get(r.topic))
 }
 
 /**

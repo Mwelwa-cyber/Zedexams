@@ -3,30 +3,30 @@ import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { isSuperAdmin } from '../utils/permissions'
+import {
+  PLAN_LIMITS,
+  PLAN_LABELS,
+  DAILY_LIMITS,
+  resolveTeacherPlan,
+} from '../utils/teacherPlans'
 
-// Maps live tool keys (functions/teacherTools/usageMeter.js) onto the
-// dashboard-widget feature keys.
-const TOOL_TO_FEATURE = {
+// Maps live server tool keys (functions/teacherTools/teacherPlans.js PLAN_LIMITS)
+// onto the dashboard-widget feature keys. Each feature row in UsageMeter.jsx
+// reads the counter for the tool mapped here, so this MUST use the exact tool
+// id each studio increments — e.g. the Test Paper studio writes `assessment`
+// (not `quiz`, which is the retired quiz creator), and the Exam studio writes
+// `exam_paper`. Keep this 1:1 with UsageMeter's FEATURES list.
+export const TOOL_TO_FEATURE = {
   lesson_plan:    'plans',
   worksheet:      'worksheets',
+  flashcards:     'flashcards',
   notes:          'notes',
-  quiz:           'assessments',
-  exam_paper:     'exams',
+  homework:       'homework',
+  rubric:         'rubric',
   scheme_of_work: 'schemes',
-}
-
-// Plan id → display label / chip the widget understands. The server
-// (functions/teacherTools/usageMeter.js) writes the canonical free / pro /
-// max ids since 2026-06; meter docs from earlier periods still carry the
-// legacy individual / school ids (individual = Pro, school = Max), so the
-// aliases below must stay until those historical docs no longer matter.
-const PLAN_VIEW = {
-  free:       { id: 'free', label: 'Free', daily: 2 },
-  pro:        { id: 'pro',  label: 'Pro',  daily: 10 },
-  max:        { id: 'max',  label: 'Max',  daily: 30 },
-  // Legacy aliases still present in older usageMeters docs:
-  individual: { id: 'pro',  label: 'Pro',  daily: 10 },
-  school:     { id: 'max',  label: 'Max',  daily: 30 },
+  assessment:     'assessments',
+  exam_paper:     'exams',
+  sba_task:       'sba',
 }
 
 // High finite cap stands in for "unlimited" so the meter widget's
@@ -62,25 +62,35 @@ function daysUntilMonthReset(now = new Date()) {
   return Math.max(1, Math.ceil((next - now) / (1000 * 60 * 60 * 24)))
 }
 
-function project(meterData) {
-  if (!meterData) return null
-  const planView = PLAN_VIEW[meterData.plan] || PLAN_VIEW.free
-  const counters = meterData.counters || {}
-  const limits = meterData.limits || {}
+// The usageMeters doc carries `plan` + `limits`, but those are only a
+// snapshot from the teacher's last generation — a mid-month upgrade leaves
+// them stale ("Free" with free caps) until the next generate call rewrites
+// them. So the plan, label, caps and daily cap are resolved from the LIVE
+// profile entitlement (`livePlan`, the same field the server gates on); the
+// meter doc is used only for the actual usage counters. This keeps the
+// widget consistent with the "Current plan" banner instead of showing Free
+// options to someone who already paid for Pro.
+function project(meterData, livePlan, credits = 0) {
+  const plan = PLAN_LIMITS[livePlan] ? livePlan : 'free'
+  const counters = meterData?.counters || {}
+  const planLimits = PLAN_LIMITS[plan]
 
   const used = {}
   const caps = {}
   for (const [tool, feature] of Object.entries(TOOL_TO_FEATURE)) {
     used[feature] = Number(counters[tool] || 0)
-    caps[feature] = Number(limits[tool] ?? 0)
+    caps[feature] = Number(planLimits[tool] ?? 0)
   }
 
   return {
-    plan: planView.id,
-    planLabel: planView.label,
+    plan,
+    planLabel: PLAN_LABELS[plan] || 'Free',
     used,
     caps,
-    daily: planView.daily,
+    // Purchased pay-per-generation top-ups (users/{uid}.generationCredits).
+    // Each covers one extra generation on any tool once a cap is hit.
+    credits: Math.max(0, Number(credits || 0)),
+    daily: DAILY_LIMITS[plan] || DAILY_LIMITS.free,
     today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
   }
@@ -104,6 +114,7 @@ function projectAdmin(meterData) {
     planLabel: 'Admin',
     used,
     caps,
+    credits: 0,
     daily: ADMIN_DAILY_CAP,
     today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
@@ -113,6 +124,11 @@ function projectAdmin(meterData) {
 export function useTeacherUsage(uid) {
   const { userProfile } = useAuth()
   const isAdmin = isSuperAdmin(userProfile)
+  const livePlan = resolveTeacherPlan(userProfile)
+  // Live top-up balance from the profile (AuthContext subscribes to the user
+  // doc), so a credit bought from the paywall unblocks the next generate
+  // without a reload.
+  const credits = Math.max(0, Number(userProfile?.generationCredits || 0))
   const [state, setState] = useState({ loading: true, data: null, error: null })
 
   useEffect(() => {
@@ -125,22 +141,13 @@ export function useTeacherUsage(uid) {
       ref,
       (snap) => {
         const raw = snap.exists() ? snap.data() : null
-        const projected = isAdmin ? projectAdmin(raw) : project(raw)
-        setState({
-          loading: false,
-          data: projected || {
-            plan: 'free', planLabel: 'Free',
-            used: { plans: 0, worksheets: 0, notes: 0, assessments: 0, schemes: 0 },
-            caps: { plans: 0, worksheets: 0, notes: 0, assessments: 0, schemes: 0 },
-            daily: 2, today: 0, resetDays: daysUntilMonthReset(),
-          },
-          error: null,
-        })
+        const projected = isAdmin ? projectAdmin(raw) : project(raw, livePlan, credits)
+        setState({ loading: false, data: projected, error: null })
       },
       (error) => setState({ loading: false, data: null, error })
     )
     return unsub
-  }, [uid, isAdmin])
+  }, [uid, isAdmin, livePlan, credits])
 
   return state
 }

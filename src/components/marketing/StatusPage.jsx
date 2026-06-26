@@ -23,7 +23,7 @@ import SeoHelmet from '../seo/SeoHelmet'
  * "ZedExams down" on the status board.
  */
 
-const HOSTING_HEALTH_URL = 'https://zedexams.com/zedexams-logo.png?v=4'
+const HOSTING_HEALTH_URL = 'https://zedexams.com/zedexams-logo.png?v=5'
 
 const FIVE_MIN = 5 * 60 * 1000
 
@@ -32,7 +32,7 @@ function StatusDot({ status }) {
   const cls = {
     ok:       'bg-emerald-500',
     down:     'bg-rose-500',
-    checking: 'bg-amber-400 animate-pulse',
+    checking: 'bg-amber-400 text-amber-400 animate-live-dot',
   }[status]
   return <span aria-hidden="true" className={`inline-block w-3 h-3 rounded-full ${cls}`} />
 }

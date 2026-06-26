@@ -6,7 +6,7 @@ import { listMyGenerations } from '../../utils/teacherLibraryService'
 import { buildReminders, SEEN_REMINDERS_KEY } from '../../utils/teacherReminders'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
-import ThemeSelector from '../ui/ThemeSelector'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
 import {
   BarChart3,
@@ -14,7 +14,6 @@ import {
   User,
   Settings,
   LogOut,
-  GraduationCap,
 } from '../ui/icons'
 
 function useClickAway(ref, onAway) {
@@ -99,6 +98,11 @@ export default function TeacherGlassHeader() {
     0,
   )
 
+  // LinkedIn-style auto-hide, but keep the header pinned while a dropdown is
+  // open so its menu stays anchored and reachable.
+  const scrolledHidden = useHideOnScroll()
+  const headerHidden = scrolledHidden && !bellOpen && !accountOpen
+
   async function handleSignOut() {
     setAccountOpen(false)
     await logout()
@@ -106,16 +110,14 @@ export default function TeacherGlassHeader() {
   }
 
   return (
-    <header className="zx-glass-nav fixed inset-x-0 top-0 z-40 lg:hidden">
+    <header className={`zx-glass-nav safe-top fixed inset-x-0 top-0 z-40 lg:hidden zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
       <div className="app-container flex min-h-16 items-start justify-between gap-2 px-3 pt-1 pb-2 sm:px-4">
         <Link to="/teacher" className="zx-logo-pill self-center no-underline" aria-label="Teacher home">
           <Logo variant="full" size="sm" className="h-10" />
         </Link>
 
         <div className="flex items-start gap-1 sm:gap-1.5">
-          <HeaderIconLink to="/teacher" label="Progress" icon={BarChart3} size="sm" />
-
-          <ThemeSelector dashboardStyle dashboardSize="sm" />
+          <HeaderIconLink to="/teacher/register" label="Progress" icon={BarChart3} size="sm" />
 
           <div ref={bellRef} className="relative">
             <HeaderIconButton
@@ -210,13 +212,6 @@ export default function TeacherGlassHeader() {
                     className="theme-text hover:theme-bg-subtle flex items-center gap-2 px-4 py-2 text-sm font-bold no-underline"
                   >
                     <Icon as={User} size="sm" strokeWidth={2.1} /> My Profile
-                  </Link>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setAccountOpen(false)}
-                    className="theme-text hover:theme-bg-subtle flex items-center gap-2 px-4 py-2 text-sm font-bold no-underline"
-                  >
-                    <Icon as={GraduationCap} size="sm" strokeWidth={2.1} /> Student View
                   </Link>
                   <Link
                     to="/settings"

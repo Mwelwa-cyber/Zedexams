@@ -19,14 +19,27 @@
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 
 const ASSESSMENT_TYPES = [
-  "exercise", "topic_test", "mid_term", "end_of_term", "mock_exam",
+  "exercise", "topic_test", "weekly_test", "monthly_test", "mid_term",
+  "end_of_term", "mock_exam",
 ];
 const ASSESSMENT_TYPE_LABELS = {
   exercise: "Exercise",
   topic_test: "Topic Test",
+  weekly_test: "Weekly Test",
+  monthly_test: "Monthly Test",
   mid_term: "Mid-Term Test",
-  end_of_term: "End of Term Test",
+  end_of_term: "End-of-Term Test",
   mock_exam: "Mock Examination",
+};
+
+// Types that have no dedicated format seeds yet borrow another type's paper
+// structure when resolving the format context. A monthly test is a short
+// cumulative check, so it reuses the mid-term layout; a weekly test is a
+// narrow recap, so it reuses the topic-test layout — until purpose-built
+// seeds are authored.
+const FORMAT_TYPE_ALIASES = {
+  weekly_test: "topic_test",
+  monthly_test: "mid_term",
 };
 const GRADE_BANDS = [
   "lower_primary", "upper_primary", "junior_secondary", "senior_secondary",
@@ -40,6 +53,58 @@ const QUESTION_TYPES = new Set([
   "calculation", "true_false", "essay",
 ]);
 
+// Human labels for the canonical question-type keys — used when rendering the
+// "teacher restricted this paper to ONLY these types" line into the format
+// block. Mirrors the studio picker's labels. Includes "matching", which is a
+// valid schema type even though the format seeds never put it in a section.
+const QUESTION_TYPE_LABELS = {
+  multiple_choice: "Multiple choice",
+  short_answer: "Short answer / fill-in-the-blank",
+  structured: "Structured (multi-part)",
+  calculation: "Calculation (show working)",
+  true_false: "True / False",
+  essay: "Essay / Composition",
+  matching: "Matching (Column A with Column B)",
+};
+
+// The full set of canonical question types the assessment SCHEMA accepts —
+// QUESTION_TYPES above is the narrower set a format SECTION may declare (it
+// omits "matching", which seeds never section-ise). Used to canonicalise the
+// studio's "Question types" picker before grounding/generation.
+const CANONICAL_QUESTION_TYPES = new Set([
+  "multiple_choice", "short_answer", "structured",
+  "calculation", "true_false", "essay", "matching",
+]);
+// Loose aliases so a free-text / older client value still resolves. Fill-in-
+// the-blank is stored as a short_answer (the schema has no separate type for
+// it); the prompt/instructions still ask for blanks.
+const QUESTION_TYPE_ALIASES = {
+  fill_in_the_blank: "short_answer",
+  fill_in_blank: "short_answer",
+  fillin_the_blank: "short_answer",
+  truefalse: "true_false",
+  mcq: "multiple_choice",
+};
+
+/**
+ * Normalise a teacher's chosen question types to a deduped list of canonical
+ * keys. Empty/garbage input yields [] — which downstream treats as "no
+ * restriction" (the pre-existing behaviour), so callers that omit the field
+ * are unaffected.
+ */
+function normalizeQuestionTypes(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const v of raw) {
+    let t = String(v || "").trim().toLowerCase()
+        .replace(/[^a-z]+/g, "_").replace(/^_+|_+$/g, "");
+    t = QUESTION_TYPE_ALIASES[t] || t;
+    if (CANONICAL_QUESTION_TYPES.has(t) && !out.includes(t)) out.push(t);
+    if (out.length >= 7) break;
+  }
+  return out;
+}
+
 /**
  * Map a sanitized grade code (ECE, G1-G12, F1-F4) to a format band.
  * Returns null for anything unrecognised — the caller then falls through
@@ -47,7 +112,7 @@ const QUESTION_TYPES = new Set([
  */
 function gradeToBand(grade) {
   const g = String(grade || "").toUpperCase().trim();
-  if (g === "ECE") return "lower_primary";
+  if (g === "ECE" || g === "ECE_N" || g === "ECE_R") return "lower_primary";
   const m = g.match(/^([GF])(\d{1,2})$/);
   if (!m) return null;
   const n = Number(m[2]);
@@ -80,6 +145,28 @@ function strList(v, maxItems, maxLen) {
   return v.filter(isNonEmptyString)
     .slice(0, maxItems)
     .map((s) => String(s).trim().slice(0, maxLen));
+}
+
+/**
+ * Normalise the optional per-grade nuance map. Keys must be valid grade
+ * codes (ECE, G1-G12, F1-F4); anything else is dropped. This is what lets a
+ * single band-level profile carry the Baby-Class-vs-Grade-3 distinction the
+ * Exam Paper Library learns from real papers.
+ */
+function normalizeGradeNotes(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out = {};
+  let count = 0;
+  for (const [k, val] of Object.entries(v)) {
+    if (count >= 12) break;
+    const grade = String(k || "").toUpperCase().trim();
+    if (!gradeToBand(grade)) continue;
+    const note = str(val, 400);
+    if (!note) continue;
+    out[grade] = note;
+    count += 1;
+  }
+  return out;
 }
 
 /**
@@ -172,6 +259,11 @@ function validateFormatProfile(input) {
     phrasingNotes: strList(input.phrasingNotes, 6, 300),
     marksConventions: strList(input.marksConventions, 6, 300),
     diagramConventions: strList(input.diagramConventions, 4, 400),
+    // Richer signals the Exam Paper Library distils from many real papers.
+    // All optional — older profiles (seeds, manual edits) simply omit them.
+    answerSpaceConventions: strList(input.answerSpaceConventions, 6, 300),
+    pictureUsage: strList(input.pictureUsage, 6, 400),
+    gradeNotes: normalizeGradeNotes(input.gradeNotes),
     exemplarQuestions,
     status: input.status === "draft" ? "draft" : "active",
     origin: str(input.origin, 30) || "manual",
@@ -257,10 +349,82 @@ const DEFAULT_PROFILE = Object.freeze({
   sourceNote: "",
 });
 
+// ── Question-type filtering ────────────────────────────────────────────────
+
+/**
+ * Re-normalise a list of sections' marksShare back to a clean sum of 100
+ * after some sections were dropped. Proportional to the surviving shares;
+ * the last section absorbs any rounding remainder so the total is exactly 100.
+ */
+function redistributeShares(sections) {
+  if (sections.length === 0) return sections;
+  const total = sections.reduce((sum, s) => sum + (Number(s.marksShare) || 0), 0);
+  if (total <= 0) {
+    const even = Math.floor(100 / sections.length);
+    const out = sections.map((s) => ({...s, marksShare: even}));
+    out[out.length - 1].marksShare += 100 - even * sections.length;
+    return out;
+  }
+  let acc = 0;
+  return sections.map((s, i) => {
+    const share = i === sections.length - 1 ?
+      100 - acc :
+      Math.round(((Number(s.marksShare) || 0) / total) * 100);
+    acc += share;
+    return {...s, marksShare: share};
+  });
+}
+
+/**
+ * Narrow a format profile to the teacher's chosen question types. Each section
+ * keeps only its allowed types; sections left with none are dropped and the
+ * surviving marks shares re-normalise to 100. If NO section uses any chosen
+ * type (e.g. a matching-only paper), the structure collapses to a single
+ * section carrying exactly the allowed types — so the rendered format block can
+ * never reintroduce a type the teacher didn't ask for. Exemplar questions are
+ * filtered the same way. Passing an empty/missing list is a no-op (returns the
+ * profile unchanged), preserving the default behaviour.
+ */
+function filterProfileToTypes(profile, allowedTypes) {
+  if (!Array.isArray(allowedTypes) || allowedTypes.length === 0) return profile;
+  const allow = new Set(allowedTypes);
+
+  const kept = (profile.paperStructure || [])
+    .map((s) => ({
+      ...s,
+      questionTypes: (s.questionTypes || []).filter((t) => allow.has(t)),
+    }))
+    .filter((s) => s.questionTypes.length > 0);
+
+  let paperStructure;
+  if (kept.length === 0) {
+    const first = (profile.paperStructure || [])[0] || {};
+    paperStructure = [{
+      name: "SECTION A",
+      heading: "SECTION A",
+      instructions: first.instructions || "Answer ALL questions.",
+      questionTypes: [...allow],
+      questionCountHint: "",
+      marksShare: 100,
+      marksPerQuestionHint: "",
+    }];
+  } else {
+    paperStructure = redistributeShares(kept);
+  }
+
+  return {
+    ...profile,
+    paperStructure,
+    exemplarQuestions: (profile.exemplarQuestions || [])
+      .filter((q) => allow.has(q.type)),
+  };
+}
+
 // ── Rendering ────────────────────────────────────────────────────────────
 
-function renderFormatContextBlock(profile) {
-  const p = profile || DEFAULT_PROFILE;
+function renderFormatContextBlock(profile, {grade, allowedTypes} = {}) {
+  const p = filterProfileToTypes(profile || DEFAULT_PROFILE, allowedTypes);
+  const restricted = Array.isArray(allowedTypes) && allowedTypes.length > 0;
   const lines = [
     "<assessment_format_context>",
     `This is the REQUIRED paper format for a Zambian ${p.label}.`,
@@ -268,9 +432,22 @@ function renderFormatContextBlock(profile) {
       "numbering convention, marks distribution and question register. " +
       "Adapt the QUESTION COUNT to the requested total marks while keeping " +
       "each section's share of the marks.",
+  ];
+  if (restricted) {
+    lines.push(
+      "",
+      "QUESTION-TYPE RESTRICTION (overrides everything below): the teacher " +
+      "restricted this paper to ONLY these question types — " +
+      `${allowedTypes.map((t) => QUESTION_TYPE_LABELS[t] || t).join(", ")}. ` +
+      "The paper structure below has ALREADY been narrowed to them. Do NOT " +
+      "add a section or a question of any other type, even if a typical paper " +
+      "of this kind would include one.",
+    );
+  }
+  lines.push(
     "",
     "Paper structure (in order):",
-  ];
+  );
   for (const s of (p.paperStructure || []).slice(0, 6)) {
     lines.push(
       `- ${s.heading} — about ${s.marksShare}% of the total marks. ` +
@@ -302,6 +479,25 @@ function renderFormatContextBlock(profile) {
   if (diagrams.length > 0) {
     lines.push("", "Diagrams:");
     for (const d of diagrams) lines.push(`- ${d}`);
+  }
+  const pictures = (p.pictureUsage || []).slice(0, 6);
+  if (pictures.length > 0) {
+    lines.push("", "Pictures, drawings and diagrams (how this paper uses " +
+      "them — request matching diagram briefs where appropriate):");
+    for (const pic of pictures) lines.push(`- ${pic}`);
+  }
+  const answerSpaces = (p.answerSpaceConventions || []).slice(0, 6);
+  if (answerSpaces.length > 0) {
+    lines.push("", "Answer spaces and layout:");
+    for (const a of answerSpaces) lines.push(`- ${a}`);
+  }
+  // Per-grade nuance within the band — surfaced only for the grade being
+  // generated, so a Grade 1 paper reads differently from a Grade 3 one even
+  // though both resolve to the lower_primary profile.
+  const gradeKey = String(grade || "").toUpperCase().trim();
+  const gradeNote = p.gradeNotes && p.gradeNotes[gradeKey];
+  if (gradeNote) {
+    lines.push("", `Grade-specific guidance for ${gradeKey}: ${gradeNote}`);
   }
   const exemplars = (p.exemplarQuestions || []).slice(0, 4);
   if (exemplars.length > 0) {
@@ -372,21 +568,27 @@ function invalidateFormatCache() {
  * Resolve the format context for one generation request.
  * Never throws — worst case is the hard default profile.
  */
-async function resolveAssessmentFormatContext({grade, subject, assessmentType} = {}) {
+async function resolveAssessmentFormatContext({
+  grade, subject, assessmentType, allowedTypes,
+} = {}) {
   const type = ASSESSMENT_TYPES.includes(assessmentType) ?
     assessmentType : "topic_test";
+  // Resolve format seeds under an aliased type when this type has none of its
+  // own (e.g. monthly_test → mid_term). The generated paper is still labelled
+  // with the real type via ASSESSMENT_TYPE_LABELS.
+  const formatType = FORMAT_TYPE_ALIASES[type] || type;
   const band = gradeToBand(grade);
   let match = null;
   try {
     const profiles = await getAllFormatProfiles();
     match = matchFormatProfile(profiles,
-      {gradeBand: band, subject, assessmentType: type});
+      {gradeBand: band, subject, assessmentType: formatType});
   } catch (err) {
     console.error("resolveAssessmentFormatContext failed; using default", err);
   }
   const profile = match || DEFAULT_PROFILE;
   return {
-    formatBlock: renderFormatContextBlock(profile),
+    formatBlock: renderFormatContextBlock(profile, {grade, allowedTypes}),
     formatProfileId: profile.id,
     formatSource: match ? (match._source || "seed") : "default",
   };
@@ -395,6 +597,7 @@ async function resolveAssessmentFormatContext({grade, subject, assessmentType} =
 module.exports = {
   ASSESSMENT_TYPES,
   ASSESSMENT_TYPE_LABELS,
+  FORMAT_TYPE_ALIASES,
   GRADE_BANDS,
   GENERIC_SUBJECT,
   DEFAULT_PROFILE,
@@ -402,6 +605,9 @@ module.exports = {
   buildFormatId,
   validateFormatProfile,
   matchFormatProfile,
+  filterProfileToTypes,
+  QUESTION_TYPE_LABELS,
+  normalizeQuestionTypes,
   renderFormatContextBlock,
   getAllFormatProfiles,
   invalidateFormatCache,

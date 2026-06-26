@@ -14,6 +14,7 @@ import { useAuth }     from '../../contexts/AuthContext'
 import { useBadges }   from '../../hooks/useBadges'
 import { BADGES }      from '../../config/badges'
 import BadgeCard       from '../ui/BadgeCard'
+import Skeleton        from '../ui/Skeleton'
 import ProfessorPako   from '../ui/ProfessorPako'
 import { useDataSaver } from '../../contexts/DataSaverContext'
 import { GAME_BADGES } from '../../data/gameBadges'
@@ -207,7 +208,7 @@ export default function BadgesPage() {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="theme-card rounded-2xl border theme-border shadow-elev-sm p-4 animate-pulse h-24" />
+            <Skeleton key={i} height={96} className="!rounded-2xl" />
           ))}
         </div>
       )}

@@ -9,9 +9,35 @@ import {
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
+  serializeQuizSections,
 } from './quizSections.js'
+import {
+  importMarkupToRichHtml,
+  importMarkupToOptionHtml,
+} from '../components/quiz/importRichText.js'
+import { stimulusDescriptorFromQuestion, splitSubQuestions } from './stimulusQuestion.js'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+/**
+ * Map an AI question's `parts` array into the studio's `subParts` shape
+ * ({ text, answer, marks, answerFormat }). Drops part-less / empty entries.
+ * Labels are positional (the studio derives (a)(b)(c)), so any model label is
+ * ignored.
+ */
+function partsToSubParts(parts) {
+  if (!Array.isArray(parts)) return []
+  return parts
+    .filter((p) => p && typeof p === 'object')
+    .map((p) => ({
+      text: String(p.text ?? p.prompt ?? '').trim(),
+      answer: String(p.answer ?? p.correctAnswer ?? '').trim(),
+      marks: Number.isFinite(Number(p.marks)) && Number(p.marks) >= 0 ? Math.round(Number(p.marks)) : 1,
+      answerFormat: ['inline', 'lines', 'none'].includes(p.answerFormat) ? p.answerFormat : 'inline',
+    }))
+    .filter((p) => p.text)
+    .slice(0, 12)
+}
 
 /**
  * Find the correct option index for an AI multiple-choice answer. The
@@ -38,6 +64,51 @@ export function matchAnswerIndex(answer, options) {
     .filter(({ o }) => o && (o.includes(target) || target.includes(o)))
   if (containing.length === 1) return containing[0].i
   return -1
+}
+
+/**
+ * Read a question's structured visual spec, falling back to the legacy
+ * `diagram` string (a bare stem figure). The server schema already normalises
+ * this, but the converter is also fed hand-built payloads in tests, so we
+ * normalise here too.
+ */
+function readVisual(q) {
+  const v = q?.visual
+  if (v && typeof v === 'object' && v.kind) return v
+  const legacy = String(q?.diagram || '').trim()
+  return legacy ? { kind: 'stem_figure', prompt: legacy } : null
+}
+
+/**
+ * Default placement for a labelled figure's labels. Each label sits in the
+ * left/right margin and runs a LEADER LINE inward to a point near the figure
+ * (tx/ty) — so a part is labelled with a line pointing at it, the way a real
+ * exam diagram is drawn, instead of a marker dumped on top of the part. The
+ * teacher drags the line's tip onto the exact part once the figure is in.
+ * x/y/tx/ty are 0..1 ratios of the image, matching the diagramLabels schema.
+ * Deterministic (index-based ids) so the converter stays node-testable.
+ */
+function defaultDiagramLabels(labels) {
+  const arr = (Array.isArray(labels) ? labels : [])
+    .map((s) => String(s ?? '').trim())
+    .filter(Boolean)
+    .slice(0, 8)
+  const n = arr.length
+  return arr.map((text, i) => {
+    // Alternate labels between the left and right margins, stacked in rows.
+    const onLeft = i % 2 === 0
+    const row = Math.floor(i / 2)
+    const rows = Math.ceil(n / 2)
+    const y = rows > 1 ? 0.15 + (0.7 * row) / (rows - 1) : 0.5
+    return {
+      id: `lbl-${i}`,
+      x: onLeft ? 0.04 : 0.96, // label box hugs the margin
+      y,
+      tx: onLeft ? 0.4 : 0.6, // leader tip points inward toward the figure
+      ty: y,
+      text,
+    }
+  })
 }
 
 function mapType(aiType) {
@@ -69,13 +140,18 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   const answer = String(q?.answer || '').trim()
   const explanation = String(q?.markingGuide || '').trim()
   const reviewNotes = []
+  const visual = readVisual(q)
 
+  // Convert the lightweight maths markup the generator emits (\frac{a}{b},
+  // $…$, [[vmath …]]) into the editor's node-HTML so fractions stack and sums
+  // print as columns — the same converter the smart-import and AI-edit paths
+  // use. Plain prose passes through untouched (hasImportMarkup gates it).
   const overrides = {
     type,
     detectedType: type,
-    text,
+    text: importMarkupToRichHtml(text),
     marks,
-    explanation,
+    explanation: importMarkupToRichHtml(explanation),
     partId,
   }
 
@@ -88,6 +164,9 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       Array.isArray(m.pairs) && m.pairs.length === m.left.length &&
       m.left.length >= 2
     if (valid) {
+      // Matching columns stay PLAIN: the paper layout and answer key render
+      // them through richTextToPlainText either way, so HTML here would buy
+      // nothing — it matches the document importer, which also leaves them plain.
       overrides.matchingLeft = m.left.map(String)
       overrides.matchingRight = m.right.map(String)
       overrides.matchingAnswer = m.pairs.map(Number)
@@ -98,12 +177,69 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       overrides.correctAnswer = answer
       reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
     }
+  } else if (type === 'mcq' && visual?.kind === 'shape_options' &&
+    Array.isArray(visual.options) &&
+    visual.options.filter((o) => o && o.libraryKey).length >= 2) {
+    // Picture MCQ whose options are EXACT library shapes — no generation, they
+    // render straight from {libraryKey, params}. Text options stay empty so the
+    // layout builder picks the image grid.
+    const shapes = visual.options.filter((o) => o && o.libraryKey).slice(0, 6)
+    const n = shapes.length
+    overrides.options = Array.from({ length: n }, () => '')
+    overrides.optionMedia = shapes.map((s) => ({
+      diagram: { libraryKey: s.libraryKey, params: s.params || {} },
+      // alt from the shape's caption (or key) so the pre-publish alt-text check
+      // passes without extra typing.
+      alt: String((s.params && s.params.cap) || s.libraryKey),
+    }))
+    const idx = matchAnswerIndex(answer, LETTERS.slice(0, n))
+    overrides.correctAnswer = idx >= 0 ? idx : 0
+    if (idx < 0) {
+      reviewNotes.push(answer ?
+        `AI answer "${answer.slice(0, 80)}" did not match a shape option — set the correct one.` :
+        'AI did not mark the correct shape option.')
+    }
+  } else if (type === 'mcq' && visual?.kind === 'option_images' &&
+    Array.isArray(visual.options) && visual.options.length >= 2) {
+    // Picture-based MCQ: each option A-D is a drawing. The text options stay
+    // empty (the picture IS the option) so the layout builder renders the
+    // image grid; the per-option drawing briefs ride on optionMedia until the
+    // auto-generator fills imageUrl.
+    const briefs = visual.options
+      .map((o) => String(o?.prompt ?? o ?? '').trim())
+      .filter(Boolean)
+      .slice(0, 6)
+    const n = briefs.length
+    overrides.options = Array.from({ length: n }, () => '')
+    // alt seeded from the brief so the generated picture options satisfy the
+    // pre-publish alt-text check without extra typing; diagramBrief drives
+    // generation and is cleared once the image lands.
+    overrides.optionMedia = briefs.map((brief) => ({
+      imageUrl: '', alt: brief.slice(0, 120), diagramBrief: brief,
+    }))
+    // Resolve the correct option. Match against the briefs first: that path
+    // already handles both an exact brief-text answer AND a bare option letter
+    // (via matchAnswerIndex's letter regex), and crucially avoids mis-reading
+    // a phrase like "a metal saucepan" as option "A". Letters are a last
+    // resort for the empty-brief edge.
+    let idx = matchAnswerIndex(answer, briefs)
+    if (idx < 0) idx = matchAnswerIndex(answer, LETTERS.slice(0, n))
+    overrides.correctAnswer = idx >= 0 ? idx : 0
+    if (idx < 0) {
+      reviewNotes.push(answer ?
+        `AI answer "${answer.slice(0, 80)}" did not match a picture option — set the correct one.` :
+        'AI did not mark the correct picture option.')
+    }
+    reviewNotes.push(`Picture options needed (${n}) — generate them from the briefs or attach from the picture bank.`)
   } else if (type === 'mcq') {
     const options = aiType === 'true_false' && !(Array.isArray(q?.options) && q.options.length >= 2) ?
       ['True', 'False'] :
       (Array.isArray(q?.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [])
-    overrides.options = options.length >= 2 ? options : ['', '', '', '']
-    const idx = matchAnswerIndex(answer, overrides.options)
+    // Match the answer against the PLAIN option text before converting maths
+    // markup, so a `\frac{8}{15}` answer still lines up with its option.
+    const plainOptions = options.length >= 2 ? options : ['', '', '', '']
+    overrides.options = plainOptions.map(importMarkupToOptionHtml)
+    const idx = matchAnswerIndex(answer, plainOptions)
     if (idx >= 0) {
       overrides.correctAnswer = idx
     } else {
@@ -116,18 +252,56 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       reviewNotes.push('AI returned fewer than 2 options — complete them.')
     }
   } else {
-    // Text-answer types carry the model answer as the correctAnswer string.
-    overrides.correctAnswer = answer
-    if (!answer) reviewNotes.push('AI did not give a model answer.')
+    // Short-answer SUB-PARTS: prefer the model's explicit `parts`; otherwise
+    // auto-split a crammed "(a)… (b)… (c)…" prompt so it prints as an
+    // instruction + lettered blanks instead of one paragraph (the Q18 bug).
+    let subParts = partsToSubParts(q?.parts)
+    if (!subParts.length && type === 'short_answer') {
+      const split = splitSubQuestions(text)
+      if (split && Array.isArray(split.parts) && split.parts.length >= 2) {
+        // The stem becomes the instruction; each marker becomes a sub-part.
+        overrides.text = importMarkupToRichHtml(split.stem || text)
+        subParts = split.parts.map((p) => ({
+          text: String(p.text || '').trim(),
+          answer: '',
+          marks: Number.isFinite(p.marks) && p.marks > 0 ? p.marks : 1,
+          answerFormat: 'inline',
+        })).filter((p) => p.text)
+      }
+    }
+    if (subParts.length >= 2) {
+      overrides.subParts = subParts
+      // A multi-part question owns no marks of its own — they sum from the parts.
+      overrides.marks = subParts.reduce((s, p) => s + (Number(p.marks) || 0), 0)
+      overrides.correctAnswer = ''
+      if (subParts.every((p) => !p.answer)) {
+        reviewNotes.push('AI did not give model answers for the sub-parts — fill them in for the marking key.')
+      }
+    } else {
+      // Plain single-answer question.
+      overrides.correctAnswer = answer
+      if (!answer) reviewNotes.push('AI did not give a model answer.')
+    }
   }
 
-  const diagram = String(q?.diagram || '').trim()
-  if (diagram) {
-    // Carried as a first-class field so the DiagramFixupPanel can find the
-    // question and auto-match/generate the figure; the review note is the
-    // human-readable fallback on the question card.
-    overrides.diagramBrief = diagram
-    reviewNotes.push(`Diagram needed: ${diagram} — attach it from the picture bank or generate one.`)
+  // Stem visuals (option_images / shape_options were handled in the MCQ branch).
+  if (visual && visual.kind === 'shape' && visual.libraryKey) {
+    // Exact library figure on the stem — renders straight away, no generation.
+    overrides.imageDiagram = { libraryKey: visual.libraryKey, params: visual.params || {} }
+  } else if (visual && (visual.kind === 'stem_figure' || visual.kind === 'labelled_figure')) {
+    // Drawn figures carry a first-class diagramBrief so the auto-generator +
+    // DiagramFixupPanel can find the question and generate/attach the figure;
+    // the review note is the human-readable fallback on the question card.
+    const brief = String(visual.prompt || '').trim()
+    if (brief) {
+      overrides.diagramBrief = brief
+      if (visual.kind === 'labelled_figure') {
+        overrides.diagramMode = visual.mode === 'identify' ? 'identify' : 'labeled'
+        const labels = defaultDiagramLabels(visual.labels)
+        if (labels.length) overrides.diagramLabels = labels
+      }
+      reviewNotes.push(`Diagram needed: ${brief} — attach it from the picture bank or generate one.`)
+    }
   }
 
   if (reviewNotes.length > 0) {
@@ -143,15 +317,93 @@ export function mapAiQuestion(q, { partId = null } = {}) {
  * Convert a whole AI assessment into studio blocks.
  * Returns { sections, parts, questionCount, totalMarks, warnings }.
  *
- * Sections WITHOUT a passage become a Part (numbered group heading) of
- * standalone questions. Sections WITH a passage (schema v1.2 comprehension)
- * become the studio's native passage block — story on top, questions
- * attached — which already prints/exports in the Zambian comprehension
- * layout, so no Part wrapper is added (the passage carries its own title
- * and instructions).
+ * EVERY AI section becomes a lettered Part (Section A, B, C…) in the order the
+ * generator emitted them, so the printed paper shows proper Zambian sectioning
+ * with no loose questions floating above the first heading.
+ *
+ * Sections WITHOUT a passage hold standalone questions under their Part
+ * heading. Sections WITH a passage (schema v1.2 comprehension) attach the
+ * native passage block — story on top, questions beneath — to that same Part,
+ * so a comprehension prints UNDER its own "Section A — Comprehension" heading.
+ *
+ * (Previously a passage section was emitted with NO Part wrapper, which made it
+ * an *ungrouped* block. buildPaperLayout pins the ungrouped block to the very
+ * top of the paper [ungroupedOrder defaults to 0], so a paper whose first
+ * section was a comprehension printed the story first — unlabelled — and the
+ * NEXT section became "SECTION A". That is the "started with a story, then
+ * Section A" defect this conversion now prevents.)
  *
  * Never throws on malformed input — skips junk and reports it.
  */
+/**
+ * Normalise the FLAT exam-paper shape (`generateExamPaper` → `tool:'exam_paper'`:
+ * `{ header, questions: [{ number, question, options, correctAnswer, explanation }] }`)
+ * into the sectioned assessment shape `aiAssessmentToStudioBlocks` understands.
+ * The exam paper is a single block of multiple-choice questions, so it becomes
+ * one untitled section. A payload that already carries `sections` (the assessment
+ * shape) is returned unchanged.
+ */
+export function examPaperToAssessmentShape(output) {
+  if (output && Array.isArray(output.sections)) return output
+  const header = (output && output.header) || {}
+  const questions = Array.isArray(output?.questions) ? output.questions : []
+  return {
+    header,
+    sections: [{
+      title: '',
+      instructions: String(header.instructions || '').trim(),
+      questions: questions.map((q) => ({
+        type: q?.type === 'true_false' ? 'true_false' : 'multiple_choice',
+        prompt: String(q?.question ?? q?.prompt ?? '').trim(),
+        options: Array.isArray(q?.options) ? q.options : [],
+        answer: String(q?.correctAnswer ?? q?.answer ?? '').trim(),
+        marks: Number.isFinite(Number(q?.marks)) && Number(q.marks) > 0 ? Math.round(Number(q.marks)) : 1,
+        markingGuide: String(q?.explanation ?? q?.markingGuide ?? '').trim(),
+      })),
+    }],
+  }
+}
+
+/**
+ * Convert a saved AI paper generation (`aiGenerations` doc `output`, tool
+ * `'assessment'` or `'exam_paper'`) into the Assessment Studio's render shape
+ * `{ doc, questions }` — exactly what `buildPaperLayout` and `downloadAssessmentDocx`
+ * consume. This is what lets the library detail view print an AI-generated paper
+ * instead of showing a blank card. Pure (no React / Firebase) so it stays
+ * node-testable.
+ *
+ * Returns { doc, questions, questionCount, totalMarks, warnings }.
+ */
+export function aiPaperToStudioDoc(output, tool = 'assessment') {
+  const assessment = tool === 'exam_paper' ? examPaperToAssessmentShape(output) : (output || {})
+  const blocks = aiAssessmentToStudioBlocks(assessment)
+  const serialized = serializeQuizSections(blocks.sections, blocks.parts)
+  const header = (output && output.header) || {}
+  const doc = {
+    title: String(header.title || '').trim(),
+    subject: String(header.subject || '').trim(),
+    grade: header.grade ?? '',
+    term: header.term ?? '',
+    year: header.year ?? '',
+    duration: header.durationMinutes ?? header.duration ?? '',
+    assessmentType: header.assessmentType || '',
+    schoolName: String(header.schoolName || '').trim(),
+    paperName: String(header.paperName || '').trim(),
+    coverInstructions: String(header.instructions || '').trim(),
+    passages: serialized.passages,
+    pagebreaks: serialized.pagebreaks,
+    parts: serialized.parts,
+    ungroupedOrder: 0,
+  }
+  return {
+    doc,
+    questions: serialized.questions,
+    questionCount: serialized.questions.length,
+    totalMarks: serialized.totalMarks,
+    warnings: blocks.warnings,
+  }
+}
+
 export function aiAssessmentToStudioBlocks(assessment) {
   const out = { sections: [], parts: [], questionCount: 0, totalMarks: 0, warnings: [] }
   const aiSections = Array.isArray(assessment?.sections) ? assessment.sections : []
@@ -174,13 +426,27 @@ export function aiAssessmentToStudioBlocks(assessment) {
         out.warnings.push(...warnings)
       }
       if (mapped.length === 0) return
-      out.sections.push(createPassageSection({
-        title: String(sec?.passage?.title || sec?.title || `Section ${sIdx + 1}`).trim(),
+      // The comprehension section becomes a lettered Part like any other. The
+      // Part carries the section heading + its instruction ("Read the story and
+      // answer the questions which follow."); the passage block beneath it
+      // carries the story's own title + text. Attaching the passage to the Part
+      // (partId) is what keeps it under its section heading instead of floating
+      // to the top of the paper.
+      const part = createPartGroup({
+        title: String(sec?.title || `Section ${sIdx + 1}`).trim(),
         instructions: String(sec?.instructions || '').trim(),
+        order: out.parts.length,
+      })
+      out.parts.push(part)
+      const passageSection = createPassageSection({
+        title: String(sec?.passage?.title || '').trim(),
         passageText,
         passageKind: 'comprehension',
-        questions: mapped,
-      }))
+        partId: part.id,
+        questions: mapped.map((o) => ({ ...o, partId: part.id })),
+      })
+      passageSection.partId = part.id
+      out.sections.push(passageSection)
       return
     }
 
@@ -193,6 +459,31 @@ export function aiAssessmentToStudioBlocks(assessment) {
     for (const q of questions) {
       if (!q || typeof q !== 'object' || !String(q.prompt || '').trim()) {
         out.warnings.push('Skipped an empty AI question.')
+        continue
+      }
+      // Stimulus / source detection: a single question whose prompt reads
+      // "study the diagram below … (a) … (b) … (c) …" is split into a stimulus
+      // passage (instruction → diagram/source → follow-up sub-questions) so it
+      // prints in the correct layout instead of one paragraph above the figure.
+      const stimulus = stimulusDescriptorFromQuestion({
+        text: q.prompt,
+        marks: q.marks,
+        imageDiagram: (q.visual && q.visual.kind === 'shape' && q.visual.libraryKey)
+          ? { libraryKey: q.visual.libraryKey, params: q.visual.params || {} }
+          : undefined,
+      })
+      if (stimulus && stimulus.questions.length >= 2) {
+        out.sections.push(createPassageSection({
+          passageKind: stimulus.passageKind,
+          title: stimulus.title,
+          imageDiagram: stimulus.imageDiagram,
+          partId: part.id,
+          questions: stimulus.questions,
+        }))
+        out.sections[out.sections.length - 1].partId = part.id
+        out.questionCount += stimulus.questions.length
+        out.totalMarks += stimulus.questions.reduce((s, sq) => s + (Number(sq.marks) || 0), 0)
+        out.warnings.push(`Classified Q"${String(q.prompt).slice(0, 40)}…" as a stimulus question with ${stimulus.questions.length} sub-questions.`)
         continue
       }
       const { overrides, warnings } = mapAiQuestion(q, { partId: part.id })

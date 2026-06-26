@@ -11,11 +11,13 @@
  *   (optional) npm install file-saver
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   Table,
@@ -25,6 +27,135 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { sanitizeXmlText } from './xmlText.js'
+import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
+
+/* ────────────────────────────────────────────────────────────────────
+ * Lesson illustration (black-and-white drawing) embedding.
+ *
+ * The drawing is a Firebase Storage PNG produced by the generateDiagram
+ * callable. docx needs the raw bytes (not a URL), and the fetch is async —
+ * so `downloadLessonPlanDocx` pre-fetches the bytes and hands them in via
+ * `opts.diagramImage`, keeping `buildLessonPlanDocument` synchronous and
+ * unit-testable.
+ * ─────────────────────────────────────────────────────────────────── */
+
+// docx v9 requires ImageRun.type; sniff it from the leading magic bytes.
+// generateDiagram always saves PNG, so png is the safe default.
+function detectDocxImageType(bytes) {
+  if (!bytes || bytes.length < 4) return 'png'
+  const [b0, b1, b2, b3] = bytes
+  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4e && b3 === 0x47) return 'png'
+  if (b0 === 0xff && b1 === 0xd8 && b2 === 0xff) return 'jpg'
+  if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) return 'gif'
+  if (b0 === 0x42 && b1 === 0x4d) return 'bmp'
+  return 'png'
+}
+
+// Aspect-fit the drawing into a printable box (pixels, for the docx
+// transformation). Derives the ratio from the generated size string so a
+// portrait/landscape diagram isn't squashed.
+function illustrationBox(size) {
+  const m = /^(\d+)x(\d+)$/.exec(String(size || '1365x1024'))
+  const w = m ? Number(m[1]) : 1365
+  const h = m ? Number(m[2]) : 1024
+  const maxW = 440
+  return { width: maxW, height: Math.max(1, Math.round(maxW * (h / w))) }
+}
+
+// Fetch the PNG bytes so the (sync) document builder can embed them. Returns
+// `{ bytes, type }` on success, `{ failed: true }` so the builder can drop in
+// a visible note, or null when there's nothing to embed.
+async function fetchLessonDiagramImage(diagram) {
+  if (!diagram || !diagram.url) return null
+  // CORS cache-poisoning guard — see assessmentToDocx.fetchImageBytes. The
+  // preview renders the same image with a plain `<img>` (no crossOrigin), so
+  // the browser caches a no-CORS, header-less response; the `immutable`
+  // Cache-Control on diagram URLs keeps it around, and a later
+  // `fetch(url,{mode:'cors'})` reuses that poisoned entry and fails its CORS
+  // check. Retrying with `cache: 'reload'` bypasses the cache and forces a
+  // fresh request that gets the CORS headers back.
+  for (const cache of ['default', 'reload']) {
+    try {
+      const res = await fetch(diagram.url, { mode: 'cors', cache })
+      if (!res.ok) continue
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      if (!bytes.length) continue
+      return { bytes, type: detectDocxImageType(bytes) }
+    } catch {
+      // CORS rejection or network error — try the next cache strategy.
+    }
+  }
+  // Last resort: the same-origin image proxy (see assessmentToDocx.fetchImageBytes).
+  // Fixes the case the cache:'reload' retry can't — a bucket whose CORS config is
+  // missing or applied to the wrong bucket name returns no CORS headers at all.
+  const proxied = toProxyImageUrl(diagram.url)
+  if (proxied) {
+    try {
+      const res = await fetch(proxied, { cache: 'reload' })
+      if (res.ok) {
+        const contentType = res.headers && res.headers.get
+          ? (res.headers.get('content-type') || '')
+          : ''
+        const bytes = new Uint8Array(await res.arrayBuffer())
+        // Only accept a real image — if the rewrite isn't live the proxy path
+        // resolves to the SPA index.html (200/text/html); embedding that would
+        // be a fresh broken-image bug, so fail closed to the visible note.
+        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          return { bytes, type: detectDocxImageType(bytes) }
+        }
+      }
+    } catch {
+      // Proxy unreachable — fall through to the visible "could not embed" note.
+    }
+  }
+  return { failed: true }
+}
+
+// Paragraphs for the lesson illustration: a CAPS label, the centred image (or
+// a red note when the bytes couldn't be read cross-origin), and the prompt as
+// an italic caption. Returns [] when the plan has no drawing.
+function lessonIllustrationParagraphs(plan, opts) {
+  const diagram = plan && plan.lessonDiagram
+  if (!diagram || !diagram.url) return []
+  const img = opts && opts.diagramImage
+  const alt = String(diagram.prompt || '').trim()
+  const out = [
+    new Paragraph({
+      children: [text('TEACHING ILLUSTRATION', { bold: true, size: 20 })],
+      spacing: { before: 160, after: 80 },
+    }),
+  ]
+  if (img && img.bytes) {
+    const { width, height } = illustrationBox(diagram.size)
+    out.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new ImageRun({
+        type: img.type || 'png',
+        data: img.bytes,
+        transformation: { width, height },
+        ...(alt ? { altText: { name: alt, title: alt, description: alt } } : {}),
+      })],
+    }))
+    if (alt) {
+      out.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120 },
+        children: [text(alt, { italics: true, size: 16, color: '6b7280' })],
+      }))
+    }
+  } else {
+    out.push(new Paragraph({
+      spacing: { after: 120 },
+      children: [text(
+        'Illustration could not be embedded — open the plan in the studio and download again.',
+        { italics: true, size: 16, color: 'b91c1c' },
+      )],
+    }))
+  }
+  return out
+}
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -34,7 +165,10 @@ const CELL_BORDER = {
 }
 
 function text(str, opts = {}) {
-  return new TextRun({ text: str == null ? '' : String(str), ...opts })
+  // Sanitize at this single funnel — every run's text passes through here, so
+  // stripping XML-illegal control bytes once keeps Word from rejecting the
+  // whole download as "unreadable content".
+  return new TextRun({ text: sanitizeXmlText(str), ...opts })
 }
 
 function para(runs, opts = {}) {
@@ -269,9 +403,10 @@ function referencesBlock(refs = []) {
   }))
 }
 
-function buildV2Body(plan) {
+function buildV2Body(plan, opts = {}) {
   const children = []
   children.push(headerTable(plan.header || {}))
+  children.push(...lessonIllustrationParagraphs(plan, opts))
 
   if (plan.lessonGoal) {
     children.push(h2('Lesson Goal (SMART)'))
@@ -359,9 +494,10 @@ function buildV2Body(plan) {
   return children
 }
 
-function buildV1Body(plan) {
+function buildV1Body(plan, opts = {}) {
   const children = []
   children.push(headerTable(plan.header || {}))
+  children.push(...lessonIllustrationParagraphs(plan, opts))
 
   children.push(h2('Specific Outcomes'))
   children.push(...numberedList(plan.specificOutcomes))
@@ -453,7 +589,7 @@ function v3StageCell(children, widthPct) {
   })
 }
 
-function buildV3Body(plan) {
+function buildV3Body(plan, opts = {}) {
   const h = plan.header || {}
   const le = plan.learningEnvironment || {}
   const children = []
@@ -500,6 +636,8 @@ function buildV3Body(plan) {
     children.push(para(text('KEY VOCABULARY:', { bold: true, size: 20 })))
     children.push(...bulletList(plan.keyVocabulary))
   }
+
+  children.push(...lessonIllustrationParagraphs(plan, opts))
 
   // LESSON PROGRESSION — one black ruled table, exactly like the modules.
   children.push(new Paragraph({
@@ -559,14 +697,14 @@ export function buildLessonPlanDocument(plan, opts = {}) {
   if (isV3) {
     return new Document({
       creator: 'zedexams.com',
-      title: `Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`,
+      title: sanitizeXmlText(`Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`),
       description: 'Generated by ZedExams Teacher Tools',
       styles: {
         default: {
           document: { run: { font: 'Calibri', size: 20 } },
         },
       },
-      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan)] }],
+      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan, opts)] }],
     })
   }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
@@ -574,7 +712,7 @@ export function buildLessonPlanDocument(plan, opts = {}) {
   const children = []
   children.push(h1('LESSON PLAN'))
 
-  const bodyChildren = isV2 ? buildV2Body(plan) : buildV1Body(plan)
+  const bodyChildren = isV2 ? buildV2Body(plan, opts) : buildV1Body(plan, opts)
   children.push(...bodyChildren)
 
   children.push(h2('Assessment'))
@@ -649,7 +787,7 @@ export function buildLessonPlanDocument(plan, opts = {}) {
 
   return new Document({
     creator: 'zedexams.com',
-    title: `Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`,
+    title: sanitizeXmlText(`Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`),
     description: 'Generated by ZedExams Teacher Tools',
     styles: {
       default: {
@@ -664,23 +802,16 @@ export function buildLessonPlanDocument(plan, opts = {}) {
  * Trigger a browser download of the .docx.
  */
 export async function downloadLessonPlanDocx(plan, filename = 'lesson-plan.docx', opts = {}) {
-  const doc = buildLessonPlanDocument(plan, opts)
+  // Pre-fetch the lesson illustration bytes (async) so the synchronous,
+  // unit-tested document builder can embed them. Both the studio and the
+  // Library download flow through here, so both get the drawing.
+  let buildOpts = opts
+  if (plan?.lessonDiagram?.url) {
+    buildOpts = { ...opts, diagramImage: await fetchLessonDiagramImage(plan.lessonDiagram) }
+  }
+  const doc = buildLessonPlanDocument(plan, buildOpts)
   const blob = await Packer.toBlob(doc)
 
   // Try file-saver first (nicer cross-browser UX), fall back to anchor click.
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch {
-    // fall through
-  }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

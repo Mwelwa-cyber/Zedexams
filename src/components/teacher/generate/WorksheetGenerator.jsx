@@ -1,33 +1,45 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   generateWorksheetStream,
   TEACHER_GRADES,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
+  WORKSHEET_STYLES,
+  WORKSHEET_GRID_COLUMNS,
+  WORKSHEET_PASSAGE_LENGTHS,
   WORKSHEET_QUESTION_COUNTS,
   WORKSHEET_DURATIONS,
   CURRICULUM_TERMS,
   LESSON_NUMBER_OPTIONS,
   TOTAL_LESSONS_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
+import { downloadWorksheetPdf } from '../../../utils/worksheetToPdf'
+import { buildDownloadName } from '../../../utils/downloadFilename'
+import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
+import { FieldTextarea, FieldSelect } from './studioFields'
+import WorksheetView from '../views/WorksheetView'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
  */
 export default function WorksheetGenerator() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -39,6 +51,9 @@ export default function WorksheetGenerator() {
     totalLessons: '',
     learningEnvironment: '',
     count: 10,
+    style: 'auto',
+    gridColumns: 0,
+    passageLength: '',
     difficulty: 'mixed',
     durationMinutes: 30,
     language: 'english',
@@ -63,16 +78,13 @@ export default function WorksheetGenerator() {
     }
   }, [])
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade),
-    [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
 
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -85,6 +97,9 @@ export default function WorksheetGenerator() {
       setStatus('error')
       return
     }
+    // Fail fast: out of quota (and no top-up credit) → open the pay/upgrade
+    // prompt now, before flipping into the "Generating…" state.
+    if (!ensureCanGenerate('worksheet')) return
     try { cancelRef.current?.() } catch { /* ignore */ }
     setStatus('generating')
     setErrorMessage('')
@@ -110,7 +125,7 @@ export default function WorksheetGenerator() {
             grade:          form.grade,
             subject:        form.subject,
             assessmentType: 'topic',
-          }).catch(() => {})
+          }).catch((err) => console.error('[library attach]', err))
         }
       },
       onError: (err) => {
@@ -130,30 +145,68 @@ export default function WorksheetGenerator() {
   }
 
   function buildFilename(mode) {
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const parts = [
-      slug(form.grade),
-      slug(form.subject),
-      slug(worksheet?.header?.topic || form.topic),
-      mode === 'answer_key' ? 'ANSWER-KEY' : 'worksheet',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean)
-    return `${parts.join('_')}.docx`
+    return buildDownloadName({
+      docType: 'Worksheet',
+      grade: form.grade,
+      subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic,
+      variant: mode === 'answer_key' ? 'Answer Key' : undefined,
+    })
+  }
+
+  // Deterministic, zero-cost guard: warn (never block) if the file we're about
+  // to save has a junk name, no title, doesn't match the requested
+  // grade/subject, or is structurally empty.
+  function guardDownload(filename) {
+    const { ok, problems } = checkDownload({
+      tool: 'worksheet',
+      filename,
+      output: worksheet,
+      inputs: { grade: form.grade, subject: form.subject, topic: worksheet?.header?.topic || form.topic },
+    })
+    if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
   }
 
   function onExportPupil() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('worksheet'), { mode: 'worksheet', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const filename = buildFilename('worksheet')
+    guardDownload(filename)
+    downloadWorksheetDocx(worksheet, filename, { mode: 'worksheet', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   function onExportAnswerKey() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('answer_key'), { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const filename = buildFilename('answer_key')
+    guardDownload(filename)
+    downloadWorksheetDocx(worksheet, filename, { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
+  function onExportPupilPdf() {
+    if (!worksheet) return
+    const filename = buildDownloadName({
+      docType: 'Worksheet', grade: form.grade, subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic, ext: 'pdf',
+    })
+    downloadWorksheetPdf(worksheet, filename, {
+      mode: 'worksheet',
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+    })
+  }
+
+  function onExportAnswerKeyPdf() {
+    if (!worksheet) return
+    const filename = buildDownloadName({
+      docType: 'Worksheet', grade: form.grade, subject: form.subject,
+      topic: worksheet?.header?.topic || form.topic, variant: 'Answer Key', ext: 'pdf',
+    })
+    downloadWorksheetPdf(worksheet, filename, {
+      mode: 'answer_key',
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+    })
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Worksheet studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -215,6 +268,30 @@ export default function WorksheetGenerator() {
               onChange={(v) => updateField('learningEnvironment', v)}
             />
             <FieldSelect
+              label="Worksheet style"
+              value={form.style}
+              options={WORKSHEET_STYLES}
+              onChange={(v) => updateField('style', v)}
+            />
+            {(form.style === 'auto' || form.style === 'grid') && (
+              <FieldSelect
+                label="Grid columns (practice grids)"
+                value={String(form.gridColumns)}
+                options={WORKSHEET_GRID_COLUMNS.map((p) => ({
+                  value: String(p.value), label: p.label,
+                }))}
+                onChange={(v) => updateField('gridColumns', Number(v))}
+              />
+            )}
+            {(form.style === 'auto' || form.style === 'comprehension') && (
+              <FieldSelect
+                label="Reading passage length"
+                value={form.passageLength}
+                options={WORKSHEET_PASSAGE_LENGTHS}
+                onChange={(v) => updateField('passageLength', v)}
+              />
+            )}
+            <FieldSelect
               label="Number of questions"
               value={String(form.count)}
               options={WORKSHEET_QUESTION_COUNTS.map((p) => ({
@@ -267,10 +344,19 @@ export default function WorksheetGenerator() {
           </form>
 
           {/* Output panel */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && (
-              <GeneratingState progress={progress} onCancel={onCancel} />
+              <AiGenerationProgress
+                variant="card"
+                preset="worksheet"
+                running
+                title="Writing your worksheet…"
+                subtitle={worksheetProgressSubtitle(progress)}
+                activeStageId={mapWorksheetPhaseToStage(progress?.phase)}
+                onCancel={onCancel}
+              />
             )}
             {status === 'error' && (
               <ErrorState
@@ -283,7 +369,7 @@ export default function WorksheetGenerator() {
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
-                    <h2 className="studio-display" style={{ fontSize: 22, color: '#0e2a32', margin: '0 0 2px' }}>
+                    <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>
                       {worksheet.header?.title || 'Worksheet'}
                     </h2>
                     <p className="text-xs" style={{ color: '#566f76' }}>
@@ -306,8 +392,14 @@ export default function WorksheetGenerator() {
                     <button onClick={onExportPupil} className="studio-btn-ghost">
                       📄 Worksheet .docx
                     </button>
+                    <button onClick={onExportPupilPdf} className="studio-btn-ghost">
+                      📄 Worksheet .pdf
+                    </button>
                     <button onClick={onExportAnswerKey} className="studio-btn-primary">
                       🔑 Answer Key .docx
+                    </button>
+                    <button onClick={onExportAnswerKeyPdf} className="studio-btn-ghost">
+                      🔑 Answer Key .pdf
                     </button>
                   </div>
                 </div>
@@ -325,6 +417,7 @@ export default function WorksheetGenerator() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>
@@ -332,56 +425,6 @@ export default function WorksheetGenerator() {
 }
 
 /* ── Inputs ─────────────────────────────────────────────────── */
-
-function FieldLabel({ children }) {
-  return <label className="studio-label">{children}</label>
-}
-
-
-function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        rows={3}
-        className="studio-input resize-none"
-      />
-    </div>
-  )
-}
-
-function FieldSelect({ label, value, options, onChange }) {
-  const groups = []
-  let cur = null
-  for (const o of options) {
-    if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
-    else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
-  }
-  if (cur) groups.push(cur)
-  const flat = groups.length === 1 && !groups[0].label
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="studio-input"
-      >
-        {flat
-          ? groups[0].items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
-          : groups.map((g, i) => g.label
-              ? <optgroup key={i} label={g.label}>{g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
-              : g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
-          )
-        }
-      </select>
-    </div>
-  )
-}
 
 /* ── States ─────────────────────────────────────────────────── */
 
@@ -391,7 +434,7 @@ function EmptyState() {
       <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#d8ecd0', display: 'grid', placeItems: 'center', fontSize: 44 }}>
         🐢
       </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20, color: '#0e2a32' }}>Ready to make a worksheet</h3>
+      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Ready to make a worksheet</h3>
       <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
         Pick the grade, subject and topic on the left. You'll get a printable
         worksheet plus a separate answer key file for marking.
@@ -400,145 +443,31 @@ function EmptyState() {
   )
 }
 
-function GeneratingState({ progress, onCancel }) {
-  const phase = progress?.phase
+// Secondary line under the progress tracker. Surfaces the live token count and
+// elapsed seconds from the real SSE stream when available.
+function worksheetProgressSubtitle(progress) {
   const tokens = progress?.approxOutputTokens
   const seconds = progress?.elapsedMs ? Math.round(progress.elapsedMs / 1000) : null
-  const phaseLabel = (() => {
-    if (!phase || phase === 'queued') return 'Loading curriculum context…'
-    if (phase === 'claude_started') return 'Asking the AI to draft your worksheet…'
-    if (phase === 'token') {
-      return tokens
-        ? `Writing questions… ~${tokens.toLocaleString()} tokens written`
-        : 'Writing questions…'
-    }
-    if (phase === 'claude_done') return 'Polishing the answer key…'
-    return 'Working…'
-  })()
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">✍️</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>
-        Writing questions…
-      </h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        {phaseLabel}
-        {seconds != null && phase !== 'queued' ? ` · ${seconds}s` : ''}
-      </p>
-      {onCancel && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-4 text-xs underline"
-          style={{ color: '#566f76' }}
-        >
-          Cancel
-        </button>
-      )}
-    </div>
-  )
+  const parts = []
+  if (tokens) parts.push(`~${tokens.toLocaleString()} tokens written`)
+  if (seconds != null && progress?.phase && progress.phase !== 'queued') parts.push(`${seconds}s`)
+  return parts.length ? parts.join(' · ') : undefined
 }
 
 function ErrorState({ message, detail, onDismiss }) {
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
       <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>Something went wrong</h3>
+      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
       <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
       {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: '#f5efe1', color: '#566f76' }}>
+        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
           {detail}
         </p>
       )}
       <button onClick={onDismiss} className="studio-btn-ghost">
         Try again
       </button>
-    </div>
-  )
-}
-
-/* ── Rendered worksheet ─────────────────────────────────────── */
-
-function WorksheetView({ worksheet, showAnswers }) {
-  return (
-    <article className="space-y-5">
-      <div className="rounded-xl border theme-border p-4 bg-slate-50/50 dark:bg-slate-900/20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm theme-text">
-          <div><span className="font-bold">Grade: </span>{worksheet.header?.grade}</div>
-          <div><span className="font-bold">Subject: </span>{worksheet.header?.subject}</div>
-          <div><span className="font-bold">Topic: </span>{worksheet.header?.topic}</div>
-          {worksheet.header?.subtopic && (
-            <div><span className="font-bold">Sub-topic: </span>{worksheet.header.subtopic}</div>
-          )}
-          <div><span className="font-bold">Duration: </span>{worksheet.header?.duration}</div>
-          <div><span className="font-bold">Total marks: </span>{worksheet.header?.totalMarks}</div>
-        </div>
-        {worksheet.header?.instructions && (
-          <p className="mt-3 text-sm italic theme-text-secondary">
-            {worksheet.header.instructions}
-          </p>
-        )}
-      </div>
-
-      {(worksheet.sections || []).map((section, idx) => (
-        <div key={idx} className="space-y-3">
-          <h3 className="text-base font-black theme-text border-b theme-border pb-1">
-            {section.title}
-          </h3>
-          {section.instructions && (
-            <p className="text-sm italic theme-text-secondary">{section.instructions}</p>
-          )}
-          {(section.questions || []).map((q) => (
-            <QuestionView key={q.number} q={q} showAnswers={showAnswers} />
-          ))}
-        </div>
-      ))}
-
-      {showAnswers && worksheet.answerKey?.markingNotes && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <h4 className="font-bold text-sm text-emerald-900 mb-1">Marking Guidance</h4>
-          <p className="text-sm text-emerald-800">{worksheet.answerKey.markingNotes}</p>
-        </div>
-      )}
-    </article>
-  )
-}
-
-function QuestionView({ q, showAnswers }) {
-  const letters = ['A', 'B', 'C', 'D', 'E']
-  return (
-    <div className="rounded-xl border theme-border p-3">
-      <div className="flex items-start gap-2">
-        <span className="font-black theme-text shrink-0">{q.number}.</span>
-        <div className="flex-1">
-          <p className="theme-text">{q.prompt}</p>
-          {(q.type === 'multiple_choice' || q.type === 'true_false') && q.options?.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {q.options.map((opt, i) => (
-                <li key={i} className="text-sm theme-text">
-                  <span className="font-bold mr-2">{letters[i] || '•'}.</span>{opt}
-                </li>
-              ))}
-            </ul>
-          )}
-          {showAnswers && q.answer && (
-            <div className="mt-2 pt-2 border-t theme-border">
-              <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                <span className="font-bold">✓ Answer: </span>{q.answer}
-              </p>
-              {q.workingNotes && (
-                <p className="text-xs theme-text-secondary italic mt-1">
-                  {q.workingNotes}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        <span className="text-xs theme-text-secondary shrink-0 ml-2">
-          [{q.marks}]
-        </span>
-      </div>
     </div>
   )
 }

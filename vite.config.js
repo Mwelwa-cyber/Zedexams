@@ -104,11 +104,26 @@ export default defineConfig(({ mode }) => {
           // after the first successful load. globPatterns are scoped to
           // dist/ at build time, not the public/ directory at runtime.
           globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,png,webmanifest,ico}'],
-          // Don't pre-cache the PDF.js worker (2.3 MB, past papers only) or the
-          // note diagrams (public/notes/*.png) — pre-caching either would balloon
-          // the install size for everyone. The worker loads on demand; note
-          // diagrams are runtime-cached on first view (see runtimeCaching below).
-          globIgnores: ['**/pdf.worker*.{js,mjs}', '**/notes/*.png'],
+          // Keep the precache to the shell + core learner experience. Anything
+          // here is downloaded on first install for EVERY visitor, so heavy
+          // chunks that only a teacher (or a learner opening a past paper) ever
+          // reaches are excluded and instead runtime-cached on first use (see
+          // the same-origin app-assets rule in runtimeCaching below — that keeps
+          // them working offline after the first online load, without taxing the
+          // install for everyone).
+          //   • pdf.worker* (2.3 MB) + pdfjs-* (~409 kB) — past-paper viewer only
+          //   • docx-vendor-* (~430 kB) — teacher Word export only
+          //   • pdf-vendor-*  (~400 kB) — jsPDF/html2canvas, teacher PDF export only
+          //   • notes/*.png — study-note diagrams, runtime-cached on first view
+          //   • studio/vendor/** — vendored html-docx converter, fetched on demand
+          globIgnores: [
+            '**/pdf.worker*.{js,mjs}',
+            '**/pdfjs-*.js',
+            '**/docx-vendor-*.js',
+            '**/pdf-vendor-*.js',
+            '**/notes/*.png',
+            '**/studio/vendor/**',
+          ],
           // Default is 2 MB. Bump so our largest hashed chunks (vendor,
           // index, react-vendor) all fit under the cache-eligible cap.
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -131,6 +146,24 @@ export default defineConfig(({ mode }) => {
             /^\/timetables\//,
           ],
           runtimeCaching: [
+            // Same-origin JS/CSS chunks that are deliberately kept OUT of the
+            // precache (the heavy on-demand vendor chunks in globIgnores, plus
+            // any lazy route chunk that loads after first paint). Filenames are
+            // content-hashed and therefore immutable, so CacheFirst is correct:
+            // a given URL never changes, a new build ships new URLs, and stale
+            // entries age out. This is what keeps the trimmed precache offline-
+            // safe — the first online use of a teacher export or past-paper
+            // viewer caches its chunk; every later use works offline.
+            {
+              urlPattern: ({ request, sameOrigin }) =>
+                sameOrigin && (request.destination === 'script' || request.destination === 'style'),
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'app-assets',
+                expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
             // Google Fonts — short cache for the CSS (font URLs change
             // when Google rolls fonts) and long cache for the woff2 files.
             {
@@ -287,6 +320,20 @@ export default defineConfig(({ mode }) => {
             // their own chunk so a learner never pays for the docx assembler.
             if (normalizedId.includes('/node_modules/docx/')) return 'docx-vendor'
             if (normalizedId.includes('/node_modules/file-saver/')) return 'docx-vendor'
+
+            // jsPDF + html2canvas power the real one-click PDF export
+            // (src/utils/htmlToPdf.js). They're only reached via dynamic
+            // import() the first time a teacher downloads a PDF, so keep them
+            // in their own lazy chunk — without this rule the catch-all vendor
+            // bucket would pull ~400 kB into the eager initial load.
+            if (
+              normalizedId.includes('/node_modules/jspdf/') ||
+              normalizedId.includes('/node_modules/html2canvas/') ||
+              normalizedId.includes('/node_modules/css-line-break/') ||
+              normalizedId.includes('/node_modules/text-segmentation/')
+            ) {
+              return 'pdf-vendor'
+            }
 
             // Capacitor's native shell only matters inside the Android wrapper
             // but ships to the web too via initNativeShell(). Splitting it keeps

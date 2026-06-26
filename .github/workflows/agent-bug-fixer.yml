@@ -12,7 +12,11 @@ name: Agent — Mendi bug fixer
 # workflow just points Claude Code at it so there is one source of truth.
 #
 # Required repository secret:
-#   ANTHROPIC_API_KEY — same Anthropic key used by Rex and Ledger.
+#   ANTHROPIC_AGENTS_KEY — dedicated Anthropic key shared by the GitHub-agent
+#     workflows (Rex, Ledger, Mendi, Security Review), so Console spend
+#     separates agent/Opus from the app runtime. Falls back to
+#     ANTHROPIC_API_KEY when unset, so this is safe to run before the
+#     dedicated key is provisioned.
 
 on:
   issues:
@@ -76,7 +80,7 @@ jobs:
         id: mendi
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AGENTS_KEY || secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch_prefix: "mendi/"
           base_branch: "main"

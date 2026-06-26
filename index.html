@@ -41,8 +41,8 @@
     <meta name="application-name" content="ZedExams" />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/zedexams-logo.png?v=4" />
-    <link rel="apple-touch-icon" href="/zedexams-logo.png?v=4" />
+    <link rel="icon" type="image/png" href="/zedexams-logo.png?v=5" />
+    <link rel="apple-touch-icon" href="/zedexams-logo.png?v=5" />
 
     <!-- PWA manifest — makes the site installable as a home-screen app on
          Android. No service worker yet, so it doesn't work offline; that
@@ -55,7 +55,7 @@
     <meta property="og:title" content="ZedExams" />
     <meta property="og:description" content="ZedExams — Zambian CBC exam prep." />
     <meta property="og:url" content="https://zedexams.com/" />
-    <meta property="og:image" content="https://zedexams.com/zedexams-logo.png?v=4" />
+    <meta property="og:image" content="https://zedexams.com/zedexams-logo.png?v=5" />
     <meta property="og:image:alt" content="ZedExams" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1431" />
@@ -66,7 +66,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="ZedExams" />
     <meta name="twitter:description" content="ZedExams — Zambian CBC exam prep." />
-    <meta name="twitter:image" content="https://zedexams.com/zedexams-logo.png?v=4" />
+    <meta name="twitter:image" content="https://zedexams.com/zedexams-logo.png?v=5" />
 
     <!-- Structured data — helps Google show rich results for queries
          like "Zambian CBC exam prep" or "Grade 7 ECZ revision". The
@@ -80,7 +80,7 @@
       "name": "ZedExams",
       "alternateName": "ZedExams.com",
       "url": "https://zedexams.com/",
-      "logo": "https://zedexams.com/zedexams-logo.png?v=4",
+      "logo": "https://zedexams.com/zedexams-logo.png?v=5",
       "description": "Zambian CBC exam prep — daily exams, quizzes, lessons, games and AI study help for Grade 4–7 learners, plus printable lesson tools for Zambian teachers.",
       "areaServed": { "@type": "Country", "name": "Zambia" },
       "inLanguage": "en-ZM",
@@ -107,17 +107,51 @@
     }
     </script>
 
-    <!-- Fonts — single CSS request, trimmed weights. Uses display=swap so text paints immediately. -->
+    <!--
+      Fonts — single CSS request, trimmed weights, display=swap so text paints
+      immediately in a fallback face and swaps when the webfont arrives.
+
+      Loaded NON-render-blocking: the Google Fonts stylesheet was the top
+      render-blocking request in PageSpeed (≈310ms added to FCP/LCP). The
+      media="print" + onload swap trick fetches it at a low priority without
+      blocking first paint, then promotes it to all media once it loads. The
+      <noscript> copy keeps the fonts for the (rare) no-JS path. Because every
+      face uses display=swap, deferring the CSS never hides text — the fallback
+      shows instantly and the webfont swaps in with no layout shift.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Lora:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
 
-    <!-- Warm up the Firebase connections we'll open during auth so TLS isn't in the critical path -->
+    <!--
+      Warm up the Firebase connections opened during auth so TLS isn't in the
+      critical path. examsprepzambia.firebaseapp.com hosts the auth-helper
+      iframe (auth/iframe.js) that loads on every page — PageSpeed flagged it
+      as the largest LCP-blocking origin (≈310ms), so it's preconnected here.
+      identitytoolkit.googleapis.com is only hit once a user actually signs in
+      (PageSpeed marked its preconnect "unused" on the landing page), so it's
+      downgraded to dns-prefetch to keep us within the ~4-preconnect budget
+      without hurting sign-in latency.
+    -->
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
-    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://examsprepzambia.firebaseapp.com" crossorigin />
+    <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
     <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
 
     <!--

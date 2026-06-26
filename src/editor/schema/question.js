@@ -29,6 +29,20 @@
  */
 
 import { z } from 'zod'
+import {
+  QUESTION_TYPES,
+  canonicalizeQuestionType,
+  questionTypeLabel,
+  QUESTION_TYPE_LABELS,
+  normalizeMarks,
+  MARKS_BOUNDS,
+} from '../../utils/questionType.js'
+
+// The canonical question-type helpers now live in src/utils/questionType.js
+// (the single source of truth shared by the editor, importers, scorer, and
+// exporters). Re-export them here so the many modules that import them from this
+// schema file keep working unchanged.
+export { canonicalizeQuestionType, questionTypeLabel, QUESTION_TYPE_LABELS }
 
 // ── Tiptap JSON shape ─────────────────────────────────────────────
 
@@ -99,8 +113,10 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
+// Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
+// level the teacher tags so the studio can show the spread of thinking skills.
+const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
 // MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
 // PURE display/preset hint — the underlying answer model is still 4-option MCQ.
 const SUBTYPES = ['vocab', 'spelling', 'punctuation', 'sentence_ordering']
@@ -132,8 +148,11 @@ export const questionSchema = z
     // import without auto-save throwing "Invalid input at 'marks'". The
     // editor's clampInt() and the importer's marksMatch clamp keep the
     // value inside this range for typed input and `[N marks]` text matches.
-    marks: z.number().int().min(1).max(20),
+    marks: z.number().int().min(MARKS_BOUNDS.quiz.min).max(MARKS_BOUNDS.quiz.max),
     difficulty: z.enum(DIFFICULTIES).optional(),
+    // Optional Bloom's cognitive level the teacher tags (no inference — a
+    // question is only counted as a level once explicitly set).
+    bloom: z.enum(BLOOM_LEVELS).optional(),
     order: z.number().int().min(0).max(10000),
 
     // ── Rich-text: HTML (legacy, kept for read-path compat) ──
@@ -198,6 +217,27 @@ export const questionSchema = z
       .nullable()
       .default(null),
 
+    // ── Assessment-paper answer fields (numeric / matching / sequence) ──
+    // These power the Assessment Studio's essay/numeric/matching/sequence
+    // blocks and their printed marking keys. They're OPTIONAL (not
+    // `.default([])`) so a question that isn't one of these types simply
+    // omits them rather than writing empty arrays to every Firestore doc.
+    //
+    // `numericTolerance` / `numericUnit` are the assessment-side numeric
+    // fields (the learner-quiz path uses `tolerance` above; the persistence
+    // layer keeps both in sync for numeric questions).
+    numericTolerance: z.number().min(0).max(1_000_000).optional(),
+    numericUnit: z.string().max(40).optional(),
+    // `matchingLeft[i]` pairs with `matchingRight[matchingAnswer[i]]`.
+    matchingLeft: z.array(z.string().max(500)).max(20).optional(),
+    matchingRight: z.array(z.string().max(500)).max(20).optional(),
+    matchingAnswer: z.array(z.number().int().min(-1).max(20)).max(20).optional(),
+    // `sequenceItems` shown to the learner; `sequenceAnswer[i]` is the 1-based
+    // position item i belongs in (0 = unset). The pre-publish checklist
+    // (collectQuizIssues) enforces a complete permutation before save.
+    sequenceItems: z.array(z.string().max(500)).max(20).optional(),
+    sequenceAnswer: z.array(z.number().int().min(0).max(20)).max(20).optional(),
+
     // Parallel, index-aligned media for each option. A `null` entry means the
     // option is text-only (the original shape). Stored as a separate array so
     // every existing reader of `options[i]` (the AI grader, Firestore rules,
@@ -245,6 +285,10 @@ export const questionSchema = z
     // ── Misc ──
     passageId: z.string().nullable().default(null),
     imageUrl: z.string().nullable().default(null),
+    // Alt-text description for the question image — read by screen readers in
+    // the exported paper and supplied to the AI marker as context for the
+    // figure. Empty string when no image or no description has been written.
+    imageAlt: z.string().max(2000).default(''),
     // A library-diagram alternative to `imageUrl`. The two are not mutually
     // exclusive at the schema level — the renderer prefers the diagram when
     // both are set. Legacy docs have no `imageDiagram` field; renderer falls
@@ -254,7 +298,106 @@ export const questionSchema = z
     // `null` (or absent on legacy docs) → renderer falls back to 'above',
     // which is the only behaviour that existed before this field was added.
     imagePosition: z.enum(['above', 'below', 'left', 'right', 'inline']).nullable().default(null),
+    // How wide the question image renders, as a friendly preset (resolved to a
+    // percentage of the content width by the studio preview and the PDF / DOCX
+    // exporters). Absent on legacy docs → renderer falls back to full width.
+    imageWidth: z.enum(['small', 'medium', 'large', 'full']).default('full'),
     diagramText: z.string().max(2000).nullable().default(null),
+
+    // ── Diagram label overlays / inline table / drawing canvas ──
+    // Power the Assessment Studio's labelled-diagram, image-identify,
+    // data-table and draw-&-label questions. All optional (absent on plain
+    // questions) so legacy docs and MCQs don't carry empty values.
+    //   diagramLabels — draggable labels on the question image. x/y are 0..1
+    //                   ratios of the image so they stay anchored across the
+    //                   preview / PDF / DOCX renderers.
+    //                   tx/ty (optional) are the 0..1 ratio coordinates of the
+    //                   PART the label points at. When present the renderer
+    //                   draws a leader line from the label box (x,y) to the
+    //                   part (tx,ty) — so a label POINTS at the part instead of
+    //                   sitting on top of it. Absent on legacy labels and on
+    //                   maths-dimension figures, where the text sits in place.
+    //   diagramMode   — 'labeled' prints the label text on the image;
+    //                   'identify' prints numbers and the student names each.
+    //   tableData     — inline table { headers[], rows[][] }.
+    //   drawingHeight — blank Draw & Label canvas height in points.
+    diagramLabels: z
+      .array(
+        z.object({
+          id: z.string().max(64).optional(),
+          x: z.number().min(0).max(1),
+          y: z.number().min(0).max(1),
+          tx: z.number().min(0).max(1).optional(),
+          ty: z.number().min(0).max(1).optional(),
+          text: z.string().max(80).default(''),
+        }).strict()
+      )
+      .max(20)
+      .optional(),
+    diagramMode: z.enum(['labeled', 'identify']).optional(),
+    tableData: z
+      .object({
+        headers: z.array(z.string().max(60)).max(6).default([]),
+        rows: z.array(z.array(z.string().max(60)).max(6)).max(12).default([]),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    drawingHeight: z.number().int().min(80).max(500).nullable().optional(),
+
+    // ── Answer-space settings (stimulus / structured sub-questions) ──
+    // How much blank space prints under the question. 'lines' renders N ruled
+    // lines, 'none' renders nothing (answered on the diagram), 'labelled_blanks'
+    // renders one "Label: ____" row per `blankLabels` entry. Absent on legacy
+    // docs → renderer falls back to the per-type default line count.
+    answerFormat: z.enum(['lines', 'none', 'labelled_blanks']).optional(),
+    // Explicit ruled-line count for the 'lines' format. Null/absent → per-type
+    // default. Capped well above any sane hand-set value.
+    answerLines: z.number().int().min(0).max(40).nullable().optional(),
+    // Labels for the 'labelled_blanks' format, e.g. ['P','Q','R'].
+    blankLabels: z.array(z.string().max(24)).max(26).optional(),
+    // Optional word bank printed above the answer space (candidate answers the
+    // student chooses from). Used by structured / stimulus sub-questions AND
+    // the dedicated Fill-in-the-Blanks type (`type: 'fill_blanks'`).
+    wordBank: z.array(z.string().max(120)).max(40).optional(),
+    // Whether the word bank's words may be reused across blanks. Only
+    // meaningful for `type: 'fill_blanks'`; a display/marking hint, not
+    // enforced at grade time. Absent on legacy docs → treated as false.
+    wordBankReuse: z.boolean().optional(),
+    // Dedicated Fill-in-the-Blanks statements. Each statement prints on its
+    // own line as "A. … ____ …" and carries the expected answer for each of
+    // its blanks (index-aligned to the underscore runs in `text`). Only
+    // present on `type: 'fill_blanks'` questions, so it stays optional and a
+    // plain MCQ never carries an empty array (keeps the .strict() schema lean
+    // and the doc small).
+    statements: z
+      .array(
+        z.object({
+          text: z.string().max(2000).default(''),
+          answers: z.array(z.string().max(200)).max(12).default([]),
+        }).strict()
+      )
+      .max(40)
+      .optional(),
+
+    // Short-answer SUB-PARTS — the "(a) … (b) … (c) …" structure under one
+    // instruction stem (the question's `text`). Each part has its own sentence,
+    // model answer, marks and answer-space format. The question's `marks`
+    // auto-sum the parts. Only present on multi-part short-answer questions, so
+    // it stays optional (keeps the .strict() schema lean for every other type).
+    subParts: z
+      .array(
+        z.object({
+          text: z.string().max(2000).default(''),
+          answer: z.string().max(1000).default(''),
+          marks: z.number().int().min(0).max(99).default(1),
+          answerFormat: z.enum(['inline', 'lines', 'none']).default('inline'),
+          answerLines: z.number().int().min(0).max(20).nullable().optional(),
+        }).strict()
+      )
+      .max(12)
+      .optional(),
+
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),
     importWarnings: z.array(z.string().max(2000)).default([]),
@@ -371,7 +514,11 @@ function isPlainObject(v) {
 export function coerceQuestion(raw) {
   if (!isPlainObject(raw)) return null
 
-  const type = QUESTION_TYPES.includes(raw.type) ? raw.type : 'mcq'
+  // Fold known aliases ('truefalse' → 'tf', etc.) before the enum check so a
+  // legacy/aliased doc reads back as its true type rather than collapsing to
+  // 'mcq'. Anything still outside the enum falls back to 'mcq'.
+  const canonicalType = canonicalizeQuestionType(raw.type)
+  const type = QUESTION_TYPES.includes(canonicalType) ? canonicalType : 'mcq'
 
   const options = Array.isArray(raw.options)
     ? raw.options.map(o => (typeof o === 'string' ? o : String(o ?? '')))
@@ -381,10 +528,11 @@ export function coerceQuestion(raw) {
     ? raw.optionMedia.map(m => (isPlainObject(m) ? m : null))
     : []
 
-  const rawMarks = Number(raw.marks)
-  const marks = Number.isFinite(rawMarks) && rawMarks >= 1
-    ? Math.min(10, Math.floor(rawMarks))
-    : 1
+  // Cap mirrors the write schema's `marks: z.number().int().min(1).max(20)`.
+  // normalizeMarks (src/utils/questionType.js) is the single shared marks
+  // policy: it used to clamp at 10 here, which silently truncated legitimate
+  // 11–20 mark past-paper questions on read-back even though they saved fine.
+  const marks = normalizeMarks(raw.marks, MARKS_BOUNDS.quiz)
 
   const rawTolerance = Number(raw.tolerance)
   const tolerance = raw.tolerance == null
@@ -420,4 +568,5 @@ export function coerceQuestion(raw) {
 
 export const QUESTION_TYPES_LIST = QUESTION_TYPES
 export const DIFFICULTIES_LIST = DIFFICULTIES
+export const BLOOM_LEVELS_LIST = BLOOM_LEVELS
 export const SUBTYPES_LIST = SUBTYPES

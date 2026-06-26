@@ -40,9 +40,10 @@ export default function LegalLayout({ title, lastUpdated, children }) {
         <div className="mx-auto w-full max-w-3xl px-5 sm:px-8 py-6 text-xs theme-text-muted flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} ZedExams</span>
           <nav className="flex flex-wrap gap-x-4">
-            <Link to="/privacy" className="hover:theme-text">Privacy</Link>
-            <Link to="/terms"   className="hover:theme-text">Terms</Link>
-            <Link to="/"        className="hover:theme-text">Home</Link>
+            <Link to="/privacy"     className="hover:theme-text">Privacy</Link>
+            <Link to="/terms"       className="hover:theme-text">Terms</Link>
+            <Link to="/preferences" className="hover:theme-text">Preferences</Link>
+            <Link to="/"            className="hover:theme-text">Home</Link>
           </nav>
         </div>
       </footer>

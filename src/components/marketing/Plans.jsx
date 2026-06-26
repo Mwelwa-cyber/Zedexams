@@ -14,11 +14,11 @@ const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
 const FAQ = [
   {
     q: 'What happens when I hit my monthly limit?',
-    a: "Your plan keeps everything you've already made — nothing gets locked. You can either wait for the reset on the 1st of next month, upgrade for instant unlock, or pay K5 for one extra generation if you only need one more.",
+    a: "Your plan keeps everything you've already made — nothing gets locked. You can either wait for the reset on the 1st of next month, upgrade for instant unlock, or pay K25 for one extra generation if you only need one more.",
   },
   {
     q: 'Can I pay with Mobile Money?',
-    a: "Yes — Airtel Money and MTN MoMo both work. You send the amount to our number, then confirm on WhatsApp using your email as the reference. We activate your account within 30 minutes, 7 days a week. There's no auto-renewal — you only pay for the period you choose.",
+    a: "Yes — Airtel Money, MTN MoMo and cards all work, right inside the app. Choose your plan, pay securely through our checkout, and your account unlocks instantly — no sending money to a number, no waiting. There's no auto-renewal either: you only pay for the period you choose.",
   },
   {
     q: 'Can I cancel anytime?',
@@ -150,9 +150,8 @@ const PLANS = [
     key: 'free', name: 'Free', mascot: '🐢', meta: 'For trying things out',
     note: 'No card required.', cta: 'Start free',
     feats: [
-      <><strong>5</strong> lesson plans / month</>,
-      <><strong>3</strong> worksheets / month</>,
-      <><strong>3</strong> teacher notes / month</>,
+      <><strong>2</strong> lesson plans / month</>,
+      <>Preview a <strong>sample</strong> of every other studio</>,
       <>Daily cap of <strong>2</strong> generations</>,
       'HTML export only',
       'Library kept for 7 days',
@@ -161,12 +160,12 @@ const PLANS = [
   },
   {
     key: 'pro', name: 'Pro', mascot: '🦊', meta: 'For the everyday teacher',
-    note: 'Or K790 / year — two months free.', cta: 'Go Pro', popular: true,
+    note: 'Or K590 / year — two months free.', cta: 'Go Pro', popular: true,
     feats: [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>25</strong> worksheets &amp; teacher notes</>,
-      <><strong>8</strong> assessments / month</>,
       <><strong>2</strong> schemes of work / month</>,
+      <><strong>1</strong> free assessment + exam paper to try</>,
       <>Daily cap of <strong>10</strong> generations</>,
       'DOCX + PDF export',
       'Library kept forever',
@@ -175,14 +174,14 @@ const PLANS = [
   },
   {
     key: 'max', name: 'Max', mascot: '🦅', meta: 'For heavy users',
-    note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
+    note: 'Or K1,490 / year — two months free.', cta: 'Go Max',
     feats: [
+      <><strong>Unlimited</strong> assessments &amp; exam papers</>,
+      <>The Assessment &amp; Exam Paper studios — <strong>Max only</strong></>,
       <><strong>Unlimited</strong> plans, notes &amp; worksheets*</>,
-      <><strong>Unlimited</strong> assessments &amp; schemes</>,
       <>Daily cap of <strong>30</strong> generations</>,
       'Bulk export (whole term in one click)',
-      'Priority queue when servers are busy',
-      'Early access to new studios',
+      'Priority queue + early access to new studios',
       'Email support, 24h reply',
       <><em>*Fair use ~200/month</em></>,
     ],
@@ -234,7 +233,7 @@ export default function Plans() {
         description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
         path="/pricing"
       />
-      <div className="min-h-screen theme-bg theme-text font-body">
+      <div className="marketing-page min-h-screen theme-bg theme-text font-body">
         {/* Top nav */}
         <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
           <Section className="flex items-center justify-between py-3">
@@ -338,11 +337,14 @@ export default function Plans() {
                 </thead>
                 <tbody>
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Generations / month</td></tr>
-                  <Row label="Lesson plans" cells={['5', '40', 'Unlimited']} />
-                  <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
-                  <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
-                  <Row label="Assessments" cells={[null, '8', 'Unlimited']} />
-                  <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />
+                  <Row label="Lesson plans" cells={['2', '40', 'Unlimited']} />
+                  <Row label="Worksheets" cells={['Sample', '25', 'Unlimited']} />
+                  <Row label="Teacher notes" cells={['Sample', '25', 'Unlimited']} />
+                  <Row label="Schemes of work" cells={['Sample', '2', 'Unlimited']} />
+
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Max studios</td></tr>
+                  <Row label="Assessment studio" cells={['Sample', '1 to try', 'Unlimited']} />
+                  <Row label="Exam Paper studio" cells={['Sample', '1 to try', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />

@@ -32,6 +32,15 @@
  */
 
 const admin = require("firebase-admin");
+const {
+  getBudgetMode,
+  getReinvestRatio,
+  getZmwPerUsd,
+  getBudgetFloorUsd,
+  deriveBudgetFromRevenueUsd,
+  resolveZmwPerUsd,
+  FX_MAX_AGE_MS,
+} = require("./treasury");
 
 // All rates in USD per million tokens.
 const PRICE_PER_MTOK = {
@@ -61,6 +70,30 @@ const PRICE_PER_MTOK = {
     output: 15.00,
     cacheCreation5m: 3.75,
     cacheRead: 0.30,
+  },
+  // OpenAI (Zed chat + short-answer marking). recordAiUsage maps OpenAI's
+  // {prompt_tokens, completion_tokens} onto {input_tokens, output_tokens};
+  // we don't forward OpenAI cached-token counts, so the cache fields stay 0.
+  // The longest-prefix lookup keeps "gpt-4o-mini" off the "gpt-4o" rate.
+  "gpt-4o-mini": {
+    input: 0.15,
+    output: 0.60,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  "gpt-4o": {
+    input: 2.50,
+    output: 10.00,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  // Catch-all so an unrecognised gpt-* model never falls back to the
+  // (Anthropic Sonnet) default rates and overstates spend.
+  "gpt": {
+    input: 0.50,
+    output: 1.50,
+    cacheCreation5m: 0,
+    cacheRead: 0,
   },
 };
 
@@ -265,6 +298,99 @@ async function getMonthToDateCostUsd() {
   }
 }
 
+// ── Revenue-linked ceiling (the "self-funding governor") ──────────────────
+//
+// When AI_BUDGET_MODE=revenue_linked, the month's AI ceiling is derived from
+// subscription revenue actually earned (payments) rather than a fixed env
+// number: budget = monthRevenueUsd × reinvestRatio (see functions/treasury.js
+// + ORG.md → Treasury & Self-Funding). Default mode is 'static', so this path
+// is dormant until the owner arms it.
+//
+// Revenue is read from the payments collection and cached 5 min (it changes
+// slowly and the query is heavier than the cost rollup read). Fails OPEN: a
+// read error returns null so the gate falls back to the static ceiling rather
+// than blocking AI because revenue couldn't be read.
+
+const REVENUE_CACHE_TTL_MS = 5 * 60_000;
+let revenueCache = {expiresAt: 0, monthKey: null, revenueUsd: null};
+
+/** Start of the current UTC month — matches monthKeyUtc()'s window. */
+function monthStartUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+// FX rate resolver. Reads the auto-refreshed settings/fxRate doc (written by
+// the dailyFxRefresh cron) and resolves it against the env/default fallback —
+// NEVER a live network call, so it can't block the AI gate. Cached 1h since
+// the rate only changes daily; fails open to the env/default rate.
+const FX_CACHE_TTL_MS = 60 * 60_000;
+let fxCache = {expiresAt: 0, rate: null};
+
+async function getResolvedZmwPerUsd() {
+  const nowMs = Date.now();
+  if (nowMs < fxCache.expiresAt && fxCache.rate != null) return fxCache.rate;
+  const envFallback = getZmwPerUsd();
+  let rate = envFallback;
+  try {
+    const snap = await admin.firestore().collection("settings").doc("fxRate").get();
+    const d = snap.exists ? (snap.data() || {}) : {};
+    const fetchedAtMs = Number.isFinite(Number(d.fetchedAtMs)) ?
+      Number(d.fetchedAtMs) :
+      (d.fetchedAt && d.fetchedAt.toMillis ? d.fetchedAt.toMillis() : NaN);
+    rate = resolveZmwPerUsd({
+      liveRate: d.zmwPerUsd,
+      liveFetchedAtMs: fetchedAtMs,
+      now: nowMs,
+      envFallback,
+      maxAgeMs: FX_MAX_AGE_MS,
+    });
+  } catch (err) {
+    // Fail open to the env/default rate; never block a budget read on FX.
+    rate = envFallback;
+  }
+  fxCache = {expiresAt: nowMs + FX_CACHE_TTL_MS, rate};
+  return rate;
+}
+
+/**
+ * Month-to-date confirmed subscription revenue, expressed in USD via the
+ * auto-refreshed (or fallback) ZMW/USD rate. Cached 5 min; returns null (not 0)
+ * on a read error so callers can distinguish "couldn't read" from "earned
+ * nothing" and fail open accordingly.
+ */
+async function getMonthToDateRevenueUsd() {
+  const monthKey = monthKeyUtc();
+  const nowMs = Date.now();
+  if (revenueCache.monthKey === monthKey && nowMs < revenueCache.expiresAt &&
+      revenueCache.revenueUsd != null) {
+    return revenueCache.revenueUsd;
+  }
+  try {
+    const since = admin.firestore.Timestamp.fromDate(monthStartUtc());
+    const snap = await admin.firestore()
+        .collection("payments")
+        .where("status", "in", ["confirmed", "successful"])
+        .where("confirmedAt", ">=", since)
+        .get();
+    let zmw = 0;
+    snap.forEach((doc) => {
+      zmw += Number((doc.data() || {}).amountZMW || 0);
+    });
+    const revenueUsd = zmw / (await getResolvedZmwPerUsd());
+    revenueCache = {expiresAt: nowMs + REVENUE_CACHE_TTL_MS, monthKey, revenueUsd};
+    return revenueUsd;
+  } catch (err) {
+    console.warn("[aiCostTracking] month-to-date revenue read failed", err);
+    revenueCache = {
+      expiresAt: nowMs + BUDGET_READ_ERROR_TTL_MS,
+      monthKey,
+      revenueUsd: null,
+    };
+    return null;
+  }
+}
+
 /**
  * Pure budget evaluation — no I/O, so it unit-tests directly.
  * Returns { enabled, overBudget, warning, ratio, budgetUsd, monthCostUsd }.
@@ -293,17 +419,90 @@ function evaluateBudget({monthCostUsd, budgetUsd} = {}) {
   };
 }
 
-/** Live budget status (reads the rollup). Never throws. */
+/**
+ * Live budget status. Never throws. Picks the ceiling by AI_BUDGET_MODE:
+ *   - 'static' (default): the fixed AI_MONTHLY_BUDGET_USD env ceiling.
+ *   - 'revenue_linked':   monthRevenueUsd × reinvestRatio (self-funding).
+ * Both fail OPEN — any read error degrades to "allow the call".
+ */
 async function getBudgetStatus() {
+  if (getBudgetMode() === "revenue_linked") {
+    return getRevenueLinkedBudgetStatus();
+  }
+  // ── static (unchanged) ──────────────────────────────────────────────────
   const budgetUsd = getMonthlyBudgetUsd();
-  if (!budgetUsd) return evaluateBudget({budgetUsd: 0, monthCostUsd: 0});
+  if (!budgetUsd) {
+    return {...evaluateBudget({budgetUsd: 0, monthCostUsd: 0}), mode: "static"};
+  }
   const monthCostUsd = await getMonthToDateCostUsd();
-  return {...evaluateBudget({monthCostUsd, budgetUsd}), monthKey: monthKeyUtc()};
+  return {
+    ...evaluateBudget({monthCostUsd, budgetUsd}),
+    monthKey: monthKeyUtc(),
+    mode: "static",
+  };
 }
 
-// Test seam — let tests reset the in-memory cache between cases.
+/**
+ * The self-funding ceiling. budget = monthRevenueUsd × reinvestRatio, with a
+ * floor for the pre-revenue bootstrap. Safety net so arming this can never
+ * brick AI: if revenue can't be read, OR the derived ceiling is $0 (no
+ * revenue and no floor), it falls back to the static AI_MONTHLY_BUDGET_USD
+ * ceiling — which is itself "disabled = allow" when unset.
+ */
+async function getRevenueLinkedBudgetStatus() {
+  const revenueUsd = await getMonthToDateRevenueUsd();
+
+  // Revenue unreadable → degrade to the static ceiling (fail open).
+  if (revenueUsd == null) {
+    const staticBudget = getMonthlyBudgetUsd();
+    if (!staticBudget) {
+      return {
+        ...evaluateBudget({budgetUsd: 0, monthCostUsd: 0}),
+        mode: "revenue_linked", revenueUsd: null, degraded: true,
+      };
+    }
+    const monthCostUsd = await getMonthToDateCostUsd();
+    return {
+      ...evaluateBudget({monthCostUsd, budgetUsd: staticBudget}),
+      monthKey: monthKeyUtc(),
+      mode: "revenue_linked", revenueUsd: null, degraded: true,
+    };
+  }
+
+  const reinvestRatio = getReinvestRatio();
+  const derivedBudgetUsd = deriveBudgetFromRevenueUsd({
+    revenueUsd, reinvestRatio, floorUsd: getBudgetFloorUsd(),
+  });
+
+  // No revenue + no floor → a $0 ceiling would block everything. Fall back to
+  // the static budget (or disabled) so a pre-revenue project isn't bricked.
+  let budgetUsd = derivedBudgetUsd;
+  if (budgetUsd <= 0) {
+    budgetUsd = getMonthlyBudgetUsd();
+    if (!budgetUsd) {
+      return {
+        ...evaluateBudget({budgetUsd: 0, monthCostUsd: 0}),
+        mode: "revenue_linked", revenueUsd, derivedBudgetUsd: 0, reinvestRatio,
+      };
+    }
+  }
+
+  const monthCostUsd = await getMonthToDateCostUsd();
+  return {
+    ...evaluateBudget({monthCostUsd, budgetUsd}),
+    monthKey: monthKeyUtc(),
+    mode: "revenue_linked",
+    revenueUsd,
+    derivedBudgetUsd,
+    reinvestRatio,
+  };
+}
+
+// Test seam — let tests reset the in-memory caches between cases.
 function _resetBudgetCache() {
   budgetCache = {expiresAt: 0, monthKey: null, monthCostUsd: 0};
+  revenueCache = {expiresAt: 0, monthKey: null, revenueUsd: null};
+  fxCache = {expiresAt: 0, rate: null};
 }
 
 module.exports = {
@@ -314,6 +513,8 @@ module.exports = {
   monthKeyUtc,
   getMonthlyBudgetUsd,
   getMonthToDateCostUsd,
+  getMonthToDateRevenueUsd,
+  getResolvedZmwPerUsd,
   evaluateBudget,
   getBudgetStatus,
   BUDGET_WARN_RATIO,

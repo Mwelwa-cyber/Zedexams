@@ -11,29 +11,48 @@
  *   - 'scheme': marking key for teachers (answers + explanations).
  */
 
+import { saveBlob } from './saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
   Document,
+  Header,
   HeadingLevel,
   HeightRule,
   ImageRun,
   Packer,
   PageBreak,
   Paragraph,
-  Table,
+  Tab,
   TableCell,
   TableRow,
+  Table,
+  TabStopPosition,
+  TabStopType,
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
+import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { resolveImageWidthPercent } from './imageWidth.js'
+import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { svgToPngBytes } from './svgRasterizer.js'
+import { buildAnswerSheet } from './assessmentAnswerSheet.js'
+import { splitStatementSegments, statementLabel } from './fillBlanks.js'
+import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
+import { sanitizeXmlText } from './xmlText.js'
+import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
+
+const ANSWER_SHEET_LETTERS = 'ABCDEFGH'.split('')
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+// Re-exported from the shared xmlText.js so every exporter sanitises identically
+// and the existing call sites / tests that import it from this module keep working.
+export { sanitizeXmlText }
+
 function runText(str, opts = {}) {
-  return new TextRun({ text: str == null ? '' : String(str), ...opts })
+  return new TextRun({ text: sanitizeXmlText(str), ...opts })
 }
 
 function para(runs, opts = {}) {
@@ -203,18 +222,28 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
 
   /** Accumulate runs into the current paragraph; spill into `out` on block. */
   const out = []
-  let currentRuns = [...prefixRuns]
+  // The prefix (e.g. the "12. " question number) is held separately and
+  // prepended to the FIRST paragraph that actually has content. Block-level
+  // wrappers flush on entry, so preloading the prefix into currentRuns put a
+  // leading `<p>` question stem on its own line ("12." then "Work out:" below).
+  let pendingPrefix = [...prefixRuns]
+  let currentRuns = []
   let isFirstParagraph = true
+  // Track the last emitted paragraph's runs so a trailing suffix (the marks
+  // tag) can be re-attached to it inline instead of dropping onto its own line.
+  let lastEmitted = null
 
   const flush = () => {
-    if (currentRuns.length) {
-      const spacing = isFirstParagraph && firstParaSpacing
-        ? firstParaSpacing
-        : { after: 80 }
-      out.push(new Paragraph({ children: currentRuns, spacing }))
-      currentRuns = []
-      isFirstParagraph = false
-    }
+    if (!currentRuns.length) return
+    const children = [...pendingPrefix, ...currentRuns]
+    pendingPrefix = []
+    const spacing = isFirstParagraph && firstParaSpacing
+      ? firstParaSpacing
+      : { after: 80 }
+    out.push(new Paragraph({ children, spacing }))
+    lastEmitted = { children, spacing, index: out.length - 1 }
+    currentRuns = []
+    isFirstParagraph = false
   }
 
   const walk = (node, marks = {}) => {
@@ -307,58 +336,400 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
   }
 
   Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
-  // Append suffix runs to the last paragraph (or current pending one).
-  if (suffixRuns.length) {
-    currentRuns.push(...suffixRuns)
+  // Append suffix runs (the marks tag) to the last line of content. If the
+  // content ended on a block boundary, re-open the last emitted paragraph so
+  // the tag stays inline rather than starting a new paragraph.
+  if (suffixRuns.length && !currentRuns.length && lastEmitted) {
+    out[lastEmitted.index] = new Paragraph({
+      children: [...lastEmitted.children, ...suffixRuns],
+      spacing: lastEmitted.spacing,
+    })
+  } else {
+    if (suffixRuns.length) currentRuns.push(...suffixRuns)
+    flush()
   }
-  flush()
   return out.length ? out : [para([...prefixRuns, runText('', baseOpts), ...suffixRuns], firstParaSpacing || {})]
 }
 
 async function fetchImageBytes(url) {
+  // CORS cache-poisoning guard. The studio preview renders the SAME image with
+  // a plain `<img src>` (no crossOrigin), which the browser fetches as a
+  // no-CORS request and caches WITHOUT an `Access-Control-Allow-Origin` header.
+  // Diagram URLs are stamped `Cache-Control: public, max-age=…, immutable`, so
+  // that header-less response sticks around. A later `fetch(url,{mode:'cors'})`
+  // reuses the poisoned cache entry, fails its CORS check, and the image
+  // silently vanishes from the download even though the preview shows it — the
+  // classic "diagrams show in the preview but not in the download" bug that a
+  // correctly-applied bucket CORS config does NOT fix on its own.
+  //
+  // So try a normal fetch first (fast path, warm cache), then retry with
+  // `cache: 'reload'`, which bypasses the cache and forces a fresh network
+  // request that carries the Origin header and gets the CORS headers back.
+  for (const cache of ['default', 'reload']) {
+    try {
+      const response = await fetch(url, { mode: 'cors', cache })
+      if (!response.ok) continue
+      const buffer = await response.arrayBuffer()
+      return new Uint8Array(buffer)
+    } catch {
+      // CORS rejection or network error — fall through to the next strategy.
+    }
+  }
+  // Last resort: route through the same-origin image proxy. The retries above
+  // only fix a poisoned cache; they can't fix a Storage bucket whose CORS
+  // config is missing or applied to the wrong bucket name, which returns NO
+  // Access-Control-Allow-Origin header at all. The proxy reads the bytes
+  // server-side (no CORS there) and re-serves them same-origin, so the figure
+  // embeds regardless of the bucket's CORS state.
+  const proxied = toProxyImageUrl(url)
+  if (proxied) {
+    try {
+      const response = await fetch(proxied, { cache: 'reload' })
+      if (response.ok) {
+        const contentType = response.headers && response.headers.get
+          ? (response.headers.get('content-type') || '')
+          : ''
+        const buffer = await response.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        // Accept ONLY a genuine image. If the rewrite isn't live the proxy
+        // path resolves to the SPA's index.html (200/text/html) — embedding
+        // that as a PNG would be a fresh broken-image bug, so fail closed.
+        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          return bytes
+        }
+      }
+    } catch {
+      // Proxy unreachable (offline / not deployed) — give up gracefully.
+    }
+  }
+  return null
+}
+
+/**
+ * Sniff the image format from its leading magic bytes.
+ *
+ * docx v9 made `ImageRun.type` REQUIRED — it builds the embedded media
+ * file name as `${hash}.${type}`, so an undefined type yields a
+ * `word/media/<hash>.undefined` part that Word can't map to an image MIME
+ * and silently drops (the rest of the document still renders). That's why
+ * question pictures were missing from the downloaded paper even though the
+ * preview showed them. We detect the real type here and pass it through.
+ *
+ * docx only embeds jpg/png/gif/bmp; question/diagram images in the studio
+ * are PNG (AI diagrams) or JPEG (compressed uploads), so PNG is a safe
+ * default for the rare unknown header.
+ */
+export function detectImageType(bytes) {
+  if (!bytes || bytes.length < 4) return 'png'
+  const [b0, b1, b2, b3] = bytes
+  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4e && b3 === 0x47) return 'png'
+  if (b0 === 0xff && b1 === 0xd8 && b2 === 0xff) return 'jpg'
+  if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) return 'gif'
+  if (b0 === 0x42 && b1 === 0x4d) return 'bmp'
+  // RIFF....WEBP. docx CANNOT embed WEBP, so callers must transcode it (see
+  // loadImageRun) before building an ImageRun — labelling WEBP bytes as png
+  // would produce a media part Word renders as a broken image.
+  if (bytes.length >= 12 &&
+      b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
+  return 'png'
+}
+
+const MIME_BY_TYPE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp' }
+
+/** Build an ImageRun with the format-detected `type` docx v9 requires. */
+function imageRun(bytes, transformation, alt = '') {
+  const altText = String(alt || '').trim()
+  return new ImageRun({
+    type: detectImageType(bytes),
+    data: bytes,
+    transformation,
+    // Word screen-readers read the description; supply name/title too so the
+    // alt text is exposed everywhere Word looks for it.
+    ...(altText ? { altText: { name: altText, title: altText, description: altText } } : {}),
+  })
+}
+
+// Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
+// studio preview scales pictures with `max-width`, so a fixed width×height
+// here would stretch them; this keeps the downloaded paper matching the
+// preview. Falls back to the box when natural dimensions are unknown.
+function fitWithin(width, height, maxWidth, maxHeight) {
+  if (!width || !height) return { width: maxWidth, height: maxHeight }
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1)
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
+}
+
+// Decode image bytes in the browser to read natural dimensions and, for
+// formats Word can't embed (WEBP — which the picture bank stores as-is),
+// transcode to PNG. An object URL keeps the canvas same-origin so it is
+// never CORS-tainted. Returns { bytes, width, height } or null when there is
+// no DOM (e.g. the node test harness).
+async function decodeImage(bytes, type) {
+  if (typeof document === 'undefined' || typeof Image === 'undefined' || !globalThis.URL?.createObjectURL) {
+    return null
+  }
+  const objectUrl = URL.createObjectURL(new Blob([bytes], { type: MIME_BY_TYPE[type] || 'application/octet-stream' }))
   try {
-    const response = await fetch(url, { mode: 'cors' })
-    if (!response.ok) return null
-    const buffer = await response.arrayBuffer()
-    return new Uint8Array(buffer)
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('decode failed'))
+      el.src = objectUrl
+    })
+    const width = img.naturalWidth || img.width || 0
+    const height = img.naturalHeight || img.height || 0
+    let outBytes = bytes
+    if (type === 'webp' && width && height) {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0)
+      const pngBlob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
+      if (pngBlob) outBytes = new Uint8Array(await pngBlob.arrayBuffer())
+    }
+    return { bytes: outBytes, width, height }
+  } catch {
+    return null
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+// Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
+// ImageRun or null. Centralising this guarantees WEBP is always transcoded
+// before it reaches imageRun — docx would otherwise reject the format.
+async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
+  const bytes = await fetchImageBytes(url)
+  if (!bytes) return null
+  const type = detectImageType(bytes)
+  const decoded = await decodeImage(bytes, type)
+  if (!decoded) {
+    // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
+    // without a canvas, so skip it rather than write a broken media part.
+    if (type === 'webp') return null
+    return imageRun(bytes, { width, height }, alt)
+  }
+  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height), alt)
+}
+
+// Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
+// isn't squashed. Falls back to 4:3.
+function svgAspect(svg) {
+  const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
+  const w = m ? parseFloat(m[1]) : 0
+  const h = m ? parseFloat(m[2]) : 0
+  return w > 0 && h > 0 ? w / h : 4 / 3
+}
+
+// Render a deterministic library diagram ({libraryKey, params}) to an embedded
+// ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
+// in a DOM-less context (node tests) so the caller falls back to alt text.
+async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}) {
+  if (!diagram || !diagram.libraryKey) return null
+  const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
+  if (!svg) return null
+  const aspect = svgAspect(svg)
+  // Rasterize at ~2× the embed size for a crisp print, fitting the box.
+  let width = maxWidth
+  let height = Math.round(maxWidth / aspect)
+  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * aspect) }
+  try {
+    const bytes = await svgToPngBytes(svg, width * 2, height * 2)
+    return imageRun(bytes, { width, height })
   } catch {
     return null
   }
 }
 
-async function logoParagraph(url, transform = null) {
-  if (!url) return null
-  const bytes = await fetchImageBytes(url)
-  if (!bytes) return null
-  // Width applies; offset doesn't translate cleanly to inline Word images,
-  // so we clamp to width-only. The studio surfaces this limitation in the
-  // LogoAdjuster's hint text.
-  const width = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
-  return centeredPara([
-    new ImageRun({ data: bytes, transformation: { width, height: width } }),
-  ])
-}
-
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
-  const bytes = await fetchImageBytes(url)
-  if (!bytes) return null
-  return centeredPara([
-    new ImageRun({
-      data: bytes,
-      transformation: { width: opts.width || 360, height: opts.height || 220 },
-    }),
-  ])
+  // A width preset scales the fit-box down from the full-width default so a
+  // teacher's "Small/Medium/Large" choice carries into the Word download.
+  const baseWidth = opts.width || 360
+  const baseHeight = opts.height || 220
+  const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+  const run = await loadImageRun(url, {
+    width: Math.round(baseWidth * pct),
+    height: Math.round(baseHeight * pct),
+    alt: opts.alt || '',
+  })
+  return run ? centeredPara([run]) : null
+}
+
+// Base64-encode raw bytes for an inline data URL. Browser-only (uses btoa);
+// chunked so a large diagram doesn't blow the argument limit of fromCharCode.
+function bytesToBase64(bytes) {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+// Escape text destined for an SVG <text> node. The href is a data: URL (safe
+// chars only) so it's left alone, but a label can carry &, <, > from a teacher.
+function escapeSvgText(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+// Build an SVG that draws the question image with its label markers baked on
+// top. Word can't reliably overlay positioned elements on an inline image, so
+// we composite them into one PNG instead — this is what makes a downloaded
+// diagram paper match the studio preview / PDF, where the markers are
+// absolutely-positioned DOM (src/components/teacher/views/PaperBlocks.jsx).
+//
+// Two `mode`s, mirroring the preview's two diagram modes:
+//   - 'identify' (default): numbered black circles (1, 2, 3…) — the on-image
+//     marker is just the number; the answer text goes on the blanks below.
+//   - 'labeled': white text pills carrying each label's text, the way a labelled
+//     diagram prints. Without this the Word export flattened labelled diagrams to
+//     a "Labels: 1. … 2. …" text list that threw away which label points where.
+//
+// `labels` carry x/y (0..1 ratios of the image) for the marker and optional
+// tx/ty for the leader-tip. Pure string builder so the geometry is unit-tested;
+// the raster step (svgToPngBytes) is the only browser-only part.
+export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode = 'identify' }) {
+  const W = Math.max(1, Math.round(width))
+  const H = Math.max(1, Math.round(height))
+  const clamp01 = n => Math.max(0, Math.min(1, Number(n) || 0))
+  // Marker sizing tracks the smaller edge so circles stay readable but never
+  // swamp a tall/narrow figure; mirrors the preview's ~20px badge proportion.
+  const minEdge = Math.min(W, H)
+  const r = Math.max(9, Math.round(minEdge * 0.035))
+  const fs = Math.max(10, Math.round(r * 1.25))
+  const dot = Math.max(2, Math.round(minEdge * 0.012))
+  const sw = Math.max(1, Math.round(minEdge * 0.006))
+  const parts = [`<image href="${href}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`]
+  labels.forEach((l, i) => {
+    const cx = clamp01(l.x) * W
+    const cy = clamp01(l.y) * H
+    // Leader line + tip dot on the part the label points at (both modes).
+    if (Number.isFinite(Number(l.tx)) && Number.isFinite(Number(l.ty))) {
+      const tx = clamp01(l.tx) * W
+      const ty = clamp01(l.ty) * H
+      parts.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${dot}" fill="#000"/>`)
+    }
+    if (mode === 'labeled') {
+      // A white text pill carrying the label, mirroring the preview's
+      // absolutely-positioned label badge. The layout already drops empty
+      // labelled pills, but guard so a stray blank never draws an empty box.
+      const labelText = String(l.text == null ? '' : l.text).trim()
+      if (!labelText) return
+      const padX = Math.max(4, Math.round(fs * 0.5))
+      const boxW = Math.round(labelText.length * fs * 0.6 + padX * 2)
+      const boxH = Math.round(fs * 1.7)
+      const x = cx - boxW / 2
+      const y = cy - boxH / 2
+      const rad = Math.max(2, Math.round(boxH * 0.18))
+      parts.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${boxW}" height="${boxH}" rx="${rad}" ry="${rad}" fill="#fff" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#000" font-size="${fs}" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${escapeSvgText(labelText)}</text>`)
+      return
+    }
+    // identify: numbered black circle with white text.
+    parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="#000" stroke="#fff" stroke-width="${sw}"/>`)
+    parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#fff" font-size="${fs}" font-weight="700" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`)
+  })
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${parts.join('')}</svg>`
+}
+
+// Render a question image with its label markers composited on top, returning a
+// centered ImageRun paragraph. `opts.mode` is 'identify' (numbered circles) or
+// 'labeled' (text pills). Browser-only: needs a canvas to decode the image and
+// rasterize the overlay SVG. Returns null in a DOM-less context (node tests) or
+// on any failure, so the caller falls back to the plain image (+ a text list for
+// labelled diagrams, the numbered answer blanks for identify).
+async function diagramLabelImageParagraph(url, labels, opts = {}) {
+  try {
+    const bytes = await fetchImageBytes(url)
+    if (!bytes) return null
+    const type = detectImageType(bytes)
+    const decoded = await decodeImage(bytes, type)
+    if (!decoded || !decoded.width || !decoded.height) return null
+    // decodeImage transcodes WEBP→PNG; everything else keeps its original mime.
+    const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
+    const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
+    const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels, mode: opts.mode || 'identify' })
+    const baseWidth = opts.width || 360
+    const baseHeight = opts.height || 220
+    const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+    const fit = fitWithin(decoded.width, decoded.height, Math.round(baseWidth * pct), Math.round(baseHeight * pct))
+    // Rasterize at ~2× the embed size for a crisp print.
+    const pngBytes = await svgToPngBytes(svg, fit.width * 2, fit.height * 2)
+    const run = imageRun(pngBytes, fit, opts.alt || '')
+    return run ? centeredPara([run]) : null
+  } catch {
+    return null
+  }
+}
+
+// A visible placeholder for a figure that was expected but could not be
+// embedded — typically because the image bytes couldn't be read
+// cross-origin (Storage CORS not yet applied) or the URL is broken. Without
+// this the picture silently vanished, leaving a confusing blank gap that
+// teachers only noticed after printing. A dashed red box makes the gap
+// obvious and tells them how to recover.
+function imageFallbackBlock(alt = '') {
+  const label = String(alt || '').trim()
+  const dashed = { style: BorderStyle.DASHED, size: 6, color: 'B91C1C' }
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [new TableRow({
+      children: [new TableCell({
+        borders: { top: dashed, bottom: dashed, left: dashed, right: dashed },
+        children: [
+          centeredPara(runText(
+            `⚠ Figure could not be embedded${label ? ` (${label})` : ''}.`,
+            { bold: true, size: 18, color: 'B91C1C' },
+          )),
+          centeredPara(runText(
+            'Open the paper in the studio, regenerate or re-upload the image, then download again.',
+            { italics: true, size: 16, color: '6B7280' },
+          )),
+        ],
+      })],
+    })],
+  })
+}
+
+/**
+ * Walk a list of paper-layout blocks (from buildPaperLayout or any adapter
+ * that emits the same shapes, e.g. buildSbaPaperBlocks) into a flat array of
+ * docx children. Shared so the SBA Word export renders the exam paper through
+ * the exact same block renderer as the Assessment Studio download.
+ */
+export async function renderPaperBlocksToDocx(blocks = []) {
+  const children = []
+  for (const block of blocks) {
+    const rendered = await renderBlock(block)
+    if (Array.isArray(rendered)) children.push(...rendered)
+    else if (rendered) children.push(rendered)
+  }
+  return children
 }
 
 async function renderBlock(block) {
   switch (block.kind) {
-    case 'header': return renderHeader(block)
+    // The paper banner (school / title / subject / paper) is NOT body content —
+    // it is rendered as a real Word page header by paperSectionShell(), so it
+    // sits in the header region and matches the preview's banner instead of
+    // being the first lines of body text. Skip it here.
+    case 'header': return []
     case 'learnerFields': return renderLearnerFields(block)
     case 'instructions': return renderInstructions(block)
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'passageTotal': return [new Paragraph({
+      children: [runText(`Total: ${block.totalMarks} mark${block.totalMarks === 1 ? '' : 's'}`, { bold: true, size: 22 })],
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 160 },
+    })]
     case 'pagebreak': return [new Paragraph({ children: [new PageBreak()] })]
     case 'endOfPaper': return [centeredPara(runText(block.text, { italics: true, size: 20, color: '555555' }))]
     case 'footerCode': return [new Paragraph({
@@ -370,47 +741,101 @@ async function renderBlock(block) {
   }
 }
 
-async function renderHeader(b) {
+// The banner paragraphs (school / title / subject / paper) for the paper's real
+// Word header. Word can't reproduce the preview's marble banner, so we render
+// the same 2–4 line centred stack the body version used, capped with a thin
+// rule that divides the header region from the body — mirroring the bottom edge
+// of the preview's `.sv-paper-banner` box.
+function headerParagraphs(b) {
+  if (!b) return []
   const out = []
-  const logo = await logoParagraph(b.logoUrl, b.logoTransform)
-  if (logo) out.push(logo)
-  out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 })))
-  out.push(centeredPara(runText(b.title, { bold: true, size: 22 })))
-  if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 })))
-  if (b.paperName) out.push(centeredPara(runText(b.paperName, { bold: true, size: 22 })))
-  out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 }), { spacing: { after: 40 } }))
+  out.push(centeredPara(runText(b.title, { bold: true, size: 22 }), { spacing: { after: 40 } }))
+  if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 }), { spacing: { after: 40 } }))
+  if (b.paperName) out.push(centeredPara(runText(b.paperName, { bold: true, size: 22 }), { spacing: { after: 40 } }))
+  out.push(new Paragraph({
+    children: [runText('')],
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000', space: 1 } },
+    spacing: { after: 60 },
+  }))
   return out
 }
 
+/**
+ * Build the Word section shell (page headers / footers / title-page flag) for a
+ * paper export from its layout blocks. The banner becomes a real **first-page**
+ * Word header so it appears once at the top — matching the preview and the PDF,
+ * which both show the banner a single time — rather than repeating on every page
+ * or living as the opening lines of body text.
+ *
+ * Free-plan exports (`attribution`) keep the diagonal ZedExams watermark: a Word
+ * section has only one header per type, so the watermark is composed INTO the
+ * first-page header (above the banner) and a running `default` header carries it
+ * onto pages 2+. Paid/admin exports stay clean.
+ *
+ * Spread into the section literal: `{ ...paperSectionShell(blocks, opts), children }`.
+ */
+export function paperSectionShell(blocks = [], { attribution = false } = {}) {
+  const headerBlock = blocks.find((b) => b.kind === 'header')
+  const banner = headerParagraphs(headerBlock)
+  const shell = {}
+  const headers = {}
+
+  if (banner.length) {
+    headers.first = new Header({
+      children: [...(attribution ? [attributionWatermarkParagraph()] : []), ...banner],
+    })
+    // titlePage routes the FIRST page to `headers.first` (the banner) and every
+    // later page to `headers.default`, so the banner is printed exactly once.
+    shell.properties = { titlePage: true }
+  }
+
+  if (attribution) {
+    headers.default = new Header({ children: [attributionWatermarkParagraph()] })
+    shell.footers = { default: attributionFooter() }
+  }
+
+  if (Object.keys(headers).length) shell.headers = headers
+  return shell
+}
+
+// Pupil's Name / Date / Class render as plain underlined lines — NOT a
+// bordered table. The old version wrapped them in a Word table with grey
+// cell borders, which printed an ugly box around the name/date section.
+// The studio preview and the PDF export both use borderless fill-in lines,
+// so the Word output now matches them: Name on the left, Date pushed to
+// the right margin via a right tab stop (mirrors the preview's
+// space-between row).
 function renderLearnerFields(b) {
   if (!b.name && !b.date && !b.classField && !b.marks) return []
-  const row1Children = []
-  if (b.name) {
-    row1Children.push(new TableCell({
-      children: [para(runText("Pupil's Name: __________________________________________", { size: 22 }))],
-      borders: BORDER,
-    }))
-  }
-  if (b.date) {
-    row1Children.push(new TableCell({
-      children: [para(runText('Date: ______________', { size: 22 }))],
-      borders: BORDER,
-      width: { size: 30, type: WidthType.PERCENTAGE },
-    }))
-  }
-  const rows = []
-  if (row1Children.length) rows.push(new TableRow({ children: row1Children }))
-  if (b.classField) {
-    rows.push(new TableRow({
-      children: [new TableCell({
-        children: [para(runText('Class: ____________________', { size: 22 }))],
-        borders: BORDER,
-      })],
-    }))
-  }
   const out = []
-  if (rows.length) {
-    out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }))
+  if (b.name || b.date) {
+    const children = []
+    if (b.name) {
+      children.push(runText("Pupil's Name: ", { size: 22, bold: true }))
+      children.push(runText('______________________________________', { size: 22 }))
+    }
+    if (b.date) {
+      // Right tab stop at the page margin pushes the date field to the
+      // far right, the way the preview's flex row does.
+      if (b.name) children.push(new Tab())
+      children.push(runText('Date: ', { size: 22, bold: true }))
+      children.push(runText('____________________', { size: 22 }))
+    }
+    out.push(new Paragraph({
+      children,
+      tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+      spacing: { before: 120, after: b.classField ? 80 : 160 },
+    }))
+  }
+  if (b.classField) {
+    out.push(new Paragraph({
+      children: [
+        runText('Class: ', { size: 22, bold: true }),
+        runText('____________________________________', { size: 22 }),
+      ],
+      spacing: { after: 160 },
+    }))
   }
   if (b.marks) {
     out.push(new Paragraph({
@@ -423,12 +848,16 @@ function renderLearnerFields(b) {
 }
 
 function renderInstructions(b) {
-  if (!b.text) return []
-  return [
-    para(runText('Instructions', { bold: true, size: 22 })),
-    ...instructionParagraphs(b.text),
-    new Paragraph({ children: [runText('')], spacing: { after: 100 } }),
-  ]
+  // The preview labels this box "Marking key" in scheme mode and "Instructions"
+  // otherwise, and shows it even with no prose (the label alone). The DOCX used
+  // to hardcode "Instructions" and drop the whole block when the text was empty,
+  // so a marking key with no cover instructions lost its "Marking key" heading.
+  const label = b.isMarkingKey ? 'Marking key' : 'Instructions'
+  if (!b.text && !b.isMarkingKey) return []
+  const out = [para(runText(label, { bold: true, size: 22 }))]
+  if (b.text) out.push(...instructionParagraphs(b.text))
+  out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  return out
 }
 
 function renderSectionHeader(b) {
@@ -463,17 +892,91 @@ async function renderPassage(b) {
     })
   }
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220 })
-    if (img) out.push(img)
+    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
+    out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
+  }
+  if (b.imageDiagram?.libraryKey) {
+    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    if (run) out.push(new Paragraph({ children: [run], alignment: AlignmentType.CENTER, spacing: { after: 80 } }))
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+  return out
+}
+
+// Blank answer space for a written-answer question, honouring the teacher's
+// answerFormat: 'none' (no space), 'labelled_blanks' (one "Label: ____" row
+// per blankLabels entry), or the default N ruled underscore lines.
+const ANSWER_RULE = '______________________________________________________'
+function answerSpaceParas(b, defaultLines) {
+  if (b.answerFormat === 'none') return []
+  if (b.answerFormat === 'labelled_blanks' && Array.isArray(b.blankLabels) && b.blankLabels.length) {
+    return b.blankLabels.map(label => para([
+      runText(`${label}:  `, { bold: true, size: 20 }),
+      runText('________________________________________', { size: 20 }),
+    ]))
+  }
+  // `answerLines == null` means "not set → use the default". The `!= null`
+  // guard matters because Number(null) is 0, which would otherwise satisfy
+  // `isFinite && >= 0` and collapse every default-spaced question (essay /
+  // short / diagram) to ZERO ruled lines — the default-lines fallback was dead.
+  // An explicit 0 still prints no lines (use answerFormat 'none' for that too).
+  const n = b.answerLines != null && Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0
+    ? Number(b.answerLines)
+    : defaultLines
+  const out = []
+  for (let i = 0; i < n; i += 1) {
+    out.push(para(runText(ANSWER_RULE, { size: 20 })))
+  }
+  return out
+}
+
+// A fixed-width dotted gap for an inline sub-part blank ("called …………… [1]").
+const INLINE_GAP = '………………………'
+
+// Render a question's short-answer SUB-PARTS as Word paragraphs:
+//   (a)  <sentence with an inline dotted blank>           [1]
+// honouring each part's answer-space choice ('inline' dotted gap — the default;
+// 'lines' ruled lines below the part; or 'none'). The answers themselves are
+// printed in the green marking-key block, not here.
+function subPartParas(subParts) {
+  const out = []
+  subParts.forEach((part, i) => {
+    const label = subPartLabel(i)
+    const text = String(part?.text ?? '')
+    const format = part?.answerFormat || 'inline'
+    const marks = Number(part?.marks) || 0
+    const marksTag = marks > 0 ? `  [${marks}]` : ''
+    const runs = [runText(`(${label})  `, { bold: true, size: 22 })]
+    if (format === 'inline') {
+      if (countPartBlanks(text) > 0) {
+        const segments = splitPartBlanks(text)
+        segments.forEach((segment, k) => {
+          if (segment) runs.push(runText(segment, { size: 22 }))
+          if (k < segments.length - 1) runs.push(runText(` ${INLINE_GAP} `, { size: 22 }))
+        })
+      } else {
+        if (text) runs.push(runText(`${text} `, { size: 22 }))
+        runs.push(runText(INLINE_GAP, { size: 22 }))
+      }
+    } else {
+      runs.push(runText(text, { size: 22 }))
+    }
+    if (marksTag) runs.push(runText(marksTag, { size: 20, color: '6b7280', italics: true }))
+    out.push(new Paragraph({ children: runs, spacing: { before: 60, after: format === 'lines' ? 20 : 40 } }))
+    if (format === 'lines') {
+      const lines = part?.answerLines != null && Number.isFinite(Number(part.answerLines)) && Number(part.answerLines) >= 0
+        ? Number(part.answerLines)
+        : DEFAULT_ANSWER_LINES.short
+      for (let k = 0; k < lines; k += 1) out.push(para(runText(ANSWER_RULE, { size: 20 })))
+    }
+  })
   return out
 }
 
 async function renderQuestion(b) {
   const out = []
   const marks = b.marks ?? 1
-  const marksTag = marks > 1 ? `  (${marks} marks)` : ''
+  const marksTag = marks >= 1 ? `  (${marks} mark${marks === 1 ? '' : 's'})` : ''
 
   // When the question carries pre-hydrated rich HTML, walk it so the
   // Grade-7 math blocks (vertical sums, fractions, number bases) come
@@ -500,26 +1003,45 @@ async function renderQuestion(b) {
   }
 
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl)
-    if (img) out.push(img)
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
+    // Bake the hotspot markers onto the image — identify: numbered circles so
+    // the answer blanks below point at something; labeled: the label text pills
+    // the preview overlays — since Word can't overlay positioned elements. Falls
+    // back to the plain image (+ a text list for labelled diagrams) when the
+    // composite is unavailable (no DOM / fetch failure). Skipped for MCQs, whose
+    // image lives in the option grid, not the stem.
+    let img = null
+    let composited = false
+    if (b.type !== 'mcq' && labels.length) {
+      img = await diagramLabelImageParagraph(b.imageUrl, labels, {
+        mode: isIdentify ? 'identify' : 'labeled',
+        alt: b.imageAlt || '',
+        widthPreset: b.imageWidth,
+      })
+      composited = Boolean(img)
+    }
+    if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
+    out.push(img || imageFallbackBlock(b.imageAlt || ''))
     if (labels.length) {
-      if (isIdentify) {
+      if (isIdentify && b.type !== 'mcq') {
         // Identify mode: emit numbered blank-answer lines below the image
-        // for the student to fill in. The expected answers go into the
-        // marking key paragraph (below, in the showAnswer branch).
+        // for the student to fill in (the preview shows the same list). The
+        // expected answers go into the marking key paragraph (below, in the
+        // showAnswer branch). Skipped for MCQs, whose A/B/C/D options already
+        // are the answer space.
         for (let i = 0; i < labels.length; i += 1) {
           out.push(para([
             runText(`${i + 1}. `, { bold: true, size: 20 }),
             runText('______________________________________________________', { size: 20 }),
           ]))
         }
-      } else {
-        // Word can't reliably overlay positioned labels on top of an
-        // inline image, so we drop the labels as a numbered text list
-        // below — same information, ordered top-to-bottom then
-        // left-to-right.
+      } else if (!isIdentify && !composited) {
+        // Labelled mode, but the on-image pill composite wasn't available (no
+        // DOM / unreadable image) — fall back to a numbered text list so the
+        // labels aren't lost, ordered top-to-bottom then left-to-right. When the
+        // composite DID render, the pills are on the image and this would be a
+        // duplicate, so it's skipped (matching the preview, which shows no list).
         const sorted = [...labels].sort((a, c) => (a.y - c.y) || (a.x - c.x))
         const text = sorted.map((l, i) => `${i + 1}. ${l.text}`).join('   ')
         out.push(para([
@@ -528,6 +1050,10 @@ async function renderQuestion(b) {
         ]))
       }
     }
+  }
+  if (b.imageDiagram?.libraryKey) {
+    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    if (run) out.push(centeredPara([run]))
   }
   if (b.tableData) {
     const headers = Array.isArray(b.tableData.headers) ? b.tableData.headers : []
@@ -550,14 +1076,45 @@ async function renderQuestion(b) {
       }))
     }
   }
-  if (b.wordBank && b.wordBank.length) {
+  if (b.type !== 'fill_blanks' && b.wordBank && b.wordBank.length) {
     out.push(para([
       runText('Word bank: ', { bold: true, size: 20 }),
       runText(b.wordBank.join(' · '), { size: 20 }),
     ]))
   }
 
-  if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
+  if (b.type === 'fill_blanks') {
+    // Fill-in-the-Blanks: an optional word-bank line, then each statement on
+    // its own paragraph ("A. … __________ …") with generous spacing. In the
+    // marking key (showAnswer) each blank is filled with its answer in green.
+    if (b.wordBank && b.wordBank.length) {
+      out.push(para([
+        runText('Word Bank: ', { bold: true, size: 22 }),
+        runText(b.wordBank.join(', '), { size: 22 }),
+      ], { spacing: { after: 160 } }))
+    }
+    const statements = Array.isArray(b.statements) ? b.statements : []
+    statements.forEach((statement, i) => {
+      const runs = [runText(`${statementLabel(i)}.  `, { bold: true, size: 22 })]
+      const segments = splitStatementSegments(String(statement?.text ?? ''))
+      const answers = Array.isArray(statement?.answers) ? statement.answers : []
+      segments.forEach((segment, segIndex) => {
+        if (segment) runs.push(runText(segment, { size: 22 }))
+        if (segIndex < segments.length - 1) {
+          const answer = answers[segIndex]
+          if (b.showAnswer && answer) {
+            runs.push(runText(answer, { size: 22, bold: true, color: '047857' }))
+          } else {
+            runs.push(runText(' __________ ', { size: 22 }))
+          }
+        }
+      })
+      out.push(para(runs, { spacing: { after: 200 } }))
+    })
+  } else if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
+    // True/False renders identically to a 2-option MCQ — buildQuestionBlock
+    // defaults its options to ['True','False'] and keeps correctAnswer as the
+    // index, so the same option-row + marking-key code handles both.
     const optsHtml = b.optionsHtml || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
@@ -569,13 +1126,12 @@ async function renderQuestion(b) {
           if (i >= opts.length) break
           const media = b.optionMedia?.[i]
           const cellChildren = []
-          if (media?.imageUrl) {
-            const bytes = await fetchImageBytes(media.imageUrl)
-            if (bytes) {
-              cellChildren.push(centeredPara([
-                new ImageRun({ data: bytes, transformation: { width: 140, height: 140 } }),
-              ]))
-            }
+          if (media?.diagram?.libraryKey) {
+            const run = await diagramImageRun(media.diagram, { maxWidth: 150, maxHeight: 150 })
+            if (run) cellChildren.push(centeredPara([run]))
+          } else if (media?.imageUrl) {
+            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140, alt: media.alt || '' })
+            if (run) cellChildren.push(centeredPara([run]))
           }
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
           const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
@@ -606,10 +1162,16 @@ async function renderQuestion(b) {
         const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
-        if (media?.imageUrl) {
-          const bytes = await fetchImageBytes(media.imageUrl)
-          if (bytes) {
-            runs.push(new ImageRun({ data: bytes, transformation: { width: 50, height: 50 } }))
+        if (media?.diagram?.libraryKey) {
+          const run = await diagramImageRun(media.diagram, { maxWidth: 60, maxHeight: 60 })
+          if (run) {
+            runs.push(run)
+            runs.push(runText('  ', { size: 20 }))
+          }
+        } else if (media?.imageUrl) {
+          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50, alt: media.alt || '' })
+          if (run) {
+            runs.push(run)
             runs.push(runText('  ', { size: 20 }))
           }
         }
@@ -617,6 +1179,18 @@ async function renderQuestion(b) {
         if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
         out.push(para(runs))
       }
+    } else if (b.mcqLayout === 'horizontal') {
+      // All options on one line, e.g. "A. red    B. blue    C. green".
+      const runs = []
+      ;(b.options || []).forEach((opt, i) => {
+        const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
+        const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
+        const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
+        runs.push(runText(`${i === 0 ? '   ' : '      '}${SECTION_LETTERS[i]}. `, labelOpts))
+        runs.push(...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''))
+        if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
+      })
+      out.push(new Paragraph({ children: runs, spacing: { after: 40 } }))
     } else {
       ;(b.options || []).forEach((opt, i) => {
         const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
@@ -632,10 +1206,11 @@ async function renderQuestion(b) {
         }))
       })
     }
-  } else if (b.type === 'short_answer' || b.type === 'fill') {
-    const lines = b.answerLines || 2
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
+  } else if (b.type === 'short_answer' || b.type === 'short' || b.type === 'fill') {
+    if (Array.isArray(b.subParts) && b.subParts.length > 0) {
+      subPartParas(b.subParts).forEach(p => out.push(p))
+    } else {
+      answerSpaceParas(b, DEFAULT_ANSWER_LINES.short).forEach(p => out.push(p))
     }
   } else if (b.type === 'numeric') {
     // One short blank line followed by the unit (if any). Fixed-width
@@ -686,18 +1261,13 @@ async function renderQuestion(b) {
         runText(String(it || ''), { size: 20 }),
       ]))
     }
-  } else if (b.type === 'diagram') {
-    const lines = b.answerLines || 4
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
-    }
-  } else if (b.type === 'essay') {
-    const lines = b.answerLines || 10
-    for (let i = 0; i < lines; i += 1) {
-      out.push(para(runText('______________________________________________________', { size: 20 })))
-    }
   }
 
+  // Drawing canvas, THEN (for diagram/essay) the ruled answer lines — the same
+  // block order the preview uses (PaperBlocks.jsx draws the canvas above the
+  // type-specific answer space). The DOCX used to print the ruled lines first
+  // and drop the canvas underneath, flipping the layout for a Draw-&-Label /
+  // essay question that also carried a drawing canvas.
   if (Number.isFinite(Number(b.drawingHeight)) && Number(b.drawingHeight) > 0) {
     // Word doesn't have a native "blank canvas" primitive, but a single
     // 1×1 table with a fixed row height + thin borders gives students
@@ -715,8 +1285,22 @@ async function renderQuestion(b) {
     }))
   }
 
+  if (b.type === 'diagram') {
+    answerSpaceParas(b, DEFAULT_ANSWER_LINES.diagram).forEach(p => out.push(p))
+  } else if (b.type === 'essay') {
+    answerSpaceParas(b, DEFAULT_ANSWER_LINES.essay).forEach(p => out.push(p))
+  }
+
   if (b.showAnswer) {
-    if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
+    if (Array.isArray(b.subParts) && b.subParts.length > 0) {
+      const pairs = b.subParts
+        .map((p, i) => `(${subPartLabel(i)}) ${String(p?.answer ?? '').trim() || '—'}`)
+        .join('   ')
+      out.push(para([
+        runText('Answers: ', { bold: true, size: 20, color: '047857' }),
+        runText(pairs, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
       const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${l.text || '—'}`).join('   ')
       out.push(para([
         runText('Answers: ', { bold: true, size: 20, color: '047857' }),
@@ -725,7 +1309,9 @@ async function renderQuestion(b) {
     } else if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
-      const opt = b.options?.[i] ?? ''
+      // Plain mirror first so a rich fraction option reads as "1/3" rather than
+      // its literal `<span class="math-frac">` HTML.
+      const opt = b.optionsPlain?.[i] ?? b.options?.[i] ?? ''
       out.push(para([
         runText('Answer: ', { bold: true, size: 20, color: '047857' }),
         runText(`${letter}. ${opt}`, { size: 20, color: '047857' }),
@@ -767,6 +1353,9 @@ async function renderQuestion(b) {
         runText('Correct order: ', { bold: true, size: 20, color: '047857' }),
         runText(seq, { size: 20, color: '047857' }),
       ]))
+    } else if (b.type === 'fill_blanks') {
+      // Fill-in-the-blanks answers are already rendered inline (green) on each
+      // statement in the marking-key pass above — nothing more to print here.
     } else {
       out.push(para([
         runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),
@@ -785,46 +1374,95 @@ async function renderQuestion(b) {
 
 export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
-  const children = []
-  for (const block of blocks) {
-    const rendered = await renderBlock(block)
-    if (Array.isArray(rendered)) children.push(...rendered)
-    else if (rendered) children.push(rendered)
-  }
+  const children = await renderPaperBlocksToDocx(blocks)
 
-  const title = mode === 'scheme'
+  const title = sanitizeXmlText(mode === 'scheme'
     ? `${assessment.title || 'Assessment'} — Marking Key`
-    : (assessment.title || 'Assessment')
+    : (assessment.title || 'Assessment'))
 
   return new Document({
     creator: 'zedexams.com',
     title,
-    description: 'Generated by ZedExams Assessment Studio',
+    description: 'Generated by ZedExams Test Paper Studio',
     styles: {
       default: {
         document: { run: { font: 'Times New Roman', size: 22 } },
       },
     },
+    sections: [{ ...paperSectionShell(blocks, { attribution }), children }],
+  })
+}
+
+// Build the answer-sheet rows as a two-column table: each cell is
+// "N.  (A) (B) (C) (D)" for an MCQ, or "N.  ____" for a write-in question.
+function answerSheetCell(item) {
+  if (!item) return new TableCell({ children: [para(runText(''))], borders: NO_BORDER })
+  const runs = [runText(`${item.number}.  `, { bold: true, size: 22 })]
+  if (item.kind === 'mcq') {
+    ANSWER_SHEET_LETTERS.slice(0, item.optionCount).forEach((letter) => {
+      runs.push(runText(`(${letter})  `, { size: 22 }))
+    })
+  } else {
+    runs.push(runText('______________________', { size: 22 }))
+  }
+  return new TableCell({ children: [para(runs, { spacing: { after: 40 } })], borders: NO_BORDER })
+}
+
+const NO_BORDER = {
+  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+}
+
+export async function buildAnswerSheetDocument(assessment, questions, { attribution = false } = {}) {
+  const sheet = buildAnswerSheet(assessment, questions)
+  const children = []
+  children.push(centeredPara(runText((sheet.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 30 })))
+  children.push(centeredPara(runText(sheet.title, { bold: true, size: 22 })))
+  if (sheet.subject) children.push(centeredPara(runText(sheet.subject, { bold: true, size: 24 })))
+  children.push(centeredPara(runText('ANSWER SHEET', { bold: true, size: 20, color: '555555' })))
+  children.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
+
+  if (sheet.name || sheet.date) {
+    const parts = []
+    if (sheet.name) parts.push(runText("Name: ______________________________________", { size: 22 }))
+    if (sheet.name && sheet.date) parts.push(runText('    ', { size: 22 }))
+    if (sheet.date) parts.push(runText('Date: ____________________', { size: 22 }))
+    children.push(para(parts, { spacing: { after: 120 } }))
+  }
+  children.push(para(runText('Shade or circle the letter of your chosen answer.', { italics: true, size: 18, color: '555555' })))
+
+  // Two columns: pair up consecutive items left→right.
+  const rows = []
+  for (let i = 0; i < sheet.items.length; i += 2) {
+    rows.push(new TableRow({
+      children: [answerSheetCell(sheet.items[i]), answerSheetCell(sheet.items[i + 1])],
+    }))
+  }
+  if (rows.length) {
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }))
+  } else {
+    children.push(para(runText('No questions to answer yet.', { italics: true, size: 20, color: '777777' })))
+  }
+
+  return new Document({
+    creator: 'zedexams.com',
+    title: sanitizeXmlText(`${sheet.title} — Answer Sheet`),
+    description: 'Answer sheet generated by ZedExams Test Paper Studio',
+    styles: { default: { document: { run: { font: 'Times New Roman', size: 22 } } } },
     sections: [{ ...attributionSection({ attribution }), children }],
   })
+}
+
+export async function downloadAnswerSheetDocx(assessment, questions, filename = 'answer-sheet.docx', opts = {}) {
+  const doc = await buildAnswerSheetDocument(assessment, questions, opts)
+  const blob = await Packer.toBlob(doc)
+  await saveBlob(blob, filename)
 }
 
 export async function downloadAssessmentDocx(assessment, questions, filename = 'assessment.docx', opts = {}) {
   const doc = await buildAssessmentDocument(assessment, questions, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  // Delay revocation — revoking synchronously after click() can abort the
-  // download before the browser has queued it on slow or mobile browsers.
-  setTimeout(() => URL.revokeObjectURL(url), 30_000)
+  await saveBlob(blob, filename)
 }

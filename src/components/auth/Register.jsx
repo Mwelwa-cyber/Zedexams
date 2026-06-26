@@ -16,6 +16,12 @@ const FRIENDLY = {
   'auth/popup-blocked':        'Your browser blocked the Google sign-in popup. Please allow popups and try again.',
   'auth/account-exists-with-different-credential':
                                'An account already exists with this email. Sign in with the original method.',
+  // Native (Android app) Google sign-in failure modes — see signInWithGoogleNative
+  // in AuthContext. Surfaced rather than masked as the generic failure copy.
+  'auth/operation-not-supported-in-this-environment':
+                               'Google sign-up isn’t available in this app build. Please update the app from the Play Store, or sign up with your email and password.',
+  'auth/google-no-id-token':   'Google sign-up could not be completed. Please update the app, or sign up with your email and password.',
+  'auth/google-developer-error': 'Google sign-up isn’t set up for this app version yet. Please sign up with your email and password for now.',
 }
 
 const ZAMBIAN_PROVINCES = [
@@ -64,7 +70,7 @@ const INPUT_CLASS =
 const SELECT_CLASS = INPUT_CLASS + ' appearance-none pr-8 cursor-pointer'
 
 export default function Register() {
-  const { register, loginWithGoogle, logout, ensureUserProfile } = useAuth()
+  const { register, loginWithGoogle, ensureUserProfile } = useAuth()
   const navigate     = useNavigate()
   const [searchParams] = useSearchParams()
   // Audit C7 — capture ?ref= once on mount and stash in localStorage.
@@ -132,14 +138,15 @@ export default function Register() {
     try {
       const cred = await loginWithGoogle({ role: form.role })
       const profile = await ensureUserProfile(cred.user)
-      if (!profile) {
-        try { await logout() } catch { /* ignore secondary failure */ }
-        setError('Signed in with Google, but we could not finish creating your ZedExams profile. Please try again or contact support.')
-        return
-      }
+      // A null profile after successful auth is most likely a transient network
+      // read error, not a missing profile. AuthContext's onSnapshot listener
+      // runs concurrently and will populate the profile or set profileIssue on
+      // its own. Calling logout() here would destroy a valid Firebase session.
+      // Navigate to "/" and let RootRedirect / MissingProfileRecovery handle it.
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
+      console.error('[Google sign-up]', err?.code, err?.message)
       setError(FRIENDLY[err.code] ?? 'Google sign-in failed. Please try again.')
     } finally { setGoogleLoading(false) }
   }
@@ -160,15 +167,14 @@ export default function Register() {
         form.role,
         isTeacher ? { province: form.province, subject: form.subject } : {},
       )
-      // Wait for the profile we just wrote to be picked up into context state
-      // before navigating, so the landing page sees a populated userProfile
-      // instead of racing the onAuthStateChanged listener.
+      // Attempt to read the profile we just wrote so we can navigate to the
+      // correct role landing path immediately. On a flaky network the read may
+      // fail; that is not a reason to destroy a freshly created, valid Firebase
+      // session. AuthContext's onSnapshot listener runs concurrently and will
+      // populate the profile or set profileIssue on its own. If ensureUserProfile
+      // returns null we still navigate to "/" — RootRedirect / MissingProfileRecovery
+      // will recover from there.
       const profile = await ensureUserProfile(cred.user)
-      if (!profile) {
-        try { await logout() } catch { /* ignore secondary failure */ }
-        setError('Account created, but we could not finish loading your ZedExams profile. Please sign in again.')
-        return
-      }
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       const friendly = FRIENDLY[err.code] ?? err.message ?? 'Registration failed. Please try again.'
@@ -178,7 +184,7 @@ export default function Register() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
         '--accent': '#EA580C',

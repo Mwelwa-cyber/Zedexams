@@ -70,10 +70,86 @@ const META_2013 = {
 
 const CAT_ORDER_2013 = ['Primary', 'Upper Primary', 'Junior Secondary', 'Senior Secondary']
 const CAT_LABELS_2013 = {
-  'Primary':          'Primary · Grades 1–7',
-  'Upper Primary':    'Upper Primary · Grades 4–7',
+  'Primary':          'Primary · Grades 1–4',
+  'Upper Primary':    'Upper Primary · Grades 5–7',
   'Junior Secondary': 'Junior Secondary · Grades 8–9',
   'Senior Secondary': 'Senior Secondary · Grades 10–12',
+}
+
+// Several 2013 primary subjects shipped as ONE multi-grade document that
+// straddles the Primary (G1–G4) / Upper Primary (G5–G7) divide — e.g.
+// "Mathematics Syllabus (Grades 1-7, 2013)". Left whole, every grade (incl.
+// 5–7) lands under "Primary", so the upper-primary grades never appear in the
+// Upper Primary section. We split these subjects' grade sheets across the two
+// sections instead. Maps the raw subject key → its base short label.
+const SPLIT_PRIMARY_SUBJECTS_2013 = {
+  'English Language Syllabus (Grades 2-7, 2013)':   'English Language',
+  'Integrated Science Syllabus (Grades 1-7, 2013)': 'Integrated Science',
+  'Mathematics Syllabus (Grades 1-7, 2013)':        'Mathematics',
+  'Social Studies Syllabus (Grades 1-7, 2013)':     'Social Studies',
+}
+
+// Parse a 2013 sheet name ("Grade 5") to its grade number, or null.
+function legacySheetGrade(name) {
+  const m = /(\d+)/.exec(String(name || ''))
+  return m ? Number(m[1]) : null
+}
+
+// Order sheets by grade number (the source JSON stores some out of order).
+function sortSheetsByGrade(sheets) {
+  return Object.fromEntries(
+    Object.entries(sheets).sort(
+      ([a], [b]) => (legacySheetGrade(a) ?? 99) - (legacySheetGrade(b) ?? 99),
+    ),
+  )
+}
+
+// Short "Gr. 2–4" / "Gr. 1" range label for the actual grades in a sheet set.
+function legacyGradeRangeLabel(sheets) {
+  const nums = Object.keys(sheets)
+    .map(legacySheetGrade)
+    .filter((n) => n != null)
+    .sort((a, b) => a - b)
+  if (!nums.length) return ''
+  const lo = nums[0]
+  const hi = nums[nums.length - 1]
+  return lo === hi ? `Gr. ${lo}` : `Gr. ${lo}–${hi}`
+}
+
+// Build the enriched {subjectKey → {icon,cat,short,sheets}} map for the 2013
+// era. Cross-phase primary subjects (SPLIT_PRIMARY_SUBJECTS_2013) are emitted
+// as two cards — a Primary card (grades ≤4) and an Upper Primary card (grades
+// ≥5) — so each grade sheet lands in the section it belongs to.
+function buildLegacyEnriched(raw) {
+  const enriched = {}
+  for (const [subj, sheets] of Object.entries(raw)) {
+    const meta = META_2013[subj] || { icon: '📄', cat: 'Other', short: subj.slice(0, 30) }
+    const splitBase = SPLIT_PRIMARY_SUBJECTS_2013[subj]
+    if (!splitBase) {
+      enriched[subj] = { ...meta, sheets }
+      continue
+    }
+    const primarySheets = {}
+    const upperSheets = {}
+    for (const [name, sheet] of Object.entries(sheets)) {
+      const g = legacySheetGrade(name)
+      if (g != null && g >= 5) upperSheets[name] = sheet
+      else primarySheets[name] = sheet
+    }
+    if (Object.keys(primarySheets).length) {
+      const s = sortSheetsByGrade(primarySheets)
+      enriched[`${subj}__primary`] = {
+        icon: meta.icon, cat: 'Primary', short: `${splitBase} (${legacyGradeRangeLabel(s)})`, sheets: s,
+      }
+    }
+    if (Object.keys(upperSheets).length) {
+      const s = sortSheetsByGrade(upperSheets)
+      enriched[`${subj}__upper`] = {
+        icon: meta.icon, cat: 'Upper Primary', short: `${splitBase} (${legacyGradeRangeLabel(s)})`, sheets: s,
+      }
+    }
+  }
+  return enriched
 }
 
 function catOrderForEra(era) {
@@ -212,12 +288,7 @@ export default function SyllabiLibrary() {
       })
       .then(raw => {
         if (cancelled) return
-        const enriched = {}
-        for (const [subj, sheets] of Object.entries(raw)) {
-          const meta = META_2013[subj] || { icon: '📄', cat: 'Other', short: subj.slice(0, 30) }
-          enriched[subj] = { ...meta, sheets }
-        }
-        setLegacyData(enriched)
+        setLegacyData(buildLegacyEnriched(raw))
       })
       .catch(err => {
         if (!cancelled) setError(err?.message || 'Could not load 2013 curriculum data.')
@@ -226,7 +297,6 @@ export default function SyllabiLibrary() {
         if (!cancelled) setLoadingLegacy(false)
       })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [era, legacyData])
 
   // Inject Playfair Display once — used for the brand serif headings to

@@ -1,20 +1,22 @@
 import { NavLink } from 'react-router-dom'
-import { FolderOpen, Home, PencilLine, Users } from '../ui/icons'
+import { FolderOpen, Home, ClipboardCheckList, Users } from '../ui/icons'
 import Icon from '../ui/Icon'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 
 const TEACHER_NAV_ITEMS = [
-  { to: '/teacher',             icon: Home,       label: 'Home',        end: true  },
-  { to: '/teacher/library',     icon: FolderOpen, label: 'Library',     end: false },
-  { to: '/teacher/assessments', icon: PencilLine, label: 'Assessments', end: false },
-  { to: '/teacher/classes',     icon: Users,      label: 'My Classes',  end: false },
+  { to: '/teacher',             icon: Home,               label: 'Home',        end: true  },
+  { to: '/teacher/library',     icon: FolderOpen,         label: 'Library',     end: false },
+  { to: '/teacher/test-papers', icon: ClipboardCheckList, label: 'Assessments', end: false },
+  { to: '/teacher/register',    icon: Users,              label: 'My Class',    end: false },
 ]
 
 const PILL_STYLE = { width: 38, height: 30, borderRadius: 12 }
 
 export default function TeacherBottomNav({ className = '' }) {
+  const hidden = useHideOnScroll()
   return (
     <nav
-      className={`zx-glass-bottom safe-area-bottom fixed bottom-0 left-0 right-0 z-30 lg:hidden ${className}`}
+      className={`zx-glass-bottom safe-area-bottom fixed bottom-0 left-0 right-0 z-30 lg:hidden zx-nav-autohide ${hidden ? 'zx-nav-hidden-bottom' : ''} ${className}`}
       aria-label="Primary teacher navigation"
     >
       <div className="flex">

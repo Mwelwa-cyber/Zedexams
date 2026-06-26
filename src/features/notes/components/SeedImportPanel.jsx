@@ -33,8 +33,11 @@ export function SeedImportPanel() {
 
   const openPanel = async () => {
     setOpen(true); setResult(null); setLog([]); setSummary(null)
-    if (!modRef.current) modRef.current = await import('../lib/seedImport')
-    setSummary(modRef.current.seedSummary())
+    // import() is module-cached, so re-awaiting it on repeat opens is cheap;
+    // we assign the ref without reading it first to avoid a stale-read race.
+    const mod = await import('../lib/seedImport')
+    modRef.current = mod
+    setSummary(mod.seedSummary())
   }
   const close = () => { if (!running) setOpen(false) }
 

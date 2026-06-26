@@ -29,7 +29,7 @@ const AGENT_LABELS = {
 
 function StatusDot({ ok, busy }) {
   if (busy) {
-    return <span className="inline-block h-2 w-2 rounded-full bg-slate-400 animate-pulse" aria-hidden />
+    return <span className="inline-block h-2 w-2 rounded-full bg-slate-400 text-slate-400 animate-live-dot" aria-hidden />
   }
   return (
     <span
@@ -159,7 +159,7 @@ export default function PlatformHealthPanel() {
         <div className="flex items-center gap-2">
           {overallReady ? (
             <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
-              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 text-emerald-400 animate-live-dot" />
               Ready
             </span>
           ) : (

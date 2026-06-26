@@ -45,6 +45,16 @@ const SUBJECTS = [
   { id: 'Special Paper 1',     slug: 'special-paper-1', tile: 'bg-purple-100', bar: 'bg-purple-600',  mascot: '📝', mascotName: 'Exam Scholar' },
 ]
 
+// Process-lived cache of fetched quiz lists, keyed by `grade|term`. The library
+// is read on every mount of this page — and learners bounce in and out of it
+// constantly (open a quiz, take it, come back). Without a cache each return trip
+// re-downloads the whole grade's catalogue and shows a spinner again. We keep
+// the last result per filter and render it instantly on revisit, then refresh in
+// the background (stale-while-revalidate) so the list still picks up new quizzes.
+// Module scope (not a ref) so it survives unmount; harmless to leak — it's small
+// metadata and naturally bounded by the grade/term filter combinations.
+const quizListCache = new Map()
+
 function difficultyColor(count = 0) {
   if (count > 30) return 'text-red-500'
   if (count > 15) return 'text-amber-500'
@@ -199,7 +209,7 @@ function SubjectCard({ subject, quizzes, expanded, onToggle, onStart, isLocked }
 // ── Skeletons ──────────────────────────────────────────────────────────────
 function SubjectSkeleton() {
   return (
-    <div className="zx-card animate-pulse rounded-[22px] bg-white p-4 sm:p-5">
+    <div className="zx-card rounded-[22px] bg-white p-4 sm:p-5">
       <div className="flex items-center gap-4">
         <Skeleton shape="circle" size={64} />
         <div className="flex-1 space-y-2">
@@ -259,8 +269,11 @@ export default function QuizList() {
   const [termF, setTermF]               = useState('')
   const [search, setSearch]             = useState('')
   const [expandedSubject, setExpanded]  = useState(null)
-  const [quizzes, setQuizzes]           = useState([])
-  const [loading, setLoading]           = useState(true)
+  // Seed from cache (if this grade/term was viewed before) so a return visit
+  // paints the library immediately instead of flashing a skeleton.
+  const initialKey = `${resolveDefaultGrade(profileGrade)}|`
+  const [quizzes, setQuizzes]           = useState(() => quizListCache.get(initialKey) || [])
+  const [loading, setLoading]           = useState(() => !quizListCache.has(initialKey))
   const [showUpgrade, setShowUpgrade]   = useState(false)
   const [blockedToast, setBlockedToast] = useState(location.state?.blocked || false)
 
@@ -275,9 +288,20 @@ export default function QuizList() {
 
   useEffect(() => {
     let cancelled = false
+    const key = `${gradeF}|${termF}`
+    const cached = quizListCache.get(key)
     async function load() {
-      setLoading(true)
+      // Stale-while-revalidate: if we already have this filter's list, show it
+      // now (no spinner) and refresh quietly in the background. Otherwise show
+      // the skeleton until the first fetch lands.
+      if (cached) {
+        setQuizzes(cached)
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
       const data = await getQuizzes({ grade: gradeF, term: termF })
+      quizListCache.set(key, data)
       if (!cancelled) {
         setQuizzes(data)
         setLoading(false)

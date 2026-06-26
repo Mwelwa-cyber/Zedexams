@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { paywall } from '../../utils/paywall'
+import { topup } from '../../utils/topup'
+import { capture } from '../../utils/analytics'
 import { ensureProFonts } from '../../utils/proFonts'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
+const TopUpModal = lazy(() => import('./TopUpModal'))
 
 const SCENARIOS = {
   'feature-locked': {
@@ -10,28 +13,30 @@ const SCENARIOS = {
     title: (ctx) => `${ctx.feature || 'Assessments'} is a Pro feature`,
     sub: () => 'Upgrade to unlock weekly tests, mid-term & end-of-term papers — with a private marking scheme.',
     mascot: '🦅',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
   'monthly-limit': {
     tag: '⏱ Limit reached',
     title: (ctx) => `You've used all your free ${ctx.feature || 'lesson plans'} this month`,
-    sub: (ctx) => `Upgrade to keep planning — or wait ${ctx.resetDays || 9} days for the reset on the 1st.`,
+    sub: () => 'Upgrade to keep planning — or pay K25 for one more right now.',
     mascot: '🦊',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
-    secondary: 'Just one more · K5',
+    secondary: 'Pay K25 — one extra now',
     secondaryAction: 'one-off',
     compare: 'free-vs-pro',
   },
   'daily-cap': {
     tag: '⏱ Daily cap',
     title: () => "You've hit today's generation cap",
-    sub: () => 'Free is capped at 2 generations per day to keep things fair. Come back tomorrow, or upgrade for 10/day.',
+    sub: () => 'You can come back tomorrow, upgrade for a higher daily cap, or pay K25 for one more right now.',
     mascot: '🐢',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
+    secondary: 'Pay K25 — one extra now',
+    secondaryAction: 'one-off',
     compare: 'free-vs-pro',
   },
   'quiz-preview-limit': {
@@ -39,9 +44,23 @@ const SCENARIOS = {
     title: (ctx) => `You've previewed ${ctx.limit || 30} questions on ${ctx.paperTitle || 'this paper'}`,
     sub: () => 'Upgrade to keep going on this paper and unlock every past-paper quiz, the full library, daily exams, and Ask Zed AI study help.',
     mascot: '🐢',
-    primary: 'Upgrade to Pro · K79/mo',
+    primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
+  },
+  // Assessment + Exam Paper studios are reserved for Max — the most powerful
+  // (and expensive) generations. Free/Pro get one taster a month; the next
+  // one lands here. Routes to the Max plans, not Pro.
+  'max-feature': {
+    tag: '🦅 Max studio',
+    title: (ctx) => `${ctx.feature || 'Assessments'} are a Max studio`,
+    sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — or pay K25 for just one more now.`,
+    mascot: '🦅',
+    primary: 'Upgrade to Max · K149/mo',
+    primaryAction: 'upgrade',
+    secondary: 'Pay K25 — one extra now',
+    secondaryAction: 'one-off',
+    compare: 'pro-vs-max',
   },
 }
 
@@ -61,16 +80,50 @@ const COMPARE = {
     right: {
       name: 'Pro',
       priceLabel: '/ month',
-      price: 'K79',
+      price: 'K59',
       recommended: true,
       feats: [
         { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
         { ok: true, text: '10 generations per day' },
-        { ok: true, text: 'Assessments + schemes of work' },
+        { ok: true, text: '1 free assessment + exam paper / month' },
         { ok: true, text: 'DOCX + PDF export' },
       ],
     },
   },
+  'pro-vs-max': {
+    left: {
+      name: 'Pro',
+      priceLabel: '/ month',
+      price: 'K59',
+      feats: [
+        { ok: true, text: '40 plans + 25 worksheets + 25 notes' },
+        { ok: true, text: '10 generations per day' },
+        { ok: false, text: '1 assessment + 1 exam paper / month' },
+        { ok: false, text: 'No bulk export or priority queue' },
+      ],
+    },
+    right: {
+      name: 'Max',
+      priceLabel: '/ month',
+      price: 'K149',
+      recommended: true,
+      feats: [
+        { ok: true, text: 'Unlimited assessments & exam papers' },
+        { ok: true, text: '30 generations per day' },
+        { ok: true, text: 'Bulk export — a whole term in one click' },
+        { ok: true, text: 'Priority queue + early access to new studios' },
+      ],
+    },
+  },
+}
+
+// Which plan the scenario sells — segments the conversion funnel so the
+// Max upsell (max-feature) can be measured separately from the Pro paywalls
+// and the learner Grade-7 pack. Mirrors the UpgradeModal routing below.
+function paywallPlanTarget(reason) {
+  if (reason === 'quiz-preview-limit') return 'grade7'
+  if (reason === 'max-feature') return 'max'
+  return 'pro'
 }
 
 function CompareCol({ data, recommended }) {
@@ -96,10 +149,14 @@ export default function PaywallHost() {
   // before state is cleared so we can route to the correct portal copy
   // (learner Grade-7 pack vs teacher Pro).
   const [upgradeReason, setUpgradeReason] = useState(null)
+  // Pay-per-generation top-up checkout. `topUpState` carries the label of
+  // the studio the teacher was blocked on, purely for the modal's copy.
+  const [topUpState, setTopUpState] = useState(null)
   const lastFocusRef = useRef(null)
   const primaryBtnRef = useRef(null)
 
   useEffect(() => paywall.subscribe(setState), [])
+  useEffect(() => topup.subscribe(setTopUpState), [])
 
   // Body scroll lock + focus management
   useEffect(() => {
@@ -129,8 +186,27 @@ export default function PaywallHost() {
   const scenario = state ? SCENARIOS[state.reason] : null
   const ctx = state?.ctx || {}
 
+  // Funnel analytics — one event when a paywall is shown. Self-contained on
+  // [state] (reads state.reason/state.ctx) so it fires once per show without
+  // refiring on unrelated re-renders. capture() no-ops when analytics is
+  // disabled or unconsented. Pairs with paywall_upgrade_clicked below.
+  useEffect(() => {
+    if (!state || !SCENARIOS[state.reason]) return
+    capture('paywall_shown', {
+      reason: state.reason,
+      feature: state.ctx?.feature || null,
+      plan_target: paywallPlanTarget(state.reason),
+    })
+  }, [state])
+
   function handlePrimary() {
     if (scenario?.primaryAction === 'upgrade') {
+      capture('paywall_upgrade_clicked', {
+        reason: state?.reason || null,
+        feature: ctx.feature || null,
+        plan_target: paywallPlanTarget(state?.reason),
+        via: 'primary',
+      })
       setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
@@ -140,10 +216,14 @@ export default function PaywallHost() {
   function handleSecondary() {
     const action = scenario?.secondaryAction
     if (action === 'one-off') {
-      // K5 one-off credit purchase isn't wired yet — fall through to upgrade.
-      setUpgradeReason(state?.reason || null)
+      // Pay-per-generation top-up: K25 buys one extra generation on any tool.
+      capture('topup_intent', {
+        reason: state?.reason || null,
+        feature: ctx.feature || null,
+        via: 'paywall-secondary',
+      })
       paywall.hide()
-      setShowUpgrade(true)
+      topup.show({ feature: ctx.feature || null })
     }
   }
 
@@ -201,8 +281,15 @@ export default function PaywallHost() {
           {upgradeReason === 'quiz-preview-limit' ? (
             <UpgradeModal
               portal="learner"
-              planIds={['grade7_monthly', 'grade7_termly']}
-              defaultPlanId="grade7_monthly"
+              planIds={['weekly', 'monthly']}
+              defaultPlanId="monthly"
+              onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
+            />
+          ) : upgradeReason === 'max-feature' ? (
+            <UpgradeModal
+              portal="teacher"
+              planIds={['max_monthly', 'max_yearly']}
+              defaultPlanId="max_monthly"
               onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
             />
           ) : (
@@ -213,6 +300,14 @@ export default function PaywallHost() {
               onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
             />
           )}
+        </Suspense>
+      )}
+      {topUpState && (
+        <Suspense fallback={null}>
+          <TopUpModal
+            feature={topUpState.ctx?.feature || null}
+            onClose={() => topup.hide()}
+          />
         </Suspense>
       )}
     </>

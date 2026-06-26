@@ -31,6 +31,7 @@ import 'katex/contrib/mhchem'
 import { renderExtensions } from '../extensions/buildExtensions.js'
 import { sanitizeHTML } from './sanitize.js'
 import { isTiptapJSON } from './migration.js'
+import { latexToReadableText } from '../../utils/quizRichText.js'
 // KaTeX stylesheet — only pulled in inside a browser. Vite intercepts the
 // dynamic CSS import at build time and inlines the styles; under a plain
 // `node` test runner there's no window, the import never fires, and the
@@ -174,6 +175,28 @@ export function hydrateNumberBases(container) {
 }
 
 /**
+ * Replace KaTeX math nodes (`<span class="mnode" data-latex="…">`) with a
+ * readable plain-text/Unicode rendering of their LaTeX.
+ *
+ * KaTeX needs JavaScript to draw its DOM, so the non-JS export targets — the
+ * PDF print window and the DOCX walker — would otherwise render these spans
+ * blank (the canonical serialised form carries the LaTeX in `data-latex`, not
+ * as text content). Flattening here means every paper export shows "18",
+ * "4 ÷ 2 × 3", "(1)/(3)" etc. instead of an empty span.
+ */
+function flattenMathNodes(container) {
+  if (!container) return
+  const nodes = container.querySelectorAll('span.mnode, span[data-latex], span[data-math-latex]')
+  nodes.forEach((el) => {
+    const latex = el.getAttribute('data-latex') || el.getAttribute('data-math-latex') || el.textContent || ''
+    el.textContent = latexToReadableText(latex)
+    el.classList.remove('mnode')
+    el.removeAttribute('data-latex')
+    el.removeAttribute('data-math-latex')
+  })
+}
+
+/**
  * Convenience: hydrate KaTeX + every Grade-7 math block in one call.
  * Use this wherever sanitised HTML is mounted (learner viewer, PDF
  * print window, RichContent component) so the same rebuild runs in
@@ -193,9 +216,9 @@ export function hydrateMathContent(container) {
  * fractions, and number-base subscripts must be in the HTML before it
  * lands in the printable document.
  *
- * KaTeX math nodes are NOT pre-rendered here (KaTeX itself needs JS to
- * produce its DOM). They appear as `<span class="mnode" data-latex="…">`
- * exactly as today.
+ * KaTeX math nodes can't be drawn without JS, so instead of leaving an
+ * empty `<span class="mnode" data-latex="…">` (which prints blank) they are
+ * flattened to a readable plain-text/Unicode rendering of their LaTeX.
  *
  * @param {object|string|null} value  Tiptap JSON, JSON-string, or HTML
  * @returns {string}                  Hydrated HTML, or '' if empty
@@ -233,6 +256,7 @@ export function richTextToPaperHtml(value) {
     hydrateVerticalArithmetic(doc.body)
     hydrateFractions(doc.body)
     hydrateNumberBases(doc.body)
+    flattenMathNodes(doc.body)
     return doc.body.innerHTML
   } catch {
     return baseHtml

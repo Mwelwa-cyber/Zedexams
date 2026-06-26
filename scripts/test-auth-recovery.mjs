@@ -9,6 +9,7 @@
 import {
   shouldExpireSession,
   TERMINAL_AUTH_ERRORS,
+  TRANSIENT_AUTH_ERRORS,
   REFRESH_THROTTLE_MS,
 } from '../src/hooks/authRecoveryPolicy.js'
 
@@ -23,8 +24,16 @@ for (const code of TERMINAL_AUTH_ERRORS) {
   assert(shouldExpireSession(code, true) === true, `terminal code ${code} online → expire`)
 }
 
-// — Any auth/* code (not network) while online → expire —————————————————
-assert(shouldExpireSession('auth/internal-error', true) === true, 'unknown auth/* online → expire')
+// — Transient auth/* codes must never expire the session ————————————————
+// These are retryable (rate-limit, backend hiccup) — nuking the session here
+// would log the user out after heavy usage or a Firebase blip.
+for (const code of TRANSIENT_AUTH_ERRORS) {
+  assert(shouldExpireSession(code, true) === false, `transient code ${code} online → no expire`)
+}
+assert(shouldExpireSession('auth/too-many-requests', false) === false, 'too-many-requests offline → no expire')
+
+// — Any non-transient auth/* code (not network) while online → expire ——
+assert(shouldExpireSession('auth/invalid-action-code', true) === true, 'unknown auth/* online → expire')
 
 // — Network failure → never expire (offline tab recovers on reconnect) ——
 assert(shouldExpireSession('auth/network-request-failed', true) === false, 'network-request-failed → no expire (online)')

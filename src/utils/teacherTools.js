@@ -9,6 +9,12 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
 import { LEARNING_ENVIRONMENTS } from '../config/learningEnvironments'
+import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../config/teacherTaxonomy'
+
+// Re-exported so existing `import { TEACHER_GRADES } from './teacherTools'`
+// callers keep working. The canonical definitions live in the pure,
+// side-effect-free taxonomy module so they can be imported without firebase.
+export { TEACHER_GRADES, TEACHER_SUBJECTS }
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -36,8 +42,14 @@ const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson'
 const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
+const generateLessonActivitiesCallable = httpsCallable(functions, 'generateLessonActivities', {
+  timeout: 185_000, // server: 180s — can produce a class exercise AND homework
+})
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 250_000, // server: 240s — big mocks stream for several minutes
+})
+const generateSbaTaskCallable = httpsCallable(functions, 'generateSbaTask', {
+  timeout: 120_000, // server: 120s — single SBA task with its marking scheme
 })
 const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
@@ -45,155 +57,23 @@ const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
 const generateExamPaperCallable = httpsCallable(functions, 'generateExamPaper', {
   timeout: 185_000, // server: 180s — up to 60 questions
 })
+const getTermModuleOutlineCallable = httpsCallable(functions, 'getTermModuleOutline', {
+  timeout: 35_000, // server: 30s — a couple of small Firestore reads
+})
 
-// Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
-// backend's ALLOWED_GRADES accepts (ECE, G1–G12). Labels show the
-// "Grade 8 / Form 1" dual naming so secondary teachers still recognise them.
-//
-// Items with `group` (no `value`) render as <optgroup> labels in FieldSelect.
-export const TEACHER_GRADES = [
-  { group: 'Pre-Primary' },
-  { value: 'ECE', label: 'ECE — Early Childhood Education' },
-  { group: 'Lower Primary (Grades 1–4)' },
-  { value: 'G1', label: 'Grade 1' },
-  { value: 'G2', label: 'Grade 2' },
-  { value: 'G3', label: 'Grade 3' },
-  { value: 'G4', label: 'Grade 4' },
-  { group: 'Upper Primary (Grades 5–7)' },
-  { value: 'G5', label: 'Grade 5' },
-  { value: 'G6', label: 'Grade 6' },
-  { value: 'G7', label: 'Grade 7' },
-  { group: 'Junior Secondary (Grades 8–9)' },
-  { value: 'G8', label: 'Grade 8 / Form 1' },
-  { value: 'G9', label: 'Grade 9 / Form 2' },
-  { group: 'Senior Secondary (Grades 10–12)' },
-  { value: 'G10', label: 'Grade 10 / Form 3' },
-  { value: 'G11', label: 'Grade 11 / Form 4' },
-  { value: 'G12', label: 'Grade 12 / Form 5' },
-]
-
-// Subjects grouped by curriculum area across all CBC phases.
-export const TEACHER_SUBJECTS = [
-  { group: 'Languages' },
-  { value: 'english',          label: 'English' },
-  { value: 'literacy',         label: 'Literacy' },
-  { value: 'cinyanja',         label: 'Cinyanja' },
-  { value: 'zambian_language', label: 'Zambian Language (other)' },
-  { group: 'STEM' },
-  { value: 'mathematics',          label: 'Mathematics' },
-  { value: 'numeracy',             label: 'Numeracy' },
-  { value: 'integrated_science',   label: 'Integrated Science' },
-  { value: 'environmental_science',label: 'Environmental Science' },
-  { value: 'biology',              label: 'Biology' },
-  { value: 'chemistry',            label: 'Chemistry' },
-  { value: 'physics',              label: 'Physics' },
-  { group: 'Humanities' },
-  { value: 'social_studies',   label: 'Social Studies' },
-  { value: 'history',          label: 'History' },
-  { value: 'geography',        label: 'Geography' },
-  { value: 'civic_education',  label: 'Civic Education' },
-  { value: 'religious_education', label: 'Religious Education' },
-  { group: 'Technical & Creative' },
-  { value: 'technology_studies',              label: 'Technology Studies' },
-  { value: 'creative_and_technology_studies', label: 'Creative & Technology Studies' },
-  { value: 'home_economics',   label: 'Home Economics' },
-  { value: 'expressive_arts',  label: 'Expressive Arts' },
-  { value: 'physical_education', label: 'Physical Education' },
-]
-
-// Maps each subject value to the grades it's actually taught at in the
-// Zambian CBC. Used by getSubjectsForGrade() to filter the dropdown so
-// teachers only see pedagogically valid combinations (no Biology for
-// Grade 1, no Literacy for Grade 12).
-const SUBJECT_GRADE_MAP = {
-  // Languages — English & Zambian Language span everything; Literacy is
-  // the lower-primary reading-and-writing strand that gives way to English.
-  english:           ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  literacy:          ['ECE','G1','G2','G3','G4'],
-  cinyanja:          ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  zambian_language:  ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-
-  // STEM — Numeracy is the early-grade pre-Mathematics strand. Integrated
-  // Science covers all primary + junior secondary, then splits into
-  // Bio/Chem/Phys at senior secondary.
-  mathematics:       ['G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  numeracy:          ['ECE','G1','G2','G3','G4'],
-  integrated_science:['G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  environmental_science: ['G1','G2','G3','G4'],
-  biology:           ['G10','G11','G12'],
-  chemistry:         ['G10','G11','G12'],
-  physics:           ['G10','G11','G12'],
-
-  // Humanities — Social Studies covers ECE through junior secondary; in
-  // senior secondary it splits into History/Geography/Civic Education.
-  social_studies:    ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  history:           ['G8','G9','G10','G11','G12'],
-  geography:         ['G8','G9','G10','G11','G12'],
-  civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  religious_education:['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-
-  // Technical & creative — Creative & Technology Studies is the primary-
-  // level integrated subject; Technology Studies and Home Economics take
-  // over from upper primary onwards. Expressive Arts runs ECE–junior.
-  technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
-  creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
-  home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  expressive_arts:   ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
-  physical_education:['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-}
-
-/**
- * Returns the TEACHER_SUBJECTS list filtered to the subjects taught at
- * the given grade. Group headers are kept only if at least one subject in
- * that group survives the filter. Falls back to the full list if grade is
- * unknown (e.g. legacy URL deeplink).
- */
-export function getSubjectsForGrade(grade) {
-  if (!grade) return TEACHER_SUBJECTS
-  const filtered = []
-  let pendingGroup = null
-  let groupHasItems = false
-  for (const opt of TEACHER_SUBJECTS) {
-    if (opt.group !== undefined) {
-      pendingGroup = opt
-      groupHasItems = false
-      continue
-    }
-    const grades = SUBJECT_GRADE_MAP[opt.value]
-    const allowed = !grades || grades.includes(grade)
-    if (!allowed) continue
-    if (pendingGroup && !groupHasItems) {
-      filtered.push(pendingGroup)
-      groupHasItems = true
-    }
-    filtered.push(opt)
-  }
-  // Defensive: never return an empty list. If a future grade has no
-  // subject mappings at all, fall back to the full list rather than
-  // showing an empty dropdown.
-  return filtered.length > 0 ? filtered : TEACHER_SUBJECTS
-}
-
-/**
- * Picks a sensible default subject for a grade — used when the grade
- * changes and the previously-selected subject no longer applies.
- * Returns the first non-group option from getSubjectsForGrade().
- */
-export function defaultSubjectForGrade(grade) {
-  const opts = getSubjectsForGrade(grade)
-  const firstSubject = opts.find((o) => o.value !== undefined)
-  return firstSubject?.value || 'mathematics'
-}
-
-/**
- * True if `subject` is taught at `grade` according to SUBJECT_GRADE_MAP.
- * Subjects with no mapping entry default to true (forward-compatible).
- */
-export function isSubjectValidForGrade(subject, grade) {
-  const grades = SUBJECT_GRADE_MAP[subject]
-  if (!grades) return true
-  return grades.includes(grade)
-}
+// The grade-aware subject helpers + the ECE subject set live in the pure
+// taxonomy module so plain `node` tests can exercise them without pulling in
+// firebase/config. Re-exported here so existing
+// `import { getSubjectsForGrade } from '../utils/teacherTools'` callers keep
+// working.
+export {
+  ECE_GRADE_CODES,
+  ECE_SUBJECTS,
+  isEceGrade,
+  getSubjectsForGrade,
+  defaultSubjectForGrade,
+  isSubjectValidForGrade,
+} from '../config/teacherTaxonomy'
 
 export const TEACHER_LANGUAGES = [
   { value: 'english', label: 'English' },
@@ -218,6 +98,35 @@ export const WORKSHEET_DIFFICULTIES = [
   { value: 'medium', label: 'Medium — one-step reasoning' },
   { value: 'hard', label: 'Hard — multi-step and word problems' },
   { value: 'mixed', label: 'Mixed — easy → hard progression (recommended)' },
+]
+
+// Worksheet layout style. "auto" lets the AI pick from the topic; the rest
+// force a specific layout on the server (see functions worksheetPrompt).
+export const WORKSHEET_STYLES = [
+  { value: 'auto', label: 'Auto — let the AI choose (recommended)' },
+  { value: 'standard', label: 'Question & answer — numbered questions' },
+  { value: 'grid', label: 'Practice grid — drills in columns (e.g. fractions → decimals)' },
+  { value: 'comprehension', label: 'Reading comprehension — passage + questions' },
+  { value: 'working', label: 'Show working — column maths (long division, multiplication)' },
+  { value: 'matching', label: 'Matching — match items to an answer bank' },
+  { value: 'word_problems', label: 'Word problems — real-life problems with working space' },
+  { value: 'true_false', label: 'True or False — quick true/false drill' },
+]
+
+// Optional grid column override (only matters for grid/practice layouts).
+export const WORKSHEET_GRID_COLUMNS = [
+  { value: 0, label: 'Auto' },
+  { value: 2, label: '2 columns' },
+  { value: 3, label: '3 columns' },
+  { value: 4, label: '4 columns' },
+]
+
+// Reading-passage length for comprehension worksheets.
+export const WORKSHEET_PASSAGE_LENGTHS = [
+  { value: '', label: 'Auto' },
+  { value: 'short', label: 'Short — 3-4 sentences' },
+  { value: 'medium', label: 'Medium — 6-8 sentences' },
+  { value: 'long', label: 'Long — 10-14 sentences' },
 ]
 
 export const WORKSHEET_QUESTION_COUNTS = [
@@ -421,6 +330,29 @@ export async function generateSchemeOfWork(inputs) {
       error: messageFromError(error),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Fetch the uploaded curriculum modules for a (grade, subject, term) as
+ * official-scheme-shaped weeks, so the Weekly Forecast studio can build a
+ * forecast straight from modules when the teacher has no saved scheme.
+ * Returns { ok, data: { weeks, topicsCount, subtopicsCount } } or { ok:false }.
+ */
+export async function getTermModuleOutline({ grade, subject, term }) {
+  try {
+    const result = await withTimeout(
+      getTermModuleOutlineCallable({ grade, subject, term }),
+      40_000,
+      'getTermModuleOutline',
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
     }
   }
 }
@@ -819,6 +751,44 @@ export async function generateHomework(inputs) {
 }
 
 /**
+ * Generate follow-up assessment activities (a class exercise and/or homework)
+ * straight from a lesson in the Lesson Plan Studio. Grounded on the same
+ * curriculum module the lesson plan used (grade + subject + topic + sub-topic).
+ *
+ * `inputs.activities` is 'exercise' | 'homework' | 'both'. Returns
+ * { ok, data: { generationId, activities: { exercise, homework }, usage, warning } }.
+ */
+export async function generateLessonActivities(inputs) {
+  console.info('[zedexams] generateLessonActivities →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, activities: inputs?.activities,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateLessonActivitiesCallable(inputs),
+      185_000,
+      'generateLessonActivities',
+    )
+    console.info('[zedexams] generateLessonActivities ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateLessonActivities ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
  * Generate a formal graded assessment. Grounded on the stored curriculum
  * module when grade+subject+topic+sub-topic+term resolve one. (Distinct
  * from the quiz-editor Assessment Studio — this is a saved, exportable
@@ -844,6 +814,44 @@ export async function generateAssessment(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+      // Structured quota context (e.g. { reason: 'max-only' }) so studios can
+      // route the right paywall — see functions/teacherTools/usageMeter.js.
+      details: error?.details || null,
+    }
+  }
+}
+
+/**
+ * Generate one ECZ-compliant School Based Assessment (SBA) task for an
+ * upper-primary (Grade 5–7) subject + task type, with the marking artefact the
+ * task type requires (answer key / oral observation / method marks / rubric).
+ */
+export async function generateSbaTask(inputs) {
+  console.info('[zedexams] generateSbaTask →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    taskType: inputs?.taskType, component: inputs?.component,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateSbaTaskCallable(inputs),
+      125_000,
+      'generateSbaTask',
+    )
+    console.info('[zedexams] generateSbaTask ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateSbaTask ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )
@@ -925,6 +933,9 @@ export async function generateExamPaper(inputs) {
       error: messageFromError(error),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
+      // Structured quota context (e.g. { reason: 'max-only' }) so studios can
+      // route the right paywall — see functions/teacherTools/usageMeter.js.
+      details: error?.details || null,
     }
   }
 }

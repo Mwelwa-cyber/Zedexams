@@ -52,6 +52,9 @@ function gatherInput() {
     time: $('#f-time').value.trim(),
     topic: $('#f-topic').value.trim(),
     subtopic: $('#f-subtopic').value.trim(),
+    // Medium of instruction — defaults to English when the row is missing
+    // (older cached bundle) so the header never goes blank.
+    medium: (() => { const el = $('#f-medium'); return (el && el.value) || 'English'; })(),
     teacher: $('#f-teacher').value.trim(),
     tsno: $('#f-tsno').value.trim(),
     showEnrolment: $('#t-enrolment').dataset.on === 'true',
@@ -60,6 +63,18 @@ function gatherInput() {
     // Optional toggle — older studio DOMs may not have the row yet.
     showVocabulary: (() => { const el = $('#t-vocab'); return !!el && el.dataset.on === 'true'; })(),
     compactMeta: $('#t-compact').dataset.on === 'true',
+    // Writing-style controls. Selects read directly; default to a professional
+    // register + a simplified plan when the DOM is an older bundle.
+    languageLevel: (() => { const el = $('#f-language-level'); return (el && el.value) || 'professional'; })(),
+    detailLevel: (() => { const el = $('#f-detail-level'); return (el && el.value) || 'simplified'; })(),
+    // Auto-draw diagrams for Maths/Science. On by default; older DOMs (no row)
+    // fall back to on so the feature is not silently lost on a stale bundle.
+    autoDiagrams: (() => { const el = $('#t-diagrams'); return el ? el.dataset.on === 'true' : true; })(),
+    // For a non-English medium: write the WHOLE plan in that language rather
+    // than an English document with local-language touches. Off by default
+    // (and absent on older bundles) so the inspection-friendly English plan
+    // stays the default.
+    planInMedium: (() => { const el = $('#t-plan-in-medium'); return !!el && el.dataset.on === 'true'; })(),
     format: formatChoice,
     learningEnvironments: $$('#learning-env .le-pill')
       .filter(p => p.dataset.on === 'true')
@@ -83,6 +98,64 @@ function gatherInput() {
   };
 }
 
+// Writing-style guidance injected into the user prompt from the teacher's
+// "Language level" + "Lesson plan type" selectors. Kept here (not in the
+// cached system prompt) so changing a knob never invalidates Anthropic's
+// system-prompt cache.
+//
+// Language level controls the REGISTER and how much teaching guidance is woven
+// in — it never changes the JSON shape:
+//   • simple        — plain words, quick classroom use
+//   • professional  — formal, for records / inspection / submission
+//   • teacher       — explanatory; coaches the teacher on HOW to teach the lesson
+const LANGUAGE_GUIDE = {
+  simple: 'Simple — Use easy, everyday words and short sentences so the plan is quick to read and use in class. Avoid jargon; if a subject term is unavoidable, explain it in plain words. Pitch the reading level low. Good for quick classroom use.',
+  professional: 'Professional — Use formal, polished staffroom English suitable for official records, the school file, inspection and submission to a head teacher or standards officer. Keep it correct, concise and businesslike.',
+  teacher: 'Detailed Teacher Language — As well as the lesson content, coach the teacher on HOW to teach this lesson. Within the EXISTING activity and prose fields (do not add new JSON keys), weave in brief, practical guidance: how to introduce and explain each step, what to demonstrate or ask, why each activity matters, simple classroom-management tips, and the common mistakes or misconceptions learners make and how to correct them. Aim so that even a new or non-specialist teacher could deliver the lesson confidently.',
+  // Back-compat aliases for any value left over in a stale cached bundle.
+  standard: 'Professional — Use formal, polished staffroom English suitable for official records, inspection and submission.',
+  advanced: 'Detailed Teacher Language — Coach the teacher on how to teach the lesson, folding practical guidance into the existing activity and prose fields.',
+};
+// Lesson plan type controls how SHORT or COMPLETE the plan is.
+//   • simplified — short, main parts only (quick planning)
+//   • detailed   — full plan for formal submission / inspection
+const DETAIL_GUIDE = {
+  simplified: 'Simplified — A short, easy-to-prepare plan covering only the main, important parts, in the spirit of the official printed sample lesson plans. Keep every progression-table cell concise (2 to 4 short bullet-style points, each a brief phrase or one short sentence) and keep prose fields (rationale, lesson goal) short. Do NOT write long paragraphs inside the table. Good for quick planning.',
+  detailed: 'Detailed — A more complete, well-explained plan. Expand each cell with fuller teaching detail: more numbered steps, worked examples and expected answers, richer teacher and learner activities, clear assessment criteria, listed teaching and learning resources, and a reflection — so the plan is suitable for formal submission or inspection and a relief teacher could deliver it without extra preparation.',
+  // Back-compat alias for any value left over in a stale cached bundle.
+  summarised: 'Simplified — Keep every table cell concise (2 to 4 short points) and prose fields short, like the official printed sample lesson plans.',
+};
+
+// Subjects for which auto-diagrams make sense. The studio toggle gates the
+// feature; this regex makes sure we only ask for diagrams when the lesson is
+// genuinely Mathematics or a Science.
+const DIAGRAM_SUBJECT_RE = /math|science|biolog|chemis|physic/i;
+
+// The diagram types the studio's SVG engine (11-diagrams.js) can draw, with
+// the params each one accepts. Listed inline (not read from the catalog,
+// which loads after this file) so the model only ever names a renderable
+// type. labels/values are comma-separated lists.
+const DIAGRAM_SPEC_HELP = [
+  'Shapes 2D — triangle{a,b,c}, righttriangle{a,b,c}, square{side}, rectangle{l,w}, parallelogram{base,side}, trapezium{top,bottom,height}, rhombus{side}, pentagon{}, hexagon{}, circle{center,radius}, angle{label}',
+  'Shapes 3D — cube{side}, cuboid{l,w,h}, cylinder{r,h}, cone{r,h}, sphere{r}',
+  'Number & data — numberline{min,max,step,highlight}, coordgrid{range}, fractionbar{parts,shaded}, barchart{labels,values}, piechart{labels,values}, linegraph{labels,values}',
+  'Sets — venn2{a,b}, venn3{a,b,c}',
+  'Science — plantcell{}, animalcell{}, circuit{}, forcearrows{up,down,left,right}, foodchain{a,b,c,d}',
+  'Geography — compass{}, contourlines{}',
+  'Organisers — mindmap{centre,a,b,c,d}, tchart{left,right}, timeline{years,events}, flowchart{a,b,c,d}',
+].map((l) => `  • ${l}`).join('\n');
+
+function buildStyleBlock(i) {
+  const langKey = (i.languageLevel || 'professional').toLowerCase();
+  const detKey = (i.detailLevel || 'simplified').toLowerCase();
+  return `\n\nSTYLE CONTROLS (the teacher chose these — follow them exactly):\n- Language level: ${LANGUAGE_GUIDE[langKey] || LANGUAGE_GUIDE.professional}\n- Lesson plan type: ${DETAIL_GUIDE[detKey] || DETAIL_GUIDE.simplified}`;
+}
+
+function buildDiagramBlock(i) {
+  if (!i.autoDiagrams || !DIAGRAM_SUBJECT_RE.test(String(i.subject || ''))) return '';
+  return `\n\nDIAGRAMS (this is a Mathematics/Science lesson — include diagrams where they genuinely help, exactly as the official printed Maths and Science modules do):\n- Add an OPTIONAL top-level "diagrams" array to your JSON. Each entry: { "stage": one of the stage names you used, "type": one of the supported types below, "params": { ... }, "caption": short caption, "describe": image description (see below) }.\n- Use a diagram ONLY where a picture aids the explanation or the exercise (e.g. a shape whose area is found, a number line, a Venn/set grouping, a bar chart of collected data, a plant or animal cell, a simple circuit). Do not force one into every lesson — 1 to 3 well-chosen diagrams is plenty. If none would help, omit the array entirely.\n- Attach each diagram to the stage where it is used (usually "LESSON DEVELOPMENT" or "EXERCISE / ASSESSMENT").\n- "describe": one clear sentence describing the picture for an illustrator who will draw it as a clean black-and-white labelled line drawing. Name the object and its key labelled parts (e.g. "A right-angled triangle ABC with the right angle at B and sides a, b and hypotenuse c labelled", or "A labelled plant cell showing the cell wall, nucleus, chloroplasts and vacuole"). Keep it concrete and self-contained — no colours, no shading.\n- Supported "type" values and their "params" (these are a precise fallback drawing — still fill them in; keep params short with plain ASCII labels; for barchart/piechart/linegraph/timeline pass comma-separated strings):\n${DIAGRAM_SPEC_HELP}`;
+}
+
 // Build the user prompt for one specific lesson in the series.
 // `lessonNumber` is 1-based; `lessonFocus` is the short focus headline
 // (e.g. "Concept introduction"). When totalLessons === 1, the focus block
@@ -92,10 +165,15 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const level = activeGradeLevel()[i.klass];
   const legacyTopics = getTopicsForClass(level, i.subject, i.klass);
   // Merge in the clean curriculumTopics map (02b-curriculum-topics.js) for
-  // this grade so Claude recognises topics the teacher picks from the new
-  // dropdown — otherwise it might flag them as "out of syllabus" when the
-  // legacy subject map happens not to list them.
-  const curated = (window.curriculumTopics && window.curriculumTopics[i.klass]) || {};
+  // this grade AND subject so Claude recognises topics the teacher picks from
+  // the new dropdown — otherwise it might flag them as "out of syllabus" when
+  // the legacy subject map happens not to list them. The lookup is
+  // subject-scoped: passing only the grade used to inject one subject's topics
+  // (e.g. Grade 4 Science) into every other subject, so the model rejected
+  // valid topics like "Prepositions" for Grade 4 English.
+  const curated = (typeof window.curatedTopicsFor === 'function')
+    ? window.curatedTopicsFor(i.klass, i.subject)
+    : {};
   const topics = Object.assign({}, legacyTopics, curated);
   const versionLabel = syllabusVersion === 'old' ? '2013 Old CDC Syllabus' : '2023 Zambia ECF';
   let syllabusContext = '';
@@ -108,6 +186,19 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const envLine = (i.learningEnvironments && i.learningEnvironments.length)
     ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
     : '';
+  // Medium of instruction. Default: the plan stays in English (an official
+  // document the head teacher / standards officer reads) with the delivery
+  // language reflected only in the parts learners actually hear. When the
+  // teacher ticks "write the whole plan in the local language", the entire
+  // document is written in that medium instead.
+  const medium = String(i.medium || 'English').trim();
+  const isLocalMedium = medium && medium.toLowerCase() !== 'english';
+  let mediumLine = '';
+  if (isLocalMedium && i.planInMedium) {
+    mediumLine = `\n- MEDIUM OF INSTRUCTION: Write the ENTIRE lesson plan in ${medium} — every heading, the rationale, all teacher and learner activities, the assessment criteria and all prose. Use correct ${medium} spelling and grammar. Keep the syllabus topic and competence codes and proper nouns as they appear officially; only fall back to an English term in brackets where no established ${medium} word exists.`;
+  } else if (isLocalMedium) {
+    mediumLine = `\n- MEDIUM OF INSTRUCTION: The lesson is taught in ${medium}. Write the plan in English (it is an official document), but reflect the medium — give the teacher's key questions and greetings, any songs, rhymes or chants, and the key vocabulary in ${medium} with a short English gloss in brackets where helpful, e.g. "Mwapoleni mukwai (Good morning)". Keep the stage names, assessment criteria and other prose in English.`;
+  }
   const N = Math.max(1, parseInt(totalLessons, 10) || 1);
   const K = Math.max(1, Math.min(N, parseInt(lessonNumber, 10) || 1));
   const focusLines = (N > 1 && Array.isArray(i.planner && i.planner.foci) && i.planner.foci.length)
@@ -123,8 +214,9 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
 - Topic: ${i.topic || 'choose an appropriate topic from the official syllabus below'}
 - Sub-topic: ${i.subtopic || 'choose an appropriate sub-topic'}
 - Duration: ${i.duration} minutes
-- Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
-${syllabusContext}
+- Medium of instruction: ${medium}
+- Term & Week: ${i.termWeek || 'unspecified'}${envLine}${mediumLine}${seqLine}
+${syllabusContext}${buildStyleBlock(i)}${buildDiagramBlock(i)}
 IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope shown above (${versionLabel}). If the user-supplied topic doesn't match this grade level, return {"error": "explanation"} instead.
 
 Return JSON only.`;
@@ -157,7 +249,7 @@ function renderMetaTable(meta) {
     rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) rows.push(['Lesson Focus', esc(meta.lessonFocus)]);
   }
-  rows.push(['Medium of Instruction', 'English']);
+  rows.push(['Medium of Instruction', esc(meta.medium || 'English')]);
   return `<table class="meta-table"><tbody>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -174,6 +266,7 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)]);
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___']);
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___']);
+  items.push(['Medium', esc(meta.medium || 'English')]);
   if (meta.multiLesson) {
     items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) items.push(['Lesson Focus', esc(meta.lessonFocus)]);
@@ -204,6 +297,7 @@ function renderOfficialHeader(meta) {
   if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
   if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
   pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide']);
+  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')]);
   if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : ''), 'wide']);
   const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`;
   return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`;
@@ -239,6 +333,88 @@ function formatProse(text) {
     return '<ol style="padding-left:20px;margin:4px 0">' + lines.map(l => '<li>' + esc(l.replace(/^\d+[.)]\s*/, '')) + '</li>').join('') + '</ol>';
   }
   return lines.map(l => '<div style="margin:3px 0">' + esc(l) + '</div>').join('');
+}
+
+// Render any AI-supplied diagrams attached to a given stage, using the same
+// SVG engine the manual diagram inserter uses (11-diagrams.js exposes its
+// catalog on window.__studioDiagrams). Robust by design: an unknown type, a
+// bad param, or a render throw is skipped silently rather than breaking the
+// plan. Params are coerced to strings (arrays joined with commas) so the
+// renderers — several of which call .split(',') — never choke on model drift.
+function normStageName(s) {
+  return String(s || '').toUpperCase().replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ').trim();
+}
+function baseStageName(s) {
+  return normStageName(s).split(' — ')[0].split(' - ')[0].trim();
+}
+function stageDiagramsHtml(stageName, specs) {
+  if (!Array.isArray(specs) || specs.length === 0) return '';
+  const catalog = (typeof window !== 'undefined' && window.__studioDiagrams) || null;
+  if (!catalog) return '';
+  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#0a5454';
+  const target = baseStageName(stageName);
+  if (!target) return '';
+  const html = specs.filter((d) => {
+    if (!d || !d.type || !catalog[d.type]) return false;
+    const sb = baseStageName(d.stage);
+    return sb && (sb === target || target.startsWith(sb) || sb.startsWith(target));
+  }).map((d) => {
+    const def = catalog[d.type];
+    const params = Object.assign({}, def.defaults);
+    const raw = (d.params && typeof d.params === 'object') ? d.params : {};
+    for (const k of Object.keys(raw)) {
+      const v = raw[k];
+      params[k] = Array.isArray(v) ? v.join(',') : (v == null ? '' : String(v));
+    }
+    let svg = '';
+    try { svg = def.render(params, accent); } catch (e) { svg = ''; }
+    if (!svg) return '';
+    const cap = esc(d.caption || params.cap || def.name);
+    // The SVG renders instantly as a precise fallback. When the model also gave
+    // a "describe" line we stamp it on the wrapper so __studioUpgradeDiagramImages
+    // can replace the SVG with a real AI line-art illustration after render. If
+    // image generation is unavailable or fails, the SVG simply stays.
+    const describe = String(d.describe || '').trim();
+    const promptAttr = describe ? ` data-illus-prompt="${esc(describe)}"` : '';
+    return `<div class="diagram-wrap"${promptAttr}><div contenteditable="false">${svg}</div><div class="diagram-caption">${cap}</div></div>`;
+  }).join('');
+  return html ? `<div class="stage-diagrams">${html}</div>` : '';
+}
+
+// Upgrade the instant SVG diagrams in a rendered plan to real AI line-art
+// illustrations. stageDiagramsHtml stamps each model-supplied diagram with a
+// data-illus-prompt; here we generate a B&W line drawing for each (via the
+// window.__studioGenerateDiagram bridge from LessonPlanStudio.jsx) and swap the
+// SVG for an <img>, keeping the same caption. Robust by design:
+//   • no bridge (e.g. stale bundle / not signed in) → leave every SVG as-is;
+//   • a generation failure or the monthly limit → that diagram keeps its SVG;
+//   • capped count + small concurrency so one plan can't burn the image quota
+//     or hammer the API.
+// Operates on the LIVE container so the caller can re-read its innerHTML for the
+// saved/library copy after this resolves.
+async function __studioUpgradeDiagramImages(container) {
+  if (!container || typeof window === 'undefined' || typeof window.__studioGenerateDiagram !== 'function') return;
+  const wraps = Array.from(container.querySelectorAll('.diagram-wrap[data-illus-prompt]')).slice(0, 4);
+  if (!wraps.length) return;
+  const queue = wraps.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const wrap = queue.shift();
+      const prompt = wrap.getAttribute('data-illus-prompt') || '';
+      wrap.removeAttribute('data-illus-prompt');
+      if (!prompt) continue;
+      try {
+        const res = await window.__studioGenerateDiagram({ prompt });
+        if (res && res.url) {
+          const cap = wrap.querySelector('.diagram-caption');
+          const capHtml = cap ? cap.outerHTML : '';
+          wrap.innerHTML = `<img src="${esc(res.url)}" alt="${esc(prompt)}" style="display:block;max-width:100%;width:420px;margin:0 auto">${capHtml}`;
+        }
+      } catch (e) { /* keep the SVG fallback for this diagram */ }
+    }
+  };
+  const CONCURRENCY = 2;
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, wraps.length) }, worker));
 }
 
 // ── Renderers ─────────────────────────────────────────────────────────────────
@@ -329,7 +505,7 @@ function renderModern(data, meta) {
     <div class="stage-block"><table class="stage-table m-stage-table">
       <tr><td colspan="3" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
       <tr><th class="col-head">TEACHER'S ACTIVITIES</th><th class="col-head">LEARNERS' ACTIVITIES</th><th class="col-head">ASSESSMENT CRITERIA</th></tr>
-      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td><td>${formatProse(s.assessment || '')}</td></tr>
+      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td><td>${formatProse(s.assessment || '')}</td></tr>
     </table></div>`).join('');
   const vocab = meta.showVocabulary && asList(data.keyVocabulary).length
     ? `<h2 class="sec">Key Vocabulary</h2><ul>${list(data.keyVocabulary)}</ul>` : '';
@@ -371,7 +547,7 @@ function renderClassic(data, meta) {
   const stagesHtml = ensureStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
     ${renderFieldLines(data, meta)}
@@ -394,7 +570,7 @@ function renderClassic2(data, meta) {
       </tr>
       <tr>
         <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
         <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td>
       </tr>
     </table></div>`).join('');
@@ -431,6 +607,7 @@ function renderOldHeader(meta, data) {
   pairs.push(['DURATION', esc(meta.duration) + ' minutes']);
   pairs.push(['GRADE', esc(meta.klass || '')]);
   pairs.push(['TERM &amp; WEEK', esc(meta.termWeek || '')]);
+  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')]);
   pairs.push(['TOPIC', esc(data.topic || meta.topic || ''), 'wide']);
   pairs.push(['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide']);
   if (meta.showEnrolment) pairs.push(['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
@@ -484,7 +661,7 @@ function renderOldClassic(data, meta) {
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
     ${renderOldFieldLines(data)}
@@ -503,7 +680,7 @@ function renderOldClassic2(data, meta) {
   const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
   return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
     ${renderOldFieldLines(data)}
@@ -530,6 +707,7 @@ function renderOldModern(data, meta) {
     ['SUBJECT', esc(meta.subject || '')],
     ['DURATION', esc(meta.duration) + ' minutes'],
     ['TOPIC', esc(data.topic || meta.topic || '')],
+    ['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')],
     ['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______'],
     ['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide'],
   ];
@@ -538,7 +716,7 @@ function renderOldModern(data, meta) {
   const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
     <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
     <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td></tr>`).join('');
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td></tr>`).join('');
   const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`;
   const evaluation = meta.showReflection ? `
     <div class="field-line" style="margin-top:14px"><strong>EVALUATION:</strong></div>
@@ -616,13 +794,40 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
   // The old (2013) syllabus has its own outcomes-based renderers; the new
   // (2023) syllabus uses the official CDC module renderers.
   const isOld = syllabusVersion === 'old';
-  const html = i.format === 'classic'
+  let html = i.format === 'classic'
     ? (isOld ? renderOldClassic(data, renderMeta) : renderClassic(data, renderMeta))
     : (i.format === 'classic2'
       ? (isOld ? renderOldClassic2(data, renderMeta) : renderClassic2(data, renderMeta))
       : (isOld ? renderOldModern(data, renderMeta) : renderModern(data, renderMeta)));
   $('#doc').innerHTML = html;
+  // Upgrade the instant SVG diagrams to real AI line-art illustrations, then
+  // re-read the doc so the library/export copy carries the generated <img>s.
+  // No-ops when there are no diagrams or the bridge is unavailable, so the
+  // non-diagram path is unchanged. The progress overlay stays up meanwhile.
+  if (i.autoDiagrams) {
+    try {
+      await __studioUpgradeDiagramImages($('#doc'));
+      html = $('#doc').innerHTML;
+    } catch (e) {
+      // SVG diagrams are still on screen — just let the teacher know
+      // illustrations didn't load so they're not surprised by the fallback.
+      if (typeof toast === 'function') toast('Diagrams shown as SVG — illustrations unavailable');
+    }
+  }
   if (editing) setTimeout(enableAllTableResize, 50);
+
+  // Collect this lesson's rendered HTML so a multi-lesson run can be exported
+  // as ONE document (cover sheet + every lesson) — see 10-export.js. Each loop
+  // iteration overwrites #doc, so without this the export would only ever see
+  // the last lesson. Guarded so a stale bundle without the store never throws.
+  if (window.__lpBatch && Array.isArray(window.__lpBatch.lessons)) {
+    window.__lpBatch.lessons.push({
+      lessonNumber,
+      total: totalLessons,
+      focus: lessonFocus || '',
+      html,
+    });
+  }
 
   // Hand the planner the lesson number so it can return the matching
   // seriesId / planningMode / focus payload to attach to this doc.
@@ -630,36 +835,83 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
     ? window.__lpResolveSeries(lessonNumber)
     : null;
 
-  saveToLibrary({
-    type: 'plan',
-    meta: {
-      klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
-      format: i.format, school: i.school, duration: i.duration,
-      termWeek: i.termWeek, syllabusVersion,
-      learningEnvironments: i.learningEnvironments,
-      // Series metadata — read by the React-side saveToLibrary bridge to
-      // populate inputs.lessonSeries on the aiGenerations doc.
-      lessonSeries,
-      // Backwards-compat flags so older readers that only know about the
-      // single multi-lesson flag still surface "Lesson K of N".
-      multiLesson: totalLessons > 1,
-      lessonsTotal: totalLessons,
-      lessonsCurrent: lessonNumber,
-      lessonFocus: lessonFocus || '',
-      progressNotes: '',
-    },
-    data: data,
-    html: html,
-  });
+  // Auto-save to the teacher's library. Awaited (not fire-and-forget) so a
+  // rejected write surfaces instead of silently leaving the plan out of the
+  // library while we still claim "generated and saved". A save failure must
+  // not discard the already-rendered plan, so the lesson stays on screen.
+  try {
+    await saveToLibrary({
+      type: 'plan',
+      skipSave: !!window.__studioSkipSave,
+      meta: {
+        klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
+        format: i.format, school: i.school, duration: i.duration,
+        termWeek: i.termWeek, syllabusVersion,
+        learningEnvironments: i.learningEnvironments,
+        // Series metadata — read by the React-side saveToLibrary bridge to
+        // populate inputs.lessonSeries on the aiGenerations doc.
+        lessonSeries,
+        // Backwards-compat flags so older readers that only know about the
+        // single multi-lesson flag still surface "Lesson K of N".
+        multiLesson: totalLessons > 1,
+        lessonsTotal: totalLessons,
+        lessonsCurrent: lessonNumber,
+        lessonFocus: lessonFocus || '',
+        progressNotes: '',
+      },
+      data: data,
+      html: html,
+    });
+  } catch (err) {
+    console.error('saveToLibrary failed', err);
+    toast('Plan made, but saving to your library failed — try again');
+  }
   return true;
 }
+
+// ── Staged progress tracker (bridge to React) ───────────────────────
+// The Lesson Plan studio is plain DOM, but the rest of the app shows the
+// React <AiGenerationProgress> tracker during AI generation. Rather than
+// re-implement it in DOM strings (fragile, easy to miss), we bridge the
+// generation lifecycle to the React overlay that LessonPlanStudio.jsx renders
+// over the document pane via window.__studioSetGenerating. No-ops gracefully
+// if the bridge isn't present.
+const __studioProgress = {
+  start(headingText) {
+    if (typeof window.__studioSetGenerating === 'function') {
+      window.__studioSetGenerating({
+        running: true,
+        title: headingText || 'Composing your lesson plan…',
+      });
+    }
+  },
+  stop() {
+    if (typeof window.__studioSetGenerating === 'function') {
+      window.__studioSetGenerating({ running: false });
+    }
+  },
+};
 
 async function __studioOnGenerateClick() {
   const i = gatherInput();
   if (!i.school) { toast('Please add a school name'); $('#f-school').focus(); return; }
   if (!i.topic && !i.subtopic) { toast('Add at least a topic or sub-topic'); $('#f-topic').focus(); return; }
-  const loader = $('#loader');
   const btn = $('#btn-generate');
+
+  // Fresh batch store for this run. Lessons are pushed in
+  // __studioGenerateOneLesson; the export menu (10-export.js) offers a combined
+  // "whole series" download when more than one lesson lands here. We snapshot
+  // the shared header fields now so the cover sheet matches what was generated
+  // even if the teacher edits the form afterwards.
+  window.__lpBatch = {
+    meta: {
+      headerLine: i.headerLine, school: i.school, department: i.department,
+      teacher: i.teacher, tsno: i.tsno, klass: i.klass, subject: i.subject,
+      termWeek: i.termWeek, duration: i.duration, topic: i.topic,
+      subtopic: i.subtopic, medium: i.medium, syllabusVersion,
+    },
+    lessons: [],
+  };
 
   const total = Math.max(1, parseInt(i.planner.count, 10) || 1);
   // "Only this" overrides the loop — produce a single lesson at that index.
@@ -668,7 +920,6 @@ async function __studioOnGenerateClick() {
     : null;
   const indices = onlyIndex ? [onlyIndex] : Array.from({ length: total }, (_, k) => k + 1);
 
-  if (loader) loader.classList.add('show');
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = `<span>${total > 1 ? `Composing lesson plans…` : 'Composing your lesson plan…'}</span>`;
@@ -681,6 +932,9 @@ async function __studioOnGenerateClick() {
   try {
     for (const lessonNumber of indices) {
       if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+      // Show (or re-title) the React progress overlay for this lesson; it stays
+      // up across a multi-lesson run and clears in the finally below.
+      __studioProgress.start(total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…');
       const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
       const ok = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt });
       if (!ok) break;        // Out-of-syllabus error — stop the series here.
@@ -692,6 +946,22 @@ async function __studioOnGenerateClick() {
       else toast(`${madeCount} of ${total} lesson plans generated and saved`);
       // Clear "only this" so the next click defaults back to the full series.
       if (typeof window.__lpResetGenerateOnly === 'function') window.__lpResetGenerateOnly();
+      // Surface the lesson kit (Create worksheet / homework / notes for this
+      // lesson). Hand React the CBC-normalised coords the companion studios
+      // expect: classToCbcGrade turns "Grade 5" → "G5" and subjectToCbcSubject
+      // turns the display subject → its snake_case slug, matching TEACHER_GRADES
+      // + useCurriculumOptions so the deep-linked form pre-fills cleanly.
+      if (typeof window.__studioOnGenerated === 'function') {
+        const cbcGrade = (typeof classToCbcGrade === 'function') ? classToCbcGrade(i.klass) : i.klass;
+        const cbcSubject = (typeof subjectToCbcSubject === 'function') ? subjectToCbcSubject(i.subject) : i.subject;
+        window.__studioOnGenerated({
+          grade: cbcGrade || '',
+          subject: cbcSubject || '',
+          topic: i.topic || '',
+          subtopic: i.subtopic || '',
+          term: i.term || '',
+        });
+      }
       $('#sidebar').classList.remove('open');
       $('#scrim').classList.remove('show');
       // On phones the form is now an in-flow panel above the preview, so
@@ -706,16 +976,38 @@ async function __studioOnGenerateClick() {
     console.error(err);
     const msg = (err && (err.message || err.code)) || '';
     toast(msg ? `Generation failed: ${msg}` : 'Generation failed — try again');
+    // The overlay clears in the finally; the toast + any in-#doc error card
+    // convey the failure.
   } finally {
-    if (loader) loader.classList.remove('show');
+    __studioProgress.stop();
     __studioRestoreGenerateBtn();
   }
 }
 
+// The real generation loop, exposed so the Review step (13-review.js) can fire
+// it once the teacher confirms. Kept stable so 06 works standalone too.
+window.__studioConfirmGenerate = __studioOnGenerateClick;
+
 function __studioInitGenerate() {
   const btn = $('#btn-generate');
-  if (btn) btn.addEventListener('click', __studioOnGenerateClick);
+  if (!btn) return;
+  // Generate now opens the Review & Generate confirmation first. When the
+  // review module isn't loaded (older cached bundle) fall straight through to
+  // a direct run so generation never breaks.
+  btn.addEventListener('click', () => {
+    if (typeof window.__studioOpenReview === 'function') window.__studioOpenReview();
+    else __studioOnGenerateClick();
+  });
 }
 
 window.__studioRebinders = window.__studioRebinders || [];
 window.__studioRebinders.push(__studioInitGenerate);
+
+// Test seam — expose the pure prompt/diagram helpers so the node regression
+// test (scripts/test-lesson-studio-style.mjs) can exercise them without a
+// browser. No production effect beyond attaching three function references.
+if (typeof window !== 'undefined') {
+  window.__studioBuildStyleBlock = buildStyleBlock;
+  window.__studioBuildDiagramBlock = buildDiagramBlock;
+  window.__studioStageDiagramsHtml = stageDiagramsHtml;
+}

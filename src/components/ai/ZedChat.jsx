@@ -34,6 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendAIChatStream } from '../../utils/aiAssistant'
+import { renderChatMarkdown } from './chatMarkdown'
 import { useSpeech } from './useSpeech'
 import ProfessorPako from '../ui/ProfessorPako'
 import Icon from '../ui/Icon'
@@ -52,6 +53,19 @@ const STUDY_SUGGESTIONS = [
   { icon: '🌍', label: 'Tell me a Zambia fact',          prompt: 'Tell me one interesting fact about Zambia I can share with my class.' },
 ]
 
+// A persisted thread must never carry the transient `streaming` flag — it's
+// in-memory UI state, not part of the conversation. If a learner closes the
+// panel mid-reply (which unmounts ZedChat and cancels the stream), the
+// in-flight assistant bubble would otherwise be saved with streaming:true and
+// come back frozen on the typing dots forever — the "everything is stuck on
+// the screen" bug. Strip the flag and drop any empty placeholder bubble that
+// never received a token.
+function sanitizeForPersist(messages) {
+  return messages
+    .filter((m) => !(m.streaming && !String(m.text || '').trim()))
+    .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+}
+
 function loadHistory() {
   if (typeof sessionStorage === 'undefined') return []
   try {
@@ -59,7 +73,7 @@ function loadHistory() {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.slice(-MAX_HISTORY)
+    return sanitizeForPersist(parsed.slice(-MAX_HISTORY))
   } catch {
     return []
   }
@@ -68,7 +82,10 @@ function loadHistory() {
 function saveHistory(messages) {
   if (typeof sessionStorage === 'undefined') return
   try {
-    sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(messages.slice(-MAX_HISTORY)))
+    sessionStorage.setItem(
+      SESSION_HISTORY_KEY,
+      JSON.stringify(sanitizeForPersist(messages.slice(-MAX_HISTORY))),
+    )
   } catch { /* quota exceeded — fine, just lose the persistence */ }
 }
 
@@ -84,6 +101,14 @@ function MessageRow({ message, onSpeak, isSpeaking }) {
   const isUser = message.kind === 'user'
   const isError = message.kind === 'error'
   const align = isUser ? 'justify-end' : 'justify-start'
+  // Assistant replies arrive as Markdown — render them as HTML so **bold**,
+  // bullet lists and the like display formatted instead of as raw asterisks.
+  // User and error bubbles stay plain text (no markup, safest for echo).
+  const renderAsMarkdown = !isUser && !isError && !!message.text
+  const html = useMemo(
+    () => (renderAsMarkdown ? renderChatMarkdown(message.text) : ''),
+    [renderAsMarkdown, message.text],
+  )
   return (
     <div className={`flex ${align} gap-2 mb-3`}>
       {!isUser && !isError && (
@@ -93,20 +118,24 @@ function MessageRow({ message, onSpeak, isSpeaking }) {
       )}
       <div className="flex flex-col max-w-[85%] sm:max-w-[75%]">
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             isUser
-              ? 'theme-accent-fill theme-on-accent rounded-br-md'
+              ? 'theme-accent-fill theme-on-accent rounded-br-md whitespace-pre-wrap'
               : isError
-                ? 'bg-rose-50 text-rose-900 border border-rose-200 rounded-bl-md'
-                : 'theme-card border theme-border rounded-bl-md theme-text'
+                ? 'bg-rose-50 text-rose-900 border border-rose-200 rounded-bl-md whitespace-pre-wrap'
+                : 'theme-card border theme-border rounded-bl-md theme-text zed-chat-prose'
           }`}
         >
-          {message.text || (message.streaming ? '…' : '')}
+          {renderAsMarkdown ? (
+            <span dangerouslySetInnerHTML={{ __html: html }} />
+          ) : (
+            message.text || (message.streaming ? '…' : '')
+          )}
           {message.streaming && (
             <span aria-hidden="true" className="inline-flex gap-0.5 ml-2 align-middle">
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse [animation-delay:0.15s]" />
-              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-pulse [animation-delay:0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot [animation-delay:0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full theme-text-muted animate-typing-dot [animation-delay:0.3s]" />
             </span>
           )}
         </div>
@@ -391,7 +420,7 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
               aria-pressed={listening}
               className={`flex-shrink-0 rounded-full p-3 border-2 transition-colors disabled:opacity-50 ${
                 listening
-                  ? 'bg-rose-500 border-rose-500 text-white animate-pulse'
+                  ? 'bg-rose-500 border-rose-500 text-white animate-live-dot [--live-ring:#f43f5e]'
                   : 'theme-border theme-text-muted hover:theme-accent-text hover:theme-bg-subtle'
               }`}
             >

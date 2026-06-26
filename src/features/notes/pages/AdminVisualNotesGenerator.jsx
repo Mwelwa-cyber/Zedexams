@@ -23,8 +23,10 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, NOTE_FORMAT } from '../../../config/curriculum'
 import { createNote } from '../lib/firestore'
+import TopicSubtopicPicker from '../../../components/teacher/generate/TopicSubtopicPicker'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
+import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
 import '../styles/notes.css'
 
 // Visual-notes generation runs Claude + up to ~10 sequential Recraft calls, so
@@ -191,23 +193,19 @@ export function AdminVisualNotesGenerator() {
             </select>
           </Field>
 
-          <Field label="Topic">
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. The Circulatory System"
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-            />
-          </Field>
-
-          <Field label="Sub-topic (optional)">
-            <input
-              value={subtopic}
-              onChange={(e) => setSubtopic(e.target.value)}
-              placeholder="e.g. How blood moves around the body"
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-            />
-          </Field>
+          <TopicSubtopicPicker
+            grade={`G${grade}`}
+            subject={subjectKey}
+            topic={topic}
+            subtopic={subtopic}
+            onChangeTopic={setTopic}
+            onChangeSubtopic={setSubtopic}
+            topicLabel="Topic *"
+            topicPlaceholder="e.g. The Circulatory System"
+            subtopicPlaceholder="e.g. How blood moves around the body"
+            inputClassName="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+            labelClassName="text-xs font-medium text-neutral-600"
+          />
 
           <Field label="Language">
             <select
@@ -262,9 +260,13 @@ export function AdminVisualNotesGenerator() {
         )}
 
         {phase === 'generating' && (
-          <div className="min-h-[30vh] flex flex-col items-center justify-center text-neutral-500 gap-3">
-            <Loader2 size={28} className="animate-spin" />
-            <p className="text-sm">Writing the deck and drawing the illustrations…</p>
+          <div className="min-h-[30vh]">
+            <AiGenerationProgress
+              variant="card"
+              running
+              title="Building your visual notes…"
+              preset={['reading', 'curriculum', 'content', 'diagrams', 'preview']}
+            />
           </div>
         )}
 

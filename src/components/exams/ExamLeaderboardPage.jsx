@@ -15,6 +15,7 @@ import { computeRivalry } from '../../utils/gamificationService'
 import { todayString } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import LiveActivityFeed from './LiveActivityFeed'
 import WeeklyChampions from './WeeklyChampions'
 
@@ -280,7 +281,7 @@ export default function ExamLeaderboardPage() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-16" />
+              <Skeleton key={i} height={64} className="!rounded-2xl" />
             ))}
           </div>
         ) : error ? (

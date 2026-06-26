@@ -14,7 +14,7 @@ globalThis.Node = dom.window.Node
 globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.Element = dom.window.Element
 
-const { questionWriteSchema, tiptapDoc, coerceQuestion } = await import('../src/editor/schema/question.js')
+const { questionWriteSchema, tiptapDoc, coerceQuestion, canonicalizeQuestionType } = await import('../src/editor/schema/question.js')
 const { migrateQuestionRecord } = await import('./migrate-questions-to-v3.mjs')
 
 let pass = 0
@@ -78,6 +78,50 @@ test('short_answer with string correctAnswer', () => {
   d.type = 'short_answer'
   d.options = []
   d.correctAnswer = 'photosynthesis'
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('essay record passes (no options, blank answer ok)', () => {
+  const d = validDoc()
+  d.type = 'essay'
+  d.options = []
+  d.correctAnswer = ''
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('numeric record carries numericTolerance + numericUnit', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.options = []
+  d.correctAnswer = 42
+  d.numericTolerance = 0.5
+  d.numericUnit = 'kg'
+  d.tolerance = 0.5
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('matching record carries left/right/answer arrays', () => {
+  const d = validDoc()
+  d.type = 'matching'
+  d.options = []
+  d.correctAnswer = ''
+  d.matchingLeft = ['Zambia', 'Kenya']
+  d.matchingRight = ['Lusaka', 'Nairobi']
+  d.matchingAnswer = [0, 1]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('sequence record carries items + answer arrays', () => {
+  const d = validDoc()
+  d.type = 'sequence'
+  d.options = []
+  d.correctAnswer = ''
+  d.sequenceItems = ['Egg', 'Larva', 'Adult']
+  d.sequenceAnswer = [1, 2, 3]
   const result = questionWriteSchema.safeParse(d)
   assert(result.success, JSON.stringify(result.error?.issues))
 })
@@ -279,6 +323,26 @@ test('numeric type accepts null tolerance (legacy / not yet set)', () => {
   assert(result.success, JSON.stringify(result.error?.issues))
 })
 
+test('diagramLabels accept leader-line targets (tx/ty)', () => {
+  const d = validDoc()
+  d.imageUrl = 'https://example.com/flower.png'
+  d.diagramMode = 'labeled'
+  d.diagramLabels = [
+    { id: 'l0', x: 0.04, y: 0.5, tx: 0.4, ty: 0.5, text: 'X' },
+    { x: 0.96, y: 0.3, text: 'stem' }, // legacy label with no target still valid
+  ]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('diagramLabels reject out-of-range leader target', () => {
+  const d = validDoc()
+  d.imageUrl = 'https://example.com/flower.png'
+  d.diagramLabels = [{ x: 0.1, y: 0.1, tx: 1.4, ty: 0.5, text: 'X' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'tx > 1 should fail')
+})
+
 test('hotspot type rejects correctRegion missing radius', () => {
   const d = validDoc()
   d.type = 'hotspot'
@@ -466,8 +530,16 @@ test('NaN/missing marks falls back to 1 (no score-arithmetic blow-up)', () => {
   assert(coerceQuestion({ marks: 0 }).marks === 1)
 })
 
-test('marks above cap is floored to 10', () => {
-  assert(coerceQuestion({ marks: 999 }).marks === 10)
+test('marks above cap is clamped to 20', () => {
+  assert(coerceQuestion({ marks: 999 }).marks === 20)
+})
+
+test('marks in the 11-20 band survive read-back (no truncation to 10)', () => {
+  // Regression: coerceQuestion used to clamp at 10, so a 15-mark long-answer
+  // question saved fine (write schema allows up to 20) but read back as 10 —
+  // mis-scoring the section total. It must round-trip unchanged now.
+  assert(coerceQuestion({ marks: 15 }).marks === 15)
+  assert(coerceQuestion({ marks: 20 }).marks === 20)
 })
 
 test('non-integer marks is floored', () => {
@@ -527,6 +599,138 @@ test('preserves passthrough fields (correctAnswer, text, tiptap JSON, …)', () 
   assert(out.textJSON?.type === 'doc')
   assert(out.customField === 'preserve me')
   assert(out.contentVersion === 3)
+})
+
+// ── Diagram labels / table / drawing canvas persistence ──────────
+console.log('\nschema (diagram labels, table, drawing canvas)')
+
+test('diagram question with labels + identify mode passes', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.imageUrl = 'https://x/lungs.png'
+  d.diagramLabels = [
+    { id: 'lbl-1', x: 0.8, y: 0.2, text: 'P' },
+    { id: 'lbl-2', x: 0.8, y: 0.5, text: 'Q' },
+  ]
+  d.diagramMode = 'identify'
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels.length === 2, 'labels survive parse')
+  assert(result.data.diagramMode === 'identify', 'identify mode survives parse')
+})
+
+test('inline data table passes', () => {
+  const d = validDoc()
+  d.type = 'short_answer'
+  d.options = []
+  d.correctAnswer = ''
+  d.tableData = { headers: ['Animal', 'Legs'], rows: [['Dog', '4'], ['Bird', '2']] }
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.tableData.rows.length === 2, 'table rows survive parse')
+})
+
+test('draw & label canvas height passes', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.drawingHeight = 200
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.drawingHeight === 200, 'drawing height survives parse')
+})
+
+test('out-of-range diagram label coordinate is rejected', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 1.5, y: 0.2, text: 'P' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'x > 1 should fail')
+})
+
+test('plain mcq still passes without the new fields', () => {
+  const result = questionWriteSchema.safeParse(validDoc())
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels === undefined, 'no empty diagramLabels on a plain mcq')
+  assert(result.data.tableData === undefined, 'no empty tableData on a plain mcq')
+})
+
+// ── canonicalizeQuestionType (alias folding) ──────────────────────
+console.log('\ncanonicalizeQuestionType')
+
+test("'truefalse' / 'true_false' / 'true/false' fold to 'tf'", () => {
+  assert(canonicalizeQuestionType('truefalse') === 'tf', 'truefalse → tf')
+  assert(canonicalizeQuestionType('true_false') === 'tf', 'true_false → tf')
+  assert(canonicalizeQuestionType('true/false') === 'tf', 'true/false → tf')
+  assert(canonicalizeQuestionType('TrueFalse') === 'tf', 'case-insensitive')
+  assert(canonicalizeQuestionType(' truefalse ') === 'tf', 'trims whitespace')
+})
+
+test("'fill_in_blank' / 'fill_in_the_blank' / 'fill_blank' fold to 'fill_blanks'", () => {
+  assert(canonicalizeQuestionType('fill_in_blank') === 'fill_blanks')
+  assert(canonicalizeQuestionType('fill_in_the_blank') === 'fill_blanks')
+  assert(canonicalizeQuestionType('fill_blank') === 'fill_blanks')
+})
+
+test('canonical + unknown types pass through unchanged', () => {
+  // Canonical values are untouched, and a genuine typo is returned as-is so
+  // the strict write schema still rejects it loudly rather than coercing.
+  for (const t of ['mcq', 'tf', 'fill_blanks', 'short_answer', 'numeric', 'matching']) {
+    assert(canonicalizeQuestionType(t) === t, `${t} unchanged`)
+  }
+  assert(canonicalizeQuestionType('multiple_choice') === 'multiple_choice', 'unknown unchanged')
+  assert(canonicalizeQuestionType(undefined) === undefined, 'non-string unchanged')
+})
+
+test("a 'truefalse' record canonicalises to a schema-valid 'tf' write", () => {
+  // Mirrors useFirestore.normalizeQuestionPayload: the alias is folded BEFORE
+  // the strict schema runs, so a true/false question saves instead of throwing
+  // "Invalid question payload at 'type'" (the MCQ-saves-but-true/false-doesn't
+  // bug). Without canonicalisation 'truefalse' is rejected by the type enum.
+  assert(!questionWriteSchema.safeParse({ ...validDoc(), type: 'truefalse' }).success,
+    'raw truefalse must be rejected by the strict enum')
+  const d = { ...validDoc(), type: canonicalizeQuestionType('truefalse'), options: ['True', 'False'], correctAnswer: 0 }
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.type === 'tf', 'persists as canonical tf')
+})
+
+test("coerceQuestion reads a 'truefalse' doc back as 'tf' (not 'mcq')", () => {
+  assert(coerceQuestion({ type: 'truefalse', marks: 1 }).type === 'tf')
+  assert(coerceQuestion({ type: 'fill_in_blank', marks: 1 }).type === 'fill_blanks')
+})
+
+// ── diagramLabels leader-line target (tx/ty) round-trip ───────────
+console.log('\ndiagramLabels tx/ty')
+
+test('a label with a leader-line target (tx/ty) is accepted and survives parse', () => {
+  // Guards the writer contract: useFirestore.normalizeQuestionPayload now
+  // persists tx/ty (the point a label POINTS at). Dropping them lost every
+  // teacher-placed leader line when a saved paper was reopened from Firestore.
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 0.1, y: 0.2, tx: 0.4, ty: 0.5, text: 'Nucleus' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.diagramLabels[0].tx === 0.4, 'tx survives parse')
+  assert(result.data.diagramLabels[0].ty === 0.5, 'ty survives parse')
+})
+
+test('an out-of-range leader-line target is rejected', () => {
+  const d = validDoc()
+  d.type = 'diagram'
+  d.options = []
+  d.correctAnswer = ''
+  d.diagramLabels = [{ id: 'lbl-1', x: 0.1, y: 0.2, tx: 1.4, ty: 0.5, text: 'P' }]
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'tx > 1 should fail')
 })
 
 // ── Report ────────────────────────────────────────────────────────

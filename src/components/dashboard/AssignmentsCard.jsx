@@ -89,9 +89,6 @@ export default function AssignmentsCard() {
           <span aria-hidden="true">🍎</span>
           From your teacher
         </p>
-        <Link to="/classes" className="text-xs font-bold theme-accent-text hover:underline">
-          My classes
-        </Link>
       </div>
 
       <ul className="divide-y divide-current/10">

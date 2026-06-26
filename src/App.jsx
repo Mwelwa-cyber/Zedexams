@@ -6,6 +6,7 @@ import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
+import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -17,6 +18,7 @@ import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ScrollToTop from './components/ui/ScrollToTop'
+import VisitorTracker from './components/ui/VisitorTracker'
 
 // Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -30,8 +32,8 @@ import ScrollToTop from './components/ui/ScrollToTop'
 // resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
-  '/pricing', '/teachers', '/privacy', '/terms', '/status',
-  '/papers',
+  '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
+  '/papers', '/company',
 ])
 function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
@@ -96,13 +98,20 @@ const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
+const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
+const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
+const MySubscriptionPage = lazy(() => import('./components/subscription/MySubscriptionPage'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
 const TeachersLanding = lazy(() => import('./components/marketing/TeachersLanding'))
+const AiTeam = lazy(() => import('./components/marketing/AiTeam'))
 const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
+// Public consent/preferences page — no auth, so the cookie banner can link
+// signed-out visitors somewhere they can actually change their decision.
+const CookiePreferences = lazy(() => import('./components/marketing/CookiePreferences'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
@@ -124,6 +133,7 @@ const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
 const ManageContent = lazy(() => import('./components/admin/ManageContent'))
 const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
+const FeedbackInbox = lazy(() => import('./components/admin/FeedbackInbox'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
 const BulkGrantTrialsPanel = lazy(() => import('./components/admin/BulkGrantTrialsPanel'))
 const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
@@ -131,6 +141,7 @@ const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerPr
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
 const PictureBankAdmin = lazy(() => import('./components/admin/PictureBankAdmin'))
+const VisualStudioAdmin = lazy(() => import('./components/admin/VisualStudioAdmin'))
 const CurriculumReplaceStudio = lazy(() => import('./components/admin/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('./components/admin/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
@@ -141,18 +152,23 @@ const AdminSettings = lazy(() => import('./components/admin/settings/AdminSettin
 const AnnouncementsAdmin = lazy(() => import('./components/admin/announcements/AnnouncementsAdmin'))
 const AdminActivityLog = lazy(() => import('./components/admin/AdminActivityLog'))
 const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
+const AdminVisitors = lazy(() => import('./components/admin/AdminVisitors'))
 
 // Admin — Agents (operating-model dashboard)
 const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
 const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
+const CompanyHQ       = lazy(() => import('./components/admin/company/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
 const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
+const ClassRegisterList = lazy(() => import('./components/teacher/register/ClassRegisterList'))
+const ClassRegisterEditor = lazy(() => import('./components/teacher/register/ClassRegisterEditor'))
+const ClassRegisterDetail = lazy(() => import('./components/teacher/register/ClassRegisterDetail'))
 // Audit A10 PR 2 — learner-side join + view classes.
 const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
 const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
@@ -167,25 +183,38 @@ const SchoolCalendar = lazy(() => import('./components/teacher/SchoolCalendar'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
 const CurriculumHome = lazy(() => import('./components/teacher/curriculum/CurriculumHome'))
+const ECECurriculum = lazy(() => import('./components/teacher/curriculum/ECECurriculum'))
 const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/PrimaryCurriculum'))
 const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
-const EditAssessment = lazy(() => import('./components/teacher/EditAssessment'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
+
+// Route-level gate: Free teachers can only open the Lesson Plan studio; every
+// other generator studio is wrapped in <StudioGate>, which shows a read-only
+// sample + upgrade CTA instead. Imported eagerly (it's tiny and reads the
+// plan synchronously); it lazy-loads LockedStudio only for Free teachers.
+import StudioGate from './components/teacher/StudioGate'
 
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
-const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
-const AssessmentGenerator = lazy(() => import('./components/teacher/generate/AssessmentGenerator'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('./components/teacher/generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('./components/teacher/generate/WeeklyForecastStudio'))
 const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/RecordOfWorkStudio'))
+const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
+const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
+const SbaTaskStudio = lazy(() => import('./components/teacher/generate/SbaTaskStudio'))
+const SbaMarkTracker = lazy(() => import('./components/teacher/generate/SbaMarkTracker'))
+const SbaYearPlanner = lazy(() => import('./components/teacher/generate/SbaYearPlanner'))
+const SbaHub = lazy(() => import('./components/teacher/SbaHub'))
+// Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
+// feature module under src/features/visualStudio/.
+const VisualStudioPage = lazy(() => import('./features/visualStudio').then(m => ({ default: m.VisualStudioPage })))
 
 // Teacher — Library
 const TeacherLibrary = lazy(() => import('./components/teacher/library/TeacherLibrary'))
@@ -356,6 +385,10 @@ export default function App() {
       <MaintenanceBanner />
       <AnnouncementBanner />
       <AndroidUpdateBanner />
+      {/* Subscription status strip — "Free Plan" / "Expired Subscription"
+          for users who still need to upgrade. Self-hides for Pro/Trial and
+          on marketing/auth/immersive routes. */}
+      <SubscriptionStatusBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -375,6 +408,9 @@ export default function App() {
       {/* Reset scroll to the top on every client-side navigation so new
           pages don't inherit the previous page's scroll offset. */}
       <ScrollToTop />
+      {/* Records a first-party page-view on every route change for the
+          /admin/visitors dashboard (consent-aware, best-effort). */}
+      <VisitorTracker />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
@@ -393,6 +429,7 @@ export default function App() {
               canonicalise to the landing itself: 301'd at the hosting layer
               (firebase.json); the splat <Navigate> is the dev-server fallback. */}
           <Route path="/teachers"   element={<TeachersLanding />} />
+          <Route path="/company"  element={<AiTeam />} />
           <Route path="/teachers/*" element={<Navigate to="/teachers" replace />} />
           {/* Grade-specific landing pages — the URLs to share in WhatsApp
               posts. React Router v6 can't match a partial dynamic segment
@@ -404,11 +441,21 @@ export default function App() {
           <Route path="/grade-12" element={<GradePackLanding gradeSlug="12" />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
+          {/* Public consent/preferences — where the cookie banner sends people
+              who want to change their analytics decision. No auth, so it works
+              for the signed-out visitors the banner actually targets. */}
+          <Route path="/preferences" element={<CookiePreferences />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
               search engines and signed-out visitors can browse; the actual
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* SEO-friendly slug URL (/papers/:id/grade-7-mathematics-2023).
+              The viewer reads :paperId only; the static /practice + /quiz
+              routes below outrank :slug in React Router's specificity ranking,
+              so they still win. The bare /papers/:paperId route stays valid for
+              back-compat and old links. */}
+          <Route path="/papers/:paperId/:slug" element={<PastPaperViewer />} />
           {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
               the component so the redirect carries the original target. */}
           <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
@@ -480,6 +527,9 @@ export default function App() {
           <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
+          {/* My Subscription — shared learner/teacher plan, benefits, payment
+              status, and upgrade/renew. Audience-aware copy inside. */}
+          <Route path="/my-subscription"   element={<ProtectedRoute><MySubscriptionPage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
           {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
               floating launcher in App handles the in-context entry
@@ -498,10 +548,12 @@ export default function App() {
           <Route path="/admin/import/csv"               element={<AdminRoute><AdminCsvImport /></AdminRoute>} />
           <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
           <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
+          <Route path="/admin/feedback"                 element={<AdminRoute><FeedbackInbox /></AdminRoute>} />
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
           <Route path="/admin/picture-bank"             element={<AdminRoute><PictureBankAdmin /></AdminRoute>} />
+          <Route path="/admin/visuals"                  element={<AdminRoute><VisualStudioAdmin /></AdminRoute>} />
           <Route path="/admin/curriculum/replace"       element={<AdminRoute><CurriculumReplaceStudio /></AdminRoute>} />
           <Route path="/admin/curriculum-upload"        element={<AdminRoute><CurriculumUploadPanel /></AdminRoute>} />
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
@@ -526,6 +578,7 @@ export default function App() {
           <Route path="/admin/announcements"            element={<AdminRoute><AnnouncementsAdmin /></AdminRoute>} />
           <Route path="/admin/activity"                 element={<AdminRoute><AdminActivityLog /></AdminRoute>} />
           <Route path="/admin/analytics"                element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+          <Route path="/admin/visitors"                 element={<AdminRoute><AdminVisitors /></AdminRoute>} />
           <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
           <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
@@ -534,8 +587,10 @@ export default function App() {
           <Route path="/admin/generate/worksheet"       element={<AdminRoute><WorksheetGenerator /></AdminRoute>} />
           <Route path="/admin/generate/flashcards"      element={<AdminRoute><FlashcardGenerator /></AdminRoute>} />
           <Route path="/admin/generate/scheme-of-work"  element={<AdminRoute><SchemeOfWorkGenerator /></AdminRoute>} />
+          <Route path="/admin/generate/class-timetable" element={<AdminRoute><ClassTimetableStudio /></AdminRoute>} />
           <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
+          <Route path="/admin/company"                  element={<AdminRoute><CompanyHQ /></AdminRoute>} />
           <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />
           <Route path="/admin/agents/jobs"              element={<AdminRoute><AgentsAllJobs /></AdminRoute>} />
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
@@ -546,31 +601,60 @@ export default function App() {
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-          {/* Assessment Studio — teacher-only, private. Replaces the old
-              teacher-side quiz creator and `/teacher/content` workflow. */}
-          <Route path="/teacher/assessments"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
-          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
-          <Route path="/teacher/assessments/:assessmentId/edit"       element={<TeacherRoute><EditAssessment /></TeacherRoute>} />
+          {/* Test Paper Studio — teacher-only, private. Replaces the old
+              teacher-side quiz creator and `/teacher/content` workflow.
+              Both create and edit run through the same studio so a saved paper
+              reopens in the full, type-complete builder. */}
+          {/* Test Paper / Assessment studio — Free sees a sample (StudioGate). */}
+          <Route path="/teacher/test-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          {/* Legacy /teacher/assessments/* paths — kept as functional aliases
+              so existing bookmarks and saved links keep resolving after the
+              rename to the Test Paper Studio. */}
+          <Route path="/teacher/assessments"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          {/* Exam Studio — the same block-based builder as the Test Paper
+              Studio, locked to exam standard (mock / examination / exam).
+              Gated on the same `assessment` quota since it generates through
+              the assessment pipeline. */}
+          <Route path="/teacher/exam-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList variant="exam" /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
+          {/* Lesson Plan studios stay open on Free — the one studio every plan can use. */}
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
-          <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/assessment"     element={<TeacherRoute><AssessmentGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
+          {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
+          <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
+          {/* The Exam Studio was upgraded to the block-based paper builder
+              (now at /teacher/exam-papers). Keep the old generator path as a
+              redirect so saved links and bookmarks still land in the studio. */}
+          <Route path="/teacher/generate/exam-paper"     element={<Navigate to="/teacher/exam-papers" replace />} />
+          <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><StudioGate tool="worksheet"><WorksheetGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><StudioGate tool="flashcards"><FlashcardGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><StudioGate tool="scheme_of_work"><SchemeOfWorkGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><StudioGate tool="mark_schedule"><MarkScheduleStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><StudioGate tool="weekly_forecast"><WeeklyForecastStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><StudioGate tool="record_of_work"><RecordOfWorkStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><StudioGate tool="class_timetable"><ClassTimetableStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/rubric"          element={<TeacherRoute><StudioGate tool="rubric"><RubricGenerator /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/notes"           element={<TeacherRoute><StudioGate tool="notes"><NotesStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/full-lesson"     element={<TeacherRoute><StudioGate tool="full_lesson"><FullLessonStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/visual-studio"            element={<TeacherRoute><VisualStudioPage /></TeacherRoute>} />
+          <Route path="/teacher/generate/visual-studio"   element={<Navigate to="/teacher/visual-studio" replace />} />
+          <Route path="/teacher/generate/sba"             element={<TeacherRoute><StudioGate tool="sba_task"><SbaTaskStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><StudioGate tool="sba_tracker"><SbaMarkTracker /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><StudioGate tool="sba_planner"><SbaYearPlanner /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/sba"                      element={<TeacherRoute><SbaHub /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
           <Route path="/teacher/calendar"                element={<TeacherRoute><SchoolCalendar /></TeacherRoute>} />
           <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/ece"          element={<TeacherRoute><ECECurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
@@ -578,12 +662,24 @@ export default function App() {
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />
           <Route path="/teacher/classes/new"             element={<TeacherRoute><TeacherClassEditor /></TeacherRoute>} />
           <Route path="/teacher/classes/:classId"        element={<TeacherRoute><TeacherClassDetail /></TeacherRoute>} />
+          {/* Class Register — official class lists that feed SBA, mark
+              schedules, results, reports and progress (one roster, no
+              retyping). Separate from the invite-code classes above. */}
+          <Route path="/teacher/register"                element={<TeacherRoute><ClassRegisterList /></TeacherRoute>} />
+          <Route path="/teacher/register/new"            element={<TeacherRoute><ClassRegisterEditor /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId"       element={<TeacherRoute><ClassRegisterDetail /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId/edit"  element={<TeacherRoute><ClassRegisterEditor /></TeacherRoute>} />
+          <Route path="/teacher/register/:classId/:tab"  element={<TeacherRoute><ClassRegisterDetail /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />
+          {/* Locked-feature modal — listens for lockedFeature.show({feature,audience}) */}
+          <LockedFeatureModal />
+          {/* Once-a-day upgrade/renew popup for Free & Expired users */}
+          <SubscriptionReminderPopup />
         </Suspense>
       </div>
       </PlatformSettingsProvider>

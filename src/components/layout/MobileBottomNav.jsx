@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, FileText, Files, Home, PencilLine } from '../ui/icons'
 import Icon from '../ui/Icon'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 
 // 5 items at 20% width each. Labels resolve via i18n (audit A7) — `nav.*`
 // keys, English fallback.
@@ -15,12 +16,18 @@ const MOBILE_NAV_ITEMS = [
 
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
   const { t } = useTranslation()
+  // Auto-hide only applies to the floating (fixed) bar; a `static` inline bar
+  // scrolls with the page and shouldn't slide away.
+  const hidden = useHideOnScroll()
+  const autoHide = mode === 'static'
+    ? ''
+    : `zx-nav-autohide ${hidden ? 'zx-nav-hidden-bottom' : ''}`
   const positionClass = mode === 'static'
     ? 'lg:hidden zx-glass-bottom safe-area-bottom'
     : 'lg:hidden fixed bottom-0 left-0 right-0 z-30 zx-glass-bottom safe-area-bottom'
 
   return (
-    <nav className={`${positionClass} ${className}`} aria-label="Primary mobile navigation">
+    <nav className={`${positionClass} ${autoHide} ${className}`} aria-label="Primary mobile navigation">
       <div className="flex">
         {MOBILE_NAV_ITEMS.map(item => (
           <NavLink

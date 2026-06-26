@@ -89,6 +89,15 @@ export default function PastPaperPractice() {
   // cleanup doesn't flip a successful submit into 'abandoned'.
   const finalisedRef = useRef(false)
 
+  // Keep the timer + Submit bar pinned to the top. A plain `sticky`
+  // header was scrolling out of view on some devices (learners had to
+  // scroll back up to see the clock or submit), so we pin it with
+  // `position: fixed` — which is immune to the flex/overflow quirks
+  // that silently break sticky — and reserve its measured height with a
+  // spacer below so the paper body never hides underneath it.
+  const headerRef = useRef(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+
   // ── Load the paper + storage URL ───────────────────────────────
   useEffect(() => {
     if (!paperId) return
@@ -217,6 +226,22 @@ export default function PastPaperPractice() {
     }
   }, [attemptId, submitting, done, elapsedSeconds, reflection, paper?.grade, paper?.subject])
 
+  // Measure the fixed top bar so the spacer below it always matches its
+  // height (themes / font scaling / a wrapping title can all change it).
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return undefined
+    const measure = () => setHeaderHeight(el.offsetHeight)
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(el)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [paper])
+
   if (authLoading) return null
   if (!currentUser) {
     return <Navigate to={`/login?next=/papers/${paperId}/practice`} replace />
@@ -302,8 +327,12 @@ export default function PastPaperPractice() {
     <div className="min-h-screen theme-bg flex flex-col">
       <SeoHelmet title={`${paper.title} — practice`} path={`/papers/${paperId}/practice`} noIndex />
 
-      {/* Top bar — sticky so the timer is always visible */}
-      <header className="sticky top-0 z-20 theme-card border-b theme-border px-4 py-2 flex items-center gap-3 shadow-elev-sm">
+      {/* Top bar — fixed so the timer + Submit are always visible while
+          the learner scrolls through the paper. */}
+      <header
+        ref={headerRef}
+        className="fixed top-0 inset-x-0 z-30 theme-card border-b theme-border px-4 py-2 flex items-center gap-3 shadow-elev-sm"
+      >
         <Logo className="h-5 w-auto flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="theme-text font-black text-sm truncate">{paper.title}</p>
@@ -314,7 +343,7 @@ export default function PastPaperPractice() {
         <div
           aria-live="polite"
           className={`tabular-nums font-black text-2xl px-3 py-1 rounded-xl flex-shrink-0 ${
-            lowTime ? 'bg-rose-100 text-rose-800 animate-pulse' : 'theme-bg-subtle theme-text'
+            lowTime ? 'bg-rose-100 text-rose-800 animate-timer-urgent' : 'theme-bg-subtle theme-text'
           }`}
         >
           {fmtClock(remainingSeconds)}
@@ -328,6 +357,10 @@ export default function PastPaperPractice() {
           {submitting ? 'Saving…' : 'Submit'}
         </button>
       </header>
+
+      {/* Spacer reserving the fixed header's height so the content below
+          (reflection input + paper body) is never hidden underneath it. */}
+      <div aria-hidden="true" style={{ height: headerHeight }} />
 
       {submitError && (
         <p role="alert" className="bg-rose-100 text-rose-800 text-sm font-bold px-4 py-2">

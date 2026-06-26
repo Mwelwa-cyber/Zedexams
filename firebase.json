@@ -53,6 +53,24 @@
         ]
       },
       {
+        "source": "**/*.@(jpg|jpeg|png|gif|webp|avif|svg|ico)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**/*.@(woff|woff2|ttf|otf|eot)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**/*.@(mp3|wav|ogg)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
         "source": "/studio/**",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
@@ -104,6 +122,41 @@
         "source": "/api/tts",
         "function": {
           "functionId": "apiTextToSpeech",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/payments/lenco/webhook",
+        "function": {
+          "functionId": "lencoWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/whatsapp/webhook",
+        "function": {
+          "functionId": "apiWhatsAppWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/teacher/download",
+        "function": {
+          "functionId": "apiLibraryDownload",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/track/visit",
+        "function": {
+          "functionId": "apiTrackVisit",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/image-proxy",
+        "function": {
+          "functionId": "apiImageProxy",
           "region": "us-central1"
         }
       },

@@ -1,0 +1,301 @@
+/**
+ * classRoster — Firestore data access for a Class Register's official roster
+ * (classRegisters/{classId}/roster/{rosterId}) plus bulk-import helpers.
+ *
+ * The roster is the single source of truth for learner names that feeds SBA,
+ * Assessment Studio, mark schedules, reports, and progress — so a teacher
+ * never retypes a class list. Entries can be:
+ *   - typed manually,
+ *   - bulk-pasted / CSV-uploaded (parsed by src/utils/rosterImport.js),
+ *   - read from an .xlsx file (parsed here with jszip — already in the tree),
+ *   - imported from existing learner accounts (linkedUid set).
+ *
+ * Roster mutations keep the parent register's learnerCount in sync via
+ * recountRegister(). All reads/writes are gated by Firestore rules on
+ * teacherUid == request.auth.uid; every roster doc carries teacherUid so the
+ * rule needs no parent lookup.
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore'
+import { db } from '../firebase/config'
+import {
+  rosterEntryWriteSchema,
+  rosterEntryUpdateSchema,
+  coerceRosterEntry,
+} from '../schemas/rosterEntry'
+import { listTeacherClasses } from './classes'
+import { parseRosterText, rowsToRoster, partitionNewRosterEntries } from './rosterImport'
+
+function rosterCol(classId) {
+  return collection(db, 'classRegisters', classId, 'roster')
+}
+function rosterDoc(classId, rosterId) {
+  return doc(db, 'classRegisters', classId, 'roster', rosterId)
+}
+
+// ── Reads ────────────────────────────────────────────────────────
+
+/** One-shot roster fetch, ordered by display order. */
+export async function listRoster(classId) {
+  const snap = await getDocs(query(rosterCol(classId), orderBy('order', 'asc')))
+  return snap.docs.map((d) => ({ id: d.id, ...coerceRosterEntry(d.data()) }))
+}
+
+/** Realtime roster subscription. Returns the unsubscribe fn. */
+export function subscribeRoster(classId, onData, onError) {
+  return onSnapshot(
+    query(rosterCol(classId), orderBy('order', 'asc')),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...coerceRosterEntry(d.data()) }))),
+    (err) => { if (onError) onError(err) },
+  )
+}
+
+// ── learnerCount upkeep ──────────────────────────────────────────
+
+/** Recompute the parent register's learnerCount = active roster entries. */
+export async function recountRegister(classId) {
+  const snap = await getDocs(rosterCol(classId))
+  const active = snap.docs.filter((d) => (d.data()?.status ?? 'active') === 'active').length
+  await updateDoc(doc(db, 'classRegisters', classId), {
+    learnerCount: active,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+async function nextOrder(classId) {
+  const snap = await getDocs(rosterCol(classId))
+  return snap.docs.reduce((max, d) => Math.max(max, Number(d.data()?.order) || 0), 0) + 1
+}
+
+// ── Writes ───────────────────────────────────────────────────────
+
+export async function addRosterEntry(classId, teacherUid, entry) {
+  const payload = rosterEntryWriteSchema.parse({
+    classId,
+    teacherUid,
+    learnerNumber: entry.learnerNumber ?? '',
+    fullName: entry.fullName,
+    gender: entry.gender ?? null,
+    parentPhone: entry.parentPhone ?? null,
+    status: entry.status ?? 'active',
+    linkedUid: entry.linkedUid ?? null,
+    order: entry.order ?? await nextOrder(classId),
+  })
+  const now = serverTimestamp()
+  const ref = await addDoc(rosterCol(classId), { ...payload, createdAt: now, updatedAt: now })
+  await recountRegister(classId)
+  return ref.id
+}
+
+export async function updateRosterEntry(classId, rosterId, patch) {
+  const safe = rosterEntryUpdateSchema.parse(patch)
+  await updateDoc(rosterDoc(classId, rosterId), { ...safe, updatedAt: serverTimestamp() })
+  if ('status' in safe) await recountRegister(classId)
+}
+
+export async function setRosterStatus(classId, rosterId, status) {
+  await updateRosterEntry(classId, rosterId, { status })
+}
+
+export async function removeRosterEntry(classId, rosterId) {
+  await deleteDoc(rosterDoc(classId, rosterId))
+  await recountRegister(classId)
+}
+
+/**
+ * Add many entries at once (CSV / paste / Excel import). Validates each row,
+ * skips any that fail the schema, drops learners already on the roster (same
+ * account or same name) so a re-import / double-tap doesn't silently double the
+ * class list, assigns sequential order from the current max, and commits in
+ * chunks (Firestore batch cap is 500). Returns { added, skipped, duplicates }.
+ */
+export async function bulkAddRoster(classId, teacherUid, entries) {
+  // One roster read up front, reused for both duplicate detection and the
+  // starting `order` (avoids a second getDocs via nextOrder).
+  const existingSnap = await getDocs(rosterCol(classId))
+  const existingDocs = existingSnap.docs.map((d) => d.data() || {})
+  const existing = existingDocs.map((data) => ({
+    fullName: data.fullName,
+    linkedUid: data.linkedUid || null,
+  }))
+  const { fresh, duplicates } = partitionNewRosterEntries(entries, existing)
+  const start = existingDocs.reduce((max, data) => Math.max(max, Number(data.order) || 0), 0) + 1
+
+  const now = serverTimestamp()
+  let added = 0
+  let skipped = 0
+
+  // Chunk to stay under the 500-write batch limit (one write per entry).
+  for (let i = 0; i < fresh.length; i += 450) {
+    const chunk = fresh.slice(i, i + 450)
+    const batch = writeBatch(db)
+    chunk.forEach((entry, j) => {
+      let payload
+      try {
+        payload = rosterEntryWriteSchema.parse({
+          classId,
+          teacherUid,
+          learnerNumber: entry.learnerNumber ?? '',
+          fullName: entry.fullName,
+          gender: entry.gender ?? null,
+          parentPhone: entry.parentPhone ?? null,
+          status: entry.status ?? 'active',
+          linkedUid: entry.linkedUid ?? null,
+          order: start + i + j,
+        })
+      } catch {
+        skipped += 1
+        return
+      }
+      batch.set(doc(rosterCol(classId)), { ...payload, createdAt: now, updatedAt: now })
+      added += 1
+    })
+    await batch.commit()
+  }
+
+  await recountRegister(classId)
+  return { added, skipped, duplicates }
+}
+
+// ── Import from existing learner accounts ────────────────────────
+
+/**
+ * Learner accounts the teacher can import — sourced from the approved rosters
+ * of their invite-code classes (src/utils/classes.js). Reads user summaries in
+ * chunks of 10 (the Firestore `in` cap), degrading to a uid placeholder for any
+ * the rules block. Returns [{ uid, displayName, email }].
+ */
+export async function listImportableAccounts(teacherUid) {
+  const classes = await listTeacherClasses(teacherUid, { includeArchived: false, limit: 100 })
+  const uids = [...new Set(classes.flatMap((c) => (Array.isArray(c.learners) ? c.learners : [])))]
+  if (uids.length === 0) return []
+  const out = []
+  for (let i = 0; i < uids.length; i += 10) {
+    const chunk = uids.slice(i, i + 10)
+    try {
+      const snap = await getDocs(query(collection(db, 'users'), where('__name__', 'in', chunk)))
+      const got = new Map()
+      snap.docs.forEach((d) => {
+        const data = d.data() || {}
+        got.set(d.id, { uid: d.id, displayName: data.displayName || '', email: data.email || '' })
+      })
+      for (const uid of chunk) out.push(got.get(uid) || { uid, displayName: '', email: '' })
+    } catch (err) {
+      console.warn('[classRoster] account summary fetch failed', err)
+      for (const uid of chunk) out.push({ uid, displayName: '', email: '' })
+    }
+  }
+  // Only offer accounts that resolved to a usable name.
+  return out.filter((a) => a.displayName)
+}
+
+/** Create roster entries for chosen accounts, stamping linkedUid. */
+export async function importExistingAccounts(classId, teacherUid, accounts) {
+  const entries = accounts.map((a) => ({
+    fullName: a.displayName,
+    linkedUid: a.uid,
+    status: 'active',
+  }))
+  return bulkAddRoster(classId, teacherUid, entries)
+}
+
+// ── Excel (.xlsx) parsing — jszip + browser DOMParser, no new dep ─
+
+/** 'A1' / 'BC12' → 0-based column index. */
+function colIndexFromRef(ref) {
+  const letters = String(ref || '').replace(/[0-9]+$/, '').toUpperCase()
+  let n = 0
+  for (let i = 0; i < letters.length; i += 1) {
+    n = n * 26 + (letters.charCodeAt(i) - 64)
+  }
+  return n - 1
+}
+
+function parseSheetXml(xml, sharedStrings) {
+  const dom = new DOMParser().parseFromString(xml, 'application/xml')
+  const grid = []
+  const rowEls = dom.getElementsByTagName('row')
+  for (let r = 0; r < rowEls.length; r += 1) {
+    const cells = []
+    const cellEls = rowEls[r].getElementsByTagName('c')
+    for (let c = 0; c < cellEls.length; c += 1) {
+      const cell = cellEls[c]
+      const col = colIndexFromRef(cell.getAttribute('r'))
+      const type = cell.getAttribute('t')
+      let value = ''
+      if (type === 's') {
+        const v = cell.getElementsByTagName('v')[0]
+        const idx = v ? Number(v.textContent) : NaN
+        value = Number.isInteger(idx) ? (sharedStrings[idx] ?? '') : ''
+      } else if (type === 'inlineStr') {
+        const t = cell.getElementsByTagName('t')[0]
+        value = t ? t.textContent : ''
+      } else {
+        const v = cell.getElementsByTagName('v')[0]
+        value = v ? v.textContent : ''
+      }
+      cells[col] = value
+    }
+    grid.push(Array.from(cells, (x) => x ?? ''))
+  }
+  return grid
+}
+
+/**
+ * Parse an uploaded .xlsx File/Blob into the same preview shape as
+ * parseRosterText. Reads the first worksheet only. Browser-only (uses jszip
+ * + DOMParser); never imported by the node test suite.
+ */
+export async function parseRosterXlsx(file) {
+  const { default: JSZip } = await import('jszip')
+  const zip = await JSZip.loadAsync(file)
+
+  // Shared strings (most text cells reference this table).
+  const sharedStrings = []
+  const sstFile = zip.file('xl/sharedStrings.xml')
+  if (sstFile) {
+    const sstXml = await sstFile.async('string')
+    const dom = new DOMParser().parseFromString(sstXml, 'application/xml')
+    const siEls = dom.getElementsByTagName('si')
+    for (let i = 0; i < siEls.length; i += 1) {
+      // A shared string may be split across multiple <t> runs.
+      const tEls = siEls[i].getElementsByTagName('t')
+      let s = ''
+      for (let j = 0; j < tEls.length; j += 1) s += tEls[j].textContent
+      sharedStrings.push(s)
+    }
+  }
+
+  // First worksheet. Conventionally sheet1.xml; fall back to the first match.
+  let sheet = zip.file('xl/worksheets/sheet1.xml')
+  if (!sheet) {
+    const matches = zip.file(/^xl\/worksheets\/sheet\d+\.xml$/)
+    sheet = matches && matches[0]
+  }
+  if (!sheet) throw new Error('Could not find a worksheet in the Excel file.')
+
+  const sheetXml = await sheet.async('string')
+  const grid = parseSheetXml(sheetXml, sharedStrings)
+  return rowsToRoster(grid)
+}
+
+/** Dispatch a File to the right parser by extension. */
+export async function parseRosterFile(file) {
+  const name = (file?.name || '').toLowerCase()
+  if (name.endsWith('.xlsx')) return parseRosterXlsx(file)
+  const text = await file.text()
+  return parseRosterText(text)
+}

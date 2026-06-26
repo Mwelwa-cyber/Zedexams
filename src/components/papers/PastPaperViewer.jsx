@@ -20,6 +20,23 @@ import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
+const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
+
+/**
+ * Breaks a child out of its max-width column to span the full viewport
+ * width, so an opened paper fills the whole screen edge-to-edge instead
+ * of sitting in a narrow centred strip. Capped on very wide desktops so
+ * a single scanned page doesn't blow up past readability; the root
+ * viewer uses `overflow-x-clip` so the 100vw breakout can't introduce a
+ * horizontal scrollbar.
+ */
+function FullBleed({ children }) {
+  return (
+    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
+      <div className="mx-auto max-w-[1400px] px-1 sm:px-3">{children}</div>
+    </div>
+  )
+}
 
 function formatBytes(bytes) {
   if (!bytes || bytes < 1024) return `${bytes || 0} B`
@@ -45,23 +62,24 @@ export default function PastPaperViewer() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getPaper(paperId)
-      .then((row) => {
+    const load = async () => {
+      try {
+        const row = await getPaper(paperId)
         if (cancelled) return
         if (!row || (row.status !== 'published' && !isAdmin)) {
           setErrored(true)
           return
         }
         setPaper(row)
-        recordPaperEvent(paperId, 'view').catch(() => {})
-      })
-      .catch((err) => {
+        try { await recordPaperEvent(paperId, 'view') } catch { /* view telemetry is best-effort */ }
+      } catch (err) {
         console.warn('[PastPaperViewer] load failed', err)
         if (!cancelled) setErrored(true)
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
+    load().catch(() => {})
     return () => { cancelled = true }
   }, [paperId, isAdmin])
 
@@ -167,7 +185,7 @@ export default function PastPaperViewer() {
         })
     })
     return () => { cancelled = true }
-  }, [paper, currentUser, previewSource?.kind, previewSource?.assets])
+  }, [paper, currentUser, previewSource])
 
   const handleImageLoad = useCallback((pageKey) => {
     setLoadedPages((prev) => ({ ...prev, [pageKey]: true }))
@@ -341,11 +359,11 @@ export default function PastPaperViewer() {
   )
 
   return (
-    <div className="min-h-screen theme-bg flex flex-col">
+    <div className="min-h-screen theme-bg flex flex-col overflow-x-clip">
       <SeoHelmet
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
-        path={`/papers/${paperId}`}
+        path={`/papers/${paperId}${paper.slug ? `/${paper.slug}` : ''}`}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'LearningResource',
@@ -506,32 +524,36 @@ export default function PastPaperViewer() {
                           ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
                         </button>
                       </div>
-                      <Suspense fallback={
-                        <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                          Loading paper…
-                        </div>
-                      }>
-                        <PdfJsViewer url={paperUrl} title={paper.title} />
-                      </Suspense>
+                      <FullBleed>
+                        <Suspense fallback={
+                          <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                            Loading paper…
+                          </div>
+                        }>
+                          <PdfJsViewer url={paperUrl} title={paper.title} />
+                        </Suspense>
+                      </FullBleed>
                     </div>
                   )
                 )}
 
                 {previewSource?.kind === 'images' && (
-                  <PageImageList
-                    pages={validImagePages}
-                    totalPages={previewSource.assets.length}
-                    loading={imageAssetsLoading}
-                    loadedPages={loadedPages}
-                    failedPages={failedPages}
-                    retryNonces={retryNonces}
-                    dataSaver={dataSaver}
-                    syncHash
-                    progressKey={`paper-progress:${paperId}`}
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
-                    onRetry={handleRetryPage}
-                  />
+                  <FullBleed>
+                    <PageImageList
+                      pages={validImagePages}
+                      totalPages={previewSource.assets.length}
+                      loading={imageAssetsLoading}
+                      loadedPages={loadedPages}
+                      failedPages={failedPages}
+                      retryNonces={retryNonces}
+                      dataSaver={dataSaver}
+                      syncHash
+                      progressKey={`paper-progress:${paperId}`}
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                      onRetry={handleRetryPage}
+                    />
+                  </FullBleed>
                 )}
               </section>
             )}
@@ -606,6 +628,8 @@ function BackToTopFab() {
 function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page', syncHash = false, progressKey = null }) {
   const articleRefs = useRef({})
   const [visiblePage, setVisiblePage] = useState(1)
+  // The page currently open in the full-screen pinch-to-zoom viewer, if any.
+  const [zoomedPage, setZoomedPage] = useState(null)
   const hasScrolledToHashRef = useRef(false)
   const hasRestoredProgressRef = useRef(false)
   // In Data Saver mode, pre-load only the first 2 pages; later pages
@@ -799,12 +823,35 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                       Loading page {page.pageNumber}…
                     </div>
                   )}
+                  {hasLoaded && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomedPage({
+                        src,
+                        alt: `${altPrefix} ${page.pageNumber} of ${totalPages}`,
+                      })}
+                      aria-label={`Zoom in on page ${page.pageNumber}`}
+                      className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 text-white px-3 py-1.5 text-xs font-black shadow-elev-md hover:bg-black/85"
+                    >
+                      <span aria-hidden="true">🔍</span> Zoom
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </article>
         )
       })}
+
+      {zoomedPage && (
+        <Suspense fallback={null}>
+          <ImageZoomOverlay
+            src={zoomedPage.src}
+            alt={zoomedPage.alt}
+            onClose={() => setZoomedPage(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -845,7 +892,7 @@ function PaperPageImage({ pageKey, src, alt, eager, width, height, hasLoaded, on
       height={height}
       onLoad={() => onLoad(pageKey)}
       onError={onError}
-      className="block w-full h-auto max-w-[900px] mx-auto"
+      className="block w-full h-auto"
       // Fallback aspect ratio reserves layout space for old uploads
       // that don't have stored dimensions yet. Drop once loaded so the
       // intrinsic ratio takes over and the rendered page isn't squashed.
@@ -972,19 +1019,22 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
             ⬇️ Download answers
           </button>
         </div>
-        <Suspense fallback={
-          <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
-            Loading viewer…
-          </div>
-        }>
-          <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
-        </Suspense>
+        <FullBleed>
+          <Suspense fallback={
+            <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading viewer…
+            </div>
+          }>
+            <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
+          </Suspense>
+        </FullBleed>
       </div>
     )
   }
 
   if (source.kind === 'images') {
     return (
+      <FullBleed>
       <PageImageList
         pages={validPages}
         totalPages={source.assets.length}
@@ -1016,6 +1066,7 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
           setRetryNonces((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }))
         }}
       />
+      </FullBleed>
     )
   }
 

@@ -29,6 +29,7 @@ const {
   isStaffRole,
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
+const {dedupeExtractedQuestions, canWriteQuiz} = require("./pastPaperImportHelpers");
 
 const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-6";
 
@@ -321,7 +322,27 @@ async function writeQuestionsToQuiz(quizId, questions) {
   return questions.length;
 }
 
-async function runPastPaperImport({uid, paperId, quizId, apiKey}) {
+/**
+ * Reject early when the caller asks to write into a quiz they don't own.
+ * Runs BEFORE the Claude call so an unauthorised quizId neither wipes the
+ * target quiz nor burns an AI generation. Admins may write any quiz (past
+ * papers are admin-curated); everyone else only their own.
+ */
+async function assertQuizWritable(quizId, uid, isAdmin) {
+  const snap = await admin.firestore().doc(`quizzes/${quizId}`).get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Target quiz not found.");
+  }
+  if (!canWriteQuiz(snap.data(), uid, isAdmin)) {
+    throw new HttpsError("permission-denied",
+      "You can only import questions into your own quiz.");
+  }
+}
+
+async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false}) {
+  // Authorise the destructive target up front — never clear/overwrite a quiz
+  // the caller doesn't own, and don't spend an AI call to find out.
+  if (quizId) await assertQuizWritable(quizId, uid, isAdmin);
   const paper = await loadPaperOrThrow(paperId);
   const source = pickSources(paper);
   if (!source) {
@@ -354,10 +375,12 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey}) {
 
   const rawQuestions = Array.isArray(result && result.parsed &&
     result.parsed.questions) ? result.parsed.questions : [];
-  const questions = rawQuestions
-    .slice(0, MAX_QUESTIONS)
-    .map((q, i) => normaliseQuestion(q, i))
-    .filter((q) => q.prompt && q.options.length >= 2);
+  const questions = dedupeExtractedQuestions(
+    rawQuestions
+      .slice(0, MAX_QUESTIONS)
+      .map((q, i) => normaliseQuestion(q, i))
+      .filter((q) => q.prompt && q.options.length >= 2),
+  );
 
   // If a target quizId was supplied, persist the questions directly so
   // the admin can open the Quiz Editor and find them ready for review.
@@ -445,7 +468,9 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
       const paperId = String(request.data && request.data.paperId || "");
       const quizId = request.data && request.data.quizId ?
         String(request.data.quizId) : null;
-      return runPastPaperImport({uid, paperId, quizId, apiKey});
+      return runPastPaperImport({
+        uid, paperId, quizId, apiKey, isAdmin: role === "admin",
+      });
     },
   );
 }
@@ -455,4 +480,7 @@ module.exports = {
   // Source loaders reused by extractAssessmentFormat (same download,
   // size-cap and DOCX→text handling for sample assessment papers).
   loadPaperOrThrow, pickSources, buildMessageBlocks,
+  // Re-exported from pastPaperImportHelpers for callers that already import it
+  // from here; the test imports the helper module directly.
+  dedupeExtractedQuestions,
 };

@@ -39,9 +39,35 @@ function buildUserPrompt(inputs) {
     includeAnswerKey = true,
     language = "English",
     instructions = "",
+    style = "auto",
+    gridColumns = 0,
+    passageLength = "",
   } = inputs;
 
   const leLabel = learningEnvironmentLabel(learningEnvironment);
+
+  // When the teacher explicitly picks a worksheet style, this authoritative
+  // directive overrides the model's "choose what suits the topic" judgement.
+  // "auto" (or anything unknown) leaves that judgement intact.
+  const styleDirective = {
+    standard: 'The teacher requires the "Question & answer" style: use layout "standard" for every section with normal numbered questions. Do NOT use grid layout and do NOT add a reading passage.',
+    grid: 'The teacher requires the "Practice grid" style: place the items in section(s) with layout "grid" and "columns" 3 or 4, using short "calculation" or "fill_in_blank" prompts, each worth 1 mark. Do NOT add a reading passage.',
+    comprehension: 'The teacher requires the "Reading comprehension" style: the first section MUST carry a "passage" (a grade-appropriate reading text) and a short "passageTitle", followed by "short_answer" questions about that passage. Keep its layout "standard".',
+    working: 'The teacher requires the "Show working" style: use layout "standard" and set "workingStyle":"columns" on the calculation questions so the printout leaves tall vertical working space for column methods (long division, multi-digit multiplication).',
+    matching: 'The teacher requires a "Matching" worksheet: create a section whose "instructions" list a shuffled answer bank (A, B, C, …), and whose questions are "fill_in_blank" items that each begin with a blank for the pupil to write the matching letter (e.g. "____ The capital of Zambia"). Keep layout "standard".',
+    word_problems: 'The teacher requires a "Word problems" worksheet: every question is a real-life Zambian word problem (type "short_answer" or "calculation") with "workingStyle":"columns" so pupils can show their working. Use layout "standard".',
+    true_false: 'The teacher requires a "True or False" worksheet: every question is type "true_false" with options ["True","False"]. Use layout "standard".',
+  }[style] || "";
+
+  // Optional fine-grained controls. Each is an extra rule appended only when the
+  // teacher sets it; absent/auto values keep the model's own judgement.
+  const gridColumnsDirective = (gridColumns >= 2 && gridColumns <= 4) ?
+    `When you use a grid layout, set "columns" to exactly ${gridColumns}.` : "";
+  const passageLengthDirective = {
+    short: "Any reading passage should be short — about 3-4 sentences.",
+    medium: "Any reading passage should be a medium length — about 6-8 sentences.",
+    long: "Any reading passage should be longer — about 10-14 sentences.",
+  }[passageLength] || "";
 
   const diffGuidance = {
     easy: "All questions should be accessible recall / direct application — no multi-step reasoning.",
@@ -71,6 +97,9 @@ function buildUserPrompt(inputs) {
     `- Suggested pupil time: ${durationMinutes} minutes`,
     `- Language: ${language}`,
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
+    styleDirective ? `- IMPORTANT — required worksheet format: ${styleDirective}` : "",
+    gridColumnsDirective ? `- ${gridColumnsDirective}` : "",
+    passageLengthDirective ? `- ${passageLengthDirective}` : "",
     "",
     "Produce a single JSON object with EXACTLY these keys:",
     "",
@@ -89,6 +118,10 @@ function buildUserPrompt(inputs) {
     "    {",
     '      "title": string,                     // e.g. "Section A — Warm-up"',
     '      "instructions": string,              // section-specific instructions (optional, may be "")',
+    '      "passageTitle": string,              // OPTIONAL title of a reading passage, else ""',
+    '      "passage": string,                   // OPTIONAL reading passage pupils read before the questions, else ""',
+    '      "layout": "standard" | "grid",       // "grid" packs short drill items into columns; default "standard"',
+    '      "columns": number,                   // 2-4, only used when layout is "grid"',
     '      "questions": [',
     "        {",
     '          "number": number,                // 1-based question number (global, across sections)',
@@ -96,6 +129,7 @@ function buildUserPrompt(inputs) {
     '          "prompt": string,                // the question itself',
     '          "options": [string, ...] | null, // required for multiple_choice/true_false, else null',
     '          "marks": number,                 // marks available for this question',
+    '          "workingStyle": "" | "lines" | "box" | "columns", // working space to leave on the printout (see rules); "" = auto',
     '          "answer": string,                // correct answer (short form)',
     '          "workingNotes": string           // 1-2 lines of marking guidance / expected working',
     "        },",
@@ -117,6 +151,12 @@ function buildUserPrompt(inputs) {
       "- Still fill in the answer field, but workingNotes may be left as empty strings.",
     "- For multiple_choice, provide exactly 4 options. The correct answer must match one of them verbatim.",
     "- For calculation questions, the answer field should be the final numerical answer only; workingNotes may describe the steps.",
+    "",
+    "Layout & format — choose what suits the topic:",
+    "- READING COMPREHENSION: put the passage pupils must read in the section's \"passage\" field (and a short \"passageTitle\"), then make the questions \"short_answer\" questions about that passage. Keep that section's layout \"standard\".",
+    "- DRILL / PRACTICE SETS (e.g. convert fractions to decimals, times-tables, comparative-adjective fill-ins, mental maths): set the section's layout to \"grid\" with \"columns\": 3 or 4, use short \"calculation\" or \"fill_in_blank\" prompts (e.g. \"7/10 =\", \"Poy is ____ than Pam. (tall)\"), and give each item 1 mark. Do NOT leave a passage on a grid section.",
+    "- COLUMN ARITHMETIC that needs vertical working (multi-digit column multiplication, long division): keep layout \"standard\" and set the question's \"workingStyle\" to \"columns\" so the printout leaves tall working space. Use \"box\" for a single boxed answer, \"lines\" for a couple of ruled lines, or \"\" to let the format default to the question type.",
+    "- Default everything else to layout \"standard\" and workingStyle \"\".",
     "- Use Zambian English spelling (colour, practise as verb).",
     "- Ensure header.totalMarks equals the sum of all question marks.",
     "- Return ONLY the JSON object. No markdown fences. No commentary.",

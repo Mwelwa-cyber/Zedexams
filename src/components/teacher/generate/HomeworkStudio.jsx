@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   generateHomework,
   TEACHER_GRADES,
@@ -7,18 +7,23 @@ import {
   TOTAL_LESSONS_OPTIONS,
   LESSON_NUMBER_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  getSubjectsForGrade,
-  isSubjectValidForGrade,
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
+import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
+import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { FieldTextarea, FieldSelect } from './studioFields'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -26,7 +31,8 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * everything pre-filled; also usable standalone.
  */
 export default function HomeworkStudio() {
-  const { userProfile, isAdmin } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -45,20 +51,20 @@ export default function HomeworkStudio() {
   }))
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [homework, setHomework] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
 
-  const subjectOptions = useMemo(
-    () => getSubjectsForGrade(form.grade), [form.grade],
-  )
+  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
   useEffect(() => {
-    if (!isSubjectValidForGrade(form.subject, form.grade)) {
+    if (form.subject && !subjectValues.has(form.subject)) {
       setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
     }
-  }, [form.grade, form.subject])
+  }, [form.grade, form.subject, subjectValues])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -69,14 +75,22 @@ export default function HomeworkStudio() {
       setStatus('error')
       return
     }
+    if (!ensureCanGenerate('homework')) return
     setStatus('generating')
     setErrorMessage('')
+    setErrorDetail('')
     setWarning('')
     setHomework(null)
     const res = await generateHomework(form)
+    if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
+      // Surface the diagnostic code/detail like the other studios do.
+      setErrorDetail(
+        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
+          .filter(Boolean).join(' · '),
+      )
       return
     }
     setHomework(res.data.homework)
@@ -90,24 +104,26 @@ export default function HomeworkStudio() {
         grade: form.grade,
         subject: form.subject,
         assessmentType: 'homework',
-      }).catch(() => {})
+      }).catch((err) => console.error('[library attach]', err))
     }
   }
 
-  function onExport() {
+  function onExport(includeAnswers) {
     if (!homework) return
-    const slug = (s) => String(s || '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
-    const name = [
-      slug(form.grade), slug(form.subject),
-      slug(homework.header?.topic || form.topic), 'homework',
-      new Date().toISOString().slice(0, 10),
-    ].filter(Boolean).join('_')
-    downloadHomeworkDocx(homework, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    const name = buildDownloadName({
+      docType: includeAnswers ? 'Homework' : 'Homework (pupil)',
+      grade: form.grade,
+      subject: form.subject,
+      topic: homework.header?.topic || form.topic,
+    })
+    downloadHomeworkDocx(homework, name, {
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      includeAnswers,
+    })
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Homework studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -174,18 +190,20 @@ export default function HomeworkStudio() {
             )}
           </form>
 
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && (
               <Centered emoji="🏠" title="Ready to set homework"
                 body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get questions, an answer key and a parent note." />
             )}
             {status === 'generating' && (
-              <Centered emoji="✍️" title="Setting homework…"
-                body="About half a minute." />
+              <AiGenerationProgress variant="card" preset="homework" running title="Setting homework…" />
             )}
             {status === 'error' && (
               <Centered emoji="⚠️" title="Something went wrong"
-                body={errorMessage}
+                body={errorDetail
+                  ? <>{errorMessage}<br /><span style={{ opacity: 0.6, fontSize: 12 }}>{errorDetail}</span></>
+                  : errorMessage}
                 action={<button onClick={() => setStatus('idle')}
                   className="studio-btn-ghost">Try again</button>} />
             )}
@@ -194,7 +212,7 @@ export default function HomeworkStudio() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
                     <h2 className="studio-display"
-                      style={{ fontSize: 22, color: '#0e2a32', margin: '0 0 2px' }}>
+                      style={{ fontSize: 22, margin: '0 0 2px' }}>
                       {homework.header?.title || 'Homework'}
                     </h2>
                     <p className="text-xs" style={{ color: '#566f76' }}>
@@ -209,8 +227,11 @@ export default function HomeworkStudio() {
                         style={{ accentColor: '#ff7a2e' }} />
                       Show answers
                     </label>
-                    <button onClick={onExport} className="studio-btn-primary">
-                      📄 Export .docx
+                    <button onClick={() => onExport(false)} className="studio-btn-ghost">
+                      📄 Pupil sheet .docx
+                    </button>
+                    <button onClick={() => onExport(true)} className="studio-btn-primary">
+                      🔑 With answer key .docx
                     </button>
                   </div>
                 </div>
@@ -228,67 +249,18 @@ export default function HomeworkStudio() {
               </>
             )}
           </section>
+          </StudioOutputBoundary>
         </div>
       </div>
     </div>
   )
 }
 
-function FieldLabel({ children }) {
-  return <label className="studio-label">{children}</label>
-}
-function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder} maxLength={maxLength} rows={3}
-        className="studio-input resize-none" />
-    </div>
-  )
-}
-function FieldSelect({ label, value, options, onChange }) {
-  const groups = []
-  let cur = null
-  for (const o of options) {
-    if (o.group !== undefined) {
-      if (cur) groups.push(cur)
-      cur = { label: o.group, items: [] }
-    } else {
-      if (!cur) cur = { label: null, items: [] }
-      cur.items.push(o)
-    }
-  }
-  if (cur) groups.push(cur)
-  const flat = groups.length === 1 && !groups[0].label
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="studio-input">
-        {flat
-          ? groups[0].items.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))
-          : groups.map((g, i) => (g.label
-            ? <optgroup key={i} label={g.label}>
-              {g.items.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </optgroup>
-            : g.items.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))
-          ))}
-      </select>
-    </div>
-  )
-}
 function Centered({ emoji, title, body, action }) {
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
       <div className="text-5xl mb-3">{emoji}</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>{title}</h3>
+      <h3 className="studio-display" style={{ fontSize: 20 }}>{title}</h3>
       <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>{body}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>

@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   getFirestore, collection, addDoc, serverTimestamp,
@@ -10,9 +11,17 @@ import app from '../../../firebase/config'
 import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
+import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
+import { saveBlob } from '../../../utils/saveBlob'
+import { isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { WATERMARK_TEXT } from '../../../utils/exportWatermark'
+import { generateDiagram } from '../../../utils/generateDiagram'
+import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import AssessmentActivitiesPanel from './AssessmentActivitiesPanel'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -21,7 +30,24 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v14'
+const STUDIO_ASSET_VERSION = 'v29'
+
+// Canonical display names for KB subject slugs whose naive title-case would be
+// wrong in the studio's subject dropdown. Lower Primary (Grades 1–3) stores the
+// combined "Maths & Science" sheet under the `numeracy` slug; teachers expect
+// the real 2023 learning-area name, "Mathematics and Science" — not the raw
+// slug "Numeracy", which isn't a subject in the Syllabi Studio. Keep in sync
+// with the same relabel in src/config/teacherTaxonomy.js (TEACHER_SUBJECTS).
+const STUDIO_SUBJECT_LABELS = { numeracy: 'Mathematics and Science' }
+
+// Resolve a KB subject slug to its dropdown label: a canonical override wins,
+// then any admin-set display name, else a title-cased version of the slug.
+function studioSubjectLabel(slug, subjectDisplay) {
+  if (STUDIO_SUBJECT_LABELS[slug]) return STUDIO_SUBJECT_LABELS[slug]
+  const display = subjectDisplay && String(subjectDisplay).trim()
+  if (display) return display
+  return String(slug).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -36,22 +62,59 @@ function loadScriptsSequentially(srcs) {
   })), Promise.resolve())
 }
 
+// Module-scope caches so navigating away and back doesn't re-fetch the syllabi.
+// Keyed by "framework|grade|subject" (topics) and "grade" (subjects).
+const _topicsCache = new Map()
+const _subjectsCache = new Map()
+
+// Prevents in-flight async operations (saveToLibrary, setGenerating) from
+// writing to the DOM or Firestore after the component has unmounted. Bridges
+// that are deleted in cleanup can still be mid-call when the teacher navigates
+// away during a generation — this flag makes them no-ops on the already-gone
+// component without throwing unhandled rejections.
+let _studioMounted = false
+
 export default function LessonPlanStudio() {
   const navigate = useNavigate()
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const db = getFirestore(app)
+
+  // Generation state for the React <AiGenerationProgress> overlay. The vanilla
+  // studio scripts (public/studio/06-generate.js) drive this through the
+  // window.__studioSetGenerating bridge registered below.
+  const [genState, setGenState] = useState(null)
+
+  // Lesson-kit coords (grade/subject/topic/subtopic/term, CBC-normalised) from
+  // the last successful generation. When set, the "Create for this lesson" bar
+  // deep-links into the Worksheet / Homework / Notes studios pre-filled.
+  const [kit, setKit] = useState(null)
 
   useEffect(() => {
     // Studio scripts are loaded once (cached in <head>), but their DOM
     // bindings need to be re-applied every time React mounts a fresh copy
     // of the markup. Each script pushes an init fn into this registry.
     if (!Array.isArray(window.__studioRebinders)) window.__studioRebinders = []
+    _studioMounted = true
 
     // ---- Bridge: navigation ----
     window.__studioNavigateHome = () => navigate('/teacher')
 
+    // ---- Bridge: lesson kit ----
+    // 06-generate.js calls this after a successful generation with the lesson's
+    // CBC-normalised coords so the "Create for this lesson" bar can pre-fill the
+    // companion studios (worksheet / homework / notes).
+    window.__studioOnGenerated = (inputs) => {
+      setKit(inputs && typeof inputs === 'object' ? inputs : null)
+    }
+
+    // ---- Bridge: generation progress ----
+    // 06-generate.js calls this to show/hide the shared AI progress tracker.
+    window.__studioSetGenerating = (s) => { if (_studioMounted) setGenState(s && s.running ? s : null) }
+
     // ---- Bridge: Firestore save ----
-    window.saveToLibrary = async ({ meta, data, html, studioFormat }) => {
+    window.saveToLibrary = async ({ meta, data, html, studioFormat, skipSave }) => {
+      if (skipSave) return null
+      if (!_studioMounted) return null
       const uid = currentUser && currentUser.uid
       if (!uid) throw new Error('Not signed in')
       // Classify the studio meta into canonical library coords so the saved
@@ -99,6 +162,11 @@ export default function LessonPlanStudio() {
       const ref = await addDoc(collection(db, 'aiGenerations'), {
         ownerUid: uid,
         tool: 'lesson_plan',
+        // Fixed status/visibility so the doc matches the aiGenerations
+        // client-create rule (see firestore.rules) — without these the save
+        // is silently denied and the plan never reaches the library.
+        status: 'complete',
+        visibility: 'private',
         createdAt: serverTimestamp(),
         inputs: {
           grade:    m.klass || null,
@@ -156,11 +224,25 @@ export default function LessonPlanStudio() {
       return result.data.text
     }
 
+    // ---- Bridge: AI illustration generation ----
+    // public/studio/11-diagrams.js calls this from the "AI Illustration" tab in
+    // the Insert Diagram modal. It can't import the bundled generateDiagram
+    // helper (it's a plain <script>), so we hand it the same callable wrapper
+    // every other studio (Assessment, Picture Bank) uses. Defaults to Recraft
+    // B&W line-art — prints cleanly on classroom photocopiers and is the
+    // cheapest provider. Returns { url, prompt, ... }; the studio inserts the
+    // returned Storage URL as an <img> into the editable plan.
+    window.__studioGenerateDiagram = (opts) => generateDiagram({
+      prompt: (opts && opts.prompt) || '',
+      style: 'line_art',
+      provider: 'recraft',
+    })
+
     // ---- Bridge: auth (for any studio code that checks auth) ----
     window.__studioGetAuth = () => ({
       uid: currentUser && currentUser.uid,
       displayName: userProfile && (userProfile.displayName || userProfile.fullName),
-      school: userProfile && userProfile.schoolName,
+      school: userProfile && (userProfile.school || userProfile.schoolName),
     })
 
     // ---- Bridge: dynamic CBC syllabus from Firestore ----
@@ -178,34 +260,42 @@ export default function LessonPlanStudio() {
     // null the same as "use fallback").
     // Memoised by (grade, subject) so keystrokes don't repeatedly walk the
     // merged source's ~800 entries.
-    const cbcCache = new Map()
-    // Two-stage read: the merged source (curriculum-data.json + admin
-    // overrides + Firestore topics, the same set every generator now
-    // grounds on) usually has data. When it doesn't, fall back to the
-    // older direct-Firestore path so we never regress for grade+subject
-    // pairs the merged source doesn't reach.
-    window.__studioFetchSyllabusTopics = async ({ grade, subject }) => {
+    window.__studioFetchSyllabusTopics = async ({ grade, subject, framework }) => {
       if (!grade || !subject) return {}
-      const key = `${grade}|${subject}`
-      if (cbcCache.has(key)) return cbcCache.get(key)
+      const fw = framework || '2023'
+      const key = `${fw}|${grade}|${subject}`
+      if (_topicsCache.has(key)) return _topicsCache.get(key)
       try {
+        // Old (2013 OBC) syllabus — read curriculum-data-2013.json directly,
+        // the same file TopicSubtopicPicker uses for those grades.
+        if (fw === '2013') {
+          const res = await fetch('/syllabi/curriculum-data-2013.json')
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const lookup = extract2013TopicLookup(await res.json())
+          const topicMap = lookup.get(`${grade}|${subject}`) || new Map()
+          const out = {}
+          for (const [topic, subs] of topicMap) {
+            out[topic] = Array.from(subs)
+          }
+          _topicsCache.set(key, out)
+          return out
+        }
+        // New (2023 CBC) syllabus — two-stage: merged source first, then
+        // direct Firestore so we never regress for gaps in the JSON file.
         const merged = await getMergedSyllabi()
         const kbTopics = syllabiToKbTopics(merged)
         const out = {}
         for (const t of kbTopics) {
           if (t.grade !== grade || t.subject !== subject) continue
           if (!t.topic) continue
-          // Studio router expects { topic: [subtopicName, ...] }; subtopics
-          // here are enriched objects, so surface only their names.
           out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
             .map(subtopicName)
             .filter(Boolean)
         }
         if (Object.keys(out).length > 0) {
-          cbcCache.set(key, out)
+          _topicsCache.set(key, out)
           return out
         }
-        // Merged source had nothing — try the legacy direct-Firestore path.
         const version = await getActiveKbVersion()
         const snap = await getDocs(query(
           collection(db, 'cbcKnowledgeBase', version, 'topics'),
@@ -220,10 +310,10 @@ export default function LessonPlanStudio() {
               .filter(Boolean)
           }
         })
-        cbcCache.set(key, out)
+        _topicsCache.set(key, out)
         return out
       } catch (err) {
-        console.warn('studio CBC KB fetch failed', err)
+        console.warn('studio topics fetch failed', err)
         return null
       }
     }
@@ -279,10 +369,9 @@ export default function LessonPlanStudio() {
     //
     // Returns Array<string> (subject display names) on success, [] when the
     // KB has no rows for that grade, or null on error.
-    const subjectsCache = new Map()
     window.__studioFetchSyllabusSubjects = async ({ grade }) => {
       if (!grade) return []
-      if (subjectsCache.has(grade)) return subjectsCache.get(grade)
+      if (_subjectsCache.has(grade)) return _subjectsCache.get(grade)
       try {
         const merged = await getMergedSyllabi()
         const kbTopics = syllabiToKbTopics(merged)
@@ -291,7 +380,7 @@ export default function LessonPlanStudio() {
         for (const t of kbTopics) {
           if (t.grade !== grade || !t.subject || seen.has(t.subject)) continue
           seen.add(t.subject)
-          out.push(String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+          out.push(studioSubjectLabel(t.subject))
         }
         if (out.length === 0) {
           // Merged source had nothing for this grade — try direct Firestore.
@@ -303,15 +392,14 @@ export default function LessonPlanStudio() {
           snap.forEach((d) => {
             const t = d.data()
             if (!t || !t.subject) return
-            const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
-              || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            const display = studioSubjectLabel(t.subject, t.subjectDisplay)
             if (seen.has(display)) return
             seen.add(display)
             out.push(display)
           })
         }
         out.sort((a, b) => a.localeCompare(b))
-        subjectsCache.set(grade, out)
+        _subjectsCache.set(grade, out)
         return out
       } catch (err) {
         console.warn('studio CBC KB subjects fetch failed', err)
@@ -342,6 +430,28 @@ export default function LessonPlanStudio() {
       t._tid = setTimeout(() => t.classList.remove('show'), 3000)
     }
 
+    // ---- Export bridge ----
+    // The Word (.docx) export lives in public/studio/10-export.js, which can't
+    // import the bundled saveBlob. Hand it the robust download path: saveBlob
+    // writes full bytes on native, uses the Web Share API on mobile browsers
+    // (real filename, never truncated) and file-saver on desktop. Without this
+    // bridge the studio's own data:-URL fallback truncates large .docx files on
+    // Android Chrome — the "Word found unreadable content" bug — and saves them
+    // under a random UUID name.
+    window.__zxSaveBlob = (blob, filename) => saveBlob(blob, filename)
+
+    // Native OOXML bridge: the studio's 10-export.js prefers this over the
+    // vendored html-docx-js converter, which wraps the document body in a
+    // w:altChunk / afchunk.mht MHTML part that Word for Android / iOS / Web
+    // cannot open ("This version of Word can't open files that contain alternate
+    // formats"). This bridge produces real WordprocessingML via the docx npm
+    // library — no altChunk parts — so mobile Word opens the file correctly.
+    // Lazy-imported so the ~500 kB docx bundle stays out of the eager chunk.
+    window.__zxHtmlToDocx = async (html) => {
+      const { htmlToDocxBlob } = await import('../../../utils/studioHtmlToDocx.js')
+      return htmlToDocxBlob(html)
+    }
+
     // ---- Load scripts in dependency order ----
     const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
@@ -358,6 +468,7 @@ export default function LessonPlanStudio() {
       `/studio/10-export.js${v}`,
       `/studio/11-diagrams.js${v}`,
       `/studio/12-lesson-progression.js${v}`,
+      `/studio/13-review.js${v}`,
     ]
 
     loadScriptsSequentially(scripts)
@@ -384,13 +495,17 @@ export default function LessonPlanStudio() {
         tName.value = userProfile.displayName || userProfile.fullName || ''
       }
       if (tSchool && !tSchool.value && userProfile) {
-        tSchool.value = userProfile.schoolName || ''
+        tSchool.value = userProfile.school || userProfile.schoolName || ''
       }
     }, 600)
 
     return () => {
+      _studioMounted = false
       delete window.__studioNavigateHome
+      delete window.__studioOnGenerated
+      delete window.__studioSetGenerating
       delete window.__studioCallClaude
+      delete window.__studioGenerateDiagram
       delete window.__studioGetAuth
       delete window.__studioFetchSyllabusTopics
       delete window.__studioFetchSubtopicDetail
@@ -400,11 +515,38 @@ export default function LessonPlanStudio() {
       delete window.$$
       delete window.esc
       delete window.toast
+      delete window.__zxSaveBlob
+      delete window.__zxHtmlToDocx
+      delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Warn before the page unloads (tab close / hard reload) if a generated plan
+  // is on screen and hasn't been exported. Navigation within the SPA is handled
+  // by React Router and doesn't trigger beforeunload, so this only catches
+  // accidental tab-close after generation but before downloading.
+  useEffect(() => {
+    const handler = (e) => {
+      const doc = document.getElementById('doc')
+      if (!doc || !doc.textContent.trim()) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
+
+  // Free-plan exports carry the diagonal ZedExams watermark; the vanilla export
+  // script (public/studio/10-export.js) reads this global at export time and
+  // paints it onto the Word export. Kept in its own effect so
+  // it tracks the live plan tier (the profile can load after mount) — paid and
+  // admin exports stay clean.
+  useEffect(() => {
+    window.__zxExportWatermark = isFreePlanTeacher({ userProfile, isAdmin }) ? WATERMARK_TEXT : ''
+  }, [userProfile, isAdmin])
+
   return (
-    <>
+    <StudioOutputBoundary onRetry={() => navigate('/teacher')}>
       <SeoHelmet title="Lesson plan studio" noIndex />
       {/* Mobile sidebar scrim */}
       <div className="scrim" id="scrim"></div>
@@ -415,8 +557,8 @@ export default function LessonPlanStudio() {
           <aside className="sidebar" id="sidebar">
             <div className="brand">
               <picture>
-                <source type="image/webp" srcSet="/zedexams-logo.webp?v=1" />
-                <img src="/zedexams-logo.png?v=4" className="brand-mark-img" alt="ZedExams" />
+                <source type="image/webp" srcSet="/zedexams-logo.webp?v=2" />
+                <img src="/zedexams-logo.png?v=5" className="brand-mark-img" alt="ZedExams" />
               </picture>
               <div className="brand-text">
                 <h1>ZedExams</h1>
@@ -452,7 +594,7 @@ export default function LessonPlanStudio() {
                 </button>
                 <div className="lp-section-body">
                   <div className="field">
-                    <label>Syllabus Version <span className="hint-inline">— grades 5, 6, 7, 10, 11, 12 still use the old syllabus</span></label>
+                    <label>Syllabus Version <span className="hint-inline">— grades 3, 5, 6, 7, 10, 11 and 12 still use the old syllabus</span></label>
                     <div className="seg-toggle" id="syllabus-toggle">
                       <button type="button" className="seg active" data-version="new">New (2023)</button>
                       <button type="button" className="seg" data-version="old">Old (2013)</button>
@@ -462,12 +604,24 @@ export default function LessonPlanStudio() {
                     <div className="field"><label>Class</label><select id="f-class"></select></div>
                     <div className="field"><label>Duration (min)</label><input type="number" id="f-duration" defaultValue="40" min="20" max="120" /></div>
                   </div>
-                  <div className="field"><label>Subject</label><select id="f-subject"></select></div>
                   <div className="field-row">
-                    <div className="field"><label>Term</label><select id="f-term"><option>1</option><option defaultValue="2">2</option><option>3</option></select></div>
-                    <div className="field"><label>Week</label><select id="f-week">
+                    <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                    <div className="field"><label>Medium of instruction</label><select id="f-medium" defaultValue="English">
+                      <option value="English">English</option>
+                      <option value="Bemba">Bemba</option>
+                      <option value="Nyanja">Nyanja</option>
+                      <option value="Tonga">Tonga</option>
+                      <option value="Lozi">Lozi</option>
+                      <option value="Kaonde">Kaonde</option>
+                      <option value="Lunda">Lunda</option>
+                      <option value="Luvale">Luvale</option>
+                    </select></div>
+                  </div>
+                  <div className="field-row">
+                    <div className="field"><label>Term</label><select id="f-term" defaultValue="2"><option>1</option><option>2</option><option>3</option></select></div>
+                    <div className="field"><label>Week</label><select id="f-week" defaultValue="5">
                       <option>1</option><option>2</option><option>3</option><option>4</option>
-                      <option defaultValue="5">5</option><option>6</option><option>7</option><option>8</option>
+                      <option>5</option><option>6</option><option>7</option><option>8</option>
                       <option>9</option><option>10</option><option>11</option><option>12</option><option>13</option>
                     </select></div>
                   </div>
@@ -624,6 +778,25 @@ export default function LessonPlanStudio() {
                   <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div className="lp-section-body">
+                  <div className="field-row">
+                    <div className="field">
+                      <label>Lesson plan type</label>
+                      <select id="f-detail-level" defaultValue="simplified">
+                        <option value="simplified">Simplified — short, main parts only (quick planning)</option>
+                        <option value="detailed">Detailed — full activities, assessment, resources &amp; reflection</option>
+                      </select>
+                      <div className="helper">Simplified is quick to prepare; Detailed suits formal submission or inspection.</div>
+                    </div>
+                    <div className="field">
+                      <label>Language level</label>
+                      <select id="f-language-level" defaultValue="professional">
+                        <option value="simple">Simple — easy, everyday words (quick classroom use)</option>
+                        <option value="professional">Professional — formal (records, inspection, submission)</option>
+                        <option value="teacher">Detailed Teacher Language — explains how to teach the lesson</option>
+                      </select>
+                      <div className="helper">Sets the wording and how much teaching guidance is included.</div>
+                    </div>
+                  </div>
                   <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>
                     <div className="format-card active" data-format="modern">
                       <div className="format-card-body">
@@ -708,6 +881,25 @@ export default function LessonPlanStudio() {
                   </div>
                   <div className="toggle-row" id="t-vocab" data-on="false">
                     <div className="lbl">Include Key Vocabulary<small>4–8 terms with learner-friendly meanings</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row on" id="t-diagrams" data-on="true">
+                    <div className="lbl">Auto-add AI illustrations<small>For Maths &amp; Science: AI draws labelled black-and-white pictures (shapes, number lines, sets, charts &amp; science diagrams) for the lesson where they help</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  {/* Manual entry point to the AI Illustration tool — saves the
+                      teacher from discovering it behind Edit mode → Diagram. */}
+                  <button
+                    type="button"
+                    className="lp-illustrate-btn"
+                    onClick={() => { if (typeof window.__studioOpenAiIllustration === 'function') window.__studioOpenAiIllustration() }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+                    <span>Add an AI picture…</span>
+                  </button>
+                  <div className="helper" style={{marginTop:'6px'}}>Describe any picture and AI draws it for your plan — insert it wherever you like.</div>
+                  <div className="toggle-row" id="t-plan-in-medium" data-on="false">
+                    <div className="lbl">Write the whole plan in the local language<small>Only when the Medium of instruction is a Zambian language — writes the entire plan in it, not just the parts learners hear. Off keeps an English document for inspection.</small></div>
                     <div className="toggle-switch"></div>
                   </div>
                 </div>
@@ -828,33 +1020,48 @@ export default function LessonPlanStudio() {
                   <span>Export</span>
                 </button>
                 <div className="export-pop" id="export-pop">
-                  <button data-export="pdf">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    PDF (A4 via Print)
-                  </button>
                   <button data-export="word">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8 9.5 16 12 10 14.5 16 17 8" strokeWidth="1.7"/></svg>
                     Microsoft Word (.docx)
-                  </button>
-                  <button data-export="html">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                    HTML File
                   </button>
                 </div>
               </div>
             </div>
 
+            {/* Lesson kit — appears after a plan is generated. Deep-links into
+                the companion studios with this lesson's grade/subject/topic
+                pre-filled (the React generators read these via useFormDefaultsFromUrl). */}
+            {kit && (
+              <div className="lp-kit-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line, #e5ddd0)', background: 'var(--paper, #faf6ef)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#7a6d5d' }}>Create for this lesson:</span>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)}>Worksheet</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)}>Homework</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)}>Teacher notes</button>
+                <button type="button" className="tb-btn" onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)}>Test paper</button>
+              </div>
+            )}
+
             <div className="workspace">
               <div className="doc-wrap" id="doc-wrap">
-                {/* Loading overlay — toggled by 06-generate.js via classList.add/remove('show') */}
-                <div id="loader" style={{display:'none',position:'absolute',inset:0,zIndex:10,background:'rgba(250,246,239,0.85)',alignItems:'center',justifyContent:'center',borderRadius:'inherit'}}>
-                  <div style={{textAlign:'center',color:'var(--muted,#7a6d5d)'}}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    <div style={{marginTop:'10px',fontSize:'13px'}}>Generating…</div>
+                {/* AI progress overlay — the shared <AiGenerationProgress>, driven
+                    by 06-generate.js through the window.__studioSetGenerating bridge. */}
+                {genState?.running && (
+                  <div
+                    style={{
+                      position: 'absolute', inset: 0, zIndex: 10,
+                      background: 'var(--paper, #faf6ef)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 'inherit', overflow: 'auto',
+                    }}
+                  >
+                    <AiGenerationProgress
+                      variant="card"
+                      preset="lessonPlan"
+                      running
+                      title={genState.title || 'Composing your lesson plan…'}
+                    />
                   </div>
-                </div>
+                )}
                 <div className="doc" id="doc">
                   <div className="empty-state">
                     <div className="glyph">
@@ -866,6 +1073,11 @@ export default function LessonPlanStudio() {
                   </div>
                 </div>
               </div>
+
+              {/* Assessment Activities — generate a class exercise + homework
+                  aligned to the lesson the teacher just created. Appears once a
+                  plan exists (kit is set by __studioOnGenerated). */}
+              {kit && <AssessmentActivitiesPanel kit={kit} />}
             </div>
           </main>
         </div>
@@ -907,10 +1119,26 @@ export default function LessonPlanStudio() {
           </div>
         </div>
       </div>
+      {/* Review & Generate — confirmation pass populated by 13-review.js */}
+      <div className="modal-scrim" id="modal-review">
+        <div className="modal">
+          <div className="modal-head">
+            <h3>Review &amp; generate</h3>
+            <button className="close" data-close-modal>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="modal-body" id="review-modal-body"></div>
+          <div className="lp-review-actions">
+            <button className="btn-outline" data-close-modal>Back to edit</button>
+            <button className="btn-solid" id="review-generate">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
+              <span id="review-generate-label">Generate Lesson Plan</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="toast" id="toast">Saved</div>
-
-      {/* Loader overlay + spinner animation */}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} #loader.show{display:flex!important}`}</style>
-    </>
+    </StudioOutputBoundary>
   )
 }

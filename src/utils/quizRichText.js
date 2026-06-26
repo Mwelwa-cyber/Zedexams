@@ -301,6 +301,63 @@ function normalizeSanitizedHtml(html) {
   return sanitizeQuizRichHTML(output)
 }
 
+const SUPERSCRIPTS = {
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷',
+  '8': '⁸', '9': '⁹', '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', 'n': 'ⁿ', 'x': 'ˣ',
+}
+const SUBSCRIPTS = {
+  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇',
+  '8': '₈', '9': '₉', '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
+}
+
+function toScript(expr, map, caret) {
+  const chars = [...String(expr)]
+  if (chars.length && chars.every(c => map[c])) return chars.map(c => map[c]).join('')
+  return `${caret}${expr}`
+}
+
+/**
+ * Convert a LaTeX fragment into a human-readable plain-text/Unicode string.
+ *
+ * KaTeX math nodes are stored as `<span class="mnode" data-latex="…">`. They
+ * render with JavaScript in the live app, but the paper exports (PDF print
+ * window, DOCX) and the studio Preview don't run KaTeX — so without this the
+ * options/stems carrying math came out blank or as raw `\frac{1}{3}` markup.
+ * This keeps the common Zambian primary-maths notation (×, ÷, fractions,
+ * powers, π, °, √, ≤/≥) readable. Unknown commands degrade gracefully: their
+ * braced argument is kept and the backslash command is dropped.
+ */
+export function latexToReadableText(latex) {
+  let s = String(latex ?? '').trim()
+  if (!s) return ''
+  const SYMBOLS = [
+    [/\\times\b/g, '×'], [/\\div\b/g, '÷'], [/\\cdot\b/g, '·'], [/\\ast\b/g, '∗'],
+    [/\\pm\b/g, '±'], [/\\mp\b/g, '∓'],
+    [/\\leq\b/g, '≤'], [/\\le\b/g, '≤'], [/\\geq\b/g, '≥'], [/\\ge\b/g, '≥'],
+    [/\\neq\b/g, '≠'], [/\\approx\b/g, '≈'], [/\\equiv\b/g, '≡'],
+    [/\\pi\b/g, 'π'], [/\\theta\b/g, 'θ'], [/\\alpha\b/g, 'α'], [/\\beta\b/g, 'β'],
+    [/\\infty\b/g, '∞'], [/\\rightarrow\b/g, '→'], [/\\to\b/g, '→'], [/\\Rightarrow\b/g, '⇒'],
+    [/\\circ\b/g, '°'], [/\\degree\b/g, '°'],
+    [/\\,/g, ' '], [/\\;/g, ' '], [/\\:/g, ' '], [/\\!/g, ''], [/\\ /g, ' '],
+    [/\\%/g, '%'], [/\\\$/g, '$'], [/\\left/g, ''], [/\\right/g, ''],
+  ]
+  for (const [re, val] of SYMBOLS) s = s.replace(re, val)
+  // \frac{a}{b} -> a/b (loop a few times for nested fractions).
+  for (let i = 0; i < 4 && /\\[a-z]*frac/i.test(s); i += 1) {
+    s = s.replace(/\\[a-z]*frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gi, '($1)/($2)')
+  }
+  s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)')
+  s = s.replace(/\^\{([^{}]*)\}/g, (_, e) => toScript(e, SUPERSCRIPTS, '^'))
+  s = s.replace(/\^(\w)/g, (_, e) => toScript(e, SUPERSCRIPTS, '^'))
+  s = s.replace(/_\{([^{}]*)\}/g, (_, e) => toScript(e, SUBSCRIPTS, '_'))
+  s = s.replace(/_(\w)/g, (_, e) => toScript(e, SUBSCRIPTS, '_'))
+  // Drop any remaining backslash commands, keeping a single braced argument.
+  s = s.replace(/\\[a-zA-Z]+\s*\{([^{}]*)\}/g, '$1')
+  s = s.replace(/\\[a-zA-Z]+/g, '')
+  s = s.replace(/[{}]/g, '')
+  return s.replace(/\s+/g, ' ').trim()
+}
+
 export function isRichTextHtml(value) {
   return HTML_RE.test(String(value ?? ''))
 }
@@ -368,7 +425,7 @@ export function richTextToPlainText(value) {
     }
 
     if (element.classList.contains('mnode')) {
-      pieces.push(element.getAttribute('data-latex') || element.textContent || '')
+      pieces.push(latexToReadableText(element.getAttribute('data-latex') || element.textContent || ''))
       pieces.push(' ')
       return
     }
@@ -430,6 +487,47 @@ export function richTextHasContent(value) {
   if (!html) return false
   if (/\bdata-latex=/.test(html) || /<table\b/i.test(html)) return true
   return Boolean(richTextToPlainText(html).replace(/\s+/g, '').trim())
+}
+
+// Tiptap node types that carry NO formatting on their own — a document built
+// only from these (with no marks) is "just plain text".
+const PLAIN_TIPTAP_NODES = new Set(['doc', 'paragraph', 'text', 'hardBreak', 'hard_break'])
+
+function tiptapDocHasFormatting(node) {
+  if (!node || typeof node !== 'object') return false
+  if (Array.isArray(node)) return node.some(tiptapDocHasFormatting)
+  // A special node (fraction, math, number-base, table, image, list…) means
+  // there's formatting/structure a plain textarea would destroy.
+  if (node.type && !PLAIN_TIPTAP_NODES.has(node.type)) return true
+  // Any mark on a text run (bold / italic / underline / sup / sub…).
+  if (Array.isArray(node.marks) && node.marks.length > 0) return true
+  if (Array.isArray(node.content)) return node.content.some(tiptapDocHasFormatting)
+  return false
+}
+
+/**
+ * True when a rich-text value carries formatting (marks or non-paragraph
+ * nodes) that a plain `<textarea>` round-trip would silently destroy.
+ *
+ * Plain text — or a Tiptap/HTML doc that's only paragraphs of unmarked text —
+ * returns false, so the quick builder can safely keep editing it as plain text.
+ * Accepts Tiptap JSON (object or stringified), HTML, or plain strings.
+ */
+export function richTextHasFormatting(value) {
+  if (value == null || value === '') return false
+  if (typeof value === 'object') return tiptapDocHasFormatting(value)
+  if (typeof value !== 'string') return false
+  const s = value.trim()
+  if (!s) return false
+  if (s.startsWith('{') || s.startsWith('[')) {
+    try { return tiptapDocHasFormatting(JSON.parse(s)) } catch { return false }
+  }
+  if (s.startsWith('<')) {
+    // HTML: formatting if any tag other than paragraph / line-break remains.
+    const stripped = s.replace(/<\/?p\b[^>]*>/gi, '').replace(/<br\s*\/?>/gi, '')
+    return /<[a-z!/][^>]*>/i.test(stripped)
+  }
+  return false
 }
 
 // Walk a Tiptap document object and concatenate its visible text. Mirrors the

@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "visualAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
@@ -126,6 +134,58 @@
       "fields": [
         { "fieldPath": "createdBy",   "order": "ASCENDING" },
         { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING" },
+        { "fieldPath": "quizType",    "order": "ASCENDING" },
+        { "fieldPath": "grade",       "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING" },
+        { "fieldPath": "quizType",    "order": "ASCENDING" },
+        { "fieldPath": "grade",       "order": "ASCENDING" },
+        { "fieldPath": "subject",     "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING" },
+        { "fieldPath": "quizType",    "order": "ASCENDING" },
+        { "fieldPath": "grade",       "order": "ASCENDING" },
+        { "fieldPath": "term",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING" },
+        { "fieldPath": "quizType",    "order": "ASCENDING" },
+        { "fieldPath": "grade",       "order": "ASCENDING" },
+        { "fieldPath": "subject",     "order": "ASCENDING" },
+        { "fieldPath": "term",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_exam_locks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "date",   "order": "ASCENDING" }
       ]
     },
     {
@@ -399,6 +459,15 @@
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "gameId", "order": "ASCENDING" },
+        { "fieldPath": "score",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scores",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "grade",    "order": "ASCENDING" },
         { "fieldPath": "subject",  "order": "ASCENDING" },
         { "fieldPath": "score",    "order": "DESCENDING" }
@@ -622,6 +691,15 @@
       ]
     },
     {
+      "collectionGroup": "classRegisters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
+        { "fieldPath": "status",     "order": "ASCENDING"  },
+        { "fieldPath": "updatedAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "assignments",
       "queryScope": "COLLECTION",
       "fields": [
@@ -818,6 +896,14 @@
       "fields": [
         { "fieldPath": "learnerId",   "order": "ASCENDING"  },
         { "fieldPath": "lastUpdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "topics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "grade",   "order": "ASCENDING" },
+        { "fieldPath": "subject", "order": "ASCENDING" }
       ]
     }
   ],

@@ -19,6 +19,11 @@ import {
   countLocalQuestions,
   buildScannedSummary,
   planOptionImageCrops,
+  planDiagramCrops,
+  diagramReviewNote,
+  countDetectedDiagrams,
+  normaliseDiagramHandling,
+  DEFAULT_DIAGRAM_HANDLING,
   findMissingQuestionNumbers,
   formatMissingList,
   isImageImportFile,
@@ -347,6 +352,98 @@ test('planOptionImageCrops plans a crop per boxed option', () => {
 
 test('planOptionImageCrops returns [] without a page asset', () => {
   assert.deepEqual(planOptionImageCrops({ optionsAreImages: true, optionImageBoxes: [{ x: 0, y: 0, w: 0.3, h: 0.3 }] }, null), [])
+})
+
+// ── Diagram handling (detection → crop plan → placement) ─────────────────────
+
+const diagram = (over = {}) => ({ box: { x: 0.1, y: 0.1, w: 0.4, h: 0.4 }, kind: 'shape', classification: 'recreate', confidence: 0.8, caption: '', ...over })
+
+test('normaliseDiagramHandling defaults to keep and rejects junk', () => {
+  assert.equal(DEFAULT_DIAGRAM_HANDLING, 'keep')
+  assert.equal(normaliseDiagramHandling('clean'), 'clean')
+  assert.equal(normaliseDiagramHandling('text'), 'text')
+  assert.equal(normaliseDiagramHandling('ask'), 'ask')
+  assert.equal(normaliseDiagramHandling('nonsense'), 'keep')
+  assert.equal(normaliseDiagramHandling(undefined), 'keep')
+})
+
+test('planDiagramCrops plans one crop per boxed diagram, largest first', () => {
+  const plan = planDiagramCrops(
+    { diagrams: [
+      diagram({ box: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 }, kind: 'shape' }),
+      diagram({ box: { x: 0.1, y: 0.4, w: 0.6, h: 0.6 }, kind: 'map', classification: 'preserve' }),
+    ] },
+    pageAsset,
+  )
+  assert.equal(plan.length, 2)
+  assert.equal(plan[0].kind, 'map') // bigger box leads
+  assert.equal(plan[0].classification, 'preserve')
+})
+
+test('planDiagramCrops returns [] without a page asset or boxes', () => {
+  assert.deepEqual(planDiagramCrops({ diagrams: [diagram()] }, null), [])
+  assert.deepEqual(planDiagramCrops({ diagrams: [{ kind: 'map' }] }, pageAsset), [])
+  assert.deepEqual(planDiagramCrops({}, pageAsset), [])
+})
+
+test('diagramReviewNote describes each classification + the cleaned case', () => {
+  assert.match(diagramReviewNote('preserve'), /image/i)
+  assert.match(diagramReviewNote('recreate'), /recreate/i)
+  assert.match(diagramReviewNote('review'), /review/i)
+  assert.match(diagramReviewNote('clean'), /clean|replace/i)
+  assert.match(diagramReviewNote('preserve', { cleaned: true }), /cleaned/i)
+})
+
+test('countDetectedDiagrams totals figures across questions + shared maps', () => {
+  const n = countDetectedDiagrams([
+    { kind: 'standalone', question: { diagrams: [diagram(), diagram()] } },
+    { kind: 'passage', diagrams: [diagram()], questions: [{ diagrams: [diagram()] }, { diagrams: [] }] },
+  ])
+  assert.equal(n, 4)
+})
+
+test('visionSectionsToLocal (keep) carries detected diagrams onto the question', () => {
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'standalone', question: mcq({ text: 'Name part A', hasDiagram: true, sourcePage: 3, diagrams: [diagram({ kind: 'labelled_science', classification: 'preserve' })] }) }],
+    { diagramHandling: 'keep', pageAssetByNumber: {} },
+    fakeDeps,
+  )
+  assert.equal(sections[0].question.detectedDiagrams.length, 1)
+  // A croppable box is present, so we do NOT pre-attach the whole page —
+  // attachQuestionDiagrams (DOM) crops the precise figure instead.
+  assert.ok(!sections[0].question.imageAssetId)
+})
+
+test('visionSectionsToLocal (text) drops diagrams entirely', () => {
+  const asset = { id: 'page-3', imageUrl: 'blob:p3', objectUrl: 'blob:p3' }
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'standalone', question: mcq({ text: 'Name part A', hasDiagram: true, sourcePage: 3, diagrams: [diagram()] }) }],
+    { diagramHandling: 'text', pageAssetByNumber: { 3: asset } },
+    fakeDeps,
+  )
+  assert.equal(sections[0].question.detectedDiagrams, undefined)
+  assert.ok(!sections[0].question.imageAssetId)
+  assert.ok(!sections[0].question.imageUrl)
+})
+
+test('visionSectionsToLocal falls back to the whole page when a flagged figure has no box', () => {
+  const asset = { id: 'page-5', imageUrl: 'blob:fig', objectUrl: 'blob:fig' }
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'standalone', question: mcq({ text: 'Study the figure', hasDiagram: true, sourcePage: 5, diagrams: [] }) }],
+    { diagramHandling: 'keep', pageAssetByNumber: { 5: asset } },
+    fakeDeps,
+  )
+  assert.equal(sections[0].question.imageAssetId, 'page-5')
+})
+
+test('visionSectionsToLocal (keep) carries a shared map diagram onto the passage', () => {
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'passage', passageKind: 'map', title: 'Map', hasImage: true, sourcePage: 2, diagrams: [diagram({ kind: 'map', classification: 'preserve' })], questions: [mcq()] }],
+    { diagramHandling: 'keep', pageAssetByNumber: {} },
+    fakeDeps,
+  )
+  assert.equal(sections[0].passage.detectedDiagrams.length, 1)
+  assert.equal(sections[0].passage.sourcePage, 2)
 })
 
 test('planOptionImageCrops returns [] for a text-option question', () => {

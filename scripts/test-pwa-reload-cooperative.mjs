@@ -90,7 +90,7 @@ function makeSWContext({ hasActiveWorker = true } = {}) {
   function makeClient(id) {
     return {
       id,
-      url: `https://zedexams.com/teacher/assessments/new`,
+      url: `https://zedexams.com/teacher/test-papers/new`,
       postMessage(data) {
         messages.push({ clientId: id, data })
         return Promise.resolve()
@@ -118,7 +118,7 @@ function makeSWContext({ hasActiveWorker = true } = {}) {
 
   // Evaluate the IIFE in the simulated global scope.
   // We use new Function to set `self` as the global.
-  const fn = new Function('self', swReloadSrc)  // eslint-disable-line no-new-func
+  const fn = new Function('self', swReloadSrc)
   fn(swSelf)
 
   async function fireInstall() {
@@ -210,7 +210,7 @@ await testAsync('postMessage rejection is swallowed — does not reject the acti
     },
   }
 
-  const fn = new Function('self', swReloadSrc)  // eslint-disable-line no-new-func
+  const fn = new Function('self', swReloadSrc)
   fn(swSelf)
 
   let activateResolved = false

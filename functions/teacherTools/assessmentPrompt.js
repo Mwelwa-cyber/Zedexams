@@ -81,7 +81,10 @@ function buildUserPrompt(inputs) {
     '          "options": [string, ...],   // only for multiple_choice / true_false',
     '          "marks": number,',
     '          "answer": string,',
-    '          "markingGuide": string',
+    '          "markingGuide": string,',
+    '          "parts": [   // OPTIONAL — only when a short_answer question has lettered sub-questions (a),(b),(c)',
+    '            { "text": string, "answer": string, "marks": number }',
+    "          ]",
     "        }",
     "      ]",
     "    }",
@@ -92,6 +95,14 @@ function buildUserPrompt(inputs) {
     "Rules:",
     "- Every question MUST have marks, a correct answer and a marking guide.",
     "- Marks must sum to a sensible total close to the target.",
+    "- When a single question naturally has lettered sub-questions (e.g. a " +
+      "'fill in the blanks' or 'complete the sentences' question with (a), (b), " +
+      "(c)), put a short INSTRUCTION in `prompt` and put each lettered " +
+      "sub-question in the `parts` array — do NOT cram '(a)… (b)… (c)…' into one " +
+      "`prompt` string. For a fill-in-the-blank sentence, mark the blank inline " +
+      "with '____' in the part's `text`. Each part carries its own `marks`; the " +
+      "question's `marks` is then the sum of its parts. Leave `parts` out for an " +
+      "ordinary single-answer question.",
     "- Use Zambian English spelling. Return ONLY the JSON object.",
   ].filter(Boolean).join("\n");
 }

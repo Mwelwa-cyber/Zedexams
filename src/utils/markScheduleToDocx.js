@@ -4,6 +4,8 @@
  * Sheet — mirroring src/components/teacher/views/MarkScheduleView.jsx.
  */
 
+import { saveBlob } from './saveBlob.js'
+import { sanitizeXmlText } from './xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -28,7 +30,7 @@ const CELL_BORDER = {
   right:  { style: BorderStyle.SINGLE, size: 4, color: '000000' },
 }
 
-const text = (str, opts = {}) => new TextRun({ text: str == null ? '' : String(str), size: 18, ...opts })
+const text = (str, opts = {}) => new TextRun({ text: sanitizeXmlText(str), size: 18, ...opts })
 const para = (runs, opts = {}) => new Paragraph({
   children: Array.isArray(runs) ? runs : [runs],
   spacing: { after: 40 },
@@ -168,17 +170,5 @@ export function buildMarkScheduleDocument(schedule, { mode = 'marks', attributio
 export async function downloadMarkScheduleDocx(schedule, filename = 'mark-schedule.docx', opts = {}) {
   const doc = buildMarkScheduleDocument(schedule, opts)
   const blob = await Packer.toBlob(doc)
-  try {
-    const { saveAs } = await import('file-saver')
-    saveAs(blob, filename)
-    return
-  } catch { /* fall through to the manual anchor */ }
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  await saveBlob(blob, filename)
 }

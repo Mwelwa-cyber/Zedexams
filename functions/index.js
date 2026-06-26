@@ -17,9 +17,11 @@ const {
   buildImportStructureMessages,
   buildQuizMessages,
   callAnthropic,
-  callAnthropicStream,
+  callOpenAI,
+  callOpenAIStream,
   cleanString: cleanAiString,
   getAnthropicApiKey,
+  getApiKey,
   getUserRole,
   isEditQuestionAction,
   isStaffRole,
@@ -61,6 +63,10 @@ const {
 const {
   createGenerateSchemeOfWork,
 } = require("./teacherTools/generateSchemeOfWork");
+// Teacher Tools — Term module outline (Weekly Forecast module fallback).
+const {
+  getTermModuleOutline,
+} = require("./teacherTools/getTermModuleOutline");
 // Teacher Tools — Rubric Generator.
 const {
   createGenerateRubric,
@@ -80,8 +86,15 @@ const {
   createGenerateHomework,
 } = require("./teacherTools/generateHomework");
 const {
+  createGenerateLessonActivities,
+} = require("./teacherTools/generateLessonActivities");
+const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
+// Teacher Tools — SBA Studio (ECZ School Based Assessment task generator).
+const {
+  createGenerateSbaTask,
+} = require("./teacherTools/generateSbaTask");
 const {
   createGenerateQuiz,
 } = require("./teacherTools/generateQuiz");
@@ -93,10 +106,14 @@ const {
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Visual Studio — on-demand AI safety/accuracy check for generated images.
+const {createCheckVisualSafety} = require("./visualSafety");
 // Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
 const {
   createGenerateNotePictures,
 } = require("./teacherTools/generateNotePictures");
+// Picture bank — admin-only auto-naming of bulk-uploaded teaching figures.
+const {runNamePictures, MAX_PICTURES_PER_CALL} = require("./pictureNaming");
 // Teacher Tools — Suggest Answer (per-question AI answer hint for the studio).
 const {
   createSuggestAnswer,
@@ -121,6 +138,12 @@ const {
 const {
   createExtractAssessmentFormat,
 } = require("./teacherTools/extractAssessmentFormat");
+// Teacher Tools — Exam Paper Library: analyse real papers + synthesise a
+// consolidated format profile from many of them (admin-only).
+const {
+  createAnalyzeExamPaper,
+  createSynthesizeAssessmentFormat,
+} = require("./teacherTools/examPaperLibrary");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
@@ -178,6 +201,14 @@ const {
   nightlyQaSmoke: nightlyQaSmokeCron,
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
   hourlyMonitor: hourlyMonitorCron,
+  hourlyRevenueReconcile: hourlyRevenueReconcileCron,
+  supportTriage: supportTriageCron,
+  contentAutoPublish: contentAutoPublishCron,
+  weeklyProductSignal: weeklyProductSignalCron,
+  weeklyRetentionScan: weeklyRetentionScanCron,
+  deliverDawnBriefings: deliverDawnBriefingsCron,
+  hourlyAgentSupervisor: hourlyAgentSupervisorCron,
+  dailyFxRefresh: dailyFxRefreshCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -233,14 +264,23 @@ const recraftApiKey = defineSecret("RECRAFT_API_KEY");
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // Optional. When set, generateDiagram exposes a "photoreal" style toggle
 // that routes through OpenAI gpt-image-1 instead of Recraft. Recraft is
-// still the default for B&W line art (cleaner on photocopiers). When
-// unset, the photoreal toggle is hidden and Recraft handles everything.
+// still the default for B&W line art (cleaner on photocopiers), but when
+// the Recraft account can't serve (out of credits, bad key) line-art
+// requests automatically fall back to gpt-image-1 with the same B&W
+// prompt. When unset, there is no fallback and the photoreal toggle is
+// hidden.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // Optional. When set, generateDiagram exposes a "colour illustration" style
 // that routes through the Kie.ai image API (Nano Banana et al.) for bright,
 // friendly worksheet illustrations. When unset, the toggle is hidden and the
 // other providers (Recraft line-art / OpenAI photoreal) handle everything.
 const kieApiKey = defineSecret("KIE_API_KEY");
+// Lenco (lenco.co) automated payments — ZMW mobile money + card
+// collections. The webhook signing key is derived from this token
+// (SHA256) per Lenco's spec, so no separate webhook secret is needed
+// unless you set a custom one (LENCO_WEBHOOK_KEY) on the Lenco
+// dashboard.
+const lencoApiKey = defineSecret("LENCO_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -728,9 +768,19 @@ exports.sendPasswordResetEmail = onCall(
   },
 );
 
+// Zed chat model. Tune Zed independently of the shared OPENAI_MODEL default:
+// set ZED_CHAT_MODEL (e.g. "gpt-4o") to upgrade just the study assistant
+// without touching any other OpenAI call. When unset, callOpenAI/
+// callOpenAIStream fall back to OPENAI_MODEL, then "gpt-4o-mini".
+const ZED_CHAT_MODEL = process.env.ZED_CHAT_MODEL || undefined;
+
+// Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
+// ZED_CHAT_MODEL). buildAnthropicChat returns a provider-neutral
+// {systemPrompt, messages[]} shape that callOpenAI folds into the OpenAI
+// system role.
 exports.aiChat = onCall(
   {
-    secrets: [anthropicApiKey],
+    secrets: [openaiApiKey],
     region: "us-central1",
     timeoutSeconds: 30,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
@@ -760,9 +810,10 @@ exports.aiChat = onCall(
       role,
       customSystemPrompt: request.data?.systemPrompt,
     });
-    const reply = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+    const reply = await callOpenAI(getApiKey(openaiApiKey), {
       systemPrompt,
       messages,
+      model: ZED_CHAT_MODEL,
       maxTokens: 1000,
       temperature: 0.35,
       track: {uid: request.auth.uid, tool: "aiChat"},
@@ -1015,8 +1066,88 @@ exports.sendExpiryReminders = onCall({
   };
 });
 
+// Dawn — launch the on-demand "morning briefing" Managed Agent from the admin
+// UI instead of a laptop script. This callable only STARTS the run (a couple of
+// fast API calls) and returns the session id; the deliverDawnBriefings poller
+// (functions/agents/cron.js) collects the briefing ~10 min later, emails it, and
+// saves it onto dawnRuns/{sessionId} for the panel to render. The Anthropic key
+// stays a server secret — it never reaches the browser. Config (the agent /
+// environment / vault ids + the recipient email) lives in dawnConfig/default,
+// set once from the same panel; we never put those in client code.
+exports.runDawnBriefing = onCall({
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+  secrets: [anthropicApiKey],
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const db = admin.firestore();
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
+  if (role !== "admin" && role !== "superAdmin") {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+
+  // One in-flight run at a time — a second "Run Dawn now" while one is still
+  // working would just burn agent budget on a duplicate briefing.
+  const inFlight = await db.collection("dawnRuns")
+      .where("status", "==", "running")
+      .limit(1)
+      .get();
+  if (!inFlight.empty) {
+    throw new HttpsError(
+        "already-exists",
+        "Dawn is already working on a briefing — it'll arrive shortly.",
+    );
+  }
+
+  const cfgSnap = await db.collection("dawnConfig").doc("default").get();
+  const cfg = cfgSnap.exists ? (cfgSnap.data() || {}) : {};
+  const agentId = String(cfg.agentId || "").trim();
+  const envId = String(cfg.envId || "").trim();
+  const vaultId = String(cfg.vaultId || "").trim();
+  const toEmail = String(cfg.toEmail || "").trim();
+  if (!agentId || !envId) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Dawn isn't configured yet. Add the agent and environment ids " +
+        "(from your launch) in the Dawn panel first.",
+    );
+  }
+
+  const apiKey = (anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "").trim();
+  if (!apiKey) {
+    throw new HttpsError("failed-precondition", "Anthropic API key is not configured.");
+  }
+
+  const {startBriefingRun} = require("./agents/runners/dawn");
+  let sessionId;
+  try {
+    sessionId = await startBriefingRun({fetchImpl: fetch, apiKey, agentId, envId, vaultId});
+  } catch (err) {
+    throw new HttpsError(
+        "internal",
+        `Couldn't start Dawn: ${String(err && err.message || err).slice(0, 300)}`,
+    );
+  }
+
+  await db.collection("dawnRuns").doc(sessionId).set({
+    sessionId,
+    status: "running",
+    requestedBy: uid,
+    requestedByEmail: callerSnap.data()?.email || null,
+    toEmail: toEmail || null,
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {sessionId, status: "running", toEmail: toEmail || null};
+});
+
+// Zed chat SSE transport — OpenAI-backed (see aiChat above for the model note).
 exports.apiAiChat = onRequest(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
+  {secrets: [openaiApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
     // Browser CORS via the shared origin allow-list. The default header
     // set already includes X-Firebase-AppCheck (Audit B3).
@@ -1061,7 +1192,7 @@ exports.apiAiChat = onRequest(
         role,
         customSystemPrompt: req.body?.systemPrompt,
       }));
-      apiKey = getAnthropicApiKey(anthropicApiKey);
+      apiKey = getApiKey(openaiApiKey);
     } catch (error) {
       console.error("apiAiChat auth/validation error", {
         code: error?.code,
@@ -1083,11 +1214,12 @@ exports.apiAiChat = onRequest(
     res.write(": connected\n\n");
 
     try {
-      await callAnthropicStream(
+      await callOpenAIStream(
         apiKey,
         {
           systemPrompt,
           messages,
+          model: ZED_CHAT_MODEL,
           maxTokens: 1000,
           temperature: 0.35,
           track: {uid: decoded.uid, tool: "apiAiChat"},
@@ -2038,6 +2170,7 @@ exports.importPastPaperQuestions =
 
 // Teacher Tools — Zambian CBC Scheme of Work Generator.
 exports.generateSchemeOfWork = createGenerateSchemeOfWork(anthropicApiKey);
+exports.getTermModuleOutline = getTermModuleOutline;
 
 // Teacher Tools — Zambian CBC Rubric Generator.
 exports.generateRubric = createGenerateRubric(anthropicApiKey);
@@ -2058,8 +2191,16 @@ exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
 // Teacher Tools — Homework (short curriculum-grounded take-home practice).
 exports.generateHomework = createGenerateHomework(anthropicApiKey);
 
+// Teacher Tools — Lesson Activities (class exercise + homework generated
+// straight from a lesson in the Lesson Plan Studio).
+exports.generateLessonActivities =
+  createGenerateLessonActivities(anthropicApiKey);
+
 // Teacher Tools — Assessment (formal curriculum-grounded graded test).
 exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
+
+// Teacher Tools — SBA Studio (ECZ School Based Assessment task, Grades 5–7).
+exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);
 
 // Teacher Tools — Quiz (short curriculum-grounded formative quiz).
 exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
@@ -2069,10 +2210,126 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
-// toggle that routes through gpt-image-1. Recraft remains the default
-// for line-art. The factory takes both secrets so the handler can route
+// toggle that routes through gpt-image-1, and line-art requests fall back
+// to gpt-image-1 automatically when Recraft can't serve (out of credits,
+// bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
 exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.checkVisualSafety = createCheckVisualSafety(anthropicApiKey);
+
+// Picture bank — admin-only: auto-name bulk-uploaded teaching figures.
+// Reads staged pictureBank docs, downloads each image from Storage, asks
+// Claude vision for a name + keywords + subject, and writes the suggestions
+// back as aiSuggested* fields. The pictures stay status:'staged' so an admin
+// still reviews/approves before teachers can find them.
+exports.nameBankPictures = onCall(
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 300,
+    memory: "1GiB"},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    const role = await getUserRole(request.auth.uid);
+    if (role !== "admin" && role !== "superAdmin") {
+      throw new HttpsError(
+        "permission-denied",
+        "Only admins can auto-name picture-bank images.",
+      );
+    }
+
+    const data = request.data || {};
+    const ids = Array.isArray(data.pictureIds) ?
+      data.pictureIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    if (!ids.length) {
+      throw new HttpsError("invalid-argument", "No pictures to name.");
+    }
+    if (ids.length > 40) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Too many pictures at once — name 40 or fewer per run.",
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    // Load docs + download bytes. Best-effort per picture: a missing blob or
+    // an oversized file is skipped with a warning rather than failing the run.
+    const pictures = [];
+    const warnings = [];
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const snap = await db.collection("pictureBank").doc(id).get();
+        if (!snap.exists) {
+          warnings.push(`Picture ${id} no longer exists.`);
+          return;
+        }
+        const pic = snap.data() || {};
+        if (!pic.storagePath) {
+          warnings.push(`"${pic.name || id}" has no stored file to read.`);
+          return;
+        }
+        const [buf] = await bucket.file(pic.storagePath).download();
+        if (!buf || buf.length === 0 || buf.length > 10 * 1024 * 1024) {
+          warnings.push(`"${pic.name || id}" is empty or too large to read.`);
+          return;
+        }
+        pictures.push({
+          id,
+          mediaType: pic.contentType || "image/png",
+          data: buf.toString("base64"),
+          subjectHint: pic.subject || "",
+          gradeBand: pic.gradeBand || "",
+        });
+      } catch (err) {
+        warnings.push(`Could not read picture ${id} (${err?.message || "error"}).`);
+      }
+    }));
+
+    if (!pictures.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        warnings[0] || "None of the selected pictures could be read.",
+      );
+    }
+
+    const {results, warnings: aiWarnings} = await runNamePictures({
+      pictures,
+      anthropicKey: anthropicApiKey.value(),
+    });
+    warnings.push(...aiWarnings);
+
+    // Write suggestions back. Keep status:'staged' — the admin reviews and
+    // activates. aiNamedAt lets the UI badge freshly-named cards.
+    let named = 0;
+    await Promise.all(results.map(async (r) => {
+      if (!r.ok || !r.name) return;
+      try {
+        await db.collection("pictureBank").doc(r.id).update({
+          aiSuggestedName: r.name,
+          aiSuggestedKeywords: r.keywords,
+          aiSuggestedSubject: r.subject,
+          aiNamedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        named += 1;
+      } catch (err) {
+        warnings.push(`Could not save the name for ${r.id} (${err?.message || "error"}).`);
+      }
+    }));
+
+    return {
+      named,
+      total: pictures.length,
+      perCall: MAX_PICTURES_PER_CALL,
+      results: results.map((r) => ({
+        id: r.id, name: r.name, keywords: r.keywords,
+        subject: r.subject, ok: r.ok,
+      })),
+      warnings,
+    };
+  },
+);
 
 // Teacher Tools — Note Pictures (admin-only). Generates a flat illustration
 // for each `picture` block in a published study note. Tries Gemini 2.5 Flash
@@ -2102,6 +2359,14 @@ exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
 // admin review on the CBC KB page before going live.
 exports.extractAssessmentFormat =
   createExtractAssessmentFormat(anthropicApiKey);
+
+// Teacher Tools — admin-only: Exam Paper Library. analyzeExamPaper distils
+// one real paper into a stored per-paper analysis; synthesizeAssessmentFormat
+// merges many analysed papers for a (type, band, subject) into a single
+// format-profile draft that awaits the same CBC KB review gate.
+exports.analyzeExamPaper = createAnalyzeExamPaper(anthropicApiKey);
+exports.synthesizeAssessmentFormat =
+  createSynthesizeAssessmentFormat(anthropicApiKey);
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
@@ -2326,6 +2591,14 @@ exports.onAssessmentQuestionDeleted = storageCleanup.onAssessmentQuestionDeleted
 exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated;
 exports.onUserDeleted = storageCleanup.onUserDeleted;
 exports.orphanStorageReaper = storageCleanup.orphanStorageReaper;
+exports.tmpDownloadReaper = storageCleanup.tmpDownloadReaper;
+
+// Quiz library mirror. Keeps quizSummaries/{id} (quiz doc minus the heavy
+// passages[]/parts[]/description) in sync on every write to quizzes/{id}, so
+// the learner library can list metadata without downloading dead weight.
+// See functions/quizSummary/index.js.
+const quizSummary = require("./quizSummary");
+exports.onQuizWritten = quizSummary.onQuizWritten;
 
 // Past-papers published-list index. Maintains pastPapersIndex/published —
 // a single lightweight doc the /papers hub reads instead of fetching the
@@ -2346,6 +2619,50 @@ exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
 // on failure suggests fixes (Haiku) and escalates via email + GitHub bug
 // issue (which Mendi can pick up). Writes an agentJobs rollup each run.
 exports.hourlyMonitor = hourlyMonitorCron;
+
+// Till — hourly payment reconciliation. Re-queries Lenco for stale
+// "pending" payments and activates paid-but-stuck buyers a dropped webhook
+// left behind (via the existing idempotent activation path). Writes an
+// agentJobs rollup the /admin/agents dashboard surfaces under "revenue".
+exports.hourlyRevenueReconcile = hourlyRevenueReconcileCron;
+
+// Echo — support triage every 2 hours. Sweeps new feedback + the otherwise
+// invisible public contactMessages, classifies + prioritises, and drafts a
+// reply (drafts only, never sends). Writes the triage onto each doc and an
+// agentJobs rollup under "support".
+exports.supportTriage = supportTriageCron;
+
+// Content auto-publish gate — every 30 min. Auto-approves content jobs stuck
+// at awaiting_approval that pass a strict Cala+Reva bar (which fires the
+// existing Pubo publish trigger). OFF unless agentControl/content.autoPublish
+// is true — shipping it changes nothing until you opt in.
+exports.contentAutoPublish = contentAutoPublishCron;
+
+// Compass — weekly product signal (Mondays 06:00). Aggregates recent quiz/exam
+// attempts into a ranked "what to build next" backlog (grade/subject areas with
+// demand but weak mastery). Deterministic, no LLM. Writes an agentJobs rollup.
+exports.weeklyProductSignal = weeklyProductSignalCron;
+
+// Anchor — weekly retention scan (Mondays 07:00). Surfaces engaged learners
+// who went quiet 14–45 days ago, ranked by win-back value, with a drafted
+// nudge. Read-only — does not message learners. Writes an agentJobs rollup.
+exports.weeklyRetentionScan = weeklyRetentionScanCron;
+
+// Dawn — delivery poller for on-demand morning briefings (every 5 min). When a
+// run started by the runDawnBriefing callable finishes, this pulls the briefing
+// Dawn wrote, emails it, and saves it onto dawnRuns/{id} for the admin panel.
+exports.deliverDawnBriefings = deliverDawnBriefingsCron;
+
+// Marshal — operations supervisor (every hour). Confirms every scheduled agent
+// ran within its window and surfaces stuck jobs, tripped breakers and recent
+// failures into one company-health verdict. Deterministic; writes an agentJobs
+// rollup the /admin/company HQ surfaces.
+exports.hourlyAgentSupervisor = hourlyAgentSupervisorCron;
+
+// Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
+// settings/fxRate so the budget governor + /admin/company read a fresh, cached
+// rate without a live network call. Range-checked; fails to the env fallback.
+exports.dailyFxRefresh = dailyFxRefreshCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
@@ -2438,7 +2755,558 @@ exports.backfillReferralCodes = backfillReferralCodes;
 // fields). Used by the Cancel/Reactivate buttons on ProfilePage.
 exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubscriptionCancellation;
 
+// ── Lenco automated payments ────────────────────────────────────────
+// User-facing checkout: the SPA calls initiateLencoPayment (Mobile Money),
+// optionally submitLencoOtp, then polls getLencoPaymentStatus. The authoritative
+// activation signal is the signed lencoWebhook; the poll is a fallback
+// so the buyer sees "success" even if the webhook is delayed. All three
+// activation paths funnel through the idempotent
+// activateSubscriptionFromPayment, so whoever wins, the rest no-op.
+//
+// Amounts are resolved server-side from functions/plans.js — a client
+// can pick a plan id but never dictate the price charged.
+
+function lencoApiKeyValue() {
+  // Trim — a stray trailing newline/space pasted into
+  // `functions:secrets:set` would otherwise corrupt the Bearer header
+  // and surface as a confusing 401 Unauthorized from Lenco.
+  return (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
+}
+
+function lencoEmailSecrets() {
+  return {
+    senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+    senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+  };
+}
+
+exports.initiateLencoPayment = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const lenco = require("./lencoService");
+  const {getPlan} = require("./plans");
+
+  const planId = cleanString(request.data?.planId, 60);
+  const requestedMethod = cleanString(request.data?.method, 20);
+  if (requestedMethod === "card") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Card checkout is currently unavailable. Please use Mobile Money.",
+    );
+  }
+  const method = "mobile_money";
+  const plan = getPlan(planId);
+  if (!plan) throw new HttpsError("invalid-argument", "Unknown plan.");
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) {
+    throw new HttpsError("failed-precondition", "Payments are not configured yet. Please try again later.");
+  }
+
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(uid).get();
+  const user = userSnap.exists ? (userSnap.data() || {}) : {};
+  const bearer = process.env.LENCO_FEE_BEARER === "customer" ? "customer" : "merchant";
+
+  // Pro → Max upgrade: charge ONLY the prorated daily-rate difference for the
+  // days the teacher has left, and keep their existing renewal date (the
+  // activation step preserves the expiry when isUpgrade is set). Recomputed
+  // server-side from the user record so the client can never dictate the
+  // prorated amount.
+  const {quoteUpgradeForUser} = require("./subscriptionUpgrade");
+  const quote = quoteUpgradeForUser(user, planId);
+  const amount = quote.isUpgrade ? quote.amountZMW : Number(plan.priceZMW);
+  const upgradeFields = quote.isUpgrade ? {
+    isUpgrade: true,
+    upgradeFromPlanId: quote.fromPlanId,
+    fullPriceZMW: Number(plan.priceZMW),
+    proratedDaysRemaining: quote.daysRemaining,
+  } : {};
+
+  // Create the pending payment doc first; its id IS the Lenco reference,
+  // so the webhook resolves the doc by a direct lookup (no query/index).
+  const payRef = await db.collection("payments").add({
+    userId: uid,
+    displayName: user.displayName || "",
+    email: user.email || "",
+    userRole: user.role || "learner",
+    planId,
+    planName: plan.name,
+    amountZMW: amount,
+    currency: "ZMW",
+    provider: "lenco",
+    method,
+    paymentReference: "",
+    status: "pending",
+    lencoStatus: "pending",
+    ...upgradeFields,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  const reference = payRef.id;
+
+  try {
+    let resp;
+    let phoneNumber = null;
+    let operator = null;
+
+    const rawPhone = cleanString(request.data?.phone, 20);
+    phoneNumber = lenco.normalizePhone(rawPhone);
+    if (!phoneNumber) {
+      throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
+    }
+    operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
+    if (!operator) {
+      throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
+    }
+    resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
+
+    const data = resp?.data || {};
+    const lencoStatus = String(data.status || "pending");
+    await payRef.update({
+      lencoStatus,
+      lencoCollectionId: data.id || null,
+      ...(phoneNumber ? {phoneNumber} : {}),
+      ...(operator ? {operator} : {}),
+    });
+
+    if (lencoStatus === "successful") {
+      const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+      await activateSubscriptionFromPayment({paymentId: reference, lencoStatus, emailSecrets: lencoEmailSecrets()})
+          .catch((err) => console.error("[initiateLencoPayment] activation failed", err));
+    } else if (lencoStatus === "failed") {
+      const {markPaymentFailed} = require("./subscriptionActivation");
+      await markPaymentFailed({paymentId: reference, lencoStatus, reason: data.reasonForFailure || data.message || ""})
+          .catch(() => {});
+    }
+
+    return {
+      paymentId: reference,
+      reference,
+      status: lencoStatus,
+      requiresOtp: lencoStatus === "otp-required",
+      message: data.message || resp?.message || null,
+      authorization: null,
+    };
+  } catch (err) {
+    await payRef.update({
+      status: "failed",
+      lencoStatus: "failed",
+      failureReason: String(err?.message || err).slice(0, 300),
+    }).catch(() => {});
+    if (err instanceof HttpsError) throw err;
+    // Surface Lenco's actual rejection reason (auth, operator, phone,
+    // amount, account-not-enabled, …) so the buyer and support see WHY
+    // instead of an opaque "try again". err.body holds Lenco's JSON.
+    console.error("[initiateLencoPayment] Lenco error", {
+      code: err?.code, message: err?.message, body: err?.body,
+    });
+    const detail = typeof err?.message === "string" && err.message ?
+      `: ${err.message.slice(0, 160)}` :
+      ".";
+    throw new HttpsError("internal", `Could not start the payment${detail}`);
+  }
+});
+
+exports.submitLencoOtp = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const paymentId = cleanString(request.data?.paymentId, 60);
+  const otp = cleanString(request.data?.otp, 12);
+  if (!paymentId || !otp) {
+    throw new HttpsError("invalid-argument", "Payment reference and OTP are required.");
+  }
+
+  const db = admin.firestore();
+  const payRef = db.collection("payments").doc(paymentId);
+  const snap = await payRef.get();
+  if (!snap.exists || (snap.data() || {}).userId !== uid) {
+    throw new HttpsError("permission-denied", "This payment is not yours.");
+  }
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  let resp;
+  try {
+    resp = await lenco.submitMobileMoneyOtp({apiKey, reference: paymentId, otp});
+  } catch (err) {
+    throw new HttpsError("invalid-argument", err?.message || "The code could not be verified. Please try again.");
+  }
+
+  const data = resp?.data || {};
+  const lencoStatus = String(data.status || "pending");
+  await payRef.update({lencoStatus}).catch(() => {});
+
+  if (lencoStatus === "successful") {
+    const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+        .catch((err) => console.error("[submitLencoOtp] activation failed", err));
+  } else if (lencoStatus === "failed") {
+    const {markPaymentFailed} = require("./subscriptionActivation");
+    await markPaymentFailed({paymentId, lencoStatus, reason: data.reasonForFailure || ""}).catch(() => {});
+  }
+
+  return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
+});
+
+exports.getLencoPaymentStatus = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const paymentId = cleanString(request.data?.paymentId, 60);
+  if (!paymentId) throw new HttpsError("invalid-argument", "Payment reference is required.");
+
+  const db = admin.firestore();
+  const payRef = db.collection("payments").doc(paymentId);
+  const snap = await payRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Payment not found.");
+  const pay = snap.data() || {};
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
+  const isAdmin = callerRole === "admin" || callerRole === "superAdmin";
+  if (pay.userId !== uid && !isAdmin) {
+    throw new HttpsError("permission-denied", "This payment is not yours.");
+  }
+
+  // Already activated — short-circuit without hitting Lenco.
+  if (pay.status === "successful" || pay.status === "confirmed") {
+    return {status: "successful"};
+  }
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  let resp;
+  try {
+    resp = await lenco.getCollectionStatus({apiKey, reference: paymentId});
+  } catch (err) {
+    // Transient lookup failure — report the last known status so the
+    // client keeps polling rather than erroring out.
+    console.warn("[getLencoPaymentStatus] lookup failed", err?.message);
+    return {status: pay.lencoStatus || "pending"};
+  }
+
+  const data = resp?.data || {};
+  const lencoStatus = String(data.status || pay.lencoStatus || "pending");
+  await payRef.update({lencoStatus}).catch(() => {});
+
+  if (lencoStatus === "successful") {
+    const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+        .catch((err) => console.error("[getLencoPaymentStatus] activation failed", err));
+    return {status: "successful"};
+  }
+  if (lencoStatus === "failed") {
+    const {markPaymentFailed} = require("./subscriptionActivation");
+    await markPaymentFailed({paymentId, lencoStatus, reason: data.reasonForFailure || ""}).catch(() => {});
+  }
+  return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
+});
+
+// On-demand "I paid but didn't get my credit" recovery. The live checkout
+// poll only runs while the modal is open; if the buyer approves on their
+// phone after it closes AND the webhook is delayed/dropped, the credit is
+// stuck until the hourly Till sweep. This lets the buyer (or anyone hitting
+// the dashboard "Already paid? Restore it" affordance) trigger that same
+// reconciliation immediately for THEIR OWN pending payments. Reuses the
+// idempotent activation path, so it can never double-grant — re-runs are safe.
+exports.recoverMyPendingPayments = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const apiKey = lencoApiKeyValue();
+  if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
+
+  const lenco = require("./lencoService");
+  const {activateSubscriptionFromPayment, markPaymentFailed} = require("./subscriptionActivation");
+  const {reconcilePendingPayments} = require("./agents/runners/till");
+
+  const summary = await reconcilePendingPayments({
+    db: admin.firestore(),
+    apiKey,
+    getCollectionStatus: lenco.getCollectionStatus,
+    activate: activateSubscriptionFromPayment,
+    markFailed: markPaymentFailed,
+    emailSecrets: lencoEmailSecrets(),
+    userId: uid,
+    // The user explicitly waited and asked — don't skip fresh payments.
+    minAgeMs: 0,
+    maxPerRun: 20,
+  });
+
+  return {
+    recovered: summary.recovered.length,
+    stillPending: summary.stillPending,
+    failedClosed: summary.failedClosed.length,
+    checked: summary.checked,
+  };
+});
+
+// Server-to-server webhook. No CORS / App Check — security is the
+// x-lenco-signature HMAC over the raw body. We process fully (the
+// activation transaction is fast and the receipt is best-effort) and
+// only then respond: a non-200 makes Lenco retry, and our activation is
+// idempotent, so a retry can never double-grant.
+exports.lencoWebhook = onRequest({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).send("Use POST.");
+    return;
+  }
+
+  const lenco = require("./lencoService");
+  const signature = req.get("x-lenco-signature") || req.get("X-Lenco-Signature");
+  const ok = lenco.verifyWebhookSignature({
+    rawBody: req.rawBody,
+    signature,
+    apiToken: lencoApiKeyValue(),
+    webhookKey: process.env.LENCO_WEBHOOK_KEY || "",
+  });
+  if (!ok) {
+    console.warn("[lencoWebhook] rejected: bad or missing signature");
+    res.status(401).send("invalid signature");
+    return;
+  }
+
+  try {
+    const {processLencoWebhookEvent} = require("./lencoWebhookProcessor");
+    const {
+      activateSubscriptionFromPayment,
+      markPaymentFailed,
+    } = require("./subscriptionActivation");
+    const emailSecrets = lencoEmailSecrets();
+
+    const result = await processLencoWebhookEvent({
+      event: req.body || {},
+      db: admin.firestore(),
+      activate: ({paymentId, lencoStatus}) =>
+        activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets}),
+      markFailed: ({paymentId, lencoStatus, reason}) =>
+        markPaymentFailed({paymentId, lencoStatus, reason}),
+    });
+
+    if (!result.matched) {
+      console.warn("[lencoWebhook] no matching payment", {
+        reference: req.body?.data?.reference || null,
+        collectionId: req.body?.data?.id || null,
+        type: req.body?.event || req.body?.type || "",
+      });
+      res.status(200).send("ignored");
+      return;
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.error("[lencoWebhook] processing error", err);
+    // 500 → Lenco retries; activation is idempotent so this is safe.
+    res.status(500).send("processing error");
+  }
+});
+
+// Bonga — inbound WhatsApp reply agent. Meta calls this webhook on every
+// message to the ZedExams WhatsApp number. GET is the one-time subscription
+// handshake; POST delivers messages. Bonga classifies (study / support /
+// sales), drafts a reply with Claude Haiku, and AUTO-SENDS it inside WhatsApp's
+// 24-hour customer-service window (the inbound message opens that window).
+//
+// Safety: the X-Hub-Signature-256 HMAC is validated against META_WHATSAPP_APP_
+// SECRET (fail-closed once that secret is set) so only Meta can trigger a send;
+// an agentControl/bonga.paused flag is an instant kill-switch; replies are
+// deduped per Meta message id; and the model is told it has no account/payment
+// powers so it can't fabricate state. See functions/agents/runners/bonga.js.
+exports.apiWhatsAppWebhook = onRequest({
+  secrets: [...require("./metaWhatsApp").WHATSAPP_WEBHOOK_SECRETS, anthropicApiKey],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async (req, res) => {
+  const meta = require("./metaWhatsApp");
+
+  // GET — Meta subscription verification handshake.
+  if (req.method === "GET") {
+    const result = meta.verifyWebhookSubscription(req.query || {});
+    if (result.ok) {
+      res.status(200).send(result.challenge);
+    } else {
+      console.warn("[whatsappWebhook] verify handshake rejected", result.reason);
+      res.status(403).send("verification failed");
+    }
+    return;
+  }
+  if (req.method !== "POST") {
+    res.status(405).send("Use POST.");
+    return;
+  }
+
+  // Authenticate the payload. Fail-closed when the app secret is configured;
+  // during staged rollout (secret unset) accept-but-warn so the wiring can be
+  // proven first, matching metaWhatsApp's soft-fail posture.
+  const auth = meta.verifyInboundSignature({
+    rawBody: req.rawBody,
+    signature: req.get("x-hub-signature-256") || req.get("X-Hub-Signature-256"),
+  });
+  if (auth.configured && !auth.ok) {
+    console.warn("[whatsappWebhook] rejected: bad X-Hub-Signature-256");
+    res.status(403).send("invalid signature");
+    return;
+  }
+  if (!auth.configured) {
+    console.warn("[whatsappWebhook] app secret unset — accepting unverified payload (staged rollout)");
+  }
+
+  // Always ack Meta with 200 at the end so it doesn't retry a payload we've
+  // already accepted; processing errors are logged, not surfaced as non-200.
+  try {
+    const inbound = meta.parseInboundMessages(req.body || {});
+    if (!inbound.length) {
+      // Status callbacks (delivered/read) and non-text messages land here.
+      res.status(200).send("ok");
+      return;
+    }
+
+    const db = admin.firestore();
+
+    // Kill-switch — if an admin paused Bonga, log the inbound but don't reply.
+    let paused = false;
+    try {
+      const ctrl = await db.collection("agentControl").doc("bonga").get();
+      paused = Boolean(ctrl.exists && ctrl.data() && ctrl.data().paused);
+    } catch (_e) { /* default to active */ }
+
+    // Resolve the Anthropic key once; degrade to the templated reply if unbound.
+    let apiKey = "";
+    try {
+      apiKey = getAnthropicApiKey(anthropicApiKey) || "";
+    } catch (_e) { apiKey = ""; }
+
+    const draftReply = async ({systemPrompt, messages}) => {
+      if (!apiKey || paused) return "";
+      return await callAnthropic(apiKey, {
+        systemPrompt,
+        messages,
+        model: "claude-haiku-4-5-20251001",
+        maxTokens: 600,
+        temperature: 0.4,
+        track: {tool: "bonga-whatsapp"},
+      });
+    };
+
+    const {runBongaReply} = require("./agents/runners/bonga");
+    const {normalizeToWhatsApp, sendWhatsAppText} = meta;
+
+    // Process at most a handful per delivery (Meta batches; abuse-bound).
+    for (const msg of inbound.slice(0, 5)) {
+      const convRef = db.collection("whatsappConversations").doc(msg.from);
+      let conv = {};
+      try {
+        const snap = await convRef.get();
+        conv = (snap.exists && snap.data()) || {};
+      } catch (_e) { conv = {}; }
+
+      // Dedupe Meta redeliveries of the same inbound message id.
+      if (msg.messageId && conv.lastInboundId === msg.messageId) continue;
+
+      const history = Array.isArray(conv.history) ? conv.history : [];
+      const {kind, reply, usedFallback} = await runBongaReply({
+        inbound: msg,
+        history,
+        draftReply,
+      });
+
+      const to = normalizeToWhatsApp(msg.from);
+      let sendResult = {status: "skipped", reason: paused ? "agent-paused" : "no-recipient"};
+      if (to && !paused) {
+        sendResult = await sendWhatsAppText({to, body: reply});
+      }
+
+      // Append both turns, trimmed, so the next message has context.
+      const nextHistory = [
+        ...history,
+        {role: "user", text: msg.text, at: msg.timestamp || Date.now()},
+        {role: "assistant", text: reply, at: Date.now()},
+      ].slice(-16);
+
+      try {
+        await convRef.set({
+          phone: msg.from,
+          name: msg.name || conv.name || null,
+          lastInboundId: msg.messageId || null,
+          lastInboundText: msg.text.slice(0, 500),
+          lastInboundAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastKind: kind,
+          lastReplyText: reply.slice(0, 1000),
+          lastReplyStatus: sendResult.status,
+          lastReplyError: sendResult.error || null,
+          lastReplyUsedFallback: Boolean(usedFallback),
+          lastReplyAt: admin.firestore.FieldValue.serverTimestamp(),
+          messageCount: admin.firestore.FieldValue.increment(1),
+          history: nextHistory,
+        }, {merge: true});
+      } catch (err) {
+        console.error("[whatsappWebhook] conversation write failed", err);
+      }
+
+      console.log("[whatsappWebhook] replied", {
+        from: msg.from, kind, status: sendResult.status, usedFallback,
+      });
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.error("[whatsappWebhook] processing error", err);
+    // 200 so Meta doesn't hammer us with retries for an already-read payload.
+    res.status(200).send("ok");
+  }
+});
+
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
+
+// Website visitor tracker — unauthenticated beacon the SPA POSTs on each
+// route change. Records page-view docs + daily rollups for /admin/visitors.
+// See functions/visitorTracking.js (privacy posture + Firestore shape).
+exports.apiTrackVisit = require('./visitorTracking').apiTrackVisit;
+
+// Server-generated library downloads: regenerate a saved document on the server
+// and stream it from zedexams.com with the correct filename — no upload, no
+// Firebase Storage, works on every browser. See functions/libraryDownload.js.
+const libraryDownload = require('./libraryDownload');
+exports.createLibraryDownloadTicket = libraryDownload.createLibraryDownloadTicket;
+exports.apiLibraryDownload = libraryDownload.apiLibraryDownload;
+exports.reapDownloadTickets = libraryDownload.reapDownloadTickets;
+
+// Same-origin image proxy: fetches a Storage image's bytes server-side (where
+// CORS doesn't apply) so the Word/PDF exporters can embed diagrams even when the
+// bucket's CORS config is missing/misapplied. See functions/imageProxy.js.
+const imageProxy = require('./imageProxy');
+exports.apiImageProxy = imageProxy.apiImageProxy;
 
 // Admin dashboard overhaul — user lifecycle callables.
 //
@@ -2500,7 +3368,7 @@ exports.bulkGrantDemoTrials = onCall({
   if (days < 1 || days > 365) {
     throw new HttpsError("invalid-argument", "days must be 1–365.");
   }
-  const allowedPlans = new Set(["monthly", "termly", "yearly"]);
+  const allowedPlans = new Set(["weekly", "monthly"]);
   const plan = typeof data.plan === "string" && allowedPlans.has(data.plan) ?
     data.plan :
     "monthly";

@@ -11,6 +11,7 @@ import {
   getSubjectMascot,
   getSubjectTheme,
 } from './gamesUi'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * Featured hero for the Games hub. Mockup-faithful teal slab with an orange
@@ -27,7 +28,7 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
     return () => clearInterval(timer)
   }, [])
 
-  if (loading) return <Skeleton />
+  if (loading) return <HeroSkeleton />
   if (!challenge?.game) return null
 
   const game = challenge.game
@@ -213,21 +214,21 @@ function buildStreakLine(streak, playedToday) {
   return `🔥 Keep your ${n}-day streak alive`
 }
 
-function Skeleton() {
+function HeroSkeleton() {
   return (
     <section className="relative overflow-hidden rounded-[26px] border-2 border-slate-900 bg-[#0E5E70]/85 p-5 text-white shadow-[0_6px_0_#0F1B2D]">
       <div className="flex items-start justify-between gap-3">
-        <div className="h-7 w-36 animate-pulse rounded-full bg-white/25" />
-        <div className="h-4 w-28 animate-pulse rounded-full bg-white/20" />
+        <Skeleton width={144} height={28} className="!rounded-full" />
+        <Skeleton width={112} height={16} className="!rounded-full" />
       </div>
-      <div className="mt-4 h-10 w-2/3 animate-pulse rounded-2xl bg-white/25" />
-      <div className="mt-2 h-4 w-3/4 animate-pulse rounded-full bg-white/20" />
+      <Skeleton width="66%" height={40} className="mt-4 !rounded-2xl" />
+      <Skeleton width="75%" height={16} className="mt-2 !rounded-full" />
       <div className="mt-3 flex gap-3">
-        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
-        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
-        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
+        <Skeleton width={64} height={16} className="!rounded" />
+        <Skeleton width={64} height={16} className="!rounded" />
+        <Skeleton width={64} height={16} className="!rounded" />
       </div>
-      <div className="mt-4 h-11 w-32 animate-pulse rounded-full bg-white/30" />
+      <Skeleton width={128} height={44} className="mt-4 !rounded-full" />
     </section>
   )
 }
