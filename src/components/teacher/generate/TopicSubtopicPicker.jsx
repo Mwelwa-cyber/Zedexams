@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
+import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
 
 /**
  * Topic + sub-topic picker for the teacher generation studios.
@@ -48,7 +49,9 @@ const _promiseByFw = new Map() // framework → in-flight Promise
 const GRADES_2013 = new Set(['G7', 'G10', 'G11', 'G12'])
 
 function resolveFramework(grade, frameworkProp) {
-  if (grade && GRADES_2013.has(String(grade).toUpperCase())) return '2013'
+  // Normalize to KB grade code first so bare numbers ('7') and G-prefixed
+  // values ('G7') both hit the GRADES_2013 set correctly.
+  if (grade && GRADES_2013.has(studioGradeToKbGrade(grade))) return '2013'
   return frameworkProp || '2023'
 }
 
@@ -145,7 +148,18 @@ export default function TopicSubtopicPicker({
   // prematurely dropping to free text.
   const loading = lookup == null
 
-  const innerKey = `${grade || ''}|${subject || ''}`
+  // Normalize grade and subject to KB-shape keys before building the lookup
+  // key. This matches how syllabusTopicOptions.js (useSyllabusTopicOptions)
+  // builds its key, so the two are consistent:
+  //   • studioGradeToKbGrade('4') → 'G4'; 'G4' → 'G4' (idempotent)
+  //   • toKbSubjectKey('cinyanja') → 'zambian_language' (teacher-taxonomy
+  //     slug → canonical KB slug); 'mathematics' → 'mathematics' (idempotent)
+  // Without this, selecting a teacher subject like 'cinyanja' builds a key
+  // 'G4|cinyanja' that never matches the lookup's 'G4|zambian_language' entry,
+  // so the syllabus dropdown silently shows empty.
+  const normGrade = studioGradeToKbGrade(grade)
+  const normSubject = toKbSubjectKey(subject)
+  const innerKey = `${normGrade}|${normSubject}`
   const innerMap = useMemo(() => {
     if (!lookup) return null
     return lookup.get(innerKey) || null
