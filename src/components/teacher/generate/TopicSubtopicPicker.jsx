@@ -42,6 +42,16 @@ import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
 const _cacheByFw = new Map()   // framework → Map<"grade|subject", Map<topic, Set<subtopic>>>
 const _promiseByFw = new Map() // framework → in-flight Promise
 
+// Grades that use the 2013 OBC syllabus regardless of what the studio prop says.
+// Zambia's 2023 CBC rolled out for Grades 1-6 and 8-9; Grade 7 and Grades 10-12
+// remain on the 2013 curriculum until those syllabuses are revised.
+const GRADES_2013 = new Set(['G7', 'G10', 'G11', 'G12'])
+
+function resolveFramework(grade, frameworkProp) {
+  if (grade && GRADES_2013.has(String(grade).toUpperCase())) return '2013'
+  return frameworkProp || '2023'
+}
+
 async function build2023Lookup() {
   const merged = await getMergedSyllabi()
   const topics = syllabiToKbTopics(merged)
@@ -93,8 +103,9 @@ export default function TopicSubtopicPicker({
   grade, subject,
   topic, subtopic,
   onChangeTopic, onChangeSubtopic,
-  // Curriculum framework to draw topics from: '2023' new CBC (default) or
-  // '2013' old OBC syllabus (used by the SBA Studio).
+  // Curriculum framework hint. '2023' new CBC (default) or '2013' old OBC.
+  // Grade 7 and Grades 10-12 always use '2013' regardless of this prop —
+  // those syllabuses have not yet been revised under the new CBC.
   framework = '2023',
   topicLabel = 'Topic *',
   subtopicLabel = 'Sub-topic (optional)',
@@ -111,21 +122,23 @@ export default function TopicSubtopicPicker({
   warnClassName = 'text-xs text-amber-700 mt-1',
   fieldWrapperClassName = '',
 }) {
-  const [lookup, setLookup] = useState(() => _cacheByFw.get(framework) || null)
+  const effectiveFramework = resolveFramework(grade, framework)
+
+  const [lookup, setLookup] = useState(() => _cacheByFw.get(effectiveFramework) || null)
   // 'pick' = choose from the syllabus drop-down, 'write' = free text.
   const [topicMode, setTopicMode] = useState('pick')
   const [subtopicMode, setSubtopicMode] = useState('pick')
 
   useEffect(() => {
-    const cached = _cacheByFw.get(framework)
+    const cached = _cacheByFw.get(effectiveFramework)
     if (cached) { setLookup(cached); return undefined }
     let cancelled = false
     setLookup(null)
-    loadLookup(framework)
+    loadLookup(effectiveFramework)
       .then((v) => { if (!cancelled) setLookup(v) })
       .catch(() => { /* loadLookup already swallows + logs; setLookup stays null */ })
     return () => { cancelled = true }
-  }, [framework])
+  }, [effectiveFramework])
 
   // null until the merged syllabi resolve — lets us tell "still loading"
   // apart from "genuinely no rows" so a drop-down can wait rather than
