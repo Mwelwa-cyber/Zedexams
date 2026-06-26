@@ -49,6 +49,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
+import { FieldWrapper } from './studioFields'
 
 const DRAFT_PREFIX = 'examprep:classtimetable:draft:'
 const DRAFT_TTL = 60 * 24 * 60 * 60 * 1000 // 60 days — a timetable spans a term
@@ -387,40 +388,40 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5 space-y-4">
             <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Class details</h2>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field label="School">
+              <FieldWrapper label="School">
                 <input type="text" value={header.school} maxLength={120}
                   onChange={(e) => setH('school', e.target.value)}
                   placeholder="School name" className="studio-input" />
-              </Field>
-              <Field label="Grade">
+              </FieldWrapper>
+              <FieldWrapper label="Grade">
                 <select value={header.grade} onChange={(e) => handleGradeChange(e.target.value)} className="studio-input">
                   {GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
                 </select>
-              </Field>
-              <Field label="Class / stream (optional)">
+              </FieldWrapper>
+              <FieldWrapper label="Class / stream (optional)">
                 <input type="text" value={header.className} maxLength={40}
                   onChange={(e) => setH('className', e.target.value)}
                   placeholder="e.g. Grade 5 Blue" className="studio-input" />
-              </Field>
-              <Field label="Term (optional)">
+              </FieldWrapper>
+              <FieldWrapper label="Term (optional)">
                 <select value={String(header.term)} onChange={(e) => setH('term', e.target.value)} className="studio-input">
                   <option value="">No term</option>
                   {[1, 2, 3].map((t) => <option key={t} value={t}>Term {t}</option>)}
                 </select>
-              </Field>
-              <Field label="Year">
+              </FieldWrapper>
+              <FieldWrapper label="Year">
                 <input type="text" value={header.year} maxLength={4}
                   onChange={(e) => setH('year', e.target.value.replace(/[^\d]/g, ''))}
                   className="studio-input" />
-              </Field>
-              <Field label="Class teacher">
+              </FieldWrapper>
+              <FieldWrapper label="Class teacher">
                 <input type="text" value={header.teacherName} maxLength={80}
                   onChange={(e) => setH('teacherName', e.target.value)}
                   placeholder="Mr / Mrs ..." className="studio-input" />
-              </Field>
+              </FieldWrapper>
             </div>
 
-            <Field label="Teaching days">
+            <FieldWrapper label="Teaching days">
               <div className="flex flex-wrap gap-2">
                 {DAYS_OF_WEEK.map((day) => {
                   const on = days.includes(day)
@@ -435,7 +436,7 @@ export default function ClassTimetableStudio() {
                   )
                 })}
               </div>
-            </Field>
+            </FieldWrapper>
           </section>
 
           {/* ── Curriculum requirements ── */}
@@ -513,30 +514,30 @@ export default function ClassTimetableStudio() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Field label="School reports (start)">
+              <FieldWrapper label="School reports (start)">
                 <input type="time" value={timing.startTime}
                   onChange={(e) => setT('startTime', e.target.value)} className="studio-input" />
-              </Field>
-              <Field label={timing.fitToEndTime ? 'Knock-off (end)' : 'Knock-off target (optional)'}>
+              </FieldWrapper>
+              <FieldWrapper label={timing.fitToEndTime ? 'Knock-off (end)' : 'Knock-off target (optional)'}>
                 <input type="time" value={timing.endTime}
                   onChange={(e) => setT('endTime', e.target.value)} className="studio-input" />
-              </Field>
+              </FieldWrapper>
               {timing.fitToEndTime ? (
-                <Field label="Period length (auto)">
+                <FieldWrapper label="Period length (auto)">
                   <div className="studio-input flex items-center font-bold" style={{ background: '#efe9da', color: '#566f76' }} aria-live="polite">
                     {derivedPeriodMinutes ? `≈ ${derivedPeriodMinutes} min` : '—'}
                   </div>
-                </Field>
+                </FieldWrapper>
               ) : (
-                <Field label="Period length (minutes)">
+                <FieldWrapper label="Period length (minutes)">
                   <input type="number" min={5} max={180} value={timing.periodMinutes}
                     onChange={(e) => setT('periodMinutes', clampInt(e.target.value, 5, 180))} className="studio-input" />
-                </Field>
+                </FieldWrapper>
               )}
-              <Field label="Lesson periods per day">
+              <FieldWrapper label="Lesson periods per day">
                 <input type="number" min={1} max={14} value={timing.lessonPeriods}
                   onChange={(e) => setT('lessonPeriods', clampInt(e.target.value, 1, 14))} className="studio-input" />
-              </Field>
+              </FieldWrapper>
             </div>
 
             {/* Knock-off readout / check */}
@@ -814,15 +815,6 @@ export default function ClassTimetableStudio() {
         onConfirm={() => { if (pendingGrade !== null) setH('grade', pendingGrade); setPendingGrade(null) }}
         onCancel={() => setPendingGrade(null)}
       />
-    </div>
-  )
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="studio-label">{label}</label>
-      {children}
     </div>
   )
 }
