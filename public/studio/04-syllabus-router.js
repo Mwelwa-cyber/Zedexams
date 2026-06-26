@@ -193,11 +193,12 @@ async function fetchTopicsForCurrentSelection() {
   // old-syllabus dropdowns, which is what teachers were noticing in the
   // wild. The Old syllabus has its own hardcoded data in 03-syllabus-old.js
   // and must use that exclusively.
-  if (syllabusVersion === 'new' && typeof window.__studioFetchSyllabusTopics === 'function') {
+  if (typeof window.__studioFetchSyllabusTopics === 'function') {
     const grade = classToCbcGrade(klass);
     const subject = subjectToCbcSubject(subj);
+    const framework = syllabusVersion === 'old' ? '2013' : '2023';
     if (grade && subject) {
-      const remote = await window.__studioFetchSyllabusTopics({ grade, subject });
+      const remote = await window.__studioFetchSyllabusTopics({ grade, subject, framework });
       if (remote && Object.keys(remote).length > 0) return remote;
     }
   }

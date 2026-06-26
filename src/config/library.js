@@ -186,9 +186,10 @@ export const LIBRARY_SECTION_BY_ID = Object.fromEntries(
 
 /* ── Syllabus types ──────────────────────────────────────────── */
 //
-// CBC      — Competence-Based Curriculum, the new framework (Grades 1–12)
-// OBC      — Outcome-Based Curriculum, the old syllabus (still in use at
-//            Grades 5–7 in some schools)
+// CBC      — Competence-Based Curriculum, the new framework
+//            Currently live: ECE, G1, G2, G4, G8 (Form 1), G9 (Form 2)
+// OBC      — Outcome-Based Curriculum, the old syllabus being phased out
+//            Still in use: G3, G5, G6, G7, G10, G11, G12
 // Secondary — Form 1–4 only (subject lists differ; secondary teachers
 //             often use the "Form" naming so we keep a separate root)
 
@@ -226,10 +227,13 @@ export const GRADE_FORMS = {
     { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: false },
   ],
   [SYLLABUS_TYPES.OBC]: [
-    { value: 'Grade 5', label: 'Grade 5', band: 'upper_primary', active: true },
-    { value: 'Grade 6', label: 'Grade 6', band: 'upper_primary', active: true },
-    { value: 'Grade 7', label: 'Grade 7', band: 'upper_primary', active: true },
-    { value: 'Grade 8', label: 'Grade 8', band: 'junior_secondary', active: false },
+    { value: 'Grade 3',  label: 'Grade 3',  band: 'lower_primary',   active: true },
+    { value: 'Grade 5',  label: 'Grade 5',  band: 'upper_primary',   active: true },
+    { value: 'Grade 6',  label: 'Grade 6',  band: 'upper_primary',   active: true },
+    { value: 'Grade 7',  label: 'Grade 7',  band: 'upper_primary',   active: true },
+    { value: 'Grade 10', label: 'Grade 10', band: 'senior_secondary', active: true },
+    { value: 'Grade 11', label: 'Grade 11', band: 'senior_secondary', active: true },
+    { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: true },
   ],
   [SYLLABUS_TYPES.SECONDARY]: [
     { value: 'Form 1', label: 'Form 1', band: 'junior_secondary', active: true  },
@@ -251,8 +255,9 @@ export const TERMS = [
 //
 // CBC Grades 1–3:  combined subjects (Mathematics & Science is ONE subject)
 // CBC Grades 4–7:  fully separated subjects
-// OBC Grades 5–7:  same list as CBC 4–7 (matches the Zambian Outcome-Based
-//                  upper-primary syllabus that those schools still teach)
+// OBC Grade 3:     same combined list as CBC Grades 1–3
+// OBC Grades 5–7:  same list as CBC 4–7
+// OBC Grades 10–12: senior secondary subjects
 // Secondary Form 1: single-discipline subjects + accounting + ICT
 //
 // IMPORTANT: do NOT separate "Mathematics and Science" in Grades 1–3.
@@ -278,6 +283,25 @@ const CBC_UPPER_PRIMARY_SUBJECTS = [
 
 // OBC Grades 5–7 mirror the CBC upper-primary list — same subjects.
 const OBC_UPPER_PRIMARY_SUBJECTS = CBC_UPPER_PRIMARY_SUBJECTS
+
+const OBC_SENIOR_SECONDARY_SUBJECTS = [
+  'Mathematics',
+  'English Language',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'Integrated Science',
+  'History',
+  'Geography',
+  'Civic Education',
+  'Religious Education',
+  'Physical Education',
+  'Agricultural Science',
+  'Art and Design',
+  'Food and Nutrition',
+  'Home Management',
+  'Technology Studies',
+]
 
 const SECONDARY_FORM_1_SUBJECTS = [
   'Physics',
@@ -310,9 +334,9 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
   }
 
   if (syllabus === SYLLABUS_TYPES.OBC) {
-    if (['Grade 5', 'Grade 6', 'Grade 7'].includes(gradeForm)) {
-      return OBC_UPPER_PRIMARY_SUBJECTS
-    }
+    if (gradeForm === 'Grade 3') return CBC_LOWER_PRIMARY_SUBJECTS
+    if (['Grade 5', 'Grade 6', 'Grade 7'].includes(gradeForm)) return OBC_UPPER_PRIMARY_SUBJECTS
+    if (['Grade 10', 'Grade 11', 'Grade 12'].includes(gradeForm)) return OBC_SENIOR_SECONDARY_SUBJECTS
     return []
   }
 

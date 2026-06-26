@@ -20,7 +20,9 @@ vi.mock('../../../utils/syllabusMapping', () => ({
     { grade: 'G4', subject: 'zambian_language', topic: 'Kuwerenga ndi Kumvetsa', subtopics: [] },
     // Bare grade number '4' (not G-prefixed) should also resolve correctly via
     // studioGradeToKbGrade so deep-linked / URL-restored grades work.
-    { grade: 'G5', subject: 'english', topic: 'Reading Strategies', subtopics: [] },
+    // Grade 4 is used here because G5 is now an OBC grade (2013 syllabus);
+    // the 2013 path does a fetch() that jsdom can't resolve with a relative URL.
+    { grade: 'G4', subject: 'english', topic: 'Reading Strategies', subtopics: [] },
   ],
 }))
 
@@ -99,15 +101,16 @@ describe('TopicSubtopicPicker — grade/subject normalisation', () => {
     )
   })
 
-  it('shows syllabus topics when grade is a bare number string ("5" instead of "G5")', async () => {
+  it('shows syllabus topics when grade is a bare number string ("4" instead of "G4")', async () => {
     // Some surfaces (URL params, legacy form state) pass a bare number grade.
-    // studioGradeToKbGrade('5') → 'G5' so the lookup should still hit.
+    // studioGradeToKbGrade('4') → 'G4' so the lookup should still hit.
+    // (G4 is a CBC grade; G5 is now OBC and would trigger a fetch() in jsdom.)
     function BareGradeHost() {
       const [topic, setTopic] = useState('')
       const [subtopic, setSubtopic] = useState('')
       return (
         <TopicSubtopicPicker
-          grade="5"
+          grade="4"
           subject="english"
           topic={topic}
           subtopic={subtopic}
