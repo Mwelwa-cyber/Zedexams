@@ -11,6 +11,7 @@ import app from '../../../firebase/config'
 import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
+import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
@@ -60,6 +61,11 @@ function loadScriptsSequentially(srcs) {
     document.head.appendChild(s)
   })), Promise.resolve())
 }
+
+// Module-scope caches so navigating away and back doesn't re-fetch the syllabi.
+// Keyed by "framework|grade|subject" (topics) and "grade" (subjects).
+const _topicsCache = new Map()
+const _subjectsCache = new Map()
 
 export default function LessonPlanStudio() {
   const navigate = useNavigate()
@@ -244,34 +250,42 @@ export default function LessonPlanStudio() {
     // null the same as "use fallback").
     // Memoised by (grade, subject) so keystrokes don't repeatedly walk the
     // merged source's ~800 entries.
-    const cbcCache = new Map()
-    // Two-stage read: the merged source (curriculum-data.json + admin
-    // overrides + Firestore topics, the same set every generator now
-    // grounds on) usually has data. When it doesn't, fall back to the
-    // older direct-Firestore path so we never regress for grade+subject
-    // pairs the merged source doesn't reach.
-    window.__studioFetchSyllabusTopics = async ({ grade, subject }) => {
+    window.__studioFetchSyllabusTopics = async ({ grade, subject, framework }) => {
       if (!grade || !subject) return {}
-      const key = `${grade}|${subject}`
-      if (cbcCache.has(key)) return cbcCache.get(key)
+      const fw = framework || '2023'
+      const key = `${fw}|${grade}|${subject}`
+      if (_topicsCache.has(key)) return _topicsCache.get(key)
       try {
+        // Old (2013 OBC) syllabus — read curriculum-data-2013.json directly,
+        // the same file TopicSubtopicPicker uses for those grades.
+        if (fw === '2013') {
+          const res = await fetch('/syllabi/curriculum-data-2013.json')
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const lookup = extract2013TopicLookup(await res.json())
+          const topicMap = lookup.get(`${grade}|${subject}`) || new Map()
+          const out = {}
+          for (const [topic, subs] of topicMap) {
+            out[topic] = Array.from(subs)
+          }
+          _topicsCache.set(key, out)
+          return out
+        }
+        // New (2023 CBC) syllabus — two-stage: merged source first, then
+        // direct Firestore so we never regress for gaps in the JSON file.
         const merged = await getMergedSyllabi()
         const kbTopics = syllabiToKbTopics(merged)
         const out = {}
         for (const t of kbTopics) {
           if (t.grade !== grade || t.subject !== subject) continue
           if (!t.topic) continue
-          // Studio router expects { topic: [subtopicName, ...] }; subtopics
-          // here are enriched objects, so surface only their names.
           out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
             .map(subtopicName)
             .filter(Boolean)
         }
         if (Object.keys(out).length > 0) {
-          cbcCache.set(key, out)
+          _topicsCache.set(key, out)
           return out
         }
-        // Merged source had nothing — try the legacy direct-Firestore path.
         const version = await getActiveKbVersion()
         const snap = await getDocs(query(
           collection(db, 'cbcKnowledgeBase', version, 'topics'),
@@ -286,10 +300,10 @@ export default function LessonPlanStudio() {
               .filter(Boolean)
           }
         })
-        cbcCache.set(key, out)
+        _topicsCache.set(key, out)
         return out
       } catch (err) {
-        console.warn('studio CBC KB fetch failed', err)
+        console.warn('studio topics fetch failed', err)
         return null
       }
     }
@@ -345,10 +359,9 @@ export default function LessonPlanStudio() {
     //
     // Returns Array<string> (subject display names) on success, [] when the
     // KB has no rows for that grade, or null on error.
-    const subjectsCache = new Map()
     window.__studioFetchSyllabusSubjects = async ({ grade }) => {
       if (!grade) return []
-      if (subjectsCache.has(grade)) return subjectsCache.get(grade)
+      if (_subjectsCache.has(grade)) return _subjectsCache.get(grade)
       try {
         const merged = await getMergedSyllabi()
         const kbTopics = syllabiToKbTopics(merged)
@@ -376,7 +389,7 @@ export default function LessonPlanStudio() {
           })
         }
         out.sort((a, b) => a.localeCompare(b))
-        subjectsCache.set(grade, out)
+        _subjectsCache.set(grade, out)
         return out
       } catch (err) {
         console.warn('studio CBC KB subjects fetch failed', err)
@@ -555,7 +568,7 @@ export default function LessonPlanStudio() {
                 </button>
                 <div className="lp-section-body">
                   <div className="field">
-                    <label>Syllabus Version <span className="hint-inline">— grades 5, 6, 7, 10, 11, 12 still use the old syllabus</span></label>
+                    <label>Syllabus Version <span className="hint-inline">— grades 3, 5, 6, 7, 10, 11 and 12 still use the old syllabus</span></label>
                     <div className="seg-toggle" id="syllabus-toggle">
                       <button type="button" className="seg active" data-version="new">New (2023)</button>
                       <button type="button" className="seg" data-version="old">Old (2013)</button>

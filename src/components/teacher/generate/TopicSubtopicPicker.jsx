@@ -43,10 +43,10 @@ import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
 const _cacheByFw = new Map()   // framework → Map<"grade|subject", Map<topic, Set<subtopic>>>
 const _promiseByFw = new Map() // framework → in-flight Promise
 
-// Grades that use the 2013 OBC syllabus regardless of what the studio prop says.
-// Zambia's 2023 CBC rolled out for Grades 1-6 and 8-9; Grade 7 and Grades 10-12
-// remain on the 2013 curriculum until those syllabuses are revised.
-const GRADES_2013 = new Set(['G7', 'G10', 'G11', 'G12'])
+// Grades still on the 2013 OBC syllabus. Zambia is rolling out the 2023 CBC
+// gradually — currently live on CBC: ECE, G1, G2, G4, G8 (Form 1), G9 (Form 2).
+// The rest remain on OBC until their grade is transitioned.
+const GRADES_2013 = new Set(['G3', 'G5', 'G6', 'G7', 'G10', 'G11', 'G12'])
 
 function resolveFramework(grade, frameworkProp) {
   // Normalize to KB grade code first so bare numbers ('7') and G-prefixed
