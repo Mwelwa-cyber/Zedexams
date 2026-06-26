@@ -176,4 +176,39 @@ describe('htmlToDocxBlob', () => {
     const blob = await htmlToDocxBlob('<body><p>Hello world</p></body>')
     expect(blob).toBeInstanceOf(Blob)
   })
+
+  // ── the metadata header must NOT be a boxed grid ─────────────────────────
+  // On Android the native bridge IS the export path. The reflowed
+  // `.word-meta-table` header was being boxed with the full grey CELL_BORDER on
+  // every cell, so the download's top looked nothing like the preview, which
+  // fences the meta block with a single rule top and bottom only. Guard that
+  // the meta table renders borderless (no grey 888888 box) while a normal table
+  // keeps it.
+  async function docXmlFor(html) {
+    const blob = await htmlToDocxBlob(html)
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+    return zip.files['word/document.xml'].async('string')
+  }
+  const META_HTML = `<div class="WordSection1"><table class="word-meta-table">
+    <tr><td colspan="2"><strong>NAME OF TEACHER:</strong> Mahenga</td></tr>
+    <tr><td><strong>DATE:</strong> 26 June 2026</td><td><strong>TIME:</strong></td></tr>
+    <tr><td colspan="2"><strong>SUBJECT:</strong> Integrated Science</td></tr>
+  </table></div>`
+  const PROGRESSION_HTML = `<div class="WordSection1"><table class="lp-table official-table">
+    <thead><tr><th>STAGES</th><th>TEACHER'S ACTIVITIES</th></tr></thead>
+    <tbody><tr><td>INTRODUCTION</td><td>Greet learners</td></tr></tbody>
+  </table></div>`
+
+  it('renders the .word-meta-table header without the boxed grey cell border', async () => {
+    const xml = await docXmlFor(META_HTML)
+    expect(xml).toMatch(/<w:tbl[ >]/)            // it is still a table
+    expect(xml).not.toContain('888888')          // …but not the boxed CELL_BORDER
+    expect(xml).toContain('Mahenga')             // content survived
+  })
+
+  it('still boxes a normal progression table with full cell borders', async () => {
+    const xml = await docXmlFor(PROGRESSION_HTML)
+    expect(xml).toMatch(/<w:tbl[ >]/)
+    expect(xml).toContain('888888')              // CELL_BORDER retained
+  })
 })
