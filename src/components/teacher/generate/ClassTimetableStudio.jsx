@@ -372,7 +372,7 @@ export default function ClassTimetableStudio() {
   const subjectLabels = subjects.map((s) => s.label).filter(Boolean)
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Class timetable" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -385,7 +385,7 @@ export default function ClassTimetableStudio() {
         <div className="space-y-6">
           {/* ── Class details ── */}
           <section className="studio-card p-5 space-y-4">
-            <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Class details</h2>
+            <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Class details</h2>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
               <Field label="School">
                 <input type="text" value={header.school} maxLength={120}
@@ -442,7 +442,7 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Curriculum requirements</h2>
+                <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Curriculum requirements</h2>
                 {framework ? (
                   <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                     {framework.bandLabel} · <strong>{framework.totalPeriods} periods/week</strong> · {framework.periodMinutes}-minute periods.
@@ -484,7 +484,7 @@ export default function ClassTimetableStudio() {
 
           {/* ── Period times ── */}
           <section className="studio-card p-5 space-y-4">
-            <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Period times</h2>
+            <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Period times</h2>
 
             {/* How the day is timed: fit between report & knock-off, or fixed length */}
             <div className="space-y-1.5">
@@ -612,7 +612,7 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Subjects &amp; weekly periods</h2>
+                <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Subjects &amp; weekly periods</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Seeded from the curriculum for this grade. Set how many periods a week each subject needs.
                 </p>
@@ -665,7 +665,7 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>The week</h2>
+                <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>The week</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   {filled} of {capacity} lesson slots filled · click any cell to change it.
                 </p>
@@ -762,7 +762,7 @@ export default function ClassTimetableStudio() {
           {/* ── Preview + export ── */}
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Preview &amp; export</h2>
+              <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Preview &amp; export</h2>
               <div className="flex gap-2 flex-wrap items-center">
                 <button type="button" onClick={onSaveToLibrary}
                   disabled={filled === 0 || saving || (generationId && !dirtySinceSave)}

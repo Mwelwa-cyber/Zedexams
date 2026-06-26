@@ -165,7 +165,7 @@ export default function SbaTaskStudio() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="SBA Studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader

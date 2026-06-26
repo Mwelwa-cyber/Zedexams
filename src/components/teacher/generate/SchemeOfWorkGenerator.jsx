@@ -165,7 +165,7 @@ export default function SchemeOfWorkGenerator() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Scheme of work" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -278,7 +278,7 @@ export default function SchemeOfWorkGenerator() {
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
-                    <h2 className="studio-display" style={{ fontSize: 22, color: '#0e2a32', margin: '0 0 2px' }}>Your Scheme of Work</h2>
+                    <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>Your Scheme of Work</h2>
                     <p className="text-xs" style={{ color: '#566f76' }}>
                       {scheme.header?.numberOfWeeks || scheme.weeks?.length} weeks · Term {scheme.header?.term}
                     </p>
@@ -370,7 +370,7 @@ function EmptyState() {
       <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#faecb8', display: 'grid', placeItems: 'center', fontSize: 44 }}>
         🦁
       </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20, color: '#0e2a32' }}>Plan a whole term at once</h3>
+      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Plan a whole term at once</h3>
       <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
         Pick grade, subject, and term. You'll get a full week-by-week scheme of
         work — ready to print for your head teacher.
@@ -384,10 +384,10 @@ function ErrorState({ message, detail, onDismiss }) {
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 text-center">
       <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>Something went wrong</h3>
+      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
       <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
       {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: '#f5efe1', color: '#566f76' }}>
+        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
           {detail}
         </p>
       )}

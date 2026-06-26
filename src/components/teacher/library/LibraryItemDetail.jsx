@@ -465,7 +465,7 @@ export default function LibraryItemDetail() {
   const meta = TOOL_META[item.tool] || { label: item.tool, icon: '📄' }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
       <div className="max-w-5xl mx-auto">
         {/* Breadcrumb */}
@@ -487,7 +487,7 @@ export default function LibraryItemDetail() {
                 </span>
               )}
             </div>
-            <h1 className="studio-display" style={{ fontSize: 28, color: '#0e2a32', margin: 0 }}>
+            <h1 className="studio-display" style={{ fontSize: 28, margin: 0 }}>
               {titleForGeneration(item)}
             </h1>
             <div className="mt-1 text-xs flex flex-wrap gap-3" style={{ color: '#566f76' }}>

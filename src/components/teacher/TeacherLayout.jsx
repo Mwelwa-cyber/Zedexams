@@ -65,7 +65,7 @@ export default function TeacherLayout({ children }) {
           <Link to="/teacher" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
             <Logo variant="icon" size="md" />
             <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 16, margin: 0, color: '#0e2a32' }}>
+              <p className="studio-display" style={{ fontSize: 16, margin: 0 }}>
                 ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
               </p>
               <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>

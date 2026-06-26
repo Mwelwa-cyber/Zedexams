@@ -260,7 +260,7 @@ export default function MarkScheduleStudio() {
   }
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
+    <div className="studio-page">
       <SeoHelmet title="Mark schedule" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
@@ -367,7 +367,7 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Pupils and marks</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and marks</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   {named.length} pupil{named.length === 1 ? '' : 's'} entered · rows without a name are ignored
                 </p>
@@ -453,7 +453,7 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your mark schedule</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your mark schedule</h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   Positions update as you type — ties share a position.
                 </p>
