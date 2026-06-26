@@ -2,6 +2,11 @@
 // to the live React-rendered DOM.
 let exportPop = null;
 
+// Count of illustrations that could not be inlined during the current export
+// run. Reset to 0 at the start of exportWord() / exportBatchWord() so multiple
+// exports in the same session don't accumulate.
+let _exportFailedImages = 0;
+
 function __studioInitExport() {
   exportPop = $('#export-pop');
   if (!exportPop) return;
@@ -207,18 +212,32 @@ function blobToDataUrl(blob) {
   });
 }
 
+// On failure each <img> is replaced with a visible placeholder so the docx
+// has no silent blank boxes — the teacher can see which illustrations didn't
+// load. Increments the module-level _exportFailedImages counter per miss.
 async function inlineRemoteImagesForWord(root) {
   const imgs = Array.from(root.querySelectorAll('img'));
   for (const img of imgs) {
     const src = img.getAttribute('src') || '';
     if (!/^https?:/i.test(src)) continue; // already a data: URI (e.g. rasterised svg)
+    let embedded = false;
     try {
       const res = await fetch(src, { mode: 'cors' });
-      if (!res || !res.ok) continue;
-      const blob = await res.blob();
-      const dataUrl = await blobToDataUrl(blob);
-      if (dataUrl) img.setAttribute('src', dataUrl);
-    } catch (e) { /* leave the remote src — a broken ref beats a crashed export */ }
+      if (res && res.ok) {
+        const blob = await res.blob();
+        const dataUrl = await blobToDataUrl(blob);
+        if (dataUrl) { img.setAttribute('src', dataUrl); embedded = true; }
+      }
+    } catch (e) { /* network or CORS failure — fall through to placeholder */ }
+    if (!embedded) {
+      _exportFailedImages++;
+      const placeholder = img.ownerDocument.createElement('p');
+      placeholder.setAttribute('style',
+        'border:1px dashed #bbb;padding:8px 12px;color:#999;font-size:11px;' +
+        'font-family:sans-serif;margin:8px 0;border-radius:4px');
+      placeholder.textContent = '⚠️ Illustration could not be embedded (image unavailable)';
+      img.replaceWith(placeholder);
+    }
   }
 }
 
@@ -317,8 +336,16 @@ function isMobileUA() {
 
 async function exportWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
+  _exportFailedImages = 0;
   const html = await buildWordHtml();
   const filename = currentFilename() + '.docx';
+
+  function warnIfImagesFailed() {
+    if (_exportFailedImages > 0 && typeof toast === 'function') {
+      const n = _exportFailedImages;
+      toast(`${n} illustration${n > 1 ? 's' : ''} could not be embedded — marked in the document`);
+    }
+  }
 
   // Primary: native OOXML via the bundled docx library (no altChunk parts —
   // safe for Word on Android / iOS / Web). The bridge is registered by
@@ -329,6 +356,7 @@ async function exportWord() {
       if (blob) {
         triggerDownload(blob, filename);
         if (typeof toast === 'function') toast('Word document downloaded');
+        warnIfImagesFailed();
         return;
       }
     } catch (e) {
@@ -345,6 +373,7 @@ async function exportWord() {
       const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
       triggerDownload(blob, filename);
       if (typeof toast === 'function') toast('Word document downloaded');
+      warnIfImagesFailed();
       return;
     } catch (e) {
       console.error('docx export failed, falling back to .doc:', e);
@@ -355,6 +384,7 @@ async function exportWord() {
   // no library, opens in Word / Google Docs.
   if (typeof toast === 'function') toast('Downloading Word (.doc) instead…');
   exportWordLegacy();
+  warnIfImagesFailed();
 }
 
 // Legacy .doc fallback (HTML-as-Word) used if html-docx-js fails to load
@@ -439,8 +469,16 @@ function batchFilename() {
 // then the vendored html-docx-js converter, then the .doc fallback.
 async function exportBatchWord() {
   if (typeof toast === 'function') toast('Preparing Word document…');
+  _exportFailedImages = 0;
   const html = await buildBatchWordHtml();
   const filename = batchFilename() + '.docx';
+
+  function warnIfImagesFailed() {
+    if (_exportFailedImages > 0 && typeof toast === 'function') {
+      const n = _exportFailedImages;
+      toast(`${n} illustration${n > 1 ? 's' : ''} could not be embedded — marked in the document`);
+    }
+  }
 
   // Primary: native OOXML via the bundled docx library (no altChunk parts —
   // safe for Word on Android / iOS / Web). The bridge is registered by
@@ -451,6 +489,7 @@ async function exportBatchWord() {
       if (blob) {
         triggerDownload(blob, filename);
         if (typeof toast === 'function') toast('Word document downloaded');
+        warnIfImagesFailed();
         return;
       }
     } catch (e) {
@@ -467,6 +506,7 @@ async function exportBatchWord() {
       const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
       triggerDownload(blob, filename);
       if (typeof toast === 'function') toast('Word document downloaded');
+      warnIfImagesFailed();
       return;
     } catch (e) {
       console.error('batch docx export failed, falling back to .doc:', e);
@@ -480,6 +520,7 @@ async function exportBatchWord() {
   const styles = gatherStyles();
   const html2 = withWatermark(`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plans</title><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${parts.join(brk)}</div></body></html>`);
   download(html2, batchFilename() + '.doc', 'application/msword');
+  warnIfImagesFailed();
 }
 
 // Word icon matching the static export-popover button (LessonPlanStudio.jsx).
