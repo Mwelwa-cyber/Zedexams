@@ -9,7 +9,7 @@ import {
   AnswerSpaceControl,
 } from '../AssessmentQuestionEditors'
 import { QuestionBlock } from '../AssessmentQuestionBlock'
-import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
+import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import {
   ASSESSMENT_TYPE_LABELS,
   GRADES,
