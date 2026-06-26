@@ -67,6 +67,13 @@ function loadScriptsSequentially(srcs) {
 const _topicsCache = new Map()
 const _subjectsCache = new Map()
 
+// Prevents in-flight async operations (saveToLibrary, setGenerating) from
+// writing to the DOM or Firestore after the component has unmounted. Bridges
+// that are deleted in cleanup can still be mid-call when the teacher navigates
+// away during a generation — this flag makes them no-ops on the already-gone
+// component without throwing unhandled rejections.
+let _studioMounted = false
+
 export default function LessonPlanStudio() {
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -87,6 +94,7 @@ export default function LessonPlanStudio() {
     // bindings need to be re-applied every time React mounts a fresh copy
     // of the markup. Each script pushes an init fn into this registry.
     if (!Array.isArray(window.__studioRebinders)) window.__studioRebinders = []
+    _studioMounted = true
 
     // ---- Bridge: navigation ----
     window.__studioNavigateHome = () => navigate('/teacher')
@@ -101,10 +109,12 @@ export default function LessonPlanStudio() {
 
     // ---- Bridge: generation progress ----
     // 06-generate.js calls this to show/hide the shared AI progress tracker.
-    window.__studioSetGenerating = (s) => setGenState(s && s.running ? s : null)
+    window.__studioSetGenerating = (s) => { if (_studioMounted) setGenState(s && s.running ? s : null) }
 
     // ---- Bridge: Firestore save ----
-    window.saveToLibrary = async ({ meta, data, html, studioFormat }) => {
+    window.saveToLibrary = async ({ meta, data, html, studioFormat, skipSave }) => {
+      if (skipSave) return null
+      if (!_studioMounted) return null
       const uid = currentUser && currentUser.uid
       if (!uid) throw new Error('Not signed in')
       // Classify the studio meta into canonical library coords so the saved
@@ -490,6 +500,7 @@ export default function LessonPlanStudio() {
     }, 600)
 
     return () => {
+      _studioMounted = false
       delete window.__studioNavigateHome
       delete window.__studioOnGenerated
       delete window.__studioSetGenerating
@@ -509,6 +520,21 @@ export default function LessonPlanStudio() {
       delete window.__zxExportWatermark
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Warn before the page unloads (tab close / hard reload) if a generated plan
+  // is on screen and hasn't been exported. Navigation within the SPA is handled
+  // by React Router and doesn't trigger beforeunload, so this only catches
+  // accidental tab-close after generation but before downloading.
+  useEffect(() => {
+    const handler = (e) => {
+      const doc = document.getElementById('doc')
+      if (!doc || !doc.textContent.trim()) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
 
   // Free-plan exports carry the diagonal ZedExams watermark; the vanilla export
   // script (public/studio/10-export.js) reads this global at export time and

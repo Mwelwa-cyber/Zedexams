@@ -273,6 +273,13 @@ function __studioInitSyllabus() {
       if (descEl) descEl.textContent = pair[1];
     });
   }
+  // The "write whole plan in local language" toggle only applies to the new
+  // (2023 CBC) syllabus — old-format system prompts don't handle it.
+  function refreshMediumToggleVisibility() {
+    const row = document.getElementById('t-plan-in-medium');
+    if (row) row.style.display = syllabusVersion === 'old' ? 'none' : '';
+  }
+  refreshMediumToggleVisibility();
   refreshFormatCardLabels();
 
   document.querySelectorAll('#syllabus-toggle .seg').forEach(btn => {
@@ -282,7 +289,9 @@ function __studioInitSyllabus() {
       const newVersion = btn.dataset.version;
       if (newVersion === syllabusVersion) return;
       syllabusVersion = newVersion;
+      try { localStorage.setItem('zx_studio_syllabus', newVersion); } catch (e) { /* private mode */ }
       document.querySelectorAll('#syllabus-toggle .seg').forEach(b => b.classList.toggle('active', b === btn));
+      refreshMediumToggleVisibility();
       refreshFormatCardLabels();
       populateClasses();
       updateSubjects().catch(err => console.warn('updateSubjects failed', err));
