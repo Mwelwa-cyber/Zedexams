@@ -14,6 +14,13 @@ vi.mock('../../../utils/syllabusMapping', () => ({
   syllabiToKbTopics: () => [
     { grade: 'G4', subject: 'mathematics', topic: 'Fractions', subtopics: [] },
     { grade: 'G1', subject: 'numeracy', topic: 'Exploring Materials', subtopics: [] },
+    // zambian_language is the KB-canonical key for the 'cinyanja' teacher-taxonomy value.
+    // The picker must normalise 'cinyanja' → 'zambian_language' before looking up
+    // topics; without the fix the dropdown was always empty for Cinyanja.
+    { grade: 'G4', subject: 'zambian_language', topic: 'Kuwerenga ndi Kumvetsa', subtopics: [] },
+    // Bare grade number '4' (not G-prefixed) should also resolve correctly via
+    // studioGradeToKbGrade so deep-linked / URL-restored grades work.
+    { grade: 'G5', subject: 'english', topic: 'Reading Strategies', subtopics: [] },
   ],
 }))
 
@@ -55,5 +62,66 @@ describe('TopicSubtopicPicker — off-grade topic guard', () => {
 
     await waitFor(() => expect(screen.getByTestId('topic')).toHaveTextContent(''))
     expect(screen.getByTestId('topic').textContent).toBe('')
+  })
+})
+
+// ── Normalisation regression tests ──────────────────────────────────────────
+// These cover the root-cause bug: TopicSubtopicPicker was building its lookup
+// key from the raw grade/subject props without calling studioGradeToKbGrade /
+// toKbSubjectKey, so teacher-taxonomy values that differ from KB-canonical keys
+// (e.g. 'cinyanja' → 'zambian_language') always produced an empty dropdown.
+
+describe('TopicSubtopicPicker — grade/subject normalisation', () => {
+  it('shows syllabus topics when subject is "cinyanja" (teacher slug → zambian_language KB key)', async () => {
+    // The syllabi lookup stores topics under 'zambian_language'. Studios pass
+    // 'cinyanja' as the subject value (from TEACHER_SUBJECTS). Without the
+    // normalisation fix the dropdown was always empty for this subject.
+    function CinyanjaHost() {
+      const [topic, setTopic] = useState('')
+      const [subtopic, setSubtopic] = useState('')
+      return (
+        <TopicSubtopicPicker
+          grade="G4"
+          subject="cinyanja"
+          topic={topic}
+          subtopic={subtopic}
+          onChangeTopic={setTopic}
+          onChangeSubtopic={setSubtopic}
+        />
+      )
+    }
+
+    render(<CinyanjaHost />)
+
+    // The 'zambian_language' topic in the mock should surface in the dropdown.
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Kuwerenga ndi Kumvetsa' })).toBeInTheDocument(),
+    )
+  })
+
+  it('shows syllabus topics when grade is a bare number string ("5" instead of "G5")', async () => {
+    // Some surfaces (URL params, legacy form state) pass a bare number grade.
+    // studioGradeToKbGrade('5') → 'G5' so the lookup should still hit.
+    function BareGradeHost() {
+      const [topic, setTopic] = useState('')
+      const [subtopic, setSubtopic] = useState('')
+      return (
+        <TopicSubtopicPicker
+          grade="5"
+          subject="english"
+          topic={topic}
+          subtopic={subtopic}
+          onChangeTopic={setTopic}
+          onChangeSubtopic={setSubtopic}
+        />
+      )
+    }
+
+    render(<BareGradeHost />)
+
+    // G5 english has 'Reading Strategies' in the mock — it must appear.
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Reading Strategies' })).toBeInTheDocument(),
+    )
   })
 })
