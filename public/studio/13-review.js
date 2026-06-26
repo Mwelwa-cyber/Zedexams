@@ -153,6 +153,10 @@
           <span class="lp-review-muted">Looking up the syllabus competence…</span>
         </div>
       </div>
+      <label class="lp-review-save-row" style="display:flex;align-items:center;gap:8px;margin-top:16px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="lp-review-save-check" checked style="width:15px;height:15px;cursor:pointer;">
+        Save this plan to my library after generating
+      </label>
     </div>`;
   }
 
@@ -173,7 +177,10 @@
         body.innerHTML = `<span class="lp-review-muted">${esc(fallback)}</span>`;
         return;
       }
-      const detail = await window.__studioFetchSubtopicDetail({ grade, subject, topic: i.topic, subtopic: i.subtopic });
+      const detail = await Promise.race([
+        window.__studioFetchSubtopicDetail({ grade, subject, topic: i.topic, subtopic: i.subtopic }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ]);
       const comp = detail && String(detail.specificCompetence || '').trim();
       const standard = detail && String(detail.expectedStandard || '').trim();
       if (comp) {
@@ -221,6 +228,8 @@
     if (!btn || btn.dataset.bound === 'true') return;
     btn.dataset.bound = 'true';
     btn.addEventListener('click', () => {
+      const saveCheck = document.getElementById('lp-review-save-check');
+      window.__studioSkipSave = saveCheck ? !saveCheck.checked : false;
       const scrim = document.getElementById('modal-review');
       if (scrim) scrim.classList.remove('show');
       if (typeof window.__studioConfirmGenerate === 'function') window.__studioConfirmGenerate();

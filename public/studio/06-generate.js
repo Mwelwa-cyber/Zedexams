@@ -376,7 +376,7 @@ function stageDiagramsHtml(stageName, specs) {
     // image generation is unavailable or fails, the SVG simply stays.
     const describe = String(d.describe || '').trim();
     const promptAttr = describe ? ` data-illus-prompt="${esc(describe)}"` : '';
-    return `<div class="diagram-wrap" contenteditable="false"${promptAttr}>${svg}<div class="diagram-caption">${cap}</div></div>`;
+    return `<div class="diagram-wrap"${promptAttr}><div contenteditable="false">${svg}</div><div class="diagram-caption">${cap}</div></div>`;
   }).join('');
   return html ? `<div class="stage-diagrams">${html}</div>` : '';
 }
@@ -808,7 +808,11 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
     try {
       await __studioUpgradeDiagramImages($('#doc'));
       html = $('#doc').innerHTML;
-    } catch (e) { /* keep the SVG version already on screen + in html */ }
+    } catch (e) {
+      // SVG diagrams are still on screen — just let the teacher know
+      // illustrations didn't load so they're not surprised by the fallback.
+      if (typeof toast === 'function') toast('Diagrams shown as SVG — illustrations unavailable');
+    }
   }
   if (editing) setTimeout(enableAllTableResize, 50);
 
@@ -838,6 +842,7 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
   try {
     await saveToLibrary({
       type: 'plan',
+      skipSave: !!window.__studioSkipSave,
       meta: {
         klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
         format: i.format, school: i.school, duration: i.duration,

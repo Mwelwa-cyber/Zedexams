@@ -1,7 +1,9 @@
 // 2023 ZECF / Zambian CBC New Syllabus data
 // Powers autocomplete dropdowns only — AI generation uses the system prompt's CBC knowledge.
 
-let syllabusVersion = 'new';
+let syllabusVersion = (function () {
+  try { return localStorage.getItem('zx_studio_syllabus') || 'new'; } catch (e) { return 'new'; }
+}());
 
 const gradeLevel = {
   'Nursery': 'ece', 'Reception': 'ece',

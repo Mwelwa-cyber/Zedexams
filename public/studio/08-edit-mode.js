@@ -75,7 +75,7 @@ function cellTable(cell) { let n = cell; while (n && n.tagName !== 'TABLE') n = 
 function ttInsertTable() {
   const rows = parseInt(prompt('Rows?', '3'), 10);
   const cols = parseInt(prompt('Columns?', '3'), 10);
-  if (!rows || !cols) return;
+  if (!rows || !cols || rows < 1 || cols < 1 || rows > 50 || cols > 20) return;
   let html = '<table style="width:100%;border-collapse:collapse;margin:10px 0">';
   for (let r = 0; r < rows; r++) {
     html += '<tr>';
