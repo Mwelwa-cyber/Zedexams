@@ -72,4 +72,72 @@ const { normaliseScannedQuestionV2 } = require('./scannedQuizImportV2.js');
   console.log('✓ matching question maps matchingLeft and matchingRight');
 }
 
+// ─── Test 4: true_false uses tfStatement as text and sets ['True', 'False'] options
+
+{
+  const raw = {
+    questionType: 'true_false',
+    prompt: 'Indicate if the statement is true or false.',
+    tfStatement: 'The capital of Zambia is Lusaka.',
+    confidence: 0.95,
+    marks: 1,
+    options: [],
+    hasDiagram: false,
+    diagrams: [],
+  }
+  const result = normaliseScannedQuestionV2(raw, { sourcePageIndex: 0 })
+  assert.strictEqual(result.type, 'tf')
+  assert.deepStrictEqual(result.options, ['True', 'False'])
+  assert.strictEqual(result.text, 'The capital of Zambia is Lusaka.')
+  console.log('✓ true_false maps tfStatement and options')
+}
+
+// ─── Test 5: table_fill maps tableHeaders and tableRows into tableData
+
+{
+  const raw = {
+    questionType: 'table_fill',
+    prompt: 'Complete the table.',
+    tableHeaders: ['Animal', 'Sound'],
+    tableRows: [['Dog', '▭'], ['Cat', '▭']],
+    confidence: 0.88,
+    marks: 2,
+    options: [],
+    hasDiagram: false,
+    diagrams: [],
+  }
+  const result = normaliseScannedQuestionV2(raw, { sourcePageIndex: 1 })
+  assert.strictEqual(result.type, 'short_answer')
+  assert.deepStrictEqual(result.tableData, {
+    headers: ['Animal', 'Sound'],
+    rows: [['Dog', '▭'], ['Cat', '▭']],
+  })
+  console.log('✓ table_fill maps tableData')
+}
+
+// ─── Test 6: structured subParts include label field
+
+{
+  const raw = {
+    questionType: 'structured',
+    prompt: 'Answer the following.',
+    subParts: [
+      { label: 'a', text: 'Define photosynthesis.', marks: 2, answerLines: 3 },
+      { label: 'b', text: 'Name two products.', marks: 1, answerLines: 2 },
+    ],
+    confidence: 0.9,
+    marks: 3,
+    options: [],
+    hasDiagram: false,
+    diagrams: [],
+  }
+  const result = normaliseScannedQuestionV2(raw, { sourcePageIndex: 0 })
+  assert.strictEqual(result.type, 'short_answer')
+  assert.strictEqual(result.subParts.length, 2)
+  assert.strictEqual(result.subParts[0].label, 'a')
+  assert.strictEqual(result.subParts[1].label, 'b')
+  assert.strictEqual(result.subParts[0].text, 'Define photosynthesis.')
+  console.log('✓ structured subParts include label')
+}
+
 console.log('\nAll tests passed.');

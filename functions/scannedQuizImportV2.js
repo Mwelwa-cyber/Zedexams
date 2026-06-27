@@ -620,6 +620,7 @@ function normaliseScannedQuestionV2(raw, { sourcePageIndex = 0 } = {}) {
     };
   } else if (editorType === 'short_answer' && raw.questionType === 'structured') {
     base.subParts = (raw.subParts ?? []).map(sp => ({
+      label: sp.label ?? '',
       text: sp.text ?? '',
       answer: '',
       marks: sp.marks ?? 1,
@@ -650,7 +651,11 @@ function normaliseScannedSections(rawSections, pageNumbers = []) {
 
     if (kind === "passage") {
       const questions = (Array.isArray(raw?.questions) ? raw.questions : [])
-        .map((q) => normaliseScannedQuestion(q, pageNumbers))
+        .map((q) => {
+          const pageIdx = Number.isFinite(Number.parseInt(q?.sourcePageIndex, 10))
+            ? Number.parseInt(q.sourcePageIndex, 10) : 0;
+          return normaliseScannedQuestionV2(q, { sourcePageIndex: pageIdx });
+        })
         .filter(Boolean);
       if (!questions.length) continue;
       const passageKind = clampString(raw?.passageKind, 20).toLowerCase() === "map" ?
@@ -668,7 +673,10 @@ function normaliseScannedSections(rawSections, pageNumbers = []) {
         questions,
       });
     } else {
-      const question = normaliseScannedQuestion(raw?.question || raw, pageNumbers);
+      const qRaw = raw?.question || raw;
+      const pageIdx = Number.isFinite(Number.parseInt(qRaw?.sourcePageIndex, 10))
+        ? Number.parseInt(qRaw.sourcePageIndex, 10) : 0;
+      const question = normaliseScannedQuestionV2(qRaw, { sourcePageIndex: pageIdx });
       if (!question) continue;
       out.push({kind: "standalone", question});
     }
