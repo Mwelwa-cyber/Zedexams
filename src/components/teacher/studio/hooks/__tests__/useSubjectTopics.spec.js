@@ -209,8 +209,10 @@ describe('useSubjectTopics — error handling', () => {
 
     rerender({ grade: 'Grade 5' })
 
-    await waitFor(() => expect(result.current.error).toBeNull())
-    expect(result.current.topics).toEqual(TOPICS)
+    await waitFor(() => {
+      expect(result.current.error).toBeNull()
+      expect(result.current.topics).toEqual(TOPICS)
+    })
   })
 })
 

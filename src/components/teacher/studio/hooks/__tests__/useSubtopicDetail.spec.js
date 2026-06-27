@@ -269,8 +269,10 @@ describe('useSubtopicDetail — error handling', () => {
 
     rerender({ subtopic: 'Addition' })
 
-    await waitFor(() => expect(result.current.error).toBeNull())
-    expect(result.current.subtopicRow).toEqual(CBC_ROW)
+    await waitFor(() => {
+      expect(result.current.error).toBeNull()
+      expect(result.current.subtopicRow).toEqual(CBC_ROW)
+    })
   })
 })
 
