@@ -22,7 +22,7 @@ function pageApprovalReducer(state, { page, status }) {
   return { ...state, [page]: status }
 }
 
-export function useImportReview({ rawSections = [], pageAssets = {}, subject = '', grade = '' } = {}) {
+export function useImportReview({ rawSections: _rawSections = [], pageAssets: _pageAssets = {}, subject = '', grade = '' } = {}) {
   const [diagramChoices, dispatchDiagram] = useReducer(diagramChoicesReducer, new Map())
   const [pageApprovalState, dispatchPage] = useReducer(pageApprovalReducer, {})
 

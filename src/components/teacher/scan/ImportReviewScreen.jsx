@@ -113,7 +113,7 @@ export default function ImportReviewScreen({
   open,
   pageAssets = {},
   rawSections = [],
-  warnings = [],
+  warnings: _warnings = [],
   fileName = 'scanned paper',
   subject = '',
   grade = '',
