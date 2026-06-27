@@ -1,0 +1,69 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+
+import DiagramHandlingChooser from './DiagramHandlingChooser'
+
+// Stub the Cloud Function wrapper so the component test never touches Firebase.
+// Keep the real DIAGRAM_HANDLING_OPTIONS export so the five buttons render.
+const mockRedraw = vi.fn()
+vi.mock('../../../utils/testPaperDiagram', () => ({
+  DIAGRAM_HANDLING_OPTIONS: [
+    { id: 'keep_original', label: 'Keep original image', generates: false },
+    { id: 'clean_original', label: 'Clean original drawing', generates: false },
+    { id: 'redraw', label: 'Redraw using AI', generates: true },
+    { id: 'replace', label: 'Replace with a better educational diagram', generates: true },
+    { id: 'remove', label: 'Remove diagram and leave blank space', generates: false },
+  ],
+  redrawTestPaperDiagram: (...args) => mockRedraw(...args),
+}))
+
+const detected = { kind: 'plant', caption: 'Flowering plant', labels: ['stem', 'roots'] }
+const context = { subject: 'Science', grade: 'Grade 4' }
+
+describe('DiagramHandlingChooser', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders all five handling options and the figure caption', () => {
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} />)
+    expect(screen.getByText('Flowering plant')).toBeInTheDocument()
+    expect(screen.getByText('Keep original image')).toBeInTheDocument()
+    expect(screen.getByText('Clean original drawing')).toBeInTheDocument()
+    expect(screen.getByText('Redraw using AI')).toBeInTheDocument()
+    expect(screen.getByText('Replace with a better educational diagram')).toBeInTheDocument()
+    expect(screen.getByText('Remove diagram and leave blank space')).toBeInTheDocument()
+  })
+
+  it('calls the redraw wrapper and surfaces a reused-from-library result', async () => {
+    mockRedraw.mockResolvedValueOnce({
+      action: 'reused', url: 'https://lib/plant.png', source: 'library',
+    })
+    const onResolved = vi.fn()
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={onResolved} />)
+
+    fireEvent.click(screen.getByText('Redraw using AI'))
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+    expect(mockRedraw).toHaveBeenCalledWith(
+      expect.objectContaining({ detected, handling: 'redraw', context }),
+    )
+    expect(await screen.findByText('Reused from library')).toBeInTheDocument()
+  })
+
+  it('shows a blank-space result when the teacher removes the diagram', async () => {
+    mockRedraw.mockResolvedValueOnce({ action: 'removed', url: null, source: 'none' })
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} />)
+
+    fireEvent.click(screen.getByText('Remove diagram and leave blank space'))
+
+    expect(await screen.findByText('Blank space')).toBeInTheDocument()
+  })
+
+  it('surfaces an error when the wrapper rejects', async () => {
+    mockRedraw.mockRejectedValueOnce(new Error('Monthly diagram limit reached.'))
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} />)
+
+    fireEvent.click(screen.getByText('Replace with a better educational diagram'))
+
+    expect(await screen.findByText('Monthly diagram limit reached.')).toBeInTheDocument()
+  })
+})
