@@ -157,6 +157,7 @@
     "test:subscription-activation": "node functions/subscriptionActivation.test.js",
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
+    "test:lesson-plan-prompt": "node functions/teacherTools/lessonPlanPrompt.test.js",
     "test:lesson-batch-export": "node scripts/test-lesson-batch-export.test.js",
     "test:lesson-word-export": "node scripts/test-lesson-studio-word-export.test.js",
     "test:lesson-kit": "node scripts/test-lesson-kit.test.js",

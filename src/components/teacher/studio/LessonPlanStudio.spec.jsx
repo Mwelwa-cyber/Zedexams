@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
 
 // ── Firebase mocks ────────────────────────────────────────────────────────────
@@ -7,7 +8,10 @@ import LessonPlanStudio from './LessonPlanStudio'
 // when the factory closure captures it. The component calls httpsCallable()
 // at module scope; returning this stable spy means tests can configure its
 // behaviour with innerCallable.mockResolvedValue(…) etc.
-const { innerCallable } = vi.hoisted(() => ({ innerCallable: vi.fn() }))
+const { innerCallable, mockUseStudioState } = vi.hoisted(() => ({
+  innerCallable: vi.fn(),
+  mockUseStudioState: vi.fn(),
+}))
 
 vi.mock('firebase/functions', () => ({
   getFunctions: vi.fn(() => ({})),
@@ -61,14 +65,106 @@ vi.mock('./hooks/useAILessonCount', () => ({
   })),
 }))
 
+// Default stub for useStudioState — individual tests override via mockUseStudioState.mockReturnValueOnce()
+vi.mock('./hooks/useStudioState', () => ({
+  useStudioState: () => mockUseStudioState(),
+}))
+
 vi.mock('./utils/renderPlanHtml', () => ({
   renderPlanHtml: vi.fn(() => '<p>rendered plan</p>'),
 }))
 
+vi.mock('./utils/studioSystemPrompt', () => ({
+  STUDIO_SYSTEM_PROMPT_CBC: 'MOCK_CBC_PROMPT',
+  STUDIO_SYSTEM_PROMPT_PREVIOUS: 'MOCK_PREVIOUS_PROMPT',
+  STUDIO_SYSTEM_PROMPT: 'MOCK_CBC_PROMPT',
+}))
+
+// ── Default studioState stub ──────────────────────────────────────────────────
+// Returns the static (non-reactive) parts of studioState. The generation-
+// status fields need real React state so handleGenerate's setGenerationStatus /
+// setGeneratedPlan calls actually trigger re-renders. Use makeStudioState() for
+// tests that don't exercise the generate flow, and renderStudioWithGeneration()
+// for tests that do.
+
+function makeStudioState(overrides = {}) {
+  return {
+    curriculumMode: null,
+    setCurriculumMode: vi.fn(),
+    lessonDetails: {
+      grade: '', subject: '', duration: '40', medium: 'English',
+      term: '', week: '', date: '', time: '', teacherName: '', school: '',
+    },
+    setLessonDetails: vi.fn(),
+    updateLessonDetail: vi.fn(),
+    setLessonDetail: vi.fn(),
+    resetTopicData: vi.fn(),
+    topicData: { topic: '', subtopic: '', subtopicRow: null },
+    updateTopic: vi.fn(),
+    updateSubtopic: vi.fn(),
+    setTopicField: vi.fn(),
+    selectedOutcomes: [],
+    setSelectedOutcomes: vi.fn(),
+    toggleSelectedOutcome: vi.fn(),
+    learningEnvironments: [],
+    toggleLearningEnvironment: vi.fn(),
+    lessonSeries: {
+      seriesId: null, planningMode: 'single', totalLessons: 1,
+      lessonNumber: 1, lessonFocus: '', aiSuggestedReason: '',
+    },
+    setLessonSeries: vi.fn(),
+    setLessonSeriesField: vi.fn(),
+    lessonBreakdown: [],
+    setLessonBreakdown: vi.fn(),
+    formatOptions: {
+      detail: 'standard', writingStyle: 'standard', format: 'modern',
+      illustrations: 'automatic',
+      advanced: {
+        compactMetadata: true, includeEnrolment: false, includeAttendance: false,
+        includeLessonEvaluation: true, includeKeyVocabulary: true,
+        autoIllustrations: false, localLanguage: false,
+      },
+    },
+    updateFormatOption: vi.fn(),
+    setFormatOption: vi.fn(),
+    setAdvancedOption: vi.fn(),
+    // Static generation state — tests that exercise the generate flow must use
+    // renderStudioWithGeneration() so these fields are backed by real useState.
+    generationStatus: 'idle',
+    setGenerationStatus: vi.fn(),
+    generatedPlan: null,
+    setGeneratedPlan: vi.fn(),
+    ...overrides,
+  }
+}
+
+// Wrapper that gives handleGenerate real React state for generationStatus /
+// generatedPlan so its setters actually trigger re-renders.
+function StudioStateWrapper({ stateOverrides = {} }) {
+  const [generationStatus, setGenerationStatus] = useState('idle')
+  const [generatedPlan, setGeneratedPlan] = useState(null)
+
+  mockUseStudioState.mockReturnValue(
+    makeStudioState({
+      ...stateOverrides,
+      generationStatus,
+      setGenerationStatus,
+      generatedPlan,
+      setGeneratedPlan,
+    }),
+  )
+  return <LessonPlanStudio />
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function renderStudio() {
+function renderStudio(stateOverrides = {}) {
+  mockUseStudioState.mockReturnValue(makeStudioState(stateOverrides))
   return render(<LessonPlanStudio />)
+}
+
+function renderStudioWithGeneration(stateOverrides = {}) {
+  return render(<StudioStateWrapper stateOverrides={stateOverrides} />)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -132,10 +228,9 @@ describe('LessonPlanStudio — generate flow (error path)', () => {
   })
 
   it('sets generationStatus to "error" and shows the error message when the callable throws', async () => {
-    // innerCallable is what generateCallable delegates to at module scope
     innerCallable.mockRejectedValue(new Error('Network timeout'))
 
-    renderStudio()
+    renderStudioWithGeneration()
     fireEvent.click(screen.getByTestId('trigger-generate'))
 
     await waitFor(() => {
@@ -158,7 +253,7 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
     })
     renderPlanHtml.mockReturnValue('<p>rendered plan</p>')
 
-    renderStudio()
+    renderStudioWithGeneration()
     fireEvent.click(screen.getByTestId('trigger-generate'))
 
     await waitFor(() => {
@@ -171,7 +266,7 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
     // Never resolves so we can observe the transient loading state
     innerCallable.mockReturnValue(new Promise(() => {}))
 
-    renderStudio()
+    renderStudioWithGeneration()
     fireEvent.click(screen.getByTestId('trigger-generate'))
 
     await waitFor(() => {
@@ -183,5 +278,172 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
 describe('LessonPlanStudio — CurriculumContext', () => {
   it('renders without crashing (context provider is mounted)', () => {
     expect(() => renderStudio()).not.toThrow()
+  })
+})
+
+// ── Curriculum-aware system prompt selection ──────────────────────────────────
+
+describe('LessonPlanStudio — system prompt selection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes STUDIO_SYSTEM_PROMPT_CBC when curriculumMode is "cbc"', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({ curriculumMode: 'cbc' })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const callArg = innerCallable.mock.calls[0][0]
+    expect(callArg.systemPrompt).toBe('MOCK_CBC_PROMPT')
+  })
+
+  it('passes STUDIO_SYSTEM_PROMPT_PREVIOUS when curriculumMode is "previous"', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'previous',
+      selectedOutcomes: ['Identify parts of a plant.'],
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const callArg = innerCallable.mock.calls[0][0]
+    expect(callArg.systemPrompt).toBe('MOCK_PREVIOUS_PROMPT')
+  })
+
+  it('defaults to STUDIO_SYSTEM_PROMPT_CBC when curriculumMode is null', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({ curriculumMode: null })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const callArg = innerCallable.mock.calls[0][0]
+    expect(callArg.systemPrompt).toBe('MOCK_CBC_PROMPT')
+  })
+})
+
+// ── CBC user prompt includes <cbc_context> ────────────────────────────────────
+
+describe('LessonPlanStudio — CBC user prompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('includes <cbc_context> block in the user prompt when subtopicRow has data', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: {
+        topic: 'The Environment',
+        subtopic: 'Environmental Management',
+        subtopicRow: {
+          specificCompetence: '4.3.1.1 Manage natural resources',
+          learningActivities: ['Sort litter', 'Observe a pond'],
+          expectedStandard: 'Natural resources managed correctly.',
+        },
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('<cbc_context>')
+    expect(userPrompt).toContain('4.3.1.1 Manage natural resources')
+    expect(userPrompt).toContain('Sort litter | Observe a pond')
+    expect(userPrompt).toContain('Natural resources managed correctly.')
+    expect(userPrompt).toContain('</cbc_context>')
+  })
+
+  it('does not include <previous_context> in CBC mode', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: {
+        topic: 'The Environment',
+        subtopic: 'Environmental Management',
+        subtopicRow: {
+          specificCompetence: '4.3.1.1 Manage natural resources',
+          learningActivities: [],
+          expectedStandard: '',
+        },
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).not.toContain('<previous_context>')
+  })
+})
+
+// ── Previous Curriculum user prompt includes <previous_context> ───────────────
+
+describe('LessonPlanStudio — Previous Curriculum user prompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('includes <previous_context> block with numbered outcomes', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'previous',
+      selectedOutcomes: ['Name three types of soil.', 'Describe how soil is formed.'],
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('<previous_context>')
+    expect(userPrompt).toContain('1. Name three types of soil.')
+    expect(userPrompt).toContain('2. Describe how soil is formed.')
+    expect(userPrompt).toContain('</previous_context>')
+  })
+
+  it('does not include <cbc_context> in previous mode', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'previous',
+      selectedOutcomes: ['Name three types of soil.'],
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).not.toContain('<cbc_context>')
   })
 })

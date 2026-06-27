@@ -139,6 +139,18 @@ function sanitizeInputs(raw = {}) {
   const learningEnvironment = str(raw.learningEnvironment, 40)
     .toLowerCase().replace(/[^a-z_]/g, "_");
 
+  const curriculumMode = ["cbc", "previous"].includes(raw.curriculumMode) ?
+    raw.curriculumMode : "cbc";
+  const specificCompetence = str(raw.specificCompetence, 300);
+  const learningActivities = Array.isArray(raw.learningActivities) ?
+    raw.learningActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const expectedStandard = str(raw.expectedStandard, 300);
+  const selectedOutcomes = Array.isArray(raw.selectedOutcomes) ?
+    raw.selectedOutcomes.map((o) => str(o, 300)).filter(Boolean) : [];
+  const coveredActivities = Array.isArray(raw.coveredActivities) ?
+    raw.coveredActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const lessonFocus = str(raw.lessonFocus, 200);
+
   return {
     grade,
     subject,
@@ -155,6 +167,13 @@ function sanitizeInputs(raw = {}) {
     school: str(raw.school, 120),
     numberOfPupils: Math.min(200, Math.max(1, Math.round(num(raw.numberOfPupils, 40)))),
     instructions: str(raw.instructions, 500),
+    curriculumMode,
+    specificCompetence,
+    learningActivities,
+    expectedStandard,
+    selectedOutcomes,
+    coveredActivities,
+    lessonFocus,
   };
 }
 

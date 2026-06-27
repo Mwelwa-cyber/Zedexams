@@ -7,7 +7,7 @@ import { StudioShell } from './StudioShell'
 import { StudioSidebar } from './StudioSidebar'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
-import { STUDIO_SYSTEM_PROMPT } from './utils/studioSystemPrompt'
+import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
 
 const functions = getFunctions(app, 'us-central1')
@@ -130,8 +130,12 @@ export default function LessonPlanStudio() {
     const totalLessons = planningMode === 'series' ? (lessonBreakdown?.length ?? 1) : 1
 
     // Build the user prompt from React state.
+    const openingLine = curriculumMode === 'previous'
+      ? 'Generate a Zambian lesson plan (Previous Curriculum / Outcomes-Based) for the following lesson:'
+      : 'Generate a Zambian CBC lesson plan for the following lesson:'
+
     const userPromptLines = [
-      'Generate a Zambian lesson plan for the following lesson:',
+      openingLine,
       '',
       `- Grade / Class: ${lessonDetails.grade}`,
       `- Subject: ${lessonDetails.subject}`,
@@ -150,27 +154,47 @@ export default function LessonPlanStudio() {
 
     if (curriculumMode === 'cbc' && topicData.subtopicRow) {
       const row = topicData.subtopicRow
+      userPromptLines.push('')
+      userPromptLines.push('<cbc_context>')
       if (row.specificCompetence)
-        userPromptLines.push(`- Specific Competence: ${row.specificCompetence}`)
+        userPromptLines.push(`Specific Competence: ${row.specificCompetence}`)
       if (row.learningActivities?.length)
-        userPromptLines.push(`- Learning Activities: ${row.learningActivities.join('; ')}`)
+        userPromptLines.push(`Learning Activities (from syllabus): ${row.learningActivities.join(' | ')}`)
       if (row.expectedStandard)
-        userPromptLines.push(`- Expected Standard: ${row.expectedStandard}`)
-      if (lessonItem?.focus)
-        userPromptLines.push(`- This lesson focuses on: ${lessonItem.focus}`)
+        userPromptLines.push(`Expected Standard: ${row.expectedStandard}`)
+      userPromptLines.push('</cbc_context>')
+      userPromptLines.push('')
+      userPromptLines.push('Ground the entire plan in this context. The specificCompetence drives every stage.')
     }
 
     if (curriculumMode === 'previous' && selectedOutcomes?.length) {
-      userPromptLines.push(`- Specific Outcome(s): ${selectedOutcomes.join(' ')}`)
+      userPromptLines.push('')
+      userPromptLines.push('<previous_context>')
+      userPromptLines.push('Specific Outcome(s) for this lesson:')
+      selectedOutcomes.forEach((o, i) => userPromptLines.push(`${i + 1}. ${o}`))
+      userPromptLines.push('</previous_context>')
+      userPromptLines.push('')
+      userPromptLines.push('Ground the lesson in achieving these specific outcomes. The lesson structure follows: Introduction → Development → Conclusion → Homework.')
+    }
+
+    if (planningMode === 'series' && lessonItem?.coveredContent?.length) {
+      userPromptLines.push(`Previously covered in this series (DO NOT repeat): ${lessonItem.coveredContent.join(' | ')}`)
+    }
+    if (lessonItem?.focus) {
+      userPromptLines.push(`Focus for THIS lesson: ${lessonItem.focus}`)
     }
 
     userPromptLines.push('', 'Return ONLY the JSON object. No markdown fences. No commentary.')
 
     const userPrompt = userPromptLines.filter(Boolean).join('\n')
 
+    const systemPrompt = curriculumMode === 'previous'
+      ? STUDIO_SYSTEM_PROMPT_PREVIOUS
+      : STUDIO_SYSTEM_PROMPT_CBC
+
     try {
       const result = await generateCallable({
-        systemPrompt: STUDIO_SYSTEM_PROMPT,
+        systemPrompt,
         userPrompt,
         context: null,
       })
