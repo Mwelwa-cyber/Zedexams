@@ -88,7 +88,7 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
     if (lessonDetails.grade && !valid.has(lessonDetails.grade)) {
       onChange('grade', '')
     }
-  }, [curriculumMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [curriculumMode, lessonDetails.grade, onChange])
 
   const grades    = gradeListFor(curriculumMode)
   const grouped   = groupedGrades(grades)
