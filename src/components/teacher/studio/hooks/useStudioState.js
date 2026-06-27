@@ -18,6 +18,8 @@ export function useStudioState() {
     week: '',
     date: '',
     time: '',
+    teacherName: '',
+    school: '',
   })
 
   // Topic Data — the selected topic, subtopic, and the auto-loaded row from curriculum data
@@ -36,7 +38,7 @@ export function useStudioState() {
   // Lesson series (multi-lesson planning, CBC only)
   const [lessonSeries, setLessonSeries] = useState({
     seriesId: null,
-    planningMode: 'single', // 'single' | 'multiple' | 'ai'
+    planningMode: 'single', // 'single' | 'series'
     totalLessons: 1,
     lessonNumber: 1,
     lessonFocus: '',
