@@ -27,6 +27,7 @@ export function useAILessonCount(topic, subtopic, learningActivities, expectedSt
   const [recommendation, setRecommendation] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [retryCounter, setRetryCounter] = useState(0)
 
   const isReady =
     curriculumMode === 'cbc' &&
@@ -36,35 +37,11 @@ export function useAILessonCount(topic, subtopic, learningActivities, expectedSt
     learningActivities.length > 0 &&
     Boolean(expectedStandard)
 
+  // Bumping retryCounter re-triggers the effect — single fetch path, single cleanup.
   const fetchRecommendation = useCallback(() => {
-    if (!isReady) return
+    if (isReady) setRetryCounter((c) => c + 1)
+  }, [isReady])
 
-    let cancelled = false
-
-    setLoading(true)
-    setError(null)
-
-    const fn = httpsCallable(functions, 'aiLessonCount')
-    fn({ topic, subtopic, learningActivities, expectedStandard })
-      .then((result) => {
-        if (cancelled) return
-        const { count, reason } = result.data
-        setRecommendation({ count, reason })
-        setLoading(false)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : String(err))
-        setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, subtopic, learningActivities, expectedStandard, isReady])
-
-  // Auto-fire once when all CBC params are present (or when they change)
   useEffect(() => {
     if (!isReady) {
       setRecommendation(null)
@@ -95,10 +72,10 @@ export function useAILessonCount(topic, subtopic, learningActivities, expectedSt
     return () => {
       cancelled = true
     }
-    // Deliberately using individual primitive deps; learningActivities is
-    // serialised as a joined string to avoid new-array-on-every-render churn.
+    // learningActivities serialised as joined string to avoid new-array-reference
+    // churn from parent re-renders producing a fresh array each time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, subtopic, learningActivities?.join('||'), expectedStandard, curriculumMode])
+  }, [topic, subtopic, learningActivities?.join('||'), expectedStandard, curriculumMode, retryCounter])
 
   return { recommendation, loading, error, fetchRecommendation }
 }
