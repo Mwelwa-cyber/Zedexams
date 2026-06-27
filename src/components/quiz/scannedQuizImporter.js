@@ -310,13 +310,22 @@ export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
   const toRich = deps.toRichHtml || importMarkupToRichHtml
   const makeStandalone = deps.createSection || createStandaloneSection
   const makePassage = deps.createPassage || createPassageSection
+  // When a custom normaliser is injected (e.g. V2), it replaces mapVisionQuestion
+  // entirely. The injected function receives (rawQuestion, order, options, deps)
+  // and must return an editor question object.
+  const normaliseQuestion = deps.normaliseQuestion || null
   const usedAssetIds = new Set()
   let order = 0
+
+  const mapQ = (q, ord) =>
+    normaliseQuestion
+      ? normaliseQuestion(q, ord, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps)
+      : mapVisionQuestion(q, ord, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps)
 
   const local = sections.map(section => {
     if (section?.kind === 'passage') {
       const questions = (Array.isArray(section.questions) ? section.questions : [])
-        .map(q => mapVisionQuestion(q, order++, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps))
+        .map(q => mapQ(q, order++))
       const overrides = {
         title: section.title || '',
         instructions: section.instructions ? toRichPreservingBreaks(section.instructions, toRich) : '',
@@ -344,7 +353,7 @@ export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
       }
       return makePassage(overrides)
     }
-    return makeStandalone(mapVisionQuestion(section.question, order++, { pageAssetByNumber, usedAssetIds, diagramHandling }, deps))
+    return makeStandalone(mapQ(section.question, order++))
   })
 
   return { sections: local, usedAssetIds }
@@ -851,6 +860,9 @@ export async function runVisionImport({
   onProgress,
   sourceNoun = 'scanned paper',
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
+  // Optional: inject a custom question normaliser (e.g. normaliseScannedQuestionV2)
+  // to replace the default mapVisionQuestion. Must accept (raw, order, options, deps).
+  normaliseQuestion = null,
 } = {}) {
   if (!pageImages.length) {
     throw new Error(`None of the ${sourceNoun} pages could be read for import.`)
@@ -873,10 +885,11 @@ export async function runVisionImport({
   }
 
   const merged = mergeSectionBatches(batchResults)
-  const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
-    pageAssetByNumber: assetByPage,
-    diagramHandling: handling,
-  })
+  const { sections, usedAssetIds } = visionSectionsToLocal(
+    merged.sections,
+    { pageAssetByNumber: assetByPage, diagramHandling: handling },
+    normaliseQuestion ? { normaliseQuestion } : {},
+  )
 
   // Crop pictorial answer options out of their page into per-option media.
   // Runs before the revoke pass below so the page object URLs are still alive.

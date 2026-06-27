@@ -35,13 +35,15 @@ import {
  * the camera screen never loses captured pages.
  *
  * Props
- *   open       — whether the modal is rendered
- *   onClose    — close without converting (session is kept for resume)
- *   onConvert  — (files: File[]) => void | Promise; receives the ordered pages
- *                as JPEG File objects for the studio import pipeline
- *   converting — parent's import-in-flight flag (disables actions)
+ *   open               — whether the modal is rendered
+ *   onClose            — close without converting (session is kept for resume)
+ *   onConvert          — (files: File[]) => void | Promise; receives the ordered pages
+ *                        as JPEG File objects for the studio import pipeline
+ *   onConvertForReview — optional; when set, called instead of onConvert so the caller
+ *                        can open a review screen before importing into the studio
+ *   converting         — parent's import-in-flight flag (disables actions)
  */
-export default function ScanPaperModal({ open, onClose, onConvert, converting = false }) {
+export default function ScanPaperModal({ open, onClose, onConvert, onConvertForReview, converting = false }) {
   // 'start' → first screen (Start New Test Scan / Resume).
   // 'captured' → just captured a page; "what next?" actions.
   // 'preview' → grid of all captured pages.
@@ -195,7 +197,8 @@ export default function ScanPaperModal({ open, onClose, onConvert, converting = 
         setNotice('Could not read the captured pages. Please retake them.')
         return
       }
-      const ok = await onConvert?.(files)
+      const handler = onConvertForReview ?? onConvert
+      const ok = await handler?.(files)
       if (ok === false) {
         // OCR failed or extracted nothing — keep every captured page so the
         // teacher can simply press convert again rather than re-scanning.

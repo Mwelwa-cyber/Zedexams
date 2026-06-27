@@ -36,6 +36,7 @@ const {callGemini} = require("./geminiClient");
 // Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
 // by the Quiz Editor when a teacher uploads an image-only PDF past paper.
 const {runScannedQuizImport} = require("./scannedQuizImport");
+const {runScannedQuizImportV2} = require("./scannedQuizImportV2");
 // Bulk "suggest answers" — answers a batch of imported MCQs in one Claude call
 // so the editor can fill blank answer keys in a single pass.
 const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
@@ -1793,6 +1794,55 @@ exports.structureScannedQuiz = onCall(
     await assertDailyLimit(request.auth.uid, role, "scannedImport");
 
     return runScannedQuizImport({
+      pages,
+      fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
+      subjectHint: cleanAiString(request.data?.subjectHint, 80),
+      gradeHint: cleanAiString(request.data?.gradeHint, 20),
+      anthropicKey: getAnthropicApiKey(anthropicApiKey),
+      geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// V2 scanned past-paper import — extended question-type support (matching,
+// fill_blanks, true/false, table_fill, structured, label_diagram) using the
+// richer V2 OCR pipeline. Same security posture and resource budget as V1.
+exports.structureScannedQuizV2 = onCall(
+  {
+    secrets: [anthropicApiKey, geminiApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "structureScannedQuizV2");
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import scanned papers.",
+      );
+    }
+
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No page images were supplied for scanned import.",
+      );
+    }
+
+    // Counts as one AI action per page batch (same meter as V1 scanned import).
+    await assertDailyLimit(request.auth.uid, role, "scannedImport");
+
+    return runScannedQuizImportV2({
       pages,
       fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
       subjectHint: cleanAiString(request.data?.subjectHint, 80),
