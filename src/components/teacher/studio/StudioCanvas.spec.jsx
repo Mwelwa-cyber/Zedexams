@@ -211,22 +211,16 @@ describe('StudioCanvas — Print button', () => {
 // ── Export Word button ────────────────────────────────────────────────────────
 
 describe('StudioCanvas — Export Word button', () => {
-  afterEach(() => {
-    delete window.__studioExportWord
-    vi.restoreAllMocks()
+  it('calls the onExportWord prop when provided', () => {
+    const onExportWord = vi.fn()
+    renderCanvas({ generationStatus: 'done', generatedPlan: '<p>plan</p>', onExportWord })
+    fireEvent.click(screen.getByRole('button', { name: /export word/i }))
+    expect(onExportWord).toHaveBeenCalledTimes(1)
   })
 
-  it('calls window.__studioExportWord() when it exists', () => {
-    window.__studioExportWord = vi.fn()
+  it('does nothing when onExportWord is not provided', () => {
     renderCanvas({ generationStatus: 'done', generatedPlan: '<p>plan</p>' })
-    fireEvent.click(screen.getByRole('button', { name: /export word/i }))
-    expect(window.__studioExportWord).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows an alert when window.__studioExportWord is not available', () => {
-    vi.spyOn(window, 'alert').mockImplementation(() => {})
-    renderCanvas({ generationStatus: 'done', generatedPlan: '<p>plan</p>' })
-    fireEvent.click(screen.getByRole('button', { name: /export word/i }))
-    expect(window.alert).toHaveBeenCalledWith('Export not available')
+    // Should not throw when clicked without a handler
+    expect(() => fireEvent.click(screen.getByRole('button', { name: /export word/i }))).not.toThrow()
   })
 })
