@@ -10,6 +10,7 @@ const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
 const generateStudyPlanCallable = httpsCallable(functions, 'generateStudyPlan')
 const structureScannedQuizCallable = httpsCallable(functions, 'structureScannedQuiz')
+const structureScannedQuizV2Callable = httpsCallable(functions, 'structureScannedQuizV2')
 const structureImportedNoteCallable = httpsCallable(functions, 'structureImportedNote')
 const ocrNotePagesCallable = httpsCallable(functions, 'ocrNotePages')
 const suggestQuizAnswersCallable = httpsCallable(functions, 'suggestQuizAnswers')
@@ -564,6 +565,28 @@ export async function structureScannedQuiz(payload) {
   try {
     const response = await withTimeout(
       structureScannedQuizCallable(payload),
+      AI_SCANNED_IMPORT_TIMEOUT_MS,
+      'Reading the scanned pages is taking too long. Please try a smaller file or try again.',
+    )
+    const data = response.data || {}
+    return {
+      sections: Array.isArray(data.sections) ? data.sections : [],
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      detectedCount: Number(data.detectedCount) || 0,
+      extractedCount: Number(data.extractedCount) || 0,
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// V2 scanned past-paper OCR import — extended question-type support (matching,
+// fill_blanks, true/false, table_fill, structured, label_diagram). Same call
+// shape and timeout as V1; the richer response shape is handled by the caller.
+export async function structureScannedQuizV2(payload) {
+  try {
+    const response = await withTimeout(
+      structureScannedQuizV2Callable(payload),
       AI_SCANNED_IMPORT_TIMEOUT_MS,
       'Reading the scanned pages is taking too long. Please try a smaller file or try again.',
     )

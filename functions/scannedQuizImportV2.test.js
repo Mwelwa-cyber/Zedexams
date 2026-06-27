@@ -140,4 +140,12 @@ const { normaliseScannedQuestionV2 } = require('./scannedQuizImportV2.js');
   console.log('✓ structured subParts include label')
 }
 
+// Test 7: runScannedQuizImportV2 is exported
+{
+  const mod = require('./scannedQuizImportV2.js')
+  const assert = require('node:assert')
+  assert.strictEqual(typeof mod.runScannedQuizImportV2, 'function', 'runScannedQuizImportV2 should be exported')
+  console.log('✓ runScannedQuizImportV2 is exported')
+}
+
 console.log('\nAll tests passed.');
