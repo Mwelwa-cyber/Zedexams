@@ -106,25 +106,57 @@ export function useStudioState() {
     }
   }, [])
 
+  // Update a single field in lessonSeries (used by LessonProgressionForm via setLessonSeriesField)
+  const setLessonSeriesField = useCallback((field, value) => {
+    setLessonSeries((prev) => ({ ...prev, [field]: value }))
+  }, [])
+
+  // StudioSidebar-compatible alias: setTopicField('topic'|'subtopic', value)
+  // Sidebar passes the field name as the first argument; route to the right updater.
+  const setTopicField = useCallback((field, value) => {
+    if (field === 'topic') {
+      setTopicData((prev) => ({ ...prev, topic: value, subtopic: '', subtopicRow: null }))
+      setSelectedOutcomes([])
+    } else {
+      setTopicData((prev) => ({ ...prev, [field]: value }))
+    }
+  }, [])
+
   return {
     ...curriculumModeState,
     lessonDetails,
     setLessonDetails,
     updateLessonDetail,
+    // StudioSidebar alias: onChange={setLessonDetail} → (field, value)
+    setLessonDetail: updateLessonDetail,
     resetTopicData,
     topicData,
     updateTopic,
     updateSubtopic,
+    // StudioSidebar alias: onTopicChange / onSubtopicChange via setTopicField(field, value)
+    setTopicField,
     selectedOutcomes,
     setSelectedOutcomes,
+    // StudioSidebar alias: onToggleOutcome={toggleSelectedOutcome}
+    toggleSelectedOutcome: useCallback((outcome) => {
+      setSelectedOutcomes((prev) =>
+        prev.includes(outcome) ? prev.filter((o) => o !== outcome) : [...prev, outcome],
+      )
+    }, []),
     learningEnvironments,
     toggleLearningEnvironment,
     lessonSeries,
     setLessonSeries,
+    setLessonSeriesField,
     lessonBreakdown,
     setLessonBreakdown,
     formatOptions,
     updateFormatOption,
+    // StudioSidebar aliases: onUpdateFormat / onUpdateAdvanced
+    setFormatOption: updateFormatOption,
+    setAdvancedOption: useCallback((key, value) => {
+      setFormatOptions((prev) => ({ ...prev, advanced: { ...prev.advanced, [key]: value } }))
+    }, []),
     generationStatus,
     setGenerationStatus,
     generatedPlan,
