@@ -21,7 +21,10 @@ import {
 } from '../../hooks/useAssessmentDraft'
 import { useUndoRedo } from '../../hooks/useUndoRedo'
 import { storage } from '../../firebase/config'
-import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { generateAIQuizQuestions, structureScannedQuizV2 } from '../../utils/aiAssistant'
+import { renderImageFilesForVision } from '../quiz/scannedQuizImporter.js'
+import { runVisionImportV2 } from '../quiz/scannedQuizImporterV2.js'
+import ImportReviewScreen from './scan/ImportReviewScreen.jsx'
 import { generateDiagram } from '../../utils/generateDiagram'
 import {
   createPagebreakSection,
@@ -436,6 +439,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
   const [clearAllOpen, setClearAllOpen] = useState(false)
   // Multi-page "Scan full test paper" camera modal.
   const [scanOpen, setScanOpen] = useState(false)
+  // V2 intelligent import review screen (side-by-side AI reconstruction).
+  const [reviewScreenOpen, setReviewScreenOpen] = useState(false)
+  const [reviewScreenData, setReviewScreenData] = useState(null)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
@@ -1593,6 +1599,58 @@ export default function AssessmentStudio({ variant = 'test' }) {
     }
   }
 
+  /* ------------ V2 intelligent scan import ------------ */
+
+  async function handleScanConvertForReview(files) {
+    setImportingDocument(true)
+    try {
+      // Create display object URLs from the raw files so the review screen can
+      // show the original scans even after runVisionImportV2 revokes unused assets.
+      const displayPageAssets = {}
+      files.forEach((file, i) => {
+        displayPageAssets[i + 1] = { objectUrl: URL.createObjectURL(file) }
+      })
+      const { pageImages, assetByPage, warnings: renderWarnings } = await renderImageFilesForVision(files)
+      const { sections, warnings } = await runVisionImportV2({
+        pageImages,
+        assetByPage,
+        renderWarnings,
+        callVision: structureScannedQuizV2,
+      })
+      setScanOpen(false)
+      setReviewScreenData({
+        rawSections: sections,
+        pageAssets: displayPageAssets,
+        warnings,
+        fileName: files[0]?.name ?? 'scanned paper',
+      })
+      setReviewScreenOpen(true)
+      return true
+    } catch (err) {
+      showToast(`Import failed: ${getErrorMessage(err)}`, true)
+      return false
+    } finally {
+      setImportingDocument(false)
+    }
+  }
+
+  function handleReviewApprove(approvedSections) {
+    setReviewScreenOpen(false)
+    // Revoke the display page object URLs to free memory
+    if (reviewScreenData?.pageAssets) {
+      Object.values(reviewScreenData.pageAssets).forEach(({ objectUrl }) => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      })
+    }
+    setReviewScreenData(null)
+    setSections(approvedSections.length ? approvedSections : [createStandaloneSection()])
+    setParts([])
+    resetUndoBaseline()
+    changeView('builder')
+    const count = approvedSections.length
+    showToast(`Imported ${count} question${count !== 1 ? 's' : ''} — review before publishing.`)
+  }
+
   /* ------------ validation + save ------------ */
   // Every blocking issue is gathered up-front by `collectQuizIssues`
   // (see validationResult / paperHealth above) and shown together in the
@@ -2538,7 +2596,29 @@ export default function AssessmentStudio({ variant = 'test' }) {
         // multi-page paper. Returns success so the scanner only releases its
         // saved session when the OCR actually landed.
         onConvert={(files) => runImportDocument(files)}
+        onConvertForReview={handleScanConvertForReview}
       />
+
+      {reviewScreenData && (
+        <ImportReviewScreen
+          open={reviewScreenOpen}
+          pageAssets={reviewScreenData.pageAssets}
+          rawSections={reviewScreenData.rawSections}
+          warnings={reviewScreenData.warnings}
+          fileName={reviewScreenData.fileName}
+          subject={form.subject ?? ''}
+          grade={form.grade ?? ''}
+          onApprove={handleReviewApprove}
+          onCancel={() => {
+            // Revoke display URLs on cancel too
+            Object.values(reviewScreenData.pageAssets ?? {}).forEach(({ objectUrl }) => {
+              if (objectUrl) URL.revokeObjectURL(objectUrl)
+            })
+            setReviewScreenOpen(false)
+            setReviewScreenData(null)
+          }}
+        />
+      )}
     </div>
   )
 }
