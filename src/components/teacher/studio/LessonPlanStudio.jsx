@@ -13,6 +13,7 @@ import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
+import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
@@ -86,6 +87,7 @@ export default function LessonPlanStudio() {
   // in useStudioState so they can gate the Generate button; generationError
   // is purely UI state for the error panel.
   const [generationError, setGenerationError] = useState(null)
+  const [kit, setKit] = useState(null)
 
   // AI lesson-count recommendation (used by LessonProgressionForm).
   // useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode)
@@ -245,6 +247,15 @@ export default function LessonPlanStudio() {
       const html = renderPlanHtml(planJson, meta, curriculumMode)
       current.setGeneratedPlan(html)
       current.setGenerationStatus('done')
+      setKit({
+        grade: lessonDetails.grade,
+        subject: lessonDetails.subject,
+        topic: topicData.topic,
+        subtopic: topicData.subtopic,
+        term: lessonDetails.term,
+        lessonNumber,
+        totalLessons,
+      })
 
       // Persist series progress to Firestore when in series mode.
       // Schema: lessonSeries/{uid}/{seriesId}/{lessonNumber}
@@ -309,6 +320,17 @@ export default function LessonPlanStudio() {
           />
         }
       />
+      {kit && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e0d5] bg-white px-6 py-3 shadow-lg">
+          <span className="text-sm font-medium text-[#5c4a3a]">Create for this lesson</span>
+          <div className="flex gap-2">
+            <button onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Worksheet</button>
+            <button onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Homework</button>
+            <button onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Notes</button>
+            <button onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Test Paper</button>
+          </div>
+        </div>
+      )}
     </CurriculumContext.Provider>
   )
 }
