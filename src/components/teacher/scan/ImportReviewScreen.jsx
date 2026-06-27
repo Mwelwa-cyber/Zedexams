@@ -1,5 +1,5 @@
 // src/components/teacher/scan/ImportReviewScreen.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useImportReview } from './useImportReview.js'
 import OriginalPageViewer from './OriginalPageViewer.jsx'
 import ImportReviewPageStrip from './ImportReviewPageStrip.jsx'
@@ -120,13 +120,19 @@ export default function ImportReviewScreen({
   onApprove,
   onCancel,
 }) {
+  const { diagramChoices, pageApprovalState, selectDiagramChoice, confirmDiagramChoice } = useImportReview({ rawSections, pageAssets, subject, grade })
+  const [selectedPage, setSelectedPage] = useState(1)
+  const [diagramPanel, setDiagramPanel] = useState(null)
+
+  // Sync selectedPage to first available page whenever pageAssets changes
+  useEffect(() => {
+    const nums = Object.keys(pageAssets).map(Number).sort((a, b) => a - b)
+    if (nums.length > 0) setSelectedPage(nums[0])
+  }, [pageAssets])
+
   if (!open) return null
 
-  const { diagramChoices, pageApprovalState, selectDiagramChoice, confirmDiagramChoice } = useImportReview({ rawSections, pageAssets, subject, grade })
-
   const pageNumbers = Object.keys(pageAssets).map(Number).sort((a, b) => a - b)
-  const [selectedPage, setSelectedPage] = useState(pageNumbers[0] ?? 1)
-  const [diagramPanel, setDiagramPanel] = useState(null) // { diagId, diagramMeta, cropObjectUrl }
 
   const pageList = pageNumbers.map(n => ({ pageNumber: n, objectUrl: pageAssets[n]?.objectUrl }))
   const pageAsset = pageAssets[selectedPage]

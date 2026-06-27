@@ -26,8 +26,11 @@ export function useImportReview({ rawSections = [], pageAssets = {}, subject = '
   const [diagramChoices, dispatchDiagram] = useReducer(diagramChoicesReducer, new Map())
   const [pageApprovalState, dispatchPage] = useReducer(pageApprovalReducer, {})
 
-  // Persist to IndexedDB whenever state changes
+  // Persist to IndexedDB whenever state changes, but only when there is
+  // meaningful state — avoids overwriting a valid session with empty state
+  // when the hook is mounted while the review screen is closed (open=false).
   useEffect(() => {
+    if (diagramChoices.size === 0 && Object.keys(pageApprovalState).length === 0) return
     saveReviewSession({
       savedAt: Date.now(),
       pageApprovalState,
