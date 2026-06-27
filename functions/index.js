@@ -106,6 +106,12 @@ const {
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Test Paper Studio — intelligent photo-import diagram redrawing. Carries out
+// a teacher's chosen Diagram Handling Option (keep/clean/redraw/replace/remove),
+// reusing the Diagram Library before generating, then saving new figures back.
+const {
+  createRedrawTestPaperDiagram,
+} = require("./teacherTools/testPaperImport/redrawTestPaperDiagram");
 // Visual Studio — on-demand AI safety/accuracy check for generated images.
 const {createCheckVisualSafety} = require("./visualSafety");
 // Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
@@ -2215,6 +2221,11 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 // bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
 exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+
+// Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
+// generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+
 exports.checkVisualSafety = createCheckVisualSafety(anthropicApiKey);
 
 // Picture bank — admin-only: auto-name bulk-uploaded teaching figures.

@@ -196,6 +196,8 @@
     "test:gemini-image-client": "node scripts/test-gemini-image-client.mjs",
     "test:kie-client": "node scripts/test-kie-client.mjs",
     "test:diagram-providers": "node functions/teacherTools/generateDiagram.test.js",
+    "test:diagram-brief": "node functions/teacherTools/testPaperImport/diagramBrief.test.js",
+    "test:redraw-test-paper-diagram": "node functions/teacherTools/testPaperImport/redrawTestPaperDiagram.test.js",
     "test:grade7-ss-covers": "node scripts/test-grade7-ss-covers.mjs",
     "test:grade7-sci-covers": "node scripts/test-grade7-sci-covers.mjs",
     "kie:image": "node scripts/kie-generate-image.mjs",
