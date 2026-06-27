@@ -21,7 +21,7 @@ import { db } from '../../../../firebase/config.js'
  */
 export function useLessonSeries(uid, seriesId) {
   const [completedLessons, setCompletedLessons] = useState([])
-  const [seriesLoading, setSeriesLoading]       = useState(false)
+  const [seriesLoading, setSeriesLoading]       = useState(true)
   const [seriesError, setSeriesError]           = useState(null)
 
   useEffect(() => {
