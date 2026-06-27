@@ -75,3 +75,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ErrorBoundary>
   </React.StrictMode>
 )
+
+// Tell the boot watchdog in index.html that the app started. React commits
+// the first paint asynchronously after render() returns, so the watchdog
+// primarily relies on #root having children; this flag is a belt-and-braces
+// signal so a successful-but-slow boot can never trip the white-screen
+// fallback. A render that throws before committing never reaches this line,
+// leaving the watchdog free to show its recovery UI.
+window.__ZED_APP_MOUNTED__ = true
