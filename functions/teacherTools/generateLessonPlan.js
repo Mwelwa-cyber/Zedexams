@@ -88,7 +88,7 @@ const LESSON_PLAN_TOOL_SCHEMA = {
     extensionActivity: {type: "string"},
     coveredContent: {type: "array", items: {type: "string"}},
   },
-  required: ["header", "lessonGoal", "specificCompetence", "stages"],
+  required: ["header", "lessonGoal", "stages"],
 };
 
 // Output scales roughly with lesson length. A 20-min lesson rarely fills 4000
@@ -280,10 +280,13 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       thinking: LESSON_PLAN_THINKING,
       outputConfig: LESSON_PLAN_OUTPUT_CONFIG,
       toolName: "emit_lesson_plan",
-      toolDescription:
-        "Emit the complete Zambian CBC lesson plan as a single " +
-        "structured object. Do not include any prose or commentary " +
-        "outside this tool call.",
+      toolDescription: (() => {
+        const curriculumLabel =
+          inputs.curriculumMode === "previous" ? "Previous Curriculum" : "CBC";
+        return `Emit the complete Zambian ${curriculumLabel} lesson plan as a single ` +
+          "structured object. Do not include any prose or commentary " +
+          "outside this tool call.";
+      })(),
       toolInputSchema: LESSON_PLAN_TOOL_SCHEMA,
     };
 

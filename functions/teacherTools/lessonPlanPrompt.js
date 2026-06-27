@@ -148,13 +148,14 @@ function buildUserPrompt(inputs) {
         "Ground the entire plan in this context. The specificCompetence drives every stage.",
       );
     }
+  }
 
-    if (coveredActivities.length) {
-      lines.push(
-        `Previously covered in this series (DO NOT repeat): ${coveredActivities.join(" | ")}`,
-        `Focus for THIS lesson: ${lessonFocus || "Continue from covered content above"}`,
-      );
-    }
+  // ── Covered activities + lesson focus (applies to both CBC and Previous) ──
+  if (coveredActivities.length) {
+    lines.push(
+      `Previously covered in this series (DO NOT repeat): ${coveredActivities.join(" | ")}`,
+      `Focus for THIS lesson: ${lessonFocus || "Continue from covered content above"}`,
+    );
   }
 
   // ── Previous Curriculum context block ─────────────────────────────────────

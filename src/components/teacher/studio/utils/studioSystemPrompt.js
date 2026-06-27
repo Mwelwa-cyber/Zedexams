@@ -52,7 +52,7 @@ Previous Curriculum lesson plans follow this structure:
 - REFERENCES — syllabus page, textbook page
 - TEACHING AND LEARNING AIDS — materials list
 - LESSON PROGRESSION with EXACTLY these stages: INTRODUCTION → DEVELOPMENT → CONCLUSION → HOMEWORK
-  Each stage has: Stage/Time | Content | Teacher's Activity | Pupils' Activity | Methods
+  Each stage emits: \`teacherActivities\` (what the teacher does), \`learnerActivities\` (what pupils do), and \`assessmentCriteria\` (observable pupil behaviour).
 - PUPIL EVALUATION (blank — left for teacher)
 - TEACHER EVALUATION (blank — left for teacher)
 

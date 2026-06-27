@@ -159,19 +159,22 @@ console.log("\nbuildUserPrompt — coveredActivities");
   ok("coveredActivities: fallback focus text present", prompt.includes("Continue from covered content above"));
 }
 
-// ── buildUserPrompt — Previous Curriculum with coveredActivities ignored ──────
+// ── buildUserPrompt — Previous Curriculum with coveredActivities emitted ──────
 
-console.log("\nbuildUserPrompt — Previous Curriculum does not emit coveredActivities block");
+console.log("\nbuildUserPrompt — Previous Curriculum emits coveredActivities block");
 
 {
-  // coveredActivities block is only inserted for non-previous mode
+  // coveredActivities block now fires for both CBC and Previous mode
   const prompt = buildUserPrompt(baseInputs({
     curriculumMode: "previous",
     selectedOutcomes: ["Name three types of soil."],
     coveredActivities: ["Clay soil properties"],
+    lessonFocus: "Sandy soil and loam",
   }));
 
-  ok("prev: coveredActivities block NOT inserted in previous mode", !prompt.includes("DO NOT repeat"));
+  ok("prev: coveredActivities block IS emitted in previous mode", prompt.includes("DO NOT repeat"));
+  ok("prev: coveredActivities content included", prompt.includes("Clay soil properties"));
+  ok("prev: lessonFocus included in previous mode", prompt.includes("Sandy soil and loam"));
 }
 
 // ── sanitizeInputs — new fields ───────────────────────────────────────────────
