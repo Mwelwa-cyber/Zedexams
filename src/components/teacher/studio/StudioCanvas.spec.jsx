@@ -22,8 +22,6 @@ function renderCanvas(props = {}) {
     generatedPlan: null,
     generationStatus: 'idle',
     generationError: null,
-    lessonDetails: { grade: 'Grade 4', subject: 'Science', topic: 'Plants' },
-    topicData: { topic: 'Plants', subtopic: 'Flowering plants' },
   }
   return render(<StudioCanvas {...defaults} {...props} />)
 }
@@ -127,6 +125,16 @@ describe('StudioCanvas — done state', () => {
   it('does NOT show the empty-state heading', () => {
     renderCanvas({ generationStatus: 'done', generatedPlan: HTML })
     expect(screen.queryByRole('heading', { name: /an empty page is waiting/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a fallback message when generatedPlan is null', () => {
+    renderCanvas({ generationStatus: 'done', generatedPlan: null })
+    expect(screen.getByText(/the plan is empty/i)).toBeInTheDocument()
+  })
+
+  it('shows a fallback message when generatedPlan is an empty string', () => {
+    renderCanvas({ generationStatus: 'done', generatedPlan: '' })
+    expect(screen.getByText(/the plan is empty/i)).toBeInTheDocument()
   })
 })
 

@@ -5,21 +5,20 @@ import AiGenerationProgress from '../../ui/AiGenerationProgress'
  * StudioCanvas — right panel of the Lesson Plan Studio.
  *
  * Displays the generated lesson plan, a toolbar with print/export actions,
- * and three placeholder states: idle, loading, and error.
+ * and four mutually exclusive states: idle, loading, done, error.
  *
  * Props:
  *   generatedPlan      — string | null  HTML string from the Cloud Function
  *   generationStatus   — 'idle' | 'loading' | 'done' | 'error'
  *   generationError    — string | null  shown in the error state
- *   lessonDetails      — { grade, subject, topic, … }  used to build the lesson kit bar
- *   topicData          — { topic, subtopic }
+ *
+ * Note: lessonDetails and topicData are reserved for the lesson kit bar
+ * (Task 13 — StudioShell) and are not consumed here yet.
  */
 export function StudioCanvas({
   generatedPlan,
   generationStatus,
   generationError,
-  lessonDetails,
-  topicData,
 }) {
   // Inject lesson.css from /public/studio/ on mount.
   // The file lives in public/ so Vite won't bundle it; we inject a <link>
@@ -150,11 +149,17 @@ export function StudioCanvas({
 
         {/* 3. Generated / done state */}
         {isDone && generatedPlan && (
+          /* Safe: generatedPlan is server-rendered HTML from our Cloud Function, never user-controlled */
           <div
             id="doc"
             className="doc"
             dangerouslySetInnerHTML={{ __html: generatedPlan }}
           />
+        )}
+        {isDone && !generatedPlan && (
+          <div className="flex flex-col items-center justify-center text-center max-w-sm pt-20">
+            <p className="text-[14px] text-[#9e8e7e]">The plan is empty. Try generating again.</p>
+          </div>
         )}
 
         {/* 4. Error state */}
