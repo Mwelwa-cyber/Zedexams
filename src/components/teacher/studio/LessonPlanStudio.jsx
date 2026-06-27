@@ -1,8 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../../../firebase/config'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { useNavigate } from 'react-router-dom'
+import app, { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 import { CurriculumContext } from './CurriculumContext'
 import { useStudioState } from './hooks/useStudioState'
+import { useLessonSeries } from './hooks/useLessonSeries'
 import { StudioShell } from './StudioShell'
 import { StudioSidebar } from './StudioSidebar'
 import { StudioCanvas } from './StudioCanvas'
@@ -66,6 +70,8 @@ function computeIsValid(studioState) {
  */
 export default function LessonPlanStudio() {
   const studioState = useStudioState()
+  const { currentUser } = useAuth()
+  const navigate = useNavigate()
 
   // Keep a ref to the latest studioState so handleGenerate can read current
   // values without studioState appearing in its dependency array (a new
@@ -92,13 +98,11 @@ export default function LessonPlanStudio() {
     studioState.curriculumMode,
   )
 
-  // Series progress stub — Task 15 wires real Firestore data.
-  const seriesState = {
-    completedCount: 0,
-    completedLessons: [],
-    seriesLoading: false,
-    seriesError: null,
-  }
+  // Series progress — live Firestore subscription via useLessonSeries.
+  const uid = currentUser?.uid ?? null
+  const seriesId = studioState.lessonSeries?.seriesId ?? null
+  const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
+  const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
 
   const isValid = computeIsValid(studioState)
 
@@ -121,6 +125,15 @@ export default function LessonPlanStudio() {
     } = current
 
     const planningMode = lessonSeries?.planningMode ?? 'single'
+
+    // Assign a seriesId on the first generation in series mode.
+    // We capture the effective ID in a local variable so Firestore writes
+    // in this same call use the new ID even before the state update settles.
+    let effectiveSeriesId = lessonSeries?.seriesId ?? null
+    if (planningMode === 'series' && !effectiveSeriesId) {
+      effectiveSeriesId = `series-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      current.setLessonSeriesField('seriesId', effectiveSeriesId)
+    }
     const lessonItem =
       planningMode === 'series' && Array.isArray(lessonBreakdown) && lessonBreakdown.length > 0
         ? lessonBreakdown[lessonIndex] ?? null
@@ -232,12 +245,50 @@ export default function LessonPlanStudio() {
       const html = renderPlanHtml(planJson, meta, curriculumMode)
       current.setGeneratedPlan(html)
       current.setGenerationStatus('done')
+
+      // Persist series progress to Firestore when in series mode.
+      if (planningMode === 'series' && uid && effectiveSeriesId) {
+        const seriesRef = doc(db, 'lessonSeries', uid, effectiveSeriesId)
+        await setDoc(seriesRef, {
+          subject: lessonDetails.subject ?? '',
+          grade: lessonDetails.grade ?? '',
+          topic: topicData.topic ?? '',
+          subtopic: topicData.subtopic ?? '',
+          curriculumMode,
+          totalLessons: lessonBreakdown.length,
+          lastUpdated: serverTimestamp(),
+        }, { merge: true })
+
+        const lessonRef = doc(db, 'lessonSeries', uid, effectiveSeriesId, 'lessons', String(lessonNumber))
+        await setDoc(lessonRef, {
+          lessonNumber,
+          status: 'completed',
+          generatedAt: serverTimestamp(),
+        })
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setGenerationError(msg)
       current.setGenerationStatus('error')
     }
-  }, []) // studioStateRef.current always holds the latest state — no deps needed
+  }, [uid]) // uid is used inside the try block for Firestore writes
+
+  // Navigate to the next non-completed lesson in the series.
+  const handleContinue = useCallback(() => {
+    const { lessonBreakdown: breakdown } = studioStateRef.current
+    const completedSet = new Set(completedLessons.map((l) => String(l)))
+    const nextIndex = breakdown.findIndex(
+      (item) => !completedSet.has(String(item.lessonNumber)),
+    )
+    if (nextIndex >= 0) {
+      handleGenerate(nextIndex)
+    }
+  }, [completedLessons, handleGenerate])
+
+  // Navigate to the teacher's saved lesson library.
+  const handleViewCompleted = useCallback(() => {
+    navigate('/teacher/library')
+  }, [navigate])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -255,6 +306,8 @@ export default function LessonPlanStudio() {
             aiState={aiState}
             seriesState={seriesState}
             onGenerate={handleGenerate}
+            onContinue={handleContinue}
+            onViewCompleted={handleViewCompleted}
             isValid={isValid}
           />
         }

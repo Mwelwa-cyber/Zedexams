@@ -8,9 +8,10 @@ import LessonPlanStudio from './LessonPlanStudio'
 // when the factory closure captures it. The component calls httpsCallable()
 // at module scope; returning this stable spy means tests can configure its
 // behaviour with innerCallable.mockResolvedValue(…) etc.
-const { innerCallable, mockUseStudioState } = vi.hoisted(() => ({
+const { innerCallable, mockUseStudioState, mockSetDoc } = vi.hoisted(() => ({
   innerCallable: vi.fn(),
   mockUseStudioState: vi.fn(),
+  mockSetDoc: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('firebase/functions', () => ({
@@ -18,7 +19,30 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(() => innerCallable),
 }))
 
-vi.mock('../../../firebase/config', () => ({ default: {} }))
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({})),
+  setDoc: mockSetDoc,
+  serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+}))
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(() => vi.fn()),
+}))
+
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({ currentUser: { uid: 'test-uid-123' } })),
+}))
+
+vi.mock('./hooks/useLessonSeries', () => ({
+  useLessonSeries: vi.fn(() => ({
+    completedCount: 0,
+    completedLessons: [],
+    seriesLoading: false,
+    seriesError: null,
+  })),
+}))
+
+vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
 
 // ── Child component mocks ─────────────────────────────────────────────────────
 
@@ -32,7 +56,7 @@ vi.mock('./StudioShell', () => ({
 }))
 
 vi.mock('./StudioSidebar', () => ({
-  StudioSidebar: ({ studioState, isValid, onGenerate, aiState, seriesState }) => (
+  StudioSidebar: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
     <div data-testid="studio-sidebar">
       <span data-testid="is-valid">{String(isValid)}</span>
       <span data-testid="curriculum-mode">{studioState.curriculumMode ?? 'null'}</span>
@@ -41,6 +65,12 @@ vi.mock('./StudioSidebar', () => ({
       <span data-testid="series-completed">{seriesState.completedCount}</span>
       <button data-testid="trigger-generate" onClick={() => onGenerate(0)}>
         Generate
+      </button>
+      <button data-testid="trigger-continue" onClick={onContinue}>
+        Continue
+      </button>
+      <button data-testid="trigger-view-completed" onClick={onViewCompleted}>
+        View Completed
       </button>
     </div>
   ),
@@ -445,5 +475,152 @@ describe('LessonPlanStudio — Previous Curriculum user prompt', () => {
     })
     const { userPrompt } = innerCallable.mock.calls[0][0]
     expect(userPrompt).not.toContain('<cbc_context>')
+  })
+})
+
+// ── Task 15: useLessonSeries wiring ──────────────────────────────────────────
+
+describe('LessonPlanStudio — useLessonSeries wiring', () => {
+  it('calls useLessonSeries with uid from useAuth and seriesId from studioState', async () => {
+    const { useLessonSeries } = await import('./hooks/useLessonSeries')
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({ currentUser: { uid: 'user-abc' } })
+
+    renderStudio({
+      lessonSeries: { seriesId: 'series-xyz', planningMode: 'single', totalLessons: 1 },
+    })
+
+    expect(useLessonSeries).toHaveBeenCalledWith('user-abc', 'series-xyz')
+  })
+
+  it('calls useLessonSeries with null uid when not signed in', async () => {
+    const { useLessonSeries } = await import('./hooks/useLessonSeries')
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({ currentUser: null })
+
+    renderStudio()
+
+    expect(useLessonSeries).toHaveBeenCalledWith(null, null)
+  })
+})
+
+// ── Task 15: Firestore series writes on successful generation ─────────────────
+
+describe('LessonPlanStudio — Firestore series writes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSetDoc.mockResolvedValue(undefined)
+  })
+
+  it('writes series root doc and lesson doc to Firestore after successful series generation', async () => {
+    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({ currentUser: { uid: 'uid-writer' } })
+
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+    renderPlanHtml.mockReturnValue('<p>plan</p>')
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      lessonSeries: { seriesId: 'series-001', planningMode: 'series', totalLessons: 3 },
+      lessonBreakdown: [
+        { lessonNumber: 1, focus: 'Intro', coveredContent: [] },
+        { lessonNumber: 2, focus: 'Dev', coveredContent: [] },
+      ],
+      lessonDetails: { grade: 'Grade 4', subject: 'Science', duration: '40', medium: 'English', term: '', week: '', date: '', time: '', teacherName: '', school: '' },
+      topicData: { topic: 'Environment', subtopic: 'Resources', subtopicRow: null },
+    })
+
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalledTimes(2)
+    })
+
+    // First call: series root doc with merge:true
+    const [, firstData, firstOpts] = mockSetDoc.mock.calls[0]
+    expect(firstData).toMatchObject({ subject: 'Science', grade: 'Grade 4', topic: 'Environment' })
+    expect(firstOpts).toEqual({ merge: true })
+
+    // Second call: lesson progress doc
+    const [, secondData] = mockSetDoc.mock.calls[1]
+    expect(secondData).toMatchObject({ lessonNumber: 1, status: 'completed' })
+  })
+
+  it('does NOT write to Firestore when planningMode is "single"', async () => {
+    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
+    renderPlanHtml.mockReturnValue('<p>plan</p>')
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      lessonSeries: { seriesId: null, planningMode: 'single', totalLessons: 1 },
+    })
+
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-status')).toHaveTextContent('done')
+    })
+
+    expect(mockSetDoc).not.toHaveBeenCalled()
+  })
+})
+
+// ── Task 15: handleContinue ───────────────────────────────────────────────────
+
+describe('LessonPlanStudio — handleContinue', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls handleGenerate with the index of the first non-completed lesson', async () => {
+    const { useLessonSeries } = await import('./hooks/useLessonSeries')
+    // Lessons 1 and 2 completed; lesson 3 is next (index 2 in breakdown)
+    useLessonSeries.mockReturnValue({
+      completedCount: 2,
+      completedLessons: ['1', '2'],
+      seriesLoading: false,
+      seriesError: null,
+    })
+
+    innerCallable.mockReturnValue(new Promise(() => {})) // never resolves
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      lessonSeries: { seriesId: 'series-abc', planningMode: 'series', totalLessons: 3 },
+      lessonBreakdown: [
+        { lessonNumber: 1, focus: 'A', coveredContent: [] },
+        { lessonNumber: 2, focus: 'B', coveredContent: [] },
+        { lessonNumber: 3, focus: 'C', coveredContent: [] },
+      ],
+    })
+
+    fireEvent.click(screen.getByTestId('trigger-continue'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-status')).toHaveTextContent('loading')
+    })
+
+    // handleGenerate was invoked (status flipped to loading)
+    expect(innerCallable).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── Task 15: handleViewCompleted ─────────────────────────────────────────────
+
+describe('LessonPlanStudio — handleViewCompleted', () => {
+  it('navigates to /teacher/library when View Completed is clicked', async () => {
+    const mockNavigate = vi.fn()
+    const routerMod = await import('react-router-dom')
+    vi.mocked(routerMod.useNavigate).mockReturnValue(mockNavigate)
+
+    renderStudio()
+    fireEvent.click(screen.getByTestId('trigger-view-completed'))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/teacher/library')
   })
 })

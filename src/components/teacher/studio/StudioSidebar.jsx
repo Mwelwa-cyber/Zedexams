@@ -22,7 +22,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, isValid }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -119,8 +119,8 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, i
             completedCount={completedCount}
             completedLessons={completedLessons}
             seriesLoading={seriesLoading}
-            onContinue={() => {}}
-            onViewCompleted={() => {}}
+            onContinue={onContinue}
+            onViewCompleted={onViewCompleted}
           />
         )}
 

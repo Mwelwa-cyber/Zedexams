@@ -43,7 +43,12 @@ vi.mock('./sections/LessonProgressionForm.jsx', () => ({
 }))
 
 vi.mock('./sections/TeachingProgressPanel.jsx', () => ({
-  TeachingProgressPanel: () => <div data-testid="teaching-progress-panel" />,
+  TeachingProgressPanel: ({ onContinue, onViewCompleted }) => (
+    <div data-testid="teaching-progress-panel">
+      <button data-testid="tpp-continue" onClick={onContinue}>Continue</button>
+      <button data-testid="tpp-view-completed" onClick={onViewCompleted}>View Completed</button>
+    </div>
+  ),
 }))
 
 vi.mock('./sections/FormatOptionsForm.jsx', () => ({
@@ -296,5 +301,23 @@ describe('StudioSidebar — Generate button', () => {
     // disabled buttons don't fire click events
     fireEvent.click(screen.getByRole('button', { name: /generate lesson plan/i }))
     expect(onGenerate).not.toHaveBeenCalled()
+  })
+})
+
+// ── Task 15: onContinue / onViewCompleted passthrough ────────────────────────
+
+describe('StudioSidebar — onContinue and onViewCompleted passthrough', () => {
+  it('passes onContinue through to TeachingProgressPanel', () => {
+    const onContinue = vi.fn()
+    renderSidebar({ curriculumMode: 'cbc' }, {}, {}, { onContinue })
+    fireEvent.click(screen.getByTestId('tpp-continue'))
+    expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes onViewCompleted through to TeachingProgressPanel', () => {
+    const onViewCompleted = vi.fn()
+    renderSidebar({ curriculumMode: 'cbc' }, {}, {}, { onViewCompleted })
+    fireEvent.click(screen.getByTestId('tpp-view-completed'))
+    expect(onViewCompleted).toHaveBeenCalledTimes(1)
   })
 })
