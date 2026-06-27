@@ -36,6 +36,7 @@ const {callGemini} = require("./geminiClient");
 // Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
 // by the Quiz Editor when a teacher uploads an image-only PDF past paper.
 const {runScannedQuizImport} = require("./scannedQuizImport");
+const {runScannedQuizImportV2} = require("./scannedQuizImportV2");
 // Bulk "suggest answers" — answers a batch of imported MCQs in one Claude call
 // so the editor can fill blank answer keys in a single pass.
 const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
@@ -1841,7 +1842,6 @@ exports.structureScannedQuizV2 = onCall(
     // Counts as one AI action per page batch (same meter as V1 scanned import).
     await assertDailyLimit(request.auth.uid, role, "scannedImport");
 
-    const {runScannedQuizImportV2} = require("./scannedQuizImportV2.js");
     return runScannedQuizImportV2({
       pages,
       fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
