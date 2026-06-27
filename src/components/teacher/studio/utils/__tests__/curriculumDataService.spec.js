@@ -11,7 +11,7 @@ import {
   getSubjectsForGrade,
   getTopicsForSubject,
   getSubtopicDetail,
-  invalidateCurriculumCache,
+  invalidatePreviousCurriculumCache,
 } from '../curriculumDataService.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ const PREV_FIXTURE = {
 
 beforeEach(() => {
   // Reset the in-module previous-curriculum cache between tests.
-  invalidateCurriculumCache()
+  invalidatePreviousCurriculumCache()
 
   // Default: getMergedSyllabi returns the CBC fixture.
   getMergedSyllabi.mockResolvedValue(CBC_FIXTURE)

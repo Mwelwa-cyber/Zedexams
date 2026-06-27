@@ -44,8 +44,11 @@ async function loadPreviousCurriculum() {
       return _prevCache
     } catch (err) {
       console.error('loadPreviousCurriculum failed', err)
-      _prevCache = {}
-      return _prevCache
+      // Keep _prevCache = null so the next call retries the fetch instead of
+      // permanently serving an empty object. _prevCachePromise is cleared in
+      // the finally block, which is enough to allow a fresh attempt.
+      _prevCache = null
+      return {}
     } finally {
       _prevCachePromise = null
     }
@@ -53,8 +56,8 @@ async function loadPreviousCurriculum() {
   return _prevCachePromise
 }
 
-/** Invalidate the previous-curriculum cache. */
-export function invalidateCurriculumCache() {
+/** Invalidate the previous-curriculum cache (2013/previous only — CBC cache lives in syllabusKbService.js). */
+export function invalidatePreviousCurriculumCache() {
   _prevCache = null
   _prevCachePromise = null
 }
@@ -87,7 +90,7 @@ function sheetMatchesGrade(sheetName, grade) {
   if (!sheetName || !grade) return false
   const sheet = String(sheetName).trim().toLowerCase()
   const g = String(grade).trim().toLowerCase()
-  return sheet === g || sheet.startsWith(g + ' ') || g.startsWith(sheet + ' ') || sheet === g
+  return sheet === g || sheet.startsWith(g + ' ') || g.startsWith(sheet + ' ')
 }
 
 /**
@@ -157,13 +160,9 @@ function propagatePreviousRows(rows) {
  */
 export async function getSubjectsForGrade(grade, curriculumMode = 'cbc') {
   const data = await loadData(curriculumMode)
-  const subjects = []
-  for (const [subject, sheets] of Object.entries(data || {})) {
-    if (matchingSheets(sheets, grade).length > 0) {
-      subjects.push(subject)
-    }
-  }
-  return subjects
+  return Object.entries(data || {})
+    .filter(([, sheets]) => matchingSheets(sheets, grade).length > 0)
+    .map(([subject]) => subject)
 }
 
 /**
@@ -193,13 +192,17 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
 
     for (const row of rows) {
       if (!row.topic) continue
-      let entry = topicMap.get(row.topic)
-      if (!entry) {
-        entry = { label: row.topic, subtopics: [] }
-        topicMap.set(row.topic, entry)
-      }
-      if (row.subtopic && !entry.subtopics.includes(row.subtopic)) {
-        entry.subtopics.push(row.subtopic)
+      const existing = topicMap.get(row.topic)
+      if (!existing) {
+        topicMap.set(row.topic, {
+          label: row.topic,
+          subtopics: row.subtopic ? [row.subtopic] : [],
+        })
+      } else if (row.subtopic && !existing.subtopics.includes(row.subtopic)) {
+        topicMap.set(row.topic, {
+          ...existing,
+          subtopics: [...existing.subtopics, row.subtopic],
+        })
       }
     }
   }
