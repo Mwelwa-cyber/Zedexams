@@ -247,19 +247,9 @@ export default function LessonPlanStudio() {
       current.setGenerationStatus('done')
 
       // Persist series progress to Firestore when in series mode.
+      // Schema: lessonSeries/{uid}/{seriesId}/{lessonNumber}
       if (planningMode === 'series' && uid && effectiveSeriesId) {
-        const seriesRef = doc(db, 'lessonSeries', uid, effectiveSeriesId)
-        await setDoc(seriesRef, {
-          subject: lessonDetails.subject ?? '',
-          grade: lessonDetails.grade ?? '',
-          topic: topicData.topic ?? '',
-          subtopic: topicData.subtopic ?? '',
-          curriculumMode,
-          totalLessons: lessonBreakdown.length,
-          lastUpdated: serverTimestamp(),
-        }, { merge: true })
-
-        const lessonRef = doc(db, 'lessonSeries', uid, effectiveSeriesId, 'lessons', String(lessonNumber))
+        const lessonRef = doc(db, 'lessonSeries', uid, effectiveSeriesId, String(lessonNumber))
         await setDoc(lessonRef, {
           lessonNumber,
           status: 'completed',

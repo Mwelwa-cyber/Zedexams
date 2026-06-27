@@ -536,17 +536,12 @@ describe('LessonPlanStudio — Firestore series writes', () => {
     fireEvent.click(screen.getByTestId('trigger-generate'))
 
     await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledTimes(2)
+      expect(mockSetDoc).toHaveBeenCalledTimes(1)
     })
 
-    // First call: series root doc with merge:true
-    const [, firstData, firstOpts] = mockSetDoc.mock.calls[0]
-    expect(firstData).toMatchObject({ subject: 'Science', grade: 'Grade 4', topic: 'Environment' })
-    expect(firstOpts).toEqual({ merge: true })
-
-    // Second call: lesson progress doc
-    const [, secondData] = mockSetDoc.mock.calls[1]
-    expect(secondData).toMatchObject({ lessonNumber: 1, status: 'completed' })
+    // Only call: lesson progress doc at lessonSeries/{uid}/{seriesId}/{lessonNumber}
+    const [, lessonData] = mockSetDoc.mock.calls[0]
+    expect(lessonData).toMatchObject({ lessonNumber: 1, status: 'completed' })
   })
 
   it('does NOT write to Firestore when planningMode is "single"', async () => {

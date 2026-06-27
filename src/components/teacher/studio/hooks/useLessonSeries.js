@@ -5,7 +5,7 @@ import { db } from '../../../../firebase/config.js'
 /**
  * Subscribes to a lesson series in Firestore and returns real-time progress.
  *
- * Collection path: lessonSeries/{uid}/{seriesId}/lessons
+ * Collection path: lessonSeries/{uid}/{seriesId}
  * Each document has at minimum:
  *   - lessonNumber: string
  *   - status: string  ('completed' | 'pending' | …)
@@ -35,7 +35,7 @@ export function useLessonSeries(uid, seriesId) {
     setSeriesLoading(true)
     setSeriesError(null)
 
-    const lessonsRef = collection(db, 'lessonSeries', uid, seriesId, 'lessons')
+    const lessonsRef = collection(db, 'lessonSeries', uid, seriesId)
 
     const unsubscribe = onSnapshot(
       lessonsRef,

@@ -85,7 +85,6 @@ describe('useLessonSeries — subscription', () => {
       'lessonSeries',
       'uid-abc',
       'series-xyz',
-      'lessons',
     )
     expect(onSnapshot).toHaveBeenCalledWith(fakeRef, expect.any(Function), expect.any(Function))
   })
