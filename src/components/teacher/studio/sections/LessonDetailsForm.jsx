@@ -282,6 +282,32 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
               />
             </div>
           </div>
+
+          {/* Teacher Name */}
+          <div>
+            <label htmlFor="ldf-teacher" className={LABEL_CLS}>Teacher Name <span className="font-normal text-[#a39d8e]">(optional)</span></label>
+            <input
+              id="ldf-teacher"
+              type="text"
+              value={lessonDetails.teacherName}
+              onChange={(e) => onChange('teacherName', e.target.value)}
+              className={INPUT_CLS}
+              disabled={disabled}
+            />
+          </div>
+
+          {/* School */}
+          <div>
+            <label htmlFor="ldf-school" className={LABEL_CLS}>School <span className="font-normal text-[#a39d8e]">(optional)</span></label>
+            <input
+              id="ldf-school"
+              type="text"
+              value={lessonDetails.school}
+              onChange={(e) => onChange('school', e.target.value)}
+              className={INPUT_CLS}
+              disabled={disabled}
+            />
+          </div>
         </div>
       )}
     </div>

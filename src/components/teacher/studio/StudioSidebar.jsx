@@ -70,6 +70,7 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           curriculumMode={curriculumMode}
           onTopicChange={(value) => setTopicField('topic', value)}
           onSubtopicChange={(value) => setTopicField('subtopic', value)}
+          onSubtopicRowLoaded={(row) => setTopicField('subtopicRow', row)}
           disabled={!lessonDetails.grade || !lessonDetails.subject}
         />
 

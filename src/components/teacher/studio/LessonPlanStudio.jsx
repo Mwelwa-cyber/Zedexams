@@ -202,6 +202,20 @@ export default function LessonPlanStudio() {
       userPromptLines.push(`Focus for THIS lesson: ${lessonItem.focus}`)
     }
 
+    // Format preferences
+    const detailLabel = formatOptions.detail === 'simplified'
+      ? 'Simplified — key points only, concise activities, short descriptions'
+      : formatOptions.detail === 'detailed'
+        ? 'Detailed — comprehensive coverage, thorough activities, extended explanations'
+        : 'Standard — balanced detail and clarity'
+    const styleLabel = formatOptions.writingStyle === 'simple'
+      ? 'Simple — plain accessible language a beginning teacher can follow'
+      : formatOptions.writingStyle === 'professional'
+        ? 'Professional — formal, sophisticated vocabulary suitable for inspection'
+        : 'Standard — formal teacher language'
+    userPromptLines.push('', `- Lesson plan detail: ${detailLabel}`)
+    userPromptLines.push(`- Writing style: ${styleLabel}`)
+
     userPromptLines.push('', 'Return ONLY the JSON object. No markdown fences. No commentary.')
 
     const userPrompt = userPromptLines.filter(Boolean).join('\n')
