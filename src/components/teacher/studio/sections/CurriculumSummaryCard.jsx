@@ -34,8 +34,8 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
           <div>
             <span className={SECTION_LABEL_CLS}>Learning Activities</span>
             <div className="flex flex-wrap gap-1 mt-1">
-              {(subtopicRow.learningActivities ?? []).map((activity, idx) => (
-                <ActivityChip key={idx} label={activity} />
+              {(subtopicRow.learningActivities ?? []).map((activity) => (
+                <ActivityChip key={activity} label={activity} />
               ))}
             </div>
           </div>
@@ -52,11 +52,11 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
         <div>
           <span className={SECTION_LABEL_CLS}>Specific Outcomes</span>
           <div className="mt-1 space-y-1">
-            {(subtopicRow.specificOutcomes ?? []).map((outcome, idx) => {
+            {(subtopicRow.specificOutcomes ?? []).map((outcome) => {
               const highlighted = selectedOutcomes.includes(outcome)
               return (
                 <p
-                  key={idx}
+                  key={outcome}
                   className={[
                     'rounded text-[13px] text-[#3d3529] leading-snug px-2 py-0.5',
                     highlighted
