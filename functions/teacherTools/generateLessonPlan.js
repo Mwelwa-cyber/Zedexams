@@ -88,7 +88,7 @@ const LESSON_PLAN_TOOL_SCHEMA = {
     extensionActivity: {type: "string"},
     coveredContent: {type: "array", items: {type: "string"}},
   },
-  required: ["header", "lessonGoal", "specificCompetence", "stages"],
+  required: ["header", "lessonGoal", "stages"],
 };
 
 // Output scales roughly with lesson length. A 20-min lesson rarely fills 4000
@@ -139,6 +139,18 @@ function sanitizeInputs(raw = {}) {
   const learningEnvironment = str(raw.learningEnvironment, 40)
     .toLowerCase().replace(/[^a-z_]/g, "_");
 
+  const curriculumMode = ["cbc", "previous"].includes(raw.curriculumMode) ?
+    raw.curriculumMode : "cbc";
+  const specificCompetence = str(raw.specificCompetence, 300);
+  const learningActivities = Array.isArray(raw.learningActivities) ?
+    raw.learningActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const expectedStandard = str(raw.expectedStandard, 300);
+  const selectedOutcomes = Array.isArray(raw.selectedOutcomes) ?
+    raw.selectedOutcomes.map((o) => str(o, 300)).filter(Boolean) : [];
+  const coveredActivities = Array.isArray(raw.coveredActivities) ?
+    raw.coveredActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const lessonFocus = str(raw.lessonFocus, 200);
+
   return {
     grade,
     subject,
@@ -155,6 +167,13 @@ function sanitizeInputs(raw = {}) {
     school: str(raw.school, 120),
     numberOfPupils: Math.min(200, Math.max(1, Math.round(num(raw.numberOfPupils, 40)))),
     instructions: str(raw.instructions, 500),
+    curriculumMode,
+    specificCompetence,
+    learningActivities,
+    expectedStandard,
+    selectedOutcomes,
+    coveredActivities,
+    lessonFocus,
   };
 }
 
@@ -261,10 +280,13 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       thinking: LESSON_PLAN_THINKING,
       outputConfig: LESSON_PLAN_OUTPUT_CONFIG,
       toolName: "emit_lesson_plan",
-      toolDescription:
-        "Emit the complete Zambian CBC lesson plan as a single " +
-        "structured object. Do not include any prose or commentary " +
-        "outside this tool call.",
+      toolDescription: (() => {
+        const curriculumLabel =
+          inputs.curriculumMode === "previous" ? "Previous Curriculum" : "CBC";
+        return `Emit the complete Zambian ${curriculumLabel} lesson plan as a single ` +
+          "structured object. Do not include any prose or commentary " +
+          "outside this tool call.";
+      })(),
       toolInputSchema: LESSON_PLAN_TOOL_SCHEMA,
     };
 

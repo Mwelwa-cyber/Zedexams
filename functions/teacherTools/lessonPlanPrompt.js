@@ -57,9 +57,18 @@ PROFESSIONAL WRITING STANDARDS — this document is inspected by head teachers a
 
 /**
  * @param {object} inputs
+ *   // Existing fields:
  *   grade, subject, topic, subtopic, term, lessonNumber, totalLessons,
  *   learningEnvironment, durationMinutes, language, teacherName, school,
- *   numberOfPupils, boysPresent, girlsPresent, instructions (optional)
+ *   numberOfPupils, boysPresent, girlsPresent, instructions
+ *   // New fields:
+ *   curriculumMode: 'cbc' | 'previous' | null  (default 'cbc')
+ *   specificCompetence: string   (CBC only — from SPECIFIC COMPETENCES column)
+ *   learningActivities: string[] (CBC only — parsed from LEARNING ACTIVITIES)
+ *   expectedStandard: string     (CBC only — from EXPECTED STANDARD column)
+ *   selectedOutcomes: string[]   (Previous only — the selected specific outcomes)
+ *   coveredActivities: string[]  (optional — content covered in earlier lessons, to avoid repetition)
+ *   lessonFocus: string          (optional — the specific focus for this lesson in a series)
  */
 function buildUserPrompt(inputs) {
   const {
@@ -79,12 +88,24 @@ function buildUserPrompt(inputs) {
     boysPresent = null,
     girlsPresent = null,
     instructions = "",
+    curriculumMode = "cbc",
+    specificCompetence = "",
+    learningActivities = [],
+    expectedStandard = "",
+    selectedOutcomes = [],
+    coveredActivities = [],
+    lessonFocus = "",
   } = inputs;
 
   const leLabel = learningEnvironmentLabel(learningEnvironment);
+  const isPrevious = curriculumMode === "previous";
 
-  return [
-    "Generate a Zambian CBC lesson plan for the following lesson:",
+  const openingLine = isPrevious
+    ? "Generate a Zambian lesson plan (Previous Curriculum / Outcomes-Based) for the following lesson:"
+    : "Generate a Zambian CBC lesson plan for the following lesson:";
+
+  const lines = [
+    openingLine,
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -109,6 +130,51 @@ function buildUserPrompt(inputs) {
     teacherName ? `- Teacher name: ${teacherName}` : "",
     school ? `- School: ${school}` : "",
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
+  ];
+
+  // ── CBC context block ──────────────────────────────────────────────────────
+  if (!isPrevious) {
+    if (specificCompetence || learningActivities.length || expectedStandard) {
+      lines.push(
+        "",
+        "<cbc_context>",
+        specificCompetence ? `Specific Competence: ${specificCompetence}` : "",
+        learningActivities.length
+          ? `Learning Activities (from syllabus): ${learningActivities.join(" | ")}`
+          : "",
+        expectedStandard ? `Expected Standard: ${expectedStandard}` : "",
+        "</cbc_context>",
+        "",
+        "Ground the entire plan in this context. The specificCompetence drives every stage.",
+      );
+    }
+  }
+
+  // ── Covered activities + lesson focus (applies to both CBC and Previous) ──
+  if (coveredActivities.length) {
+    lines.push(
+      `Previously covered in this series (DO NOT repeat): ${coveredActivities.join(" | ")}`,
+      `Focus for THIS lesson: ${lessonFocus || "Continue from covered content above"}`,
+    );
+  }
+
+  // ── Previous Curriculum context block ─────────────────────────────────────
+  if (isPrevious && selectedOutcomes.length) {
+    lines.push(
+      "",
+      "<previous_context>",
+      "Specific Outcome(s) for this lesson:",
+      ...selectedOutcomes.map((o, i) => `${i + 1}. ${o}`),
+      "</previous_context>",
+      "",
+      "Ground the lesson in achieving these specific outcomes. The lesson structure " +
+      "follows the standard Zambian Previous Curriculum format: Introduction → " +
+      "Development → Conclusion → Homework. Every stage must contribute to learners " +
+      "achieving the stated outcomes.",
+    );
+  }
+
+  lines.push(
     "",
     "Produce the lesson plan as a single JSON object with EXACTLY these keys:",
     "",
@@ -123,7 +189,9 @@ function buildUserPrompt(inputs) {
     '    "mediumOfInstruction": string',
     "  },",
     '  "generalCompetences": [string, ...],  // 3-5 from the CBC framework list',
-    '  "specificCompetence": string,         // WITH the syllabus code, e.g. "4.1.1.1 Practise safe and hygienic ways of handling food"',
+    isPrevious
+      ? '  "specificOutcome": string,           // the stated specific outcome(s) for this lesson'
+      : '  "specificCompetence": string,         // WITH the syllabus code, e.g. "4.1.1.1 Practise safe and hygienic ways of handling food"',
     '  "lessonGoal": string,                 // ONE SMART sentence',
     '  "rationale": string,                  // content + value + methods + position, ending "This is lesson K in a series of N."',
     '  "priorKnowledge": string,             // what learners already know related to this lesson',
@@ -133,11 +201,20 @@ function buildUserPrompt(inputs) {
     '  "expectedStandard": string,           // PASSIVE voice from the syllabus, e.g. "Road safety practised correctly."',
     '  "keyVocabulary": [string, ...],       // 4-8 entries "Term: short learner-friendly meaning"',
     '  "stages": [',
-    '    { "name": "INTRODUCTION",          "durationMinutes": n, "teacherActivities": [string,...], "learnerActivities": [string,...], "assessmentCriteria": [string,...] },',
-    '    { "name": "LESSON DEVELOPMENT",    "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
-    '    { "name": "EXERCISE / ASSESSMENT", "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
-    '    { "name": "HOMEWORK",              "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
-    '    { "name": "CONCLUSION",            "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] }',
+    isPrevious
+      ? [
+        '    { "name": "INTRODUCTION",  "durationMinutes": n, "teacherActivities": [string,...], "learnerActivities": [string,...], "assessmentCriteria": [string,...] },',
+        '    { "name": "DEVELOPMENT",   "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
+        '    { "name": "CONCLUSION",    "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
+        '    { "name": "HOMEWORK",      "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] }',
+      ].join("\n")
+      : [
+        '    { "name": "INTRODUCTION",          "durationMinutes": n, "teacherActivities": [string,...], "learnerActivities": [string,...], "assessmentCriteria": [string,...] },',
+        '    { "name": "LESSON DEVELOPMENT",    "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
+        '    { "name": "EXERCISE / ASSESSMENT", "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
+        '    { "name": "HOMEWORK",              "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] },',
+        '    { "name": "CONCLUSION",            "durationMinutes": n, "teacherActivities": [...], "learnerActivities": [...], "assessmentCriteria": [...] }',
+      ].join("\n"),
     "  ],",
     '  "remedialWork": string,        // short support task for learners who struggled ("" if not needed)',
     '  "extensionActivity": string,   // short stretch task for fast finishers ("" if not needed)',
@@ -145,12 +222,19 @@ function buildUserPrompt(inputs) {
     "}",
     "",
     "Rules:",
-    "- Exactly the five official stages, in that order. LESSON DEVELOPMENT may be split into 2-3 consecutive entries named \"LESSON DEVELOPMENT — Activity 1: <short title>\" when the lesson naturally has distinct timed activities.",
+    isPrevious
+      ? "- For Previous Curriculum, the lesson MUST target the stated Specific Outcomes. Replace \"specificCompetence\" with \"specificOutcome\" in the JSON."
+      : "- Exactly the five official stages, in that order. LESSON DEVELOPMENT may be split into 2-3 consecutive entries named \"LESSON DEVELOPMENT — Activity 1: <short title>\" when the lesson naturally has distinct timed activities.",
+    isPrevious
+      ? "- Stage names for Previous Curriculum: INTRODUCTION → DEVELOPMENT → CONCLUSION → HOMEWORK (4 stages, not 5)."
+      : "",
     "- Stage durations must sum to within 2 minutes of the requested lesson duration.",
     "- For each stage, teacherActivities and learnerActivities must be PARALLEL (every teacher move has a matching learner response), and assessmentCriteria must describe observable learner behaviour.",
     "- lessonGoal MUST pass the SMART test on its own, without reading the rest of the plan.",
     "- Return ONLY the JSON object. No markdown fences. No commentary.",
-  ].filter(Boolean).join("\n");
+  );
+
+  return lines.filter(Boolean).join("\n");
 }
 
 module.exports = {

@@ -42,11 +42,10 @@ for (const key of ['grade:', 'subject:', 'topic:', 'subtopic:', 'term:']) {
     `06-generate.js passes ${key.replace(':', '')} to the kit`)
 }
 
-// 2. The React studio registers + cleans up the bridge and renders the bar.
-const studio = read('src/components/teacher/generate/LessonPlanStudio.jsx')
+// 2. The React studio imports the serialiser and renders the bar.
+// The new studio is a pure-React component — no window bridge needed.
+const studio = read('src/components/teacher/studio/LessonPlanStudio.jsx')
 check(/import \{ buildGeneratorQueryString \} from/.test(studio), 'LessonPlanStudio imports buildGeneratorQueryString (the generators\' deserialiser)')
-check(/window\.__studioOnGenerated\s*=/.test(studio), 'LessonPlanStudio registers the __studioOnGenerated bridge')
-check(/delete window\.__studioOnGenerated/.test(studio), 'LessonPlanStudio cleans up the bridge on unmount')
 check(/Create for this lesson/.test(studio), 'LessonPlanStudio renders the "Create for this lesson" bar')
 
 // 3. The bar deep-links into the companion studios with the query string.
