@@ -2,9 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TopicSubtopicForm } from './TopicSubtopicForm'
 
-// Mock the hook so tests don't touch real async data fetching
+// Mock hooks so tests don't touch real async data fetching or Firebase
 vi.mock('../hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: vi.fn(),
+}))
+
+vi.mock('../hooks/useSubtopicDetail.js', () => ({
+  useSubtopicDetail: vi.fn(() => ({ subtopicRow: null, loading: false, error: null })),
 }))
 
 import { useSubjectTopics } from '../hooks/useSubjectTopics.js'

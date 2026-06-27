@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSubjectTopics } from '../hooks/useSubjectTopics.js'
+import { useSubtopicDetail } from '../hooks/useSubtopicDetail.js'
 
 // Shared Tailwind classes — mirror LessonDetailsForm
 const INPUT_CLS =
@@ -20,6 +21,7 @@ function isDone(topicData) {
  *   curriculumMode: 'cbc' | 'previous' | null
  *   onTopicChange: (topic: string) => void
  *   onSubtopicChange: (subtopic: string) => void
+ *   onSubtopicRowLoaded: (row: object|null) => void — called when curriculum row is fetched
  *   disabled: boolean — true when grade+subject are not yet filled
  */
 export function TopicSubtopicForm({
@@ -28,6 +30,7 @@ export function TopicSubtopicForm({
   curriculumMode,
   onTopicChange,
   onSubtopicChange,
+  onSubtopicRowLoaded,
   disabled,
 }) {
   const [open, setOpen] = useState(true)
@@ -37,6 +40,22 @@ export function TopicSubtopicForm({
     lessonDetails.grade,
     curriculumMode,
   )
+
+  // Fetch the full curriculum row for the selected subtopic
+  const { subtopicRow } = useSubtopicDetail(
+    lessonDetails.subject,
+    lessonDetails.grade,
+    topicData.topic,
+    topicData.subtopic,
+    curriculumMode,
+  )
+
+  // Propagate the loaded row up so the root state can gate validation
+  useEffect(() => {
+    if (typeof onSubtopicRowLoaded === 'function') {
+      onSubtopicRowLoaded(subtopicRow)
+    }
+  }, [subtopicRow, onSubtopicRowLoaded])
 
   // Find the topic object that matches the currently-selected topic label,
   // so we can populate the subtopic dropdown.
