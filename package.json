@@ -105,6 +105,7 @@
     "test:moe-calendar": "node scripts/test-moe-calendar-weeks.mjs",
     "test:record-of-work": "node scripts/test-record-of-work.mjs",
     "test:storage-rules-text": "node scripts/test-storage-rules-text.mjs",
+    "test:boot-watchdog": "node scripts/test-boot-watchdog.mjs",
     "test:exam-grading": "node functions/grading/dailyExamGrading.test.js",
     "test:grading": "node src/utils/grading.test.js",
     "test:exam-paper-schema": "node functions/teacherTools/examPaperSchema.test.js",

@@ -27,6 +27,24 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
+// Fail loudly and specifically when the build shipped without a usable
+// Firebase web config. Without this, the first symptom is getAuth() throwing
+// an opaque `auth/invalid-api-key` synchronously at module load — which, since
+// it happens before <ErrorBoundary> mounts, white-screens the whole app with
+// no clue as to why. Naming the missing keys turns a blank page + cryptic
+// console error into an actionable one. The index.html boot watchdog still
+// renders the user-facing recovery UI; this is purely operator diagnostics.
+// (Web Firebase config is public by design, so listing the keys leaks nothing.)
+const REQUIRED_CONFIG_KEYS = ['apiKey', 'authDomain', 'projectId', 'appId']
+const missingConfigKeys = REQUIRED_CONFIG_KEYS.filter((k) => !firebaseConfig[k])
+if (missingConfigKeys.length) {
+  throw new Error(
+    `[firebase] Missing required Firebase web config: ${missingConfigKeys
+      .map((k) => `VITE_FIREBASE_${k.replace(/[A-Z]/g, (c) => '_' + c).toUpperCase()}`)
+      .join(', ')}. The app cannot start. Check the deploy's VITE_FIREBASE_* environment variables.`
+  )
+}
+
 const app = initializeApp(firebaseConfig)
 
 export const auth    = getAuth(app)
