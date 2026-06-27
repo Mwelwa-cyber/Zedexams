@@ -19,6 +19,7 @@ export function StudioCanvas({
   generatedPlan,
   generationStatus,
   generationError,
+  onExportWord,
 }) {
   // Inject lesson.css from /public/studio/ on mount.
   // The file lives in public/ so Vite won't bundle it; we inject a <link>
@@ -44,11 +45,7 @@ export function StudioCanvas({
   }
 
   function handleExportWord() {
-    if (typeof window.__studioExportWord === 'function') {
-      window.__studioExportWord()
-    } else {
-      alert('Export not available')
-    }
+    if (typeof onExportWord === 'function') onExportWord()
   }
 
   return (
@@ -82,6 +79,7 @@ export function StudioCanvas({
 
             <button
               type="button"
+              data-export="word"
               onClick={handleExportWord}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors"
             >

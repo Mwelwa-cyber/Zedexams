@@ -101,19 +101,16 @@ check(
   'vendored html-docx converter exists in public/studio/vendor/',
 )
 
-// 7. React wrapper is Word-only: no PDF bridge, and only the Word export button
-//    survives in the export menu.
-const studioJsx = read('src/components/teacher/generate/LessonPlanStudio.jsx')
+// 7. React studio is Word-only: no PDF bridge, and only the Word export button
+//    survives in the export menu. The new studio is pure React — no window
+//    bridges needed; it uses downloadLessonPlanDocx directly.
+const studioJsx  = read('src/components/teacher/studio/LessonPlanStudio.jsx')
+const canvasJsx  = read('src/components/teacher/studio/StudioCanvas.jsx')
 check(!/__zxDownloadPdf/.test(studioJsx), 'LessonPlanStudio no longer registers the PDF bridge')
 check(!/downloadHtmlAsPdf/.test(studioJsx), 'LessonPlanStudio no longer imports the real-PDF helper')
-check(/data-export="word"/.test(studioJsx), 'LessonPlanStudio keeps the Word export button')
-check(!/data-export="pdf"|data-export="html"/.test(studioJsx), 'LessonPlanStudio has no PDF/HTML export buttons')
-check(/window\.__zxSaveBlob\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxSaveBlob bridge')
-check(/delete window\.__zxSaveBlob/.test(studioJsx), 'LessonPlanStudio cleans up the saveBlob bridge on unmount')
-// altChunk→native-OOXML fix: the native docx bridge must be registered and cleaned up.
-check(/window\.__zxHtmlToDocx\s*=/.test(studioJsx), 'LessonPlanStudio registers the __zxHtmlToDocx native-OOXML bridge')
-check(/delete window\.__zxHtmlToDocx/.test(studioJsx), 'LessonPlanStudio cleans up the __zxHtmlToDocx bridge on unmount')
-
+check(/downloadLessonPlanDocx/.test(studioJsx), 'LessonPlanStudio uses downloadLessonPlanDocx for Word export')
+check(/data-export="word"/.test(canvasJsx), 'StudioCanvas keeps the Word export button')
+check(!/data-export="pdf"|data-export="html"/.test(canvasJsx), 'StudioCanvas has no PDF/HTML export buttons')
 // 8. The PDF libraries get their own lazy chunk (kept out of the eager vendor).
 const viteConfig = read('vite.config.js')
 check(

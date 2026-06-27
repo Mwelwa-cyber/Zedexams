@@ -14,6 +14,7 @@ import { renderPlanHtml } from './utils/renderPlanHtml'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
@@ -88,6 +89,8 @@ export default function LessonPlanStudio() {
   // is purely UI state for the error panel.
   const [generationError, setGenerationError] = useState(null)
   const [kit, setKit] = useState(null)
+  const [lastPlanJson, setLastPlanJson] = useState(null)
+  const [lastMeta, setLastMeta] = useState(null)
 
   // AI lesson-count recommendation (used by LessonProgressionForm).
   // useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode)
@@ -247,6 +250,8 @@ export default function LessonPlanStudio() {
       const html = renderPlanHtml(planJson, meta, curriculumMode)
       current.setGeneratedPlan(html)
       current.setGenerationStatus('done')
+      setLastPlanJson(planJson)
+      setLastMeta(meta)
       setKit({
         grade: lessonDetails.grade,
         subject: lessonDetails.subject,
@@ -286,6 +291,14 @@ export default function LessonPlanStudio() {
     }
   }, [completedLessons, handleGenerate])
 
+  const handleExportWord = useCallback(async () => {
+    if (!lastPlanJson) return
+    const subject = lastMeta?.subject ?? 'lesson'
+    const grade   = lastMeta?.grade   ?? ''
+    const filename = `lesson-plan-${grade}-${subject}.docx`.replace(/\s+/g, '-').toLowerCase()
+    await downloadLessonPlanDocx(lastPlanJson, filename, lastMeta ?? {})
+  }, [lastPlanJson, lastMeta])
+
   // Navigate to the teacher's saved lesson library.
   const handleViewCompleted = useCallback(() => {
     navigate('/teacher/library')
@@ -317,6 +330,7 @@ export default function LessonPlanStudio() {
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
             generationError={generationError}
+            onExportWord={handleExportWord}
           />
         }
       />
