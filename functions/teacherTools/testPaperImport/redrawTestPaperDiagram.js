@@ -164,8 +164,15 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   if (kieApiKeySecret) secrets.push(kieApiKeySecret);
 
+  // Image generation (Recraft/OpenAI/Kie) — especially the Kie async
+  // submit-then-poll path — can run well past a minute. At the old 120s ceiling
+  // a slow generation was KILLED by the platform mid-await, which returns a raw
+  // 500 the Firebase SDK surfaces to the client as the bare code name
+  // "internal" (the try/catch below never runs because the process is aborted).
+  // Give it room to finish (300s) and more memory — GCF couples CPU to memory,
+  // so 1GiB roughly doubles CPU and speeds the image encode/upload too.
   return onCall(
-    {secrets, timeoutSeconds: 120, memory: "512MiB"},
+    {secrets, timeoutSeconds: 300, memory: "1GiB"},
     async (request) => {
       const uid = request.auth && request.auth.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");

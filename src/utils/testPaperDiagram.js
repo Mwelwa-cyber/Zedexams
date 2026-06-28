@@ -33,9 +33,10 @@ export const DIAGRAM_HANDLING_OPTIONS = [
   { id: 'remove', label: 'Remove diagram and leave blank space', generates: false },
 ]
 
-// Server has timeoutSeconds: 120; allow a small margin so the server error
-// surfaces rather than the client giving up first.
-const REDRAW_TIMEOUT_MS = 130000
+// Server has timeoutSeconds: 300; allow a small margin so a slow-but-valid
+// generation completes and a real server error surfaces, rather than the client
+// giving up first (and never letting the server's descriptive error through).
+const REDRAW_TIMEOUT_MS = 310000
 
 function messageFromError(error) {
   const code = error?.code || ''
