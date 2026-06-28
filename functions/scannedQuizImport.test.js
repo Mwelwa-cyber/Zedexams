@@ -762,4 +762,40 @@ test("does not attach diagramLabels to a non-diagram-label question", () => {
   assert.deepEqual(q.diagramLabels, []);
 });
 
+// ── answer spaces + section heading ──────────────────────────────────────────
+test("schema + prompt carry answerLines + sectionTitle", () => {
+  const props = SCANNED_TOOL_SCHEMA.$defs.question.properties;
+  assert.ok(props.answerLines, "schema carries answerLines");
+  assert.match(CLAUDE_SYSTEM_PROMPT, /answerLines/);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /sectionTitle/);
+});
+
+test("carries answerLines for a written-answer question, clamps, null elsewhere", () => {
+  const written = normaliseScannedQuestion(
+    {prompt: "Describe the water cycle.", options: [], questionType: "short_answer", answerLines: 6},
+    [1],
+  );
+  assert.equal(written.answerLines, 6);
+  // Clamp absurd counts.
+  const clamped = normaliseScannedQuestion(
+    {prompt: "Explain.", options: [], questionType: "short_answer", answerLines: 999},
+    [1],
+  );
+  assert.equal(clamped.answerLines, 30);
+  // MCQ never carries answer lines.
+  const mcq = normaliseScannedQuestion(
+    {prompt: "Pick one", options: ["a", "b", "c", "d"], answerLines: 4},
+    [1],
+  );
+  assert.equal(mcq.answerLines, null);
+});
+
+test("carries the printed section heading", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Pick one", options: ["a", "b"], sectionTitle: "Section B"},
+    [1],
+  );
+  assert.equal(q.sectionTitle, "Section B");
+});
+
 console.log(`\nscannedQuizImport: ${passed} passed`);

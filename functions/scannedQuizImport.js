@@ -127,6 +127,11 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- diagramLabels: for a 'diagram_label' question, list the parts the learner",
   "  must name in reading order (the printed markers like A, B, C, or the named",
   "  parts if shown). Such a question always has its figure — set hasDiagram.",
+  "- answerLines: for a written-answer question, count the blank ruled lines",
+  "  printed under it for the learner's answer (0 or omit when there are none).",
+  "- sectionTitle: the heading of the section this question sits under, copied",
+  "  verbatim if printed (e.g. 'Section A', 'Section B: Comprehension'); omit",
+  "  when the paper shows no section heading.",
   "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
   "  never guess. The teacher sets answers afterwards.",
   "- explanation: ''.",
@@ -319,6 +324,13 @@ const SCANNED_TOOL_SCHEMA = {
             "For questionType='diagram_label': the parts/labels the learner " +
             "must name, in reading order (e.g. the printed markers 'A','B','C' " +
             "or the named parts if shown). Omit otherwise.",
+        },
+        answerLines: {
+          type: "integer",
+          description:
+            "For a written-answer question (short_answer / fill_blank / " +
+            "diagram_label), the number of blank ruled answer lines printed " +
+            "under it. Omit when there is no blank answer space.",
         },
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
@@ -657,6 +669,12 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   const wordBank = sanitiseStringList(raw?.wordBank, 30);
   // The parts the learner must name on a "label the diagram" question.
   const diagramLabels = type === "diagram_label" ? sanitiseStringList(raw?.diagramLabels, 12) : [];
+  // Blank ruled answer lines printed under a written-answer question. Only
+  // meaningful for written types; bounded to a sane 0..30.
+  const WRITTEN_TYPES = new Set(["short_answer", "fill_blank", "diagram_label"]);
+  const rawAnswerLines = Number.parseInt(raw?.answerLines, 10);
+  const answerLines = WRITTEN_TYPES.has(type) && Number.isFinite(rawAnswerLines) && rawAnswerLines > 0 ?
+    Math.min(30, rawAnswerLines) : null;
 
   return {
     sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
@@ -677,6 +695,7 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     matchingRight,
     wordBank,
     diagramLabels,
+    answerLines,
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
     sharedInstruction: clampString(raw?.instruction, 1200).trim(),
     sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),

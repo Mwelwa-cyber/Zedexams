@@ -21,7 +21,7 @@
  * injected/guarded so the tests run in plain Node with no DOM.
  */
 
-import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
+import { createStandaloneSection, createPassageSection, createPartGroup } from '../../utils/quizSections.js'
 import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
@@ -282,6 +282,14 @@ function mapVisionQuestion(q, order, options, deps) {
     type: canonicalType,
     detectedType: canonicalType,
     marks: Number.isFinite(q?.marks) && q.marks > 0 ? q.marks : 1,
+    // Blank ruled answer lines the OCR counted under a written-answer question;
+    // null falls back to the editor's per-type default.
+    ...(Number.isFinite(q?.answerLines) && q.answerLines > 0
+      ? { answerFormat: 'lines', answerLines: q.answerLines }
+      : {}),
+    // Section heading (e.g. "Section A") carried for part grouping below; the
+    // editor doesn't surface it directly but groupSectionsIntoParts reads it.
+    sectionTitle: String(q?.sectionTitle || '').trim(),
     order,
     requiresReview: true,
     reviewNotes,
@@ -896,6 +904,41 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
 }
 
 /**
+ * Group imported sections under the paper's printed section headings (e.g.
+ * "Section A", "Section B"). A new part group starts whenever a section's
+ * heading changes; every section in that run gets the part's id (standalone
+ * questions via `question.partId`, passages via `section.partId`, matching how
+ * serializeQuizSections reads membership). Passages with no heading of their
+ * own inherit the current section. Returns the (mutated) sections plus the
+ * parts list — empty when the paper printed no headings, so the default
+ * single-flow import is unchanged. Pure + node-testable (deps injectable).
+ */
+export function groupSectionsIntoParts(sections = [], deps = {}) {
+  const makePart = deps.createPart || createPartGroup
+  const labelOf = (section) => {
+    if (section?.kind === 'passage') return String(section.passage?.sectionTitle || '').trim()
+    return String(section?.question?.sectionTitle || '').trim()
+  }
+  const parts = []
+  let currentLabel = null
+  let currentPartId = null
+  ;(Array.isArray(sections) ? sections : []).forEach((section) => {
+    const label = labelOf(section)
+    if (label && label !== currentLabel) {
+      const part = makePart({ title: label, order: parts.length })
+      parts.push(part)
+      currentPartId = part.id
+      currentLabel = label
+    }
+    if (currentPartId) {
+      if (section?.kind === 'passage') section.partId = currentPartId
+      else if (section?.question) section.question.partId = currentPartId
+    }
+  })
+  return { sections, parts }
+}
+
+/**
  * Source-agnostic vision import: given pre-rendered page images (from a scanned
  * PDF or from uploaded photos), call the vision callable batch-by-batch, merge
  * the results, and map them onto editor sections. `callVision` is the
@@ -996,8 +1039,13 @@ export async function runVisionImport({
     warnings.unshift('Answers were left blank — set the correct answer for each question before publishing.')
   }
 
+  // Group the sections under their printed headings (Section A / B …) into
+  // part groups so the paper rebuilds with its original section structure.
+  const { parts } = groupSectionsIntoParts(sections)
+
   return {
     sections,
+    parts,
     imageAssets,
     // Review-only originals (one object URL per page), independent of the
     // upload assets — the studio shows them in the import review screen and

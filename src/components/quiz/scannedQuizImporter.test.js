@@ -30,6 +30,7 @@ import {
   normalizeImportInput,
   runVisionImport,
   buildReviewPageImages,
+  groupSectionsIntoParts,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -314,6 +315,49 @@ test('visionSectionsToLocal pre-populates matching columns + a word bank', () =>
   assert.deepEqual(match.matchingRight, ['Kennel', 'Nest'])
   assert.deepEqual(match.matchingAnswer, [-1, -1]) // one blank slot per left item
   assert.deepEqual(sections[1].question.wordBank, ['Lusaka', 'Ndola'])
+})
+
+test('visionSectionsToLocal carries answer lines + section heading', () => {
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'standalone', question: {
+      text: 'Describe the water cycle.', options: [], type: 'short_answer',
+      answerLines: 6, sectionTitle: 'Section B',
+    } }],
+    {},
+    fakeDeps,
+  )
+  const q = sections[0].question
+  assert.equal(q.answerLines, 6)
+  assert.equal(q.answerFormat, 'lines')
+  assert.equal(q.sectionTitle, 'Section B')
+})
+
+test('groupSectionsIntoParts builds part groups from section headings', () => {
+  const sections = [
+    { kind: 'standalone', question: { text: 'Q1', sectionTitle: 'Section A' } },
+    { kind: 'standalone', question: { text: 'Q2', sectionTitle: 'Section A' } },
+    { kind: 'passage', passage: { title: 'Story', questions: [{ text: 'Q3' }] } }, // inherits A
+    { kind: 'standalone', question: { text: 'Q4', sectionTitle: 'Section B' } },
+  ]
+  const { parts } = groupSectionsIntoParts(sections, {
+    createPart: ({ title, order }) => ({ id: `part-${order}`, title }),
+  })
+  assert.deepEqual(parts.map(p => p.title), ['Section A', 'Section B'])
+  // Q1, Q2 + the passage all sit in Section A; Q4 in Section B.
+  assert.equal(sections[0].question.partId, 'part-0')
+  assert.equal(sections[1].question.partId, 'part-0')
+  assert.equal(sections[2].partId, 'part-0')
+  assert.equal(sections[3].question.partId, 'part-1')
+})
+
+test('groupSectionsIntoParts makes no parts when the paper prints no headings', () => {
+  const sections = [
+    { kind: 'standalone', question: { text: 'Q1' } },
+    { kind: 'standalone', question: { text: 'Q2' } },
+  ]
+  const { parts } = groupSectionsIntoParts(sections)
+  assert.deepEqual(parts, [])
+  assert.equal(sections[0].question.partId, undefined)
 })
 
 test('visionSectionsToLocal maps a diagram_label question to the identify diagram editor', () => {
