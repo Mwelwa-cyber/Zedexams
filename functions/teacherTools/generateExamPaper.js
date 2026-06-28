@@ -27,6 +27,8 @@ const {validateExamPaper} = require("./examPaperSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./examPaperPrompt");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {sourceExamPaperFromBank} = require("./masterBankSourcing");
+const {buildAvoidNote} = require("./masterBankSourcingCore");
 
 const EXAM_PAPER_MODEL = process.env.EXAM_PAPER_MODEL || "claude-sonnet-4-6";
 
@@ -80,6 +82,9 @@ function sanitizeInputs(raw = {}) {
     difficulty: ALLOWED_DIFFICULTY.has(difficulty) ? difficulty : "mixed",
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    // Smart sourcing is on by default; a client can opt out ("fresh
+    // questions only") by sending useQuestionBank: false.
+    useQuestionBank: raw.useQuestionBank !== false,
   };
 }
 
@@ -135,47 +140,94 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
     visibility: "private",
   });
 
-  const userPrompt = buildUserPrompt(inputs);
+  // Smart Paper Generation — reuse approved MCQs from the Master Bank first,
+  // then ask the AI for only the remainder. Best-effort: an empty/unmatched
+  // bank sources nothing and the flow is identical to before.
+  let sourced = {questions: [], fromBank: 0, scanned: 0};
+  if (inputs.useQuestionBank) {
+    sourced = await sourceExamPaperFromBank({
+      grade: inputs.grade,
+      subject: inputs.subject,
+      topic: inputs.topic,
+      count: inputs.count,
+      optionCount: inputs.optionCount,
+    });
+  }
+  const gap = Math.max(0, inputs.count - sourced.questions.length);
 
   let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
   let modelUsed = EXAM_PAPER_MODEL;
-  try {
-    const response = await callClaude(apiKey, {
-      systemPrompt: SYSTEM_PROMPT,
-      cbcContextBlock: contextBlock,
-      messages: [{role: "user", content: userPrompt}],
-      // Up to 60 items with options + explanations needs generous headroom.
-      maxTokens: 8000,
-      temperature: 0.6,
-      model: EXAM_PAPER_MODEL,
-      mode: "tool",
-      toolName: "emit_exam_paper",
-      toolDescription:
-        "Emit the complete set of exam questions as a single structured " +
-        "object. Do not include any prose or commentary outside this call.",
-      toolInputSchema: EXAM_PAPER_TOOL_SCHEMA,
-    });
-    parsed = response.parsed;
-    raw = response.text || "";
-    usageInfo = response.usage || usageInfo;
-    modelUsed = response.model || modelUsed;
-  } catch (err) {
-    await genRef.update({
-      status: "failed",
-      errorMessage: String(err && err.message || err).slice(0, 500),
-    });
-    // The AI call failed with a hard throw — no usable paper was returned to
-    // the teacher. Refund the credit or roll back the counter so a K25 top-up
-    // credit (or free-plan taster) is not permanently lost on a transient error.
-    // This must not throw over the original error — it is strictly best-effort.
-    try { await refundGeneration(uid, usage, "exam_paper"); } catch (_) {}
-    throw err;
+  let aiCalled = false;
+
+  // Only call the model when the bank didn't fully cover the paper.
+  if (gap > 0) {
+    aiCalled = true;
+    const userPrompt = buildUserPrompt({...inputs, count: gap}) +
+      buildAvoidNote(sourced.questions);
+    try {
+      const response = await callClaude(apiKey, {
+        systemPrompt: SYSTEM_PROMPT,
+        cbcContextBlock: contextBlock,
+        messages: [{role: "user", content: userPrompt}],
+        // Up to 60 items with options + explanations needs generous headroom.
+        maxTokens: 8000,
+        temperature: 0.6,
+        model: EXAM_PAPER_MODEL,
+        mode: "tool",
+        toolName: "emit_exam_paper",
+        toolDescription:
+          "Emit the complete set of exam questions as a single structured " +
+          "object. Do not include any prose or commentary outside this call.",
+        toolInputSchema: EXAM_PAPER_TOOL_SCHEMA,
+      });
+      parsed = response.parsed;
+      raw = response.text || "";
+      usageInfo = response.usage || usageInfo;
+      modelUsed = response.model || modelUsed;
+    } catch (err) {
+      await genRef.update({
+        status: "failed",
+        errorMessage: String(err && err.message || err).slice(0, 500),
+      });
+      // The AI call failed with a hard throw — no usable paper was returned to
+      // the teacher. Refund the credit or roll back the counter so a K25 top-up
+      // credit (or free-plan taster) is not permanently lost on a transient error.
+      // This must not throw over the original error — it is strictly best-effort.
+      try { await refundGeneration(uid, usage, "exam_paper"); } catch (_) {}
+      throw err;
+    }
+  } else {
+    modelUsed = "master_bank";
   }
 
-  const validation = validateExamPaper(parsed, {optionCount: inputs.optionCount});
+  // Merge: Master Bank questions first, then any AI-generated ones.
+  const generatedQuestions = parsed && Array.isArray(parsed.questions) ?
+    parsed.questions : [];
+  const parsedHeader = (parsed && parsed.header) || {};
+  const mergedInput = {
+    header: {
+      title: parsedHeader.title || `${inputs.subject} practice exam`,
+      grade: parsedHeader.grade || inputs.grade,
+      subject: parsedHeader.subject || inputs.subject,
+      topic: parsedHeader.topic || inputs.topic,
+      subtopic: parsedHeader.subtopic || inputs.subtopic,
+      optionCount: inputs.optionCount,
+      instructions: parsedHeader.instructions,
+    },
+    questions: [...sourced.questions, ...generatedQuestions],
+    answerKey: (parsed && parsed.answerKey) || {},
+  };
+
+  const validation = validateExamPaper(mergedInput, {optionCount: inputs.optionCount});
   const examPaper = validation.value;
+  const sourcing = {
+    fromBank: sourced.fromBank,
+    generated: examPaper.questions.length - sourced.fromBank,
+    scanned: sourced.scanned,
+    aiCalled,
+  };
 
   const tokensIn = Number(usageInfo.inputTokens || 0);
   const tokensOut = Number(usageInfo.outputTokens || 0);
@@ -194,6 +246,7 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
       tokensOut,
       costUsdCents,
       modelUsed,
+      sourcing,
     });
     return {
       generationId: genRef.id,
@@ -204,6 +257,7 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
         kbWarning,
       ].filter(Boolean).join(" "),
       kbGrounded: Boolean(kbMatch),
+      sourcing,
     };
   }
 
@@ -215,6 +269,7 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
     tokensOut,
     costUsdCents,
     modelUsed,
+    sourcing,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -224,6 +279,7 @@ async function runExamPaper({uid, rawInputs, apiKey}) {
     usage,
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch),
+    sourcing,
   };
 }
 
