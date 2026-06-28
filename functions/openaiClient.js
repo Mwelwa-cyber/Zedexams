@@ -31,6 +31,13 @@ const ALLOWED_OPENAI_SIZES = new Set([
 ]);
 const ALLOWED_OPENAI_QUALITIES = new Set(["low", "medium", "high"]);
 
+// gpt-image-1 generation is slow but bounded — cap it so a hung request throws
+// a clean deadline-exceeded instead of blocking the caller's await until the
+// 300s function timeout kills the instance (which the SDK surfaces to the
+// client as the bare code "internal"). 120s leaves room for the image download
+// + Storage upload that follow within the function's window.
+const OPENAI_IMAGE_TIMEOUT_MS = 120000;
+
 async function callOpenAIImage(apiKey, opts = {}) {
   if (!apiKey) {
     throw new HttpsError(
@@ -45,20 +52,36 @@ async function callOpenAIImage(apiKey, opts = {}) {
     : "medium";
   const model = opts.model || DEFAULT_MODEL;
 
-  const res = await fetch(OPENAI_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      prompt,
-      size,
-      quality,
-      n: 1,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size,
+        quality,
+        n: 1,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new HttpsError(
+        "deadline-exceeded",
+        "Image generation took too long. Please try again.",
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");

@@ -43,6 +43,38 @@ const {generateKieImage, KieError} = require("../kieClient");
 // upgrade; Kie ('kie') is the full-colour illustration upgrade.
 const ALLOWED_PROVIDERS = new Set(["recraft", "openai", "kie"]);
 
+// Per-request network deadlines. Without these a hung provider (Recraft, the
+// OpenAI image API, or a stalled CDN download) blocks the await until the 300s
+// FUNCTION timeout, at which point the platform KILLS the instance mid-await
+// and returns a raw 500 — which the Firebase SDK surfaces to the client as the
+// bare code name "internal" (the callable's own try/catch never runs). Bounding
+// each call means a hang throws a clean error well inside the window: a slow
+// Recraft falls over to OpenAI instead of taking the whole call down, and an
+// exhausted chain surfaces a descriptive "took too long" instead of "internal".
+// Worst-case fallback chain (Recraft→OpenAI→download) stays comfortably < 300s.
+const RECRAFT_TIMEOUT_MS = 70000;
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 45000;
+
+// fetch() with an AbortController deadline. Rejects with a tagged Error on
+// timeout so callers can map it to a friendly HttpsError. The timer is always
+// cleared so a fast response doesn't leak a pending handle.
+async function fetchWithTimeout(url, options = {}, timeoutMs = 60000, label = "request") {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {...options, signal: controller.signal});
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      const timeoutErr = new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`);
+      timeoutErr.code = "timeout";
+      throw timeoutErr;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const RECRAFT_ENDPOINT = "https://external.api.recraft.ai/v1/images/generations";
 
 const ALLOWED_STYLES = new Set([
@@ -157,14 +189,14 @@ async function fetchRecraftImage(apiKey, {finalPrompt, style, size}) {
     response_format: "url",
     ...styleConfig,
   };
-  const response = await fetch(RECRAFT_ENDPOINT, {
+  const response = await fetchWithTimeout(RECRAFT_ENDPOINT, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
-  });
+  }, RECRAFT_TIMEOUT_MS, "Recraft image");
   if (!response.ok) {
     const errBody = await response.text().catch(() => "");
     throw new HttpsError(
@@ -190,7 +222,20 @@ async function downloadToStorage(uid, source, promptForMeta, generator, subdir) 
   if (source.bytes) {
     buffer = source.bytes;
   } else {
-    const imgResponse = await fetch(source.url);
+    let imgResponse;
+    try {
+      imgResponse = await fetchWithTimeout(
+        source.url, {}, IMAGE_DOWNLOAD_TIMEOUT_MS, "Image download",
+      );
+    } catch (err) {
+      if (err && err.code === "timeout") {
+        throw new HttpsError(
+          "deadline-exceeded",
+          "Downloading the generated image took too long. Please try again.",
+        );
+      }
+      throw err;
+    }
     if (!imgResponse.ok) {
       throw new HttpsError(
         "internal",

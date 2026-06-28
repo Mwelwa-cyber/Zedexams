@@ -192,6 +192,52 @@ async function main() {
     Boolean(threw) && threw.code === "failed-precondition" &&
     /Recraft API key is not configured/.test(threw.message));
 
+  // ── 7. Recraft hangs (request times out) → fail over to OpenAI ──────────
+  // A hung Recraft used to block the await until the 300s function timeout
+  // killed the instance → bare "internal". With the per-request deadline the
+  // aborted fetch surfaces as a timeout, the recraft branch catches it, and the
+  // OpenAI fallback still produces a figure. (AbortError simulates the abort so
+  // the test doesn't actually wait the full timeout.)
+  calls.length = 0;
+  recraftResponse = () => {
+    const e = new Error("aborted");
+    e.name = "AbortError";
+    throw e;
+  };
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
+  out = await runGenerateDiagram({
+    uid: "t7", rawInputs: {prompt: "A labelled human ear"},
+    recraftKey: "rk", openaiKey: "ok", kieKey: "",
+  });
+  ok("Recraft timeout → provider openai", out.provider === "openai");
+  ok("Recraft timeout → OpenAI fallback produced the PNG", out.sizeBytes === FAKE_PNG.length);
+  ok("Recraft timeout → OpenAI called exactly once",
+    calls.filter((c) => c.provider === "openai").length === 1);
+
+  // ── 8. Both providers hang → a clean deadline error, never bare internal ─
+  calls.length = 0;
+  recraftResponse = () => {
+    const e = new Error("aborted");
+    e.name = "AbortError";
+    throw e;
+  };
+  openaiResponse = () => {
+    const e = new Error("aborted");
+    e.name = "AbortError";
+    throw e;
+  };
+  threw = null;
+  try {
+    await runGenerateDiagram({
+      uid: "t8", rawInputs: {prompt: "A labelled human ear"},
+      recraftKey: "rk", openaiKey: "ok", kieKey: "",
+    });
+  } catch (err) {
+    threw = err;
+  }
+  ok("both time out → deadline-exceeded (not bare internal)",
+    Boolean(threw) && threw.code === "deadline-exceeded");
+
   console.log(`\ngenerateDiagram provider routing: ${passed} checks passed`);
 }
 
