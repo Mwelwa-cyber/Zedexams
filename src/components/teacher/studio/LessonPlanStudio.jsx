@@ -354,13 +354,22 @@ export default function LessonPlanStudio() {
 
       // Persist series progress to Firestore when in series mode.
       // Schema: lessonSeries/{uid}/{seriesId}/{lessonNumber}
+      // Fail-soft: the plan is already rendered and marked 'done' above, so a
+      // progress-tracking write failure (e.g. transient PERMISSION_DENIED)
+      // must never throw out of this handler and flip the canvas to the error
+      // state — that would hide a plan the teacher can already see and use.
       if (planningMode === 'series' && uid && effectiveSeriesId) {
-        const lessonRef = doc(db, 'lessonSeries', uid, effectiveSeriesId, String(lessonNumber))
-        await setDoc(lessonRef, {
-          lessonNumber,
-          status: 'completed',
-          generatedAt: serverTimestamp(),
-        })
+        try {
+          const lessonRef = doc(db, 'lessonSeries', uid, effectiveSeriesId, String(lessonNumber))
+          await setDoc(lessonRef, {
+            lessonNumber,
+            status: 'completed',
+            generatedAt: serverTimestamp(),
+          })
+        } catch (persistErr) {
+          // Non-fatal: keep the rendered plan; just log the progress-write miss.
+          console.warn('[zedexams] lesson-series progress write failed', persistErr)
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
