@@ -33,6 +33,21 @@ const OFFICIAL_STAGES = [
   "CONCLUSION",
 ];
 
+// CBC syllabus codes (e.g. "4.5", "4.5.8", "4.5.8.1") prefix the topic,
+// sub-topic and specific competence in the syllabus, but teachers asked us
+// NOT to show them on the printed lesson plan — they want the plain titles.
+// Strip a LEADING code (two or more dot-separated number groups, plus any
+// trailing separator/space) so "4.5.8.1 Describe light energy" renders as
+// "Describe light energy". A bare topic with no code is returned untouched,
+// and if a value is nothing but a code we keep the original rather than
+// blanking a required field. Two+ groups are required so genuine content like
+// "3 states of matter" or a fraction is never mistaken for a code.
+function stripCbcCode(v) {
+  if (typeof v !== "string") return v;
+  const stripped = v.replace(/^\s*\d+(?:\.\d+)+\s*[-–—:.)]?\s*/, "").trim();
+  return stripped.length > 0 ? stripped : v.trim();
+}
+
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
 }
@@ -90,8 +105,8 @@ function validateLessonPlan(input) {
       Math.round(h.durationMinutes) : 40,
     class: isNonEmptyString(h.class) ? h.class : "",
     subject: isNonEmptyString(h.subject) ? h.subject : "",
-    topic: isNonEmptyString(h.topic) ? h.topic : "",
-    subtopic: isNonEmptyString(h.subtopic) ? h.subtopic : "",
+    topic: isNonEmptyString(h.topic) ? stripCbcCode(h.topic) : "",
+    subtopic: isNonEmptyString(h.subtopic) ? stripCbcCode(h.subtopic) : "",
     termAndWeek: isNonEmptyString(h.termAndWeek) ? h.termAndWeek : "",
     mediumOfInstruction: isNonEmptyString(h.mediumOfInstruction) ?
       h.mediumOfInstruction : "English",
@@ -113,7 +128,7 @@ function validateLessonPlan(input) {
   }
 
   out.specificCompetence = isNonEmptyString(input.specificCompetence) ?
-    input.specificCompetence.trim() : "";
+    stripCbcCode(input.specificCompetence) : "";
   if (!out.specificCompetence) {
     errors.push("specificCompetence is required (with its syllabus code)");
   }

@@ -79,6 +79,52 @@ function validPlan() {
   assert.strictEqual(res.value.expectedStandard, "Local attraction sites explored accordingly.");
 }
 
+// ── CBC syllabus codes are stripped from topic / sub-topic / competence ──
+{
+  const res = validateLessonPlan(validPlan());
+  assert.strictEqual(res.ok, true, `expected ok, got errors: ${res.errors}`);
+  assert.strictEqual(res.value.header.topic, "Tourism",
+      "leading topic code stripped");
+  assert.strictEqual(res.value.header.subtopic, "Attraction Sites",
+      "leading sub-topic code stripped");
+  assert.strictEqual(res.value.specificCompetence, "Explore local attraction sites",
+      "leading specific-competence code stripped");
+}
+
+// ── deeper code + trailing separators are handled ────────────────────
+{
+  const plan = validPlan();
+  plan.header.topic = "4.5 Materials and Energy";
+  plan.header.subtopic = "4.5.8 Light Energy";
+  plan.specificCompetence = "4.5.8.1 Describe light energy and its visible properties.";
+  const res = validateLessonPlan(plan);
+  assert.strictEqual(res.value.header.topic, "Materials and Energy");
+  assert.strictEqual(res.value.header.subtopic, "Light Energy");
+  assert.strictEqual(res.value.specificCompetence,
+      "Describe light energy and its visible properties.");
+}
+
+// ── plain titles (no code) and code-with-separator pass through cleanly ─
+{
+  const plan = validPlan();
+  plan.header.topic = "The Water Cycle";        // no code → untouched
+  plan.header.subtopic = "4.3.1: Evaporation";  // colon separator after code
+  plan.specificCompetence = "4.3.1.1 - Explain evaporation"; // dash separator
+  const res = validateLessonPlan(plan);
+  assert.strictEqual(res.value.header.topic, "The Water Cycle");
+  assert.strictEqual(res.value.header.subtopic, "Evaporation");
+  assert.strictEqual(res.value.specificCompetence, "Explain evaporation");
+}
+
+// ── content that merely starts with a single number is NOT stripped ──
+{
+  const plan = validPlan();
+  plan.header.topic = "3 States of Matter"; // single number, not a code
+  const res = validateLessonPlan(plan);
+  assert.strictEqual(res.value.header.topic, "3 States of Matter",
+      "a single leading number is content, not a syllabus code");
+}
+
 // ── stage names are normalised to upper case ─────────────────────────
 {
   const plan = validPlan();
