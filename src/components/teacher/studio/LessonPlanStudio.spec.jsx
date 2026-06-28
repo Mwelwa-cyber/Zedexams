@@ -611,6 +611,37 @@ describe('LessonPlanStudio — Firestore series writes', () => {
     expect(lessonData).toMatchObject({ lessonNumber: 1, status: 'completed' })
   })
 
+  it('keeps the generated plan (status "done") when the series progress write is denied', async () => {
+    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({ currentUser: { uid: 'uid-writer' } })
+
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+    renderPlanHtml.mockReturnValue('<p>plan</p>')
+    // Simulate a Firestore PERMISSION_DENIED on the progress write.
+    mockSetDoc.mockRejectedValueOnce(new Error('Missing or insufficient permissions.'))
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      lessonSeries: { seriesId: 'series-001', planningMode: 'series', totalLessons: 3 },
+      lessonBreakdown: [{ lessonNumber: 1, focus: 'Intro', coveredContent: [] }],
+      lessonDetails: { grade: 'Grade 4', subject: 'Science', duration: '40', medium: 'English', term: '', week: '', date: '', time: '', teacherName: '', school: '' },
+      topicData: { topic: 'Environment', subtopic: 'Resources', subtopicRow: null },
+    })
+
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalledTimes(1)
+    })
+    // The write failed, but the canvas must stay on the rendered plan, not flip
+    // to the error state and hide it.
+    expect(screen.getByTestId('canvas-status')).toHaveTextContent('done')
+    expect(screen.getByTestId('canvas-error')).toHaveTextContent('')
+  })
+
   it('does NOT write to Firestore when planningMode is "single"', async () => {
     const { renderPlanHtml } = await import('./utils/renderPlanHtml')
     renderPlanHtml.mockReturnValue('<p>plan</p>')

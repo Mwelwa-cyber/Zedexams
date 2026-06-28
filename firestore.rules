@@ -681,6 +681,21 @@ service cloud.firestore {
       }
     }
 
+    // ── lessonSeries (Lesson Plan Studio "Lesson Series" progress) ────
+    // Path: lessonSeries/{uid}/{seriesId}/{lessonNumber}. Written by the
+    // studio after each lesson in a series generates (status:'completed')
+    // and subscribed to live by useLessonSeries for the progress tracker.
+    // Strictly owner-scoped private bookkeeping. Without this block the
+    // setDoc fails with "Missing or insufficient permissions", which
+    // previously flipped the whole canvas to the error state and hid the
+    // freshly generated plan.
+    match /lessonSeries/{uid} {
+      allow read: if isAuthed() && (isOwner(uid) || isAdmin());
+      match /{seriesId}/{lessonNumber} {
+        allow read, write, delete: if isAuthed() && isOwner(uid);
+      }
+    }
+
     // ── questionBank ──────────────────────────────────────────
     // A teacher's personal library of reusable questions, saved from the
     // Assessment Studio and re-inserted into future papers. Each doc carries
