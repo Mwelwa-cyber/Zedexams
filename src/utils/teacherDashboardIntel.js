@@ -13,7 +13,7 @@
  * never imports anything.
  *
  * Normalised resource shape:
- *   { id, kind:'generation'|'quiz', tool, subject, grade, topic,
+ *   { id, kind:'generation'|'assessment', tool, subject, grade, topic,
  *     createdAt (ms), title, to, status:'draft'|'ready' }
  */
 
@@ -232,7 +232,7 @@ export function buildActivityStats({ resources = [], now = Date.now(), range = '
 
   const isPlan = (r) => r.tool === 'lesson_plan'
   const isNote = (r) => r.tool === 'notes'
-  const isTest = (r) => r.kind === 'quiz' || r.tool === 'assessment'
+  const isTest = (r) => r.kind === 'quiz' || r.kind === 'assessment' || r.tool === 'assessment'
 
   // 'week' compares the last 7 days to the 7 before; 'month' the last 30 to the
   // 30 before. The basis string is the human label the cards print verbatim.
