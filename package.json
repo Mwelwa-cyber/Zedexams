@@ -140,6 +140,7 @@
     "test:question-dedup": "node functions/agents/questionDedupCore.test.js",
     "test:question-embedding": "node functions/agents/questionEmbeddingCore.test.js",
     "test:master-bank-sourcing": "node functions/teacherTools/masterBankSourcingCore.test.js",
+    "test:grade-reclassifier": "node functions/teacherTools/gradeReclassifierCore.test.js",
     "test:difficulty": "node src/utils/assessmentDifficulty.test.js",
     "test:bloom": "node src/utils/assessmentBloom.test.js",
     "test:school-profile": "node src/utils/schoolProfile.test.js",
