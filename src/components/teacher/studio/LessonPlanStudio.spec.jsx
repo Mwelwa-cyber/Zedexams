@@ -686,3 +686,108 @@ describe('LessonPlanStudio — handleViewCompleted', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/teacher/library')
   })
 })
+
+// ── Control wiring audit: term/week, single lesson focus, local language ──────
+
+describe('LessonPlanStudio — term & week wiring', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('includes Term and Week in the user prompt and termWeek in the render meta', async () => {
+    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: { topic: 'Water', subtopic: 'Rivers', subtopicRow: null },
+      lessonDetails: {
+        grade: 'G5', subject: 'Science', duration: '40', medium: 'English',
+        term: 'Term 2', week: 'Week 5', date: '', time: '', teacherName: '', school: '',
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('- Term: Term 2')
+    expect(userPrompt).toContain('- Week: Week 5')
+
+    await waitFor(() => expect(renderPlanHtml).toHaveBeenCalled())
+    const meta = renderPlanHtml.mock.calls[0][1]
+    expect(meta.termWeek).toBe('Term 2, Week 5')
+  })
+})
+
+describe('LessonPlanStudio — single-lesson focus wiring', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('includes the single-lesson Lesson Focus in the user prompt', async () => {
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: { topic: 'Water', subtopic: 'Rivers', subtopicRow: null },
+      lessonSeries: {
+        seriesId: null, planningMode: 'single', totalLessons: 1,
+        lessonNumber: 1, lessonFocus: 'Identifying local rivers', aiSuggestedReason: '',
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('Focus for THIS lesson: Identifying local rivers')
+  })
+})
+
+describe('LessonPlanStudio — local language wiring', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  function withLocalLanguage(medium, localLanguage) {
+    return {
+      curriculumMode: 'cbc',
+      topicData: { topic: 'Water', subtopic: 'Rivers', subtopicRow: null },
+      lessonDetails: {
+        grade: 'G5', subject: 'Science', duration: '40', medium,
+        term: '', week: '', date: '', time: '', teacherName: '', school: '',
+      },
+      formatOptions: {
+        detail: 'standard', writingStyle: 'standard', format: 'modern', illustrations: 'none',
+        advanced: {
+          compactMetadata: true, includeEnrolment: false, includeAttendance: false,
+          includeLessonEvaluation: true, includeKeyVocabulary: true,
+          autoIllustrations: false, localLanguage,
+        },
+      },
+    }
+  }
+
+  it('adds a local-language directive when the toggle is on and medium is a local language', async () => {
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+    renderStudioWithGeneration(withLocalLanguage('Bemba', true))
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toMatch(/Write the lesson plan content .* in Bemba/)
+  })
+
+  it('does NOT add the directive when the toggle is off', async () => {
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+    renderStudioWithGeneration(withLocalLanguage('Bemba', false))
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).not.toMatch(/Write the lesson plan content .* in Bemba/)
+  })
+
+  it('does NOT add the directive when medium is English even if toggle is on', async () => {
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+    renderStudioWithGeneration(withLocalLanguage('English', true))
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).not.toMatch(/local language of instruction/)
+  })
+})

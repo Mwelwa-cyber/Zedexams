@@ -182,6 +182,7 @@ export default function LessonPlanStudio() {
       `- Topic: ${topicData.topic}`,
       topicData.subtopic ? `- Sub-topic: ${topicData.subtopic}` : '',
       lessonDetails.term ? `- Term: ${lessonDetails.term}` : '',
+      lessonDetails.week ? `- Week: ${lessonDetails.week}` : '',
       totalLessons > 1
         ? `- This is Lesson ${lessonNumber} of ${totalLessons} for this sub-topic.`
         : '',
@@ -220,8 +221,12 @@ export default function LessonPlanStudio() {
     if (planningMode === 'series' && lessonItem?.coveredContent?.length) {
       userPromptLines.push(`Previously covered in this series (DO NOT repeat): ${lessonItem.coveredContent.join(' | ')}`)
     }
-    if (lessonItem?.focus) {
-      userPromptLines.push(`Focus for THIS lesson: ${lessonItem.focus}`)
+    // Lesson focus: the series breakdown item's focus, OR the single-lesson
+    // "Lesson Focus" input. The latter was previously never read — typing a
+    // focus in single mode did nothing.
+    const lessonFocus = lessonItem?.focus || (lessonSeries?.lessonFocus || '').trim()
+    if (lessonFocus) {
+      userPromptLines.push(`Focus for THIS lesson: ${lessonFocus}`)
     }
 
     // Format preferences
@@ -237,6 +242,16 @@ export default function LessonPlanStudio() {
         : 'Standard — formal teacher language'
     userPromptLines.push('', `- Lesson plan detail: ${detailLabel}`)
     userPromptLines.push(`- Writing style: ${styleLabel}`)
+
+    // "Write in Local Language" toggle — only meaningful when the medium of
+    // instruction is a Zambian local language (the form disables it otherwise).
+    // Previously this toggle was never read, so it did nothing.
+    if (formatOptions.advanced?.localLanguage && lessonDetails.medium && lessonDetails.medium !== 'English') {
+      userPromptLines.push(
+        '',
+        `- IMPORTANT: Write the lesson plan content (rationale, activities, explanations, examples and questions) in ${lessonDetails.medium}, the local language of instruction — NOT in English. Keep the structural field labels and stage names in English so the document structure stays standard.`,
+      )
+    }
 
     userPromptLines.push('', 'Return ONLY the JSON object. No markdown fences. No commentary.')
 
@@ -277,6 +292,10 @@ export default function LessonPlanStudio() {
         subject: lessonDetails.subject || '',
         topic: topicData.topic || '',
         subtopic: topicData.subtopic || '',
+        // Term + Week drive the "Term & Week" row in the rendered header.
+        // renderPlanHtml reads meta.termWeek; without this the row never showed
+        // even when the teacher filled the Term/Week selectors.
+        termWeek: [lessonDetails.term, lessonDetails.week].filter(Boolean).join(', '),
         duration: lessonDetails.duration || 40,
         medium: lessonDetails.medium || 'English',
         lessonNumber,
