@@ -24,6 +24,8 @@
 const admin = require("firebase-admin");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {classifyDuplicate, recommendationToStatus} = require("./questionDedupCore");
+const {classifyEmbeddingDuplicate} = require("./questionEmbeddingCore");
+const {embedText} = require("../openaiEmbeddings");
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -274,14 +276,27 @@ async function fetchDedupCandidates(db, docData, selfId) {
     if (d.id === selfId) return;
     const data = d.data() || {};
     if (data.reviewStatus === "rejected") return; // don't link to rejected
-    out.push({id: d.id, fingerprint: data.fingerprint, simhashTokens: data.simhashTokens});
+    out.push({
+      id: d.id,
+      fingerprint: data.fingerprint,
+      simhashTokens: data.simhashTokens,
+      embedding: data.embedding, // for semantic dedup (absent on legacy rows)
+    });
   });
   return out;
 }
 
+/** The text we embed for semantic comparison: stem + options (mirrors the
+ * identity text behind the fingerprint). */
+function embedTextFor(question) {
+  const opts = Array.isArray(question && question.options) ?
+    question.options.map((o) => plainText(o)).filter(Boolean).join(" | ") : "";
+  return [plainText(question && question.text), opts].filter(Boolean).join(" :: ");
+}
+
 /* ------------------------------- the runner ------------------------------- */
 
-async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeySecret}) {
+async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeySecret, openaiApiKeySecret}) {
   const question = readQuestion(docData);
 
   // 1. Deterministic dedup first — cheap, no model call.
@@ -291,31 +306,27 @@ async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeyS
     candidates,
   );
   if (dup.isDuplicate) {
-    await jobRef.set({
-      reviewStatus: "duplicate",
-      masterEligible: false,
-      duplicateOf: dup.duplicateOf,
-      similarity: dup.similarity,
-      aiReview: {
-        recommendation: "duplicate",
-        kind: dup.kind,
-        summary: `Detected as a ${dup.kind} duplicate of ${dup.duplicateOf} ` +
-          `(similarity ${Math.round(dup.similarity * 100)}%).`,
-        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-        modelUsed: null,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-    // Link + bump the original's usage count.
-    try {
-      await db.collection("questionBank").doc(dup.duplicateOf).set({
-        usageCount: admin.firestore.FieldValue.increment(1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
-    } catch (err) {
-      console.warn("[qix] usage bump failed", err && err.message);
-    }
+    await flagDuplicate(db, jobRef, dup);
     return;
+  }
+
+  // 1b. Semantic dedup — only when the free deterministic layers missed.
+  // Embed this question and compare (cosine) against candidates that already
+  // carry a stored embedding. Any failure (no key, network) returns null and we
+  // fall through to the AI review — semantic dedup never breaks a review.
+  let questionEmbedding = null;
+  const openaiKey = (openaiApiKeySecret && openaiApiKeySecret.value()) ||
+    process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    questionEmbedding = await embedText(openaiKey, embedTextFor(question));
+    if (questionEmbedding) {
+      const semantic = classifyEmbeddingDuplicate(questionEmbedding, candidates);
+      if (semantic.isDuplicate) {
+        // Store the embedding too, so this row is still a candidate later.
+        await flagDuplicate(db, jobRef, semantic, {embedding: questionEmbedding});
+        return;
+      }
+    }
   }
 
   // 2. AI review.
@@ -373,6 +384,9 @@ async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeyS
     masterEligible,
     duplicateOf: null,
     similarity: null,
+    // Persist the embedding so this question becomes a semantic-dedup candidate
+    // for future reviews. Omitted when embedding wasn't available.
+    ...(questionEmbedding ? {embedding: questionEmbedding} : {}),
     aiReview: {
       qualityScore: clampInt(parsed.qualityScore, 0, 100, 0),
       confidenceScore: clampInt(parsed.confidenceScore, 0, 100, 0),
@@ -390,6 +404,38 @@ async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeyS
     },
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
+}
+
+/**
+ * Write a duplicate verdict and link to the original (bumping its usage count).
+ * Shared by the deterministic (exact/near) and semantic dedup paths. `extra`
+ * merges additional fields onto the doc (e.g. the computed embedding).
+ */
+async function flagDuplicate(db, jobRef, dup, extra = {}) {
+  await jobRef.set({
+    reviewStatus: "duplicate",
+    masterEligible: false,
+    duplicateOf: dup.duplicateOf,
+    similarity: dup.similarity,
+    aiReview: {
+      recommendation: "duplicate",
+      kind: dup.kind,
+      summary: `Detected as a ${dup.kind} duplicate of ${dup.duplicateOf} ` +
+        `(similarity ${Math.round(dup.similarity * 100)}%).`,
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      modelUsed: null,
+    },
+    ...extra,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+  try {
+    await db.collection("questionBank").doc(dup.duplicateOf).set({
+      usageCount: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn("[qix] usage bump failed", err && err.message);
+  }
 }
 
 /** Fail-closed: route to admin review, never to the Master Bank. */
@@ -425,9 +471,11 @@ async function qixPaused(db) {
 /**
  * Factory for the questionBank review trigger (mirrors createAgentJobsOnCreate).
  */
-function createQuestionReviewOnWrite(anthropicApiKeySecret) {
+function createQuestionReviewOnWrite(anthropicApiKeySecret, openaiApiKeySecret) {
+  const secrets = [anthropicApiKeySecret];
+  if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   return onDocumentWritten(
-    {...TRIGGER_OPTS, secrets: [anthropicApiKeySecret]},
+    {...TRIGGER_OPTS, secrets},
     async (event) => {
       const after = event.data && event.data.after && event.data.after.data();
       if (!after) return; // deletion
@@ -442,7 +490,7 @@ function createQuestionReviewOnWrite(anthropicApiKeySecret) {
       const questionId = event.params.questionId;
       const jobRef = db.collection("questionBank").doc(questionId);
       try {
-        await reviewQuestion({db, jobRef, questionId, docData: after, anthropicApiKeySecret});
+        await reviewQuestion({db, jobRef, questionId, docData: after, anthropicApiKeySecret, openaiApiKeySecret});
       } catch (err) {
         console.error("[qix] review failed", err && err.message);
         await failClosed(jobRef, "Review failed — sent to admin review.").catch(() => {});

@@ -2477,7 +2477,9 @@ exports.agentJobsOnApproved = createAgentJobsOnApproved();
 
 // Central Question Bank — Qix reviews each captured question (questionBank/{id})
 // in the background and writes a verdict back onto the doc (africa-south1).
-exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey);
+// OpenAI key powers the embedding-based semantic duplicate check (optional —
+// review degrades gracefully without it).
+exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey, openaiApiKey);
 
 // Platform Health — admin diagnostics for the agent pipeline.
 const {
