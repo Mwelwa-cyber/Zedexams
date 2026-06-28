@@ -3,6 +3,7 @@ import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
 import ZoomableImage from './ZoomableImage'
+import ExtraQuestionImages from './ExtraQuestionImages'
 import DiagramSvg from '../diagrams/DiagramSvg'
 
 function joinClasses(...parts) {
@@ -38,6 +39,7 @@ function PreviewQuestion({ question }) {
           />
         </div>
       )}
+      <ExtraQuestionImages question={question} className="mt-3" />
 
       <RichContent value={question.text} className="text-base font-bold leading-relaxed" />
 

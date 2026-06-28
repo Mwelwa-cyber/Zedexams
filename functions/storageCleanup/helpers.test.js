@@ -103,6 +103,23 @@ eq("collects imageUrl + optionMedia",
     "quiz-images/uid/opt-d.png",
   ]);
 
+eq("collects stacked images[] urls beyond the primary",
+  collectQuestionImagePaths({
+    imageUrl:
+      `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/assessment-images%2Fuid%2Fmain.png?alt=media`,
+    images: [
+      {url: `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/assessment-images%2Fuid%2Fextra-1.png?alt=media`},
+      null,
+      {url: null},
+      {url: `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/assessment-images%2Fuid%2Fextra-2.png?alt=media`},
+    ],
+  }, BUCKET).sort(),
+  [
+    "assessment-images/uid/extra-1.png",
+    "assessment-images/uid/extra-2.png",
+    "assessment-images/uid/main.png",
+  ]);
+
 eq("deduplicates when same URL appears on main + option",
   collectQuestionImagePaths({
     imageUrl:

@@ -61,13 +61,17 @@ export function getItemSignals(item = {}) {
   // teacher needs to redraw or re-crop.
   const missingDiagram = (detected.length > 0 || Boolean(item.hasDiagram)) && !hasImage
 
-  // Claude often detects several figures on one question, but the question shape
-  // holds a single image, so the importer attaches only the primary and records
-  // how many it left behind. Surface that count so the teacher can add the rest
-  // with the Diagram Scanner instead of them being silently dropped.
+  // Claude can detect several figures on one question. The importer now crops
+  // and attaches all of them (primary → imageUrl, rest → images[]), so this
+  // counts only figures it detected but could NOT attach (e.g. a crop that
+  // failed) — surfaced so the teacher can add them with the Diagram Scanner.
+  const attachedExtras = Array.isArray(item.images)
+    ? item.images.filter((im) => im && im.url).length
+    : 0
+  const attachedCount = (hasImage ? 1 : 0) + attachedExtras
   const extraDiagrams = Number.isFinite(item.diagramMeta?.extraCount)
     ? Math.max(0, item.diagramMeta.extraCount)
-    : Math.max(0, detected.length - 1)
+    : Math.max(0, detected.length - Math.max(1, attachedCount))
 
   const missingAlt =
     Array.isArray(item.optionMedia) &&

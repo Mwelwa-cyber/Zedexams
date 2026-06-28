@@ -1051,6 +1051,16 @@ async function renderQuestion(b) {
       }
     }
   }
+  // Additional figures stacked below the primary (multi-figure questions). Each
+  // is fetched independently; a failed fetch shows the dashed-red placeholder.
+  if (Array.isArray(b.images)) {
+    for (const extra of b.images) {
+      if (extra && extra.url) {
+        const run = await imageParagraph(extra.url, { alt: extra.alt || '', widthPreset: extra.width })
+        out.push(run || imageFallbackBlock(extra.alt || ''))
+      }
+    }
+  }
   if (b.imageDiagram?.libraryKey) {
     const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
     if (run) out.push(centeredPara([run]))

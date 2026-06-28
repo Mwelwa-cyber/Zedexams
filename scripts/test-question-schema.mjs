@@ -558,6 +558,32 @@ test('non-object optionMedia entries become null (parallel-array safety)', () =>
   assert(out.optionMedia[3] === null)
 })
 
+test('images[] defaults to [] and is preserved when valid', () => {
+  assert(Array.isArray(coerceQuestion({ marks: 1 }).images))
+  assert(coerceQuestion({ marks: 1 }).images.length === 0)
+  const out = coerceQuestion({
+    marks: 1,
+    images: [
+      { url: 'https://example.com/extra-1.png', alt: 'Figure 2', width: 'medium' },
+      { url: 'https://example.com/extra-2.png' },
+    ],
+  })
+  assert(out.images.length === 2)
+  assert(out.images[0].url === 'https://example.com/extra-1.png')
+  assert(out.images[0].width === 'medium')
+  assert(out.images[1].alt === '') // alt defaults to empty string
+  assert(out.images[1].width === 'full') // width defaults to full
+})
+
+test('images[] strips transient import-only keys (e.g. imageAssetId)', () => {
+  const out = coerceQuestion({
+    marks: 1,
+    images: [{ url: 'https://example.com/e.png', imageAssetId: 'asset-123', alt: '' }],
+  })
+  assert(out.images[0].url === 'https://example.com/e.png')
+  assert(!('imageAssetId' in out.images[0]))
+})
+
 test('malformed tolerance becomes null (does not crash numericGrading)', () => {
   assert(coerceQuestion({ tolerance: 'oops', marks: 1 }).tolerance === null)
   assert(coerceQuestion({ tolerance: -1, marks: 1 }).tolerance === null)

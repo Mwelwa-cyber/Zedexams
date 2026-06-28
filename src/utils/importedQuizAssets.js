@@ -30,6 +30,15 @@ function* iterateOptionMediaImageUrls(question) {
   }
 }
 
+function* iterateExtraImageUrls(question) {
+  const images = Array.isArray(question?.images) ? question.images : []
+  for (const img of images) {
+    if (img && typeof img === 'object' && typeof img.url === 'string') {
+      yield img.url
+    }
+  }
+}
+
 /**
  * Throws if any question or passage in the input still carries a blob: URL
  * in a field that would be persisted. Returns silently on success.
@@ -45,6 +54,13 @@ export function assertNoBlobImageUrls(questions = [], passages = []) {
       if (isBlobUrl(optionImageUrl)) {
         throw new Error(
           'An option image did not finish uploading. Please re-import the document and try saving again.',
+        )
+      }
+    }
+    for (const extraImageUrl of iterateExtraImageUrls(question)) {
+      if (isBlobUrl(extraImageUrl)) {
+        throw new Error(
+          'A question image did not finish uploading. Please re-import the document and try saving again.',
         )
       }
     }
@@ -81,6 +97,11 @@ export function stripBlobImageUrls(record) {
       }
       return slot
     })
+  }
+  // Drop any stacked extra figure whose blob: URL did not survive (its
+  // matching crop asset is gone too, so it can only be re-imported).
+  if (Array.isArray(next.images)) {
+    next.images = next.images.filter(img => !(img && isBlobUrl(img.url)))
   }
   return next
 }

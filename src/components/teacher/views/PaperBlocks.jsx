@@ -264,6 +264,18 @@ function PaperQuestionBlock({ block }) {
           )}
         </>
       )}
+      {/* Additional figures stacked below the primary (multi-figure questions). */}
+      {Array.isArray(block.images) && block.images.map((img, i) => (
+        img && img.url ? (
+          <div
+            key={img.url || i}
+            className="sv-paper-diagram"
+            style={{ display: 'inline-block', maxWidth: `${resolveImageWidthPercent(img.width)}%`, marginTop: 6 }}
+          >
+            <img src={img.url} alt={img.alt || ''} style={{ width: '100%' }} />
+          </div>
+        ) : null
+      ))}
       {block.imageDiagram?.libraryKey && (
         <div className="sv-paper-diagram" style={{ textAlign: 'center', margin: '6px 0' }}>
           <DiagramSvg

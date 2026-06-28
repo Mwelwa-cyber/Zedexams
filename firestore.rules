@@ -104,6 +104,9 @@ service cloud.firestore {
         // ({ imageUrl?, diagram?, alt }) is enforced by the Zod schema
         // client-side, same convention used by `parts` above.
         && (!('optionMedia' in incoming()) || (incoming().optionMedia is list && incoming().optionMedia.size() <= 20))
+        // Additional figures stacked below the primary image. Per-element shape
+        // ({ url, alt?, width? }) is enforced by the Zod schema client-side.
+        && (!('images' in incoming()) || (incoming().images is list && incoming().images.size() <= 6))
         // Review flags (written by the AI importer).
         && (!('requiresReview' in incoming()) || incoming().requiresReview is bool)
         && (!('reviewNotes' in incoming()) || (incoming().reviewNotes is list && incoming().reviewNotes.size() <= 50))

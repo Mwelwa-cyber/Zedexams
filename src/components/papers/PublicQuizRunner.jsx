@@ -37,6 +37,7 @@ import Skeleton from '../ui/Skeleton'
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import ZoomableImage from '../quiz/ZoomableImage'
+import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 
 function plainTextFromQuestion(q) {
   // Prefer Tiptap JSON, fall back to legacy HTML/plain text.
@@ -467,6 +468,7 @@ export default function PublicQuizRunner() {
               />
             </div>
           ) : null}
+          <ExtraQuestionImages question={question} />
           {question.diagramText && !question.imageDiagram?.libraryKey && !question.imageUrl && (
             <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">
               {question.diagramText}

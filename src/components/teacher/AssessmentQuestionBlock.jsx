@@ -683,6 +683,31 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, p
         )
       )}
 
+      {/* Additional figures from a multi-figure scanned question. They render
+          stacked below the primary in the paper / exports; each can be removed. */}
+      {Array.isArray(question.images) && question.images.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          {question.images.map((img, i) => (
+            img && img.url ? (
+              <div key={img.url || i} className="sv-q-media filled filled-wrap" style={{ flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                <div style={{ position: 'relative', maxWidth: `${resolveImageWidthPercent(img.width)}%` }}>
+                  <img src={img.url} alt={img.alt || ''} style={{ width: '100%', display: 'block', borderRadius: 6 }} />
+                  <button
+                    className="sv-media-remove"
+                    onClick={() => updateQuestion('images', question.images.filter((_, j) => j !== i))}
+                    title="Remove figure"
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+                <small style={{ color: 'var(--sv-muted, #888)' }}>Additional figure {i + 2}</small>
+              </div>
+            ) : null
+          ))}
+        </div>
+      )}
+
       {cameraOpen && (
         <CameraCaptureModal
           onConfirm={onCameraConfirm}

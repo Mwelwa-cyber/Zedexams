@@ -307,14 +307,43 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
         />
       ) : null}
 
-      {/* More than one figure was detected here, but a question holds a single
-          image — tell the teacher so the extras aren't silently dropped. */}
+      {/* Additional figures kept from a multi-figure question — the teacher can
+          drop any false positives here (they render stacked below the primary
+          in the paper). */}
+      {Array.isArray(ref.images) && ref.images.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-[11px] uppercase tracking-wide theme-text-muted">
+            Additional figures ({ref.images.length}) — stacked below the main one
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {ref.images.map((img, i) => (
+              <figure key={img.url || i} className="space-y-1">
+                <img
+                  src={img.url}
+                  alt={img.alt || `Additional figure ${i + 2}`}
+                  className="w-full rounded-lg border theme-border bg-white object-contain max-h-40"
+                />
+                <button
+                  type="button"
+                  className="text-[11px] font-black text-[color:var(--danger)] underline"
+                  onClick={() => patch({ images: ref.images.filter((_, j) => j !== i) })}
+                >
+                  Remove figure
+                </button>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Figures detected but not attachable (e.g. a crop that failed) — point
+          the teacher at the Diagram Scanner to add them by hand. */}
       {signals.extraDiagrams > 0 ? (
         <p className="text-[11px] font-bold theme-text-muted">
           ➕ {signals.extraDiagrams} more figure
           {signals.extraDiagrams === 1 ? ' was' : 's were'} detected on this
-          question. Only the main one is shown above — add the other
-          {signals.extraDiagrams === 1 ? '' : 's'} with the Diagram Scanner.
+          question but could not be cropped — add{' '}
+          {signals.extraDiagrams === 1 ? 'it' : 'them'} with the Diagram Scanner.
         </p>
       ) : null}
     </div>

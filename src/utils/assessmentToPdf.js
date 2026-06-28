@@ -681,6 +681,14 @@ function renderQuestion(b) {
       body += `<ol class="identify-list">${blanks}</ol>`
     }
   }
+  // Additional figures stacked below the primary (multi-figure questions).
+  if (Array.isArray(b.images)) {
+    for (const img of b.images) {
+      if (img && img.url) {
+        body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt || '')}"></div></div>`
+      }
+    }
+  }
   if (b.tableData) {
     body += renderDataTable(b.tableData)
   }

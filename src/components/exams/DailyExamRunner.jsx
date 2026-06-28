@@ -33,6 +33,7 @@ import {
   submitExam,
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
+import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import SeoHelmet from '../seo/SeoHelmet'
 import ErrorBoundary from '../ui/ErrorBoundary'
 
@@ -402,6 +403,8 @@ function DailyExamRunnerInner() {
             />
           </div>
         )}
+        <ExtraQuestionImages question={question} zoomable={false} />
+
 
         {/* Question text */}
         <div>
