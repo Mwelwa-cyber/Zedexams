@@ -20,10 +20,8 @@ const FILES = [
   'public/syllabi/curriculum-data-2013.json',
   'functions/data/curriculum-data-2013.json',
 ]
-// Subjects shipped as re-extracted (Social Studies / Zambian Language are not
-// yet re-extracted — their dense Knowledge/Skills/Values columns need more
-// work — so they're intentionally excluded here).
-const SHIPPED = ['math', 'science']
+// Subjects re-extracted from source PDFs.
+const SHIPPED = ['math', 'science', 'social', 'zambian']
 
 let passed = 0
 function check(label, fn) { fn(); passed++; console.log(`  ✓ ${label}`) }

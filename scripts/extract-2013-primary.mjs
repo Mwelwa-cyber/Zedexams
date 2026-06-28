@@ -60,7 +60,7 @@ export const CONFIGS = {
     replace: [5, 6],
     columns: ['TOPIC', 'SUBTOPIC', 'SPECIFIC OUTCOMES', 'KNOWLEDGE', 'SKILLS', 'VALUES'],
     labels: ['topic', 'sub-topic', 'specific outcomes', 'knowledge', 'skills', 'values'],
-    anchorLabel: 'topic', rowCol: 1, outcomeCol: 2, noiseWords: NOISE,
+    anchorLabel: 'topic', rowCol: 1, outcomeCol: 2, rightBiasMargin: 55, noiseWords: NOISE,
   },
   zambian: {
     arg: 'zambian',
@@ -74,7 +74,7 @@ export const CONFIGS = {
     // have different x-layouts.
     columns: ['COMPONENT', 'TOPIC', 'SPECIFIC OUTCOMES', 'CONTENT', 'SKILLS', 'VALUES'],
     labels: ['component', 'topic', 'specific outcomes', 'knowledge', 'skills', 'values'],
-    anchorLabel: 'topic', rowCol: 1, outcomeCol: 2, noiseWords: NOISE,
+    anchorLabel: 'topic', rowCol: 1, outcomeCol: 2, rightBiasMargin: 55, noiseWords: NOISE,
   },
 }
 

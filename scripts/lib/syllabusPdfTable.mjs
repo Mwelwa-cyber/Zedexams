@@ -50,7 +50,12 @@ function defaultMatch(low, lbl) {
   // "SPECIFIC OUTCOMES" all match their label regardless of separator style
   // (the PDFs are inconsistent grade to grade).
   const canon = s => s.replace(/[-\s]/g, '')
-  return canon(low) === canon(lbl)
+  if (canon(low) === canon(lbl)) return true
+  // Some grades split a two-word header across lines ("SPECIFIC" above
+  // "OUTCOMES"); match on the distinctive first word so the column is still
+  // anchored at its left edge.
+  const first = lbl.split(/\s+/)[0]
+  return lbl.includes(' ') && first.length >= 5 && low === first
 }
 
 // Find column x-anchors from the header band. cfg.labels are the lowercase
@@ -73,10 +78,19 @@ export function findAnchors(items, cfg) {
   return { x, bottomY: Math.min(...ys) }
 }
 
-function buildBoundaries(anchors, labels) {
+// Column boundaries from header label anchors. By default the boundary is the
+// midpoint between two labels. For dense tables whose left column (e.g. a wide
+// SPECIFIC OUTCOMES) wraps far past its left-aligned header, a midpoint lets
+// that text bleed into the next column; `rightBiasMargin` instead places the
+// boundary just left of the NEXT column's data start (its label anchor minus
+// the margin), clamped so it never crosses back over the left label.
+function buildBoundaries(anchors, labels, rightBiasMargin) {
   const xs = labels.map(l => anchors.x[l])
   const bounds = []
-  for (let i = 0; i < xs.length - 1; i++) bounds.push((xs[i] + xs[i + 1]) / 2)
+  for (let i = 0; i < xs.length - 1; i++) {
+    const mid = (xs[i] + xs[i + 1]) / 2
+    bounds.push(rightBiasMargin ? Math.max(xs[i] + 10, xs[i + 1] - rightBiasMargin) : mid)
+  }
   return bounds
 }
 function colOf(x, bounds) {
@@ -97,7 +111,7 @@ function headerInfo(items, cfg) {
   }
   const anchors = findAnchors(items, cfg)
   if (!anchors) return null
-  return { bottomY: anchors.bottomY, bounds: buildBoundaries(anchors, cfg.labels) }
+  return { bottomY: anchors.bottomY, bounds: buildBoundaries(anchors, cfg.labels, cfg.rightBiasMargin) }
 }
 
 // Group pages by the leading number of the topic/sub-topic codes in their left

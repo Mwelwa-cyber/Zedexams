@@ -22728,10 +22728,9 @@
       ]
     },
     "Grade 5": {
-      "title": "GRADE 5",
       "columns": [
-        "5.1.1 District",
         "TOPIC",
+        "SUBTOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
         "SKILLS",
@@ -22741,98 +22740,98 @@
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.1.1 District",
             "TOPIC": "5.1 Living Together in the Community",
-            "SPECIFIC OUTCOMES": "5.1.1.1 Locate on the map of Zambia the position of the district. 5.1.1.2 Identify the main physical features on a map of the district. 5.1.1.3 Describe social, economic, cultural and political structures of the district in the past. 5.1.1.4 Mention the cultural composition of the people in the district. 5.1.1.5 Describe the economic activities in the district. 5.1.1.6 List names of historical and cultural sites in the district. 5.1.1.7 State the significance of each historical/cultural site.",
-            "KNOWLEDGE": "• Location of the district • Physical features: hills/mountains, rivers, plains, valleys • Social, economic, cultural and political structures • Races, ethnic groups, chiefdoms • Economic activities: farming, construction, trading, manufacturing, mining • Historical and cultural sites; identity, tourist attraction",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.1.1 District",
+            "SPECIFIC OUTCOMES": "5.1.1.1 Locate on the map of Zambia the position of the district 5.1.1.2 Identify the main physical features on a map of the district 5.1.1.3 Describe social, economic, cultural, political structures of the district in the past 5.1.1.4 Mention the cultural composition of the people in the district 5.1.1.5 Describe the economic activities in the district 5.1.1.6 List names of historical and cultural sites in the district 5.1.1.7 State the significance of each historical/cultural site",
+            "KNOWLEDGE": " Location of the district  Physical features: hills/mountains, rivers, plains, valleys  Structures: social, economic, cultural, political structures  Races, ethnic groups, chiefdoms  Farming, construction, trading, manufacturing, mining  Historical and cultural sites  Identity, tourist attraction",
+            "SKILLS": " Map reading",
+            "VALUES": " Appreciation of other people’s culture"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.2.1 Sex and Gender Roles",
             "TOPIC": "5.2 Governance",
-            "SPECIFIC OUTCOMES": "5.2.1.1 Explain sex and gender roles. 5.2.1.2 Explain gender discrimination. 5.2.1.3 Discuss effects of gender discrimination. 5.2.1.4 Promote gender equality.",
-            "KNOWLEDGE": "• Sex roles: women getting pregnant, breast-feeding • Gender roles: cooking, watering, teaching, washing, sweeping • Disadvantaging someone on the basis of sex • Conflict, gender based violence • Institutions that promote gender equality",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.2.1 Sex and Gender Roles",
+            "SPECIFIC OUTCOMES": "5.2.1.1 Explain sex and gender roles 5.2.1.2 Explain gender discrimination 5.2.1.3 Discuss effects of gender discrimination 5.2.1.4 Identify institutions that promote gender equality",
+            "KNOWLEDGE": " Sex roles: women getting pregnant, breast-feeding  Gender roles: cooking, watering, teaching, raking, washing, sweeping  Disadvantaging someone on the basis of sex  conflict, Gender based violence etc  Ministry of Gender, Human Rights Commission, Civil Societies Organisation etc",
+            "SKILLS": " Identification of gender sex roles",
+            "VALUES": " Appreciation of and sex and gender roles  Respect for"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.2.3 Threats to Human Rights",
-            "TOPIC": "5.2 Governance",
-            "SPECIFIC OUTCOMES": "5.2.3.1 State factors that hinder citizens from enjoying their rights. 5.2.3.2 Identify organisations that protect and promote human rights.",
-            "KNOWLEDGE": "• Corruption, poverty, poor governance, conflicts, ignorance • Human rights violations such as child abuse • Police Service, Human Rights Commission and other organisations",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.2.2 Threats to Human Rights",
+            "SPECIFIC OUTCOMES": "5.2.2.1 State factors that hinder citizens from enjoying their rights 5.2.2.2 Mention examples of human rights violations 5.2.2.3 Identify organisations protecting human rights",
+            "KNOWLEDGE": " Corruption, poverty, governance, conflicts, ignorance  Gender based violence, child abuse  Police service, Human Rights Commission, civil society organisations",
+            "SKILLS": "poor  Identification of human rights",
+            "VALUES": "human rights"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.3.1 Discipline and Punishment",
             "TOPIC": "5.3 Christian Living",
-            "SPECIFIC OUTCOMES": "5.3.1.1 Describe the importance of child discipline. 5.3.1.2 Identify ways of discipline. 5.3.1.3 Describe punishment. 5.3.1.4 Identify different types of punishment.",
-            "KNOWLEDGE": "• Ways of discipline: counselling, confessing, scolding • Denying privileges • Types of punishment: physical, emotional, economic, social",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.3.1 Discipline andPunishment",
+            "SPECIFIC OUTCOMES": "5.3.1.1 Describe the importance of child discipline 5.3.1.2 Identify ways of discipline 5.3.1.3 Describe punishment 5.3.1.4 Identify different types of punishment",
+            "KNOWLEDGE": " Moulding character  Counselling, confronting, scolding  Denying privileges  Physical, emotional, economic, social",
+            "SKILLS": " Application  Identification  Classification",
+            "VALUES": " Awareness  Appreciation  Discipline  Responsibility  Remorsefulness"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.4.1 Rural-urban Migration",
             "TOPIC": "5.4 Environment",
-            "SPECIFIC OUTCOMES": "5.4.1.1 Describe migration. 5.4.1.2 Explain rural-urban migration and its effects. 5.4.1.3 Suggest possible solutions to rural-urban migration.",
-            "KNOWLEDGE": "• Movement from one place to another • Movement of people from rural to urban areas • Reasons: search for employment, social amenities, disputes • Effects on rural areas: depopulation, underdevelopment • Effects on urban areas: overpopulation, crime, prostitution, poor sanitation • Solutions: improving social and economic amenities in rural areas",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.4.1 Rural-urban Migration",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Describe ‘migration’ 5.4.1.2 Explain rural-urban migration and its effects",
+            "KNOWLEDGE": " Movement from one place another  Movement of people from rural to urban areas  Reasons: search for employment, social amenities, disputes  Effects on rural areas: depopulation, underdevelopment  Effects on urban areas: overpopulation, crime, prostitution, poor sanitation, shortage of social",
+            "SKILLS": "to  Identification  Classification  Management  Organisation  Leadership",
+            "VALUES": " Awareness  Appreciation  Responsibility  Conservation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.5.1 Personal financial goal setting",
-            "TOPIC": "5.5 Learning About Money",
-            "SPECIFIC OUTCOMES": "5.5.1.1 Describe basic personal financial goals. 5.5.1.2 Describe the links between earning, spending and saving. 5.5.1.3 Explain the importance of financial security.",
-            "KNOWLEDGE": "• Goals people have: education, buying property, food • Links between earning, spending and saving • Financial security: employment, savings, income covering expenditure",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "5.5.8 Suggest possible solutions to rural-urban migration",
+            "KNOWLEDGE": "amenities  Solutions: improving social economic amenities in rural areas",
+            "SKILLS": "and",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.6.1 Wealth Generation",
-            "TOPIC": "5.6 Entrepreneurship",
-            "SPECIFIC OUTCOMES": "5.6.1.1 Explain entrepreneurship. 5.6.1.2 Explain how wealth can be generated.",
-            "KNOWLEDGE": "• Small scale business ventures (legal), government ventures, national and multi-national corporations",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "5.5 Entrepreneu rship",
+            "SUBTOPIC": "5.5.1 Wealth Generation",
+            "SPECIFIC OUTCOMES": "5.5.1.1 Explain entrepreneurship 5.5.1.2 Explain how wealth can be generated",
+            "KNOWLEDGE": " Small scale business ventures (legal), government ventures, national and multi-national corporation",
+            "SKILLS": " Entrepreneurship",
+            "VALUES": " Hard-work to generate wealth"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 District": "5.7.1 Transport and Communication in the District",
-            "TOPIC": "5.7 Transport and Communication",
-            "SPECIFIC OUTCOMES": "5.7.1.1 Describe the development of transport and communication services.",
-            "KNOWLEDGE": "• Transport: from walking to scotch-carts to cycling to riding motor vehicles • Communication: from messenger to drum to letter to telex to land phone to cell-phone",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "5.6 Transport and",
+            "SUBTOPIC": "5.6.1 Transport and",
+            "SPECIFIC OUTCOMES": "5.6.1.1 Describe the development of transport and communication",
+            "KNOWLEDGE": " Transport: from walking to scotch- carts to cycling to riding motor",
+            "SKILLS": "",
+            "VALUES": ""
           }
         }
-      ]
+      ],
+      "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 5"
     },
     "Grade 6": {
-      "title": "GRADE 6",
       "columns": [
-        "6.1.1 Province",
         "TOPIC",
+        "SUBTOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
         "SKILLS",
@@ -22842,92 +22841,71 @@
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.1.1 Province",
             "TOPIC": "6.1 Living Together in the Community",
-            "SPECIFIC OUTCOMES": "6.1.1.1 Locate on the map of Zambia the position of the province. 6.1.1.2 Identify the main physical features on a map of the province. 6.1.1.3 Describe social, economic, cultural and political structures of the province in the past. 6.1.1.4 Mention the cultural composition of the people in the province. 6.1.1.5 Describe the economic activities in the province.",
-            "KNOWLEDGE": "• Location of the province • Hills/mountains, rivers, plains, valleys • Social, economic, cultural and political structures • Races, ethnic groups, villages, chiefdoms • Farming, construction, trading, manufacturing, mining",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "6.1.1 Province",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Locate on the map of Zambia the position of the province 6.1.1.2 Identify the main physical  features on a map of the province 6.1.1.3 Describe social, economic,  cultural, political structures of the province in the past 6.1.1.4 Mention the cultural  composition of the people in the province 6.1.1.5 Describe the economic activities  in the province",
+            "KNOWLEDGE": " Location of the province Hills/mountains, rivers, plains, valleys Social, economic, cultural, political structures Races, ethnic groups, villages, chiefdoms Farming, construction, trading, manufacturing, mining",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.2.1 Leadership",
-            "TOPIC": "6.2 Governance",
-            "SPECIFIC OUTCOMES": "6.2.1.1 Identify leadership qualities that promote development.",
-            "KNOWLEDGE": "• Leadership qualities: openness, integrity, honesty, accountability",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "6.2 Religion",
+            "SUBTOPIC": "6.2.1 Religious Faith (Martyrdom)",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Identify Africans killed for their  religious faith 6.2.1.2 Describe the encounter between  David and Goliath 6.2.1.3 State the role of faith in helping  people to be brave",
+            "KNOWLEDGE": "Charles Lwanga and Kizito 1 Samuel 17 Promotes courage to face situations",
+            "SKILLS": " Identification  Creative thinking  Communication  Classification",
+            "VALUES": " Faithfulness  Appreciation  Awareness"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.2.2 Local Government",
-            "TOPIC": "6.2 Governance",
-            "SPECIFIC OUTCOMES": "6.2.2.1 Describe the functions of local government.",
-            "KNOWLEDGE": "• Functions: street lighting, water supply, waste management, housing, land administration",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "6.3 Weather and Climate",
+            "SUBTOPIC": "6.3.1 Elements Weather and Climate",
+            "SPECIFIC OUTCOMES": "of 6.3.1.1 Outline elements of weather and  climate",
+            "KNOWLEDGE": "Temperature, rainfall, pressure, sunshine, humidity",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.3.1 Keeping money safe",
-            "TOPIC": "6.3 Learning About Money",
-            "SPECIFIC OUTCOMES": "6.3.1.1 Identify the different ways of saving. 6.3.1.2 Explain the benefits of keeping money safe. 6.3.1.3 Identify the main features of saving and borrowing. 6.3.1.4 Identify the relationship between risk and reward in different financial contexts.",
-            "KNOWLEDGE": "• Different ways of saving: bank, cell phone (mobile money), community accounts • Features of saving and borrowing: interest rates, paying back what you borrow, terms and conditions • Risks and rewards in savings, borrowing and gambling/betting",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "6.4 Environment",
+            "SUBTOPIC": "6.4.1 Protection of the Environment",
+            "SPECIFIC OUTCOMES": "6.4.1.1 Identify ways of disposing waste  6.4.1.2 Identify communal places that  need protection from waste",
+            "KNOWLEDGE": "Recycling, burying Markets, schools, clinics, churches, bus stations, drainages",
+            "SKILLS": "",
+            "VALUES": " Protection of the environment"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.4.1 Religious Faith (Martyrdom)",
-            "TOPIC": "6.4 Religion",
-            "SPECIFIC OUTCOMES": "6.4.1.1 Identify Africans killed for their religious faith. 6.4.1.2 Describe the encounter between David and Goliath. 6.4.1.3 State the role of faith in helping people to be brave.",
-            "KNOWLEDGE": "• Charles Lwanga and Kizito • 1 Samuel 17 • Faith promotes courage to face situations",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "",
+            "SPECIFIC OUTCOMES": "6.4..1.3 Describe the role of the  community in environmental protection and waste management",
+            "KNOWLEDGE": "Community participation, sensitisation and advocacy",
+            "SKILLS": "",
+            "VALUES": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1.1 Province": "6.5.1 Elements of Weather and Climate",
-            "TOPIC": "6.5 Weather and Climate",
-            "SPECIFIC OUTCOMES": "6.5.1.1 Outline elements of weather and climate.",
-            "KNOWLEDGE": "• Elements: temperature, rainfall, pressure, sunshine, humidity",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.1.1 Province": "6.6.1 Protection of the Environment",
-            "TOPIC": "6.6 Environment",
-            "SPECIFIC OUTCOMES": "6.6.1.1 Identify ways of disposing waste. 6.6.1.2 Identify communal places that need protection from waste. 6.6.1.3 Describe the role of the community in environmental protection and waste management.",
-            "KNOWLEDGE": "• Ways of disposing waste: recycling, burying • Communal places: markets, schools, clinics, churches, bus stations, drainages • Community participation, sensitisation and advocacy",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.1.1 Province": "6.7.1 Road Safety",
-            "TOPIC": "6.7 Transport and Communication",
-            "SPECIFIC OUTCOMES": "6.7.1.1 Explain factors that influence road safety.",
-            "KNOWLEDGE": "• Factors: visibility of road signs, state of the road, availability of road signs, vandalism, corruption",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "6.5 Transport and Communication",
+            "SUBTOPIC": "6.5.1 Road Safety",
+            "SPECIFIC OUTCOMES": "6.5.1.1 Explain factors that influence  road safety",
+            "KNOWLEDGE": "Factors: visibility of road signs, state of the road, availability road signs, vandalism, corruption",
+            "SKILLS": "",
+            "VALUES": ""
           }
         }
-      ]
+      ],
+      "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 6"
     },
     "Grade 7": {
       "title": "SOCIAL STUDIES SYLLABUS  —  GRADE 7",
@@ -23992,1198 +23970,1306 @@
       ]
     },
     "Grade 6": {
-      "title": "ZAMBIAN LANGUAGE SYLLABUS  —  GRADE 6",
       "columns": [
-        "6.3.15 CONVERSIONS OF WRITING",
-        "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING",
-        "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.",
-        "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS",
-        "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING"
+        "COMPONENT",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "CONTENT",
+        "SKILLS",
+        "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "KNOWLEDGE",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "SKILLS"
+            "COMPONENT": "6.1 Listening and Speaking",
+            "TOPIC": "6.1.1 Aural Comprehension",
+            "SPECIFIC OUTCOMES": "6.1.1.1 Answer questions based on a story or play.",
+            "CONTENT": " Answering surface, inference and vocabulary questions appropriately.",
+            "SKILLS": " Application of taught knowledge; correctly answering aural questions",
+            "VALUES": " Knowledge and Appreciation of content; Aural Comprehension"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1 Listening and Speaking",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.1 Aural Comprehension",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.1.1 Answer questions based on a story or play.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Answering surface, inference and vocabulary questions appropriately.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; correctly answering aural questions"
+            "COMPONENT": "",
+            "TOPIC": "6.1.2 Story/Play",
+            "SPECIFIC OUTCOMES": "6.1.2.1 Discuss main episodes in a story or play.",
+            "CONTENT": " Main features of a story / play; literacy analytical sequence Scenes, events  And sub-themes",
+            "SKILLS": " Application of taught knowledge; elementary literary analysis",
+            "VALUES": " Knowledge and Appreciation of content; Story/Play"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.2 Story/Play",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.2.1 Discuss main episodes in a story or play.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Main features of a story / play; literacy analytical sequence Scenes, events • And sub-themes",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; elementary literary analysis"
+            "COMPONENT": "",
+            "TOPIC": "6.1.3 Miming",
+            "SPECIFIC OUTCOMES": "6.1.3.1 Mime words or a play.",
+            "CONTENT": " Miming (imitate) correctly",
+            "SKILLS": " Application of taught knowledge; Miming",
+            "VALUES": " Knowledge and Appreciation of content; Miming"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "KNOWLEDGE",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "SKILLS"
+            "COMPONENT": "",
+            "TOPIC": "6.1.4 Conversation",
+            "SPECIFIC OUTCOMES": "6.1.4.1 Identify the main points of a conversation and give a logical conclusion.",
+            "CONTENT": " Main points of a convention theme sub- themes logical conclusion.",
+            "SKILLS": " Application of taught knowledge; Main points of a convention",
+            "VALUES": " Knowledge and Appreciation of content; Conversation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.3 Miming",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.3.1 Mime words or a play.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Miming (imitate) correctly",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Miming"
+            "COMPONENT": "",
+            "TOPIC": "6.1.5 Reporting",
+            "SPECIFIC OUTCOMES": "6.1.5.1 Report facts on an issue e.g. HIV/AIDS, Human Rights, Democracy.",
+            "CONTENT": " Facts on HIV/AIDS  Human Rights",
+            "SKILLS": " Application of taught knowledge; Reporting facts",
+            "VALUES": " Knowledge and Appreciation of content; Reporting"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.4 Conversation",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.4.1 Identify the main points of a conversation and give a logical conclusion.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Main points of a convention theme sub- themes logical conclusion.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Main points of a convention"
+            "COMPONENT": "",
+            "TOPIC": "6.1.6 Debates/ Speech",
+            "SPECIFIC OUTCOMES": "6.1.6.1 Reproduce information from a speech or debate and give an opinion about it.",
+            "CONTENT": " Agreeing and disagreeing on the debate  Speech.",
+            "SKILLS": " Application of taught knowledge; Agreeing and disagreeing",
+            "VALUES": " Knowledge and Appreciation of content; Debates/ Speech"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.5 Reporting",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.5.1 Report facts on an issue e.g. HIV/AIDS, Human Rights, Democracy.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Facts on HIV/AIDS • Human Rights",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Reporting facts"
+            "COMPONENT": "",
+            "TOPIC": "6.1.7 Processes",
+            "SPECIFIC OUTCOMES": "6.1.7.1 Describe processes and activities.",
+            "CONTENT": " Steps or stages of processes  Events.",
+            "SKILLS": " Application of taught knowledge; Steps or stages of processes",
+            "VALUES": " Knowledge and Appreciation of content; Processes"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.6 Debates/ Speech",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.6.1 Reproduce information from a speech or debate and give an opinion about it.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Agreeing and disagreeing on the debate • Speech.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Agreeing and disagreeing"
+            "COMPONENT": "",
+            "TOPIC": "6.1.8 Descriptions",
+            "SPECIFIC OUTCOMES": "6.1.8.1 Describe a location.",
+            "CONTENT": " Proximity Directions, position (i.e. right, front, behind, above).",
+            "SKILLS": " Application of taught knowledge; Steps or stages of processes",
+            "VALUES": " Knowledge and Appreciation of content; Descriptions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.7 Processes",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.7.1 Describe processes and activities.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Steps or stages of processes • Events.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Steps or stages of processes"
+            "COMPONENT": "",
+            "TOPIC": "6.1.9 Customs and Traditions",
+            "SPECIFIC OUTCOMES": "6.1.9.1 Talk about customs and traditions.",
+            "CONTENT": " Customs and traditions. (Value, occasions and appropriacy)",
+            "SKILLS": " Application of taught knowledge; Customs and traditions",
+            "VALUES": " Knowledge and Appreciation of content; Customs and Traditions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.8 Descriptions",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.8.1 Describe a location.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Proximity Directions, position (i.e. right, front,",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Applicationof taught knowledge; Steps or stages of processes"
+            "COMPONENT": "",
+            "TOPIC": "6.1.10 Proverbs",
+            "SPECIFIC OUTCOMES": "6.1.10.1 Give correct meaning of proverbs.",
+            "CONTENT": " Proverbs; correct meaning and usage (advise, warning, praise)",
+            "SKILLS": " Application of taught knowledge; ; correct meaning and usage",
+            "VALUES": " Knowledge and Appreciation of content; Proverbs"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "behind, above).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "",
+            "TOPIC": "6.1.11 Composing",
+            "SPECIFIC OUTCOMES": "6.1.11.1 Compose and use appropriate songs, praises and poems on crosscutting issues.",
+            "CONTENT": " Songs  Praises  Poems, e.g. food, nutrition, environmental issues  (Rhyming, stanza, theme)",
+            "SKILLS": " Creativity  Application of taught knowledge; Rhyming, stanza, theme",
+            "VALUES": " Knowledge and Appreciation of content; Composing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.9 Customs and Traditions",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.9.1 Talk about customs and traditions.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Customs and traditions. (Value, occasions and appropriacy)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Applicationof taught knowledge; Customs and traditions",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Customs and Traditions"
+            "COMPONENT": "",
+            "TOPIC": "6.1.12 Dramatizing",
+            "SPECIFIC OUTCOMES": "6.1.12.1 Dramatize stories, legends and famous folklores.",
+            "CONTENT": " Dramatizing stories legends.  Folklores (role. Playing, purpose and value)",
+            "SKILLS": " Creativity  Application of taught knowledge; Dramatizing stories legends",
+            "VALUES": " Knowledge and Appreciation of content; Dramatizing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.10 Proverbs",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.10.1 Give correct meaning of proverbs.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Proverbs; correct meaning and usage (advise, warning, praise)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Applicationof taught knowledge; ; correct meaning and usage",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Proverbs"
+            "COMPONENT": "",
+            "TOPIC": "6.1.13 Debating",
+            "SPECIFIC OUTCOMES": "6.1.13.1 Debate issues of the day in a logical manner.",
+            "CONTENT": " Debating skills (Vocabulary, voice projection, clarity and protocol)",
+            "SKILLS": " Critical thinking  Application of taught knowledge; Debating skills",
+            "VALUES": " Knowledge and Appreciation of content; Debating"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.11 Composing",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.11.1 Compose and use appropriate songs, praises and poems on crosscutting issues.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Songs • Praises • Poems, e.g. food, nutrition, environmental issues • (Rhyming, stanza, theme)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Creativity • Application of taught knowledge; Rhyming, stanza, theme",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Composing"
+            "COMPONENT": "",
+            "TOPIC": "6.1.14 Social information",
+            "SPECIFIC OUTCOMES": "6.1.14.1 Identify, classify and use information.",
+            "CONTENT": " Identification  Classification (about countries, people, customs, law and order, agriculture, conservation, current affairs, Historic subjects and topical issues such as HIV and AIDS, democracy, gender and governance )",
+            "SKILLS": "Application of taught knowledge; Social information",
+            "VALUES": " Knowledge and Appreciation of content; Social information"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.12 Dramatizing",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.12.1 Dramatize stories, legends and famous folklores.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Dramatizing stories legends. • Folklores (role. Playing, purpose and value)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Creativity • Application of taught knowledge; Dramatizing stories legends",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Dramatizing"
+            "COMPONENT": "",
+            "TOPIC": "6.1.15 Scientific information",
+            "SPECIFIC OUTCOMES": "6.1.15.1 Identify, classify and use information about Maths, measurement of time, Science, communication sight and light.",
+            "CONTENT": " Identification  Classification",
+            "SKILLS": "Application of taught knowledge; Scientific information",
+            "VALUES": " Knowledge and Appreciation of content; Scientific information"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.13 Debating",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.13.1 Debate issues of the day in a logical manner.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Debating skills (Vocabulary, voice projection, clarity and protocol)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Critical thinking • Application of taught knowledge; Debating skills",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Debating"
+            "COMPONENT": "",
+            "TOPIC": "6.1.16 Descriptions",
+            "SPECIFIC OUTCOMES": "6.1.16.1 Describe and report experiences, pastevents, arrangements and intentions.",
+            "CONTENT": " Describing Reporting, ( nature, time, reason etc)",
+            "SKILLS": " Application of taught knowledge; Describing and Reporting",
+            "VALUES": " Knowledge and Appreciation of content; Descriptions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.14 Social",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.14.1 Identify, classify and",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Identification",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and"
+            "COMPONENT": "",
+            "TOPIC": "6.1.17 Intensifiers",
+            "SPECIFIC OUTCOMES": "6.1.17.1 Use intensifiers correctly.",
+            "CONTENT": " Intensifiers (very much), Mbiri – Nyanja(Hahulu – ( Silozi)  (Kapati – (Chitonga)",
+            "SKILLS": " Application of taught knowledge; Intensifiers",
+            "VALUES": " Knowledge and Appreciation of content; Intensifiers"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.15 Scientific information",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.15.1 Identify, classify and use information about Maths, measurement of time, Science, communication sight and light.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Identification • Classification",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Scientific information",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Scientific information"
+            "COMPONENT": "",
+            "TOPIC": "6.1.18 Inquiring",
+            "SPECIFIC OUTCOMES": "6.1.18.1 Find out about opinion, feelings and beliefs of other people.",
+            "CONTENT": " Probing people’s opinions, feelings and beliefs. counseling",
+            "SKILLS": " Application of taught knowledge; Inquiring",
+            "VALUES": " Knowledge and Appreciation of content; Inquiring"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.16 Descriptions",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.16.1 Describe and report experiences, pastevents, arrangements and intentions.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Describing Reporting, ( nature, time, reason etc)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Describing and Reporting",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Descriptions"
+            "COMPONENT": "",
+            "TOPIC": "6.1.19 Denying and Affirming",
+            "SPECIFIC OUTCOMES": "6.1.19.1 Make statements that deny, or affirm",
+            "CONTENT": " Vocabulary for; denying(no, not true, never, not at all),  affirming (yes, welcome, I accept, go ahead)",
+            "SKILLS": " Application of taught knowledge; Denying and Affirming",
+            "VALUES": " Knowledge and Appreciation of content; Denying and Affirming"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.17 Intensifiers",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.17.1 Use intensifiers correctly.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Intensifiers (very much), Mbiri – Nyanja(Hahulu – ( Silozi) • (Kapati – (Chitonga)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Intensifiers",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Intensifiers"
+            "COMPONENT": "",
+            "TOPIC": "6.1.20 Opinions",
+            "SPECIFIC OUTCOMES": "6.1.20.1 Express opinions",
+            "CONTENT": " Vocabulary for expressing; Necessity, Criticism, Probability, Certainty, Doubt, Inducement, deductions",
+            "SKILLS": "Application of taught knowledge; Expressing opinions",
+            "VALUES": " Knowledge and Appreciation of content; Opinions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.18 Inquiring",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.18.1 Find out about opinion,",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Probing people’s",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and"
+            "COMPONENT": "",
+            "TOPIC": "6.1.21 Meaning",
+            "SPECIFIC OUTCOMES": "6.1.21.1 Express personal meaning",
+            "CONTENT": " Vocabulary for expressing; Prediction, Satisfaction, Surprise, Regret, Gratitude, Speculation",
+            "SKILLS": "Application of taught knowledge; Expressing personal meaning",
+            "VALUES": " Knowledge and Appreciation of content; Meaning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "feelings and beliefs of other people.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "opinions, feelings and beliefs. counseling",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "knowledge; Inquiring",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Appreciation of content; Inquiring"
+            "COMPONENT": "",
+            "TOPIC": "6.1.22 Politeness",
+            "SPECIFIC OUTCOMES": "6.1.22.1 Use polite expressions",
+            "CONTENT": " Vocabulary for expressing politeness in;  Requests,  Suggestions,  Instructions,  Directions,  Warnings,  Advice",
+            "SKILLS": " Application of taught knowledge; Vocabulary for expressing politeness",
+            "VALUES": " Knowledge and Appreciation of content; Politeness"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.19 Denying and Affirming",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.19.1 Make statements that deny, or affirm",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary for; denying(no, not true, never, not at all), • affirming (yes, welcome, I accept, go ahead)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Denying and Affirming",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Denying and Affirming"
+            "COMPONENT": "",
+            "TOPIC": "6.1.23 Language use",
+            "SPECIFIC OUTCOMES": "6.1.23.1 Use language socially in different situations",
+            "CONTENT": " Vocabulary appropriate for;  Seeking, agreement, permission,  responding to directions,  expressing concern,  Sympathy,  planning co- operative activities",
+            "SKILLS": " Application of taught knowledge; appropriate social register",
+            "VALUES": " Knowledge and Appreciation of content; Language use"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.20 Opinions",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.20.1 Express opinions",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary for expressing; Necessity, Criticism, Probability, Certainty, Doubt, Inducement, deductions",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Expressing opinions",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Opinions"
+            "COMPONENT": "",
+            "TOPIC": "6.1.24 Interpreting information",
+            "SPECIFIC OUTCOMES": "6.1.24.1 Talk about information set out in charts, maps, diagrams, plans, graphs etc.",
+            "CONTENT": " Various forms of print form e.g. ; Maps, Graphs, Diagrams, Charts, Tables.",
+            "SKILLS": "Application of taught knowledge; Interpreting information",
+            "VALUES": " Knowledge and Appreciation of content; Interpreting information"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.21 Meaning",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.21.1 Express personal meaning",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary for expressing; Prediction, Satisfaction, Surprise, Regret, Gratitude, Speculation",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Expressing personal meaning",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Meaning"
+            "COMPONENT": "",
+            "TOPIC": "6.1.25 Concepts",
+            "SPECIFIC OUTCOMES": "6.1.25.1 Express ideas in the form of concepts.",
+            "CONTENT": " Factual values and justifications",
+            "SKILLS": " Application of taught knowledge; Factual values and justifications",
+            "VALUES": " Knowledge and Appreciation of content; Concepts"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.22 Politeness",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.22.1 Use polite expressions",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary for expressing",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Vocabulary",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of"
+            "COMPONENT": "",
+            "TOPIC": "6.1.26 Decision making",
+            "SPECIFIC OUTCOMES": "6.1.26.1 Give an appropriate logical conclusion to a conversation e.g. on water conservation.",
+            "CONTENT": " Vocabulary for making conclusion e.g. In conclusion. To sum up.",
+            "SKILLS": " Application of taught knowledge; appropriate logical conclusion",
+            "VALUES": " Knowledge and Appreciation of content; Decision making"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "politeness in; • Requests, • Suggestions, • Instructions, • Directions, • Warnings, • Advice",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "for expressing politeness",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "content; Politeness"
+            "COMPONENT": "",
+            "TOPIC": "6.1.27 Quality and Quantity",
+            "SPECIFIC OUTCOMES": "6.1.27.1 Talk about quality and quantity.",
+            "CONTENT": " Vocabulary suitable for expression of quality and quantity e.g. good, better, best more, most, few, less.",
+            "SKILLS": "Application of taught knowledge; Quality and Quantity",
+            "VALUES": " Knowledge and Appreciation of content; Quality and Quantity"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.23 Language use",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.23.1 Use language socially in different situations",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary appropriate for; • Seeking, agreement, permission, • responding to directions, • expressing concern, • Sympathy, • planning co- operative activities",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; appropriate social register",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Language use"
+            "COMPONENT": "",
+            "TOPIC": "6.1.28 Speech",
+            "SPECIFIC OUTCOMES": "6.1.28.1 Discussion contents of a speech e.g. on human rights, citizenship education.",
+            "CONTENT": " Vocabulary suitable for making oral speech. (Salutation and sequence/order).",
+            "SKILLS": " Application of taught knowledge; Vocabulary suitable for making oral speech.",
+            "VALUES": " Knowledge and Appreciation of content; Speech"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.24 Interpreting information",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.24.1 Talk about information set out in charts, maps, diagrams, plans, graphs etc.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Various forms of print form e.g. ; Maps, Graphs, Diagrams, Charts, Tables.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Interpreting information",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Interpreting information"
+            "COMPONENT": "",
+            "TOPIC": "6.1.29 Songs",
+            "SPECIFIC OUTCOMES": "6.1.29.1 Classify different types of songs and occasions at which they are sang.",
+            "CONTENT": " Types of songs (modern and traditional) and occasions (e.g. funeral ceremony, religious, war) harvesting, hunting, pounding",
+            "SKILLS": " Application of taught knowledge; different types of songs",
+            "VALUES": " Knowledge and Appreciation of content; Songs"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.25 Concepts",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.25.1 Express ideas in the form of concepts.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Factual values and justifications",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Factual values and justifications",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Concepts"
+            "COMPONENT": "",
+            "TOPIC": "6.1.30 Praises and Poems",
+            "SPECIFIC OUTCOMES": "6.1.30.1 Recite praises and poems",
+            "CONTENT": " Songs and praises e.g. food, nutrition, environmental issues  Rhyming, stanza, theme",
+            "SKILLS": " Application of taught knowledge; Recite praises and poems",
+            "VALUES": " Knowledge and Appreciation of content; Praises and Poems"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.26 Decision",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.26.1 Give an appropriate",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary for",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Applicationof taught",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and"
+            "COMPONENT": "6.2 Reading",
+            "TOPIC": "6.2.1 Reading comprehension",
+            "SPECIFIC OUTCOMES": "6.2.1.1 Read different types of text and demonstrate understanding.",
+            "CONTENT": " Reading and making correct personal responses from what has been read (scanning)",
+            "SKILLS": "Application of taught knowledge; Reading comprehension",
+            "VALUES": " Knowledge and Appreciation of content; Reading comprehension"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "making",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "logical conclusion to a conversation e.g. on water conservation.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "making conclusion e.g. In conclusion. To sum up.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "knowledge; appropriate logical conclusion",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Appreciation of content; Decision making"
+            "COMPONENT": "",
+            "TOPIC": "6.2.2 Extensive reading",
+            "SPECIFIC OUTCOMES": "6.2.2.1 Read materials from other subject areas with understanding.",
+            "CONTENT": " Application of language patterns and skills in other subject",
+            "SKILLS": "Application of taught knowledge; Extensive reading",
+            "VALUES": " Knowledge and Appreciation of content; Extensive reading"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.27 Quality and Quantity",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.27.1 Talk about quality and quantity.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary suitable for expression of quality and quantity e.g. good, better, best more, most, few, less.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Quality and Quantity",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Quality and Quantity"
+            "COMPONENT": "",
+            "TOPIC": "6.2.3 Book reference",
+            "SPECIFIC OUTCOMES": "6.2.3.1 Use a reference book.",
+            "CONTENT": " Skimming and scanning",
+            "SKILLS": " Application of taught knowledge; Skimming and scanning",
+            "VALUES": " Knowledge and Appreciation of content; Book reference"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.28 Speech",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.28.1 Discussion contents of a speech e.g. on human rights, citizenship education.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Vocabulary suitable for making oral speech. (Salutation and sequence/order).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Vocabulary suitable for making oral speech.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Speech"
+            "COMPONENT": "",
+            "TOPIC": "6.2.4 Reading comprehension",
+            "SPECIFIC OUTCOMES": "6.2.4.1 Answer multiple, surface and inference on any topic of the cross-cutting issues.",
+            "CONTENT": "Answering inference, surface and vocabulary questions (passage on cross- cutting issues)",
+            "SKILLS": " Application of taught knowledge; Answering inference, surface and vocabulary questions",
+            "VALUES": " Knowledge and Appreciation of content; Reading comprehension"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.29 Songs",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.29.1 Classify different types of songs and occasions at which they are sang.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Types of songs (modern and traditional) and occasions (e.g. funeral ceremony, religious, war) harvesting, hunting, pounding",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; different types of songs",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Songs"
+            "COMPONENT": "",
+            "TOPIC": "6.2.5 Oral Reading",
+            "SPECIFIC OUTCOMES": "6.2.5.1 Read aloud with appropriate expression, correct punctuation and other markers.",
+            "CONTENT": "Reading aloud with appropriate expression and correct punctuations.",
+            "SKILLS": " Application of taught knowledge; Oral Reading",
+            "VALUES": " Knowledge and Appreciation of content; Oral Reading"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.1.30 Praises and Poems",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.1.30.1 Recite praises and poems",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "• Songs and praises e.g. food, nutrition, environmental",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Recite praises and poems",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Praises and Poems"
+            "COMPONENT": "",
+            "TOPIC": "6.2.6 Extracting information",
+            "SPECIFIC OUTCOMES": "6.2.6.1 Extract information from various print resources.",
+            "CONTENT": "Extracting information from various print resources; Maps, Graphs, Tables, Charts, Plans, Diagrams.",
+            "SKILLS": " Interpretation of taught knowledge; Extracting information",
+            "VALUES": " Knowledge and Appreciation of content; Extracting information"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.2.5 Oral Reading",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.2.5.1 Read aloud with appropriate expression, correct punctuation and other markers.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Reading aloud with appropriate expression and correct punctuations.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Oral Reading"
+            "COMPONENT": "6.3 Keeping a diary Writing",
+            "TOPIC": "6.3.1 Composition",
+            "SPECIFIC OUTCOMES": "6.3.1.1 Write short compositions on any given topics using appropriate structures.",
+            "CONTENT": "Writing compositions e.g. Descriptive, narrative and Argumentative etc",
+            "SKILLS": " Application of taught knowledge; Descriptive, narrative and Argumentative types of composition",
+            "VALUES": " Knowledge and Appreciation of content; Composition"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.2.6 Extracting information",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.2.6.1 Extract information from various print",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Extracting information from",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Interpretation of taught knowledge; Extracting"
+            "COMPONENT": "",
+            "TOPIC": "6.3.2",
+            "SPECIFIC OUTCOMES": "6.3.2.1 Keep a diary.",
+            "CONTENT": "Keeping a record of daily occurrences",
+            "SKILLS": " Application of taught knowledge; Keeping a diary",
+            "VALUES": " Knowledge and Appreciation of content; Composition"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.2",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.2.1 Keep a diary.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Keeping a record of daily occurrences",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Keeping a diary"
+            "COMPONENT": "",
+            "TOPIC": "6.3.3 Letter writing",
+            "SPECIFIC OUTCOMES": "6.3.3.1 Write formal and informal letters .",
+            "CONTENT": "Letter writing indicating address/es, date, salutation body ( punctuations, paragraphing), conclusion",
+            "SKILLS": " Application of taught knowledge; writing formal and informal letters",
+            "VALUES": " Knowledge and Appreciation of content;Letter writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.3 Letter writing",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.3.1 Write formal and informal letters .",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Letter writing indicating address/es, date, salutation body ( punctuations, paragraphing), conclusion",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge;writing formal and informal letters"
+            "COMPONENT": "",
+            "TOPIC": "6.3.4 Dictation",
+            "SPECIFIC OUTCOMES": "6.3.4.1 Take dictation.",
+            "CONTENT": "Writing from dictation (punctuations, orthography).",
+            "SKILLS": " Application of taught knowledge; Taking dictation",
+            "VALUES": " Knowledge and Appreciation of content; Dictation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.4 Dictation",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.4.1 Take dictation.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Writing from dictation (punctuations, orthography).",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge;Taking dictation"
+            "COMPONENT": "",
+            "TOPIC": "6.3.5 Paragraphing",
+            "SPECIFIC OUTCOMES": "6.3.5.1 Demonstrate an understanding of paragraphing.",
+            "CONTENT": "Paragraphing ( Value of margin, indicating, upper and lower case letters etc) Neatness/ Accuracy.",
+            "SKILLS": " Application of taught knowledge; Paragraphing",
+            "VALUES": " Knowledge and Appreciation of content; Paragraphing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.5 Paragraphing",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.5.1 Demonstrate an understanding of paragraphing.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Paragraphing ( Value of margin, indicating, upper and lower case letters etc)",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Paragraphing"
+            "COMPONENT": "",
+            "TOPIC": "6.3.6 Composition writing",
+            "SPECIFIC OUTCOMES": "6.3.6.1 Use a variety of writing styles; personal, imaginative, narrative and descriptive.",
+            "CONTENT": "Writing styles for; Personal, Imaginative, Narratives, Descriptive.",
+            "SKILLS": " Application of taught knowledge; personal, imaginative, narrative and descriptive",
+            "VALUES": " Knowledge and Appreciation of content; Composition writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Neatness/ Accuracy.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "",
+            "TOPIC": "6.3.7 Documents",
+            "SPECIFIC OUTCOMES": "6.3.7.1 Filling in forms correctly",
+            "CONTENT": "Official documents such as swift cash forms, money order, application forms etc Accuracy in completion.",
+            "SKILLS": "Application of taught knowledge; Filling in forms correctly",
+            "VALUES": " Knowledge and Appreciation of content; Documents"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.3.6 Composition writing",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.6.1 Use a variety of writing styles; personal, imaginative, narrative and descriptive.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Writing styles for; Personal, Imaginative, Narratives, Descriptive.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; personal, imaginative, narrative and descriptive",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Composition writing"
+            "COMPONENT": "",
+            "TOPIC": "6.3.8 Notices and Advertisements",
+            "SPECIFIC OUTCOMES": "6.3.8.1 Write notices, advertisements and tables.",
+            "CONTENT": "Writing in summary form (Attractiveness, Clarity/ Vividness, Accessibility); brevity",
+            "SKILLS": " Application of taught knowledge; Writing in summary form",
+            "VALUES": " Knowledge and Appreciation of content; Notices and Advertisements"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.3.7 Documents",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.7.1 Filling in forms correctly",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Official documents such as swift cash forms, money order, application forms etc Accuracy in completion.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Filling in forms correctly",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Documents"
+            "COMPONENT": "",
+            "TOPIC": "6.3.9 Translation",
+            "SPECIFIC OUTCOMES": "6.3.9.1 Translate sentences, paragraphs and passages from a Zambian Language into English and vice versa.",
+            "CONTENT": "Translation rules;e.g. (internal parts of the human body)Knowledge of both the source and receptor language, culture and vocabulary",
+            "SKILLS": " Application of taught knowledge; Knowledge of both the source and receptor language, culture and vocabulary",
+            "VALUES": " Knowledge and Appreciation of content; Translation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.3.8 Notices and Advertisements",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.8.1 Write notices, advertisements and tables.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Writing in summary form (Attractiveness, Clarity/ Vividness, Accessibility); brevity",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Writing in summary form",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Notices and Advertisements"
+            "COMPONENT": "",
+            "TOPIC": "6.3.10 Summary",
+            "SPECIFIC OUTCOMES": "6.3.10.1 Summarizing; using wider vocabulary to cover sentence meaning.",
+            "CONTENT": "Summarizing/criti cal thinking",
+            "SKILLS": " Application of taught knowledge; Summariz ing a given story",
+            "VALUES": " Knowledge and Appreciation of content; Summarize a given story."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.3.9 Translation",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.9.1 Translate sentences, paragraphs and passages from a Zambian Language into English and vice versa.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Translation rules;e.g. (internal parts of the human body)Knowledge of both the source and receptor language, culture and vocabulary",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Knowledge of both the source and receptor language, culture and vocabulary",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Translation"
+            "COMPONENT": "",
+            "TOPIC": "6.3.11 Cursive writing (Hand writing)",
+            "SPECIFIC OUTCOMES": "6.4.11.1 Write legibly with good cursive handwriting.",
+            "CONTENT": "Writing legibly in cursive form.",
+            "SKILLS": " Application of taught knowledge; Cursive writing",
+            "VALUES": " Knowledge and Appreciation of content; Cursive writing (Hand writing)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.10 Summary",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.10.1 Summarizing; using wider vocabulary to cover sentence meaning.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Summarizing/criti cal thinking",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge;Summariz ing a given story"
+            "COMPONENT": "",
+            "TOPIC": "6.3.12 Free writing",
+            "SPECIFIC OUTCOMES": "6.1.12.1 Write using a variety of styles e.g. Personal Imagination, narrative and descriptive.",
+            "CONTENT": "Writing styles ,Personal imaginative narrative descriptive",
+            "SKILLS": "Writing styles ,Personal imaginative narrative",
+            "VALUES": " Knowledge and Appreciation of content; Free writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.11 Cursive writing (Hand writing)",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.4.11.1 Write legibly with good cursive handwriting.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Writing legibly in cursive form.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Cursive writing"
+            "COMPONENT": "6.4 Language",
+            "TOPIC": "6.3.13 Active and Passive Forms",
+            "SPECIFIC OUTCOMES": "6.3.13.1 Use of active and passive forms of the verbs.",
+            "CONTENT": "Active and passive forms of the verbs e.g. Mwanaubenakuja kajo. Kajokabenakujiwa",
+            "SKILLS": " Application of taught knowledge; Using active and passive forms",
+            "VALUES": " Knowledge and Appreciation of content; Active and Passive Forms"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.12 Free writing",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.1.12.1 Write using a variety of styles e.g. Personal Imagination, narrative and descriptive.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Writing styles ,Personal imaginative narrative",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Writing styles ,Personal imaginative narrative"
+            "COMPONENT": "",
+            "TOPIC": "6.3.14 Note Making",
+            "SPECIFIC OUTCOMES": "Make notes from given points",
+            "CONTENT": "Note making ,clarity, main points",
+            "SKILLS": " Application of taught knowledge; Making notes from given points",
+            "VALUES": " Knowledge and Appreciation of content; Note Making"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "descriptive",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "",
+            "TOPIC": "6.3.15 Conversions of writing",
+            "SPECIFIC OUTCOMES": "6.3.15.1 Convert different forms of writing",
+            "CONTENT": "Conversions of writing from Tables to graphs identify topics, themes and content words.",
+            "SKILLS": " Application of taught knowledge; Conversions of writing from Tables to graphs",
+            "VALUES": " Knowledge and Appreciation of content; Conversions of writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4 Language",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.13 Active and Passive Forms",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "6.3.13.1 Use of active and passive forms of the verbs.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Active and passive forms of the verbs e.g. Mwanaubenakuja kajo. Kajokabenakujiwa",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Using active and passive forms"
+            "COMPONENT": "",
+            "TOPIC": "6.3.16 Spelling",
+            "SPECIFIC OUTCOMES": "6.3.16.1 Spell words following rules",
+            "CONTENT": "Spelling rules, correct use of orthography",
+            "SKILLS": " Application of taught knowledge; Spelling rules, correct use of orthography",
+            "VALUES": " Knowledge and Appreciation of content; Spelling"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.14 Note Making",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Make notes from given points",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Note making ,clarity, main points",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Application of taught knowledge; Making notes from given"
+            "COMPONENT": "",
+            "TOPIC": "6.4.1 Word forms (grammar)",
+            "SPECIFIC OUTCOMES": "6.4.1.1 Analyse, identify and use various word forms.",
+            "CONTENT": "Word forms e.g. plural, singular, tense.",
+            "SKILLS": " Application of taught knowledge ; Word forms e.g. plural, singular, tense.",
+            "VALUES": " Knowledge and Appreciation of content; Word forms (grammar)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.3.16 Spelling",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.3.16.1 Spell words following rules",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Spelling rules, correct use of orthography",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Spelling rules, correct use of orthography",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Spelling"
+            "COMPONENT": "",
+            "TOPIC": "6.4.2 Word building",
+            "SPECIFIC OUTCOMES": "6.4.2.1 Build up words using affixes.",
+            "CONTENT": "Word building; prefixes e.g. mu- talima infixes e. - talim- (lutalima) suffixes e.g . –ile (Mutalimile)",
+            "SKILLS": " Application of taught knowledge; Build up words using affixes",
+            "VALUES": " Knowledge and Appreciation of content; Word building"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.1 Word forms (grammar)",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.1.1 Analyse, identify and use various word forms.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Word forms e.g. plural, singular, tense.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge ; Word forms e.g. plural, singular, tense.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Word forms (grammar)"
+            "COMPONENT": "",
+            "TOPIC": "6.4.3 Parts of speech",
+            "SPECIFIC OUTCOMES": "6.4.3.1 Identify and use nouns, verbs, adjectives, conjunctions, adverbs and pronouns in sentences.",
+            "CONTENT": "Parts of speech; nouns (abstract e.g beauty, love) adjectives (dark, small, tall) pronouns ( he, I she, the, there, it) verbs (eat, run, sing, dance) adverbs (slowly, fast, quickly inside) conjunctions (and, but, therefore,)",
+            "SKILLS": " Application of taught knowledge; use nouns, verbs, adjectives, conjunctions, adverbs and pronouns in sentences.",
+            "VALUES": " Knowledge and Appreciation of content; Parts of speech"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.2 Word building",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.2.1 Build up words using affixes.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Word building; prefixes e.g. mu- talima infixes e. - talim- (lutalima) suffixes e.g. –ile (Mutalimile)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Build up words using affixes",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Word building"
+            "COMPONENT": "",
+            "TOPIC": "6.4.4 Sentence Construction",
+            "SPECIFIC OUTCOMES": "6.4.4.1 Build up correct sentences using appropriate vocabulary and structural items.",
+            "CONTENT": "Sentence building using S + V+ D sentence pattern and correct parts of speech syntax.",
+            "SKILLS": " Application of taught knowledge; Build up correct sentences",
+            "VALUES": " Knowledge and Appreciation of content; Sentence Construction"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.3 Parts of speech",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.3.1 Identify and use nouns, verbs, adjectives, conjunctions, adverbs and pronouns in sentences.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Parts of speech; nouns (abstract e.g beauty, love) adjectives (dark, small, tall) pronouns (he, I she, the, there, it) verbs (eat, run, sing, dance)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; use nouns, verbs, adjectives, conjunctions, adverbs and pronouns in sentences.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Parts of speech"
+            "COMPONENT": "",
+            "TOPIC": "6.4.5 Homographs and Homonyms",
+            "SPECIFIC OUTCOMES": "6.4.5.1 Identify and use homographs, and homonyms in sentences.",
+            "CONTENT": "e.g. Homographs ( same spelling but different meaning) (same meaning sound and same spelling but different meaning) homonyms",
+            "SKILLS": " Application of taught knowledge; homographs, and homonyms",
+            "VALUES": " Knowledge and Appreciation of content; Homographs and Homonyms"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "adverbs (slowly, fast, quickly inside) conjunctions (and, but, therefore,)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "",
+            "TOPIC": "6.4.6 Positive and Negative forms",
+            "SPECIFIC OUTCOMES": "6.4.6.1 Identify parts of the verbs that denote negation and use of positive and negative terms in sentences.",
+            "CONTENT": "The verb. Positive (going) and negative (not going) terms in sentences e.g .Ndaona, tandooni (Chitonga).",
+            "SKILLS": " Application of taught knowledge; Positive and Negative forms",
+            "VALUES": " Knowledge and Appreciation of content; Positive and Negative forms"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.4 Sentence Construction",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.4.1 Build up correct sentences using appropriate vocabulary and structural items.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Sentence building using S + V+ D sentence pattern and correct parts of speech syntax.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Build up correct sentences",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Sentence Construction"
+            "COMPONENT": "",
+            "TOPIC": "6.4.7 Tenses",
+            "SPECIFIC OUTCOMES": "6.4.7.1 Change sentences from one tense to another.",
+            "CONTENT": "Verbs (is, was, come). Tenses( present, past)",
+            "SKILLS": " Application of taught knowledge ; changing verbs in sentences",
+            "VALUES": " Knowledge and Appreciation of content; Tenses"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.5 Homographs and Homonyms",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.5.1 Identify and use homographs, and homonyms in sentences.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "e.g. Homographs ( same spelling but different meaning) (same meaning sound and same spelling but different meaning) homonyms",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; homographs, and homonyms",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Homographs and Homonyms"
+            "COMPONENT": "",
+            "TOPIC": "6.4.8 Regular and irregular nouns",
+            "SPECIFIC OUTCOMES": "6.4.8.1 Change singular to plural for both regular and irregular nouns.",
+            "CONTENT": "Singular or plural nouns e.g. . Regular (person, people) and irregular nouns (water).",
+            "SKILLS": " Application of taught knowledge; regular and irregular noun",
+            "VALUES": " Knowledge and Appreciation of content; Regular and irregular nouns"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.6 Positive and Negative forms",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.6.1 Identify parts of the verbs that denote negation and use of positive and negative terms in sentences.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "The verb. Positive (going) and negative (not going) terms in sentences e.g.Ndaona, tandooni (Chitonga).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Positive and Negative forms",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Positive and Negative forms"
+            "COMPONENT": "",
+            "TOPIC": "6.4.9 Nominalization",
+            "SPECIFIC OUTCOMES": "6.4.9.1 Make nouns from verbs.",
+            "CONTENT": "Changing verbs into nouns ca (eat) sico (food) in Silozi",
+            "SKILLS": " Application of taught knowledge; Make nouns from verbs",
+            "VALUES": " Knowledge and Appreciation of content; Nominalization"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.7 Tenses",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.7.1 Change sentences from one tense to another.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Verbs (is, was, come). Tenses( present, past)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge ; changing verbs in sentences",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Tenses"
+            "COMPONENT": "",
+            "TOPIC": "6.4.10 Noun Classes",
+            "SPECIFIC OUTCOMES": "6.4.10.1 List nouns according to noun prefixes",
+            "CONTENT": "Noun prefixes .e.g. mu -, ba -, and ka – in muntu, bantu, kantu up to class 8 classifying.",
+            "SKILLS": "Application of taught knowledge; Noun prefixes .e.g. mu -, ba -, and ka – in muntu, bantu , kantu up to class 8",
+            "VALUES": " Knowledge and Appreciation of content; Noun Classes"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.8 Regular and irregular nouns",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.8.1 Change singular to plural for both regular and irregular nouns.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Singular or plural nouns e.g. . Regular (person, people) and irregular nouns (water).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; regular and irregular noun",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Regular and irregular nouns"
+            "COMPONENT": "",
+            "TOPIC": "6.4.11 Compound and Reduplicated nouns",
+            "SPECIFIC OUTCOMES": "6.4.11.1 Identify and use compound words and reduplicated words.",
+            "CONTENT": "Compound words and reduplicated words e.g. Mfumukazi (Chieftainess) Kabotu – Kabotu (carefully)",
+            "SKILLS": "Application of taught knowledge; using compound words and reduplicated words",
+            "VALUES": " Knowledge and Appreciation of content; Compound and Reduplicated nouns"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.9 Nominalization",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.9.1 Make nouns from verbs.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Changing verbs into nouns ca (eat) sico (food) in Silozi",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "• Application of taught knowledge; Make nouns from verbs",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Nominalization"
+            "COMPONENT": "",
+            "TOPIC": "6.4.12 Orthography",
+            "SPECIFIC OUTCOMES": "6.4.12.1 Write conjunctive and disjunctive words.",
+            "CONTENT": "Conjunctive e.g. Kulima. Disjunctive ; kulima (to till the land).",
+            "SKILLS": "Conjunctive e.g. Kulima. Disjunctive ; ku lima (to till the land).",
+            "VALUES": " Knowledge and Appreciation of content; Orthography"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.10 Noun Classes",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.10.1 List nouns according to noun prefixes",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Noun prefixes .e.g. mu -, ba -, and ka – in muntu, bantu, kantu up to class 8 classifying.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Noun prefixes .e.g. mu -, ba -, and ka – in muntu, bantu, kantu up to class 8",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Noun Classes"
+            "COMPONENT": "",
+            "TOPIC": "6.4.13 Interrogatives",
+            "SPECIFIC OUTCOMES": "6.4.13.1 Identify and use interrogative forms of verbs.",
+            "CONTENT": "Interrogatives e.g. (Why, how, when, what, where, how come) ; avoid literal",
+            "SKILLS": "Application of taught knowledge; Interrogatives e.g. (Why, how, when, what, where, how come)",
+            "VALUES": " Knowledge and Appreciation of content; Interrogatives"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.11 Compound and Reduplicated nouns",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.11.1 Identify and use compound words and reduplicated words.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Compound words and reduplicated words e.g. Mfumukazi (Chieftainess) Kabotu – Kabotu (carefully)",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; using compound words and reduplicated words",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Compound and Reduplicated nouns"
+            "COMPONENT": "",
+            "TOPIC": "6.4.14 Punctuation",
+            "SPECIFIC OUTCOMES": "6.4.14.1 Punctuate accurately using higher forms.",
+            "CONTENT": "Punctuation marks e.g. inverted commas, colon, and exclamation marks.",
+            "SKILLS": "Application of taught knowledge; .inverted commas, colon, and exclamation marks.",
+            "VALUES": " Knowledge and Appreciation of content; Punctuation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.12 Orthography",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.12.1 Write conjunctive and disjunctive words.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Conjunctive e.g. Kulima. Disjunctive ;kulima (to till the land).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Conjunctive e.g. Kulima. Disjunctive ;ku lima (to till the land).",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Orthography"
+            "COMPONENT": "",
+            "TOPIC": "6.4.15 Short and Long vowels (Vowel doubling)",
+            "SPECIFIC OUTCOMES": "6.4.15.1 Write two words whose meanings are differentiated by double vowels.",
+            "CONTENT": "Words e.g . mata (run) maata (strength) in Silozi ; mali (money ) maali (polygamous) in Chitonga",
+            "SKILLS": "Application of taught knowledge; Vowel doubling",
+            "VALUES": " Knowledge and Appreciation of content; Short and Long vowels (Vowel doubling)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.13 Interrogatives",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.13.1 Identify and use interrogative forms of verbs.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Interrogatives e.g. (Why, how, when, what, where, how come) ; avoid literal",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Interrogatives e.g. (Why, how, when, what, where, how come)",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Interrogatives"
+            "COMPONENT": "",
+            "TOPIC": "6.4.16 Positive and negative forms",
+            "SPECIFIC OUTCOMES": "6.4.16.1 Change sentences from positive to negative forms and vice versa.",
+            "CONTENT": "Positive to negative forms of sentences.",
+            "SKILLS": "Application of taught knowledge; 16 Positive and negative forms",
+            "VALUES": " Knowledge and Appreciation of content; Positive and negative forms"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.14 Punctuation",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.14.1 Punctuate accurately using higher forms.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Punctuation marks e.g. inverted commas, colon, and exclamation marks.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; .inverted commas, colon, and exclamation marks.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Punctuation"
+            "COMPONENT": "",
+            "TOPIC": "6.4.17 Vocabulary",
+            "SPECIFIC OUTCOMES": "6.4.17.1 Give meanings of words from a given context.",
+            "CONTENT": "Giving meanings of words from context.",
+            "SKILLS": "Application of taught knowledge; Giving meanings of words from context.",
+            "VALUES": " Knowledge and Appreciation of content; Vocabulary"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.15 Short and Long vowels (Vowel doubling)",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.15.1 Write two words whose meanings are differentiated by double vowels.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Words e.g. mata (run) maata(strength) in Silozi; mali (money) maali (polygamous) in Chitonga",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Vowel doubling",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Short and Long vowels (Vowel doubling)"
+            "COMPONENT": "",
+            "TOPIC": "6.4.18 Adjectives",
+            "SPECIFIC OUTCOMES": "6.4.18.1 Use adjectives to qualify nouns.",
+            "CONTENT": "Adjectives; e.g. good, tall dark, sweet, cold etc to describe nouns.",
+            "SKILLS": "Application of taught knowledge; Adjectives",
+            "VALUES": " Knowledge and Appreciation of content; Adjectives"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.16 Positive and negative forms",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.16.1 Change sentences from positive to negative forms and vice versa.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Positive to negative forms of sentences.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; 16 Positive and negative forms",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Positive and negative forms"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.17 Vocabulary",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.17.1 Give meanings of words from a given context.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Giving meanings of words from context.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Giving meanings of words from context.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Vocabulary"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.18 Adjectives",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.18.1 Use adjectives to qualify nouns.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Adjectives; e.g. good, tall dark, sweet, cold etc to describe nouns.",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Adjectives",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Adjectives"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.19 Borrowed terms",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.19.1 Write words or names that have been adapted from other languages.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Examples of words that have been adapted from other languages e.g. spoon",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Borrowed terms",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Borrowed terms"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "(supuni/sipunu) Bemba/Chitonga).",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "6.3.15 CONVERSIONS OF WRITING": "6.4.20 Concord/ Agreement",
-            "6.3.15.1 CONVERT DIFFERENT FORMS OF WRITING": "6.4.20.1 Use prefixes and their concord.",
-            "CONVERSIONS OF WRITING FROM TABLES TO GRAPHS IDENTIFY TOPICS, THEMES AND CONTENT WORDS.": "Prefixes /concord e.g. Basimbibaleenda(girls arewalking) Chitonga.Jiikejaata ma (a bad egg) Kiikaonde",
-            "• APPLICATION OF TAUGHT KNOWLEDGE; CONVERSIONS OF WRITING FROM TABLES TO GRAPHS": "Application of taught knowledge; Prefixes and their concord",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Concord/ Agreement"
+            "COMPONENT": "",
+            "TOPIC": "6.4.19 Borrowed terms",
+            "SPECIFIC OUTCOMES": "6.4.19.1 Write words or names that have been adapted from other languages.",
+            "CONTENT": "Examples of words that have been adapted from other languages e.g. spoon",
+            "SKILLS": "Application of taught knowledge; Borrowed terms",
+            "VALUES": " Knowledge and Appreciation of content; Borrowed terms"
           }
         }
-      ]
+      ],
+      "title": "ZAMBIAN LANGUAGE SYLLABUS  —  GRADE 6"
     },
     "Grade 7": {
-      "title": "ZAMBIAN LANGUAGE SYLLABUS  —  GRADE 7",
       "columns": [
-        "7.3.10 CONVERSIONS OF WRITING",
-        "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.",
-        "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS",
-        "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO",
-        "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING"
+        "COMPONENT",
+        "TOPIC",
+        "SPECIFIC OUTCOMES",
+        "CONTENT",
+        "SKILLS",
+        "VALUES"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "KNOWLEDGE",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "SKILLS"
+            "COMPONENT": "7.1 Listening and Speaking",
+            "TOPIC": "7.1.1 Themes",
+            "SPECIFIC OUTCOMES": "7.1.1.1 Identify themes of plays and stories",
+            "CONTENT": "What theme is? (main lesson taught) main theme, sub- theme",
+            "SKILLS": "Application of taught knowledge; What theme is? (main lesson taught) main theme, sub- theme",
+            "VALUES": " Knowledge and Appreciation of content; Listening and Speaking"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1 Listening and Speaking",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.1 Themes",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.1.1 Identify themes of plays and stories",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "What theme is? (main lesson taught) main theme, sub- theme",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; What theme is? (main lesson taught) main theme, sub- theme"
+            "COMPONENT": "",
+            "TOPIC": "7.1.2 Songs",
+            "SPECIFIC OUTCOMES": "7.1.2.1 Use and explain riddles, proverbs, satire and idioms in songs.",
+            "CONTENT": "Song with Riddles, proverbs, satire and idioms. (lyrics)",
+            "SKILLS": "Application of taught knowledge; Use and explain riddles, proverbs, satire and idioms in songs.",
+            "VALUES": " Knowledge and Appreciation of content;Songs"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.2 Songs",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.2.1 Use and explain riddles, proverbs, satire and idioms in songs.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Song with Riddles, proverbs, satire and idioms. (lyrics)",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Use and explain riddles, proverbs, satire and idioms in songs."
+            "COMPONENT": "",
+            "TOPIC": "7.1.3 Customs and Traditions",
+            "SPECIFIC OUTCOMES": "7.1.3.1 Identify and discuss the customs of a particular group of people.",
+            "CONTENT": "Customs; artifacts and ceremonies",
+            "SKILLS": "Application of taught knowledge of taught knowledge; Customs; artifacts and ceremonies",
+            "VALUES": " Knowledge and Appreciation of content; Customs and Traditions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.3 Customs and Traditions",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.3.1 Identify and discuss the customs of a particular group of people.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Customs; artifacts and ceremonies",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge of taught knowledge; Customs; artifacts and ceremonies"
+            "COMPONENT": "",
+            "TOPIC": "7.1.4 Speeches",
+            "SPECIFIC OUTCOMES": "7.1.4.1 Make a speech, an apology, an introduction and vote of thanks.",
+            "CONTENT": "Speeches, apology, an introduction and vote of thanks(use of tense and format of written ones)",
+            "SKILLS": "Application of taught knowledge; Speeches, apology, an introduction and vote of thanks(use of tense and format of written ones)",
+            "VALUES": " Knowledge and Appreciation of content; Speeches"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.4 Speeches",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.4.1 Make a speech, an apology, an introduction and vote of thanks.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Speeches, apology, an introduction and vote of thanks(use of tense and format of written ones)",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Speeches, apology, an introduction and vote of thanks(use of tense and format of written ones)",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Speeches"
+            "COMPONENT": "",
+            "TOPIC": "7.1.5 Complex messages transfer",
+            "SPECIFIC OUTCOMES": "7.1.5.1 Deliver a complex message.",
+            "CONTENT": "Main message (instruction with main and correct information) e.g. birth of child, funeral message, summon message, Reporting brevity.",
+            "SKILLS": "Application of taught knowledge; Delivering a complex message",
+            "VALUES": " Knowledge and Appreciation of content; Complex messages transfer"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.5 Complex messages transfer",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.5.1 Deliver a complex message.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Main message (instruction with main and correct information) e.g. birth of child, funeral message, summon message, Reporting brevity.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Delivering a complex message",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Complex messages transfer"
+            "COMPONENT": "",
+            "TOPIC": "7.1.6 Budgeting (Business Plan)",
+            "SPECIFIC OUTCOMES": "7.1.6.1 Demonstrate understanding of budgeting (business Plan)",
+            "CONTENT": "Planning (costs, expenditure)",
+            "SKILLS": "Application of taught knowledge; Planning (costs, expenditure",
+            "VALUES": " Knowledge and Appreciation of content; Budgeting (Business Plan)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.6 Budgeting (Business Plan)",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.6.1 Demonstrate understanding of budgeting (business Plan)",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Planning (costs, expenditure)",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Planning (costs, expenditure",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Budgeting (Business Plan)"
+            "COMPONENT": "",
+            "TOPIC": "7.1.7 Debate",
+            "SPECIFIC OUTCOMES": "7.1.7.1 Debate issues of national importance",
+            "CONTENT": "Debate formalities. Indication, opposing or proposing motions, points, and opinions, facts on issues such as corruption, governance and child abuse",
+            "SKILLS": "Application of taught knowledge; Debate formalities. Indication, opposing or proposing motions, points, and opinions, facts on issues such as corruption, governance and child abuse",
+            "VALUES": " Knowledge and Appreciation of content; Debate"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.7 Debate",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.7.1 Debate issues of national importance",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Debate formalities. Indication, opposing or proposing motions, points, and opinions, facts on issues such as corruption, governance and child abuse",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Debate formalities. Indication, opposing or proposing motions, points, and opinions, facts on issues such as corruption, governance and child abuse",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Debate"
+            "COMPONENT": "",
+            "TOPIC": "7.1.8 Plays",
+            "SPECIFIC OUTCOMES": "7.1.8.1 Act in a play",
+            "CONTENT": "Voice projection articulation and annunciation.",
+            "SKILLS": "Application of taught knowledge; Voice projection articulation and annunciation",
+            "VALUES": " Knowledge and Appreciation of content; play"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.8 Plays",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.8.1 Act in a play",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Voice projection articulation and annunciation.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Voice projection articulation and annunciation",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; play"
+            "COMPONENT": "",
+            "TOPIC": "7.1.9 Simple research",
+            "SPECIFIC OUTCOMES": "7.1.9.1 Identify, carry out a simple research project and report findings",
+            "CONTENT": "Simple research ethics; requesting information, Probing on tact on issues that affect them in their local community",
+            "SKILLS": "Application of taught knowledge; Simple research ethics; requesting information, Probing on tact on issues that affect them in their local community",
+            "VALUES": " Knowledge and Appreciation of content; Simple research"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.9 Simple research",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.9.1 Identify, carry out a simple research project and report findings",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Simple research ethics; requesting information, Probing on tact on issues that affect them in their local community",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Simple research ethics; requesting information,",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Simple research"
+            "COMPONENT": "",
+            "TOPIC": "7.1.10 Description and narration",
+            "SPECIFIC OUTCOMES": "7.1.10.1 Describe and narrate own and other people’s experiences",
+            "CONTENT": "Beliefs, past events, experiences, arrangements and intentions.",
+            "SKILLS": "Application of taught knowledge; Beliefs, past events, experiences, arrangements and intentions.",
+            "VALUES": " Knowledge and Appreciation of content; Description and narration"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Probing on tact on issues that affect them in their local community",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "",
+            "TOPIC": "7.1.11 Personal opinion",
+            "SPECIFIC OUTCOMES": "7.1.11.1 Express personal opinions",
+            "CONTENT": "Stating preferences, approval and disapproval, indifference, enthusiasm, intentions and future arrangements.",
+            "SKILLS": "Application of taught knowledge; Stating preferences, approval and disapproval, indifference, enthusiasm, intentions and future arrangements.",
+            "VALUES": " Knowledge and Appreciation of content; Personal opinion"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.10 Description and narration",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.10.1 Describe and narrate own and other people’s experiences",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Beliefs, past events, experiences, arrangements and intentions.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Beliefs, past events, experiences, arrangements and intentions.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Description and narration"
+            "COMPONENT": "",
+            "TOPIC": "7.1.12 Income generation",
+            "SPECIFIC OUTCOMES": "7.1.12.1 Keep record of income and expenditure",
+            "CONTENT": "Costing/Spending/ Accountability/ Profit/Loss/ Record keeping/ Accounting",
+            "SKILLS": "Application of taught knowledge",
+            "VALUES": " Knowledge and Appreciation of content; Income generation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.11 Personal opinion",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.11.1 Express personal opinions",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Stating preferences, approval and disapproval, indifference, enthusiasm, intentions and future arrangements.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Stating preferences, approval and disapproval, indifference, enthusiasm, intentions and future arrangements.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Personal opinion"
+            "COMPONENT": "",
+            "TOPIC": "7.1.13 Relationships",
+            "SPECIFIC OUTCOMES": "7.1.13.1 Express concepts about relationships.",
+            "CONTENT": "Relationships to do with cause and effect, comparisons and contrasts",
+            "SKILLS": "Application of taught knowledge; Expressing concepts about relationships",
+            "VALUES": " Knowledge and Appreciation of content; Relationships"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.12 Income generation",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.12.1 Keep record of income and expenditure",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Costing/Spending/ Accountability/ Profit/Loss/ Record keeping/ Accounting",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Income generation"
+            "COMPONENT": "",
+            "TOPIC": "7.1.14 Quality and quantity",
+            "SPECIFIC OUTCOMES": "7.1. 14.1 Talk about quality and quantity.",
+            "CONTENT": "Terms used for quality and quantity such as good, better, best, more, most",
+            "SKILLS": "Application of taught knowledge; Terms used for quality and quantity such as good, better, best, more, most",
+            "VALUES": " Knowledge and Appreciation of content; Quality and quantity"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.13 Relationships",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.13.1 Express concepts about relationships.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Relationships to do with cause and effect, comparisons and contrasts",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Expressing concepts about relationships",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Relationships"
+            "COMPONENT": "",
+            "TOPIC": "7.1.15 Parts of speech",
+            "SPECIFIC OUTCOMES": "7.1. 15.1 Demonstrate understanding of all parts of speech.",
+            "CONTENT": "Parts of speech such as adverbs, adjectives, interjections.",
+            "SKILLS": "Application of taught knowledge; Parts of speech such as adverbs, adjectives, interjections.",
+            "VALUES": " Knowledge and Appreciation of content; Parts of speech"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.14 Quality and quantity",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1. 14.1 Talk about quality and quantity.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Terms used for quality and quantity such as good, better, best, more, most",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Terms used for quality and quantity such as good, better, best, more, most",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Quality and quantity"
+            "COMPONENT": "",
+            "TOPIC": "7.1.16 Persuasion",
+            "SPECIFIC OUTCOMES": "7.1. 16.1 Persuade other people",
+            "CONTENT": "Persuade other people through polite request, persuasions and giving advice using volitional terms like could, may please",
+            "SKILLS": "Application of taught knowledge; Persuade other people through polite request, persuasions and giving advice using volitional terms like could, may please",
+            "VALUES": " Knowledge and Appreciation of content; Persuasion"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.15 Parts of speech",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1. 15.1 Demonstrate understanding of all parts of speech.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Parts of speech such as adverbs, adjectives, interjections.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Parts of speech such as adverbs, adjectives, interjections.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Parts of speech"
+            "COMPONENT": "",
+            "TOPIC": "7.1.17 Conversation",
+            "SPECIFIC OUTCOMES": "7.1.17.1 Identify main points of a conversation.",
+            "CONTENT": "Main points of a conversation e.g. theme, main points and conclusion, major highlights",
+            "SKILLS": "Application of taught knowledge; theme, main points and conclusion, major highlights",
+            "VALUES": " Knowledge and Appreciation of content; Conversation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.1.16 Persuasion",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1. 16.1 Persuade other people",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Persuade other people through polite request,",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Persuade other",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content;"
+            "COMPONENT": "",
+            "TOPIC": "7.1.18 Leadership",
+            "SPECIFIC OUTCOMES": "7.1.18.1 Discuss leadership qualities",
+            "CONTENT": "Humility/Patience/ Honesty/ Assertiveness",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content; Leadership"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "persuasions and giving advice using volitional terms like could, may please",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "people through polite request, persuasions and giving advice using volitional terms like could, may please"
+            "COMPONENT": "",
+            "TOPIC": "7.1.19 Social Information",
+            "SPECIFIC OUTCOMES": "7.1.19.1 Narrate stories tales, legends and myths on cross cutting issues.",
+            "CONTENT": "Cross- cutting issues such as HIV/AIDS, Gender, street kids, empathy etc.",
+            "SKILLS": "Application of taught knowledge; Social Information",
+            "VALUES": " Knowledge and Appreciation of content; Social information"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.17 Conversation",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.17.1 Identify main points of a conversation.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Main points of a conversation e.g. theme, main points and conclusion, major highlights",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; theme, main points and conclusion, major highlights"
+            "COMPONENT": "7.2 Reading",
+            "TOPIC": "7.2.1 Comprehension",
+            "SPECIFIC OUTCOMES": "7.2.1.1 Read a given passage and do follow up activity",
+            "CONTENT": "Understanding contents i.e. theme, Vocabulary, Reading, Scanning, Skimming",
+            "SKILLS": "Application of taught knowledge; theme, Vocabulary, Reading, Scanning, Skimming",
+            "VALUES": " Knowledge and Appreciation of content; Comprehension"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.18 Leadership",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.18.1 Discuss leadership qualities",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Humility/Patience/ Honesty/ Assertiveness",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge;"
+            "COMPONENT": "",
+            "TOPIC": "7.2.2 Extensive reading",
+            "SPECIFIC OUTCOMES": "7.2.2.1 Read passages silently",
+            "CONTENT": "Good reading habits i.e. holding of book, not pointing not moving lips and/but with speed",
+            "SKILLS": "Application of taught knowledge; Good reading habits",
+            "VALUES": " Knowledge and Appreciation of content; Extensive reading"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.1.19 Social Information",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.1.19.1 Narrate stories tales, legends and myths on cross cutting issues.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Cross- cutting issues such as HIV/AIDS, Gender, street kids, empathy etc.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Social Information"
+            "COMPONENT": "",
+            "TOPIC": "7.2.3 Reading aloud (Oral Reading )",
+            "SPECIFIC OUTCOMES": "7.2.3.1 Read aloud in a lively and expressive manner.",
+            "CONTENT": "How to read with emotions/ Reading expressively (i.e. intonation, stress, punctuation marks).",
+            "SKILLS": "Application of taught knowledge; Reading aloud Reading aloud",
+            "VALUES": " Knowledge and Appreciation of content; Reading aloud (Oral Reading )"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.2 Reading",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.2.1 Comprehension",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.2.1.1 Read a given passage and do follow up activity",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Understanding contents i.e. theme, Vocabulary, Reading, Scanning, Skimming",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; theme, Vocabulary, Reading, Scanning, Skimming"
+            "COMPONENT": "",
+            "TOPIC": "7.2.4 References",
+            "SPECIFIC OUTCOMES": "7.2.4.1 Use reference and textbooks effectively.",
+            "CONTENT": "Reference and textbooks (use of reference materials e.g. index, table of content, Skimming Scanning Referencing",
+            "SKILLS": "Application of taught knowledge ; use of reference materials e.g. index, table of content, Skimming,and Scanning",
+            "VALUES": " Knowledge and Appreciation of content; References"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.2.2 Extensive reading",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.2.2.1 Read passages silently",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Good reading habits i.e. holding of book, not pointing not moving lips and/but with speed",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Good reading habits"
+            "COMPONENT": "",
+            "TOPIC": "7.2.5 Extensive reading",
+            "SPECIFIC OUTCOMES": "7.2.5.1 Read materials from other subject areas with understanding.",
+            "CONTENT": "Materials from other subject materials.",
+            "SKILLS": "Application of taught knowledge; Extensive reading",
+            "VALUES": " knowledge and Appreciation of content; Extensive reading"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.2.3 Reading aloud (Oral Reading )",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.2.3.1 Read aloud in a lively and expressive manner.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "How to read with emotions/ Reading expressively (i.e. intonation, stress,",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Reading aloud Reading aloud"
+            "COMPONENT": "",
+            "TOPIC": "7.3.1 Compositions",
+            "SPECIFIC OUTCOMES": "7.3.1.1 Write compositions or essays on a given topic.",
+            "CONTENT": "Layout of a composition essay e.g. introduction, main body and conclusion (punctuation).",
+            "SKILLS": "Application of taught knowledge ; essay e.g. introduction, main body and conclusion (punctuation",
+            "VALUES": " Knowledge and Appreciation of content; Compositions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.3.2 Sentence construction",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.3.2.1 Write sentences in active and passive forms.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Active and passive forms of the verbs. Active forms e.g. Kaonde- Mwanaubenakujakajo. Kajo kabana kujiwa",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; writing sentences in active and passive forms",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Sentence construction"
+            "COMPONENT": "",
+            "TOPIC": "7.3.2 Sentence construction",
+            "SPECIFIC OUTCOMES": "7.3.2.1 Write sentences in active and passive forms.",
+            "CONTENT": "Active and passive forms of the verbs. Active forms e.g. Kaonde- Mwanaubenakujakajo. Kajo kabana kujiwa",
+            "SKILLS": "Application of taught knowledge ; writing sentences in active and passive forms",
+            "VALUES": " Knowledge and Appreciation of content; Sentence construction"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.3.3 Letter writing",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.3.3.1 Write formal and informal letters.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Types of letters e.g. informal and formal. (address, salutation main body conclusion) formal;- two addresses date, salutation, body, conclusion and ending.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge. Writing formal and informal letters",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge. and Appreciation of content; Letter writing"
+            "COMPONENT": "",
+            "TOPIC": "7.3.3 Letter writing",
+            "SPECIFIC OUTCOMES": "7.3.3.1 Write formal and informal letters.",
+            "CONTENT": "Types of letters e.g. informal and formal. (address, salutation main body conclusion) formal;- two addresses date, salutation, body, conclusion and ending.",
+            "SKILLS": "Application of taught knowledge . Writing formal and informal letters",
+            "VALUES": " Knowledge. and Appreciation of content; Letter writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.3.4 Story summary",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.3.4.1 Summarize any given story.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Summary skills. Note making putting points together. Content words, objectivity.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Story summary"
+            "COMPONENT": "",
+            "TOPIC": "7.3.4 Story summary",
+            "SPECIFIC OUTCOMES": "7.3.4.1 Summarize any given story.",
+            "CONTENT": "Summary skills. Note making putting points together. Content words, objectivity.",
+            "SKILLS": "Application of taught knowledge .",
+            "VALUES": " Knowledge and Appreciation of content; Story summary"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "graph, identify, topics, themes and content words"
+            "COMPONENT": "",
+            "TOPIC": "7.3.5 Translation",
+            "SPECIFIC OUTCOMES": "7.3.5.1 Translate paragraphs from English into Zambian Languages and vice versa.",
+            "CONTENT": "Translation techniques. (knowing source and receptor languages for example) whole sentence meaning conformity",
+            "SKILLS": "Application of taught knowledge ; comparing source and receptor languages",
+            "VALUES": " Knowledge and Appreciation of content;"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.3.11 Dictation",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.3.11.1 Take dictation.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Dictation/ Punctuation/ Corrects spelling.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge;"
+            "COMPONENT": "",
+            "TOPIC": "7.3.6 Notices and Advertisement",
+            "SPECIFIC OUTCOMES": "7.3.6.1 Write notices, announcements, advertisements, obituaries.",
+            "CONTENT": "Features of notices, advertisements, obituaries or announcements e.g. clarity, brevity.",
+            "SKILLS": "Application of taught knowledge; Notices and Advertisement",
+            "VALUES": " Knowledge and Appreciation of content; 6 Notices and Advertisement"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.3.12 Spellings",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.3.12.1 Spell words correctly.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Spelling rules , correct use of orthography",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Spelling rules , correct use of orthography"
+            "COMPONENT": "",
+            "TOPIC": "7.3.7 Information extraction",
+            "SPECIFIC OUTCOMES": "7.3.7.1 Extract information from various sources",
+            "CONTENT": "Extract information such as; charts, tables, maps and graphs.",
+            "SKILLS": "Application of taught knowledge; Extract information such as; charts, tables, maps and graphs",
+            "VALUES": " Knowledge and Appreciation of content; Information extraction"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.4 Language",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.1 Direct and indirect speeches",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.1.1 Write sentences in both direct and indirect speech.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Features of both direct and indirect speeches e.g. punctuation, transforming statements, types of reporting verbs.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge;"
+            "COMPONENT": "",
+            "TOPIC": "7.3.8 Free writing",
+            "SPECIFIC OUTCOMES": "7.3.8.1 Use a variety of writing styles.",
+            "CONTENT": "Reflective use a variety of writing styles such as letters, notes; imaginative, narrative, descriptive (stories).",
+            "SKILLS": "Application of taught knowledge ; Reflective use a variety of writing styles such as letters, notes; imaginative, narrative, descriptive (",
+            "VALUES": " Knowledge and Appreciation of content;. Free writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.2 Interrogatives",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.2.1Write interrogatives",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Examples and use of interrogatives e.g. Lozi;ñi, fi",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; Write interrogatives"
+            "COMPONENT": "",
+            "TOPIC": ".3.9 7Note- taking",
+            "SPECIFIC OUTCOMES": "7.3.9.1 Write notes about a meeting attended and brief others about the main issues discussed.",
+            "CONTENT": "Note-taking. Attentiveness",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content;. Note-taking"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.3 Nouns",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.3.1 Write nouns in both plural and singular forms.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Forms of both singular and plural nouns and those that do not effect for plural or singular e.g. Tonga;nyemu",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge;"
+            "COMPONENT": "",
+            "TOPIC": "7.3.10 Conversions of writing",
+            "SPECIFIC OUTCOMES": "7.3.10.1 Tabulate, indent, title and paraphrase a passage.",
+            "CONTENT": "Conventions of writing e.g. from table to graph, identify, topics, themes and content words",
+            "SKILLS": "Application of taught knowledge; Conventions of writing e.g. from table to graph, identify, topics, themes and content words",
+            "VALUES": " Knowledge and Appreciation of content; Conversions of writing"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.4 Types of nouns",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.4.1 Identify different types of nouns.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Types of nouns; concrete nouns, abstract nouns, compound nouns.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; concrete nouns, abstract nouns, compound nouns."
+            "COMPONENT": "",
+            "TOPIC": "7.3.11 Dictation",
+            "SPECIFIC OUTCOMES": "7.3.11.1 Take dictation.",
+            "CONTENT": "Dictation/ Punctuation/ Corrects spelling.",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content;"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.5 Noun classes",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.5.1List nouns in each noun class prefixes",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Noun structure and classes e.g. affixes, noun classes( 9-18).",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "Application of taught knowledge; , noun classes( 9- 18)."
+            "COMPONENT": "",
+            "TOPIC": "7.3.12 Spellings",
+            "SPECIFIC OUTCOMES": "7.3.12.1 Spell words correctly.",
+            "CONTENT": "Spelling rules , correct use of orthography",
+            "SKILLS": "Application of taught knowledge; Spelling rules , correct use of orthography",
+            "VALUES": " Knowledge and Appreciation of content; Spellings"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.6 Compound",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "7.4.6.1 Identify",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Identify of compound and",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": ""
+            "COMPONENT": "7.4 Language",
+            "TOPIC": "7.4.1 Direct and indirect speeches",
+            "SPECIFIC OUTCOMES": "7.4.1.1 Write sentences in both direct and indirect speech.",
+            "CONTENT": "Features of both direct and indirect speeches e.g. punctuation, transforming statements, types of reporting verbs.",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content; Direct and indirect speeches"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "and reduplicated words",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "compound and reduplicated words.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "reduplicated words e.g. nouns, adverbs, adjectives and verbs.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge;",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Compound and reduplicated words"
+            "COMPONENT": "",
+            "TOPIC": "7.4.2 Interrogatives",
+            "SPECIFIC OUTCOMES": "7.4.2.1Write interrogatives",
+            "CONTENT": "Examples and use of interrogatives e.g. Lozi ;ñi , fi",
+            "SKILLS": "Application of taught knowledge; Write interrogatives",
+            "VALUES": " Knowledge and Appreciation of content; Interrogatives"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.4.7 Parts of speech",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.7.1 Identify and use parts of speech correctly.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Parts of speech learnt e.g. nouns, verbs, adjectives and pronouns.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; Identifying and using parts of speech correctly.",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Parts of speech"
+            "COMPONENT": "",
+            "TOPIC": "7.4.3 Nouns",
+            "SPECIFIC OUTCOMES": "7.4.3.1 Write nouns in both plural and singular forms.",
+            "CONTENT": "Forms of both singular and plural nouns and those that do not effect for plural or singular e.g. Tonga; nyemu",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content; Nouns"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.4.8 Punctuation",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.8.1 Punctuate sentences and paragraphs correctly.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Different punctuation marks e.g. inverted commas, exclamation marks, questions, commas and full stops.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; using inverted commas, exclamation marks, questions, commas and full stops",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Punctuation"
+            "COMPONENT": "",
+            "TOPIC": "7.4.4 Types of nouns",
+            "SPECIFIC OUTCOMES": "7.4.4.1 Identify different types of nouns.",
+            "CONTENT": "Types of nouns; concrete nouns, abstract nouns, compound nouns.",
+            "SKILLS": "Application of taught knowledge; concrete nouns, abstract nouns, compound nouns.",
+            "VALUES": " Knowledge and Appreciation of content; Types of nouns"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.3.10 CONVERSIONS OF WRITING": "7.4.9 Figures of speech",
-            "7.3.10.1 TABULATE, INDENT, TITLE AND PARAPHRASE A PASSAGE.": "7.4.9.1 Use proverbs, sayings, praises, idioms, satire, simile and metaphor in writing.",
-            "CONVENTIONS OF WRITING E.G. FROM TABLE TO GRAPH, IDENTIFY, TOPICS, THEMES AND CONTENT WORDS": "Meanings and examples of different figures of speech like proverbs, sayings, idioms and any others.",
-            "APPLICATION OF TAUGHT KNOWLEDGE; CONVENTIONS OF WRITING E.G. FROM TABLE TO": "Application of taught knowledge; of different figures of speech",
-            "• KNOWLEDGE AND APPRECIATION OF CONTENT; CONVERSIONS OF WRITING": "• Knowledge and Appreciation of content; Figures of speech"
+            "COMPONENT": "",
+            "TOPIC": "7.4.5 Noun classes",
+            "SPECIFIC OUTCOMES": "7.4.5.1List nouns in each noun class prefixes",
+            "CONTENT": "Noun structure and classes e.g. affixes, noun classes( 9-18).",
+            "SKILLS": "Application of taught knowledge; , noun classes( 9- 18).",
+            "VALUES": " Knowledge and Appreciation of content; Noun classes"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "COMPONENT": "",
+            "TOPIC": "7.4.6 Compound and reduplicated words",
+            "SPECIFIC OUTCOMES": "7.4.6.1 Identify compound and reduplicated words.",
+            "CONTENT": "Identify of compound and reduplicated words e.g. nouns, adverbs, adjectives and verbs.",
+            "SKILLS": "Application of taught knowledge;",
+            "VALUES": " Knowledge and Appreciation of content; Compound and reduplicated words"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "COMPONENT": "",
+            "TOPIC": "7.4.7 Parts of speech",
+            "SPECIFIC OUTCOMES": "7.4.7.1 Identify and use parts of speech correctly.",
+            "CONTENT": "Parts of speech learnt e.g. nouns, verbs, adjectives and pronouns.",
+            "SKILLS": "Application of taught knowledge; Identifying and using parts of speech correctly.",
+            "VALUES": " Knowledge and Appreciation of content; Parts of speech"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "COMPONENT": "",
+            "TOPIC": "7.4.8 Punctuation",
+            "SPECIFIC OUTCOMES": "7.4.8.1 Punctuate sentences and paragraphs correctly.",
+            "CONTENT": "Different punctuation marks e.g. inverted commas, exclamation marks, questions, commas and full stops.",
+            "SKILLS": "Application of taught knowledge; using inverted commas, exclamation marks, questions, commas and full stops",
+            "VALUES": " Knowledge and Appreciation of content; Punctuation"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "COMPONENT": "",
+            "TOPIC": "7.4.9 Figures of speech",
+            "SPECIFIC OUTCOMES": "7.4.9.1 Use proverbs, sayings, praises, idioms, satire, simile and metaphor in writing.",
+            "CONTENT": "Meanings and examples of different figures of speech like proverbs, sayings, idioms and any others.",
+            "SKILLS": "Application of taught knowledge; of different figures of speech",
+            "VALUES": " Knowledge and Appreciation of content; Figures of speech"
           }
         }
-      ]
+      ],
+      "title": "ZAMBIAN LANGUAGE SYLLABUS  —  GRADE 7"
     }
   }
 }
