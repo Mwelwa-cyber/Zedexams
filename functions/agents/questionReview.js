@@ -296,7 +296,7 @@ function embedTextFor(question) {
 
 /* ------------------------------- the runner ------------------------------- */
 
-async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeySecret, openaiApiKeySecret}) {
+async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeySecret, openaiApiKeySecret, autoApprove}) {
   const question = readQuestion(docData);
 
   // 1. Deterministic dedup first — cheap, no model call.
@@ -378,7 +378,7 @@ async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeyS
     return;
   }
 
-  const {reviewStatus, masterEligible} = recommendationToStatus(parsed.recommendation);
+  const {reviewStatus, masterEligible} = recommendationToStatus(parsed.recommendation, autoApprove);
   await jobRef.set({
     reviewStatus,
     masterEligible,
@@ -453,19 +453,25 @@ async function failClosed(jobRef, summary) {
   }, {merge: true});
 }
 
-// Cached snapshot of whether Qix is paused (mirrors dispatcher.js).
-let pausedCache = {expiresAt: 0, paused: false};
-async function qixPaused(db) {
-  if (Date.now() < pausedCache.expiresAt) return pausedCache.paused;
+// Cached snapshot of the agentControl/qix doc (mirrors dispatcher.js). Holds
+// both the pause breaker and the opt-in auto-approve flag so we read the doc
+// once per minute instead of on every question.
+let controlCache = {expiresAt: 0, paused: false, autoApprove: false};
+async function qixControl(db) {
+  if (Date.now() < controlCache.expiresAt) return controlCache;
   let paused = false;
+  let autoApprove = false;
   try {
     const snap = await db.collection("agentControl").doc("qix").get();
-    paused = Boolean(snap.exists && snap.data() && snap.data().paused);
+    const data = (snap.exists && snap.data()) || {};
+    paused = Boolean(data.paused);
+    autoApprove = Boolean(data.autoApprove);
   } catch {
     paused = false;
+    autoApprove = false;
   }
-  pausedCache = {expiresAt: Date.now() + 60_000, paused};
-  return paused;
+  controlCache = {expiresAt: Date.now() + 60_000, paused, autoApprove};
+  return controlCache;
 }
 
 /**
@@ -485,12 +491,13 @@ function createQuestionReviewOnWrite(anthropicApiKeySecret, openaiApiKeySecret) 
       if (!after.ownerId) return;
 
       const db = admin.firestore();
-      if (await qixPaused(db)) return; // breaker tripped — leave pending
+      const control = await qixControl(db);
+      if (control.paused) return; // breaker tripped — leave pending
 
       const questionId = event.params.questionId;
       const jobRef = db.collection("questionBank").doc(questionId);
       try {
-        await reviewQuestion({db, jobRef, questionId, docData: after, anthropicApiKeySecret, openaiApiKeySecret});
+        await reviewQuestion({db, jobRef, questionId, docData: after, anthropicApiKeySecret, openaiApiKeySecret, autoApprove: control.autoApprove});
       } catch (err) {
         console.error("[qix] review failed", err && err.message);
         await failClosed(jobRef, "Review failed — sent to admin review.").catch(() => {});

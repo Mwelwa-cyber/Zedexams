@@ -69,6 +69,17 @@ console.log("\nrecommendationToStatus — fail-closed mapping");
   assert(recommendationToStatus("garbage").reviewStatus === "needs_admin" && recommendationToStatus("garbage").masterEligible === false, "unknown verdict fails closed to needs_admin");
 }
 
+console.log("\nrecommendationToStatus — auto-approve mode");
+{
+  // needs_admin is promoted to approved when the admin opted in...
+  const na = recommendationToStatus("needs_admin", true);
+  assert(na.reviewStatus === "approved" && na.masterEligible === true, "autoApprove: needs_admin → approved + master eligible");
+  // ...but reject and unknown still fail closed — broken questions never slip through.
+  assert(recommendationToStatus("reject", true).reviewStatus === "rejected", "autoApprove: reject still rejected");
+  assert(recommendationToStatus("garbage", true).reviewStatus === "needs_admin", "autoApprove: unknown verdict still fails closed");
+  assert(recommendationToStatus("approve", true).reviewStatus === "approved", "autoApprove: approve stays approved");
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`);
   process.exit(1);

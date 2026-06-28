@@ -65,16 +65,24 @@ function classifyDuplicate(candidate, existing, opts = {}) {
  * Master Bank.
  *
  * @param {string} recommendation  'approve' | 'needs_admin' | 'reject'
+ * @param {boolean} [autoApprove]   when true (admin opted in), a 'needs_admin'
+ *   verdict is promoted straight to approved — the reviewer didn't reject it,
+ *   it just wasn't fully confident. 'reject' and unknown verdicts still fail
+ *   closed, so clearly-broken questions never reach the Master Bank.
  * @returns {{reviewStatus:string, masterEligible:boolean}}
  */
-function recommendationToStatus(recommendation) {
+function recommendationToStatus(recommendation, autoApprove = false) {
   switch (recommendation) {
     case "approve":
       return {reviewStatus: "approved", masterEligible: true};
     case "reject":
       return {reviewStatus: "rejected", masterEligible: false};
     case "needs_admin":
+      return autoApprove ?
+        {reviewStatus: "approved", masterEligible: true} :
+        {reviewStatus: "needs_admin", masterEligible: false};
     default:
+      // Unknown verdict — always fail closed, even with auto-approve on.
       return {reviewStatus: "needs_admin", masterEligible: false};
   }
 }

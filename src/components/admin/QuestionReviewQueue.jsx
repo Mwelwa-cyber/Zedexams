@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import StatusBadge from '../ui/StatusBadge'
@@ -10,6 +12,58 @@ import {
   loadReviewQueue, approveQuestion, editAndApproveQuestion, rejectQuestion,
   archiveQuestion, keepPrivateQuestion, mergeWithExisting,
 } from '../../utils/adminQuestionBankService'
+
+/**
+ * Live toggle for agentControl/qix.autoApprove. When ON, Qix promotes any
+ * question it reviews and doesn't reject straight into the Master Bank, instead
+ * of routing the not-fully-confident ones here for a human. Clearly-broken
+ * questions (and duplicates) are still held back.
+ */
+function AutoApproveToggle() {
+  const { currentUser } = useAuth()
+  const [on, setOn] = useState(null) // null = loading
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'agentControl/qix'),
+      (snap) => setOn(Boolean(snap.exists() && snap.data()?.autoApprove)),
+      () => setOn(false),
+    )
+    return unsub
+  }, [])
+
+  async function toggle() {
+    if (on === null || saving) return
+    const next = !on
+    setSaving(true)
+    try {
+      await setDoc(doc(db, 'agentControl/qix'), {
+        autoApprove: next,
+        updatedBy: currentUser?.uid || null,
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    } catch {
+      // onSnapshot keeps the displayed state truthful; nothing else to do.
+    }
+    setSaving(false)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={on === null || saving}
+      title="When on, Qix auto-approves new questions it doesn't reject straight into the Master Bank."
+      className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${
+        on ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+      } ${on === null || saving ? 'opacity-60 cursor-wait' : ''}`}
+    >
+      <span className={`w-2 h-2 rounded-full ${on ? 'bg-green-500' : 'bg-gray-400'}`} />
+      Auto-approve {on === null ? '…' : on ? 'ON' : 'OFF'}
+    </button>
+  )
+}
 
 function plain(html) {
   try { return richTextToPlainText(String(html || '')) } catch { return String(html || '') }
@@ -213,11 +267,14 @@ export default function QuestionReviewQueue() {
           <h1 className="text-2xl font-black text-gray-800">🧠 Question Review Queue</h1>
           <p className="text-gray-500 text-sm mt-0.5">Questions Qix flagged for a human — approve into the Master Bank, fix, reject, or merge duplicates.</p>
         </div>
-        {!loading && (
-          <span className={`text-sm font-black px-3 py-1.5 rounded-full ${rows.length > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
-            {rows.length} to review
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <AutoApproveToggle />
+          {!loading && (
+            <span className={`text-sm font-black px-3 py-1.5 rounded-full ${rows.length > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+              {rows.length} to review
+            </span>
+          )}
+        </div>
       </div>
 
       {loading ? (
