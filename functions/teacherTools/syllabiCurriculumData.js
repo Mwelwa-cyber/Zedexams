@@ -372,10 +372,18 @@ const _2013_KNOWN_COLS = new Set([
 
 function detect2013TopicColumn(sheet) {
   const cols = Array.isArray(sheet?.columns) ? sheet.columns : [];
+  const dataRows = (sheet?.rows || []).filter((r) => r.type === "data");
+  const hasData = (col) => dataRows.some((r) => String(r.cells?.[col] || "").trim());
+  // A properly-headed sheet keeps its topic under a real "TOPIC" column — use
+  // it when it actually carries values.
+  if (cols.includes("TOPIC") && hasData("TOPIC")) return "TOPIC";
+  // Legacy mis-headed sheets (the data-value-as-header bug): the topic lives in
+  // a column whose header is itself a stray data value, not a known column name.
   for (const c of cols) {
     if (c && !_2013_KNOWN_COLS.has(c)) return c;
   }
-  return null;
+  // Last resort: a "TOPIC" column even if we couldn't confirm values.
+  return cols.includes("TOPIC") ? "TOPIC" : null;
 }
 
 function rows2013WithPropagatedTopic(rows, topicColumn) {

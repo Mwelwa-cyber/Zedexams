@@ -14649,12 +14649,11 @@
       ]
     },
     "Grade 5": {
-      "title": "GRADE 5",
       "columns": [
-        "5.1.1 The Heart",
         "TOPIC",
+        "SUBTOPIC",
         "SPECIFIC OUTCOMES",
-        "KNOWLEDGE",
+        "CONTENT",
         "SKILLS",
         "VALUES"
       ],
@@ -14662,191 +14661,126 @@
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.1.1 The Heart",
             "TOPIC": "5.1.0 The human body",
-            "SPECIFIC OUTCOMES": "5.1.1.1 State the function of the heart. 5.1.1.2 Describe the structure of the heart. 5.1.1.3 Demonstrate how to take the pulse.",
-            "KNOWLEDGE": "• Function of the heart: pumping blood • Structure of the heart • How to take the pulse",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.1.1 The Heart",
+            "SPECIFIC OUTCOMES": "5.1.1.1 State the function of the heart. 5.1.1.2 Describe the structure of the heart 5.1.1.4 Demonstrate how to take the pulse.",
+            "CONTENT": " Function of the heart :Pumping blood  Structure of the heart  How to take the",
+            "SKILLS": " Communicating information on the function of the heart  Measuring the number of pulses a minute",
+            "VALUES": " Appreciating the function of the heart  Asking questions for more understanding  Cooperating in"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.1.2 Puberty",
-            "TOPIC": "5.1.0 The human body",
-            "SPECIFIC OUTCOMES": "5.1.2.1 Identify male and female parts of the body. 5.1.2.2 Describe changes that occur at puberty in human beings.",
-            "KNOWLEDGE": "• Male and female parts of the body (private and non-private parts) • Changes at puberty — Physical: pubic hair, beards, breaking of voice, pimples, pelvic girdle, enlargement of breasts • Emotional: moods, sexual feelings",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.2.1 Fresh Air",
             "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.1.1 Explain the importance of good ventilation. 5.2.1.2 Explain ways of providing good ventilation in buildings. 5.2.1.3 Demonstrate ways of treating a suffocated person.",
-            "KNOWLEDGE": "• Ventilation is good for health • Ways of providing good ventilation: air conditioners, air vents, windows, fans • Treating a suffocated person: removing the source of suffocation, artificial breathing, First Aid",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.2.1 Fresh Air",
+            "SPECIFIC OUTCOMES": "5.2.1.1 Explain the importance of good ventilation 5.2.1.2 Explain ways of providing good ventilation in buildings 5.2.1.3 Demonstrate ways of treating a suffocated person.",
+            "CONTENT": " ventilation is good for health  ways of good ventilation; air conditioners, Air vents, Windows, Fans  Removing source of suffocation; artificial breathing, First Aid treatment for a suffocated person.",
+            "SKILLS": " Communicating the importance of good ventilation  Practising how to treat a suffocated person",
+            "VALUES": " Applying good ventilation in everyday life  Appreciating the use of"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.2.2 Air and water borne diseases",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.2.1 Name common airborne and water borne diseases in Zambia. 5.2.2.2 Describe symptoms of common airborne and water borne diseases. 5.2.2.3 Describe how to prevent air and water borne diseases.",
-            "KNOWLEDGE": "• Common airborne and waterborne diseases: Tuberculosis, pneumonia, cholera, typhoid, dysentery, measles, bilharzia • Symptoms (TB: prolonged cough, sweating at night, fever, loss of weight and appetite; Dysentery: bloody stool) • Ways of preventing airborne and waterborne diseases",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.2.2 Air and water borne Diseases",
+            "SPECIFIC OUTCOMES": "5.2.2.1 Name common airborne and water borne diseases in Zambia 5.2.2.2 Describe symptoms of common air borne and water borne diseases. 5.2.2.3 Describe how to prevent air and water borne diseases",
+            "CONTENT": " Common air and waterborne diseases: Tuberculosis, pneumonia, cholera, typhoid, dysentery, measles and bilharzia.  Symptoms: TB prolonged cough, sweating at night, fever, loss of weight and appetite, eyes, rash, Dysentery: bloody stool  Ways of preventing air and waterborne diseases: Good ventilation, and hygiene",
+            "SKILLS": " Identifying common airborne and waterborne diseases  Communicating symptoms of airborne and waterborne diseases",
+            "VALUES": " Awareness of waterborne and airborne diseases  Cooperating in group work  Asking questions for more understanding"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.2.3 Malaria",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.3.1 Identify causes of malaria. 5.2.3.2 State the symptoms of malaria. 5.2.3.3 Describe ways of preventing and treating malaria.",
-            "KNOWLEDGE": "• Causes of malaria: Anopheles mosquito bite (plasmodium) • Symptoms: fever, vomiting, headache, body pains, loss of appetite • Ways of preventing malaria: sleeping under Insecticide Treated Nets, spraying and clearing mosquito breeding places",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.2.3 Malaria",
+            "SPECIFIC OUTCOMES": "5.2.3.1 Identify causes of malaria 5.2.3.2 State the symptoms of malaria 5.2.3.3 Describe ways of preventing and treating of malaria",
+            "CONTENT": " Causes of malaria: Anopheles mosquito bite (plasmodium)  Symptoms of malaria: Fever, vomiting, headache, body pains, loss of appetite.  Ways of preventing malaria: Sleeping under Insecticide Treated Nets (mosquito nets), spraying Mosquito breeding places and homes, clearing Mosquito breeding places.",
+            "SKILLS": " Communicating causes, prevention, treatment, signs and symptoms of malaria",
+            "VALUES": " Awareness of causes and prevention of malaria  Asking questions for more understanding  Appreciating the knowledge on malaria prevention"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.2.6 HIV and AIDS and STIs",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.6.1 Describe ways in which STIs and HIV are transmitted. 5.2.6.2 Identify ways of preventing the spread of HIV and STIs. 5.2.6.3 Describe the care and treatment for AIDS patients.",
-            "KNOWLEDGE": "• Ways of STIs and HIV transmission: unprotected sexual activities, contaminated blood, breast milk, sharp instruments • Ways of prevention: abstinence, use of condoms • Care and treatment of AIDS patients: good nutrition, good hygiene, love and support, ART",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.2.6 HIV and AIDS and STIs",
+            "SPECIFIC OUTCOMES": "5.2.6.1 Describe ways in which STIs and HIV are transmitted. 5.2.6.2 Identify ways of preventing the spread of HIV and STIs 5.2.6.3 Describe the care and treatment for AIDS patients.",
+            "CONTENT": " Ways of STIs and HIV transmission, unprotected sexual activities; contaminated blood, breast milk and sharp instruments. .  Ways of prevention Abstinence, use of condoms etc.  Care and treatment of AIDs patients; Good nutrition, good hygiene, love and support ART",
+            "SKILLS": " Communicating ways of HIV and STIs transmission  Investigating ways of treating and caring for HIV and AIDS patients.",
+            "VALUES": " Awareness of STIs and HIV  Cooperating in group activities  Empathy for patients"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.2.7 Harmful Substances",
-            "TOPIC": "5.2.0 Health",
-            "SPECIFIC OUTCOMES": "5.2.7.1 Mention the substances which are harmful to the human body. 5.2.7.2 State the harmful effects of substance abuse on the body. 5.2.7.3 Explain the effects of drinking alcohol.",
-            "KNOWLEDGE": "• Harmful substances: cocaine, mandrax, heroin, petrol, alcohol, dagga • Harmful effects: aggressiveness, brain damage, unconsciousness, restlessness, nausea, addiction • Effects of alcohol: poor health, violence, accidents",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.2.7 Harmful Substances and their effects",
+            "SPECIFIC OUTCOMES": "5.2.7.1 Mention the substances which are harmful to the human body. 5.2.7.2 State the harmful effects of substance abuse on the body. 5.2.7.3 Explain the effects of drinking alcohol",
+            "CONTENT": " Harmful substances: Cocaine, mandrax, heroin, petrol, alcohol, dagga.  Harmful effects: Aggressiveness, brain damage, unconsciousness, restlessness, nausea, addiction  Effects of alcohol: poor health, violence, accidents",
+            "SKILLS": " Identifying substances that are harmful to the body",
+            "VALUES": " Applying knowledge to avoid harmful substances  Asking questions for more understanding"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.3.1 Soil",
             "TOPIC": "5.3.0 The Environment",
+            "SUBTOPIC": "5.3.1 Soil",
             "SPECIFIC OUTCOMES": "5.3.1.1 Explain the importance of water in the soil. 5.3.1.2 Mention ways in which water can be retained in the soil. 5.3.1.3 Demonstrate the drainage rates of soils.",
-            "KNOWLEDGE": "• Importance of water: seed germination and photosynthesis • Retention of water in soil: mulching, shading, terracing, weeding and intercropping • Drainage rates of clay, loamy and sandy soils",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "CONTENT": " Importance of water; Seed germination, and photosynthesis  Retention of water in soil: Mulching, shading terracing, weeding and intercropping  Drainage rates of clay, loamy and sandy soils",
+            "SKILLS": " Communicating the importance of water in soil  Observing the drainage rates of different soils",
+            "VALUES": " Appreciating importance of water to life  Cooperating in group activities"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.3.2 Fertilizers",
-            "TOPIC": "5.3.0 The Environment",
-            "SPECIFIC OUTCOMES": "5.3.2.1 Explain what organic and inorganic fertilizers are. 5.3.2.2 Demonstrate how to prepare compost manure. 5.3.2.3 Explain the importance of maintaining a supply of compost materials. 5.3.2.4 Explain the advantages and disadvantages of chemical fertilizers in agriculture.",
-            "KNOWLEDGE": "• Organic (natural) and inorganic (man-made) fertilizers • Preparing compost manure: layers under the shade • Advantages: required plant nutrients, quick absorption • Disadvantages: spoil soil, leaching, cost",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.3.2 Fertilizers",
+            "SPECIFIC OUTCOMES": "5.3.2.1 Explain what organic and inorganic fertilizers are. 5.3.2.2 Demonstrate how to prepare compost manure. 5.3.2.3 Explain the importance of maintaining a supply of composted materials. 5.3.2.4 Explain the advantages and disadvantages of chemical fertilizers in agriculture.",
+            "CONTENT": " Organic-Natural fertilizers, inorganic- man made fertilizers  Way of Preparing compost manure: pile of layers under the shade  Importance of maintain a supply of composted materials: Continuous supply of manure to plants.  Advantages: required nutrients, quick absorption.",
+            "SKILLS": " Communicating organic and inorganic fertilizers  Demonstrating how to make composite manure  Communicating advantages of and disadvantages of chemical fertilizers in agriculture",
+            "VALUES": " Appreciating role of fertilizers in agriculture  Asking questions for more understanding  Cooperating in group work"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.4.1 Non Flowering Plants",
             "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.1.1 Identify different types of non-flowering plants. 5.4.1.2 Identify the use of ferns and fungi.",
-            "KNOWLEDGE": "• Types of non-flowering plants: algae, ferns, moss, fungi (e.g. mushroom) • Uses of fungi: baking, beer brewing, food, medicine (e.g. penicillin)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.4.1 Non Flowering Plants",
+            "SPECIFIC OUTCOMES": "5.4.1.1 Identify different types of non- flowering plants. 5.4.1.2 Identify use of ferns and fungi.",
+            "CONTENT": " Types of non- flowering plants; Algae, ferns, moss, fungi (e.g. mushroom).  Ferns: Ornamental plants; Fungi: baking, beer brewing; food; medicine (e.g. penicillin)",
+            "SKILLS": " Comparing the difference among non-flowering plants  Communicating the use of ferns and fungi",
+            "VALUES": " Cooperating in group activities  Applying the use of ferns and fungi in everyday life."
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.4.2 Invertebrate Animals",
-            "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.2.1 Identify the different types of invertebrate animals. 5.4.2.2 Investigate the basic structure of insects. 5.4.2.3 Explain the difference between insects and spiders. 5.4.2.4 State ways in which insects are useful.",
-            "KNOWLEDGE": "• Invertebrate animals: insects (bees, ants, grasshoppers, beetles, butterflies), worms, spiders, crabs, lobsters, snails • Basic structure of insects: head, thorax, abdomen, antennae, six legs, wings; spider: eight legs, two body sections • Usefulness of insects: source of food, assist in pollination",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "TOPIC": "",
+            "SUBTOPIC": "5.4.2 Invertebrate Animals",
+            "SPECIFIC OUTCOMES": "5.4.2.1 Identify the different types of invertebrate animals 5.4.2.2 Investigate the basic structure of insects 5.4.2.3 Explain the difference between insects and spiders 5.4.2.4 State ways in which",
+            "CONTENT": " Different Invertebrate Animals; Insects (bees, dragon flies, wasps, grasshoppers, beetles and butterflies), worms, spiders, crabs, lobsters and snails.  Basic Structures of insects and spiders: insects (head, thorax, abdomen, antennae, six legs, wings) spiders(eight legs and two body section)",
+            "SKILLS": " Observing basic structure of insects and spiders  Communicating ways in which insects are useful  Comparing the basic structure of insects and spiders",
+            "VALUES": " Appreciating the nutritional value of insects  Participating in group activities"
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1.1 The Heart": "5.4.3 Pest and Parasites",
-            "TOPIC": "5.4.0 Plants and Animals",
-            "SPECIFIC OUTCOMES": "5.4.3.1 Identify common pests and parasites in the local environment. 5.4.3.2 Describe the harm caused by pests and parasites on plants and animals. 5.4.3.3 Explain how pests and parasites can be controlled using local plant materials and commercial chemicals. 5.4.3.4 Explain how chemical pesticides can cause harm to the environment.",
-            "KNOWLEDGE": "• Common pests and parasites: aphids, locusts, caterpillars, ticks, beetles, worms, weevils, termites, tsetse fly, lice • Harm caused: suck nutrients, cause diseases, affect growth of the host • Control: local (garlic, red pepper, ash); commercial (Doom, Boom, Rogor) • Harm to the environment from chemical pesticides: contamination, killing beneficial living things",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.1 Electricity",
             "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.1.1 State what electricity can do. 5.5.1.2 Identify sources of electricity. 5.5.1.3 Identify electrical appliances used at home, school and in the community. 5.5.1.4 Identify good and bad conductors of electricity. 5.5.1.5 Describe the uses of good and bad conductors. 5.5.1.6 Explain methods of conserving electricity in homes and schools.",
-            "KNOWLEDGE": "• What electricity does: powers up appliances and lights • Sources of electricity: battery, hydroelectric and thermal power stations, generator, solar cells • Electrical appliances: heater, stove, iron, fridge, fan • Good conductors: copper wire, iron sheets, carbon; Bad conductors: wood, plastic, rubber • Conserving electricity: energy saver bulbs, switch off and save, alternative sources of energy",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.2 Heat Conductors",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.2.1 Describe what heat is. 5.5.2.2 Determine the temperature of the human body, boiling water and air inside and outside the classroom. 5.5.2.3 Distinguish good and bad conductors of heat. 5.5.2.4 Identify materials which are good insulators.",
-            "KNOWLEDGE": "• Heat: the flow of thermal energy from warm to cooler objects • Temperature measurement of human body, boiling water and air • Good conductors: metals; Bad conductors / insulators: wood, rubber, wool, plastic • Uses: good conductors for cooking utensils; bad conductors for handles",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.3 Measuring Matter",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.3.1 Identify instruments used to compare how heavy objects are. 5.5.3.2 Demonstrate the effect of gravity on objects. 5.5.3.3 Distinguish between mass and weight.",
-            "KNOWLEDGE": "• Measuring mass and weight: beam balance, spring balance • Effect of gravity: pulling objects towards the centre of the earth • Difference between mass (amount of matter) and weight (pull of gravity, measured in newtons)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.4 Volume",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.4.1 Identify various instruments and apparatus used to measure volume. 5.5.4.2 Measure the volume of liquids. 5.5.4.3 Measure the volume of various regular and irregular solid objects.",
-            "KNOWLEDGE": "• Instruments for measuring volume: beaker, measuring cylinder • Measuring volume of given liquids • Measuring volume of regular (l × b × h) and irregular (displacement method) solid objects",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1.1 The Heart": "5.5.5 Simple Machines",
-            "TOPIC": "5.5.0 Materials and energy",
-            "SPECIFIC OUTCOMES": "5.5.5.1 Explain what a simple machine is. 5.5.5.2 Identify six kinds of simple machines used in the home and school. 5.5.5.3 Demonstrate the use of simple machines in doing work.",
-            "KNOWLEDGE": "• A simple machine makes work easier by allowing us to push or pull over increased distances • Six kinds of simple machines: Lever, Wheel and Axle, Inclined Plane, Wedge, Screw • Application: pulling, cutting, transportation, watering, digging",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and appreciation"
+            "SUBTOPIC": "5.5.1 Electricity",
+            "SPECIFIC OUTCOMES": "5.5.1.1 State what electricity can do. 5.5.1.2 Identify sources of electricity 5.5.1.3 Identify electrical appliances used at home, school and in the community. 5.5.1.4 Identify good and bad conductors of electricity 5.5.1.5 Describe the uses of good and bad conductors of electricity. 5.5.1.6 Explain methods of conserving electricity in homes and schools.",
+            "CONTENT": " What electricity does: powers up appliances and lights  Sources of electricity: battery, hydroelectric power and thermal power station, electric generator, solar cells.  Electrical appliances used; Electric heater, stove, iron, fridge, fan.  Good conductors: Copper wire, iron sheets, carbon, Bad conductors: wood, plastic, rubber.  Uses of good and bad conductors: Electric wires and appliances; insulators and handles of electric",
+            "SKILLS": " Observing the electrical appliances at home, school and in the community  Experimenting good and bad conductors of electricity  Inferring the use of good and bad conductor of electricity  Communicating methods of conserving electricity",
+            "VALUES": " Applying safe use of electricity in everyday life  Participating actively in group work  Asking questions for more understanding  Applying energy serving practices in everyday life"
           }
         }
-      ]
+      ],
+      "title": "INTEGRATED SCIENCE SYLLABUS  —  GRADE 5"
     },
     "Grade 6": {
       "title": "INTEGRATED SCIENCE SYLLABUS  —  GRADE 6",
@@ -15416,9 +15350,7 @@
   },
   "Mathematics Syllabus (Grades 1-7, 2013)": {
     "Grade 1": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 1",
       "columns": [
-        "1.1 NUMBERS AND NOTATION",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -15429,8 +15361,7 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.1 NUMBERS AND NOTATION",
-            "TOPIC": "",
+            "TOPIC": "1.1 NUMBERS AND NOTATION",
             "SPECIFIC OUTCOMES": "1.1.1 Recognise, count, read and write numbers from 1 to 100 (including the meaning of zero). 1.1.2 Interpret numbers using ten as a unit 1.1.3 Order numbers in terms of magnitude. 1.1.4 Count in tens up to ten tens (100).",
             "KNOWLEDGE": "• Comparing number of objects by making one-to-one correspondence. • The meaning of zero • Counting from 1 to 100 (Use concrete objects and math songs/games/rhymes, ICT as well) • Reading and writing numbers from 1 to 100 • Interpreting numbers using ten as a unit (i.e. 12 is 10 and 2, 13 is 10 and 3 etc) • Recognizing that one number is more or less than the other • Counting numbers in tens up to 100.",
             "SKILLS": "• Identification of numerals • Communication through writing and counting • Comparison of number magnitude and ordering them. • Representation of numbers with 10 as a unit",
@@ -15440,10 +15371,9 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.2 SETS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "1.2.1 Sort objects according to size, colour and shape. 1.2.2 Match sets into one-to-one correspondence. 1.2.3 Place sets in order according to their cardinal numbers. 1.2.4 Assign numerals 0 to 10 to elements in a set. 1.2.5 Use cardinal and ordinal numbers in everyday life.",
-            "KNOWLEDGE": "• Sorting objects according to size colour and shape. • Matching sets of objects into one-to- one correspondence. • Ordering sets according to their cardinal and ordinal numbers. • Counting the number of elements in a set (i.e. assign numerals 0 to 10 to elements in a set)",
+            "TOPIC": "1.2 SETS",
+            "SPECIFIC OUTCOMES": "1.2.1 Sort objects according size, colour and shape. 1.2.2 Match sets into one-to-one correspondence. 1.2.3 Place sets in according to their cardinal numbers. 1.2.4 Assign numerals 0 to 10 to elements in a set. 1.2.5 Use cardinal and numbers in everyday life.",
+            "KNOWLEDGE": "to • Sorting objects according to size colour and shape. • Matching sets of objects into one-to- one correspondence. order • Ordering sets according to their cardinal and ordinal numbers. • Counting the number of elements in a set (i.e. assign numerals 0 to 10 to elements in a set) ordinal",
             "SKILLS": "• Classification of objects. • Comparison of objects in real life. • Identification of various criteria for sorting objects. • Application of groups in real life.",
             "VALUES": "• Curiosity to explore nature. • Appreciation of order in nature. • Team work through collaborative learning."
           }
@@ -15451,10 +15381,9 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.3 ADDITION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "1.3.1 Add whole numbers with sums up to 100. 1.3.2 Complete addition of number sentences.. 1.3.3 Apply addition to real life up to 100.",
-            "KNOWLEDGE": "• Meaning of addition • Adding single digit numbers up to10 • Adding single digit numbers up to 18 horizontally (with carrying using the concept of ten as unit e.g. 8 + 5 as 8 +2 + 3). • Adding numbers in 10s up to100 (e.g. 20 + 10) • Adding numbers horizontally up to100 (without carrying) • Applying addition to real life (For Money, DO NOT USE NGWEE AS A FRACTION OF KWACHA AT THIS STAGE)",
+            "TOPIC": "1.3 ADDITION",
+            "SPECIFIC OUTCOMES": "1.3.1 Add whole numbers sums up to 100. 1.3.2 Complete addition number sentences.. 1.3.3 Apply addition to real life up to 100.",
+            "KNOWLEDGE": "with • Meaning of addition • Adding single digit numbers up to10 of • Adding single digit numbers up to 18 horizontally (with carrying using the concept of ten as unit e.g. 8 + 5 as 8 +2 + 3). • Adding numbers in 10s up to100 (e.g. 20 + 10) • Adding numbers horizontally up to100 (without carrying) • Applying addition to real life (For Money, DO NOT USE NGWEE AS A FRACTION OF KWACHA AT THIS STAGE)",
             "SKILLS": "• Addition of single and double digit numbers using the concept of 10 as a unit. • Identification of the addition sign/symbol. • Application of addition to money.",
             "VALUES": "• Awareness of the meaning of addition. • Accuracy in computations"
           }
@@ -15462,10 +15391,9 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.4 SUBTRACTION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "1.4.1 Subtract whole numbers up to 100. 1.4.2 Develop the concept of zero as a difference 1.4.3 Complete subtraction of number sentences 1.4.4 Apply addition to real life up to 100. 1.4.5 Carry out shopping activities involving money.",
-            "KNOWLEDGE": "• Meaning of subtraction • Subtracting single digit numbers up to10 • Subtracting two digit numbers up to 18 by single digit number giving a single digit difference (e.g. 18 – 9, 17- 9, 17-8,. . . 12- 3, 12-2, 11-2), horizontally (with borrowing using the concept of ten as unit e.g. 12-3 as 12- 2-1or 10-3+2). • Subtracting numbers in 10s up to100 (e.g. 90 - 30) • Subtracting numbers horizontally up to 100 (without borrowing) • Developing the concept of zero • Relationship of subtraction to addition (e.g. 36 – 12 = 24 or 24 + 12 = 36).",
+            "TOPIC": "1.4 SUBTRACTION",
+            "SPECIFIC OUTCOMES": "1.4.1 Subtract whole numbers up to 100. 1.4.2 Develop the concept zero as a difference 1.4.3 Complete subtraction number sentences 1.4.4 Apply addition to real life up to 100. 1.4.5 Carry out shopping activities involving money.",
+            "KNOWLEDGE": "• Meaning of subtraction • Subtracting single digit numbers up of to10 • Subtracting two digit numbers up to of 18 by single digit number giving a single digit difference (e.g. 18 – 9, 17- 9, 17-8,. . . 12- 3, 12-2, 11-2), horizontally (with borrowing using the concept of ten as unit e.g. 12-3 as 12- 2-1or 10-3+2). • Subtracting numbers in 10s up to100 (e.g. 90 - 30) • Subtracting numbers horizontally up to 100 (without borrowing) • Developing the concept of zero • Relationship of subtraction to addition (e.g. 36 – 12 = 24 or 24 + 12 = 36). • Apply subtraction to real life up to 100. • Carrying out shopping activities involving money up to K100. (DO NOT USE NGWEE AS A FRACTION OF KWACHA AT THIS STAGE)",
             "SKILLS": "• Subtraction of single and double digit numbers using the concept of 10 as a unit. • Identification of the subtraction sign/symbol. • Application of subtraction to money. • Relating subtraction to addition",
             "VALUES": "• Awareness of the meaning of subtraction. • Accuracy in computations. • Team work through the shopping activity"
           }
@@ -15473,19 +15401,7 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Apply subtraction to real life up to 100. • Carrying out shopping activities involving money up to K100. (DO NOT USE NGWEE AS A FRACTION OF KWACHA AT THIS STAGE)",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.5 NUMBER PATTERNS",
-            "TOPIC": "",
+            "TOPIC": "1.5 NUMBER PATTERNS",
             "SPECIFIC OUTCOMES": "1.5.1 Identify number patterns involving addition and subtraction up to 100",
             "KNOWLEDGE": "• Identifying number patterns involving addition and subtraction up to 100.",
             "SKILLS": "• Identification of number patterns • Ordering numbers",
@@ -15495,31 +15411,28 @@
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.6 PLANE SHAPES",
-            "TOPIC": "",
+            "TOPIC": "1.6 PLANE SHAPES",
             "SPECIFIC OUTCOMES": "1.6.1 Recognise squares, circles, rectangles and triangles. 1.6.2 Trace outline of squares, circles, rectangles and triangles. 1.6.3 Make pictures using shapes of squares, rectangle circles and triangles",
-            "KNOWLEDGE": "• Recognizing squares, circles, rectangles and triangles • Tracing outlines of Shapes using concrete three dimensional shapes to draw squares, circles, rectangles and triangles • Making pictures using shapes of squares, circles, rectangles and triangles",
-            "SKILLS": "• Recognition of squares, circles, rectangles and triangles.",
+            "KNOWLEDGE": "• Recognizing squares, rectangles and triangles • Tracing outlines of Shapes concrete three dimensional shapes to draw squares, circles, rectangles and triangles • Making pictures using shapes squares, circles, rectangles triangles",
+            "SKILLS": "circles, • Recognition of squares, circles, rectangles and using triangles. of and",
             "VALUES": "• Appreciation of basic shapes • Creativity in combining basic shapes to make pictures."
           }
         },
         {
           "type": "data",
           "cells": {
-            "1.1 NUMBERS AND NOTATION": "1.7 MEASURES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "1.7.1 Identify times of the day. 1.7.2 Tell days of the week 1.7.3 Name months of the year 1.7.4 Compare lengths of different objects.",
-            "KNOWLEDGE": "• Identifying the times of the day using activities (morning, midday, afternoon, evening, night) • Days of the week • Months of the year. • Non standard measurements e.g. strides, feet, strings, heights such as heights of learners.",
+            "TOPIC": "1.7 MEASURES",
+            "SPECIFIC OUTCOMES": "1.7.1 Identify times of the day. 1.7.2 Tell days of the week 1.7.3 Name months of the year 1.7.4 Compare lengths different objects.",
+            "KNOWLEDGE": "• Identifying the times of the day using activities (morning, midday, afternoon, evening, night) of • Days of the week • Months of the year. • Non standard measurements e.g. strides, feet, strings, heights such as heights of learners.",
             "SKILLS": "• Ordering days of the week and months of the year. • Comparing lengths of different objects.",
             "VALUES": "• Awareness of times of the day and months of the year. • Curiosity of comparing lengths of different objects. • Time consciousness"
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 1"
     },
     "Grade 2": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 2",
       "columns": [
-        "2.1 SETS",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -15530,10 +15443,9 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.1 SETS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "2.1.1 Describe sets in relation to real life situations. 2.1.2 State membership of a set using symbol ∈ , ∉ and { }",
-            "KNOWLEDGE": "• Describing sets in relation to real life situations • Set notation; (Membership of a set using symbols ∈ “a member of”, ∉ “not a member of”, ) { } Empty set or no member in the set",
+            "TOPIC": "2.1 SETS",
+            "SPECIFIC OUTCOMES": "2.1.1 Describe sets in relation to real life situations. 2.1.2 State membership of a set using symbol ∈ and { }",
+            "KNOWLEDGE": "• Describing sets in relation to real life situations • Set notation; (Membership of a set using symbols ∈ “a member of”, , ∉ ∉ “not a member of”, ) { } Empty set or no member in the set",
             "SKILLS": "• Communication through use of appropriate set symbols • Analysis of elements of a set",
             "VALUES": "• Teamwork through cooperative learning. • Awareness of set notation symbols and their use"
           }
@@ -15541,8 +15453,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.2 NUMBERS AND NOTATION",
-            "TOPIC": "",
+            "TOPIC": "2.2 NUMBERS AND NOTATION",
             "SPECIFIC OUTCOMES": "2.2.1 Count, read and write numbers up to 1,000. 2.2.2 Count in tens and hundreds up to 1,000 2.2.3 Identify place values of digits in given numbers. 2.2.4 Write numbers in expanded notation.",
             "KNOWLEDGE": "• Counting numbers up to 1,000 (Use mathematics songs/games/rhymes, ICT as well) • Reading and writing numbers up to 1,000 • Counting in tens and hundreds up to 1,000 • Identifying place values of digits in numbers up to 1,000 • Using the place value charts and the abacus • Writing numbers in expanded notation without and with words (e.g. 800+50+4 for 854 or 8 hundreds+5 tens + 4 Ones).",
             "SKILLS": "• Communication through writing • Observation of number patterns • Application to real life • Identification of numerals • Interpretation of numbers in terms of their place values",
@@ -15552,8 +15463,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.3 ADDITION",
-            "TOPIC": "",
+            "TOPIC": "2.3 ADDITION",
             "SPECIFIC OUTCOMES": "2.3.1 Add whole numbers vertically with sums up to 100 (including carrying) 2.3.2 Add whole numbers with sums up to 1,000. 2.3.3 Carry out addition of quantities in real life situations (e.g. money, quantities)",
             "KNOWLEDGE": "• Adding whole numbers vertically with sums up to 100 including carrying • Adding whole numbers with sums up to 1,000 by expanded notation and regrouping ones, tens, hundreds and thousands • Adding whole numbers with sums up to 1,000 without regrouping • Applying the commutative law and zero property of addition • Adding numbers using number trees, wheels, and magic squares • Adding quantities in real life situations (e.g. money, number of items, people)",
             "SKILLS": "• Addition of double and triple digit numbers using the concept of 10 and 100 as a unit. • Application of addition in real life.",
@@ -15563,10 +15473,9 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.4 SUBTRACT ION",
-            "TOPIC": "",
+            "TOPIC": "2.4 SUBTRACT ION",
             "SPECIFIC OUTCOMES": "2.4.1 Subtract whole numbers vertically up to 100 (including borrowing) 2.4.2 Subtract whole numbers vertically up to 1,000. 2.4.3 Carry out subtraction and addition in real life. 2.4.4 Carry out practical shopping and marketing activities involving money up to K 1, 000.",
-            "KNOWLEDGE": "• Subtracting whole numbers vertically up to 100 • Subtracting whole numbers vertically up to 1,000 by expanded notation and regrouping • Subtracting whole numbers up to 1,000 without regrouping • Subtracting whole numbers using number trees and wheels. • Application of Subtraction and Addition in real life. • Shopping and marketing activities involving money up to K 1, 000 (DO NOT USE NGWEE AS A",
+            "KNOWLEDGE": "• Subtracting whole numbers vertically up to 100 • Subtracting whole numbers vertically up to 1,000 by expanded notation and regrouping • Subtracting whole numbers up to 1,000 without regrouping • Subtracting whole numbers using number trees and wheels. • Application of Subtraction and Addition in real life. • Shopping and marketing activities involving money up to K 1, 000 (DO NOT USE NGWEE AS A FRACTION OF KWACHA AT THIS STAGE)",
             "SKILLS": "• Subtraction of single and double digit numbers using the concept of 10 as a unit. • Application of subtraction and addition to money. • Relating subtraction to addition",
             "VALUES": "• Accuracy in computations. • Team work through the shopping activity"
           }
@@ -15574,52 +15483,27 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "FRACTION OF KWACHA AT THIS STAGE)",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "2.1 SETS": "2.5 MULTIPLICATION",
-            "TOPIC": "",
+            "TOPIC": "2.5 MULTIPLICATION",
             "SPECIFIC OUTCOMES": "2.5.1 Express multiplication as repeated addition 2.5.2 Multiply single digit numbers 2.5.3 Memorize the multiplication table of single digit numbers 2.5.4 Use Multiplication vocabulary 2.5.5 Apply Multiplication in real life situations",
-            "KNOWLEDGE": "• Grouping items/objects in twos (2s), fives (5s), threes (3s), fours (4s) up to tens (10s) and finding their values • Understanding the concept of multiplication using some model (i.e. Multiplication as repeated addition – e.g. 2+2+2+2 = 4x2; 4+4 = 2x4; 3+3+3+3+3 = 5x3 ) • Multiplication sign • Multiplication vocabulary ( multiplicand, multiplier, factor, product) • Multiplying single digits numbers. • Introduction to the single-digits number multiplication tables. • Commutative law of multiplication (Emphasis is on highlighting commutation of numbers rather than the Law i.e. 2x3 =3x2) • Property of one as an identity in multiplication (i.e. Any number multiplied by 1 equals that number) • Multiplying quantities in real life situations (application)",
-            "SKILLS": "• Multiplication of single digit numbers • Accuracy in computations • Identification of the multiplication sign/symbol • Application of the commutative law",
+            "KNOWLEDGE": "• Grouping items/objects in twos (2s), fives (5s), threes (3s), fours (4s) up to tens (10s) and finding their values • Understanding the concept of multiplication using some model (i.e. Multiplication as repeated addition – e.g. 2+2+2+2 = 4x2; 4+4 = 2x4; 3+3+3+3+3 = 5x3 ) • Multiplication sign • Multiplication vocabulary multiplicand , multiplier , factor, product ) • Multiplying single digits numbers. • Introduction to the single-digits number multiplication tables. • Commutative law of multiplication (Emphasis is on highlighting commutation of numbers rather than the Law i.e. 2x3 =3x2) • Property of one as an identity in multiplication (i.e. Any number multiplied by 1 equals that number) • Multiplying quantities in real life situations (application)",
+            "SKILLS": "• Multiplication of single digit numbers • Accuracy in computations • Identification of the multiplication sign/symbol • Application of ( the commutative law",
             "VALUES": "• Appreciation of the meaning of multiplication • Teamwork through cooperative learning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.6 DIVISION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "2.6.1 Express division as repeated subtraction or",
-            "KNOWLEDGE": "• Understanding the concept of division as repeated subtraction or",
-            "SKILLS": "• Division of double digit by",
-            "VALUES": "• Appreciation of the meaning of"
+            "TOPIC": "2.6 DIVISION",
+            "SPECIFIC OUTCOMES": "2.6.1 Express division as repeated subtraction or sharing 2.6.2 Use division vocabulary 2.6.3 Divide numbers whose divisor and quotient are single digit. 2.6.4 Apply division in real life situations.",
+            "KNOWLEDGE": "• Understanding the concept of division as repeated subtraction or sharing • Using division vocabulary(divisor, dividend, quotient, remainder) • Divide single by single digits numbers. • Divide two digit by single digit numbers WITHOUT LEAVING A REMAINDER (Relate division to multiplication e.g. 7x8 = 56 which is 56÷7 = 8 or 56÷8 = 7) • Dividing quantities in real life situations (application)",
+            "SKILLS": "• Division of double digit by single digit numbers • Accuracy in computations • Identification of the division sign/symbol • Application of division to real life",
+            "VALUES": "• Appreciation of the meaning of multiplication • Teamwork through cooperative learning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "sharing 2.6.2 Use division vocabulary 2.6.3 Divide numbers whose divisor and quotient are single digit. 2.6.4 Apply division in real life situations.",
-            "KNOWLEDGE": "sharing • Using division vocabulary(divisor, dividend, quotient, remainder) • Divide single by single digits numbers. • Divide two digit by single digit numbers WITHOUT LEAVING A REMAINDER (Relate division to multiplication e.g. 7x8 = 56 which is 56÷7 = 8 or 56÷8 = 7) • Dividing quantities in real life situations (application)",
-            "SKILLS": "single digit numbers • Accuracy in computations • Identification of the division sign/symbol • Application of division to real life",
-            "VALUES": "multiplication • Teamwork through cooperative learning"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "2.1 SETS": "2.7 NUMBER PATTERNS",
-            "TOPIC": "",
+            "TOPIC": "2.7 NUMBER PATTERNS",
             "SPECIFIC OUTCOMES": "2.7.1 Recognize and use number patterns involving the four mathematical operations. 2.7.2 Determine the rule in the number pattern.",
             "KNOWLEDGE": "• Number patterns involving the four mathematical operations (+, -, ×, ÷) • Determining the rule in the number pattern • Ordering numbers in terms of magnitude",
             "SKILLS": "• Identification of rule in number pattern • Ordering numbers",
@@ -15629,8 +15513,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.8 MEASURES",
-            "TOPIC": "",
+            "TOPIC": "2.8 MEASURES",
             "SPECIFIC OUTCOMES": "2.8.1 Read and tell time in full hours 2.8.2 Measures of different objects using standard units. (cm, mm, m) 2.8.3 Find the perimeter of simple plane figures",
             "KNOWLEDGE": "• The analogue clock in relation to Morning, Midday, Afternoon, Evening, Night. • Time in full hours and minutes. (30 minute-interval) using the 12 hour analogue clock • Measuring length of shapes and objects using standard units (cm, mm, m). • Finding the perimeter of simple plane figures (square and rectangle)",
             "SKILLS": "• Reading and telling times in full hours • Measuring of different objects using standard units. (cm, mm, m)",
@@ -15640,8 +15523,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.9 RELATIONS",
-            "TOPIC": "",
+            "TOPIC": "2.9 RELATIONS",
             "SPECIFIC OUTCOMES": "2.9.1 Draw arrow diagrams to illustrate matching",
             "KNOWLEDGE": "• Matching sets using arrow to illustrate matching involving “ addition and subtraction of two- digit numbers • Note: Range should be up to1000",
             "SKILLS": "• Matching of relations using arrow diagrams. • Interpretation of relations from arrow diagrams.",
@@ -15651,8 +15533,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.10 STATISTICS",
-            "TOPIC": "",
+            "TOPIC": "2.10 STATISTICS",
             "SPECIFIC OUTCOMES": "2.10.1 Collect and present data using pictures",
             "KNOWLEDGE": "• Data collection methods • Data presentation (pictographs only)",
             "SKILLS": "• Collection and presentation of data using pictures • Interpretation of pictographs.",
@@ -15662,8 +15543,7 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.11 PLANE SHAPES",
-            "TOPIC": "",
+            "TOPIC": "2.11 PLANE SHAPES",
             "SPECIFIC OUTCOMES": "2.11.1 Identify right angle with squared paper or paper folding. 2.11.2 Draw rectangle and square on squared paper. 2.11.3 Identify side and vertex of rectangle and square.",
             "KNOWLEDGE": "• Identifying right angle with squared paper or paper folding • Drawing rectangle and square on squared paper. • Identifying side and vertex (limit usage of term to ‘CORNER’) of rectangle and square",
             "SKILLS": "• Identification of right angle. • Drawing rectangle and square on squared paper.",
@@ -15673,15 +15553,15 @@
         {
           "type": "data",
           "cells": {
-            "2.1 SETS": "2.12 SOLID SHAPES",
-            "TOPIC": "",
+            "TOPIC": "2.12 SOLID SHAPES",
             "SPECIFIC OUTCOMES": "2.12.1 Recognise cuboid, cube, cylinder and sphere. 2.12.2 Mould cuboid, cube, cylinder and sphere using clay plasticine",
             "KNOWLEDGE": "• Recognising cuboid, cube, cylinder and sphere • Moulding cuboid, cube, cylinder and sphere using clay or plasticine",
             "SKILLS": "• Recognition of basic solid shapes. • Moulding of basic solid shapes.",
             "VALUES": "• Awareness of solid basic shapes. • Creativity in moulding basic solid shapes."
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 2"
     },
     "Grade 3": {
       "title": "MATHEMATICS SYLLABUS  —  GRADE 3",
@@ -15836,9 +15716,7 @@
       ]
     },
     "Grade 4": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 4",
       "columns": [
-        "4.1 SETS",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -15849,10 +15727,9 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.1 SETS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.1.1 Identify equivalent sets. 4.1.2 Identify subsets and use the subset symbol “⊂”. 4.1.3 Apply sets to solve problems in real life situations",
-            "KNOWLEDGE": "• Equivalent sets • Subsets and the use of the symbol “⊂” (is a subset of) • Applying sets to solve problems in real life situations (creation of order)",
+            "TOPIC": "4.1 SETS",
+            "SPECIFIC OUTCOMES": "4.1.1 Identify equivalent sets. 4.1.2 Identify subsets and use the subset symbol “ ⊂ ”. 4.1.3 Apply sets to solve problems in real life situations",
+            "KNOWLEDGE": "• Equivalent sets • Subsets and the use of the symbol “ ⊂ ” (is a subset of) • Applying sets to solve problems in real life situations (creation of order)",
             "SKILLS": "• Interpretation of the meaning of subset • Identification of the subset symbol • Communication through the use of subset symbol in set notation",
             "VALUES": "• Teamwork through collaborative learning. • Awareness of set equivalence"
           }
@@ -15860,8 +15737,7 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.2 NUMBERS AND NOTATION",
-            "TOPIC": "",
+            "TOPIC": "4.2 NUMBERS AND NOTATION",
             "SPECIFIC OUTCOMES": "4.2.1 Read and write numbers up to 1,000,000,000 4.2.2 Express a number in expanded notation",
             "KNOWLEDGE": "• Reading and writing numbers up to 1,000,000,000. (Draw attention of learners to the number structure or repetition i.e. 1, 10, 100, 1000, 10000 . . .) • Expressing a ten digit number in expanded notation",
             "SKILLS": "• Communication through writing. • Presentation of numbers in expanded notation. • Application of numeration in real life.",
@@ -15871,8 +15747,7 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.3 ADDITION",
-            "TOPIC": "",
+            "TOPIC": "4.3 ADDITION",
             "SPECIFIC OUTCOMES": "4.3.1 Add whole numbers with sums up to 1,000,000. 4.3.2 Apply addition to solve problems in real life.",
             "KNOWLEDGE": "• Adding whole numbers with sums up to 1,000,000 in expanded form by regrouping ones, tens, hundreds, and thousands. • Adding whole numbers with sums up to 1,000,000 without regrouping. • Problems in real life situations (e.g. mass, distance, capacity, money up to K1, 000,000)",
             "SKILLS": "• Addition of up to six digit numbers using the concept of 10, 100, 1000, 10000 and 100000 as a unit. • Application of addition in real life. •",
@@ -15882,10 +15757,9 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.4 SUBTRACTION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.4.1 Subtract whole numbers up to 1,000,000 4.4.2 Apply subtraction and addition to solve problems in real life.",
-            "KNOWLEDGE": "• Subtracting whole numbers up to 1,000,000 in expanded notation • Subtracting whole numbers up to 1,000,000 without regrouping. • Solving problems in real life • Using subtraction and addition to solve problems involving mass, distance, capacity, money up to K1, 000,000.",
+            "TOPIC": "4.4 SUBTRACTION",
+            "SPECIFIC OUTCOMES": "4.4.1 Subtract whole numbers up to 1,000,000 4.4.2 Apply subtraction addition to solve problems in real life.",
+            "KNOWLEDGE": "• Subtracting whole numbers up to 1,000,000 in expanded notation and • Subtracting whole numbers up to 1,000,000 without regrouping. • Solving problems in real life • Using subtraction and addition to solve problems involving mass, distance, capacity, money up to K1, 000,000.",
             "SKILLS": "• Subtraction of up to six digit numbers using the concept of 10, 100, 1000, 10000 and 100000 as a unit. • Application of subtraction and addition in real life.",
             "VALUES": "• Awareness of the role of place values in subtraction. • Accuracy in computations."
           }
@@ -15893,8 +15767,7 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.5 MULTIPLICATION",
-            "TOPIC": "",
+            "TOPIC": "4.5 MULTIPLICATION",
             "SPECIFIC OUTCOMES": "4.5.1 Multiply numbers by 10, 100 and 1000 using short multiplication. 4.5.2 Multiply two and three by two digit numbers using vertical multiplication. 4.5.3 Apply the properties of zero (0) and one (1) in multiplication 4.5.4 Apply multiplication to solve problems in real life.",
             "KNOWLEDGE": "• Multiplying numbers by 10, 100 and 1000 using short multiplication (include multiples of 10 such as 20, 30, 40) e.g. 12x10 = 120 and 12x20 = 12x(10x2)=240 • Multiplying two and three by two digit numbers using vertical multiplication. • Applying the properties of zero (0) and one (1) in multiplication • Problems in real life such as those involving mass, distance, capacity, money.",
             "SKILLS": "• Multiplication of two and three digit by two digit numbers • Accuracy in computations • Application of place values",
@@ -15904,10 +15777,9 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.6 DIVISION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.6.1 Divide numbers by 10, 100 and 1000 using short division. 4.6.2 Divide two and three digit by two digit numbers using long division (with remainders). 4.6.3 Apply division to solve problems in real life",
-            "KNOWLEDGE": "• Dividing numbers by 10, 100 and 1000 using short division • Dividing two and three digit by two digit numbers using long division (with remainders) • Dividing to solve problems in real life such as those involving mass, distance, capacity, money.",
+            "TOPIC": "4.6 DIVISION",
+            "SPECIFIC OUTCOMES": "4.6.1 Divide numbers by 10, 100 and 1000 using short division. 4.6.2 Divide two and three digit by two digit numbers using long division (with remainders). 4.6.3 Apply division to problems in real life",
+            "KNOWLEDGE": "• Dividing numbers by 10, 100 and 1000 using short division • Dividing two and three digit by two digit numbers using long division (with remainders) • Dividing to solve problems in real solve life such as those involving mass, distance, capacity, money.",
             "SKILLS": "• Division of two and three digit by two digit numbers • Accuracy in computations • Application of division to real life",
             "VALUES": "• Teamwork through cooperative learning"
           }
@@ -15915,8 +15787,7 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.7 NUMBER PATTERNS",
-            "TOPIC": "",
+            "TOPIC": "4.7 NUMBER PATTERNS",
             "SPECIFIC OUTCOMES": "4.7.1 Identify patterns and complete number sequences.",
             "KNOWLEDGE": "• Identifying Number Patterns • Completing number sequences • Generate number patterns",
             "SKILLS": "• Identification of rule in number pattern",
@@ -15926,43 +15797,29 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.8 FRACTIONS",
-            "TOPIC": "",
+            "TOPIC": "4.8 FRACTIONS",
             "SPECIFIC OUTCOMES": "4.8.1 Describe equivalent fractions 4.8.2 Arrange the common fractions either in ascending or descending order using proportion line 4.8.3 Identify and represent improper and mixed fractions 4.8.4 Convert mixed fractions to improper fractions and vice versa. 4.8.5 Add and subtract proper, improper and mixed fractions with common denominators. 4.8.6 Apply improper fractions to solve problems in real life",
-            "KNOWLEDGE": "• Describing equivalent fractions • Arranging the common fractions either in ascending or descending order using proportion line • Using symbols , and ,to order fractions in terms of magnitude • Identifying improper and mixed fractions • Converting mixed fractions to improper fractions and vice versa. • Adding and subtracting proper, improper and mixed fractions with a common denominator • Applying improper fractions in everyday real life.",
-            "SKILLS": "• Distinction between proper, improper and mixed fractions • Conversion of mixed fractions to improper fractions and vice versa. • Arrangement of common fractions using proportion line • Addition and subtraction of improper and mixed fractions",
+            "KNOWLEDGE": "• Describing equivalent fractions • Arranging the common fractions either in ascending or descending order using proportion line • Using symbols , and order fractions in terms of magnitude • Identifying improper and mixed fractions • Converting mixed fractions to improper fractions and vice versa. • Adding and subtracting proper, improper and mixed fractions with a common denominator • Applying improper fractions in everyday real life.",
+            "SKILLS": "• Distinction between proper, improper and mixed fractions • Conversion of ,to mixed fractions to improper fractions and vice versa. • Arrangement of common fractions using proportion line • Addition and subtraction of improper and mixed fractions",
             "VALUES": "• Appreciation of equivalent fractions • Accuracy in adding and subtracting improper and mixed fractions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.9 ANGLES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.9.1 Describe an angle. 4.9.2 Identify types of angles 4.9.3 Use a protractor to measure",
-            "KNOWLEDGE": "• Describing an Angles • Types of angles (right angle, acute angle, straight angle, reflex,",
-            "SKILLS": "• Identification of types of angles • Using and",
-            "VALUES": "• Curiosity in using protractor • Accuracy of"
+            "TOPIC": "4.9 ANGLES",
+            "SPECIFIC OUTCOMES": "4.9.1 Describe an angle. 4.9.2 Identify types of angles 4.9.3 Use a protractor to measure and draw angles up to 180°.",
+            "KNOWLEDGE": "• Describing an Angles • Types of angles (right angle, acute angle, straight angle, reflex, obtuse and a complete revolution.) • Using a protractor to measure and draw angles up to 180° • angles in real life situations( time, compass direction",
+            "SKILLS": "• Identification of types of angles • Using and handling of protractor appropriately.",
+            "VALUES": "• Curiosity in using protractor • Accuracy of measuring angles."
           }
         },
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "and draw angles up to 180°.",
-            "KNOWLEDGE": "obtuse and a complete revolution.) • Using a protractor to measure and draw angles up to 180° • angles in real life situations( time, compass direction",
-            "SKILLS": "handling of protractor appropriately.",
-            "VALUES": "measuring angles."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "4.1 SETS": "4.10 PLANE SHAPES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.10.1 Draw a rectangle and square using protractor and set square 4.10.2 Identify isosceles and equilateral triangles 4.10.3 Draw the equilateral and isosceles triangles using protractor and set square",
-            "KNOWLEDGE": "• Drawing a rectangle and square using protractor and set square • Identifying an isosceles and equilateral triangles • Drawing an isosceles and equilateral triangle using protractor and set square",
+            "TOPIC": "4.10 PLANE SHAPES",
+            "SPECIFIC OUTCOMES": "4.10.1 Draw a rectangle and square using protractor and square 4.10.2 Identify isosceles equilateral triangles 4.10.3 Draw the equilateral isosceles triangles protractor and set square",
+            "KNOWLEDGE": "• Drawing a rectangle and square set using protractor and set square • Identifying an isosceles and and equilateral triangles • Drawing an isosceles and and equilateral triangle using using protractor and set square",
             "SKILLS": "• Application of protractor to draw plane shapes • Identification of isosceles and equilateral triangles",
             "VALUES": "• Curiosity of drawing plane shapes."
           }
@@ -15970,10 +15827,9 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.11 MEASURES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.11.1 Determine duration of time elapsed between events 4.11.2 Relate seconds, minutes, hours and day. 4.11.3 Illustrate the meaning of area 4.11.4 Describe standard units to measure area. (cm2, mm2, m2) 4.11.5 Derive the formulae for finding area of rectangle and square 4.11.6 Find the area of a rectangle and square",
-            "KNOWLEDGE": "• Determining duration of time between events (Subtraction and addition of time). • Describing seconds • Relating seconds, minutes, hours and day • Understanding the concept of area. • Standard units to measure area • Formulae for finding area of rectangle and square • Deriving the formulae for area (rectangle and square) • Area of a rectangle and square",
+            "TOPIC": "4.11 MEASURES",
+            "SPECIFIC OUTCOMES": "4.11.1 Determine duration of time elapsed between events 4.11.2 Relate seconds, hours and day. 4.11.3 Illustrate the meaning of area 4.11.4 Describe standard measure area. (cm m ) 4.11.5 Derive the formulae finding area of rectangle and square 4.11.6 Find the area of a rectangle and square",
+            "KNOWLEDGE": "• Determining duration of time between events (Subtraction and minutes, addition of time). • Describing seconds • Relating seconds, minutes, hours units to 2 2 and day , mm , • Understanding the concept of area. for • Standard units to measure area • Formulae for finding area of rectangle and square • Deriving the formulae for area (rectangle and square) • Area of a rectangle and square",
             "SKILLS": "• Determination of duration of time between events. • Deriving the formulae for finding area of rectangle and square.",
             "VALUES": "• Accuracy in determing duration of time • Curiosity in deriving the formulae."
           }
@@ -15981,42 +15837,28 @@
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "4.12 RELATIONS AND MAPPINGS",
-            "TOPIC": "",
+            "TOPIC": "4.12 RELATIONS AND MAPPINGS",
             "SPECIFIC OUTCOMES": "4.12.1 Illustrate one-to-many relation using arrow. 4.12.2 Apply relations in real life situations.",
-            "KNOWLEDGE": "• One-to-many relations (“is greater than” , “ is less than”, “ is greater or equal to “ ) using arrow diagrams • With domain: up to 100 000",
-            "SKILLS": "• Matching of one- to-many relation using arrow diagrams. • Interpretation of",
-            "VALUES": "• Creativity of drawing arrow diagrams. • Awareness of one-many"
+            "KNOWLEDGE": "• One-to-many relations (“is greater than” , “ is less than”, “ is greater or equal to “ ) using arrow diagrams • With domain: up to 100 000 (Only whole numbers) • Relations and mappings in real life situations",
+            "SKILLS": "• Matching of one- to-many relation using arrow diagrams. • Interpretation of one-to-many relation.",
+            "VALUES": "• Creativity of drawing arrow diagrams. • Awareness of one-many relation."
           }
         },
         {
           "type": "data",
           "cells": {
-            "4.1 SETS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "(Only whole numbers) • Relations and mappings in real life situations",
-            "SKILLS": "one-to-many relation.",
-            "VALUES": "relation."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "4.1 SETS": "4.13 STATISTICS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "4.13.1 Read and interpret line graphs 4.13.2 Collect and present data on a line graph",
-            "KNOWLEDGE": "• Interpreting line graphs • Data collection • Data presentation (Line graph)",
-            "SKILLS": "• Interpretation of line graphs • Representation of data on a line graph.",
-            "VALUES": "• Appreciation of usefulness of line graphs."
+            "TOPIC": "4.13 STATISTICS",
+            "SPECIFIC OUTCOMES": "4.13.1 Read and interpret graphs 4.13.2 Collect and present data on a line graph",
+            "KNOWLEDGE": "line • Interpreting line graphs • Data collection • Data presentation (Line graph)",
+            "SKILLS": "• Interpretation of line graphs • Representation data on a line graph.",
+            "VALUES": "• Appreciation of usefulness of line graphs. of"
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 4"
     },
     "Grade 5": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 5",
       "columns": [
-        "5.1 NUMBERS AND NOTATION",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -16027,8 +15869,7 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.1 NUMBERS AND NOTATION",
-            "TOPIC": "",
+            "TOPIC": "5.1 NUMBERS AND NOTATION",
             "SPECIFIC OUTCOMES": "5.1.1 Identify Roman numeration system. 5.1.2 Convert numerals from Arabic to Roman numeration and vice versa. 5.1.3 Order Roman numerals.",
             "KNOWLEDGE": "• Identifying the roman numeration system. • Converting Arabic to Roman numeration and vice versa • Ordering Roman numerals.",
             "SKILLS": "• Identification of Roman and Arabic numeration • Communication through writing both Roman and Arabic numerals • Ordering Roman and Arabic numerals",
@@ -16038,8 +15879,7 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.2 ADDITION",
-            "TOPIC": "",
+            "TOPIC": "5.2 ADDITION",
             "SPECIFIC OUTCOMES": "5.2.1 Add whole numbers using the number line. 5.2.2 Apply addition using the number line to solve problems in real life situations.",
             "KNOWLEDGE": "• Addition on the number line. • Addition using the number line to solve problems in real life situations. (To be connected to the addition of integers)",
             "SKILLS": "• Addition using the number line. • Application of addition in real life.",
@@ -16049,8 +15889,7 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.3 SUBTRACTION",
-            "TOPIC": "",
+            "TOPIC": "5.3 SUBTRACTION",
             "SPECIFIC OUTCOMES": "5.3.1 Subtract whole numbers using a number line. 5.3.2 Apply subtraction and addition using the number line to solve problems in real life situations.",
             "KNOWLEDGE": "• Subtraction on the number line • Subtraction and addition using the number line to solve problems in real life situations (To be connected to the addition of integers).",
             "SKILLS": "• Subtraction using the number line. • Application of addition and subtraction in real life.",
@@ -16060,30 +15899,17 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.4 COMBINED OPERATIONS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "5.4.1 Perform combined operations 5.4.2 Apply the commutative, associative and distributive laws to four basic mathematical",
-            "KNOWLEDGE": "• Combined operations or order of operations – BODMAS (related to real life problems i.e. length, mass, temperature, capacity and",
-            "SKILLS": "• Computation in the correct order • Application of the four operations in",
-            "VALUES": "• Awareness of order of operations. • Accuracy in"
+            "TOPIC": "5.4 COMBINED OPERATIONS",
+            "SPECIFIC OUTCOMES": "5.4.1 Perform combined operations 5.4.2 Apply the commutative, associative and distributive laws to four basic mathematical operations.",
+            "KNOWLEDGE": "• Combined operations or order of operations – BODMAS (related to real life problems i.e. length, mass, temperature, capacity and time) • Applying the commutative, associative and distributive laws to four basic mathematical operations.",
+            "SKILLS": "• Computation in the correct order • Application of the four operations in real life",
+            "VALUES": "• Awareness of order of operations. • Accuracy in computations."
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "operations.",
-            "KNOWLEDGE": "time) • Applying the commutative, associative and distributive laws to four basic mathematical operations.",
-            "SKILLS": "real life",
-            "VALUES": "computations."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.5 SETS",
-            "TOPIC": "",
+            "TOPIC": "5.5 SETS",
             "SPECIFIC OUTCOMES": "5.5.1 List all sub sets of a given set. 5.5.2 Describe sets of numbers. 5.5.3 Describe subset in a Venn diagram.",
             "KNOWLEDGE": "• Proper and improper subsets (For sets with up to 4 elements). • Sets of numbers (Natural, Whole, Even, Odd, Prime and Composite). • Subsets in Venn diagrams.",
             "SKILLS": "• Identification of proper and improper subsets. • Representation of subsets within Venn diagram. • Description of sets of numbers.",
@@ -16093,8 +15919,7 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.6 FACTORS AND MULTIPLES",
-            "TOPIC": "",
+            "TOPIC": "5.6 FACTORS AND MULTIPLES",
             "SPECIFIC OUTCOMES": "5.6.1 Identify factors of given numbers 5.6.2 Identify the Highest Common Factor (HCF) 5.6.3 Identify multiples of a given number 5.6.4 Identify the Lowest Common Multiple (LCM) by listing",
             "KNOWLEDGE": "• Identifying Factors • Listing factors of two numbers and Identifying Highest Common Factor (HCF) or Greatest Common Divisor (GCD) • Identifying Multiples of a given numbers • Listing multiples of two numbers and Identifying Lowest Common Multiple (LCM).",
             "SKILLS": "• Identification of factors and multiples.",
@@ -16104,10 +15929,9 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.7 FRACTIONS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "5.7.1 Identify equivalent fractions by multiplying or dividing the same number with numerator and denominator 5.7.2 Express fractions with different denominators to the same denominator 5.7.3 Add and subtract proper, improper and mixed fractions with different",
-            "KNOWLEDGE": "• Identifying equivalent fraction by multiplying or dividing the same number with numerator and denominator • Expressing fractions with different denominators to the same denominator • Addition and subtraction of fractions with different",
+            "TOPIC": "5.7 FRACTIONS",
+            "SPECIFIC OUTCOMES": "5.7.1 Identify equivalent fractions by multiplying or dividing the same number with numerator and denominator 5.7.2 Express fractions with different denominators to the same denominator 5.7.3 Add and subtract proper, improper and mixed fractions with different denominators. 5.7.4 Apply knowledge of fractions to solve problems in real life situations",
+            "KNOWLEDGE": "• Identifying equivalent fraction by multiplying or dividing the same number with numerator and denominator • Expressing fractions with different denominators to the same denominator • Addition and subtraction of fractions with different denominators. • Fractions in real life situations",
             "SKILLS": "• Identification of equivalent fractions • Addition and subtraction of fractions with different denominators.",
             "VALUES": "• Appreciation of Reduction of fractions • Awareness of importance of factors and multiples to fractions."
           }
@@ -16115,21 +15939,9 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "denominators. 5.7.4 Apply knowledge of fractions to solve problems in real life situations",
-            "KNOWLEDGE": "denominators. • Fractions in real life situations",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.8 DECIMALS",
-            "TOPIC": "",
+            "TOPIC": "5.8 DECIMALS",
             "SPECIFIC OUTCOMES": "5.8.1 Relate common fractions to decimals. 5.8.2 Describe decimal numbers by their names (up to 2 decimal places) 5.8.3 Add and subtract decimal numbers. 5.8.4 Multiply decimal numbers by whole numbers. 5.8.5 Divide decimal numbers by whole numbers (up to 2 decimal places WITHOUT REMAINDER). 5.8.6 Apply decimals to solve problems in real life situations.",
-            "KNOWLEDGE": "• Relating common fractions to decimals up to 2 decimal places (i.e. = 0.1, = 0.01) 1 1 • Understanding the concept of 10 100 decimals • Decimal numbers and their place values (names for 0.1, 0.01 i.e. tenths, hundredths) (note: presentation of decimal numbers on the number line could aid understanding.) • Addition and subtraction of decimals numbers up to 2 decimal places • Multiplying and division of decimal numbers with one or two digits • Decimals in real life situations (e.g. problems involving money- Kwacha and ngwee, temperature and other measures)",
+            "KNOWLEDGE": "• Relating common fractions to decimals up to 2 decimal places 1 1 (i.e. = 0.1, = 0.01) 10 100 • Understanding the concept of decimals • Decimal numbers and their place values (names for 0.1, 0.01 i.e. tenths, hundredths) (note: presentation of decimal numbers on the number line could aid understanding.) • Addition and subtraction of decimals numbers up to 2 decimal places • Multiplying and division of decimal numbers with one or two digits • Decimals in real life situations (e.g. problems involving money- Kwacha and ngwee, temperature and other measures)",
             "SKILLS": "• Identification of decimal numbers • Accuracy in Computation of problems involving decimal numbers • Application of decimal numbers in real life",
             "VALUES": "• Appreciation of relationship between common fractions and decimal numbers • Curiosity in decimal numbers and their use."
           }
@@ -16137,32 +15949,19 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.9 SOCIAL AND COMMERCIAL ARITHMETIC",
-            "TOPIC": "",
+            "TOPIC": "5.9 SOCIAL AND COMMERCIAL ARITHMETIC",
             "SPECIFIC OUTCOMES": "5.9.1 Prepare simple household bills (budgeting). 5.9.2 Apply simple ready-reckoners 5.9.3 Read and interpret water and electricity bills.",
             "KNOWLEDGE": "• Budgeting • Ready-reckoner • Meter reading (water and electricity bills)",
-            "SKILLS": "• Preparation of simple household bills. • Application and of",
-            "VALUES": "• Accuracy reading ready reckoners, water and electricity bills."
+            "SKILLS": "• Preparation of simple household bills. • Application and of Ready-reckoner. • Interpretation of water and electricity bills.",
+            "VALUES": "• Accuracy reading ready reckoners, water and electricity bills. • Curiosity using ready reckoners."
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "SKILLS": "Ready-reckoner. • Interpretation of water and electricity bills.",
-            "VALUES": "• Curiosity using ready reckoners."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.10 PLANE SHAPES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "5.10.1 Identify and draw perpendicular and parallel lines 5.10.2 Describe trapezium, rhombus and parallelogram 5.10.3 Draw trapezium, rhombus and parallelogram. 5.10.4 Identify the uses of a pair of compasses 5.10.5 Use a pair of compass to draw a circle 5.10.6 Identify centre, diameter and radius of a circle",
-            "KNOWLEDGE": "• Identifying and drawing perpendicular and parallel lines using set squares. • Describing trapezium, rhombus and parallelogram • Drawing trapezium, rhombus and parallelogram • Identifying the uses of a pair of compasses. • Using a pair of compass to draw a circle. • Identifying centre, diameter and radius of a circle.",
+            "TOPIC": "5.10 PLANE SHAPES",
+            "SPECIFIC OUTCOMES": "5.10.1 Identify and draw perpendicular and parallel lines 5.10.2 Describe trapezium, rhombus and parallelogram 5.10.3 Draw trapezium, rhombus parallelogram. 5.10.4 Identify the uses of compasses 5.10.5 Use a pair of compass to draw a circle 5.10.6 Identify centre, diameter radius of a circle",
+            "KNOWLEDGE": "• Identifying and drawing perpendicular and parallel lines using set squares. • Describing trapezium, and rhombus and parallelogram • Drawing trapezium, rhombus a pair of and parallelogram • Identifying the uses of a pair of compasses. • Using a pair of compass to and draw a circle. • Identifying centre, diameter and radius of a circle.",
             "SKILLS": "• Drawing perpendicular and parallel lines • Drawing trapezium, rhombus and parallelogram. • Using and handling pair of compasses. and set squares appropriately",
             "VALUES": "• Appreciation in drawing plane shapes. • Curiosity in drawing circles."
           }
@@ -16170,41 +15969,27 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "",
             "TOPIC": "5.11 SOLID SHAPES",
             "SPECIFIC OUTCOMES": "5.11.1 Identify face, vertex and edges of cuboids and cubes 5.11.2 Draw nets of cuboids and cubes 5.11.3 Draw/sketch cuboid and cube",
             "KNOWLEDGE": "• Identifying face, vertex and edges on cuboids and cubes (by observing concrete/semi- concrete objects) • Number of vertices, edges and faces of cuboid and cubes • Describing a net of a cuboid and cube • Drawing nets of cuboids and cubes by unfolding them • Drawing/sketching cuboid and cube",
             "SKILLS": "• Identification of face, vertex and edges of cuboids and cubes • Drawing of nets of cuboids and cubes. • Drawing/sketching of cuboid and cube.",
-            "VALUES": "• Curiosity of different types of net from one cuboid or cube. • Appreciation in drawing plane shapes. • Curiosity in drawing circles."
+            "VALUES": "• Curiosity of different types of net from one cuboid or cube . • Appreciation in drawing plane shapes. • Curiosity in drawing circles."
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.12 MEASURES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "5.12.1 Find the perimeter of triangle, parallelograms, trapezium, rhombus and composite shapes 5.12.2 Derive formula for area of",
-            "KNOWLEDGE": "• Finding perimeter of triangle, parallelograms, trapezium, rhombus and composite shapes • Deriving formulae for area of",
-            "SKILLS": "• Calculation of perimeter of plane shapes. • Computation of area",
-            "VALUES": "• Curiosity of deriving formula for finding area."
+            "TOPIC": "5.12 MEASURES",
+            "SPECIFIC OUTCOMES": "5.12.1 Find the perimeter of triangle, parallelograms, trapezium, rhombus and composite shapes 5.12.2 Derive formula for area of triangle, parallelograms, trapezium and rhombus. 5.12.3 Calculate areas of triangle, parallelograms, trapezium, rhombus and composite shapes 5.12.4 Describe volume 5.12.5 Use standard units to measure 3 3 volume (cm , m ) 5.12.6 Relate volume to capacity 5.12.7 Derive the formulae for finding volume 5.12.8 Calculate the volume of cubes and cuboids",
+            "KNOWLEDGE": "• Finding perimeter of triangle, parallelograms, trapezium, rhombus and composite shapes • Deriving formulae for area of triangle, parallelograms, trapezium and rhombus • Calculating areas of triangle, parallelograms, trapezium, rhombus and composite shapes • Describing and using standard units to measure volume (cm 3 m ) • Relating volume to capacity 3 3 (cm , m , Milliliters, litres) • Formulae for finding volume • Deriving the formulae for volume (Cube and cuboid) • Calculating the volume of cubes and cuboids",
+            "SKILLS": "• Calculation of perimeter of plane shapes. • Computation of area of plane shapes. • Identification of volume and formulae for finding it. 3 ,",
+            "VALUES": "• Curiosity of deriving formula for finding area. • Awareness of volume of solids and capacity."
           }
         },
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "triangle, parallelograms, trapezium and rhombus. 5.12.3 Calculate areas of triangle, parallelograms, trapezium, rhombus and composite shapes 5.12.4 Describe volume 5.12.5 Use standard units to measure volume (cm3, m3) 5.12.6 Relate volume to capacity 5.12.7 Derive the formulae for finding volume 5.12.8 Calculate the volume of cubes and cuboids",
-            "KNOWLEDGE": "triangle, parallelograms, trapezium and rhombus • Calculating areas of triangle, parallelograms, trapezium, rhombus and composite shapes • Describing and using standard units to measure volume (cm3, m3) • Relating volume to capacity (cm3, m3, Milliliters, litres) • Formulae for finding volume • Deriving the formulae for volume (Cube and cuboid) • Calculating the volume of cubes and cuboids",
-            "SKILLS": "of plane shapes. • Identification of volume and formulae for finding it.",
-            "VALUES": "• Awareness of volume of solids and capacity."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.13 STATISTICS",
-            "TOPIC": "",
+            "TOPIC": "5.13 STATISTICS",
             "SPECIFIC OUTCOMES": "5.13.1 Understand stem-leaf plot and on a bar graph. 5.13.2 Collect and present data on a stem-leaf plot and on a bar graph",
             "KNOWLEDGE": "• Understanding of stem-leaf plot and on a bar graph. • Data collection and presentation (on a stem-leaf plot , and on a bar graph)",
             "SKILLS": "• Interpretation of graphs. • Representation of data bar graph",
@@ -16214,20 +15999,18 @@
         {
           "type": "data",
           "cells": {
-            "5.1 NUMBERS AND NOTATION": "5.14 RELATIONS AND MAPPINGS",
-            "TOPIC": "",
+            "TOPIC": "5.14 RELATIONS AND MAPPINGS",
             "SPECIFIC OUTCOMES": "5.14.1 Illustrate a one-to-many and many-to-one relations 5.14.2 Apply knowledge of relations and mappings in real life situations.",
             "KNOWLEDGE": "• One-to-many and many-to-one relations (involving “is A factor of” , “ is a multiple of ”, etc ) Domain: whole numbers up to 100 000 • Relations and mappings.",
             "SKILLS": "• Identification one- to-many and many- to-one relations. • Application of relations and mappings.",
             "VALUES": "• Appreciation of one-to-many and many-to- one relations"
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 5"
     },
     "Grade 6": {
-      "title": "GRADE 6",
       "columns": [
-        "6.1 INDEX NOTATION",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -16238,141 +16021,128 @@
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.1 INDEX NOTATION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.1.1 Describe index notation. 6.1.2 Change a number in index form to standard notation and vice versa. 6.1.3 Evaluate numbers in index notation with positive base and indices.",
-            "KNOWLEDGE": "• Describing index notation as the repetition of multiplication of numbers with the same base (2x2x2 = 2³) • Expanded notation with positive bases and powers ranging from 1 to 5 • Evaluating numbers in index notation with positive base and indices",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.1 INDEX NOTATION",
+            "SPECIFIC OUTCOMES": "6.1.1 Describe index notation. 6.1.2 Change a number in index form to expanded notation and vice versa. 6.1.3 Evaluate numbers in index notation with positive bases and indices.",
+            "KNOWLEDGE": "• Describing Index notation as the repetition of multiplication of numbers with the same base 3 (2x2x2 = 2 ). • Expanded notation with positive bases and powers ranging from 1 to 5. • Evaluating numbers in index notation with positive bases and indices.",
+            "SKILLS": "• Interpretation of the meaning of index notation • Computation of numbers in index notation",
+            "VALUES": "• Awareness of index notation"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.2 SETS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.2.1 Describe the intersection and union in a Venn diagram. 6.2.2 Use symbols of intersection, union and subset. 6.2.3 Find number of subsets of a given set using the formula 2ⁿ. 6.2.4 Apply the knowledge of sets in real life situations.",
-            "KNOWLEDGE": "• Intersection (including subset and disjoint sets) and union set in a Venn diagram • Symbolisation of intersection, union and subset • Subsets of a given set by listing and using the formula 2ⁿ • Applying the knowledge of sets in real life situations (intersection, union and subset)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.2 SETS",
+            "SPECIFIC OUTCOMES": "6.2.1 Describe the intersection, union in a Venn diagram. 6.2.2 Use symbols of intersection \"∩\", union \"U\" (and subset “ ⊂ ” as recap). 6.2.3 Find number of subsets of a given set using the formula n 2 . 6.2.4 Apply the knowledge of sets in real life situations.",
+            "KNOWLEDGE": "• The intersection (includes the set within a set- subset and disjoint sets) and union set in a Venn diagrams. • Intersection, union sets and subset including. Symbolisation (intersection \"∩\", union \"U\" (and subset “ ⊂ ” as recap). • Subsets of a given set by listing and using the formula n 2 . • Applying the knowledge of sets in real life situations (i.e. intersection, union, and subset).",
+            "SKILLS": "• Interpretation of intersection and union sets. • Communication through the use of correct intersection and union symbols. • Illustration of intersection and union on a Venn diagram • Computation of subsets in given set.",
+            "VALUES": "• Appreciation of relationship between listing and the formula method of finding subsets. • Awareness of the subset computation method."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.3 PRIME FACTORS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.3.1 Identify prime and composite numbers. 6.3.2 Identify prime factors of given numbers.",
+            "TOPIC": "6.3 PRIME FACTORS",
+            "SPECIFIC OUTCOMES": "6.3.1 Describe and list prime and composite numbers. 6.3.2 Identify prime factors of given numbers",
             "KNOWLEDGE": "• Prime and composite numbers • Prime factors of given numbers • Express a number as a product of its prime factors",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "SKILLS": "• Identification of prime factors • Representation of a number as a product of its prime factors",
+            "VALUES": "• Curiosity in exploring prime factors"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.4 FRACTIONS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.4.1 Multiply fractions by whole numbers. 6.4.2 Multiply a fraction by another fraction. 6.4.3 Divide fractions by whole numbers. 6.4.4 Divide whole numbers by fractions. 6.4.5 Divide fractions by fractions. 6.4.6 Apply fractions to solve problems in real life.",
-            "KNOWLEDGE": "• Understanding the concept of multiplication of fractions • Multiplying fractions by whole numbers and a fraction by another fraction • Understanding the concept of division of fractions • Dividing fractions by whole numbers, whole numbers by fractions, and a fraction by another fraction • Applying multiplication and division of fractions to solve problems in real life",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.4 FRACTIONS",
+            "SPECIFIC OUTCOMES": "6.4.1 Multiply fractions by whole numbers 6.4.2 Multiply a fraction by another fraction. 6.4.3 Divide fractions by whole numbers 6.4.4 Divide whole numbers by fractions 6.4.5 Divide a fraction by another fraction 6.4.6 Apply fractions to solve problems in real life",
+            "KNOWLEDGE": "• Understanding the concept of multiplication of fractions • Multiplying fractions by whole numbers • Multiplying a fraction another fraction. • Understanding the concept of division of fractions • Dividing fractions by whole numbers • Dividing whole numbers by fractions • Dividing a fraction another fraction • Applying multiplication and division of fractions to solve problems in real life",
+            "SKILLS": "• Multiplication and Division of fractions • Application of multiplication by and division of fractions in real life by",
+            "VALUES": "• Accuracy in multiplication and division of fractions"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.5 DECIMALS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.5.1 Describe decimal numbers by their names (up to 3 decimal places). 6.5.2 Add and subtract decimal numbers up to 3 decimal places. 6.5.3 Multiply decimal numbers. 6.5.4 Divide decimal numbers by decimal numbers (up to 3 decimal places, including remainder).",
-            "KNOWLEDGE": "• Describing decimal numbers by their names (up to 3 decimal places) • Adding and subtracting decimal numbers up to 3 decimal places • Multiplication and division of decimals up to 3 decimal places",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.5 DECIMALS",
+            "SPECIFIC OUTCOMES": "6.5.1 Describe decimal by their names (up decimal places) 6.5.2 Add and subtract numbers up to 3 places 6.5.3 Multiply decimal by decimal numbers 6.5.4 Divide decimal numbers by decimal numbers (up decimal (INCLUDING REMAINDER)",
+            "KNOWLEDGE": "numbers • Describing decimal numbers to 3 by their names (up to 3 decimal places) decimal • Adding and subtracting decimal decimal numbers up to 3 decimal places numbers • Multiplication and division of decimals up to 3 decimal places to 3 places",
+            "SKILLS": "• Accuracy in Computation of problems involving decimal numbers • Problem solving in real life situations.",
+            "VALUES": "• Curiosity in decimal numbers and their use. • Team work through cooperative learning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.6 APPROXIMATION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.6.1 Round off to the nearest unit. 6.6.2 Round off to the nearest decimal places. 6.6.3 Solve simple problems involving required number of decimal places.",
-            "KNOWLEDGE": "• Rounding off to the nearest ten, hundred and thousand • Rounding off to the given decimal places (1, 2 and 3 decimal places) • Applying approximation in real life situations • Relating approximation with measurements",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.6 APPROXIMATION",
+            "SPECIFIC OUTCOMES": "6.6.1 Round off to the nearest unit. 6.6.2 Round off to the nearest decimal places 6.6.3 Solve simple problems involving rounding off quantities to required number of decimal places",
+            "KNOWLEDGE": "• Rounding off to the nearest ten, hundred, thousand • Rounding off to the given decimal places (1, 2 and 3 decimal places) • Applying approximation in real life situations involving rounding off to required number of decimal places. • Relating approximation with measurements",
+            "SKILLS": "• Estimation of quantities in real life • Application of rounding off in real life",
+            "VALUES": "• Decision-making in approximating quantities • Team work through cooperative learning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.7 RATIO AND PROPORTION",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.7.1 Describe ratio and direct proportion. 6.7.2 Differentiate between ratio and direct proportion. 6.7.3 Express a given ratio in its lowest term. 6.7.4 Solve problems involving ratio and direct proportion.",
-            "KNOWLEDGE": "• Describing ratio and direct proportion • Relating ratio and direct proportion with number patterns and mappings • Reduction of ratio to lowest term • Unitary and proportional methods • Real life problems involving direct proportion (e.g. exchange rates, measures)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.7 RATIO AND PROPORTION",
+            "SPECIFIC OUTCOMES": "6.7.1 Describe ratio and direct proportion 6.7.2 Differentiate between ratio and direct proportion 6.7.3 Express a given ratio in its lowest term 6.7.4 Solve problems involving ratio and direct proportion.",
+            "KNOWLEDGE": "• Describing ratio and direct proportion • Relating ratio and direct proportion with number patterns, relations and mappings. • Relationship between ratio and direct proportion • Reduction of ratio to lowest term • Unitary and proportional methods • Real life problems involving direct proportion (e.g. exchange rates, measures)",
+            "SKILLS": "• Interpretation of the meaning of proportional parts • Computation of problems involving ratio and direct proportion • Application of ratio and proportion in solving real life problems",
+            "VALUES": "• Team work through cooperative learning • Accuracy in computations"
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.8 SOCIAL AND COMMERCIAL ARITHMETIC",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.8.1 Describe cost price, selling price, profit and loss. 6.8.2 Calculate cost price, selling price, profit and loss. 6.8.3 Calculate simple interest, discount, and profit and loss percentage. 6.8.4 Carry out calculations involving transportation.",
-            "KNOWLEDGE": "• Cost price (CP) and Selling price • Profit and loss • Calculations involving cost price, selling price, profit and loss in real life • Time tabling in transportation; Fare chart (bus, train, marine and air) • Distance charts (ready reckoner)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.8 SOCIAL AND COMMERCIAL ARITHMETIC",
+            "SPECIFIC OUTCOMES": "6.8.1 Describe cost price, price, profit and loss 6.8.2 Calculate cost price, price, profit and loss 6.8.3 Calculate simple interest, discount, and profit and loss percentage. 6.8.4 Carry out calculations involving transportation",
+            "KNOWLEDGE": "selling • Cost price (CP) and Selling price selling • Profit and loss • Calculations involving cost price, selling price, profit and loss in real life situations. • Time tabling in transportation, Fare chart (Bus, train, marine and air) • Distance charts (ready reckoner)",
+            "SKILLS": "• Computation of cost price, selling price, profit and loss, and simple interest • Application in transportation, entrepreneurship and banks. • Interpretation of transportation charts.",
+            "VALUES": "• Teamwork and role- play in selling and buying. • Decision making in entrepreneurship. • Awareness of profit and lose in real life situations."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.9 STATISTICS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.9.1 Describe averages or measures of central tendency. 6.9.2 Solve problems involving averages.",
-            "KNOWLEDGE": "• Averages or measures of central tendency (mean, mode and median) • Problems involving averages",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.9 STATISTICS",
+            "SPECIFIC OUTCOMES": "6.9.1 Describe averages or measures of central tendency 6.9.2 Solve problems involving averages",
+            "KNOWLEDGE": "• Averages or measures of central tendency (Mean, mode and median) • Problems involving averages",
+            "SKILLS": "• Interpretation of measures of central tendency • Computation of average or mean. • Analysis of measures to find mode and median.",
+            "VALUES": "• Problem solving real life situations."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.10 LINEAR EQUATIONS IN ONE VARIABLE",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.10.1 Describe an open sentence. 6.10.2 Solve linear equations in one variable.",
+            "TOPIC": "6.10 LINEAR EQUATIONS IN ONE VARIABLE",
+            "SPECIFIC OUTCOMES": "6.10.1 Describe an open sentences 6.10.2 Solve linear equations in one variable",
             "KNOWLEDGE": "• Open sentences • Linear equations in one variable • Applying linear equations in one variable in real life situations",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "SKILLS": "• Interpretation of open sentences. • Representation of problems into linear equations in one variable. • Solving linear equations in one variable.",
+            "VALUES": "• Appreciation of linear equations in solving problems. • Accuracy in solving linear equations."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.11 PLANE SHAPES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.11.1 Identify regular polygons up to six sides. 6.11.2 Draw pentagon and hexagon.",
-            "KNOWLEDGE": "• Identifying regular polygons up to six sides • Drawing pentagon and hexagon using set square, protractor and compass",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.11 PLANE SHAPES",
+            "SPECIFIC OUTCOMES": "6.11.1 Identify regular polygons up to six sides 6.11.2 Draw pentagon and hexagon.",
+            "KNOWLEDGE": "• Identifying regular polygons up to six sides. • Drawing pentagon and hexagon using set square, protractor and compass",
+            "SKILLS": "• Identification of regular polygons up to six sides • Construction of pentagon and hexagon.",
+            "VALUES": "• Appreciation of constructing shapes. • Accuracy in constructing plane shapes."
           }
         },
         {
           "type": "data",
           "cells": {
-            "6.1 INDEX NOTATION": "6.12 MEASUREMENT",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "6.12.1 Find the total length of edges of cube and cuboid. 6.12.2 Find the total surface area of cube and cuboid. 6.12.3 Describe the meaning of speed. 6.12.4 Calculate speed using distance and time.",
-            "KNOWLEDGE": "• Faces, vertices and edges of cube and cuboid • Total length of edges of cube and cuboid • Total surface area of cube and cuboid • Meaning of speed (at this level avoid use of average speed) • Calculating speed, distance and time using their relationship (s × t = d)",
-            "SKILLS": "Application of knowledge",
-            "VALUES": "Awareness and accuracy"
+            "TOPIC": "6.12 MEASUREMENT",
+            "SPECIFIC OUTCOMES": "6.12.1 Find the total length of edges of cube and cuboid 6.12.2 Find the total surface area of cube and cuboid 6.12.3 Describe the meaning",
+            "KNOWLEDGE": "• Faces, vertices and edges of solids • Total length of edges of cube and cuboid of",
+            "SKILLS": "• Computation of total surface area of cube and cuboid. • Interpretation of",
+            "VALUES": "• Interest of calculations of surface area • Awareness of speed"
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 6"
     },
     "Grade 7": {
-      "title": "MATHEMATICS SYLLABUS  —  GRADE 7",
       "columns": [
-        "7.1 FRACTIONS",
         "TOPIC",
         "SPECIFIC OUTCOMES",
         "KNOWLEDGE",
@@ -16383,8 +16153,7 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.1 FRACTIONS",
-            "TOPIC": "",
+            "TOPIC": "7.1 FRACTIONS",
             "SPECIFIC OUTCOMES": "7.1.1 Solve problems involving addition, subtraction, multiplication and division of fractions (as recap)",
             "KNOWLEDGE": "• Addition and subtraction of fractions • Multiplication and division of fractions • Practical problems involving four rules on fractions",
             "SKILLS": "• Application of fractions to practical problems",
@@ -16394,8 +16163,7 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.2 DECIMALS",
-            "TOPIC": "",
+            "TOPIC": "7.2 DECIMALS",
             "SPECIFIC OUTCOMES": "7.2.1 Solve problems involving addition, subtraction, multiplication and division of decimal (as recap) 7.2.2 Convert common fractions to decimals and vice versa. 7.2.3 Order Fractions and decimals",
             "KNOWLEDGE": "• Addition, subtraction, multiplication and division of decimals up to 4 decimal places • Conversions of fractions to decimals and vice versa • Ordering vulgar and decimal fractions (either descending or ascending order) • Using the symbols (>, <, = ) in comparing fractions",
             "SKILLS": "• Conversion from fractions to decimals. • Computation involving decimals • Ordering fractions and decimals",
@@ -16405,30 +16173,17 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.3 PERCENTAGES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "7.3.1 Describe a percentage 7.3.2 Convert decimals to percentages and vice versa. 7.3.3 Convert common fractions to percentages and vice versa. 7.3.4 Solve problems involving percentages. 7.3.5 Relate fractions, decimals and percentages to real life situations",
-            "KNOWLEDGE": "• Percentage (as fraction of hundred) • Converting decimals to percentages and vice versa • Conversion of common fractions to percentages and vice versa • Problems involving addition, subtraction, multiplication and division of percentages • Fractions, decimals and percentages in real life",
+            "TOPIC": "7.3 PERCENTAGES",
+            "SPECIFIC OUTCOMES": "7.3.1 Describe a percentage 7.3.2 Convert decimals to percentages and vice versa. 7.3.3 Convert common fractions to percentages and vice versa. 7.3.4 Solve problems involving percentages. 7.3.5 Relate fractions, and percentages to real life situations",
+            "KNOWLEDGE": "• Percentage (as fraction of hundred) • Converting decimals to percentages and vice versa • Conversion of common fractions to percentages and vice versa decimals • Problems involving addition, subtraction, multiplication and division of percentages • Fractions, decimals and percentages in real life",
             "SKILLS": "• Computation of percentage, decimals and fractions • Application of percentage, decimals and fractions in real life • Conversion between fractions, percentages and decimals",
-            "VALUES": "• Awareness of importance of percentage, fractions and decimals in real life • Curiosity in working with percentages, decimals and fractions in real life • Team work"
+            "VALUES": "• Awareness of importance of percentage, fractions and decimals in real life • Curiosity in working with percentages, decimals and fractions in real life • Team work through cooperative learning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "SKILLS": "",
-            "VALUES": "through cooperative learning"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "7.1 FRACTIONS": "7.4 RATIO AND PROPORTION",
-            "TOPIC": "",
+            "TOPIC": "7.4 RATIO AND PROPORTION",
             "SPECIFIC OUTCOMES": "7.4.1 Solve problems involving direct proportion (as recap) 7.4.2 Describe indirect proportion. 7.4.3 Solve problems involving indirect proportion 7.4.4 Draw graphs to illustrate quantities in direct and indirect proportion.",
             "KNOWLEDGE": "• direct proportion (as recap) • Describing indirect proportion • Indirect proportions using the fraction and proportional methods • Drawing graphs to illustrate quantities in direct and indirect proportion • Problems involving ratio and proportion in real life situation",
             "SKILLS": "• Interpretation of the meaning of indirect proportion • Computation of problems involving indirect proportion • Representation of quantities in indirect proportion • Application of direct and indirect proportion in solving real life problems",
@@ -16438,8 +16193,7 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.5 SOCIAL & COMMERCIAL ARITHMETIC",
-            "TOPIC": "",
+            "TOPIC": "7.5 SOCIAL & COMMERCIAL ARITHMETIC",
             "SPECIFIC OUTCOMES": "7.5.1 Conversion of currencies 7.5.2 Calculate the cost of goods priced in foreign currency.",
             "KNOWLEDGE": "• Buying and selling of foreign currency • Conversion of currencies (from local to foreign currency and vice versa).",
             "SKILLS": "• Computation of buying and selling of foreign currency. • Entrepreneurship involving cost of goods priced in foreign currency.",
@@ -16449,10 +16203,9 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.6 INTEGERS",
-            "TOPIC": "",
+            "TOPIC": "7.6 INTEGERS",
             "SPECIFIC OUTCOMES": "7.6.1 Understand integers 7.6.2 Illustrate positive and negative numbers using the number line. 7.6.3 Order integers 7.6.4 Add integers 7.6.5 Subtract integers",
-            "KNOWLEDGE": "• Understanding positive and negative numbers • Relating integers with addition and subtraction of whole numbers using number line. • Illustrating positive and negative numbers on the number line • Ordering integers",
+            "KNOWLEDGE": "• Understanding positive and negative numbers • Relating integers with addition and subtraction of whole numbers using number line. • Illustrating positive and negative numbers on the number line • Ordering integers • Addition of integers using the number line • Addition of integers without using the number line • Subtraction of integers using the number line • Subtraction of integers without using the number line • Relating Integers to real life situations (e.g. profit and loss, temperature)",
             "SKILLS": "• Representation of integers on the number line. • Accuracy of addition and subtraction of integers.",
             "VALUES": "• Appreciation of calculations using the number line • Awareness of ordering of integers."
           }
@@ -16460,19 +16213,7 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Addition of integers using the number line • Addition of integers without using the number line • Subtraction of integers using the number line • Subtraction of integers without using the number line • Relating Integers to real life situations (e.g. profit and loss, temperature)",
-            "SKILLS": "",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "7.1 FRACTIONS": "7.7 NUMBER BASES",
-            "TOPIC": "",
+            "TOPIC": "7.7 NUMBER BASES",
             "SPECIFIC OUTCOMES": "7.7.1 Illustrate base ten numeration system 7.7.2 Describe other number bases 7.7.3 Convert from Base 10 to Bases 2, 5 and 8. 7.7.4 Convert from Bases 2 , 5 and 8 to Base 10. 7.7.5 Convert from base 2 to base 5 and vice versa 7.7.6 Add and subtract in Bases 2, 5 and 8.",
             "KNOWLEDGE": "• Base ten numeration (place values) • Numeration in other bases (2, 5 and 8) • Conversion from Base 10 to Bases 2, 5 and 8 and vice versa. • Conversion from base 2 to base 5 and vice versa. • Addition and subtraction of numbers in Bases 2, 5 and 8",
             "SKILLS": "• Representation of numbers to other numeration systems • Conversions of bases from one base to the other. • Addition and subtraction of number bases.",
@@ -16482,8 +16223,7 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.8 NUMBER AND SEQUENCES",
-            "TOPIC": "",
+            "TOPIC": "7.8 NUMBER AND SEQUENCES",
             "SPECIFIC OUTCOMES": "7.8.1 Describe perfect squares 7.8.2 Find squares of whole numbers 7.8.3 Describe cubes 7.8.4 Find cubes of whole numbers. 7.8.5 Generate a sequence in a decreasing and increasing order. 7.8.6 Generate series",
             "KNOWLEDGE": "• Square and squared whole numbers. • Cubes and Cubed whole numbers. • Triangular whole numbers • Identification of sequences. • Generating a rule from given sequence and vice versa • Generation of series (use ideas such as Fibonacci series).",
             "SKILLS": "• Identification of squared and cubed numbers • Computation of squared and cubed whole numbers. • Generation of sequence and series.",
@@ -16493,21 +16233,19 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.9 INEQUATIONS",
-            "TOPIC": "",
+            "TOPIC": "7.9 INEQUATIONS",
             "SPECIFIC OUTCOMES": "7.9.1 Describe an open sentence 7.9.2 Solve simple linear inequations in one variable.",
-            "KNOWLEDGE": "• Open sentences • Simple linear inequations in one variable • Show the solutions on the number line.",
-            "SKILLS": "• Representation of an open sentence. • Computation of simple linear inequations in one variable.",
+            "KNOWLEDGE": "• Open sentences • Simple linear inequations in one variable • Show the solutions on number line.",
+            "SKILLS": "• Representation of an open sentence. • Computation of the simple linear inequations in one variable.",
             "VALUES": "• Appreciation of linear equations. • Awareness of open sentences."
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.10 PLANE SHAPES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "7.10.1 Describe line symmetry 7.10.2 Draw lines of symmetry of plane shape. 7.10.3 Establish the relationship between circumference and diameter",
-            "KNOWLEDGE": "• Describing line symmetry through demonstration (paper folding) • Completing symmetrical shapes (folded along line of symmetry) • Drawing lines of symmetry of plane shape (e.g. square, rectangle, circle) • Establishing the relationship between circumference and diameter (using experiment with cylindrical objects) [constant pi (π = 3.14)]",
+            "TOPIC": "7.10 PLANE SHAPES",
+            "SPECIFIC OUTCOMES": "7.10.1 Describe line symmetry 7.10.2 Draw lines of symmetry of plane shape. 7.10.3 Establish the relationship between circumference diameter",
+            "KNOWLEDGE": "• Describing line symmetry through demonstration (paper folding) • Completing symmetrical shapes and (folded along line of symmetry) • Drawing lines of symmetry of plane shape (e.g. square, rectangle, circle) • Establishing the relationship between circumference and diameter (using experiment with cylindrical objects) [constant pi ( π = 3.14)]",
             "SKILLS": "• Identification of line of symmetry. • Interpretation of relationship between diameter and circumference.",
             "VALUES": "• Curiosity of finding lines of symmetry. • Awareness of relationship between diameter and circumference. • Teamwork in finding relationship between diameter and circumference."
           }
@@ -16515,10 +16253,9 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.11 MEASUREMENT",
-            "TOPIC": "",
+            "TOPIC": "7.11 MEASUREMENT",
             "SPECIFIC OUTCOMES": "7.11.1 Calculate circumference, using radius or diameter of the circle. 7.11.2 Calculate the area of a circle",
-            "KNOWLEDGE": "• Circumference, using radius or diameter of the circle [constant pi (π = 3.14)]. • Establishing the formula for the area of circle (by demonstration) • Calculating the area of a circle [constant pi (π = 3.14)]",
+            "KNOWLEDGE": "• Circumference, using radius or diameter of the circle [constant pi ( π = 3.14)]. • Establishing the formula for the area of circle (by demonstration) • Calculating the area of a circle [constant pi ( π = 3.14)]",
             "SKILLS": "• Computation of circumference and area of circle.",
             "VALUES": "• Curiosity in establishing the formula of area of circle."
           }
@@ -16526,37 +16263,25 @@
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "7.12 SOLID SHAPES",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "7.12.1 Identify a cylinder and",
-            "KNOWLEDGE": "• Identifying a cylinder and",
-            "SKILLS": "• Identification of",
-            "VALUES": "• Curiosity if"
+            "TOPIC": "7.12 SOLID SHAPES",
+            "SPECIFIC OUTCOMES": "7.12.1 Identify a cylinder and triangular prism 7.12.2 Draw nets of cylinder and triangular prism 7.12.3 Draw/sketch cylinder and triangular prism",
+            "KNOWLEDGE": "• Identifying a cylinder and triangular prism • Drawing of nets of cylinder and triangular prism • Draw/sketch cylinder and triangular prism",
+            "SKILLS": "• Identification of cylinder and triangular prism. • Drawing cylinders and prisms and their nets.",
+            "VALUES": "• Curiosity if drawing nets of cylinders and prisms. • Appreciation of drawing of cylinders and prisms."
           }
         },
         {
           "type": "data",
           "cells": {
-            "7.1 FRACTIONS": "",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "triangular prism 7.12.2 Draw nets of cylinder and triangular prism 7.12.3 Draw/sketch cylinder and triangular prism",
-            "KNOWLEDGE": "triangular prism • Drawing of nets of cylinder and triangular prism • Draw/sketch cylinder and triangular prism",
-            "SKILLS": "cylinder and triangular prism. • Drawing cylinders and prisms and their nets.",
-            "VALUES": "drawing nets of cylinders and prisms. • Appreciation of drawing of cylinders and prisms."
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "7.1 FRACTIONS": "7.13 STATISTICS",
-            "TOPIC": "",
-            "SPECIFIC OUTCOMES": "7.13.1 Interpret data on charts (pie chart, line graph, bar/ line graph, frequency table) 7.13.2 Collect and present data on a pictograph, pie chart, bar chart, line graph and frequency tables. 7.13.3 Calculate Mean, Mode and Median 7.13.4 Calculate averages as applied to mass, money, time, temperature and speed.",
-            "KNOWLEDGE": "• Data Interpretation • Data collection • Data presentation on pictograph, pie chart, bar chart, line graph and frequency tables presentation • Mean, Mode, Median as applied in real life situations • Averages as applied to mass, money, time, temperature and speed.",
-            "SKILLS": "• Interpretation of data in a charts and graphs • Presentation of data in a charts and graphs. • Computation of Mean, Mode and Median.",
+            "TOPIC": "7.13 STATISTICS",
+            "SPECIFIC OUTCOMES": "7.13.1 Interpret data on (pie chart, line graph, bar/ line graph, frequency table) 7.13.2 Collect and present on a pictograph, pie chart, bar chart, line graph frequency tables. 7.13.3 Calculate Mean, Mode and Median 7.13.4 Calculate averages as applied to mass, money, time, temperature and speed.",
+            "KNOWLEDGE": "charts • Data Interpretation • Data collection • Data presentation on data pictograph, pie chart, bar chart, line graph and frequency tables and presentation • Mean, Mode, Median as applied in real life situations • Averages as applied to mass, money, time, temperature and speed.",
+            "SKILLS": "• Interpretation of data in a charts and graphs • Presentation of data in a charts and graphs. • C omputation of Mean, Mode and Median.",
             "VALUES": "• Accuracy in the computation of Mean, Mode and Median • Logical thinking in the application of averages in measures."
           }
         }
-      ]
+      ],
+      "title": "MATHEMATICS SYLLABUS  —  GRADE 7"
     }
   },
   "Mathematics Syllabus (Grades 10-12, 2013)": {
