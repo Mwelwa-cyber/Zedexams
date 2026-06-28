@@ -1,16 +1,21 @@
 /**
  * StudioShell — layout wrapper for the Lesson Plan Studio.
  *
- * Renders a full-screen flex row: the sidebar on the left and the canvas
- * on the right. Each child owns its own width and scroll behaviour.
+ * Responsive two-pane layout:
+ *   - Desktop (md+): a full-height flex ROW — sidebar on the left, canvas on
+ *     the right — each pane scrolling internally (h-screen + overflow-hidden).
+ *   - Mobile (< md): a flex COLUMN — the form sidebar stacks ABOVE the canvas
+ *     and the whole page scrolls naturally. The previous row-only layout kept
+ *     the sidebar's min-width and squeezed the canvas (the generated plan) off
+ *     the right edge of the phone, so the plan rendered but was invisible.
  *
  * Props:
- *   sidebar  — ReactNode  left panel (StudioSidebar)
- *   canvas   — ReactNode  right panel (StudioCanvas)
+ *   sidebar  — ReactNode  left/top panel (StudioSidebar)
+ *   canvas   — ReactNode  right/bottom panel (StudioCanvas)
  */
 export function StudioShell({ sidebar, canvas }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#faf7f2]">
+    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#faf7f2]">
       {sidebar}
       {canvas}
     </div>
