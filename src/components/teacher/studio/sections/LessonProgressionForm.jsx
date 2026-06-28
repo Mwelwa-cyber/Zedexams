@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LessonBreakdownItem } from '../cards/LessonBreakdownItem.jsx'
 
 // ── Shared style constants ────────────────────────────────────────────────────
@@ -56,107 +56,107 @@ function deleteItem(arr, index) {
 
 // ── AI recommendation panel ───────────────────────────────────────────────────
 
-function RecommendationPanel({ recommendation, loading, error, onFetchRecommendation, onAccept }) {
-  const [showCountInput, setShowCountInput] = useState(false)
-  const [customCount, setCustomCount] = useState('')
+function RecommendationPanel({ recommendation, loading, error, onFetchRecommendation, onAccept, currentCount }) {
+  // The manual count input. Seeded from the suggestion (or the current
+  // breakdown length, or a sensible default) and always available — so a
+  // teacher can build a series whether or not a suggestion is present. This is
+  // the fallback that keeps Lesson Series mode usable; previously the only way
+  // to set a count lived inside the suggestion panel, so a missing/failed
+  // suggestion left the Generate button permanently disabled.
+  const [count, setCount] = useState('')
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2.5 text-[13px] text-indigo-700">
-        {/* Spinner */}
-        <svg
-          className="h-4 w-4 animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          aria-hidden="true"
-        >
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
-        Getting AI recommendation…
-      </div>
-    )
+  useEffect(() => {
+    const seed = recommendation?.count ?? (currentCount > 0 ? currentCount : 2)
+    setCount(String(seed))
+  }, [recommendation?.count, currentCount])
+
+  function build() {
+    const n = parseInt(count, 10)
+    if (n > 0) onAccept(n)
   }
-
-  if (error) {
-    return (
-      <div className="space-y-2 rounded-lg bg-red-50 px-3 py-2.5">
-        <p className="text-[13px] text-red-700">{error}</p>
-        <button
-          type="button"
-          onClick={onFetchRecommendation}
-          className="rounded bg-red-100 px-2.5 py-1 text-[12px] font-semibold text-red-700 hover:bg-red-200"
-        >
-          Retry
-        </button>
-      </div>
-    )
-  }
-
-  if (!recommendation) return null
 
   return (
-    <div className="space-y-2 rounded-lg bg-indigo-50 px-3 py-2.5">
-      <p className="text-[13px] font-semibold text-indigo-800">
-        AI recommends {recommendation.count} lesson{recommendation.count !== 1 ? 's' : ''} for this topic
-      </p>
-      <p className="text-[12px] text-[#7a6d5d]">{recommendation.reason}</p>
+    <div className="space-y-2">
+      {/* AI suggestion — optional adornment, never required to proceed */}
+      {loading && (
+        <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2.5 text-[13px] text-indigo-700">
+          <svg
+            className="h-4 w-4 animate-spin"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+          Getting AI recommendation…
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-2 pt-1">
-        <button
-          type="button"
-          onClick={() => onAccept(recommendation.count)}
-          className="rounded bg-indigo-600 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-indigo-700"
-        >
-          Accept ({recommendation.count} lesson{recommendation.count !== 1 ? 's' : ''})
-        </button>
+      {!loading && error && (
+        <div className="space-y-2 rounded-lg bg-red-50 px-3 py-2.5">
+          <p className="text-[13px] text-red-700">{error}</p>
+          <button
+            type="button"
+            onClick={onFetchRecommendation}
+            className="rounded bg-red-100 px-2.5 py-1 text-[12px] font-semibold text-red-700 hover:bg-red-200"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-        <button
-          type="button"
-          onClick={() => setShowCountInput((v) => !v)}
-          className="rounded border border-indigo-300 bg-white px-2.5 py-1 text-[12px] font-semibold text-indigo-700 hover:bg-indigo-50"
-        >
-          Change Count
-        </button>
+      {!loading && recommendation && (
+        <div className="space-y-2 rounded-lg bg-indigo-50 px-3 py-2.5">
+          <p className="text-[13px] font-semibold text-indigo-800">
+            AI recommends {recommendation.count} lesson{recommendation.count !== 1 ? 's' : ''} for this topic
+          </p>
+          <p className="text-[12px] text-[#7a6d5d]">{recommendation.reason}</p>
 
-        <button
-          type="button"
-          onClick={onFetchRecommendation}
-          className="rounded border border-[#d9cfbe] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#7a6d5d] hover:bg-[#f0ebe2]"
-        >
-          Get New Suggestion
-        </button>
-      </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => onAccept(recommendation.count)}
+              className="rounded bg-indigo-600 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-indigo-700"
+            >
+              Accept ({recommendation.count} lesson{recommendation.count !== 1 ? 's' : ''})
+            </button>
 
-      {showCountInput && (
-        <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onFetchRecommendation}
+              className="rounded border border-[#d9cfbe] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#7a6d5d] hover:bg-[#f0ebe2]"
+            >
+              Get New Suggestion
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual count builder — ALWAYS available so series mode never blocks */}
+      <div className="space-y-1.5 rounded-lg border border-[#d9cfbe] bg-white px-3 py-2.5">
+        <label htmlFor="lpf-count" className={LABEL_CLS}>Number of lessons</label>
+        <div className="flex items-center gap-2">
           <input
+            id="lpf-count"
             type="number"
             min={1}
             max={20}
-            value={customCount}
-            onChange={(e) => setCustomCount(e.target.value)}
-            placeholder="Count…"
-            aria-label="Custom lesson count"
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            aria-label="Number of lessons"
             className="w-20 rounded border border-[#d9cfbe] px-2 py-1 text-[13px] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
           <button
             type="button"
-            onClick={() => {
-              const n = parseInt(customCount, 10)
-              if (n > 0) {
-                onAccept(n)
-                setShowCountInput(false)
-                setCustomCount('')
-              }
-            }}
+            onClick={build}
             className="rounded bg-indigo-600 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-indigo-700"
           >
-            Set
+            Build lessons
           </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -322,6 +322,7 @@ export function LessonProgressionForm({
                 error={error}
                 onFetchRecommendation={onFetchRecommendation}
                 onAccept={handleAccept}
+                currentCount={lessonBreakdown.length}
               />
             </>
           )}

@@ -315,6 +315,54 @@ describe('LessonProgressionForm — accept generates breakdown', () => {
   })
 })
 
+// ── Manual count builder (always available in series mode) ────────────────────
+
+describe('LessonProgressionForm — manual count builder', () => {
+  it('shows the manual "Number of lessons" builder in series mode with no recommendation', () => {
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: null,
+      loading: false,
+      error: null,
+    })
+    expect(screen.getByRole('spinbutton', { name: /number of lessons/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /build lessons/i })).toBeInTheDocument()
+  })
+
+  it('does not show the manual builder in single mode', () => {
+    renderForm({ lessonSeries: { ...DEFAULT_SERIES, planningMode: 'single' } })
+    expect(screen.queryByRole('button', { name: /build lessons/i })).not.toBeInTheDocument()
+  })
+
+  it('builds a breakdown of the typed count even without a recommendation', () => {
+    const onUpdateBreakdown = vi.fn()
+    const onUpdateSeries = vi.fn()
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: null,
+      onUpdateBreakdown,
+      onUpdateSeries,
+    })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /number of lessons/i }), {
+      target: { value: '4' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /build lessons/i }))
+    expect(onUpdateBreakdown).toHaveBeenCalledTimes(1)
+    expect(onUpdateBreakdown.mock.calls[0][0]).toHaveLength(4)
+    expect(onUpdateSeries).toHaveBeenCalledWith('totalLessons', 4)
+  })
+
+  it('still offers the manual builder when the suggestion errors', () => {
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      error: 'functions/unavailable',
+    })
+    // Error is shown, but the manual path is still available (not blocked).
+    expect(screen.getByText('functions/unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /build lessons/i })).toBeInTheDocument()
+  })
+})
+
 // ── Breakdown list renders ────────────────────────────────────────────────────
 
 describe('LessonProgressionForm — breakdown list renders', () => {
