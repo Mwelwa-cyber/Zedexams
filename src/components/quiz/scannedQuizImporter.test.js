@@ -253,6 +253,25 @@ test('visionSectionsToLocal forces blank answers + review on every question', ()
   assert.equal(q.sourceQuestionNumber, 1)
 })
 
+test('visionSectionsToLocal maps the backend question type + marks onto the editor', () => {
+  const { sections } = visionSectionsToLocal(
+    [
+      // backend types fold to editor vocabulary: short_answer→short_answer,
+      // true_false→tf, fill_blank→fill_blanks.
+      { kind: 'standalone', question: { text: 'Explain photosynthesis.', options: [], type: 'short_answer', marks: 4 } },
+      { kind: 'standalone', question: { text: 'The sun is a star.', options: ['True', 'False'], type: 'true_false' } },
+      { kind: 'standalone', question: { text: 'Water boils at ____.', options: [], type: 'fill_blank' } },
+    ],
+    {},
+    fakeDeps,
+  )
+  assert.equal(sections[0].question.type, 'short_answer')
+  assert.equal(sections[0].question.marks, 4)
+  assert.deepEqual(sections[0].question.options, []) // written answer → no options
+  assert.equal(sections[1].question.type, 'tf')
+  assert.equal(sections[2].question.type, 'fill_blanks')
+})
+
 test('visionSectionsToLocal builds a comprehension passage with grouped questions', () => {
   const { sections } = visionSectionsToLocal(
     [{ kind: 'passage', passageKind: 'comprehension', title: 'The Lion', passageText: 'Once...', questions: [mcq({ text: 'Who?' }), mcq({ text: 'Where?' })] }],

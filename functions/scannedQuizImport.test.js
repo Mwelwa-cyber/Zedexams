@@ -604,4 +604,76 @@ test("the OCR schema and prompt include diagram detection", () => {
   assert.match(CLAUDE_SYSTEM_PROMPT, /complexity/);
 });
 
+// ── question typing + marks (beyond MCQ) ─────────────────────────────────────
+test("schema + prompt ask for questionType and marks", () => {
+  assert.ok(SCANNED_TOOL_SCHEMA.$defs.question.properties.questionType, "schema carries questionType");
+  assert.ok(SCANNED_TOOL_SCHEMA.$defs.question.properties.marks, "schema carries marks");
+  // options must allow an empty array now (non-MCQ items have none).
+  assert.equal(SCANNED_TOOL_SCHEMA.$defs.question.properties.options.minItems, 0);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /questionType/);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /short_answer/);
+});
+
+test("keeps an explicit short_answer question with no options", () => {
+  const q = normaliseScannedQuestion(
+    {sourceQuestionNumber: 7, prompt: "Explain why plants need sunlight.", options: [], questionType: "short_answer"},
+    [1],
+  );
+  assert.ok(q, "short-answer question is kept");
+  assert.equal(q.type, "short_answer");
+  assert.deepEqual(q.options, []);
+  assert.equal(q.correctAnswer, "");
+  assert.equal(q.requiresReview, true);
+});
+
+test("keeps a fill_blank question with no options", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Water boils at ____ degrees Celsius.", options: [], questionType: "fill_blank"},
+    [1],
+  );
+  assert.ok(q);
+  assert.equal(q.type, "fill_blank");
+});
+
+test("synthesises True/False options for a typed true_false item", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "The sun is a star.", options: [], questionType: "true_false"},
+    [1],
+  );
+  assert.ok(q);
+  assert.equal(q.type, "true_false");
+  assert.deepEqual(q.options, ["True", "False"]);
+});
+
+test("auto-types a True/False option pair without an explicit type", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Ice is frozen water.", options: ["True", "False"]},
+    [1],
+  );
+  assert.equal(q.type, "true_false");
+});
+
+test("still drops a 1-option fragment when no explicit non-MCQ type is given", () => {
+  // The MCQ gate is unchanged for untyped items — a misread fragment is junk.
+  assert.equal(normaliseScannedQuestion({prompt: "x", options: ["a"]}, [1]), null);
+});
+
+test("carries marks from the model and from a trailing annotation", () => {
+  const fromModel = normaliseScannedQuestion(
+    {prompt: "Name two organs.", options: [], questionType: "short_answer", marks: 4},
+    [1],
+  );
+  assert.equal(fromModel.marks, 4);
+  const fromStem = normaliseScannedQuestion(
+    {prompt: "Describe the water cycle. [5 marks]", options: [], questionType: "short_answer"},
+    [1],
+  );
+  assert.equal(fromStem.marks, 5);
+  const dflt = normaliseScannedQuestion(
+    {prompt: "What is 2 plus 2?", options: ["3", "4", "5", "6"]},
+    [1],
+  );
+  assert.equal(dflt.marks, 1);
+});
+
 console.log(`\nscannedQuizImport: ${passed} passed`);
