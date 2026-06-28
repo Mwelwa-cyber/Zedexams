@@ -9,7 +9,13 @@
  * functions/teacherTools/lessonPlanPrompt.js (a CommonJS module in
  * functions/ that cannot be imported from the React app).
  *
- * Keep in sync with the server-side version when the server prompt changes.
+ * Keep in sync with the server-side version when the server prompt changes,
+ * with ONE intentional difference: the studio exposes a Writing Style toggle
+ * (Simple / Standard / Professional) that the server generateLessonPlan does
+ * not. So the WRITING STANDARDS block here defers register/vocabulary to the
+ * style requested in the user prompt rather than hard-pinning "professional"
+ * the way functions/teacherTools/lessonPlanPrompt.js does. Without this, all
+ * three styles produced the same formal output and the toggle did nothing.
  * The selected string is passed verbatim as systemPrompt to the
  * studioGenerateLessonPlan Cloud Function.
  */
@@ -33,7 +39,7 @@ Your lesson plans MUST follow the official module structure:
 - Be culturally grounded in Zambia: use Zambian examples (Kwacha, nshima, Lusaka/Kitwe/Ndola, local markets) where natural, never where forced.
 - Ground content in the <cbc_context> block provided. Do not invent topics, outcomes, or competences inconsistent with it.
 
-PROFESSIONAL WRITING STANDARDS — this document is inspected by head teachers and standards officers, so the writing must be flawless:
+WRITING STANDARDS — the writing must be correct and consistent in EVERY style. Match the WRITING STYLE requested in the user prompt, which governs vocabulary and sentence complexity: Simple = short sentences and plain, everyday words a trainee teacher can follow; Standard = clear, formal teacher language; Professional = formal, sophisticated vocabulary suitable for a School Inspector. The correctness rules below apply to ALL three styles:
 - Complete, grammatically correct sentences ending with a full stop. No fragments, no trailing "..." and no double spaces.
 - Teacher activities are imperative and start with a strong verb ("Ask learners...", "Demonstrate...", "Guide learners to..."). Learner activities are present-tense responses ("Share their experiences...", "Discuss...", "Draw...").
 - Keep tense, person and voice consistent within each list. Never mix "pupils" and "learners" — use "learners" throughout.
@@ -56,7 +62,7 @@ Previous Curriculum lesson plans follow this structure:
 - PUPIL EVALUATION (blank — left for teacher)
 - TEACHER EVALUATION (blank — left for teacher)
 
-WRITING STANDARDS:
+WRITING STANDARDS — match the WRITING STYLE requested in the user prompt, which governs vocabulary and sentence complexity: Simple = short sentences and plain, everyday words a trainee teacher can follow; Standard = clear, formal teacher language; Professional = formal, sophisticated vocabulary suitable for a School Inspector. The rules below apply to ALL three styles:
 - Produce the lesson plan as JSON matching the schema in the user prompt
 - Complete, grammatically correct sentences ending with a full stop. No fragments, no trailing "..." and no double spaces.
 - Teacher activities are imperatives ("Ask pupils...", "Demonstrate...", "Guide pupils to...").
