@@ -241,21 +241,51 @@ function Badge({ children, tone = 'warn' }) {
   )
 }
 
+// Per-item readiness summary: Ready (green) / Needs review (amber) / Failed (red,
+// set when a figure clean/redraw/rebuild errored). Mirrors the product spec's
+// review-screen status.
+function StatusChip({ status }) {
+  const map = {
+    ready: { label: 'Ready', cls: 'bg-green-600 text-white' },
+    review: { label: 'Needs review', cls: 'theme-bg-subtle theme-accent-text' },
+    failed: { label: 'Failed', cls: 'bg-[color:var(--danger)] text-white' },
+  }
+  const s = map[status] || map.review
+  return (
+    <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${s.cls}`}>
+      {s.label}
+    </span>
+  )
+}
+
 function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, onClean }) {
   const ref = item.ref || {}
   const { signals } = item
   const isPassage = item.kind === 'passage'
   const options = Array.isArray(ref.options) ? ref.options : []
+  // True once a figure clean/redraw/rebuild has failed for this item, so the
+  // status flips to "Failed" until the teacher succeeds with another option.
+  const [figureFailed, setFigureFailed] = useState(false)
 
   function patch(p) {
     if (typeof onPatch === 'function') onPatch(item, p)
   }
 
+  const status = figureFailed ? 'failed' : signals.status || (signals.issues.length ? 'review' : 'ready')
+  const confidencePct =
+    signals.confidence != null ? Math.round(signals.confidence * 100) : null
+
   return (
     <div className="theme-card border theme-border rounded-2xl p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="font-black theme-text text-sm">{item.label}</p>
-        <div className="flex flex-wrap gap-1 justify-end">
+        <div className="flex flex-wrap items-center gap-1 justify-end">
+          <StatusChip status={status} />
+          {confidencePct != null ? (
+            <span className="text-[11px] font-bold theme-text-muted" title="Figure detection confidence">
+              {confidencePct}% match
+            </span>
+          ) : null}
           {signals.issues.map((issue) => (
             <Badge key={issue} tone={issue === 'No answer' || issue === 'Missing diagram' ? 'danger' : 'warn'}>
               {issue}
@@ -316,6 +346,7 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
           originalUrl={ref.imageUrl || null}
           onCleanUpload={onClean}
           onResolved={onDiagram}
+          onError={(msg) => setFigureFailed(Boolean(msg))}
         />
       ) : null}
 
