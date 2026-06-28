@@ -650,13 +650,13 @@ export default function LessonPlanStudio() {
         }
       />
       {kit && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e0d5] bg-white px-6 py-3 shadow-lg">
-          <span className="text-sm font-medium text-[#5c4a3a]">Create for this lesson</span>
-          <div className="flex gap-2">
-            <button onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Worksheet</button>
-            <button onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Homework</button>
-            <button onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Notes</button>
-            <button onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)} className="rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Test Paper</button>
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e0d5] bg-white px-4 py-3 shadow-lg sm:px-6">
+          <span className="shrink-0 text-sm font-medium text-[#5c4a3a]">Create for this lesson</span>
+          <div className="flex gap-2 overflow-x-auto">
+            <button onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Worksheet</button>
+            <button onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Homework</button>
+            <button onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Notes</button>
+            <button onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Test Paper</button>
           </div>
         </div>
       )}

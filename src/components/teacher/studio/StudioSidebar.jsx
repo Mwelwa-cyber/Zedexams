@@ -44,7 +44,7 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
 
   return (
     <div
-      className="w-[380px] min-w-[320px] max-w-[420px] flex flex-col overflow-y-auto bg-[#faf7f2]"
+      className="w-full md:w-[380px] md:min-w-[320px] md:max-w-[420px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
     >
       {/* ── Sections ── */}
       <div className="flex-1">

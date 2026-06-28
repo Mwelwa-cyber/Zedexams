@@ -99,10 +99,10 @@ export function StudioCanvas({
   }
 
   return (
-    <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+    <div className="flex-1 min-w-0 flex flex-col md:overflow-hidden min-h-[60vh] md:min-h-0">
 
       {/* ── Topbar ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e5ddd0] bg-[#faf7f2]">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-[#e5ddd0] bg-[#faf7f2]">
         {isDone && (
           <>
             {/* Preview / Edit segmented toggle */}
@@ -296,7 +296,10 @@ export function StudioCanvas({
       )}
 
       {/* ── Workspace ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto bg-[#f2ede6] flex items-start justify-center p-6">
+      {/* Mobile: grows with content so the plan is fully visible in the page
+          scroll, with bottom padding to clear the fixed "Create for this
+          lesson" bar. Desktop: scrolls internally within the full-height pane. */}
+      <div className="flex-1 md:overflow-y-auto bg-[#f2ede6] flex items-start justify-center p-3 pb-28 md:p-6 md:pb-6">
 
         {/* 1. Idle / empty state */}
         {generationStatus === 'idle' && (
