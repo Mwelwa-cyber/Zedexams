@@ -15,31 +15,55 @@ import { useState, useEffect, useCallback } from 'react'
  * Heuristic: roughly one lesson per syllabus learning activity, clamped to a
  * sensible 1–6, defaulting to a short 2-lesson series when the row lists none.
  *
- * @param {string} topic
- * @param {string} subtopic
+ * "Get New Suggestion": the base heuristic is deterministic, so naively
+ * recomputing it returned the identical count + reason every press and the
+ * button looked dead. The `variant` argument fixes that — it cycles the
+ * suggestion through the other plausible lesson counts (fanning out around the
+ * base, nearest first, full 1–6 span) so each press offers a genuinely
+ * different alternative pace. `variant === 0` is always the base suggestion.
+ *
  * @param {string[]} learningActivities
- * @param {string} expectedStandard
- * @param {'cbc'|'previous'|null} curriculumMode
- * @returns {{
- *   recommendation: {count: number, reason: string}|null,
- *   loading: boolean,
- *   error: string|null,
- *   fetchRecommendation: () => void
- * }}
+ * @param {number} [variant=0] which alternative to surface (0 = base heuristic)
+ * @returns {{ count: number, reason: string }}
  */
-export function suggestLessonCount(learningActivities) {
+export function suggestLessonCount(learningActivities, variant = 0) {
   const n = Array.isArray(learningActivities) ? learningActivities.length : 0
-  const count = n > 0 ? Math.max(1, Math.min(6, n)) : 2
-  const reason = n > 0
-    ? `Based on the ${n} learning activit${n === 1 ? 'y' : 'ies'} the syllabus lists for this sub-topic. Adjust the count to fit your class.`
-    : 'A typical sub-topic is taught over a short series. Adjust the count to fit your class.'
+  const base = n > 0 ? Math.max(1, Math.min(6, n)) : 2
+
+  // Candidate counts: the base first, then every other count in 1–6 ordered by
+  // distance from the base (preferring the longer series when equidistant).
+  const candidates = [1, 2, 3, 4, 5, 6].sort((a, b) => {
+    const da = Math.abs(a - base)
+    const db = Math.abs(b - base)
+    return da !== db ? da - db : b - a
+  })
+
+  const idx = ((variant % candidates.length) + candidates.length) % candidates.length
+  const count = candidates[idx]
+
+  let reason
+  if (idx === 0) {
+    reason = n > 0
+      ? `Based on the ${n} learning activit${n === 1 ? 'y' : 'ies'} the syllabus lists for this sub-topic. Adjust the count to fit your class.`
+      : 'A typical sub-topic is taught over a short series. Adjust the count to fit your class.'
+  } else if (count > base) {
+    reason = `An alternative pace — ${count} shorter lessons give learners more time to practise. Adjust the count to fit your class.`
+  } else {
+    reason = `A tighter pace — cover the sub-topic in ${count} lesson${count === 1 ? '' : 's'}. Adjust the count to fit your class.`
+  }
+
   return { count, reason }
 }
 
 export function useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode) {
   const [recommendation, setRecommendation] = useState(null)
-  // Bumped by fetchRecommendation to force a recompute (e.g. "Get new suggestion").
-  const [nonce, setNonce] = useState(0)
+  // Bumped by fetchRecommendation to surface the next alternative suggestion
+  // (e.g. "Get New Suggestion"). Fed to suggestLessonCount as the variant.
+  const [variant, setVariant] = useState(0)
+
+  // learningActivities serialised as a joined string to avoid new-array-
+  // reference churn from parent re-renders producing a fresh array each time.
+  const activitiesKey = (Array.isArray(learningActivities) ? learningActivities : []).join('||')
 
   // A suggestion is meaningful once we're in CBC mode with a chosen sub-topic.
   // (We no longer gate on learningActivities/expectedStandard so the suggestion
@@ -48,19 +72,24 @@ export function useAILessonCount(topic, subtopic, learningActivities, expectedSt
   const isReady = curriculumMode === 'cbc' && Boolean(topic) && Boolean(subtopic)
 
   const fetchRecommendation = useCallback(() => {
-    if (isReady) setNonce((c) => c + 1)
+    if (isReady) setVariant((c) => c + 1)
   }, [isReady])
+
+  // Reset to the base suggestion whenever the sub-topic context changes, so a
+  // freshly selected sub-topic starts from the base — not wherever the last
+  // "Get New Suggestion" cycle happened to leave off.
+  useEffect(() => {
+    setVariant(0)
+  }, [topic, subtopic, activitiesKey, curriculumMode])
 
   useEffect(() => {
     if (!isReady) {
       setRecommendation(null)
       return
     }
-    setRecommendation(suggestLessonCount(learningActivities))
-    // learningActivities serialised as a joined string to avoid new-array-
-    // reference churn from parent re-renders producing a fresh array each time.
+    setRecommendation(suggestLessonCount(learningActivities, variant))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, subtopic, learningActivities?.join('||'), curriculumMode, nonce])
+  }, [topic, subtopic, activitiesKey, curriculumMode, variant])
 
   // loading/error are kept in the return shape for API compatibility with the
   // Lesson Progression panel, but the deterministic path never produces them.
