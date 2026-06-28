@@ -8,9 +8,11 @@
  * function carries out that choice:
  *
  *   keep_original / clean_original / remove
- *       → no image generation; the client keeps or drops the original crop.
- *         (clean_original keeps the original today — true image-to-image
- *         cleanup is not wired, so we degrade honestly rather than pretend.)
+ *       → no image generation. clean_original is handled IN THE BROWSER by the
+ *         diagramClean pixel pipeline (the chooser uploads the cleaned PNG and
+ *         never calls this function), so the server path only runs as a fallback
+ *         when client-side canvas cleaning is unavailable — it keeps the
+ *         original honestly (cleaned:false) rather than pretending.
  *   redraw / replace
  *       → LIBRARY FIRST: search the ZedExams Diagram Library for a matching
  *         black-and-white figure and reuse it (no AI cost). Only if nothing
@@ -167,69 +169,76 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
     async (request) => {
       const uid = request.auth && request.auth.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
-      const role = await getUserRole(uid);
-      if (!isStaffRole(role)) {
-        throw new HttpsError(
-          "permission-denied",
-          "Teacher tools are available to approved teachers only.",
-        );
-      }
 
       const data = request.data || {};
       const handling = String(data.handling || "");
 
-      // Only the generating options consume a diagram quota slot — keeping,
-      // cleaning or removing the original costs nothing.
-      const generates = handling === "redraw" || handling === "replace";
-      if (generates) await assertAndIncrement(uid, "diagram");
-
-      const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
-      const openaiKey = openaiApiKeySecret ?
-        (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
-        (process.env.OPENAI_API_KEY || "");
-      const kieKey = kieApiKeySecret ?
-        (kieApiKeySecret.value() || process.env.KIE_API_KEY || "") :
-        (process.env.KIE_API_KEY || "");
-
-      const db = admin.firestore();
-
-      const deps = {
-        // Reuse-first: read a bounded set of ACTIVE library pictures, prefer
-        // ones in the same subject, and let pickReusableDiagram score them.
-        searchLibrary: async (query) => {
-          let ref = db.collection("pictureBank").where("status", "==", "active");
-          if (query.subject) {
-            // Query both the subject bucket and the generic bucket.
-            const [subjSnap, genSnap] = await Promise.all([
-              ref.where("subject", "==", query.subject).limit(40).get(),
-              ref.where("subject", "==", "_generic").limit(20).get(),
-            ]);
-            return [...subjSnap.docs, ...genSnap.docs].map((doc) => ({id: doc.id, ...doc.data()}));
-          }
-          const snap = await ref.limit(40).get();
-          return snap.docs.map((doc) => ({id: doc.id, ...doc.data()}));
-        },
-        generateImage: async (brief) => {
-          return runGenerateDiagram({
-            uid,
-            rawInputs: {prompt: brief.prompt, style: brief.style, size: brief.size},
-            recraftKey,
-            openaiKey,
-            kieKey,
-          });
-        },
-        saveToLibrary: async (metadata) => {
-          const docRef = await db.collection("pictureBank").add({
-            ...metadata,
-            createdBy: uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          return {id: docRef.id};
-        },
-      };
-
+      // Everything that can fault — the role lookup, the quota meter, the image
+      // secrets and the model call — runs inside this guard so a transient
+      // failure surfaces as a descriptive error instead of the bare "internal"
+      // a raw throw before the try used to produce. Only the generating options
+      // ever touch the image secrets or a quota slot.
       try {
+        const role = await getUserRole(uid);
+        if (!isStaffRole(role)) {
+          throw new HttpsError(
+            "permission-denied",
+            "Teacher tools are available to approved teachers only.",
+          );
+        }
+
+        // Only the generating options consume a diagram quota slot — keeping,
+        // cleaning or removing the original costs nothing.
+        const generates = handling === "redraw" || handling === "replace";
+        if (generates) await assertAndIncrement(uid, "diagram");
+
+        const db = admin.firestore();
+
+        const deps = {
+          // Reuse-first: read a bounded set of ACTIVE library pictures, prefer
+          // ones in the same subject, and let pickReusableDiagram score them.
+          searchLibrary: async (query) => {
+            let ref = db.collection("pictureBank").where("status", "==", "active");
+            if (query.subject) {
+              // Query both the subject bucket and the generic bucket.
+              const [subjSnap, genSnap] = await Promise.all([
+                ref.where("subject", "==", query.subject).limit(40).get(),
+                ref.where("subject", "==", "_generic").limit(20).get(),
+              ]);
+              return [...subjSnap.docs, ...genSnap.docs].map((doc) => ({id: doc.id, ...doc.data()}));
+            }
+            const snap = await ref.limit(40).get();
+            return snap.docs.map((doc) => ({id: doc.id, ...doc.data()}));
+          },
+          generateImage: async (brief) => {
+            // Read the image-provider secrets lazily, only when we actually
+            // generate, so the keep/clean/remove paths never touch .value().
+            const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
+            const openaiKey = openaiApiKeySecret ?
+              (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
+              (process.env.OPENAI_API_KEY || "");
+            const kieKey = kieApiKeySecret ?
+              (kieApiKeySecret.value() || process.env.KIE_API_KEY || "") :
+              (process.env.KIE_API_KEY || "");
+            return runGenerateDiagram({
+              uid,
+              rawInputs: {prompt: brief.prompt, style: brief.style, size: brief.size},
+              recraftKey,
+              openaiKey,
+              kieKey,
+            });
+          },
+          saveToLibrary: async (metadata) => {
+            const docRef = await db.collection("pictureBank").add({
+              ...metadata,
+              createdBy: uid,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            return {id: docRef.id};
+          },
+        };
+
         return await runRedrawTestPaperDiagram(
           {
             uid,
