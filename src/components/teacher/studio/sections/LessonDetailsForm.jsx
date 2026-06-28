@@ -44,7 +44,6 @@ const PREVIOUS_GRADES = [
   { group: 'Secondary',      value: 'Grade 12',   label: 'Grade 12' },
 ]
 
-const LANGUAGES = ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Luvale']
 const TERMS     = ['Term 1', 'Term 2', 'Term 3']
 const WEEKS     = Array.from({ length: 13 }, (_, i) => `Week ${i + 1}`)
 
@@ -223,41 +222,24 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
             </select>
           </div>
 
-          {/* Duration + Medium — two columns */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="ldf-duration" className={LABEL_CLS}>Duration</label>
-              <div className="relative">
-                <input
-                  id="ldf-duration"
-                  type="number"
-                  min={20}
-                  max={120}
-                  step={5}
-                  value={lessonDetails.duration}
-                  onChange={(e) => onChange('duration', e.target.value)}
-                  className={INPUT_CLS + ' pr-10'}
-                  disabled={disabled}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[11px] text-[#a39d8e]">
-                  mins
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="ldf-medium" className={LABEL_CLS}>Medium</label>
-              <select
-                id="ldf-medium"
-                value={lessonDetails.medium}
-                onChange={(e) => onChange('medium', e.target.value)}
-                className={INPUT_CLS}
+          {/* Duration — Medium now lives in Format & Options → Advanced */}
+          <div>
+            <label htmlFor="ldf-duration" className={LABEL_CLS}>Duration</label>
+            <div className="relative">
+              <input
+                id="ldf-duration"
+                type="number"
+                min={20}
+                max={120}
+                step={5}
+                value={lessonDetails.duration}
+                onChange={(e) => onChange('duration', e.target.value)}
+                className={INPUT_CLS + ' pr-10'}
                 disabled={disabled}
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[11px] text-[#a39d8e]">
+                mins
+              </span>
             </div>
           </div>
 

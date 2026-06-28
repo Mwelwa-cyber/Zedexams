@@ -5,6 +5,10 @@ import { FormatCard } from '../cards/FormatCard'
 
 const LOCAL_LANGUAGES = new Set(['Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Luvale'])
 
+// Languages of instruction. English is the default; the rest live behind the
+// Advanced Options drawer so the form isn't cluttered for the common case.
+const MEDIUM_OPTIONS = ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Luvale']
+
 const DETAIL_OPTIONS = [
   { value: 'simplified', label: 'Simplified', description: 'Key points only, concise' },
   { value: 'standard',   label: 'Standard',   description: 'Balanced detail and clarity' },
@@ -135,9 +139,10 @@ function SubLabel({ children }) {
  *   }
  *   onUpdateFormat: (field: string, value: any) => void
  *   onUpdateAdvanced: (field: string, value: boolean) => void
+ *   onUpdateMedium: (value: string) => void
  *   lessonMedium: string
  */
-export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, lessonMedium }) {
+export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium }) {
   const [open, setOpen] = useState(true)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
@@ -322,6 +327,24 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
 
             {advancedOpen && (
               <div className="mt-2 space-y-2">
+                {/* Medium of instruction — defaults to English, surfaced here
+                    so teachers only change it deliberately. */}
+                <div className="rounded-lg border border-[#e5ddd0] px-3 py-2">
+                  <label htmlFor="fof-medium" className="block text-[11px] font-semibold text-[#7a6d5d] mb-1">
+                    Medium of Instruction
+                  </label>
+                  <select
+                    id="fof-medium"
+                    value={lessonMedium}
+                    onChange={(e) => onUpdateMedium(e.target.value)}
+                    className="w-full rounded-lg border border-[#d9cfbe] bg-white px-2.5 py-1.5 text-[13px] text-[#3d3529] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  >
+                    {MEDIUM_OPTIONS.map((lang) => (
+                      <option key={lang} value={lang}>{lang}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {ADVANCED_TOGGLES.map(({ field, label }) => {
                   const isLocalLanguage = field === 'localLanguage'
                   const disabled = isLocalLanguage && !localLanguageEnabled
