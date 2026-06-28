@@ -6,15 +6,18 @@ import DiagramHandlingChooser from './DiagramHandlingChooser'
 // Stub the Cloud Function wrapper so the component test never touches Firebase.
 // Keep the real DIAGRAM_HANDLING_OPTIONS export so the five buttons render.
 const mockRedraw = vi.fn()
+const mockRebuildTable = vi.fn()
 vi.mock('../../../utils/testPaperDiagram', () => ({
   DIAGRAM_HANDLING_OPTIONS: [
     { id: 'keep_original', label: 'Keep original image', generates: false },
     { id: 'clean_original', label: 'Clean original drawing', generates: false },
     { id: 'redraw', label: 'Redraw using AI', generates: true },
+    { id: 'rebuild_as_table', label: 'Rebuild as table', generates: true, rebuildsTable: true },
     { id: 'replace', label: 'Replace with a better educational diagram', generates: true },
     { id: 'remove', label: 'Remove diagram and leave blank space', generates: false },
   ],
   redrawTestPaperDiagram: (...args) => mockRedraw(...args),
+  rebuildTableFromImage: (...args) => mockRebuildTable(...args),
 }))
 
 // Stub the in-browser cleaning pipeline (real impl needs a canvas + pixels).
@@ -25,9 +28,11 @@ const mockClean = vi.fn(async () => ({
   height: 10,
   bounds: {},
 }))
+const mockSourceToBlob = vi.fn(async () => new Blob(['orig'], { type: 'image/png' }))
 vi.mock('../../../utils/diagramClean.js', () => ({
   isDiagramCleanSupported: () => true,
   cleanDiagramSource: (...args) => mockClean(...args),
+  sourceToBlob: (...args) => mockSourceToBlob(...args),
 }))
 
 const detected = { kind: 'plant', caption: 'Flowering plant', labels: ['stem', 'roots'] }
@@ -36,14 +41,52 @@ const context = { subject: 'Science', grade: 'Grade 4' }
 describe('DiagramHandlingChooser', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders all five handling options and the figure caption', () => {
+  it('renders all handling options and the figure caption', () => {
     render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} />)
     expect(screen.getByText('Flowering plant')).toBeInTheDocument()
     expect(screen.getByText('Keep original image')).toBeInTheDocument()
     expect(screen.getByText('Clean original drawing')).toBeInTheDocument()
     expect(screen.getByText('Redraw using AI')).toBeInTheDocument()
+    expect(screen.getByText('Rebuild as table')).toBeInTheDocument()
     expect(screen.getByText('Replace with a better educational diagram')).toBeInTheDocument()
     expect(screen.getByText('Remove diagram and leave blank space')).toBeInTheDocument()
+  })
+
+  it('rebuilds a figure into an editable table and previews it', async () => {
+    mockRebuildTable.mockResolvedValueOnce({
+      action: 'rebuilt_table',
+      tableData: { headers: ['Fruit', 'People'], rows: [['orange', '3'], ['mango', '5']] },
+      caption: 'Fruit and People',
+    })
+    const onCleanUpload = vi.fn(async () => 'https://store/table-crop.png')
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={{ kind: 'pictograph', caption: 'Fruit and People' }}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={onCleanUpload}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Rebuild as table'))
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+    // The original crop is uploaded, then the vision rebuild runs on that URL.
+    expect(mockSourceToBlob).toHaveBeenCalledTimes(1)
+    expect(onCleanUpload).toHaveBeenCalledTimes(1)
+    expect(mockRebuildTable).toHaveBeenCalledWith(
+      expect.objectContaining({ imageUrl: 'https://store/table-crop.png' }),
+    )
+    expect(mockRedraw).not.toHaveBeenCalled()
+    expect(onResolved).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'rebuilt_table', handling: 'rebuild_as_table' }),
+    )
+    // The result panel previews the rebuilt table.
+    expect(await screen.findByText('Rebuilt as table')).toBeInTheDocument()
+    expect(screen.getByText('orange')).toBeInTheDocument()
+    expect(screen.getByText('People')).toBeInTheDocument()
   })
 
   it('calls the redraw wrapper and surfaces a reused-from-library result', async () => {
@@ -181,7 +224,7 @@ describe('DiagramHandlingChooser', () => {
     fireEvent.click(screen.getByText('Clean original drawing'))
 
     expect(
-      await screen.findByText('no scanned figure to clean', { exact: false }),
+      await screen.findByText('no scanned figure here to work with', { exact: false }),
     ).toBeInTheDocument()
     expect(mockClean).not.toHaveBeenCalled()
     expect(mockRedraw).not.toHaveBeenCalled()

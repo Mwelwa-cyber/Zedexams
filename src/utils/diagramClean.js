@@ -643,6 +643,24 @@ export async function cleanDiagramSource(src, options = {}) {
   }
 }
 
+/**
+ * Load an image SOURCE (URL/blob/data URL/HTMLImageElement) CORS-safely and
+ * return it as a raster Blob WITHOUT any cleaning. Used when another tool needs
+ * the ORIGINAL cropped bytes uploaded somewhere the server can fetch — e.g. the
+ * "Rebuild as table" action, which uploads the untouched crop and then asks a
+ * vision model to read the table. Reuses `loadCleanableImage`, so it survives a
+ * Storage bucket with no CORS headers (the same proxy fallback). Browser only.
+ */
+export async function sourceToBlob(src, { maxWidth = 1600, mimeType = 'image/png' } = {}) {
+  if (!isDiagramCleanSupported()) {
+    throw new Error('Image processing needs a browser canvas.')
+  }
+  const img = typeof src === 'string' ? await loadCleanableImage(src) : src
+  const image = drawToImageData(img, { maxWidth })
+  const canvas = imageDataToCanvas(image)
+  return canvasToBlob(canvas, mimeType)
+}
+
 /** Crop an `{ data, width, height }` buffer to a pixel box. Pure. */
 export function cropImageData(image, box) {
   assertImage(image)
