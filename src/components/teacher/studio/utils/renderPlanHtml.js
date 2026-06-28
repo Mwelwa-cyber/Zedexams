@@ -729,8 +729,9 @@ export function renderPlanHtml(planJson, meta, curriculumMode) {
 
   const isOld = curriculumMode === 'previous'
 
-  // Normalise the format key — 'official-cbc' maps to 'classic2' internally.
-  const fmt = (meta.format || 'modern').toLowerCase().replace('official-cbc', 'classic2')
+  // Normalise the format key — the Format & Options card emits 'official', the
+  // older saved-plan meta used 'official-cbc'; both map to 'classic2' internally.
+  const fmt = (meta.format || 'modern').toLowerCase().replace(/^official(-cbc)?$/, 'classic2')
 
   if (fmt === 'classic') {
     return isOld ? renderOldClassic(planJson, meta) : renderClassic(planJson, meta)
