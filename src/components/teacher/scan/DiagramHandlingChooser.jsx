@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import Button from '../../ui/Button'
 import {
@@ -50,17 +50,28 @@ export default function DiagramHandlingChooser({
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
+  // The pristine scanned crop, captured BEFORE any clean/redraw resolves. Once a
+  // result exists we freeze it, because resolving patches the parent's
+  // ref.imageUrl to the cleaned/redrawn figure — and `originalUrl` mirrors that.
+  // Without this freeze the "Original" preview (and the clean source) would flip
+  // to the cleaned image too, destroying the before/after comparison.
+  const [pristineOriginalUrl, setPristineOriginalUrl] = useState(originalUrl)
+  useEffect(() => {
+    if (!result && originalUrl) setPristineOriginalUrl(originalUrl)
+  }, [originalUrl, result])
+
   const caption =
     (detected && (detected.caption || detected.kind)) || 'Detected figure'
 
   // Clean the scanned figure in-browser, upload it, and return the result the
   // chooser surfaces. Kept separate so a cleaning failure (e.g. a cross-origin
   // figure that taints the canvas) surfaces a clear, actionable message rather
-  // than the raw DOM SecurityError.
+  // than the raw DOM SecurityError. Always cleans the PRISTINE original so a
+  // second click never re-cleans an already-cleaned figure.
   async function cleanOriginal() {
     let cleaned
     try {
-      cleaned = await cleanDiagramSource(originalUrl, {
+      cleaned = await cleanDiagramSource(pristineOriginalUrl || originalUrl, {
         blackAndWhite: true,
         autoCrop: true,
         whiten: true,
@@ -143,9 +154,9 @@ export default function DiagramHandlingChooser({
           <figcaption className="text-[11px] uppercase tracking-wide theme-text-muted">
             Original
           </figcaption>
-          {originalUrl ? (
+          {pristineOriginalUrl ? (
             <img
-              src={originalUrl}
+              src={pristineOriginalUrl}
               alt="Original scanned figure"
               className="w-full rounded-lg border theme-border bg-white object-contain max-h-40"
             />
