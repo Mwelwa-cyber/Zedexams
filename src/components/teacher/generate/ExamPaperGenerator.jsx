@@ -56,6 +56,7 @@ export default function ExamPaperGenerator() {
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
+  const [sourcing, setSourcing] = useState(null)
   const [showAnswers, setShowAnswers] = useState(false)
   const { currentUser } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
@@ -80,6 +81,7 @@ export default function ExamPaperGenerator() {
     setErrorMessage('')
     setErrorDetail('')
     setWarning('')
+    setSourcing(null)
     setExamPaper(null)
     const res = await generateExamPaper(form)
     if (!isMounted.current) return
@@ -105,6 +107,7 @@ export default function ExamPaperGenerator() {
     setGenerationId(res.data.generationId)
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
+    setSourcing(res.data.sourcing || null)
     setStatus('success')
     if (res.data.generationId) {
       // Exam papers share the Assessments library section (no dedicated
@@ -248,6 +251,12 @@ export default function ExamPaperGenerator() {
                     </button>
                   </div>
                 </div>
+                {sourcing?.fromBank > 0 && (
+                  <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm font-semibold">
+                    ♻️ Reused {sourcing.fromBank} approved question{sourcing.fromBank === 1 ? '' : 's'} from the Master Bank
+                    {sourcing.generated > 0 ? ` · AI wrote the other ${sourcing.generated}` : ''}.
+                  </div>
+                )}
                 {warning && (
                   <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
                     ⚠️ {warning}
