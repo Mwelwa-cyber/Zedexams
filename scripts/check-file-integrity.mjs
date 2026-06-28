@@ -14,8 +14,9 @@
  *   1. Byte-level corruption:
  *        - File ends with one or more NUL bytes (saw this on
  *          FloatingZedButton.jsx — ~1.3 kB of trailing NULs).
- *        - File contains a run of 3+ consecutive NUL bytes anywhere
- *          (catches mid-file corruption too).
+ *        - File contains ANY NUL byte (0x00) anywhere — a text/source
+ *          file should never have one (saw a lone NUL hide inside a regex
+ *          in studioLessonPlan.js, turning the whole .js binary).
  *
  *   2. Parse / structural check for source files:
  *        - .js / .jsx / .mjs / .cjs / .ts / .tsx → parsed via esbuild
@@ -60,22 +61,21 @@ async function checkBytes(path, bytes) {
     })
     return
   }
-  // Run of 3+ NULs anywhere in the file.
-  let run = 0
-  for (let i = 0; i < bytes.length; i++) {
-    if (bytes[i] === 0) {
-      run++
-      if (run >= 3) {
-        failures.push({
-          path,
-          kind: 'embedded-null-run',
-          detail: `Found 3+ consecutive NUL bytes at offset ${i - run + 1}. Likely silent corruption.`,
-        })
-        return
-      }
-    } else {
-      run = 0
-    }
+  // Any NUL byte anywhere in the file. checkBytes only ever runs on
+  // text-format files (shouldCheckPath gates on TEXT_EXT), and a single
+  // 0x00 in a source file is always corruption — never legitimate. This is
+  // tighter than the old "run of 3+" rule, which let a lone NUL through:
+  // studioLessonPlan.js carried a single NUL inside a regex (the `^@` of
+  // `/^@/g` collapsed to 0x00), which turned the whole .js into a binary
+  // file yet sailed past the 3+-run check.
+  const nul = bytes.indexOf(0)
+  if (nul !== -1) {
+    failures.push({
+      path,
+      kind: 'embedded-null-byte',
+      detail: `Found a NUL byte (0x00) at offset ${nul}. A text/source file should never contain one — likely silent corruption. Recreate the file from version control.`,
+    })
+    return
   }
 }
 
