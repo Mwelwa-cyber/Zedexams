@@ -224,3 +224,69 @@ describe('StudioCanvas — Export Word button', () => {
     expect(() => fireEvent.click(screen.getByRole('button', { name: /export word/i }))).not.toThrow()
   })
 })
+
+// ── Illustrations (manual) ──────────────────────────────────────────────────────
+
+describe('StudioCanvas — manual illustrations', () => {
+  const DONE = { generationStatus: 'done', generatedPlan: '<p>plan</p>' }
+
+  it('shows the Add Illustration button only in manual mode', () => {
+    renderCanvas({ ...DONE, illustrationMode: 'automatic' })
+    expect(screen.queryByRole('button', { name: /add illustration/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the Add Illustration button when illustrationMode is "manual"', () => {
+    renderCanvas({ ...DONE, illustrationMode: 'manual' })
+    expect(screen.getByRole('button', { name: /add illustration/i })).toBeInTheDocument()
+  })
+
+  it('does not show the Add Illustration button before the plan is done', () => {
+    renderCanvas({ generationStatus: 'idle', illustrationMode: 'manual' })
+    expect(screen.queryByRole('button', { name: /add illustration/i })).not.toBeInTheDocument()
+  })
+
+  it('reveals an input when Add Illustration is clicked', () => {
+    renderCanvas({ ...DONE, illustrationMode: 'manual' })
+    fireEvent.click(screen.getByRole('button', { name: /add illustration/i }))
+    expect(screen.getByPlaceholderText(/describe the illustration/i)).toBeInTheDocument()
+  })
+
+  it('calls onAddIllustration with the typed description on Generate', () => {
+    const onAddIllustration = vi.fn()
+    renderCanvas({ ...DONE, illustrationMode: 'manual', onAddIllustration })
+    fireEvent.click(screen.getByRole('button', { name: /add illustration/i }))
+    fireEvent.change(screen.getByPlaceholderText(/describe the illustration/i), {
+      target: { value: 'water cycle diagram' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/i }))
+    expect(onAddIllustration).toHaveBeenCalledWith('water cycle diagram')
+  })
+
+  it('does not call onAddIllustration when the description is empty', () => {
+    const onAddIllustration = vi.fn()
+    renderCanvas({ ...DONE, illustrationMode: 'manual', onAddIllustration })
+    fireEvent.click(screen.getByRole('button', { name: /add illustration/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/i }))
+    expect(onAddIllustration).not.toHaveBeenCalled()
+  })
+
+  it('shows a generating indicator while an illustration is being made', () => {
+    renderCanvas({ ...DONE, illustrationMode: 'manual', illustrationStatus: 'generating' })
+    expect(screen.getByTestId('illustration-status')).toHaveTextContent(/adding illustration/i)
+  })
+
+  it('shows the generating indicator in automatic mode too', () => {
+    renderCanvas({ ...DONE, illustrationMode: 'automatic', illustrationStatus: 'generating' })
+    expect(screen.getByTestId('illustration-status')).toBeInTheDocument()
+  })
+
+  it('shows an error indicator when illustration generation fails', () => {
+    renderCanvas({
+      ...DONE,
+      illustrationMode: 'automatic',
+      illustrationStatus: 'error',
+      illustrationError: 'Monthly diagram limit reached.',
+    })
+    expect(screen.getByTestId('illustration-error')).toBeInTheDocument()
+  })
+})

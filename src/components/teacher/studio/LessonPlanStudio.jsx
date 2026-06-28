@@ -15,9 +15,24 @@ import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { generateDiagram } from '../../../utils/generateDiagram'
+import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
+
+// Pick the stage an auto/manual illustration should sit under. Prefers the
+// lesson-development stage (where worked examples live), falling back to the
+// second stage, then the first, then the canonical development-stage label.
+// The returned name is matched loosely by renderPlanHtml's stageMatches().
+function pickIllustrationStage(planJson, curriculumMode) {
+  const stages = Array.isArray(planJson?.stages) ? planJson.stages : []
+  const dev = stages.find((s) => /develop/i.test(String(s?.name || '')))
+  if (dev?.name) return dev.name
+  if (stages.length > 1 && stages[1]?.name) return stages[1].name
+  if (stages.length > 0 && stages[0]?.name) return stages[0].name
+  return curriculumMode === 'previous' ? 'DEVELOPMENT' : 'LESSON DEVELOPMENT'
+}
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -91,6 +106,13 @@ export default function LessonPlanStudio() {
   const [kit, setKit] = useState(null)
   const [lastPlanJson, setLastPlanJson] = useState(null)
   const [lastMeta, setLastMeta] = useState(null)
+
+  // Illustration (AI diagram) state. `diagrams` accumulates the generated
+  // figures attached to the current plan; illustrationStatus drives the
+  // canvas indicator ('idle' | 'generating' | 'error').
+  const [diagrams, setDiagrams] = useState([])
+  const [illustrationStatus, setIllustrationStatus] = useState('idle')
+  const [illustrationError, setIllustrationError] = useState(null)
 
   // AI lesson-count recommendation (used by LessonProgressionForm).
   // useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode)
@@ -266,6 +288,48 @@ export default function LessonPlanStudio() {
       current.setGenerationStatus('done')
       setLastPlanJson(planJson)
       setLastMeta(meta)
+      setDiagrams([])
+      setIllustrationError(null)
+      setIllustrationStatus('idle')
+
+      // Auto-illustration: when the teacher chose "Automatic" (or the advanced
+      // Auto-add toggle), generate one relevant illustration in the BACKGROUND
+      // and inject it once ready — the plan is already on screen, so the image
+      // never blocks reading. 'none' / 'manual' skip this. Fail-soft: any
+      // diagram error surfaces in the canvas indicator but leaves the plan.
+      const autoIllustrate =
+        formatOptions.illustrations === 'automatic' ||
+        formatOptions.advanced?.autoIllustrations === true
+      const diagramPrompt = autoIllustrate
+        ? buildLessonDiagramPrompt({
+            topic: topicData.topic,
+            subtopic: topicData.subtopic,
+            subject: lessonDetails.subject,
+            grade: lessonDetails.grade,
+          })
+        : ''
+      if (diagramPrompt) {
+        setIllustrationStatus('generating')
+        generateDiagram({ prompt: diagramPrompt, provider: 'recraft' })
+          .then(({ url }) => {
+            const next = [
+              {
+                stage: pickIllustrationStage(planJson, curriculumMode),
+                url,
+                caption: topicData.subtopic || topicData.topic || '',
+              },
+            ]
+            setDiagrams(next)
+            studioStateRef.current.setGeneratedPlan(
+              renderPlanHtml({ ...planJson, diagrams: next }, meta, curriculumMode),
+            )
+            setIllustrationStatus('idle')
+          })
+          .catch((err) => {
+            setIllustrationError(err instanceof Error ? err.message : String(err))
+            setIllustrationStatus('error')
+          })
+      }
       setKit({
         grade: lessonDetails.grade,
         subject: lessonDetails.subject,
@@ -305,13 +369,41 @@ export default function LessonPlanStudio() {
     }
   }, [completedLessons, handleGenerate])
 
+  // Manually add an illustration: the teacher types a description in the
+  // canvas, we generate it and inject it under the lesson-development stage.
+  // Each new illustration accumulates onto the current plan and re-renders.
+  const handleAddIllustration = useCallback(async (description) => {
+    const text = String(description || '').trim()
+    if (!text || !lastPlanJson) return
+    const mode = studioStateRef.current.curriculumMode
+    setIllustrationError(null)
+    setIllustrationStatus('generating')
+    try {
+      const { url } = await generateDiagram({ prompt: text, provider: 'recraft' })
+      const next = [
+        ...diagrams,
+        { stage: pickIllustrationStage(lastPlanJson, mode), url, caption: text },
+      ]
+      setDiagrams(next)
+      studioStateRef.current.setGeneratedPlan(
+        renderPlanHtml({ ...lastPlanJson, diagrams: next }, lastMeta ?? {}, mode),
+      )
+      setIllustrationStatus('idle')
+    } catch (err) {
+      setIllustrationError(err instanceof Error ? err.message : String(err))
+      setIllustrationStatus('error')
+    }
+  }, [lastPlanJson, lastMeta, diagrams])
+
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
     const subject = lastMeta?.subject ?? 'lesson'
     const grade   = lastMeta?.grade   ?? ''
     const filename = `lesson-plan-${grade}-${subject}.docx`.replace(/\s+/g, '-').toLowerCase()
-    await downloadLessonPlanDocx(lastPlanJson, filename, lastMeta ?? {})
-  }, [lastPlanJson, lastMeta])
+    // Include any generated illustrations so the Word export matches the preview.
+    const exportJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
+    await downloadLessonPlanDocx(exportJson, filename, lastMeta ?? {})
+  }, [lastPlanJson, lastMeta, diagrams])
 
   // Navigate to the teacher's saved lesson library.
   const handleViewCompleted = useCallback(() => {
@@ -345,6 +437,10 @@ export default function LessonPlanStudio() {
             generationStatus={studioState.generationStatus}
             generationError={generationError}
             onExportWord={handleExportWord}
+            illustrationMode={studioState.formatOptions.illustrations}
+            illustrationStatus={illustrationStatus}
+            illustrationError={illustrationError}
+            onAddIllustration={handleAddIllustration}
           />
         }
       />

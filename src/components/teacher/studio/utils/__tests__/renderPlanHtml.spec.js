@@ -64,6 +64,63 @@ const BASE_META = {
   totalLessons: 1,
 }
 
+// ── renderPlanHtml — illustrations (data.diagrams) ────────────────────────────
+
+describe('renderPlanHtml — illustrations', () => {
+  it('renders no <img> when there are no diagrams', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, BASE_META, 'cbc')
+    expect(html).not.toContain('<img')
+  })
+
+  it('renders an <img> for a diagram attached to a matching stage', () => {
+    const plan = {
+      ...SAMPLE_PLAN,
+      diagrams: [{ stage: 'LESSON DEVELOPMENT', url: 'https://img.test/a.png', caption: 'Counting cards' }],
+    }
+    const html = renderPlanHtml(plan, BASE_META, 'cbc')
+    expect(html).toContain('<img')
+    expect(html).toContain('https://img.test/a.png')
+    expect(html).toContain('Counting cards')
+  })
+
+  it('matches stage names loosely (case/punctuation-insensitive)', () => {
+    const plan = {
+      ...SAMPLE_PLAN,
+      diagrams: [{ stage: 'lesson development', url: 'https://img.test/b.png' }],
+    }
+    const html = renderPlanHtml(plan, BASE_META, 'cbc')
+    expect(html).toContain('https://img.test/b.png')
+  })
+
+  it('does not render a diagram whose stage matches no stage in the plan', () => {
+    const plan = {
+      ...SAMPLE_PLAN,
+      diagrams: [{ stage: 'NONEXISTENT STAGE', url: 'https://img.test/c.png' }],
+    }
+    const html = renderPlanHtml(plan, BASE_META, 'cbc')
+    expect(html).not.toContain('https://img.test/c.png')
+  })
+
+  it('escapes the diagram url and caption (no raw injection)', () => {
+    const plan = {
+      ...SAMPLE_PLAN,
+      diagrams: [{ stage: 'LESSON DEVELOPMENT', url: 'https://img.test/d.png"><script>', caption: '<b>x</b>' }],
+    }
+    const html = renderPlanHtml(plan, BASE_META, 'cbc')
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('<b>x</b>')
+  })
+
+  it('renders diagrams in the classic format too', () => {
+    const plan = {
+      ...SAMPLE_PLAN,
+      diagrams: [{ stage: 'LESSON DEVELOPMENT', url: 'https://img.test/e.png' }],
+    }
+    const html = renderPlanHtml(plan, { ...BASE_META, format: 'classic' }, 'cbc')
+    expect(html).toContain('https://img.test/e.png')
+  })
+})
+
 // ── renderPlanHtml — guard rails ──────────────────────────────────────────────
 
 describe('renderPlanHtml — guard rails', () => {

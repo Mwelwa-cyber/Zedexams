@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 
 /**
@@ -20,7 +20,13 @@ export function StudioCanvas({
   generationStatus,
   generationError,
   onExportWord,
+  illustrationMode = 'automatic',
+  illustrationStatus = 'idle',
+  illustrationError = null,
+  onAddIllustration,
 }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const [desc, setDesc] = useState('')
   // Inject lesson.css from /public/studio/ on mount.
   // The file lives in public/ so Vite won't bundle it; we inject a <link>
   // instead. We intentionally do NOT remove it on unmount — the styles are
@@ -46,6 +52,16 @@ export function StudioCanvas({
 
   function handleExportWord() {
     if (typeof onExportWord === 'function') onExportWord()
+  }
+
+  const illustrationBusy = illustrationStatus === 'generating'
+
+  function handleAddSubmit() {
+    const text = desc.trim()
+    if (!text || illustrationBusy) return
+    if (typeof onAddIllustration === 'function') onAddIllustration(text)
+    setDesc('')
+    setShowAdd(false)
   }
 
   return (
@@ -98,9 +114,69 @@ export function StudioCanvas({
               </svg>
               Export Word
             </button>
+
+            {illustrationMode === 'manual' && (
+              <button
+                type="button"
+                data-action="add-illustration"
+                onClick={() => setShowAdd((v) => !v)}
+                disabled={illustrationBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors disabled:opacity-50"
+              >
+                <svg
+                  width="14" height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                Add Illustration
+              </button>
+            )}
+
+            {/* Illustration status (covers both automatic + manual flows) */}
+            {illustrationBusy && (
+              <span data-testid="illustration-status" className="text-[12px] text-[#7a6d5d]">
+                Adding illustration…
+              </span>
+            )}
+            {illustrationStatus === 'error' && illustrationError && (
+              <span data-testid="illustration-error" className="text-[12px] text-red-600" title={illustrationError}>
+                Illustration failed
+              </span>
+            )}
           </>
         )}
       </div>
+
+      {/* Manual illustration input row */}
+      {isDone && illustrationMode === 'manual' && showAdd && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e5ddd0] bg-[#fbf9f5]">
+          <input
+            type="text"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubmit() }}
+            placeholder="Describe the illustration to add (e.g. water cycle diagram)"
+            className="flex-1 rounded-md border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+          <button
+            type="button"
+            onClick={handleAddSubmit}
+            disabled={!desc.trim() || illustrationBusy}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            Generate
+          </button>
+        </div>
+      )}
 
       {/* ── Workspace ─────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto bg-[#f2ede6] flex items-start justify-center p-6">
