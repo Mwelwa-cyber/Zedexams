@@ -44,6 +44,14 @@ vi.mock('./hooks/useLessonSeries', () => ({
 
 vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
 
+// The quota pre-flight gate (which internally subscribes to the usage meter via
+// Firestore onSnapshot). Mocked to "allowed" so generation tests aren't blocked
+// and the firebase/firestore mock stays minimal. A dedicated test below
+// overrides this to assert the paywall path.
+vi.mock('../../../hooks/useGenerationGate', () => ({
+  useGenerationGate: vi.fn(() => ({ ensureCanGenerate: vi.fn(() => true), usage: null })),
+}))
+
 // ── Child component mocks ─────────────────────────────────────────────────────
 
 vi.mock('./StudioShell', () => ({
@@ -277,6 +285,35 @@ describe('LessonPlanStudio — generate flow (error path)', () => {
       expect(screen.getByTestId('canvas-status')).toHaveTextContent('error')
     })
     expect(screen.getByTestId('canvas-error')).toHaveTextContent('Network timeout')
+  })
+})
+
+describe('LessonPlanStudio — quota gate (payment)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // Restore the "allowed" gate so the false-gate override never leaks into
+  // other tests (vi.clearAllMocks keeps mockReturnValue overrides).
+  afterEach(async () => {
+    const { useGenerationGate } = await import('../../../hooks/useGenerationGate')
+    vi.mocked(useGenerationGate).mockReturnValue({ ensureCanGenerate: vi.fn(() => true), usage: null })
+  })
+
+  it('does not start generation or call the backend when the quota gate blocks', async () => {
+    const { useGenerationGate } = await import('../../../hooks/useGenerationGate')
+    // Out of quota: ensureCanGenerate returns false (and would have opened the
+    // upgrade paywall). The studio must stay idle and never hit the callable.
+    vi.mocked(useGenerationGate).mockReturnValue({
+      ensureCanGenerate: vi.fn(() => false),
+      usage: null,
+    })
+
+    renderStudioWithGeneration()
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    expect(screen.getByTestId('canvas-status')).toHaveTextContent('idle')
+    expect(innerCallable).not.toHaveBeenCalled()
   })
 })
 

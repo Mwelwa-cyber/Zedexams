@@ -70,7 +70,7 @@ Module._load = function(id, parent, isMain) {
   return originalLoad(id, parent, isMain);
 };
 
-const {runStudioLessonPlan} = require("./studioLessonPlan");
+const {runStudioLessonPlan, STUDIO_TOOL_SCHEMA} = require("./studioLessonPlan");
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 let passed = 0;
@@ -146,6 +146,22 @@ const baseArgs = (overrides = {}) => ({
   const res5 = await runStudioLessonPlan(baseArgs());
   ok("generates with no teacher plan", Boolean(JSON.parse(res5.text).lessonGoal));
   ok("null context block when no plan matches", lastCallClaudeOpts.cbcContextBlock === null);
+
+  // 6. Tool schema must NOT contradict the studio system prompt's stage-key
+  //    contract. The prompt (src/.../studioSystemPrompt.js) instructs the model
+  //    to emit stage keys teacher/pupils/assessment/duration and explicitly
+  //    FORBIDS teacherActivities/learnerActivities/assessmentCriteria. A tool
+  //    schema that named the forbidden family contradicted the prompt and, under
+  //    forced tool_choice, made the model emit an empty tool call — every plan
+  //    rendered as a hollow table skeleton. Guard against re-introducing that.
+  const stageProps =
+    STUDIO_TOOL_SCHEMA.properties.stages.items.properties || {};
+  ok("stage schema uses the prompt's teacher/pupils/assessment keys",
+    "teacher" in stageProps && "pupils" in stageProps && "assessment" in stageProps);
+  ok("stage schema does NOT name the prompt-forbidden activity-array keys",
+    !("teacherActivities" in stageProps) &&
+    !("learnerActivities" in stageProps) &&
+    !("assessmentCriteria" in stageProps));
 
   console.log(`\n${passed} assertions passed.`);
 })().catch((err) => {

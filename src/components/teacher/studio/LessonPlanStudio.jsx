@@ -20,9 +20,39 @@ import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
+import { useGenerationGate } from '../../../hooks/useGenerationGate'
+import { paywall } from '../../../utils/paywall'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
+
+// Map a studioGenerateLessonPlan quota rejection to the matching upgrade
+// paywall. The server's usage meter (functions/teacherTools/usageMeter.js)
+// throws an HttpsError("failed-precondition", …) carrying a structured
+// `details.reason` ('monthly-limit' | 'daily-cap' | 'max-only') when a teacher
+// is out of lesson-plan quota. Without this, the studio just printed the raw
+// error string and offered no way to upgrade — so a capped teacher saw "it
+// just brings tables / an error" with no payment path. Returns true when it
+// recognised a quota error and opened the paywall (caller then skips the
+// generic error panel); false for any non-quota failure.
+function showQuotaPaywallForError(err) {
+  const code = err && err.code ? String(err.code) : ''
+  const reason = err && err.details && err.details.reason ? String(err.details.reason) : ''
+  if (code !== 'functions/failed-precondition' && !reason) return false
+  switch (reason) {
+    case 'max-only':
+      paywall.show('max-feature', { feature: 'Lesson plans', tool: 'lesson_plan' })
+      return true
+    case 'daily-cap':
+      paywall.show('daily-cap', { feature: 'lesson plans', tool: 'lesson_plan' })
+      return true
+    case 'monthly-limit':
+      paywall.show('monthly-limit', { feature: 'lesson plans', tool: 'lesson_plan' })
+      return true
+    default:
+      return false
+  }
+}
 
 // Pick the stage an auto/manual illustration should sit under. Prefers the
 // lesson-development stage (where worked examples live), falling back to the
@@ -162,12 +192,31 @@ export default function LessonPlanStudio() {
   const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
   const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
 
+  // Quota pre-flight (payment gate). Every other studio routes through this so a
+  // capped teacher sees the upgrade paywall instead of watching a generation
+  // start and fail on the server limit. Kept in a ref so handleGenerate can read
+  // the latest gate without `ensureCanGenerate` (whose identity changes as the
+  // usage meter loads) entering its dependency array.
+  const { ensureCanGenerate } = useGenerationGate(uid)
+  const gateRef = useRef(ensureCanGenerate)
+  useEffect(() => {
+    gateRef.current = ensureCanGenerate
+  })
+
   const isValid = computeIsValid(studioState)
 
   // ── Generate handler ──────────────────────────────────────────────────────
 
   const handleGenerate = useCallback(async (lessonIndex = 0) => {
     const current = studioStateRef.current
+
+    // Pre-flight quota gate: if the teacher is already out of lesson-plan quota
+    // (monthly or daily, with no purchased top-up credit), open the matching
+    // upgrade paywall immediately and do NOT flip into the "Generating…" state.
+    // The server meter enforces the same cap as a backstop. Admins / an
+    // unloaded meter fall through (ensureCanGenerate returns true).
+    if (!gateRef.current('lesson_plan')) return
+
     current.setGenerationStatus('loading')
     setGenerationError(null)
     setViewMode('preview')
@@ -422,6 +471,14 @@ export default function LessonPlanStudio() {
         }
       }
     } catch (err) {
+      // A server-side quota block (the meter throws 'failed-precondition' with a
+      // structured reason) becomes the upgrade paywall, not a raw error string —
+      // this covers the race where the client meter was stale and let the call
+      // through. Any other failure shows the normal error panel.
+      if (showQuotaPaywallForError(err)) {
+        current.setGenerationStatus('idle')
+        return
+      }
       const msg = err instanceof Error ? err.message : String(err)
       setGenerationError(msg)
       current.setGenerationStatus('error')
