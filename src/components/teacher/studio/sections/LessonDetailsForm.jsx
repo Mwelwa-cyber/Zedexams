@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSubjectsForGrade } from '../hooks/useSubjectsForGrade.js'
+import { useAvailableGrades } from '../hooks/useAvailableGrades.js'
 
 /**
  * Turn a syllabi subject key into a friendlier label for the dropdown while
@@ -102,6 +103,27 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
     }
   }, [curriculumMode, lessonDetails.grade, onChange])
 
+  // The static lists above are the *superset* of grades; the digitised syllabi
+  // don't cover every one (e.g. CBC ships no Grade 5/6 or ECE subject data), so
+  // we filter the picker down to grades that actually resolve to subjects. This
+  // is what fixes the "some classes show no subjects" dead-ends.
+  const candidateGradeValues = gradeListFor(curriculumMode).map((g) => g.value)
+  const { available: availableGrades, loading: gradesLoading } = useAvailableGrades(
+    candidateGradeValues,
+    curriculumMode,
+  )
+
+  // If a previously-selected (e.g. prefilled / persisted) grade is no longer
+  // offered once availability resolves, clear it so we never carry a grade that
+  // has no subjects. `availableGrades === null` means "not yet resolved / load
+  // failed" — leave the selection untouched in that case.
+  useEffect(() => {
+    if (!availableGrades) return
+    if (lessonDetails.grade && !availableGrades.includes(lessonDetails.grade)) {
+      onChange('grade', '')
+    }
+  }, [availableGrades, lessonDetails.grade, onChange])
+
   // Subjects come from the syllabi data for the selected grade — NOT a static
   // list — so the picked value is the syllabi subject key the topic/subtopic
   // dropdowns need. Without this the topic list is always empty.
@@ -124,7 +146,12 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
     }
   }, [subjects, subjectsLoading, lessonDetails.subject, onChange])
 
-  const grades    = gradeListFor(curriculumMode)
+  // Render only grades that have subject data. Until availability resolves (or
+  // if the load failed → `null`), fall back to the full candidate list so the
+  // picker is never mistakenly empty.
+  const grades    = availableGrades
+    ? gradeListFor(curriculumMode).filter((g) => availableGrades.includes(g.value))
+    : gradeListFor(curriculumMode)
   const grouped   = groupedGrades(grades)
   const done      = isDone(lessonDetails)
 
@@ -189,7 +216,9 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
               className={INPUT_CLS}
               disabled={disabled}
             >
-              <option value="">Select class…</option>
+              <option value="">
+                {gradesLoading && !availableGrades ? 'Loading classes…' : 'Select class…'}
+              </option>
               {[...grouped.entries()].map(([groupLabel, items]) => (
                 <optgroup key={groupLabel} label={groupLabel}>
                   {items.map((g) => (
