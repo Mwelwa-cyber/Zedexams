@@ -2469,6 +2469,16 @@ exports.cleanupArchivedSyllabusData = cleanupArchivedSyllabusData;
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 
+// Template Bank — reusable, anonymised lesson-plan templates. The Firestore
+// trigger (africa-south1) auto-builds + merges templates whenever a teacher
+// saves a lesson plan; the callable records "Use Template" + ratings.
+const {
+  createLessonPlanTemplateOnWrite,
+  createRecordTemplateInteraction,
+} = require("./teacherTools/templateBankFunctions");
+exports.lessonPlanTemplateOnWrite = createLessonPlanTemplateOnWrite(anthropicApiKey);
+exports.recordTemplateInteraction = createRecordTemplateInteraction();
+
 // AI agents — runs the Content pipeline whenever a queued agentJobs doc
 // lands (Aria → Cala → Reva → awaiting_approval), and runs Pubo when an
 // admin flips status to "approved".

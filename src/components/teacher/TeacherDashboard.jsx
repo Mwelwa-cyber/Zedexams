@@ -110,6 +110,15 @@ const STUDIO_GROUPS = [
         to: '/teacher/generate/lesson-plan',
       },
       {
+        img: iconLessonPlan,
+        tone: 'amber',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Template Bank',
+        tagline: 'Find, copy and customise ready-made, curriculum-aligned lesson plan templates.',
+        to: '/teacher/templates',
+      },
+      {
         img: iconRecordOfWork,
         tone: 'cyan',
         badge: null,

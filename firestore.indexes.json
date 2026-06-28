@@ -9,6 +9,14 @@
       ]
     },
     {
+      "collectionGroup": "lessonPlanTemplates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",       "order": "ASCENDING"  },
+        { "fieldPath": "qualityScore", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "questionBank",
       "queryScope": "COLLECTION",
       "fields": [
