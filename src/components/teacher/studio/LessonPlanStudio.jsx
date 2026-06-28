@@ -87,7 +87,7 @@ function computeIsValid(studioState) {
  */
 export default function LessonPlanStudio() {
   const studioState = useStudioState()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const navigate = useNavigate()
 
   // Keep a ref to the latest studioState so handleGenerate can read current
@@ -97,6 +97,23 @@ export default function LessonPlanStudio() {
   useEffect(() => {
     studioStateRef.current = studioState
   })
+
+  // Auto-fill Teacher Name + School from the signed-in teacher's profile (the
+  // details they gave at signup) the first time the profile loads, so they
+  // don't retype them on every plan. Only fills fields that are still empty —
+  // never clobbers something the teacher has already typed — and both inputs
+  // stay fully editable in the Lesson Details section.
+  const prefilledIdentityRef = useRef(false)
+  const { setLessonDetails } = studioState
+  useEffect(() => {
+    if (prefilledIdentityRef.current || !userProfile) return
+    prefilledIdentityRef.current = true
+    setLessonDetails((prev) => ({
+      ...prev,
+      teacherName: prev.teacherName || userProfile.displayName || '',
+      school: prev.school || userProfile.school || '',
+    }))
+  }, [userProfile, setLessonDetails])
 
   // Ephemeral generation state — not persisted to Firestore, lives only
   // for the current session. generationStatus / generatedPlan already live
