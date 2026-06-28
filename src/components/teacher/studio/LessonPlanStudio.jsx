@@ -16,6 +16,8 @@ import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 
@@ -129,6 +131,13 @@ export default function LessonPlanStudio() {
   // section editor). Session-only, resets to preview on each new generation.
   const [viewMode, setViewMode] = useState('preview')
 
+  // Save-to-library state. `savedSignature` is a content fingerprint of the
+  // last plan saved, so the button knows when the (possibly edited) plan has
+  // unsaved changes vs. is already in the library.
+  const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
+  const [saveError, setSaveError] = useState(null)
+  const [savedSignature, setSavedSignature] = useState(null)
+
   // Illustration (AI diagram) state. `diagrams` accumulates the generated
   // figures attached to the current plan; illustrationStatus drives the
   // canvas indicator ('idle' | 'generating' | 'error').
@@ -162,6 +171,9 @@ export default function LessonPlanStudio() {
     current.setGenerationStatus('loading')
     setGenerationError(null)
     setViewMode('preview')
+    setSaveStatus('idle')
+    setSaveError(null)
+    setSavedSignature(null)
 
     const {
       lessonDetails,
@@ -470,6 +482,51 @@ export default function LessonPlanStudio() {
     )
   }, [diagrams, lastMeta])
 
+  // Content fingerprint of the current plan (including illustrations) — drives
+  // the Save button's "unsaved changes vs. already saved" state.
+  const planSignature = lastPlanJson
+    ? JSON.stringify({ plan: lastPlanJson, diagrams })
+    : null
+
+  // Save the current (possibly edited) plan as a snapshot in the teacher
+  // library. Each save creates a fresh library entry — see
+  // saveLessonPlanGeneration for why there is no in-place update path.
+  const handleSaveToLibrary = useCallback(async () => {
+    const uid = currentUser?.uid
+    if (!uid || !lastPlanJson) return
+    const s = studioStateRef.current
+    const mode = s.curriculumMode
+    setSaveStatus('saving')
+    setSaveError(null)
+    try {
+      const planJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
+      const html = renderPlanHtml(planJson, lastMeta ?? {}, mode)
+      await saveLessonPlanGeneration({
+        uid,
+        planJson,
+        html,
+        meta: lastMeta ?? {},
+        studioFormat: lastMeta?.format || 'modern',
+        inputs: {
+          grade: s.lessonDetails.grade || null,
+          subject: s.lessonDetails.subject || null,
+          topic: s.topicData.topic || null,
+          subtopic: s.topicData.subtopic || null,
+        },
+        classification: {
+          libraryType: LIBRARY_TYPES.LESSON_PLANS,
+          grade: s.lessonDetails.grade,
+          subject: s.lessonDetails.subject,
+        },
+      })
+      setSavedSignature(JSON.stringify({ plan: lastPlanJson, diagrams }))
+      setSaveStatus('saved')
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err))
+      setSaveStatus('error')
+    }
+  }, [currentUser, lastPlanJson, lastMeta, diagrams])
+
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
     const subject = lastMeta?.subject ?? 'lesson'
@@ -527,6 +584,11 @@ export default function LessonPlanStudio() {
               subtopic: studioState.topicData.subtopic || '',
             }}
             onPlanChange={handlePlanChange}
+            onSaveToLibrary={handleSaveToLibrary}
+            saveStatus={saveStatus}
+            saveError={saveError}
+            canSave={!!lastPlanJson && saveStatus !== 'saving' && planSignature !== savedSignature}
+            onViewLibrary={handleViewCompleted}
           />
         }
       />

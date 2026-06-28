@@ -148,6 +148,53 @@ describe('StudioCanvas — done state', () => {
   })
 })
 
+describe('StudioCanvas — save to library', () => {
+  const HTML = '<p>Lesson plan content</p>'
+  const doneProps = { generationStatus: 'done', generatedPlan: HTML }
+
+  it('does not render the Save button without an onSaveToLibrary handler', () => {
+    renderCanvas(doneProps)
+    expect(screen.queryByRole('button', { name: /save to library/i })).not.toBeInTheDocument()
+  })
+
+  it('renders an enabled Save button when canSave is true and calls the handler', () => {
+    const onSaveToLibrary = vi.fn()
+    renderCanvas({ ...doneProps, onSaveToLibrary, canSave: true })
+    const btn = screen.getByRole('button', { name: /save to library/i })
+    expect(btn).toBeEnabled()
+    fireEvent.click(btn)
+    expect(onSaveToLibrary).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the Save button when canSave is false and not yet saved', () => {
+    renderCanvas({ ...doneProps, onSaveToLibrary: vi.fn(), canSave: false, saveStatus: 'idle' })
+    expect(screen.getByRole('button', { name: /save to library/i })).toBeDisabled()
+  })
+
+  it('shows a "Saving…" state', () => {
+    renderCanvas({ ...doneProps, onSaveToLibrary: vi.fn(), canSave: false, saveStatus: 'saving' })
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled()
+  })
+
+  it('shows a Saved chip with a View link once saved and unchanged', () => {
+    const onViewLibrary = vi.fn()
+    renderCanvas({ ...doneProps, onSaveToLibrary: vi.fn(), canSave: false, saveStatus: 'saved', onViewLibrary })
+    expect(screen.getByTestId('save-state')).toHaveTextContent(/saved/i)
+    fireEvent.click(screen.getByRole('button', { name: /view/i }))
+    expect(onViewLibrary).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers "Save changes" again after edits land (saved but canSave true)', () => {
+    renderCanvas({ ...doneProps, onSaveToLibrary: vi.fn(), canSave: true, saveStatus: 'saved' })
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
+  })
+
+  it('surfaces a save error', () => {
+    renderCanvas({ ...doneProps, onSaveToLibrary: vi.fn(), canSave: true, saveStatus: 'error', saveError: 'boom' })
+    expect(screen.getByTestId('save-error')).toBeInTheDocument()
+  })
+})
+
 // ── Error state ───────────────────────────────────────────────────────────────
 
 describe('StudioCanvas — error state', () => {

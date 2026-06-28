@@ -202,6 +202,53 @@ export async function attachLibraryToGeneration(generationId, classification) {
 }
 
 /**
+ * Save a Lesson Plan Studio plan into the teacher library.
+ *
+ * The Lesson Plan is the one AI tool whose library copy is assembled in the
+ * browser: the generate callable only logs a lightweight cost record, while
+ * the studio holds the full plan JSON + the pre-rendered HTML. firestore.rules
+ * therefore allows the owner to CREATE a `lesson_plan` doc directly, but only
+ * with the studio's field set — `inputs`, `library`, `meta`, `data`, `html`,
+ * `studioFormat` (notably NOT `output`, which is reserved for the server
+ * pipeline + in-place library edits). We save in that exact shape:
+ *   - `data` — the plan JSON (used by the library's PDF/DOCX exporters), and
+ *   - `html` — renderPlanHtml() output, rendered verbatim by LegacyStudioFrame
+ *     so the library view is byte-identical to the studio preview (including
+ *     any manual / AI edits and illustrations the teacher applied).
+ *
+ * Each save creates a fresh library snapshot — there is no in-place update path
+ * because the update rule forbids changing `data` / `html`, and a plan re-saved
+ * as `output` would render through a different code path and lose fidelity.
+ * The studio gates duplicate saves by content signature instead.
+ *
+ * @param {object} args
+ *   uid (required), planJson (required), html (required), meta, studioFormat,
+ *   inputs ({grade, subject, topic, subtopic, term}), classification
+ * @returns {Promise<string>} the new generation id
+ */
+export async function saveLessonPlanGeneration({
+  uid, planJson, html, meta, studioFormat, inputs, classification,
+}) {
+  if (!uid) throw new Error('Sign in again to save to your library.')
+  if (!planJson || typeof planJson !== 'object') throw new Error('Generate a plan before saving.')
+  const library = classifyForLibrary(classification)
+  const ref = await addDoc(collection(db, 'aiGenerations'), {
+    ownerUid: uid,
+    tool: 'lesson_plan',
+    status: 'complete',
+    visibility: 'private',
+    createdAt: serverTimestamp(),
+    inputs: inputs || {},
+    ...(library ? { library } : {}),
+    meta: meta || {},
+    data: planJson,
+    html: html || '',
+    studioFormat: studioFormat || (meta && meta.format) || 'modern',
+  })
+  return ref.id
+}
+
+/**
  * Save a client-side tool's document into the library. Mark schedules and
  * weekly forecasts are the only client-CREATED generations (pure
  * client-side derivation, no Cloud Function) — firestore.rules pins the
