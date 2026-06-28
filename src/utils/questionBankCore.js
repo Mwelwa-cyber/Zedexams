@@ -97,7 +97,32 @@ export const REVIEW_STATUS = Object.freeze({
 export const QUESTION_SOURCES = Object.freeze([
   'manual', 'ai', 'word', 'pdf', 'camera', 'past_paper',
   'quiz_studio', 'assessment_studio', 'test_paper_studio', 'exam_paper_studio',
+  'homework_studio',
 ])
+
+/**
+ * Map a Homework Studio question (`{prompt, answer, workingNotes}`) to the
+ * editor shape the bank stores. Homework items are always plain short-answer
+ * (no type/options), so they map to `short_answer` with the prompt as the stem,
+ * the answer as the key, and the working notes as the marking guide. Returns
+ * null when there's no stem or no answer (an unkeyed question isn't useful in
+ * the bank), so weak items are dropped rather than banked.
+ */
+export function homeworkQuestionToBank(q, meta = {}) {
+  if (!q || typeof q !== 'object') return null
+  const text = String(q.prompt ?? q.text ?? '').trim()
+  const correctAnswer = String(q.answer ?? q.correctAnswer ?? '').trim()
+  if (!text || !correctAnswer) return null
+  return {
+    type: 'short_answer',
+    text,
+    options: [],
+    correctAnswer,
+    explanation: String(q.workingNotes ?? q.explanation ?? ''),
+    topic: String(q.topic ?? meta.topic ?? ''),
+    marks: Number(q.marks) > 0 ? Number(q.marks) : 1,
+  }
+}
 
 /**
  * Map a question from the server quiz/exam-paper schema (stem `question`, MCQ
