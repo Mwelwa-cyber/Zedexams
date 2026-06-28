@@ -44,9 +44,6 @@ const PREVIOUS_GRADES = [
   { group: 'Secondary',      value: 'Grade 12',   label: 'Grade 12' },
 ]
 
-const TERMS     = ['Term 1', 'Term 2', 'Term 3']
-const WEEKS     = Array.from({ length: 13 }, (_, i) => `Week ${i + 1}`)
-
 /** Return the grade list for the active curriculum mode. */
 function gradeListFor(curriculumMode) {
   return curriculumMode === 'previous' ? PREVIOUS_GRADES : CBC_GRADES
@@ -81,7 +78,7 @@ const LABEL_CLS = 'block text-[11px] font-semibold text-[#7a6d5d] mb-1'
  * LessonDetailsForm — collapsible sidebar section for lesson metadata.
  *
  * Props:
- *   lessonDetails: { grade, subject, duration, medium, term, week, date, time }
+ *   lessonDetails: { grade, subject, duration, medium, date, time }
  *   curriculumMode: 'cbc' | 'previous' | null
  *   onChange: (field, value) => void
  *   disabled: boolean — true when curriculumMode is null
@@ -240,41 +237,6 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
               <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[11px] text-[#a39d8e]">
                 mins
               </span>
-            </div>
-          </div>
-
-          {/* Term + Week — two columns */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="ldf-term" className={LABEL_CLS}>Term</label>
-              <select
-                id="ldf-term"
-                value={lessonDetails.term}
-                onChange={(e) => onChange('term', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              >
-                <option value="">—</option>
-                {TERMS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="ldf-week" className={LABEL_CLS}>Week</label>
-              <select
-                id="ldf-week"
-                value={lessonDetails.week}
-                onChange={(e) => onChange('week', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              >
-                <option value="">—</option>
-                {WEEKS.map((w) => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
             </div>
           </div>
 

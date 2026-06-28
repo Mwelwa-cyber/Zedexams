@@ -101,8 +101,6 @@ describe('useStudioState — initial state shape', () => {
       subject: '',
       duration: '40',
       medium: 'English',
-      term: '',
-      week: '',
       date: '',
       time: '',
       teacherName: '',

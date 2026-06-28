@@ -181,8 +181,6 @@ export default function LessonPlanStudio() {
       `- Subject: ${lessonDetails.subject}`,
       `- Topic: ${topicData.topic}`,
       topicData.subtopic ? `- Sub-topic: ${topicData.subtopic}` : '',
-      lessonDetails.term ? `- Term: ${lessonDetails.term}` : '',
-      lessonDetails.week ? `- Week: ${lessonDetails.week}` : '',
       totalLessons > 1
         ? `- This is Lesson ${lessonNumber} of ${totalLessons} for this sub-topic.`
         : '',
@@ -292,10 +290,6 @@ export default function LessonPlanStudio() {
         subject: lessonDetails.subject || '',
         topic: topicData.topic || '',
         subtopic: topicData.subtopic || '',
-        // Term + Week drive the "Term & Week" row in the rendered header.
-        // renderPlanHtml reads meta.termWeek; without this the row never showed
-        // even when the teacher filled the Term/Week selectors.
-        termWeek: [lessonDetails.term, lessonDetails.week].filter(Boolean).join(', '),
         duration: lessonDetails.duration || 40,
         medium: lessonDetails.medium || 'English',
         lessonNumber,
@@ -354,7 +348,6 @@ export default function LessonPlanStudio() {
         subject: lessonDetails.subject,
         topic: topicData.topic,
         subtopic: topicData.subtopic,
-        term: lessonDetails.term,
         lessonNumber,
         totalLessons,
       })

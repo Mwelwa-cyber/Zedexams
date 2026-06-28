@@ -14,8 +14,6 @@ export function useStudioState() {
     subject: '',
     duration: '40',
     medium: 'English',
-    term: '',
-    week: '',
     date: '',
     time: '',
     teacherName: '',
