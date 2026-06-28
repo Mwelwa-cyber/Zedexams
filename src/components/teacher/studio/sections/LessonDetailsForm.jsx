@@ -31,14 +31,20 @@ const CBC_GRADES = [
   { group: 'Secondary',      value: 'Form 4',     label: 'Form 4' },
 ]
 
+// 2013 / previous curriculum. The data file (/syllabi/curriculum-data-2013.json)
+// stores one sheet per grade ("Grade 1" … "Grade 12"), so each entry's `value`
+// must be the literal grade — a group name like "Lower Primary" matches no sheet
+// and yields an empty subject list. Grades with no data in the 2013 file (ECE,
+// Grade 9) are intentionally omitted so the dropdown never offers a dead option.
 const PREVIOUS_GRADES = [
-  { group: 'ECE',            value: 'ECE',         label: 'ECE' },
-  { group: 'Lower Primary',  value: 'Lower Primary', label: 'Lower Primary' },
+  { group: 'Lower Primary',  value: 'Grade 1',    label: 'Grade 1' },
+  { group: 'Lower Primary',  value: 'Grade 2',    label: 'Grade 2' },
+  { group: 'Lower Primary',  value: 'Grade 3',    label: 'Grade 3' },
+  { group: 'Lower Primary',  value: 'Grade 4',    label: 'Grade 4' },
   { group: 'Upper Primary',  value: 'Grade 5',    label: 'Grade 5' },
   { group: 'Upper Primary',  value: 'Grade 6',    label: 'Grade 6' },
   { group: 'Upper Primary',  value: 'Grade 7',    label: 'Grade 7' },
   { group: 'Secondary',      value: 'Grade 8',    label: 'Grade 8' },
-  { group: 'Secondary',      value: 'Grade 9',    label: 'Grade 9' },
   { group: 'Secondary',      value: 'Grade 10',   label: 'Grade 10' },
   { group: 'Secondary',      value: 'Grade 11',   label: 'Grade 11' },
   { group: 'Secondary',      value: 'Grade 12',   label: 'Grade 12' },

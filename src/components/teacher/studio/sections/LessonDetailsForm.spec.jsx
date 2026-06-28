@@ -158,6 +158,27 @@ describe('LessonDetailsForm — CBC grade optgroups', () => {
 })
 
 describe('LessonDetailsForm — Previous Curriculum grade optgroups', () => {
+  // Regression: the Previous "Lower Primary" group used to be a single option
+  // whose value was the literal string "Lower Primary" — which matches no sheet
+  // in curriculum-data-2013.json, so it showed the group with no real grades and
+  // produced an empty subject list. It must expand to Grade 1–4.
+  it('Previous Lower Primary contains Grade 1 through Grade 4 (real grade values)', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="previous"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const lp = [...container.querySelectorAll('optgroup')].find((g) => g.label === 'Lower Primary')
+    expect(lp).toBeTruthy()
+    const values = [...lp.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toEqual(['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4'])
+    // No group-name placeholder leaks back in.
+    expect(values).not.toContain('Lower Primary')
+  })
+
   it('Previous Upper Primary contains Grade 5, Grade 6, Grade 7 (not Grade 1-3)', () => {
     const { container } = render(
       <LessonDetailsForm
