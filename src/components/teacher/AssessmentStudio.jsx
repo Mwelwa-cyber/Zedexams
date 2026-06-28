@@ -48,7 +48,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import QuestionBankPicker from './QuestionBankPicker'
-import { saveQuestionToBank } from '../../utils/questionBankService'
+import { saveQuestionToBank, captureQuestionsToBank } from '../../utils/questionBankService'
 import CreatePaperModal from './CreatePaperModal'
 import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
 import { assessmentDefaultsFromParams } from './assessmentDeepLink'
@@ -1923,6 +1923,19 @@ export default function AssessmentStudio({ variant = 'test' }) {
       if (persistInFlightRef.current) { try { await persistInFlightRef.current } catch { /* its retry is our save */ } }
       const wasUpdate = Boolean(editId || createdIdRef.current)
       await runLibraryPersist()
+      // Central Question Bank — capture this paper's questions in the
+      // background (no Share button). On the explicit save only, not the
+      // library autosave, so we don't re-capture on every keystroke. Best-effort
+      // and fire-and-forget; capture must never block or fail the save.
+      try {
+        const captured = serializeQuizSections(sections, parts).questions
+        captureQuestionsToBank(
+          currentUser.uid,
+          captured,
+          { subject: form.subject, grade: form.grade, topic: form.topic },
+          'assessment_studio',
+        )
+      } catch { /* capture is best-effort */ }
       showToast(wasUpdate ? 'Changes saved.' : 'Saved to your library!')
       setTimeout(() => navigate(cfg.routeBase), 900)
     } catch (error) {

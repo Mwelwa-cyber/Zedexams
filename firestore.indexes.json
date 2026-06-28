@@ -9,6 +9,15 @@
       ]
     },
     {
+      "collectionGroup": "questionBank",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject", "order": "ASCENDING" },
+        { "fieldPath": "grade",   "order": "ASCENDING" },
+        { "fieldPath": "topic",   "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [

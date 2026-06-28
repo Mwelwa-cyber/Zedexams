@@ -98,6 +98,7 @@ const NAV_SECTIONS = [
     label: 'Approvals',
     items: [
       { to: '/admin/approvals', icon: BellRing, label: 'Content queue', badgeKey: 'content' },
+      { to: '/admin/question-review', icon: BellRing, label: 'Question review' },
       { to: '/admin/agents', icon: Bot, label: 'AI agents', badgeKey: 'agents' },
       { to: '/admin/generations', icon: Sparkles, label: 'AI generations' },
       { to: '/admin/feedback', icon: Lightbulb, label: 'Suggestions', badgeKey: 'feedback' },

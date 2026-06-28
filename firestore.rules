@@ -699,17 +699,48 @@ service cloud.firestore {
       }
     }
 
-    // ── questionBank ──────────────────────────────────────────
-    // A teacher's personal library of reusable questions, saved from the
-    // Assessment Studio and re-inserted into future papers. Each doc carries
-    // `ownerId`; strictly owner-scoped (a saved question is private content,
-    // not shared and not admin-readable). The question itself is stored as a
-    // JSON string in `data` to sidestep Firestore's no-nested-arrays limit.
+    // ── questionBank (Central Question Bank) ──────────────────
+    // Every question a teacher creates/imports is captured here automatically
+    // and reviewed in the background by the Qix Cloud Function. Each doc
+    // carries `ownerId` and a `reviewStatus`; the cross-teacher "Master Bank"
+    // is the subset with masterEligible == true (set ONLY by the server on
+    // approval). The question itself is stored as a JSON string in `data` to
+    // sidestep Firestore's no-nested-arrays limit.
+    //
+    // Read: a teacher reads their own rows (any status) PLUS any Master-Bank
+    // (approved) row from any teacher, so the bank is reusable platform-wide.
+    // Admins read everything.
+    //
+    // The review verdict fields (reviewStatus → approved, masterEligible,
+    // aiReview, duplicateOf, similarity) are written by the admin SDK (Qix /
+    // admin actions), which bypasses these rules. Clients may only ever create
+    // a row as pending_review and may never self-promote into the Master Bank.
     match /questionBank/{itemId} {
-      allow read:   if isAuthed() && resource.data.ownerId == request.auth.uid;
+      allow read: if isAuthed() && (
+        resource.data.ownerId == request.auth.uid
+        || resource.data.get('masterEligible', false) == true
+        || isAdmin()
+      );
       allow create: if isAuthed() && isTeacherOrAbove()
-        && incoming().ownerId == request.auth.uid;
-      allow delete: if isAuthed() && resource.data.ownerId == request.auth.uid;
+        && incoming().ownerId == request.auth.uid
+        && incoming().get('reviewStatus', 'pending_review') == 'pending_review'
+        && incoming().get('masterEligible', false) == false;
+      // Owners may edit their own questions (which re-enters review) but can
+      // never grant themselves Master-Bank eligibility or self-approve.
+      allow update: if isAdmin() || (
+        isAuthed() && resource.data.ownerId == request.auth.uid
+        && incoming().ownerId == request.auth.uid
+        && incoming().get('masterEligible', false) == false
+        && incoming().get('reviewStatus', 'pending_review') in ['pending_review', 'private_saved', 'archived']
+      );
+      allow delete: if isAdmin() || (isAuthed() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // ── questionBankFavourites ────────────────────────────────
+    // A teacher's starred questions from the Central Question Bank. Strictly
+    // owner-scoped: questionBankFavourites/{uid}/items/{questionId}.
+    match /questionBankFavourites/{uid}/items/{favId} {
+      allow read, write: if isAuthed() && request.auth.uid == uid;
     }
 
     // ── assessmentDrafts ──────────────────────────────────────
