@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { SUBJECTS } from '../../../../config/curriculum.js'
+import { useSubjectsForGrade } from '../hooks/useSubjectsForGrade.js'
+
+/**
+ * Turn a syllabi subject key into a friendlier label for the dropdown while
+ * the stored value stays the exact key (so topic lookup still matches).
+ *   "Mathematics Syllabus (Grades 4-6)" → "Mathematics"
+ *   "Lower Primary Syllabi (Grades 1-3)" → "Lower Primary"
+ */
+function subjectLabel(key) {
+  return String(key || '').replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim() || key
+}
 
 /**
  * Grade lists per curriculum mode.
@@ -90,6 +100,28 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
     }
   }, [curriculumMode, lessonDetails.grade, onChange])
 
+  // Subjects come from the syllabi data for the selected grade — NOT a static
+  // list — so the picked value is the syllabi subject key the topic/subtopic
+  // dropdowns need. Without this the topic list is always empty.
+  const { subjects, loading: subjectsLoading } = useSubjectsForGrade(
+    lessonDetails.grade,
+    curriculumMode,
+  )
+
+  // Clear a stale subject when the available list changes (e.g. the teacher
+  // switched grade) and the current selection is no longer offered, so we
+  // never carry a subject key that has no topics for the new grade.
+  useEffect(() => {
+    if (
+      lessonDetails.subject &&
+      !subjectsLoading &&
+      subjects.length > 0 &&
+      !subjects.includes(lessonDetails.subject)
+    ) {
+      onChange('subject', '')
+    }
+  }, [subjects, subjectsLoading, lessonDetails.subject, onChange])
+
   const grades    = gradeListFor(curriculumMode)
   const grouped   = groupedGrades(grades)
   const done      = isDone(lessonDetails)
@@ -174,11 +206,19 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
               value={lessonDetails.subject}
               onChange={(e) => onChange('subject', e.target.value)}
               className={INPUT_CLS}
-              disabled={disabled}
+              disabled={disabled || !lessonDetails.grade || subjectsLoading}
             >
-              <option value="">Select subject…</option>
-              {SUBJECTS.map((s) => (
-                <option key={s.id} value={s.label}>{s.label}</option>
+              <option value="">
+                {!lessonDetails.grade
+                  ? 'Select a class first…'
+                  : subjectsLoading
+                    ? 'Loading subjects…'
+                    : subjects.length === 0
+                      ? 'No subjects for this class yet'
+                      : 'Select subject…'}
+              </option>
+              {subjects.map((s) => (
+                <option key={s} value={s}>{subjectLabel(s)}</option>
               ))}
             </select>
           </div>

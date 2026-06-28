@@ -2,6 +2,19 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { LessonDetailsForm } from './LessonDetailsForm'
 
+// Subjects now come from the syllabi data via this hook (so the picked value
+// is a real syllabi key). Mock it so the form's subject dropdown is
+// deterministic and we avoid the firebase/fetch chain in jsdom.
+vi.mock('../hooks/useSubjectsForGrade.js', () => ({
+  useSubjectsForGrade: vi.fn((grade) => ({
+    subjects: grade
+      ? ['Mathematics Syllabus (Grades 4-6)', 'Science Syllabus (Grades 4-6)']
+      : [],
+    loading: false,
+    error: null,
+  })),
+}))
+
 const DEFAULT_DETAILS = {
   grade: '',
   subject: '',
@@ -283,16 +296,46 @@ describe('LessonDetailsForm — onChange callbacks', () => {
     const onChange = vi.fn()
     render(
       <LessonDetailsForm
-        lessonDetails={{ ...DEFAULT_DETAILS }}
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 4' }}
         curriculumMode="cbc"
         onChange={onChange}
         disabled={false}
       />,
     )
+    // The subject dropdown is enabled once a grade is chosen and its options are
+    // the syllabi subject keys (mocked above) — not static labels.
     fireEvent.change(screen.getByRole('combobox', { name: /subject/i }), {
-      target: { value: 'Mathematics' },
+      target: { value: 'Mathematics Syllabus (Grades 4-6)' },
     })
-    expect(onChange).toHaveBeenCalledWith('subject', 'Mathematics')
+    expect(onChange).toHaveBeenCalledWith('subject', 'Mathematics Syllabus (Grades 4-6)')
+  })
+
+  it('disables the subject dropdown until a grade is chosen', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, grade: '' } })
+    expect(screen.getByRole('combobox', { name: /subject/i })).toBeDisabled()
+  })
+
+  it('lists syllabi subjects (cleaned label) once a grade is chosen', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, grade: 'Grade 4' } })
+    const subjectSelect = screen.getByRole('combobox', { name: /subject/i })
+    expect(subjectSelect).not.toBeDisabled()
+    // Cleaned label shown to the teacher…
+    const opt = screen.getByRole('option', { name: 'Mathematics' })
+    // …but the stored value is the full syllabi key that topic lookup needs.
+    expect(opt).toHaveValue('Mathematics Syllabus (Grades 4-6)')
+  })
+
+  it('clears a stale subject that is not offered for the new grade', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 4', subject: 'Some Old Subject' }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    expect(onChange).toHaveBeenCalledWith('subject', '')
   })
 
   it('calls onChange("duration", value) when duration is changed', () => {
