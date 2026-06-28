@@ -109,6 +109,44 @@ describe('DiagramHandlingChooser', () => {
     expect(await screen.findByText('Cleaned')).toBeInTheDocument()
   })
 
+  it('keeps the Original preview pinned to the pristine scan after cleaning', async () => {
+    const onResolved = vi.fn()
+    const { rerender } = render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={async () => 'https://store/clean.png'}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+    await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+
+    // Simulate the parent patching ref.imageUrl to the cleaned URL (the bug:
+    // this used to drag the "Original" preview to the cleaned image too).
+    rerender(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/clean.png"
+        onCleanUpload={async () => 'https://store/clean.png'}
+        onResolved={onResolved}
+      />,
+    )
+
+    // Original stays on the pristine scan; only Result shows the cleaned image.
+    expect(screen.getByAltText('Original scanned figure')).toHaveAttribute(
+      'src',
+      'https://store/original.png',
+    )
+    expect(screen.getByAltText('Resulting figure')).toHaveAttribute(
+      'src',
+      'https://store/clean.png',
+    )
+  })
+
   it('shows a friendly message when in-browser cleaning fails', async () => {
     mockClean.mockRejectedValueOnce(new Error('tainted canvas'))
     render(
@@ -126,5 +164,47 @@ describe('DiagramHandlingChooser', () => {
     expect(
       await screen.findByText('Could not clean this figure automatically.', { exact: false }),
     ).toBeInTheDocument()
+  })
+
+  it('refuses to clean when there is no scanned crop (no silent server no-op)', async () => {
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl={null}
+        onCleanUpload={async () => 'x'}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    expect(
+      await screen.findByText('no scanned figure to clean', { exact: false }),
+    ).toBeInTheDocument()
+    expect(mockClean).not.toHaveBeenCalled()
+    expect(mockRedraw).not.toHaveBeenCalled()
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly instead of persisting a data URL when the upload returns nothing', async () => {
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={async () => null}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    expect(
+      await screen.findByText('Could not save the cleaned figure', { exact: false }),
+    ).toBeInTheDocument()
+    expect(onResolved).not.toHaveBeenCalled()
   })
 })

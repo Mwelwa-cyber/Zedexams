@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import Button from '../../ui/Button'
 import {
@@ -50,17 +50,28 @@ export default function DiagramHandlingChooser({
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
+  // The pristine scanned crop, captured BEFORE any clean/redraw resolves. Once a
+  // result exists we freeze it, because resolving patches the parent's
+  // ref.imageUrl to the cleaned/redrawn figure — and `originalUrl` mirrors that.
+  // Without this freeze the "Original" preview (and the clean source) would flip
+  // to the cleaned image too, destroying the before/after comparison.
+  const [pristineOriginalUrl, setPristineOriginalUrl] = useState(originalUrl)
+  useEffect(() => {
+    if (!result && originalUrl) setPristineOriginalUrl(originalUrl)
+  }, [originalUrl, result])
+
   const caption =
     (detected && (detected.caption || detected.kind)) || 'Detected figure'
 
   // Clean the scanned figure in-browser, upload it, and return the result the
   // chooser surfaces. Kept separate so a cleaning failure (e.g. a cross-origin
   // figure that taints the canvas) surfaces a clear, actionable message rather
-  // than the raw DOM SecurityError.
+  // than the raw DOM SecurityError. Always cleans the PRISTINE original so a
+  // second click never re-cleans an already-cleaned figure.
   async function cleanOriginal() {
     let cleaned
     try {
-      cleaned = await cleanDiagramSource(originalUrl, {
+      cleaned = await cleanDiagramSource(pristineOriginalUrl || originalUrl, {
         blackAndWhite: true,
         autoCrop: true,
         whiten: true,
@@ -70,24 +81,38 @@ export default function DiagramHandlingChooser({
         'Could not clean this figure automatically. Keep the original, or redraw it with AI.',
       )
     }
-    let url = cleaned.dataUrl
+    // Persist the cleaned PNG. When an uploader is wired (the review screen
+    // always wires one), a falsy return means the Storage upload failed — fail
+    // loudly rather than silently persisting the giant inline data URL into the
+    // studio model (and eventually a Firestore doc). The data-URL fallback is
+    // only for preview-only callers that wire no uploader at all.
     if (typeof onCleanUpload === 'function') {
       const uploaded = await onCleanUpload(cleaned.blob)
-      if (uploaded) url = uploaded
+      if (!uploaded) {
+        throw new Error('Could not save the cleaned figure. Please try again.')
+      }
+      return { action: 'cleaned', url: uploaded, source: 'cleaned', cleaned: true }
     }
-    return { action: 'cleaned', url, source: 'cleaned', cleaned: true }
+    return { action: 'cleaned', url: cleaned.dataUrl, source: 'cleaned', cleaned: true }
   }
 
   async function choose(option) {
     setError('')
+    // Clean runs in-browser on the scanned crop. If there is no crop to clean,
+    // say so instead of falling through to the server, which answers a clean
+    // request with a null-url "kept_clean" the review screen silently drops —
+    // leaving the teacher with no figure and no feedback.
+    const haveOriginal = Boolean(pristineOriginalUrl || originalUrl)
+    if (option.id === 'clean_original' && !haveOriginal) {
+      setError('There is no scanned figure to clean here. Try "Redraw using AI" to generate one.')
+      return
+    }
     setBusy(option.id)
     try {
       // "Clean original drawing" runs locally on the scanned figure — no server
       // round-trip (which is why the old path could surface a bare "internal").
       const res =
-        option.id === 'clean_original' &&
-        originalUrl &&
-        isDiagramCleanSupported()
+        option.id === 'clean_original' && haveOriginal && isDiagramCleanSupported()
           ? await cleanOriginal()
           : await redrawTestPaperDiagram({
               detected,
@@ -143,9 +168,9 @@ export default function DiagramHandlingChooser({
           <figcaption className="text-[11px] uppercase tracking-wide theme-text-muted">
             Original
           </figcaption>
-          {originalUrl ? (
+          {pristineOriginalUrl ? (
             <img
-              src={originalUrl}
+              src={pristineOriginalUrl}
               alt="Original scanned figure"
               className="w-full rounded-lg border theme-border bg-white object-contain max-h-40"
             />
