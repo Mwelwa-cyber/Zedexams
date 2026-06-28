@@ -489,12 +489,18 @@ function formatResetIn(ms) {
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
-// SVG ring gauge for the lesson-plan allowance. Unlimited plans have no real
-// denominator, so the arc is a calm, fixed-ish fill that grows gently with use.
+// Caps at or above this are treated as "unlimited" — the meter stores a
+// sentinel rather than a real ceiling for the Max plan's uncapped studios.
+const UNLIMITED_CAP = 99999
+
+// SVG ring gauge for the lesson-plan allowance. The caller supplies the fill
+// fraction: finite plans pass real used/cap (an empty ring at 0 usage),
+// unlimited plans pass a gentle decorative arc. No floor here, so a finite
+// plan at 0% genuinely reads as empty.
 function UsageGauge({ value, pct }) {
   const r = 24
   const c = 2 * Math.PI * r
-  const clamped = Math.max(0.04, Math.min(1, pct))
+  const clamped = Math.max(0, Math.min(1, pct))
   return (
     <div className="teacher-usage-gauge">
       <svg viewBox="0 0 60 60" aria-hidden="true">
@@ -522,7 +528,7 @@ function CompactUsage() {
   const isMax = data.plan === 'max'
   const planCap = data.caps?.plans || 0
   const planUsed = data.used?.plans || 0
-  const unlimited = isMax || planCap >= 99999
+  const unlimited = isMax || planCap >= UNLIMITED_CAP
   // Finite plans show real used/cap; unlimited shows a gentle decorative arc.
   const gaugePct = unlimited ? Math.min(0.85, 0.18 + planUsed / 60) : planCap ? planUsed / planCap : 0
   const resetIn = formatResetIn(msToUtcMidnight())
@@ -549,7 +555,7 @@ function CompactUsage() {
             </span>
             <div className="teacher-usage-card__metric-body">
               <span className="teacher-usage-card__big">
-                {data.today}<span className="teacher-usage-card__den"> / {data.daily >= 99999 ? '∞' : data.daily}</span>
+                {data.today}<span className="teacher-usage-card__den"> / {data.daily >= UNLIMITED_CAP ? '∞' : data.daily}</span>
               </span>
               <span className="teacher-usage-card__k">AI generations today</span>
               <span className="teacher-usage-card__reset">Resets in {resetIn}</span>
