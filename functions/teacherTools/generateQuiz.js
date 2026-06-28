@@ -24,6 +24,8 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./quizPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {sourceQuizFromBank} = require("./masterBankSourcing");
+const {buildAvoidNote} = require("./masterBankSourcingCore");
 
 const QUIZ_MODEL = process.env.QUIZ_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
@@ -85,6 +87,9 @@ function sanitizeInputs(raw = {}) {
         Math.round(num(raw.durationMinutes, 15)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    // Smart sourcing is on by default; a client can opt out (e.g. "fresh
+    // questions only") by sending useQuestionBank: false.
+    useQuestionBank: raw.useQuestionBank !== false,
   };
 }
 
@@ -146,41 +151,90 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     visibility: "private",
   });
 
-  const userPrompt = buildUserPrompt(inputs);
+  // Smart Paper Generation — pull approved questions from the Master Bank
+  // first, then ask the model for only the remainder. Best-effort: on an empty
+  // or unmatched bank this returns nothing and the flow is identical to before.
+  let sourced = {questions: [], fromBank: 0, scanned: 0};
+  if (inputs.useQuestionBank) {
+    sourced = await sourceQuizFromBank({
+      grade: inputs.grade,
+      subject: inputs.subject,
+      topic: inputs.topic,
+      count: inputs.count,
+    });
+  }
+  const gap = Math.max(0, inputs.count - sourced.questions.length);
 
   let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
   let modelUsed = QUIZ_MODEL;
-  try {
-    const response = await callClaude(apiKey, {
-      systemPrompt: SYSTEM_PROMPT,
-      cbcContextBlock: contextBlock,
-      messages: [{role: "user", content: userPrompt}],
-      maxTokens: 4500,
-      temperature: 0.4,
-      model: QUIZ_MODEL,
-      mode: "tool",
-      toolName: "emit_quiz",
-      toolDescription:
-        "Emit the complete quiz as a single structured object. Do not " +
-        "include any prose or commentary outside this tool call.",
-      toolInputSchema: QUIZ_TOOL_SCHEMA,
-    });
-    parsed = response.parsed;
-    raw = response.text || "";
-    usageInfo = response.usage || usageInfo;
-    modelUsed = response.model || modelUsed;
-  } catch (err) {
-    await genRef.update({
-      status: "failed",
-      errorMessage: String(err && err.message || err).slice(0, 500),
-    });
-    throw err;
+  let aiCalled = false;
+
+  // Only call the model when the bank didn't fully cover the quiz. When it
+  // did (gap === 0) we skip Anthropic entirely — zero tokens, zero cost.
+  if (gap > 0) {
+    aiCalled = true;
+    const genInputs = {...inputs, count: gap};
+    const userPrompt = buildUserPrompt(genInputs) + buildAvoidNote(sourced.questions);
+    try {
+      const response = await callClaude(apiKey, {
+        systemPrompt: SYSTEM_PROMPT,
+        cbcContextBlock: contextBlock,
+        messages: [{role: "user", content: userPrompt}],
+        maxTokens: 4500,
+        temperature: 0.4,
+        model: QUIZ_MODEL,
+        mode: "tool",
+        toolName: "emit_quiz",
+        toolDescription:
+          "Emit the complete quiz as a single structured object. Do not " +
+          "include any prose or commentary outside this tool call.",
+        toolInputSchema: QUIZ_TOOL_SCHEMA,
+      });
+      parsed = response.parsed;
+      raw = response.text || "";
+      usageInfo = response.usage || usageInfo;
+      modelUsed = response.model || modelUsed;
+    } catch (err) {
+      await genRef.update({
+        status: "failed",
+        errorMessage: String(err && err.message || err).slice(0, 500),
+      });
+      throw err;
+    }
+  } else {
+    modelUsed = "master_bank";
   }
 
-  const validation = validateQuiz(parsed);
+  // Merge: Master Bank questions first, then any AI-generated ones. Validate
+  // the combined paper through the same schema the model output goes through.
+  const generatedQuestions = parsed && Array.isArray(parsed.questions) ?
+    parsed.questions : [];
+  const parsedHeader = (parsed && parsed.header) || {};
+  const mergedInput = {
+    header: {
+      title: parsedHeader.title || `${inputs.topic} quiz`,
+      grade: parsedHeader.grade || inputs.grade,
+      subject: parsedHeader.subject || inputs.subject,
+      topic: parsedHeader.topic || inputs.topic,
+      subtopic: parsedHeader.subtopic || inputs.subtopic,
+      term: parsedHeader.term != null ? parsedHeader.term : inputs.term,
+      durationMinutes: parsedHeader.durationMinutes || inputs.durationMinutes,
+      instructions: parsedHeader.instructions,
+    },
+    questions: [...sourced.questions, ...generatedQuestions],
+    answerKey: (parsed && parsed.answerKey) || {},
+  };
+
+  const validation = validateQuiz(mergedInput);
   const quiz = validation.value;
+  const sourcing = {
+    fromBank: sourced.fromBank,
+    generated: quiz.questions.length - sourced.fromBank,
+    scanned: sourced.scanned,
+    aiCalled,
+  };
 
   const tokensIn = Number(usageInfo.inputTokens || 0);
   const tokensOut = Number(usageInfo.outputTokens || 0);
@@ -199,6 +253,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
       tokensOut,
       costUsdCents,
       modelUsed,
+      sourcing,
     });
     return {
       generationId: genRef.id,
@@ -209,6 +264,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
         kbWarning,
       ].filter(Boolean).join(" "),
       kbGrounded: Boolean(kbMatch),
+      sourcing,
     };
   }
 
@@ -220,6 +276,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     tokensOut,
     costUsdCents,
     modelUsed,
+    sourcing,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -229,6 +286,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     usage,
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch),
+    sourcing,
   };
 }
 
