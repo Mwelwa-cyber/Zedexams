@@ -81,24 +81,38 @@ export default function DiagramHandlingChooser({
         'Could not clean this figure automatically. Keep the original, or redraw it with AI.',
       )
     }
-    let url = cleaned.dataUrl
+    // Persist the cleaned PNG. When an uploader is wired (the review screen
+    // always wires one), a falsy return means the Storage upload failed — fail
+    // loudly rather than silently persisting the giant inline data URL into the
+    // studio model (and eventually a Firestore doc). The data-URL fallback is
+    // only for preview-only callers that wire no uploader at all.
     if (typeof onCleanUpload === 'function') {
       const uploaded = await onCleanUpload(cleaned.blob)
-      if (uploaded) url = uploaded
+      if (!uploaded) {
+        throw new Error('Could not save the cleaned figure. Please try again.')
+      }
+      return { action: 'cleaned', url: uploaded, source: 'cleaned', cleaned: true }
     }
-    return { action: 'cleaned', url, source: 'cleaned', cleaned: true }
+    return { action: 'cleaned', url: cleaned.dataUrl, source: 'cleaned', cleaned: true }
   }
 
   async function choose(option) {
     setError('')
+    // Clean runs in-browser on the scanned crop. If there is no crop to clean,
+    // say so instead of falling through to the server, which answers a clean
+    // request with a null-url "kept_clean" the review screen silently drops —
+    // leaving the teacher with no figure and no feedback.
+    const haveOriginal = Boolean(pristineOriginalUrl || originalUrl)
+    if (option.id === 'clean_original' && !haveOriginal) {
+      setError('There is no scanned figure to clean here. Try "Redraw using AI" to generate one.')
+      return
+    }
     setBusy(option.id)
     try {
       // "Clean original drawing" runs locally on the scanned figure — no server
       // round-trip (which is why the old path could surface a bare "internal").
       const res =
-        option.id === 'clean_original' &&
-        originalUrl &&
-        isDiagramCleanSupported()
+        option.id === 'clean_original' && haveOriginal && isDiagramCleanSupported()
           ? await cleanOriginal()
           : await redrawTestPaperDiagram({
               detected,

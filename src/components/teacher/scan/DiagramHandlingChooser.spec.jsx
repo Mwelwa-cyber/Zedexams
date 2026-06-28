@@ -165,4 +165,46 @@ describe('DiagramHandlingChooser', () => {
       await screen.findByText('Could not clean this figure automatically.', { exact: false }),
     ).toBeInTheDocument()
   })
+
+  it('refuses to clean when there is no scanned crop (no silent server no-op)', async () => {
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl={null}
+        onCleanUpload={async () => 'x'}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    expect(
+      await screen.findByText('no scanned figure to clean', { exact: false }),
+    ).toBeInTheDocument()
+    expect(mockClean).not.toHaveBeenCalled()
+    expect(mockRedraw).not.toHaveBeenCalled()
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly instead of persisting a data URL when the upload returns nothing', async () => {
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={async () => null}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    expect(
+      await screen.findByText('Could not save the cleaned figure', { exact: false }),
+    ).toBeInTheDocument()
+    expect(onResolved).not.toHaveBeenCalled()
+  })
 })
