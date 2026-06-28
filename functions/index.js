@@ -112,6 +112,11 @@ const {
 const {
   createRedrawTestPaperDiagram,
 } = require("./teacherTools/testPaperImport/redrawTestPaperDiagram");
+// Test Paper Studio — "Rebuild as table": read a cropped table/pictograph with
+// Claude vision and return editable tableData (typed table, not an image).
+const {
+  createRebuildTableFromImage,
+} = require("./teacherTools/testPaperImport/rebuildTable");
 // Visual Studio — on-demand AI safety/accuracy check for generated images.
 const {createCheckVisualSafety} = require("./visualSafety");
 // Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
@@ -2231,6 +2236,10 @@ exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kie
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
 // generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
 exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+
+// Test Paper Studio — reconstruct a photographed table/pictograph as an editable
+// typed table (Claude vision → tableData), the "Rebuild as table" option.
+exports.rebuildTableFromImage = createRebuildTableFromImage(anthropicApiKey);
 
 exports.checkVisualSafety = createCheckVisualSafety(anthropicApiKey);
 

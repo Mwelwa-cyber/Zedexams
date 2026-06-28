@@ -4,10 +4,12 @@ import Button from '../../ui/Button'
 import {
   DIAGRAM_HANDLING_OPTIONS,
   redrawTestPaperDiagram,
+  rebuildTableFromImage,
 } from '../../../utils/testPaperDiagram'
 import {
   cleanDiagramSource,
   isDiagramCleanSupported,
+  sourceToBlob,
 } from '../../../utils/diagramClean.js'
 
 /**
@@ -96,30 +98,53 @@ export default function DiagramHandlingChooser({
     return { action: 'cleaned', url: cleaned.dataUrl, source: 'cleaned', cleaned: true }
   }
 
+  // Reconstruct the scanned figure as an editable typed table. Uploads the
+  // ORIGINAL crop (CORS-safe), then a vision model reads it into tableData.
+  async function rebuildAsTable() {
+    if (typeof onCleanUpload !== 'function') {
+      throw new Error('Rebuilding as a table is not available here.')
+    }
+    let blob
+    try {
+      blob = await sourceToBlob(pristineOriginalUrl || originalUrl)
+    } catch {
+      throw new Error('Could not read the table image. Keep the original, or crop it tighter.')
+    }
+    const uploadedUrl = await onCleanUpload(blob)
+    if (!uploadedUrl) {
+      throw new Error('Could not prepare the table image. Please try again.')
+    }
+    return rebuildTableFromImage({ detected, context, imageUrl: uploadedUrl })
+  }
+
   async function choose(option) {
     setError('')
-    // Clean runs in-browser on the scanned crop. If there is no crop to clean,
-    // say so instead of falling through to the server, which answers a clean
-    // request with a null-url "kept_clean" the review screen silently drops —
-    // leaving the teacher with no figure and no feedback.
+    // Clean and rebuild-as-table both operate on the scanned crop. If there is
+    // no crop here, say so instead of falling through to the server, which would
+    // answer with a null result the review screen silently drops.
     const haveOriginal = Boolean(pristineOriginalUrl || originalUrl)
-    if (option.id === 'clean_original' && !haveOriginal) {
-      setError('There is no scanned figure to clean here. Try "Redraw using AI" to generate one.')
+    const needsCrop = option.id === 'clean_original' || option.id === 'rebuild_as_table'
+    if (needsCrop && !haveOriginal) {
+      setError('There is no scanned figure here to work with. Try "Redraw using AI" to generate one.')
       return
     }
     setBusy(option.id)
     try {
       // "Clean original drawing" runs locally on the scanned figure — no server
       // round-trip (which is why the old path could surface a bare "internal").
-      const res =
-        option.id === 'clean_original' && haveOriginal && isDiagramCleanSupported()
-          ? await cleanOriginal()
-          : await redrawTestPaperDiagram({
-              detected,
-              handling: option.id,
-              context,
-              originalUrl,
-            })
+      let res
+      if (option.id === 'clean_original' && haveOriginal && isDiagramCleanSupported()) {
+        res = await cleanOriginal()
+      } else if (option.id === 'rebuild_as_table' && haveOriginal) {
+        res = await rebuildAsTable()
+      } else {
+        res = await redrawTestPaperDiagram({
+          detected,
+          handling: option.id,
+          context,
+          originalUrl,
+        })
+      }
       // Tag the result with the chosen option so the matching button highlights.
       const resolved = { ...res, handling: res?.handling || option.id }
       setResult(resolved)
@@ -134,6 +159,8 @@ export default function DiagramHandlingChooser({
   const resolvedUrl = result?.url || null
   const isRemoved = result?.action === 'removed'
   const isCleaned = result?.action === 'cleaned'
+  const isRebuiltTable = result?.action === 'rebuilt_table'
+  const resolvedTable = isRebuiltTable ? result?.tableData : null
   const reused = result?.source === 'library'
 
   return (
@@ -151,13 +178,15 @@ export default function DiagramHandlingChooser({
           <span className="text-xs font-black theme-accent-text">
             {isRemoved
               ? 'Removed'
-              : isCleaned
-                ? 'Cleaned'
-                : reused
-                  ? 'Reused from library'
-                  : result.source === 'generated'
-                    ? 'Redrawn'
-                    : 'Kept original'}
+              : isRebuiltTable
+                ? 'Rebuilt as table'
+                : isCleaned
+                  ? 'Cleaned'
+                  : reused
+                    ? 'Reused from library'
+                    : result.source === 'generated'
+                      ? 'Redrawn'
+                      : 'Kept original'}
           </span>
         ) : null}
       </div>
@@ -187,6 +216,29 @@ export default function DiagramHandlingChooser({
           {isRemoved ? (
             <div className="w-full h-24 rounded-lg border border-dashed theme-border grid place-items-center text-xs theme-text-muted">
               Blank space
+            </div>
+          ) : resolvedTable ? (
+            <div className="w-full max-h-40 overflow-auto rounded-lg border theme-border bg-white p-1">
+              <table className="w-full border-collapse text-[10px] leading-tight">
+                {resolvedTable.headers?.length ? (
+                  <thead>
+                    <tr>
+                      {resolvedTable.headers.map((h, i) => (
+                        <th key={i} className="border border-slate-500 px-1 py-0.5 font-black text-slate-900">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                ) : null}
+                <tbody>
+                  {(resolvedTable.rows || []).map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="border border-slate-500 px-1 py-0.5 text-slate-900">{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : resolvedUrl ? (
             <img

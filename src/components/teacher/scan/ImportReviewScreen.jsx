@@ -81,6 +81,18 @@ export default function ImportReviewScreen({
       onPatchItem(item, { imageUrl: '', imageAssetId: '', diagramText: '' })
       return
     }
+    if (result?.action === 'rebuilt_table' && result.tableData) {
+      // The figure becomes an editable typed table — drop the image (and any
+      // stacked extras) so the question renders the table, not the photo.
+      onPatchItem(item, {
+        tableData: result.tableData,
+        imageUrl: '',
+        imageAssetId: '',
+        images: [],
+        diagramText: '',
+      })
+      return
+    }
     if (result?.url) {
       // The new figure is a remote/library URL, so drop the in-memory crop id.
       onPatchItem(item, { imageUrl: result.url, imageAssetId: '' })

@@ -22,13 +22,17 @@ import app from '../firebase/config'
 
 const functions = getFunctions(app, 'us-central1')
 const redrawCallable = httpsCallable(functions, 'redrawTestPaperDiagram')
+const rebuildTableCallable = httpsCallable(functions, 'rebuildTableFromImage')
 
-// The five product handling options, mirrored client-side so the review UI can
-// render them without a round-trip. Kept in sync with diagramBrief.js.
+// The product handling options, mirrored client-side so the review UI can render
+// them without a round-trip. Kept in sync with diagramBrief.js. `rebuildsTable`
+// marks the option that reconstructs the figure as an editable typed table
+// (tableData) rather than producing/keeping an image.
 export const DIAGRAM_HANDLING_OPTIONS = [
   { id: 'keep_original', label: 'Keep original image', generates: false },
   { id: 'clean_original', label: 'Clean original drawing', generates: false },
   { id: 'redraw', label: 'Redraw using AI', generates: true },
+  { id: 'rebuild_as_table', label: 'Rebuild as table', generates: true, rebuildsTable: true },
   { id: 'replace', label: 'Replace with a better educational diagram', generates: true },
   { id: 'remove', label: 'Remove diagram and leave blank space', generates: false },
 ]
@@ -99,5 +103,46 @@ export async function redrawTestPaperDiagram({
     return result?.data || {}
   } catch (error) {
     throw new Error(messageFromError(error))
+  }
+}
+
+function messageFromTableError(error) {
+  const code = error?.code || ''
+  const msg = error?.message || ''
+  if (code.includes('resource-exhausted')) {
+    return 'Monthly limit reached. Try again next month or upgrade your plan.'
+  }
+  if (code.includes('permission-denied')) {
+    return 'Table tools are only available to approved teachers.'
+  }
+  if (code.includes('unauthenticated')) {
+    return 'Please sign in to rebuild tables.'
+  }
+  // The server attaches a helpful, specific reason for these (e.g. "No table
+  // could be read from this figure. Try Redraw…") — surface it as-is.
+  if (code.includes('failed-precondition') && msg) return msg
+  if (code.includes('internal') || !msg || msg.toLowerCase() === 'internal') {
+    return 'Could not rebuild this table automatically. Please choose another option below.'
+  }
+  return msg || 'Could not rebuild this table. Please try again.'
+}
+
+/**
+ * Rebuild a photographed table/pictograph into editable tableData via Claude
+ * vision. `imageUrl` must be an UPLOADED (https) URL the server can fetch.
+ * Returns { action: 'rebuilt_table', tableData: { headers, rows }, caption }.
+ */
+export async function rebuildTableFromImage({ detected, context, imageUrl } = {}) {
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    throw new Error('No table image was provided.')
+  }
+  try {
+    const result = await withTimeout(
+      rebuildTableCallable({ detected, context, imageUrl }),
+      130000,
+    )
+    return result?.data || {}
+  } catch (error) {
+    throw new Error(messageFromTableError(error))
   }
 }

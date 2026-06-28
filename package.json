@@ -211,6 +211,7 @@
     "test:diagram-providers": "node functions/teacherTools/generateDiagram.test.js",
     "test:diagram-brief": "node functions/teacherTools/testPaperImport/diagramBrief.test.js",
     "test:redraw-test-paper-diagram": "node functions/teacherTools/testPaperImport/redrawTestPaperDiagram.test.js",
+    "test:rebuild-table": "node functions/teacherTools/testPaperImport/rebuildTable.test.js",
     "test:import-review-model": "node src/components/teacher/scan/importReviewModel.test.js",
     "test:question-typing": "node functions/teacherTools/testPaperImport/questionTyping.test.js",
     "test:grade7-ss-covers": "node scripts/test-grade7-ss-covers.mjs",
