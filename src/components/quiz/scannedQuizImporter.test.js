@@ -29,6 +29,7 @@ import {
   isImageImportFile,
   normalizeImportInput,
   runVisionImport,
+  buildReviewPageImages,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -251,6 +252,26 @@ test('visionSectionsToLocal forces blank answers + review on every question', ()
   assert.equal(q.requiresReview, true)
   assert.equal(q.type, 'mcq')
   assert.equal(q.sourceQuestionNumber, 1)
+})
+
+test('buildReviewPageImages mints one review URL per page blob (browser only)', () => {
+  // No URL.createObjectURL in plain node → empty map (degrades safely).
+  const hadCreate = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+  if (!hadCreate) {
+    assert.deepEqual(buildReviewPageImages({ 1: { blob: {} } }), {})
+  }
+  // Stub createObjectURL to assert the per-page mapping.
+  const realURL = globalThis.URL
+  let n = 0
+  globalThis.URL = { createObjectURL: () => `blob:fake-${++n}` }
+  try {
+    const map = buildReviewPageImages({ 1: { blob: {} }, 2: { blob: {} }, 3: { /* no blob */ } })
+    assert.equal(map['1'], 'blob:fake-1')
+    assert.equal(map['2'], 'blob:fake-2')
+    assert.equal(map['3'], undefined) // a page with no blob has no preview
+  } finally {
+    globalThis.URL = realURL
+  }
 })
 
 test('visionSectionsToLocal maps the backend question type + marks onto the editor', () => {

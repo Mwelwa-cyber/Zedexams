@@ -57,6 +57,26 @@ describe('ImportReviewScreen', () => {
     )
   })
 
+  it('shows the original page image when a page url is provided', () => {
+    render(
+      <ImportReviewScreen
+        open
+        sections={sections}
+        pageImageUrls={{ 1: 'blob:page-1' }}
+        onPatchItem={() => {}}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    )
+    const img = screen.getByAltText('Original page 1')
+    expect(img).toHaveAttribute('src', 'blob:page-1')
+  })
+
+  it('falls back to a notice when no original page image is available', () => {
+    render(<ImportReviewScreen open sections={sections} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
+    expect(screen.getByText('Original page preview not available', { exact: false })).toBeInTheDocument()
+  })
+
   it('approving every page is required before the gate reads complete', () => {
     const onDone = vi.fn()
     render(<ImportReviewScreen open sections={sections} onPatchItem={() => {}} onClose={() => {}} onDone={onDone} />)
