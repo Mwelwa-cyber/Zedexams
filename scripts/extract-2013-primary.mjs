@@ -92,6 +92,17 @@ export async function extractSubject(cfg, pdfPath) {
   return out
 }
 
+// This is a manually-run, developer-only migration tool, but validate the
+// CLI-supplied paths anyway so a typo or copy-paste can't make it read a
+// non-PDF (e.g. a dotfile): reject null bytes and require an existing .pdf
+// file. The source PDFs legitimately live outside the repo, so a fixed
+// directory whitelist isn't applicable.
+function assertReadablePdf(arg, p) {
+  if (p.includes('\0')) throw new Error(`${arg}: invalid path`)
+  if (!/\.pdf$/i.test(p)) throw new Error(`${arg}: expected a .pdf file, got ${p}`)
+  if (!fs.existsSync(p) || !fs.statSync(p).isFile()) throw new Error(`${arg}: not a readable file: ${p}`)
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const dry = args.includes('--dry')
@@ -99,6 +110,9 @@ async function main() {
   for (const a of args) {
     const m = /^(\w+)=(.+)$/.exec(a)
     if (m) paths[m[1]] = m[2]
+  }
+  for (const cfg of Object.values(CONFIGS)) {
+    if (paths[cfg.arg]) assertReadablePdf(cfg.arg, paths[cfg.arg])
   }
   const extracted = {}
   for (const cfg of Object.values(CONFIGS)) {
