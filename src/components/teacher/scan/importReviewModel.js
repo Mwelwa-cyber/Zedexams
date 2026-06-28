@@ -64,10 +64,19 @@ export function getItemSignals(item = {}) {
       (m) => m && (m.imageUrl || m.imageAssetId) && !String(m.alt || '').trim(),
     )
 
+  // A "label the diagram" question (the diagram editor in identify mode) with
+  // no labels to place — the teacher needs to add the parts to name.
+  const isIdentifyDiagram =
+    String(item.type) === 'diagram' && String(item.diagramMode) === 'identify'
+  const missingLabels =
+    isIdentifyDiagram &&
+    !(Array.isArray(item.diagramLabels) && item.diagramLabels.length > 0)
+
   const issues = []
   if (noAnswer) issues.push('No answer')
   if (lowConfidence) issues.push('Low confidence')
   if (missingDiagram) issues.push('Missing diagram')
+  if (missingLabels) issues.push('Missing labels')
   if (missingAlt) issues.push('Missing alt text')
   if (item.requiresReview && !issues.length) issues.push('Check wording')
 
@@ -77,6 +86,7 @@ export function getItemSignals(item = {}) {
     lowConfidence,
     hasDiagram,
     missingDiagram,
+    missingLabels,
     missingAlt,
     issues,
   }
@@ -191,6 +201,7 @@ export function summarizeReviewModel(model = {}) {
   let lowConfidence = 0
   let withDiagrams = 0
   let missingDiagrams = 0
+  let missingLabels = 0
   let noAnswer = 0
   pages.forEach((p) => {
     p.items.forEach((item) => {
@@ -204,6 +215,7 @@ export function summarizeReviewModel(model = {}) {
       if (item.signals.lowConfidence) lowConfidence += 1
       if (item.signals.hasDiagram) withDiagrams += 1
       if (item.signals.missingDiagram) missingDiagrams += 1
+      if (item.signals.missingLabels) missingLabels += 1
       if (item.signals.noAnswer) noAnswer += 1
     })
   })
@@ -214,6 +226,7 @@ export function summarizeReviewModel(model = {}) {
     lowConfidence,
     withDiagrams,
     missingDiagrams,
+    missingLabels,
     noAnswer,
   }
 }

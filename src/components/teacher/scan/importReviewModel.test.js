@@ -60,6 +60,18 @@ test('an attached figure is present, not missing', () => {
   assert.strictEqual(s.missingDiagram, false)
 })
 
+test('flags a label-the-diagram question with no labels', () => {
+  const missing = getItemSignals({ type: 'diagram', diagramMode: 'identify', diagramLabels: [] })
+  assert.strictEqual(missing.missingLabels, true)
+  assert.ok(missing.issues.includes('Missing labels'))
+  // With labels, not flagged.
+  const ok = getItemSignals({ type: 'diagram', diagramMode: 'identify', diagramLabels: [{ text: 'stem' }] })
+  assert.strictEqual(ok.missingLabels, false)
+  // A normal diagram (labeled mode) is never flagged for missing labels.
+  const labeled = getItemSignals({ type: 'diagram', diagramMode: 'labeled', diagramLabels: [] })
+  assert.strictEqual(labeled.missingLabels, false)
+})
+
 test('flags pictorial options missing alt text', () => {
   const s = getItemSignals({
     type: 'mcq', correctAnswer: 0,
