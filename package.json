@@ -159,6 +159,7 @@
     "test:lesson-plan-shape": "node src/components/teacher/studio/utils/planShape.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
+    "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
     "test:cors": "node functions/cors.test.js",
     "test:image-proxy": "node functions/imageProxy.test.js",
     "test:visitor-tracking": "node functions/visitorTrackingCore.test.js",

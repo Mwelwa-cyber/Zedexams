@@ -605,6 +605,28 @@ service cloud.firestore {
       allow delete: if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
+    // ── lessonPlanTemplates (Template Bank) ───────────────────
+    // Reusable, anonymised lesson-plan templates shared across teachers.
+    // They are built + merged exclusively by Cloud Functions (the
+    // lessonPlanTemplateOnWrite trigger) and mutated only via the
+    // recordTemplateInteraction callable — both run with the admin SDK and
+    // bypass these rules. Clients therefore get READ-ONLY access (any signed-in
+    // teacher/admin); usage counts + ratings flow through the callable so they
+    // cannot be tampered with directly. The `ratings/{uid}` sub-doc is
+    // server-owned (written in a transaction by the callable).
+    match /lessonPlanTemplates/{templateId} {
+      allow read:   if isTeacherOrAbove();
+      allow create, update, delete: if isAdmin();
+      match /ratings/{uid} {
+        allow read:  if isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ── agentControl (per-agent circuit breaker) ──────────────
+    // Template Bank kill-switch lives at agentControl/templateBank.paused —
+    // covered by the existing agentControl rule below.
+
     // ── agentJobs (AI agent operating model) ──────────────────
     // Single bus for all agent work. Clients can create jobs (teacher
     // briefs) and read their own; admins can read all and approve/reject.

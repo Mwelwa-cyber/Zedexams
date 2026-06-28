@@ -221,6 +221,8 @@ const VisualStudioPage = lazy(() => import('./features/visualStudio').then(m => 
 // Teacher — Library
 const TeacherLibrary = lazy(() => import('./components/teacher/library/TeacherLibrary'))
 const LibraryItemDetail = lazy(() => import('./components/teacher/library/LibraryItemDetail'))
+const TemplateBank = lazy(() => import('./components/teacher/templates/TemplateBank'))
+const TemplateBankDetail = lazy(() => import('./components/teacher/templates/TemplateBankDetail'))
 const PublicShareView = lazy(() => import('./components/teacher/library/PublicShareView'))
 
 // Daily Exams (auth required)
@@ -652,6 +654,8 @@ export default function App() {
           <Route path="/teacher/generate/sba-tracker"     element={<TeacherRoute><StudioGate tool="sba_tracker"><SbaMarkTracker /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><StudioGate tool="sba_planner"><SbaYearPlanner /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/sba"                      element={<TeacherRoute><SbaHub /></TeacherRoute>} />
+          <Route path="/teacher/templates"               element={<TeacherRoute><TemplateBank /></TeacherRoute>} />
+          <Route path="/teacher/templates/:id"           element={<TeacherRoute><TemplateBankDetail /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/question-bank"           element={<TeacherRoute><CentralQuestionBank /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
