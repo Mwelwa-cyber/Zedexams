@@ -17,6 +17,19 @@ vi.mock('../../../utils/testPaperDiagram', () => ({
   redrawTestPaperDiagram: (...args) => mockRedraw(...args),
 }))
 
+// Stub the in-browser cleaning pipeline (real impl needs a canvas + pixels).
+const mockClean = vi.fn(async () => ({
+  dataUrl: 'data:image/png;base64,CLEAN',
+  blob: new Blob(['clean'], { type: 'image/png' }),
+  width: 10,
+  height: 10,
+  bounds: {},
+}))
+vi.mock('../../../utils/diagramClean.js', () => ({
+  isDiagramCleanSupported: () => true,
+  cleanDiagramSource: (...args) => mockClean(...args),
+}))
+
 const detected = { kind: 'plant', caption: 'Flowering plant', labels: ['stem', 'roots'] }
 const context = { subject: 'Science', grade: 'Grade 4' }
 
@@ -65,5 +78,53 @@ describe('DiagramHandlingChooser', () => {
     fireEvent.click(screen.getByText('Replace with a better educational diagram'))
 
     expect(await screen.findByText('Monthly diagram limit reached.')).toBeInTheDocument()
+  })
+
+  it('cleans the original in-browser and uploads the result (no server call)', async () => {
+    const onCleanUpload = vi.fn(async () => 'https://store/clean.png')
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={onCleanUpload}
+        onResolved={onResolved}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+    // The clean path runs locally — the Cloud Function wrapper is never called.
+    expect(mockRedraw).not.toHaveBeenCalled()
+    expect(mockClean).toHaveBeenCalledWith(
+      'https://store/original.png',
+      expect.objectContaining({ blackAndWhite: true, autoCrop: true }),
+    )
+    expect(onCleanUpload).toHaveBeenCalledTimes(1)
+    expect(onResolved).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'cleaned', url: 'https://store/clean.png' }),
+    )
+    expect(await screen.findByText('Cleaned')).toBeInTheDocument()
+  })
+
+  it('shows a friendly message when in-browser cleaning fails', async () => {
+    mockClean.mockRejectedValueOnce(new Error('tainted canvas'))
+    render(
+      <DiagramHandlingChooser
+        detected={detected}
+        context={context}
+        originalUrl="https://store/original.png"
+        onCleanUpload={async () => 'x'}
+        onResolved={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Clean original drawing'))
+
+    expect(
+      await screen.findByText('Could not clean this figure automatically.', { exact: false }),
+    ).toBeInTheDocument()
   })
 })

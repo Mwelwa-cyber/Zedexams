@@ -990,6 +990,15 @@ export default function AssessmentStudio({ variant = 'test' }) {
       showToast(`Crop failed: ${getErrorMessage(error)}`, true)
     }
   }
+  // Persist a cleaned figure produced in-browser by "Clean original drawing" and
+  // return its Storage URL — the chooser patches the item via its onResolved.
+  // Diagrams are line art, so the lossless PNG is uploaded straight.
+  async function handleCleanReviewFigure(item, blob) {
+    if (!blob || !currentUser?.uid) return null
+    const path = `assessment-images/${currentUser.uid}/${Date.now()}-review-clean.png`
+    const snapshot = await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/png' })
+    return getDownloadURL(snapshot.ref)
+  }
   function moveSection(sectionIndex, direction) {
     setSections(prev => {
       const next = [...prev]
@@ -2626,6 +2635,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         onPatchItem={patchReviewItem}
         onAddQuestion={handleAddReviewQuestion}
         onCropFigure={handleCropReviewFigure}
+        onCleanFigure={handleCleanReviewFigure}
         onClose={closeImportReview}
         onDone={closeImportReview}
       />

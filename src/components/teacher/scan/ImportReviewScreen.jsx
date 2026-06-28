@@ -34,6 +34,8 @@ import {
  *   onAddQuestion — optional () => void; append a blank question the OCR missed
  *   onCropFigure  — optional (item, blob) => void|Promise; replace an item's
  *                   figure with a teacher-cropped PNG blob (uploaded by parent)
+ *   onCleanFigure — optional async (item, blob) => url; persist the cleaned PNG
+ *                   produced by "Clean original drawing" and return its URL
  *   onClose       — dismiss without finishing (keeps the import)
  *   onDone        — finish review and go to the builder
  */
@@ -45,6 +47,7 @@ export default function ImportReviewScreen({
   onPatchItem,
   onAddQuestion,
   onCropFigure,
+  onCleanFigure,
   onClose,
   onDone,
 }) {
@@ -178,6 +181,7 @@ export default function ImportReviewScreen({
                       onPatch={onPatchItem}
                       onDiagram={(res) => applyDiagram(item, res)}
                       onCrop={onCropFigure ? () => setCroppingItem(item) : null}
+                      onClean={onCleanFigure ? (blob) => onCleanFigure(item, blob) : null}
                     />
                   ))}
                 </div>
@@ -225,7 +229,7 @@ function Badge({ children, tone = 'warn' }) {
   )
 }
 
-function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop }) {
+function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, onClean }) {
   const ref = item.ref || {}
   const { signals } = item
   const isPassage = item.kind === 'passage'
@@ -298,6 +302,7 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop })
           detected={detected}
           context={context}
           originalUrl={ref.imageUrl || null}
+          onCleanUpload={onClean}
           onResolved={onDiagram}
         />
       ) : null}
