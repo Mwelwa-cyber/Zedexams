@@ -645,7 +645,7 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, on
               marks
               <input
                 type="number"
-                value={question.marks || 1}
+                value={question.marks ?? 1}
                 onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'marks', clampInt(e.target.value, 0, 100, 1))}
               />
             </label>

@@ -250,11 +250,11 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
   const partMarks = useMemo(() => {
     return group.members.reduce((sum, { section }) => {
       if (section.kind === 'passage') {
-        return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
+        return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks ?? 1), 0)
       }
       // Page breaks are structural markers with no marks.
       if (section.kind === 'pagebreak') return sum
-      return sum + (section.question.marks || 1)
+      return sum + (section.question.marks ?? 1)
     }, 0)
   }, [group.members])
 
