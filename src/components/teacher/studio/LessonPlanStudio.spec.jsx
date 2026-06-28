@@ -687,35 +687,7 @@ describe('LessonPlanStudio — handleViewCompleted', () => {
   })
 })
 
-// ── Control wiring audit: term/week, single lesson focus, local language ──────
-
-describe('LessonPlanStudio — term & week wiring', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('includes Term and Week in the user prompt and termWeek in the render meta', async () => {
-    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
-    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
-
-    renderStudioWithGeneration({
-      curriculumMode: 'cbc',
-      topicData: { topic: 'Water', subtopic: 'Rivers', subtopicRow: null },
-      lessonDetails: {
-        grade: 'G5', subject: 'Science', duration: '40', medium: 'English',
-        term: 'Term 2', week: 'Week 5', date: '', time: '', teacherName: '', school: '',
-      },
-    })
-    fireEvent.click(screen.getByTestId('trigger-generate'))
-
-    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
-    const { userPrompt } = innerCallable.mock.calls[0][0]
-    expect(userPrompt).toContain('- Term: Term 2')
-    expect(userPrompt).toContain('- Week: Week 5')
-
-    await waitFor(() => expect(renderPlanHtml).toHaveBeenCalled())
-    const meta = renderPlanHtml.mock.calls[0][1]
-    expect(meta.termWeek).toBe('Term 2, Week 5')
-  })
-})
+// ── Control wiring audit: single lesson focus, local language ─────────────────
 
 describe('LessonPlanStudio — single-lesson focus wiring', () => {
   beforeEach(() => { vi.clearAllMocks() })

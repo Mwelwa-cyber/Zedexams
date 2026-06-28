@@ -20,8 +20,6 @@ const DEFAULT_DETAILS = {
   subject: '',
   duration: '40',
   medium: 'English',
-  term: '',
-  week: '',
   date: '',
   time: '',
 }
@@ -350,38 +348,6 @@ describe('LessonDetailsForm — onChange callbacks', () => {
     )
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '60' } })
     expect(onChange).toHaveBeenCalledWith('duration', '60')
-  })
-
-  it('calls onChange("term", value) when term is changed', () => {
-    const onChange = vi.fn()
-    render(
-      <LessonDetailsForm
-        lessonDetails={{ ...DEFAULT_DETAILS }}
-        curriculumMode="cbc"
-        onChange={onChange}
-        disabled={false}
-      />,
-    )
-    fireEvent.change(screen.getByRole('combobox', { name: /term/i }), {
-      target: { value: 'Term 2' },
-    })
-    expect(onChange).toHaveBeenCalledWith('term', 'Term 2')
-  })
-
-  it('calls onChange("week", value) when week is changed', () => {
-    const onChange = vi.fn()
-    render(
-      <LessonDetailsForm
-        lessonDetails={{ ...DEFAULT_DETAILS }}
-        curriculumMode="cbc"
-        onChange={onChange}
-        disabled={false}
-      />,
-    )
-    fireEvent.change(screen.getByRole('combobox', { name: /week/i }), {
-      target: { value: 'Week 5' },
-    })
-    expect(onChange).toHaveBeenCalledWith('week', 'Week 5')
   })
 })
 
