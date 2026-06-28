@@ -1241,6 +1241,484 @@ body.theme-midnight .moe-calendar {
     }
   }
 
+  /* ════════════════════════════════════════════════════════════════════
+   * Teacher Dashboard — intelligent AI workspace redesign.
+   * Same ZedExams palette (orange #ff7a2e, dark teal hero, cream, white
+   * cards, light dividers) — just more space, softer shadows, 20–24px radii,
+   * and a personalised, time-aware hero.
+   * ════════════════════════════════════════════════════════════════════ */
+
+  /* Cheap lazy paint: lower (below-the-fold) sections only render when near
+     the viewport, keeping the first paint light without JS observers. */
+  .studio-theme .teacher-defer {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+  }
+
+  /* ── Smart celebration banner ─────────────────────────────────── */
+  .studio-theme .teacher-celebrate {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding: 14px 18px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #fff5e6 0%, #ffe9d2 100%);
+    border: 1.5px solid #f7cfa6;
+    box-shadow: 0 6px 18px rgba(243,106,42,.10);
+    animation: teacher-pop .4s cubic-bezier(.2,.8,.2,1.2);
+  }
+  .studio-theme .teacher-celebrate__emoji { font-size: 24px; line-height: 1; }
+  .studio-theme .teacher-celebrate__text {
+    color: #0e2a32; font-size: 14.5px; font-weight: 800;
+    font-family: 'Fraunces', serif;
+  }
+  @keyframes teacher-pop {
+    from { opacity: 0; transform: translateY(-8px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── AI workspace hero ────────────────────────────────────────── */
+  .studio-theme .teacher-hero {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 22px;
+    padding: 34px 36px;
+    border-radius: 24px;
+    background:
+      radial-gradient(120% 140% at 100% 0%, rgba(255,122,46,.22) 0%, rgba(255,122,46,0) 45%),
+      linear-gradient(135deg, #0c2a31 0%, #16505d 100%);
+    color: #fff;
+    box-shadow: 0 18px 44px rgba(14,42,50,.22);
+  }
+  .studio-theme .teacher-hero--morning {
+    background:
+      radial-gradient(120% 150% at 100% 0%, rgba(255,178,90,.30) 0%, rgba(255,178,90,0) 48%),
+      linear-gradient(135deg, #103039 0%, #1b5b69 100%);
+  }
+  .studio-theme .teacher-hero--evening {
+    background:
+      radial-gradient(120% 150% at 100% 0%, rgba(123,97,255,.26) 0%, rgba(123,97,255,0) 48%),
+      linear-gradient(135deg, #0a2330 0%, #163a52 100%);
+  }
+  .studio-theme .teacher-hero__art {
+    position: absolute;
+    top: -28px;
+    right: -10px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 68%);
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .studio-theme .teacher-hero__art-emoji {
+    font-size: 84px;
+    line-height: 1;
+    opacity: .9;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,.18));
+  }
+  .studio-theme .teacher-hero__content { position: relative; z-index: 1; max-width: 680px; }
+  .studio-theme .teacher-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: #ff7a2e;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .studio-theme .teacher-hero__greeting {
+    margin: 0 0 8px;
+    color: #fff;
+    font-family: 'Fraunces', serif;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+  .studio-theme .teacher-hero__message {
+    margin: 0 0 22px;
+    max-width: 560px;
+    color: rgba(255,255,255,.9);
+    font-size: 15.5px;
+    line-height: 1.55;
+    font-weight: 500;
+  }
+  .studio-theme .teacher-hero__continue {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.16);
+    backdrop-filter: blur(2px);
+  }
+  .studio-theme .teacher-hero__continue-info { min-width: 0; flex: 1 1 220px; }
+  .studio-theme .teacher-hero__continue-label {
+    display: block;
+    margin-bottom: 4px;
+    color: #ffd9b8;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .studio-theme .teacher-hero__continue-title {
+    margin: 0 0 6px;
+    color: #fff;
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .studio-theme .teacher-hero__continue-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    color: rgba(255,255,255,.78);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .studio-theme .teacher-hero__continue-facts span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .studio-theme .teacher-hero__continue-facts span + span::before {
+    content: '·';
+    margin-right: 10px;
+    color: rgba(255,255,255,.4);
+  }
+  .studio-theme .teacher-hero__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    min-height: 46px;
+    padding: 12px 20px;
+    border-radius: 14px;
+    background: #ff7a2e;
+    color: #fff;
+    font-size: 14.5px;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(243,106,42,.32);
+    transition: background .15s ease, transform .15s ease;
+  }
+  .studio-theme .teacher-hero__cta:hover {
+    background: #e6651a;
+    transform: translateY(-1px);
+  }
+
+  /* ── Universal search ─────────────────────────────────────────── */
+  .studio-theme .teacher-universal-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 26px;
+    padding: 8px 8px 8px 16px;
+    border-radius: 18px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 4px 16px rgba(14,42,50,.05);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .studio-theme .teacher-universal-search:focus-within {
+    border-color: #ff7a2e;
+    box-shadow: 0 0 0 3px rgba(255,122,46,.16);
+  }
+  .studio-theme .teacher-universal-search__icon { color: #8a7a58; flex: 0 0 auto; }
+  .studio-theme .teacher-universal-search__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #0e2a32;
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+  .studio-theme .teacher-universal-search__input::placeholder { color: #9aa7a5; }
+  .studio-theme .teacher-universal-search__btn {
+    flex: 0 0 auto;
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 12px;
+    background: #ff7a2e;
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .studio-theme .teacher-universal-search__btn:hover { background: #e6651a; }
+
+  /* ── AI insights ──────────────────────────────────────────────── */
+  .studio-theme .teacher-insights { margin-bottom: 26px; }
+  .studio-theme .teacher-insights__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .studio-theme .teacher-insight-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 4px 14px rgba(14,42,50,.04);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .studio-theme .teacher-insight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(14,42,50,.09);
+  }
+  .studio-theme .teacher-insight-card__icon {
+    font-size: 18px;
+    line-height: 1.3;
+    flex: 0 0 auto;
+  }
+  .studio-theme .teacher-insight-card__text {
+    margin: 0;
+    color: #234141;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  /* ── Continue where you left off ──────────────────────────────── */
+  .studio-theme .teacher-continue { margin-bottom: 26px; }
+  .studio-theme .teacher-continue__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .studio-theme .teacher-continue-card {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    border-radius: 20px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    color: #0e2a32;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(14,42,50,.04);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .studio-theme a.teacher-continue-card:hover {
+    transform: translateY(-3px);
+    border-color: #ff7a2e;
+    box-shadow: 0 14px 30px rgba(14,42,50,.10);
+  }
+  .studio-theme .teacher-continue-card--skeleton {
+    min-height: 168px;
+    background: #f3eddf;
+    border-color: #ece4d2;
+    animation: zum-pulse 1.4s ease-in-out infinite;
+  }
+  .studio-theme .teacher-continue-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .studio-theme .teacher-continue-card__icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--c-bg, #f0eee8);
+    color: #0e2a32;
+  }
+  .studio-theme .teacher-continue-card__chip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .studio-theme .teacher-continue-card__chip--ready { background: #e6f5ed; color: #0a5a35; }
+  .studio-theme .teacher-continue-card__chip--draft { background: #fff0e0; color: #b45309; }
+  .studio-theme .teacher-continue-card__chip--started { background: #f0eee8; color: #6b5b3a; }
+  .studio-theme .teacher-continue-card__title {
+    margin: 0 0 5px;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+  .studio-theme .teacher-continue-card__meta {
+    margin: 0 0 12px;
+    color: #6a7c82;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .studio-theme .teacher-continue-card__bar {
+    height: 7px;
+    border-radius: 999px;
+    background: #efe7d5;
+    overflow: hidden;
+    margin-top: auto;
+  }
+  .studio-theme .teacher-continue-card__fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff9a4d 0%, #ff7a2e 100%);
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .studio-theme .teacher-continue-card__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    color: #8a9aa1;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  /* ── Activity stat cards ──────────────────────────────────────── */
+  .studio-theme .teacher-activity { margin-bottom: 26px; }
+  .studio-theme .teacher-activity__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .studio-theme .teacher-activity-card {
+    padding: 18px;
+    border-radius: 20px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 4px 14px rgba(14,42,50,.04);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .studio-theme .teacher-activity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(14,42,50,.09);
+  }
+  .studio-theme .teacher-activity-card__value {
+    margin: 0;
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .studio-theme .teacher-activity-card__label {
+    margin: 6px 0 10px;
+    color: #566f76;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .studio-theme .teacher-activity-card__trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .studio-theme .teacher-activity-card__trend--up   { background: #e6f5ed; color: #0a5a35; }
+  .studio-theme .teacher-activity-card__trend--down { background: #fbe4e0; color: #b3261e; }
+  .studio-theme .teacher-activity-card__trend--flat { background: #f0eee8; color: #6b7775; }
+
+  /* ── Monthly usage (compact) ──────────────────────────────────── */
+  .studio-theme .teacher-usage-section { margin-bottom: 30px; }
+  .studio-theme .teacher-usage-wrap { display: flex; flex-direction: column; gap: 16px; }
+  .studio-theme .teacher-usage-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 18px 22px;
+    border-radius: 20px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 4px 14px rgba(14,42,50,.04);
+  }
+  .studio-theme .teacher-usage-compact--skeleton {
+    min-height: 78px;
+    background: #f3eddf;
+    border-color: #ece4d2;
+    animation: zum-pulse 1.4s ease-in-out infinite;
+  }
+  .studio-theme .teacher-usage-compact__cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .studio-theme .teacher-usage-compact__cell { display: flex; flex-direction: column; gap: 3px; }
+  .studio-theme .teacher-usage-compact__k {
+    color: #8a7a58;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .studio-theme .teacher-usage-compact__v {
+    color: #0e2a32;
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .studio-theme .teacher-usage-compact__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 9px 16px;
+    border-radius: 12px;
+    border: 1.5px solid #f3d4b0;
+    background: #fff5e6;
+    color: #c2531a;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .studio-theme .teacher-usage-compact__toggle:hover { background: #ffe9d2; }
+  .studio-theme .teacher-usage-compact__chevron { transition: transform .2s ease; }
+  .studio-theme .teacher-usage-compact__chevron.is-open { transform: rotate(180deg); }
+
+  @media (max-width: 720px) {
+    .studio-theme .teacher-hero { padding: 26px 22px; }
+    .studio-theme .teacher-hero__greeting { font-size: 27px; }
+    .studio-theme .teacher-hero__art { width: 130px; height: 130px; }
+    .studio-theme .teacher-hero__art-emoji { font-size: 60px; }
+    .studio-theme .teacher-hero__cta { width: 100%; }
+    .studio-theme .teacher-usage-compact { flex-direction: column; align-items: stretch; }
+    .studio-theme .teacher-usage-compact__toggle { justify-content: center; }
+  }
+
+  @media (max-width: 460px) {
+    .studio-theme .teacher-continue__grid,
+    .studio-theme .teacher-activity__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .studio-theme .teacher-universal-search__btn { padding: 10px 14px; }
+  }
+
   /*
    * Admin Game Theme — the "Pick your quest" sticker look from /games,
    * applied to the admin shell. White cards with a 2px navy border and a
