@@ -13,7 +13,8 @@
 
 const admin = require("firebase-admin");
 const {
-  normalizeGrade, normalizeSubject, editorQuestionToQuiz, selectBankQuestions,
+  normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
+  selectBankQuestions,
 } = require("./masterBankSourcingCore");
 
 // Bound the scan. We filter grade/subject/topic in memory (the stored values
@@ -31,16 +32,12 @@ function parseQuestion(dataStr) {
 }
 
 /**
- * Source up to `count` quiz-shaped questions from the Master Bank.
- *
- * @param {{grade:string, subject:string, topic?:string, count:number}} params
- * @returns {Promise<{questions:object[], fromBank:number, scanned:number}>}
+ * Scan the Master Bank and return rows matching grade/subject/topic, each
+ * mapped through `mapFn` (editor → target schema). Shared by the quiz +
+ * assessment sourcing entry points. Returns `{candidates, scanned}`; candidates
+ * carry the dedupe/balance metadata plus the mapped question under `item`.
  */
-async function sourceQuizFromBank({grade, subject, topic, count} = {}) {
-  const empty = {questions: [], fromBank: 0, scanned: 0};
-  const target = Math.max(0, Math.floor(Number(count) || 0));
-  if (!target) return empty;
-
+async function scanMasterBank({grade, subject, topic, mapFn}) {
   const wantGrade = normalizeGrade(grade);
   const wantSubject = normalizeSubject(subject);
   const wantTopic = String(topic || "").trim().toLowerCase();
@@ -54,7 +51,7 @@ async function sourceQuizFromBank({grade, subject, topic, count} = {}) {
       .get();
   } catch (err) {
     console.warn("[masterBankSourcing] query failed", err && err.message);
-    return empty;
+    return {candidates: [], scanned: 0};
   }
 
   const candidates = [];
@@ -67,23 +64,67 @@ async function sourceQuizFromBank({grade, subject, topic, count} = {}) {
       const rowTopic = String(row.topic || "").toLowerCase();
       if (!rowTopic.includes(wantTopic) && !wantTopic.includes(rowTopic)) return;
     }
-    const quiz = editorQuestionToQuiz(parseQuestion(row.data));
-    if (!quiz) return;
+    const item = mapFn(parseQuestion(row.data));
+    if (!item) return;
     candidates.push({
       fingerprint: row.fingerprint || doc.id,
       difficulty: row.difficulty,
       quality: (row.aiReview && row.aiReview.qualityScore) || 0,
       usage: row.usageCount || 0,
-      quiz,
+      marks: Number(item.marks) || 0,
+      item,
     });
   });
 
+  return {candidates, scanned: snap.size};
+}
+
+/**
+ * Source up to `count` quiz-shaped questions from the Master Bank.
+ *
+ * @param {{grade:string, subject:string, topic?:string, count:number}} params
+ * @returns {Promise<{questions:object[], fromBank:number, scanned:number}>}
+ */
+async function sourceQuizFromBank({grade, subject, topic, count} = {}) {
+  const target = Math.max(0, Math.floor(Number(count) || 0));
+  if (!target) return {questions: [], fromBank: 0, scanned: 0};
+
+  const {candidates, scanned} = await scanMasterBank({
+    grade, subject, topic, mapFn: editorQuestionToQuiz,
+  });
   const selected = selectBankQuestions(candidates, {count: target});
   return {
-    questions: selected.map((c) => c.quiz),
+    questions: selected.map((c) => c.item),
     fromBank: selected.length,
-    scanned: snap.size,
+    scanned,
   };
 }
 
-module.exports = {sourceQuizFromBank, MASTER_SCAN_LIMIT};
+/**
+ * Source assessment-shaped questions from the Master Bank up to a marks budget,
+ * restricted to `allowedTypes` (assessment namespace).
+ *
+ * @param {{grade:string, subject:string, topic?:string, marksBudget:number, allowedTypes?:string[]}} params
+ * @returns {Promise<{questions:object[], fromBank:number, marks:number, scanned:number}>}
+ */
+async function sourceAssessmentFromBank({grade, subject, topic, marksBudget, allowedTypes} = {}) {
+  const budget = Math.max(0, Math.round(Number(marksBudget) || 0));
+  if (!budget) return {questions: [], fromBank: 0, marks: 0, scanned: 0};
+
+  const allow = Array.isArray(allowedTypes) && allowedTypes.length ?
+    new Set(allowedTypes) : null;
+
+  const {candidates, scanned} = await scanMasterBank({
+    grade, subject, topic, mapFn: editorQuestionToAssessment,
+  });
+  const usable = allow ? candidates.filter((c) => allow.has(c.item.type)) : candidates;
+  const selected = selectBankQuestions(usable, {marksBudget: budget});
+  return {
+    questions: selected.map((c) => c.item),
+    fromBank: selected.length,
+    marks: selected.reduce((sum, c) => sum + (Number(c.marks) || 0), 0),
+    scanned,
+  };
+}
+
+module.exports = {sourceQuizFromBank, sourceAssessmentFromBank, MASTER_SCAN_LIMIT};
