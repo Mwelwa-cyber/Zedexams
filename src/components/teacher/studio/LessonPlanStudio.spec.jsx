@@ -794,3 +794,45 @@ describe('LessonPlanStudio — local language wiring', () => {
     expect(userPrompt).not.toMatch(/local language of instruction/)
   })
 })
+
+// ── Auto-fill Teacher Name + School from the signed-in profile ────────────────
+
+describe('LessonPlanStudio — teacher identity auto-fill', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('prefills teacherName + school from the profile, leaving prior typed values intact', async () => {
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'uid-teach' },
+      userProfile: { displayName: 'Mrs. Banda', school: 'Lusaka Primary' },
+    })
+
+    const setLessonDetails = vi.fn()
+    renderStudio({ setLessonDetails })
+
+    expect(setLessonDetails).toHaveBeenCalledTimes(1)
+    // The updater fills empty fields from the profile…
+    const updater = setLessonDetails.mock.calls[0][0]
+    const empty = { teacherName: '', school: '' }
+    expect(updater(empty)).toMatchObject({
+      teacherName: 'Mrs. Banda',
+      school: 'Lusaka Primary',
+    })
+    // …but never clobbers a value the teacher already typed.
+    const typed = { teacherName: 'Custom Name', school: 'Custom School' }
+    expect(updater(typed)).toMatchObject({
+      teacherName: 'Custom Name',
+      school: 'Custom School',
+    })
+  })
+
+  it('does not call setLessonDetails when the profile has not loaded yet', async () => {
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({ currentUser: { uid: 'uid-teach' }, userProfile: null })
+
+    const setLessonDetails = vi.fn()
+    renderStudio({ setLessonDetails })
+
+    expect(setLessonDetails).not.toHaveBeenCalled()
+  })
+})
