@@ -306,6 +306,17 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
           onResolved={onDiagram}
         />
       ) : null}
+
+      {/* More than one figure was detected here, but a question holds a single
+          image — tell the teacher so the extras aren't silently dropped. */}
+      {signals.extraDiagrams > 0 ? (
+        <p className="text-[11px] font-bold theme-text-muted">
+          ➕ {signals.extraDiagrams} more figure
+          {signals.extraDiagrams === 1 ? ' was' : 's were'} detected on this
+          question. Only the main one is shown above — add the other
+          {signals.extraDiagrams === 1 ? '' : 's'} with the Diagram Scanner.
+        </p>
+      ) : null}
     </div>
   )
 }

@@ -236,6 +236,93 @@ export function binarize(image, threshold = null) {
   return { data: out, width, height }
 }
 
+/** Fraction of pixels whose luma is below `threshold` (0..1). Pure. */
+export function fractionBelow(image, threshold) {
+  assertImage(image)
+  const { data } = image
+  const total = data.length / 4
+  if (!total) return 0
+  let n = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (luma(data[i], data[i + 1], data[i + 2]) < threshold) n += 1
+  }
+  return n / total
+}
+
+/**
+ * Sauvola adaptive (local) threshold. For each pixel it compares the luma to a
+ * threshold derived from the mean + standard deviation of a window around it:
+ *   T = mean * (1 + k * (std / R - 1))
+ * Pixels at or below T become ink (black), the rest white. Unlike global Otsu,
+ * this adapts per-region, so it keeps faint pencil strokes and survives uneven
+ * page lighting / shadow that a single global threshold would wash out. Uniform
+ * (textureless) areas resolve to background, so it suits line art, not fills.
+ *
+ * Implemented with summed-area tables (integral images) so it is O(width×height)
+ * regardless of window size. Pure; unit-tested under node.
+ *
+ * options:
+ *   window  square window side in px (odd; scaled to the image when omitted)
+ *   k       Sauvola sensitivity (0.2 default; higher = less ink)
+ *   R       dynamic range of the std term (128 default)
+ */
+export function adaptiveBinarize(image, { window = 0, k = 0.2, R = 128 } = {}) {
+  assertImage(image)
+  const { data, width, height } = image
+  let win = window
+  if (!win || win < 3) win = Math.round(Math.min(width, height) / 12)
+  win = Math.max(15, Math.min(51, win))
+  if (win % 2 === 0) win += 1
+  const r = (win - 1) >> 1
+
+  // Integral images of luma and luma² over a (width+1)×(height+1) grid, where
+  // table[(y+1)*iw + (x+1)] holds the sum over the rectangle [0..x]×[0..y].
+  const iw = width + 1
+  const sum = new Float64Array(iw * (height + 1))
+  const sumSq = new Float64Array(iw * (height + 1))
+  for (let y = 0; y < height; y += 1) {
+    let rowSum = 0
+    let rowSqSum = 0
+    for (let x = 0; x < width; x += 1) {
+      const l = luma(data[(y * width + x) * 4], data[(y * width + x) * 4 + 1], data[(y * width + x) * 4 + 2])
+      rowSum += l
+      rowSqSum += l * l
+      const o = (y + 1) * iw + (x + 1)
+      sum[o] = sum[o - iw] + rowSum
+      sumSq[o] = sumSq[o - iw] + rowSqSum
+    }
+  }
+  const area = (table, x0, y0, x1, y1) =>
+    table[(y1 + 1) * iw + (x1 + 1)] -
+    table[y0 * iw + (x1 + 1)] -
+    table[(y1 + 1) * iw + x0] +
+    table[y0 * iw + x0]
+
+  const out = makeLike(data)
+  for (let y = 0; y < height; y += 1) {
+    const y0 = Math.max(0, y - r)
+    const y1 = Math.min(height - 1, y + r)
+    for (let x = 0; x < width; x += 1) {
+      const x0 = Math.max(0, x - r)
+      const x1 = Math.min(width - 1, x + r)
+      const count = (x1 - x0 + 1) * (y1 - y0 + 1)
+      const s = area(sum, x0, y0, x1, y1)
+      const sq = area(sumSq, x0, y0, x1, y1)
+      const mean = s / count
+      const variance = Math.max(0, sq / count - mean * mean)
+      const std = Math.sqrt(variance)
+      const t = mean * (1 + k * (std / R - 1))
+      const i = (y * width + x) * 4
+      const v = luma(data[i], data[i + 1], data[i + 2]) <= t ? 0 : 255
+      out[i] = v
+      out[i + 1] = v
+      out[i + 2] = v
+      out[i + 3] = data[i + 3]
+    }
+  }
+  return { data: out, width, height }
+}
+
 /**
  * Rotate the image by 90° steps. `turns` is normalised mod 4 (1 = clockwise
  * quarter turn). Dimensions swap for odd turns. Returns a new buffer with its
@@ -342,7 +429,26 @@ export function cleanPixels(image, options = {}) {
   }
   if (whiten) work = whitenBackground(work)
   if (sharpenAmount > 0) work = sharpen(work, sharpenAmount)
-  if (blackAndWhite) work = binarize(work, threshold)
+  if (blackAndWhite) {
+    const bw = binarize(work, threshold)
+    // Global Otsu assumes a clean bimodal page-vs-ink split. On faint pencil or
+    // uneven lighting it can blank the marks, flood the page black, or keep
+    // heavy ink while dropping faint strokes. When the automatic threshold
+    // yields a degenerate result that the greyscale clearly contradicts, fall
+    // back to local (Sauvola) thresholding, which adapts per-region. We only
+    // second-guess Otsu's automatic threshold — never an explicit one the
+    // caller passed in.
+    if (threshold == null) {
+      const ink = fractionBelow(bw, 128) // pixels Otsu marked as ink
+      const dark = fractionBelow(work, 205) // pixels the greyscale shows as marks
+      const blanked = ink < 0.004 && dark > 0.01 // marks erased to near-blank
+      const flooded = ink > 0.96 && dark < 0.9 // page flooded to near-solid ink
+      const droppedFaint = dark - ink > 0.04 && dark > 0.05 // faint strokes lost
+      work = blanked || flooded || droppedFaint ? adaptiveBinarize(work) : bw
+    } else {
+      work = bw
+    }
+  }
   return work
 }
 
