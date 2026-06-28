@@ -58,6 +58,26 @@ export function buildGradeIndexFromCurriculum() {
   return index
 }
 
+/**
+ * Decide what the import should do with one candidate, given the matching row
+ * already in the bank (looked up by fingerprint) and the importing admin's uid:
+ *
+ *   - 'create'  — nothing banked yet; write it straight into the Master Bank.
+ *   - 'skip'    — already master-eligible (or owned by someone else, so not
+ *                 ours to promote — never touch a teacher's private question
+ *                 that merely shares a fingerprint).
+ *   - 'promote' — an earlier import captured it as pending; the admin still
+ *                 owns it, so flip it into the Master Bank.
+ *
+ * Pure (no Firestore) so it unit-tests under plain `node`.
+ */
+export function planBankAction(existing, adminUid) {
+  if (!existing) return 'create'
+  if (existing.masterEligible === true) return 'skip'
+  if (adminUid && existing.ownerId === adminUid) return 'promote'
+  return 'skip'
+}
+
 /** Look up a grade by topic: unique syllabus grade, ambiguous, or none. */
 export function lookupGradeClient(index, subject, topic) {
   if (!index || !topic) return { grade: null, ambiguous: false }

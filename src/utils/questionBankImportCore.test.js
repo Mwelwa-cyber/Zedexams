@@ -5,7 +5,7 @@
 
 import {
   toCurriculumSubject, topicKey, normalizeGrade,
-  buildGradeIndexFromCurriculum, lookupGradeClient,
+  buildGradeIndexFromCurriculum, lookupGradeClient, planBankAction,
 } from './questionBankImportCore.js'
 import { TOPICS } from '../config/curriculum.js'
 
@@ -50,6 +50,18 @@ console.log('\nlookupGradeClient — unique / ambiguous / none')
   assert(amb.grade === null && amb.ambiguous === true, 'multi-grade topic → ambiguous')
   assert(lookupGradeClient(idx, 'mathematics', 'Calculus').grade === null, 'unmatched topic → null')
   assert(lookupGradeClient(idx, 'mathematics', '').grade === null, 'empty topic → null')
+}
+
+console.log('\nplanBankAction — create / skip / promote')
+{
+  const admin = 'admin-1'
+  assert(planBankAction(null, admin) === 'create', 'no existing row → create (seed Master Bank)')
+  assert(planBankAction({ id: 'x', ownerId: admin, masterEligible: true }, admin) === 'skip', 'already master-eligible → skip')
+  assert(planBankAction({ id: 'x', ownerId: 'other', masterEligible: true }, admin) === 'skip', "someone else's master row → skip")
+  assert(planBankAction({ id: 'x', ownerId: admin, masterEligible: false }, admin) === 'promote', "admin's own earlier pending import → promote")
+  assert(planBankAction({ id: 'x', ownerId: admin }, admin) === 'promote', 'admin-owned row with no master flag → promote')
+  assert(planBankAction({ id: 'x', ownerId: 'teacher-9', masterEligible: false }, admin) === 'skip', "a teacher's private duplicate is never promoted")
+  assert(planBankAction({ id: 'x', ownerId: 'teacher-9', masterEligible: false }, '') === 'skip', 'no admin uid → never promote')
 }
 
 if (failures > 0) {
