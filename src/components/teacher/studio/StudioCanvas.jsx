@@ -32,6 +32,12 @@ export function StudioCanvas({
   curriculumMode = 'cbc',
   lessonContext = {},
   onPlanChange,
+  // Save to library
+  onSaveToLibrary,
+  saveStatus = 'idle',
+  saveError = null,
+  canSave = false,
+  onViewLibrary,
 }) {
   const [showAdd, setShowAdd] = useState(false)
   const [desc, setDesc] = useState('')
@@ -178,6 +184,53 @@ export function StudioCanvas({
               </svg>
               Export Word
             </button>
+
+            {/* Save to library */}
+            {typeof onSaveToLibrary === 'function' && (
+              <>
+                {!canSave && saveStatus === 'saved' ? (
+                  <span
+                    data-testid="save-state"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-[13px] font-semibold text-green-700"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                    Saved
+                    {typeof onViewLibrary === 'function' && (
+                      <button type="button" onClick={onViewLibrary} className="ml-1 underline hover:no-underline">View</button>
+                    )}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    data-action="save-library"
+                    onClick={onSaveToLibrary}
+                    disabled={!canSave}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50"
+                  >
+                    {saveStatus === 'saving' ? (
+                      <>
+                        <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                          <polyline points="17 21 17 13 7 13 7 21" />
+                          <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        {saveStatus === 'saved' ? 'Save changes' : 'Save to library'}
+                      </>
+                    )}
+                  </button>
+                )}
+                {saveStatus === 'error' && saveError && (
+                  <span data-testid="save-error" className="text-[12px] text-red-600" title={saveError}>
+                    Save failed
+                  </span>
+                )}
+              </>
+            )}
 
             {illustrationMode === 'manual' && (
               <button
