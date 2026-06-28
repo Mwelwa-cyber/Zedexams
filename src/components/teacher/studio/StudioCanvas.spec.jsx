@@ -15,6 +15,16 @@ vi.mock('../../ui/AiGenerationProgress', () => ({
   ),
 }))
 
+// ── Firebase mocks ────────────────────────────────────────────────────────────
+// StudioCanvas now imports LessonPlanEditor, which pulls in the
+// reviseLessonSection client wrapper → firebase/config. Stub the Firebase
+// surface so the canvas renders under jsdom without real web config.
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({})),
+  httpsCallable: vi.fn(() => vi.fn()),
+}))
+vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function renderCanvas(props = {}) {

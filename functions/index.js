@@ -128,6 +128,10 @@ const {
 const {
   createReviseQuestion,
 } = require("./teacherTools/reviseQuestion");
+// Teacher Tools — Revise Lesson Section (AI-edit one part of a lesson plan).
+const {
+  createReviseLessonSection,
+} = require("./teacherTools/reviseLessonSection");
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio, free-form prompts).
 const {
   createStudioGenerateLessonPlan,
@@ -2357,6 +2361,10 @@ exports.suggestAnswer = createSuggestAnswer(anthropicApiKey, geminiApiKey);
 
 // Teacher Tools — Revise Question (rewrite for grade level / tone, Haiku).
 exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
+
+// Teacher Tools — Revise Lesson Section: AI-edit one part of a generated
+// lesson plan in the Lesson Plan Studio (Haiku micro-tool).
+exports.reviseLessonSection = createReviseLessonSection(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;

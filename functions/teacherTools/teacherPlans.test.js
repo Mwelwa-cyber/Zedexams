@@ -161,8 +161,11 @@ test("free can only use the Lesson Plan studio; every other studio is locked", (
   // The Lesson Plan studio is the one generator a Free teacher can use.
   assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 2);
   // Tools that stay funded on Free even though they aren't full studios: the
-  // quiz-editor micro-helpers and the in-studio diagram tool.
-  const stillFunded = new Set(["suggest_answer", "revise_question", "diagram"]);
+  // quiz-editor micro-helpers, the Lesson Plan studio's AI section-editor
+  // (Free can use the Lesson Plan studio), and the in-studio diagram tool.
+  const stillFunded = new Set([
+    "suggest_answer", "revise_question", "revise_lesson_section", "diagram",
+  ]);
   for (const [tool, limit] of Object.entries(PLAN_LIMITS.free)) {
     if (tool === "lesson_plan") continue;
     if (stillFunded.has(tool)) {
