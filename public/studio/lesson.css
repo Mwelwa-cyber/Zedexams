@@ -582,3 +582,92 @@
   #view-plans .doc { padding: 0 !important; min-height: 0 !important; }
   @page { size: A4; margin: 14mm 15mm; }
 }
+
+/* ============ ACCESSIBILITY & MICRO-POLISH ============
+   Visible keyboard-focus rings for every custom control (the form is built
+   from div/button toggles, cards and pills that 01-ui-setup.js makes
+   keyboard-operable), a gentle accordion reveal, clearer selected states, and
+   full prefers-reduced-motion support. :focus-visible keeps rings off mouse
+   clicks while showing them for keyboard and AT users. */
+
+/* Unified focus ring for the studio's interactive controls. */
+#view-plans .tab:focus-visible,
+#view-plans .lp-section-head:focus-visible,
+#view-plans .toggle-row:focus-visible,
+#view-plans .le-pill:focus-visible,
+#view-plans .lp-mode-pill:focus-visible,
+#view-plans .lp-count-pill:focus-visible,
+#view-plans .format-card:focus-visible,
+#view-plans .style-card:focus-visible,
+#view-plans .format-preview-btn:focus-visible,
+#view-plans .lp-illustrate-btn:focus-visible,
+#view-plans .lp-ai-btn:focus-visible,
+#view-plans .lp-only-this:focus-visible,
+#view-plans .seg-toggle .seg:focus-visible,
+#view-plans .btn:focus-visible,
+.modal .tb-btn:focus-visible,
+.modal .btn-solid:focus-visible,
+.modal .btn-outline:focus-visible,
+.modal .close:focus-visible,
+.modal .cat-btn:focus-visible,
+.modal .sym-btn:focus-visible,
+.modal .diagram-card:focus-visible,
+.topbar .tb-btn:focus-visible,
+.export-pop button:focus-visible,
+.tt-pop button:focus-visible {
+  outline: 2px solid #ff7a2e;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+/* The doc toolbar sits on cream; keep its ring tight to the button shape. */
+.topbar .tb-btn:focus-visible { outline-offset: 1px; border-radius: 5px; }
+
+/* Colour swatches are name-less squares — give the focused/selected swatch a
+   high-contrast ring so keyboard users can see which accent is active. */
+#view-plans #accent-colors .style-card:focus-visible {
+  outline: 2px solid #0e2a32;
+  outline-offset: 2px;
+}
+#view-plans #accent-colors .style-card[aria-checked="true"],
+#view-plans #accent-colors .style-card.active {
+  box-shadow: 0 0 0 2px #fffaf0, 0 0 0 4px #ff7a2e;
+}
+
+/* Selected single-choice cards read clearly even before focus. */
+#view-plans .format-card[aria-pressed="true"],
+#view-plans #font-pairs .style-card[aria-checked="true"],
+#view-plans #table-styles .style-card[aria-checked="true"] {
+  box-shadow: 0 0 0 1px #ff7a2e;
+}
+
+/* Gentle reveal when an accordion section opens. */
+@keyframes lpSectionReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+#view-plans .lp-section.open > .lp-section-body {
+  animation: lpSectionReveal .2s cubic-bezier(.16,1,.3,1) both;
+}
+/* Highlight the section a keyboard user is inside. */
+#view-plans .lp-section:focus-within { border-color: #ff7a2e; }
+
+/* Press feedback on the primary action. */
+#view-plans .btn-primary:active { transform: translateY(0); }
+
+/* Respect reduced-motion: drop transforms, transitions and looping animations
+   across the studio. This stylesheet only loads on the studio route, so the
+   broad reach is intentional and contained. */
+@media (prefers-reduced-motion: reduce) {
+  #view-plans *, #view-plans *::before, #view-plans *::after,
+  .modal, .modal *, .toast, .loader-bar {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  #view-plans .btn-primary:hover,
+  #view-plans .format-preview-btn:hover,
+  #view-plans .sym-btn:hover,
+  #view-plans .diagram-card:hover { transform: none !important; }
+  .loader-bar { animation: none !important; }
+}
