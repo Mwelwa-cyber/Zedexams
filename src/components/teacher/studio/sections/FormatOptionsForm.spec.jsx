@@ -25,6 +25,7 @@ function renderForm(props = {}) {
     formatOptions: { ...DEFAULT_FORMAT_OPTIONS, advanced: { ...DEFAULT_FORMAT_OPTIONS.advanced } },
     onUpdateFormat: vi.fn(),
     onUpdateAdvanced: vi.fn(),
+    onUpdateMedium: vi.fn(),
     lessonMedium: 'English',
     ...props,
   }
@@ -32,6 +33,7 @@ function renderForm(props = {}) {
     ...render(<FormatOptionsForm {...defaults} />),
     onUpdateFormat: defaults.onUpdateFormat,
     onUpdateAdvanced: defaults.onUpdateAdvanced,
+    onUpdateMedium: defaults.onUpdateMedium,
   }
 }
 
@@ -385,6 +387,32 @@ describe('FormatOptionsForm — Advanced toggle rows', () => {
     const checkbox = screen.getByRole('checkbox', { name: /include key vocabulary/i })
     fireEvent.click(checkbox)
     expect(onUpdateAdvanced).toHaveBeenCalledWith('includeKeyVocabulary', false)
+  })
+})
+
+// ── Medium of Instruction (moved into Advanced) ───────────────────────────────
+
+describe('FormatOptionsForm — Medium of Instruction', () => {
+  it('is hidden until Advanced Options is expanded', () => {
+    renderForm()
+    expect(screen.queryByLabelText(/medium of instruction/i)).not.toBeInTheDocument()
+  })
+
+  it('appears inside Advanced Options with the current medium selected', () => {
+    renderForm({ lessonMedium: 'Bemba' })
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }))
+    const select = screen.getByLabelText(/medium of instruction/i)
+    expect(select).toBeInTheDocument()
+    expect(select).toHaveValue('Bemba')
+  })
+
+  it('calls onUpdateMedium when a different language is chosen', () => {
+    const { onUpdateMedium } = renderForm()
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }))
+    fireEvent.change(screen.getByLabelText(/medium of instruction/i), {
+      target: { value: 'Nyanja' },
+    })
+    expect(onUpdateMedium).toHaveBeenCalledWith('Nyanja')
   })
 })
 
