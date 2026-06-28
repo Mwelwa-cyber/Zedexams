@@ -6,8 +6,8 @@
  */
 
 const {
-  normalizeGrade, normalizeSubject, editorQuestionToQuiz, selectBankQuestions,
-  buildAvoidNote,
+  normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
+  selectBankQuestions, buildAvoidNote, mergeSourcedIntoSections,
 } = require("./masterBankSourcingCore");
 
 let failures = 0;
@@ -93,6 +93,74 @@ console.log("\nbuildAvoidNote");
   assert(note.includes("photosynthesis") && note.includes("noble gas"), "lists existing stems");
   assert(note.toLowerCase().includes("do not repeat") || note.includes("DIFFERENT"), "instructs the model not to duplicate");
   assert(buildAvoidNote([]) === "", "empty input → empty note");
+}
+
+console.log("\neditorQuestionToAssessment — assessment shape (prompt/answer/marks)");
+{
+  const q = editorQuestionToAssessment({
+    type: "mcq", text: "<p>Capital of Zambia?</p>",
+    options: ["Lusaka", "Ndola", "Kitwe"], correctAnswer: 0,
+    explanation: "Lusaka is the capital", marks: 3,
+  });
+  assert(q && q.type === "multiple_choice", "mcq → multiple_choice");
+  assert(q.prompt === "Capital of Zambia?", "stem maps to `prompt`, HTML stripped");
+  assert(q.answer === "Lusaka", "MCQ index 0 → answer text 'Lusaka'");
+  assert(q.marks === 3, "marks carried over");
+  assert(q.markingGuide === "Lusaka is the capital", "explanation → markingGuide");
+
+  const sa = editorQuestionToAssessment({type: "short_answer", text: "2+2?", correctAnswer: "4"});
+  assert(sa.type === "short_answer" && sa.answer === "4" && sa.options === null, "short_answer maps answer, no options");
+  assert(sa.marks === 1, "marks defaults to 1");
+
+  const tf = editorQuestionToAssessment({type: "tf", text: "Sky is blue.", correctAnswer: 0, marks: 200});
+  assert(tf.type === "true_false" && tf.answer === "True", "tf index 0 → True");
+  assert(tf.marks === 99, "marks clamped to 99");
+
+  assert(editorQuestionToAssessment({type: "essay", text: "Discuss"}) === null, "essay (AI-only) → null");
+  assert(editorQuestionToAssessment({type: "mcq", text: "Q", options: ["a", "b"], correctAnswer: 9}) === null, "bad MCQ key index → null");
+}
+
+console.log("\nselectBankQuestions — marks budget");
+{
+  const mk = (id, marks, difficulty, quality) => ({fingerprint: id, difficulty, quality, usage: 0, marks, item: {id}});
+  const cands = [
+    mk("a", 4, "easy", 90), mk("b", 4, "medium", 85), mk("c", 4, "hard", 80), mk("d", 4, "easy", 70),
+  ];
+  const sel = selectBankQuestions(cands, {marksBudget: 10});
+  const total = sel.reduce((s, c) => s + c.marks, 0);
+  assert(total >= 10, "accumulates at least the marks budget");
+  assert(total <= 14, "overshoots by at most one question");
+  assert(selectBankQuestions(cands, {marksBudget: 0}).length === 0, "budget 0 → empty");
+}
+
+console.log("\nmergeSourcedIntoSections — type-matched insertion");
+{
+  const sections = [
+    {title: "Section A", questions: [{type: "multiple_choice", prompt: "ai mcq"}]},
+    {title: "Section B", questions: [{type: "short_answer", prompt: "ai short"}]},
+  ];
+  const sourced = [
+    {type: "short_answer", prompt: "bank short"},
+    {type: "multiple_choice", prompt: "bank mcq"},
+  ];
+  const merged = mergeSourcedIntoSections(sections, sourced);
+  assert(merged[0].questions[0].prompt === "bank mcq", "MCQ inserted into the section that already holds MCQs (front)");
+  assert(merged[1].questions[0].prompt === "bank short", "short-answer inserted into the short-answer section");
+  assert(merged[0].questions.length === 2 && merged[1].questions.length === 2, "existing questions preserved");
+  // Input not mutated.
+  assert(sections[0].questions.length === 1, "does not mutate the input sections");
+
+  const noMatch = mergeSourcedIntoSections([{title: "Only", questions: [{type: "essay", prompt: "e"}]}], [{type: "multiple_choice", prompt: "m"}]);
+  assert(noMatch[0].questions[0].prompt === "m", "no type match → falls back to first section");
+
+  const empty = mergeSourcedIntoSections([], [{type: "multiple_choice", prompt: "m"}]);
+  assert(empty.length === 1 && empty[0].questions[0].prompt === "m", "no sections → creates a fallback section");
+}
+
+console.log("\nbuildAvoidNote — assessment stems via `prompt`");
+{
+  const note = buildAvoidNote([{prompt: "What is osmosis?"}, {question: "Define gravity"}]);
+  assert(note.includes("osmosis") && note.includes("gravity"), "reads both prompt (assessment) and question (quiz)");
 }
 
 if (failures > 0) {

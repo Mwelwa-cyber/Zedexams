@@ -111,28 +111,103 @@ function editorQuestionToQuiz(editorQ) {
   return {type, question, options: [], correctAnswer, explanation};
 }
 
+/* ------------------------- editor → assessment mapper -------------------- */
+
+// The assessment schema supports more types, but only these three have a
+// Master Bank (editor namespace) equivalent. structured/calculation/essay/
+// matching stay AI-only.
+const EDITOR_TO_ASSESSMENT_TYPE = {
+  mcq: "multiple_choice",
+  multiple_choice: "multiple_choice",
+  tf: "true_false",
+  truefalse: "true_false",
+  true_false: "true_false",
+  short_answer: "short_answer",
+  short: "short_answer",
+};
+
+/**
+ * Map one Master Bank question (editor namespace) to the assessment schema
+ * question shape: `{type, prompt, options, answer, markingGuide, marks}`. The
+ * stem is `prompt`, the key lives in `answer`, and bank marks are carried over
+ * (clamped 1-99). Returns null when it can't produce a valid, keyed question.
+ */
+function editorQuestionToAssessment(editorQ) {
+  if (!editorQ || typeof editorQ !== "object") return null;
+  const type = EDITOR_TO_ASSESSMENT_TYPE[String(editorQ.type || "").toLowerCase()];
+  if (!type) return null;
+
+  const prompt = plainify(editorQ.text);
+  if (!prompt) return null;
+  const markingGuide = plainify(editorQ.explanation);
+  const marks = Math.max(1, Math.min(99, Math.round(Number(editorQ.marks) || 1)));
+
+  if (type === "multiple_choice") {
+    const options = (Array.isArray(editorQ.options) ? editorQ.options : [])
+      .map((o) => plainify(o))
+      .filter(Boolean);
+    if (options.length < 2) return null;
+    const ca = editorQ.correctAnswer;
+    let answer = "";
+    if (typeof ca === "number" && Number.isInteger(ca) && options[ca] != null) {
+      answer = options[ca]; // editor stores the option INDEX
+    } else if (typeof ca === "string" && options.includes(plainify(ca))) {
+      answer = plainify(ca);
+    } else {
+      return null;
+    }
+    return {type, prompt, options, answer, markingGuide, marks};
+  }
+
+  if (type === "true_false") {
+    const ca = editorQ.correctAnswer;
+    let answer = "";
+    if (typeof ca === "number") answer = ca === 0 ? "True" : "False";
+    else {
+      const t = plainify(ca).toLowerCase();
+      if (t === "true" || t === "t") answer = "True";
+      else if (t === "false" || t === "f") answer = "False";
+      else return null;
+    }
+    return {type, prompt, options: ["True", "False"], answer, markingGuide, marks};
+  }
+
+  // short_answer
+  const answer = plainify(editorQ.correctAnswer != null ? editorQ.correctAnswer : editorQ.answer);
+  if (!answer) return null;
+  return {type, prompt, options: null, answer, markingGuide, marks};
+}
+
 /* --------------------------- selection + balance ------------------------- */
 
 const DIFFICULTY_ORDER = ["easy", "medium", "hard"];
 
 /**
- * Choose up to `count` questions from candidates, deduped by fingerprint,
- * ranked by AI quality then usage, and round-robin'd across difficulty buckets
- * so the selection isn't all-easy or all-hard.
+ * Choose questions from candidates, deduped by fingerprint, ranked by AI
+ * quality then usage, and round-robin'd across difficulty buckets so the
+ * selection isn't all-easy or all-hard.
  *
- * @param {Array<{fingerprint?:string, difficulty?:string, quality?:number, usage?:number, quiz:object}>} candidates
- * @param {{count:number}} opts
- * @returns {Array<object>} selected candidate objects (use .quiz for the question)
+ * Two stopping modes:
+ *   - {count}        — stop after `count` questions (quiz path).
+ *   - {marksBudget}  — stop once the accumulated `candidate.marks` reaches the
+ *                      budget (assessment path; may overshoot by one question).
+ *
+ * @param {Array<{fingerprint?:string, difficulty?:string, quality?:number, usage?:number, marks?:number}>} candidates
+ * @param {{count?:number, marksBudget?:number}} opts
+ * @returns {Array<object>} selected candidate objects
  */
-function selectBankQuestions(candidates, {count} = {}) {
-  const target = Math.max(0, Math.floor(Number(count) || 0));
+function selectBankQuestions(candidates, {count, marksBudget} = {}) {
+  const byMarks = Number(marksBudget) > 0;
+  const target = byMarks ?
+    Number(marksBudget) :
+    Math.max(0, Math.floor(Number(count) || 0));
   if (!target || !Array.isArray(candidates) || !candidates.length) return [];
 
   // Dedupe by fingerprint, keeping the highest-quality instance.
   const byFp = new Map();
   let noFpKey = 0;
   for (const c of candidates) {
-    if (!c || !c.quiz) continue;
+    if (!c) continue;
     const key = c.fingerprint || `__nofp_${noFpKey++}`;
     const prev = byFp.get(key);
     if (!prev || (Number(c.quality) || 0) > (Number(prev.quality) || 0)) byFp.set(key, c);
@@ -154,14 +229,18 @@ function selectBankQuestions(candidates, {count} = {}) {
   // Round-robin across difficulty buckets (easy, medium, hard, then unknown).
   const order = [...DIFFICULTY_ORDER, "unknown"].filter((d) => buckets.has(d));
   const selected = [];
+  let accMarks = 0;
+  const reached = () => byMarks ? accMarks >= target : selected.length >= target;
   let progressed = true;
-  while (selected.length < target && progressed) {
+  while (!reached() && progressed) {
     progressed = false;
     for (const d of order) {
-      if (selected.length >= target) break;
+      if (reached()) break;
       const arr = buckets.get(d);
       if (arr && arr.length) {
-        selected.push(arr.shift());
+        const c = arr.shift();
+        selected.push(c);
+        accMarks += Math.max(0, Number(c.marks) || 0);
         progressed = true;
       }
     }
@@ -173,20 +252,53 @@ function selectBankQuestions(candidates, {count} = {}) {
 
 /**
  * A short instruction block telling the model which stems are already in the
- * quiz, so the gap-fill generation doesn't duplicate them.
+ * paper, so the gap-fill generation doesn't duplicate them. Reads `question`
+ * (quiz shape) or `prompt` (assessment shape).
  */
-function buildAvoidNote(quizQuestions) {
-  const stems = (Array.isArray(quizQuestions) ? quizQuestions : [])
-    .map((q) => plainify(q && q.question).slice(0, 140))
+function buildAvoidNote(questions) {
+  const stems = (Array.isArray(questions) ? questions : [])
+    .map((q) => plainify(q && (q.question || q.prompt)).slice(0, 140))
     .filter(Boolean)
     .slice(0, 40);
   if (!stems.length) return "";
   return [
     "",
-    "ALREADY IN THE QUIZ — generate DIFFERENT questions. Do NOT repeat these " +
+    "ALREADY IN THE PAPER — generate DIFFERENT questions. Do NOT repeat these " +
     "stems or test the same specific facts:",
     ...stems.map((s, i) => `${i + 1}. ${s}`),
   ].join("\n");
+}
+
+/* ----------------------- merge sourced into sections --------------------- */
+
+/**
+ * Inject sourced assessment-questions into the model's generated sections.
+ * Each sourced question is prepended to the first section that already holds a
+ * question of the same `type`; failing that, the first section; failing that
+ * (no sections at all), a new "Section A". Existing questions are never
+ * reordered or dropped. Returns a new sections array (inputs untouched).
+ *
+ * Numbering + marks totals are NOT set here — re-run validateAssessment on the
+ * result, which renumbers globally and recomputes the paper total.
+ */
+function mergeSourcedIntoSections(sections, sourcedQuestions) {
+  const out = (Array.isArray(sections) ? sections : []).map((s) => ({
+    ...s,
+    questions: Array.isArray(s && s.questions) ? [...s.questions] : [],
+  }));
+  const sourced = Array.isArray(sourcedQuestions) ? sourcedQuestions : [];
+  if (!sourced.length) return out;
+  if (!out.length) {
+    out.push({title: "Section A", instructions: "Answer all questions.", questions: []});
+  }
+
+  for (const q of sourced) {
+    if (!q || typeof q !== "object") continue;
+    let target = out.find((s) => s.questions.some((existing) => existing && existing.type === q.type));
+    if (!target) target = out[0];
+    target.questions.unshift(q);
+  }
+  return out;
 }
 
 module.exports = {
@@ -194,6 +306,8 @@ module.exports = {
   normalizeSubject,
   plainify,
   editorQuestionToQuiz,
+  editorQuestionToAssessment,
   selectBankQuestions,
   buildAvoidNote,
+  mergeSourcedIntoSections,
 };

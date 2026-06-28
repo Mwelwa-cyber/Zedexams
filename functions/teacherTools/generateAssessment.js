@@ -29,6 +29,15 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./assessmentPromptV8");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {sourceAssessmentFromBank} = require("./masterBankSourcing");
+const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
+
+// The assessment types the Master Bank can supply (the rest — structured,
+// calculation, essay, matching — stay AI-only).
+const BANK_ASSESSMENT_TYPES = ["multiple_choice", "true_false", "short_answer"];
+// Cap on how much of a paper (by marks) may be filled from the bank; the AI
+// always authors the rest.
+const BANK_MARKS_SHARE = 0.5;
 
 const ASSESSMENT_MODEL =
   process.env.ASSESSMENT_MODEL || "claude-sonnet-4-6";
@@ -88,6 +97,9 @@ function sanitizeInputs(raw = {}) {
     // old 2013 syllabus. resolveCbcContext grounds on the matching
     // syllabi data file.
     framework: String(raw.framework) === "2013" ? "2013" : "2023",
+    // Smart sourcing is on by default; a client can opt out ("fresh
+    // questions only") by sending useQuestionBank: false.
+    useQuestionBank: raw.useQuestionBank !== false,
   };
 }
 
@@ -162,7 +174,27 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     visibility: "private",
   });
 
-  const userPrompt = buildUserPrompt(inputs);
+  // Smart Paper Generation — fill up to ~half the marks from the Master Bank,
+  // then ask the AI to author only the remainder. Best-effort: an empty/
+  // unmatched bank sources nothing and the flow is identical to before.
+  let sourced = {questions: [], fromBank: 0, marks: 0, scanned: 0};
+  if (inputs.useQuestionBank) {
+    const allowedTypes = inputs.questionTypes && inputs.questionTypes.length ?
+      inputs.questionTypes : BANK_ASSESSMENT_TYPES;
+    sourced = await sourceAssessmentFromBank({
+      grade: inputs.grade,
+      subject: inputs.subject,
+      topic: inputs.topic,
+      marksBudget: Math.round(inputs.totalMarks * BANK_MARKS_SHARE),
+      allowedTypes,
+    });
+  }
+  // Marks the AI still needs to author. >= ~half by construction, so the model
+  // is always called and always produces a coherent paper.
+  const gapMarks = Math.max(1, inputs.totalMarks - sourced.marks);
+
+  const userPrompt = buildUserPrompt({...inputs, totalMarks: gapMarks}) +
+    buildAvoidNote(sourced.questions);
 
   let parsed = null;
   let raw = "";
@@ -174,10 +206,10 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       cbcContextBlock: contextBlock,
       formatContextBlock: formatBlock,
       messages: [{role: "user", content: userPrompt}],
-      // Output budget scales with the paper: ~130 tokens covers a question
-      // with options, answer and marking guide; capped at 16k for the
-      // largest allowed 100-mark paper. Output tokens are billed as used.
-      maxTokens: Math.min(16000, 3000 + inputs.totalMarks * 130),
+      // Output budget scales with the marks the AI actually authors (the gap
+      // after sourcing); ~130 tokens covers a question with options, answer and
+      // marking guide; capped at 16k. Output tokens are billed as used.
+      maxTokens: Math.min(16000, 3000 + gapMarks * 130),
       temperature: 0.4,
       model: ASSESSMENT_MODEL,
       // Streamed internally (tool deltas accumulate to the same parsed
@@ -209,8 +241,23 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     throw err;
   }
 
-  const validation = validateAssessment(parsed);
+  // Merge the Master Bank questions into the model's sections (by type), then
+  // validate the combined paper — validateAssessment renumbers globally and
+  // recomputes the marks totals, so the merged paper stays consistent.
+  const mergedParsed = (parsed && typeof parsed === "object") ? {...parsed} : {};
+  mergedParsed.sections = mergeSourcedIntoSections(mergedParsed.sections, sourced.questions);
+
+  const validation = validateAssessment(mergedParsed);
   const assessment = validation.value;
+  const totalQuestions = assessment.sections
+      .reduce((sum, s) => sum + (s.questions ? s.questions.length : 0), 0);
+  const sourcing = {
+    fromBank: sourced.fromBank,
+    generated: Math.max(0, totalQuestions - sourced.fromBank),
+    marks: sourced.marks,
+    scanned: sourced.scanned,
+    aiCalled: true,
+  };
 
   const tokensIn = Number(usageInfo.inputTokens || 0);
   const tokensOut = Number(usageInfo.outputTokens || 0);
@@ -229,6 +276,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       tokensOut,
       costUsdCents,
       modelUsed,
+      sourcing,
     });
     return {
       generationId: genRef.id,
@@ -239,6 +287,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
         kbWarning,
       ].filter(Boolean).join(" "),
       kbGrounded: Boolean(kbMatch),
+      sourcing,
     };
   }
 
@@ -250,6 +299,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     tokensOut,
     costUsdCents,
     modelUsed,
+    sourcing,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -259,6 +309,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     usage,
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch),
+    sourcing,
   };
 }
 
