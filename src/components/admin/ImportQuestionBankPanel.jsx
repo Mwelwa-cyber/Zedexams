@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import SeoHelmet from '../seo/SeoHelmet'
 import { previewImport, runImport } from '../../utils/questionBankImport'
+import { bulkApproveOwnedPending } from '../../utils/adminQuestionBankService'
 
 /**
  * Admin → Import questions. One-click backfill of the platform's existing
@@ -16,6 +17,8 @@ export default function ImportQuestionBankPanel() {
   const [progress, setProgress] = useState(null)
   const [phase, setPhase] = useState('idle') // idle | previewing | importing | done | error
   const [error, setError] = useState('')
+  const [approving, setApproving] = useState(false)
+  const [approved, setApproved] = useState(null)
 
   async function onPreview() {
     setPhase('previewing'); setError(''); setPreview(null)
@@ -43,7 +46,23 @@ export default function ImportQuestionBankPanel() {
     }
   }
 
-  const busy = phase === 'previewing' || phase === 'importing'
+  async function onApproveAll() {
+    if (!currentUser?.uid) { setError('Please sign in as an admin.'); return }
+    if (!window.confirm(
+      'Approve all your still-pending imported questions into the Master Bank now?\n\n' +
+      'This makes them available to every teacher’s smart paper generation.',
+    )) return
+    setApproving(true); setError(''); setApproved(null)
+    const { approved: n, error: err } = await bulkApproveOwnedPending(
+      currentUser.uid,
+      (p) => setApproved(p.approved),
+    )
+    setApproving(false)
+    if (err) { setError(err); return }
+    setApproved(n)
+  }
+
+  const busy = phase === 'previewing' || phase === 'importing' || approving
   const pct = progress && progress.found
     ? Math.min(100, Math.round((progress.processed / progress.found) * 100))
     : 0
@@ -128,6 +147,25 @@ export default function ImportQuestionBankPanel() {
           )}
         </div>
       )}
+
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+        <div>
+          <p className="font-black text-amber-900">⚡ Push imported questions live now</p>
+          <p className="text-amber-800 text-sm mt-1">
+            After importing, questions sit waiting for the AI reviewer — until they’re approved they
+            show as <b>“0 from the Master Bank”</b> and won’t appear in smart paper generation. Click below
+            to approve all of your still-pending questions into the Master Bank straight away.
+          </p>
+        </div>
+        <Button variant="primary" disabled={busy} onClick={onApproveAll}>
+          {approving ? `Approving… (${approved ?? 0})` : 'Approve all into the Master Bank'}
+        </Button>
+        {approved != null && !approving && (
+          <p className="text-sm text-green-700 font-bold">
+            ✓ Approved {approved} question{approved === 1 ? '' : 's'} into the Master Bank. They’re live now.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

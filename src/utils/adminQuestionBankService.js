@@ -8,7 +8,7 @@
 
 import {
   collection, query, where, limit, getDocs, doc, getDoc, updateDoc,
-  serverTimestamp, increment,
+  serverTimestamp, increment, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { parseBankQuestion, bumpQuestionUsage } from './questionBankService'
@@ -110,6 +110,58 @@ export async function keepPrivateQuestion(id, adminUid) {
     reviewedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+}
+
+// Statuses that mean "captured but not yet in the Master Bank" — these are the
+// ones a bulk-approve sweeps into the bank. (We deliberately skip rejected /
+// archived / private_saved / already-approved.)
+const APPROVABLE_STATUSES = ['pending_review', 'needs_admin', 'duplicate']
+
+/**
+ * Approve every still-pending question owned by this admin into the Master Bank
+ * in one sweep. This is the "the AI reviewer left my import waiting — push them
+ * live now" button: after the one-click import, the captured rows sit at
+ * `pending_review` until Qix (or an admin) approves them, so until then the
+ * teacher bank shows "0 from the Master Bank". This flips them in batches.
+ *
+ * Scoped to `ownerId == adminUid` so it only touches the admin's own captures
+ * (e.g. the import backfill), never another teacher's private pending questions.
+ * Returns { approved, error }. Calls onProgress({ approved }) as it goes.
+ */
+export async function bulkApproveOwnedPending(adminUid, onProgress) {
+  if (!adminUid) return { approved: 0, error: 'Missing admin id.' }
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'questionBank'),
+      where('ownerId', '==', adminUid),
+    ))
+    const pending = snap.docs.filter(d => APPROVABLE_STATUSES.includes(d.data()?.reviewStatus))
+    let approved = 0
+    // Firestore writeBatch caps at 500 ops; chunk well under that.
+    const CHUNK = 400
+    for (let i = 0; i < pending.length; i += CHUNK) {
+      const batch = writeBatch(db)
+      for (const d of pending.slice(i, i + CHUNK)) {
+        batch.update(d.ref, {
+          reviewStatus: 'approved',
+          masterEligible: true,
+          duplicateOf: null,
+          similarity: null,
+          reviewedBy: adminUid,
+          reviewedAt: serverTimestamp(),
+          reviewNotes: 'Bulk-approved by admin',
+          updatedAt: serverTimestamp(),
+        })
+      }
+      await batch.commit()
+      approved += Math.min(CHUNK, pending.length - i)
+      onProgress?.({ approved })
+    }
+    return { approved, error: null }
+  } catch (err) {
+    console.error('bulkApproveOwnedPending failed', err)
+    return { approved: 0, error: err?.message || 'Bulk approve failed.' }
+  }
 }
 
 /** Confirm a duplicate: link to the original and bump its usage count. */
