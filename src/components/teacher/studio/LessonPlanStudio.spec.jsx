@@ -104,6 +104,16 @@ vi.mock('./utils/renderPlanHtml', () => ({
   renderPlanHtml: vi.fn(() => '<p>rendered plan</p>'),
 }))
 
+// Auto-illustration: the default studioState below has illustrations:
+// 'automatic', so handleGenerate calls generateDiagram in the background.
+// Mock it to resolve a stable URL so the generate-flow tests stay deterministic.
+const { mockGenerateDiagram } = vi.hoisted(() => ({
+  mockGenerateDiagram: vi.fn(() => Promise.resolve({ url: 'https://img.test/x.png' })),
+}))
+vi.mock('../../../utils/generateDiagram', () => ({
+  generateDiagram: mockGenerateDiagram,
+}))
+
 vi.mock('./utils/studioSystemPrompt', () => ({
   STUDIO_SYSTEM_PROMPT_CBC: 'MOCK_CBC_PROMPT',
   STUDIO_SYSTEM_PROMPT_PREVIOUS: 'MOCK_PREVIOUS_PROMPT',
@@ -302,6 +312,63 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('canvas-status')).toHaveTextContent('loading')
     })
+  })
+})
+
+describe('LessonPlanStudio — auto-illustration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls generateDiagram after a successful generation when illustrations are automatic', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Photosynthesis","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: { topic: 'Photosynthesis', subtopic: 'Light reactions', subtopicRow: null },
+      lessonDetails: {
+        grade: 'G5', subject: 'Science', duration: '40', medium: 'English',
+        term: '', week: '', date: '', time: '', teacherName: '', school: '',
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-status')).toHaveTextContent('done')
+    })
+    await waitFor(() => {
+      expect(mockGenerateDiagram).toHaveBeenCalledTimes(1)
+    })
+    // The diagram prompt is derived from the lesson topic/subtopic.
+    expect(mockGenerateDiagram.mock.calls[0][0].prompt).toMatch(/Photosynthesis/)
+  })
+
+  it('does NOT call generateDiagram when illustrations is "none"', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      topicData: { topic: 'Test', subtopic: 'Sub', subtopicRow: null },
+      formatOptions: {
+        detail: 'standard', writingStyle: 'standard', format: 'modern',
+        illustrations: 'none',
+        advanced: {
+          compactMetadata: true, includeEnrolment: false, includeAttendance: false,
+          includeLessonEvaluation: true, includeKeyVocabulary: true,
+          autoIllustrations: false, localLanguage: false,
+        },
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-status')).toHaveTextContent('done')
+    })
+    expect(mockGenerateDiagram).not.toHaveBeenCalled()
   })
 })
 

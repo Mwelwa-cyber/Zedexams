@@ -135,12 +135,60 @@ function ensureOldStages(stages) {
 }
 
 /**
- * Returns '' — the SVG diagram engine is not available in the React bundle.
- * The signature matches the original so callers need no changes.
+ * Normalise a stage name for loose matching (case/punctuation-insensitive).
+ * @param {unknown} s
  * @returns {string}
  */
-function stageDiagramsHtml(/* stageName, specs */) {
-  return ''
+function normStage(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()
+}
+
+/**
+ * True when a diagram tagged for `diagramStage` belongs under `stageName`.
+ * Matching is forgiving — exact, or either name contains the other — because
+ * the model's stage labels ("Lesson Development") and the official names
+ * ("LESSON DEVELOPMENT") don't always agree verbatim.
+ * @param {string} stageName
+ * @param {string} diagramStage
+ * @returns {boolean}
+ */
+function stageMatches(stageName, diagramStage) {
+  const a = normStage(stageName)
+  const b = normStage(diagramStage)
+  if (!a || !b) return false
+  return a === b || a.includes(b) || b.includes(a)
+}
+
+/**
+ * Render the AI-generated illustration figures attached to a given stage.
+ *
+ * `diagrams` is an array of `{ stage, url, caption }` produced client-side by
+ * the Lesson Plan Studio (via the generateDiagram callable) and threaded onto
+ * the plan object before rendering. Each figure renders as an <img> with
+ * inline styles so it survives the Word/PDF exporters. Returns '' when there
+ * are no diagrams for this stage — so plans without illustrations are byte-for-
+ * byte unchanged.
+ *
+ * @param {string} stageName
+ * @param {Array<{stage?:string, url?:string, caption?:string}>} [diagrams]
+ * @returns {string}
+ */
+function stageDiagramsHtml(stageName, diagrams) {
+  if (!Array.isArray(diagrams) || diagrams.length === 0) return ''
+  const here = diagrams.filter((d) => d && d.url && stageMatches(stageName, d.stage))
+  if (here.length === 0) return ''
+  return here
+    .map(
+      (d) =>
+        `<figure class="lp-figure" style="margin:8px auto;text-align:center;max-width:420px">` +
+        `<img src="${esc(d.url)}" alt="${esc(d.caption || 'Lesson illustration')}" ` +
+        `style="max-width:100%;height:auto;border:1px solid #ccc;border-radius:4px" />` +
+        (d.caption
+          ? `<figcaption style="font-size:11px;color:#555;margin-top:3px">${esc(d.caption)}</figcaption>`
+          : '') +
+        `</figure>`,
+    )
+    .join('')
 }
 
 /**
