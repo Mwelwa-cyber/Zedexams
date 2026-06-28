@@ -268,7 +268,7 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
           const rawActivities = String(row.learningActivities || '')
           const learningActivities = rawActivities
             .split('\n')
-            .map((line) => line.replace(/^[•\-]\s*/, '').trim())
+            .map((line) => line.replace(/^[•-]\s*/, '').trim())
             .filter(Boolean)
 
           return {
