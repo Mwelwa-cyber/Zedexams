@@ -14,7 +14,7 @@
 const admin = require("firebase-admin");
 const {
   normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
-  selectBankQuestions,
+  editorQuestionToExamPaper, selectBankQuestions,
 } = require("./masterBankSourcingCore");
 
 // Bound the scan. We filter grade/subject/topic in memory (the stored values
@@ -127,4 +127,33 @@ async function sourceAssessmentFromBank({grade, subject, topic, marksBudget, all
   };
 }
 
-module.exports = {sourceQuizFromBank, sourceAssessmentFromBank, MASTER_SCAN_LIMIT};
+/**
+ * Source up to `count` exam-paper-shaped MCQs from the Master Bank, each with
+ * exactly `optionCount` options (bank MCQs that don't match are skipped).
+ *
+ * @param {{grade:string, subject:string, topic?:string, count:number, optionCount?:number}} params
+ * @returns {Promise<{questions:object[], fromBank:number, scanned:number}>}
+ */
+async function sourceExamPaperFromBank({grade, subject, topic, count, optionCount} = {}) {
+  const target = Math.max(0, Math.floor(Number(count) || 0));
+  if (!target) return {questions: [], fromBank: 0, scanned: 0};
+  const opts = Math.min(6, Math.max(2, Math.round(Number(optionCount) || 4)));
+
+  const {candidates, scanned} = await scanMasterBank({
+    grade, subject, topic,
+    mapFn: (q) => editorQuestionToExamPaper(q, {optionCount: opts}),
+  });
+  const selected = selectBankQuestions(candidates, {count: target});
+  return {
+    questions: selected.map((c) => c.item),
+    fromBank: selected.length,
+    scanned,
+  };
+}
+
+module.exports = {
+  sourceQuizFromBank,
+  sourceAssessmentFromBank,
+  sourceExamPaperFromBank,
+  MASTER_SCAN_LIMIT,
+};
