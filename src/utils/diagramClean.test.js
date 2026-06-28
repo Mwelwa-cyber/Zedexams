@@ -269,8 +269,12 @@ test('cleanPixels with blackAndWhite:false keeps greyscale (not 1-bit)', () => {
 // and fall back to a same-origin object URL when the CORS load fails.
 
 // Minimal stubs so the browser-only loader runs under node.
-function withStubs({ imgShouldFail = false, fetchOk = true } = {}, run) {
+function withStubs(
+  { imgShouldFail = false, fetchOk = true, directFetchThrows = false, proxyOk = false } = {},
+  run,
+) {
   const created = []
+  const fetched = []
   const savedImage = global.Image
   const savedFetch = global.fetch
   const savedURL = global.URL
@@ -294,16 +298,20 @@ function withStubs({ imgShouldFail = false, fetchOk = true } = {}, run) {
       return this._src
     }
   }
-  global.fetch = async () => ({
-    ok: fetchOk,
-    status: fetchOk ? 200 : 403,
-    blob: async () => ({ size: 1 }),
-  })
+  global.fetch = async (url) => {
+    fetched.push(url)
+    const isProxy = String(url).startsWith('/api/image-proxy')
+    // A bucket with NO CORS headers blocks the direct fetch entirely (the
+    // browser throws), but the same-origin proxy still resolves.
+    if (!isProxy && directFetchThrows) throw new Error('CORS blocked')
+    const ok = isProxy ? proxyOk : fetchOk
+    return { ok, status: ok ? 200 : 403, blob: async () => ({ size: 1 }) }
+  }
   global.URL = {
     createObjectURL: () => 'blob:object-url',
     revokeObjectURL: (u) => revoked.push(u),
   }
-  return Promise.resolve(run({ created, revoked })).finally(() => {
+  return Promise.resolve(run({ created, revoked, fetched })).finally(() => {
     global.Image = savedImage
     global.fetch = savedFetch
     global.URL = savedURL
@@ -346,12 +354,26 @@ await asyncTest('loadCleanableImage falls back to fetch→object-URL when the CO
   }),
 )
 
-await asyncTest('loadCleanableImage surfaces a clear error when the fetch fallback also fails', () =>
-  withStubs({ imgShouldFail: true, fetchOk: false }, async () => {
+await asyncTest('loadCleanableImage routes through the same-origin proxy when the direct fetch is CORS-blocked', () =>
+  withStubs({ imgShouldFail: true, directFetchThrows: true, proxyOk: true }, async ({ created, revoked, fetched }) => {
+    const img = await loadCleanableImage('https://cdn.example.com/figure.png')
+    // CORS <img> fails → direct fetch throws → proxy fetch resolves → object URL.
+    assert.equal(created.length, 2)
+    assert.equal(img.src, 'blob:object-url')
+    assert.equal(img.crossOrigin, null)
+    assert.equal(fetched.length, 2, 'direct fetch then proxy fetch')
+    assert.ok(fetched[1].startsWith('/api/image-proxy?url='), 'second fetch is the same-origin proxy')
+    assert.deepEqual(revoked, ['blob:object-url'])
+  }),
+)
+
+await asyncTest('loadCleanableImage surfaces a clear error when both the direct fetch and the proxy fail', () =>
+  withStubs({ imgShouldFail: true, fetchOk: false, proxyOk: false }, async ({ fetched }) => {
     await assert.rejects(
       loadCleanableImage('https://cdn.example.com/figure.png'),
       /Could not load the image to clean \(403\)/,
     )
+    assert.ok(fetched.some((u) => String(u).startsWith('/api/image-proxy')), 'the proxy was attempted')
   }),
 )
 
