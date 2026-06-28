@@ -117,6 +117,11 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- options: one string per printed choice (usually 4: A, B, C, D), in order,",
   "  WITHOUT the 'A.'/'B.' labels. Preserve wording exactly. Leave options EMPTY",
   "  ([]) for fill_blank, matching and short_answer questions.",
+  "- matchingLeft / matchingRight: for a 'matching' question, return the two",
+  "  printed columns as separate string arrays in printed order (left = items",
+  "  matched FROM, right = options matched TO). Do NOT guess the pairing.",
+  "- wordBank: if a box/list of candidate answers is printed with the question",
+  "  (common for fill-in-the-blank), return those words as an array; else omit.",
   "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
   "  never guess. The teacher sets answers afterwards.",
   "- explanation: ''.",
@@ -280,6 +285,27 @@ const SCANNED_TOOL_SCHEMA = {
             "The printed answer choices for an MCQ/true-false (no A./B. " +
             "labels). Leave empty [] for fill_blank / matching / short_answer.",
         },
+        matchingLeft: {
+          type: "array",
+          items: {type: "string"},
+          description:
+            "For questionType='matching': the LEFT column items (the prompts " +
+            "the learner matches FROM), in printed order. Omit otherwise.",
+        },
+        matchingRight: {
+          type: "array",
+          items: {type: "string"},
+          description:
+            "For questionType='matching': the RIGHT column items (the options " +
+            "matched TO), in printed order. Omit otherwise.",
+        },
+        wordBank: {
+          type: "array",
+          items: {type: "string"},
+          description:
+            "Any printed word bank / box of candidate answers shown with the " +
+            "question (common on fill-in-the-blank items). Omit when none.",
+        },
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
         hasDiagram: {type: "boolean"},
@@ -440,6 +466,19 @@ function sanitiseOptionBoxes(rawBoxes, optionCount) {
 // ─── Diagram detection + classification ─────────────────────────────────────
 
 const MAX_DIAGRAMS_PER_QUESTION = 6;
+
+// Sanitise a model-supplied array of short strings (matching columns, word
+// bank): trim each, drop blanks, clamp length and cap the count. Returns [].
+function sanitiseStringList(value, maxItems = 20, maxLen = 200) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    const s = clampString(item, maxLen).trim();
+    if (s) out.push(s);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
 // Below this model-reported confidence (or when the model is explicitly
 // unsure / can't name the figure) a detected diagram is routed to "needs
 // teacher review" instead of being auto-handled.
@@ -593,6 +632,14 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
 
   const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
   const diagrams = sanitiseDiagrams(raw?.diagrams);
+
+  // Structured extras printed on the paper, carried so the editor opens the
+  // right block pre-populated (the teacher still sets the pairing/answers —
+  // ECZ papers print no answer key). Only attach for the relevant type.
+  const matchingLeft = type === "matching" ? sanitiseStringList(raw?.matchingLeft, 20) : [];
+  const matchingRight = type === "matching" ? sanitiseStringList(raw?.matchingRight, 20) : [];
+  const wordBank = sanitiseStringList(raw?.wordBank, 30);
+
   return {
     sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
     text: prompt,
@@ -607,6 +654,9 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     diagrams,
     optionsAreImages,
     optionImageBoxes,
+    matchingLeft,
+    matchingRight,
+    wordBank,
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
     sharedInstruction: clampString(raw?.instruction, 1200).trim(),
     sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
