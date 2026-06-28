@@ -19,10 +19,10 @@ import {
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
-import { questionFingerprint, examPaperQuestionToBank } from './questionBankCore.js'
-import { captureQuestionsToBank } from './questionBankService'
+import { questionFingerprint, examPaperQuestionToBank, MASTER_REVIEW_STATE } from './questionBankCore.js'
+import { captureQuestionsToBank, promoteQuestionsToMaster } from './questionBankService'
 import {
-  VALID_GRADES, buildGradeIndexFromCurriculum, lookupGradeClient, normalizeGrade,
+  VALID_GRADES, buildGradeIndexFromCurriculum, lookupGradeClient, normalizeGrade, planBankAction,
 } from './questionBankImportCore.js'
 
 const functions = getFunctions(app, 'us-central1')
@@ -61,18 +61,30 @@ async function collectCandidates() {
   return out
 }
 
-/** Is this fingerprint already in the bank? Cached per session. */
-async function makeBankChecker() {
+/**
+ * Look up the matching bank row for a fingerprint, if any. Returns
+ * `{ id, ownerId, masterEligible }` of the best match (preferring a
+ * master-eligible row, then one owned by the importing admin) or null when the
+ * question isn't banked yet. Cached per session. `adminUid` lets the lookup
+ * prefer the admin's own row so a prior pending import can be promoted rather
+ * than re-created. A few extra reads (limit 5) keep us from mistaking a
+ * teacher's private duplicate for the platform copy.
+ */
+async function makeBankLookup(adminUid) {
   const cache = new Map()
-  return async function isInBank(fp) {
+  return async function lookup(fp) {
     if (cache.has(fp)) return cache.get(fp)
-    let exists = false
+    let row = null
     try {
-      const hit = await getDocs(query(collection(db, 'questionBank'), where('fingerprint', '==', fp), limit(1)))
-      exists = !hit.empty
-    } catch { exists = false }
-    cache.set(fp, exists)
-    return exists
+      const hit = await getDocs(query(collection(db, 'questionBank'), where('fingerprint', '==', fp), limit(5)))
+      const rows = hit.docs.map(d => ({ id: d.id, ...(d.data() || {}) }))
+      row = rows.find(r => r.masterEligible === true)
+        || rows.find(r => adminUid && r.ownerId === adminUid)
+        || rows[0]
+        || null
+    } catch { row = null }
+    cache.set(fp, row)
+    return row
   }
 }
 
@@ -82,13 +94,13 @@ async function makeBankChecker() {
  * Count-only preview — no writes, no AI. Returns totals + the deterministic
  * regrade split so the admin sees the size + cost before importing.
  */
-export async function previewImport() {
+export async function previewImport({ uid } = {}) {
   const index = buildGradeIndexFromCurriculum()
   const candidates = await collectCandidates()
-  const isInBank = await makeBankChecker()
+  const lookup = await makeBankLookup(uid)
 
   const seen = new Set()
-  let found = 0, alreadyBanked = 0, toImport = 0
+  let found = 0, alreadyBanked = 0, toImport = 0, toPromote = 0
   const regrade = { syllabus: 0, needsAi: 0, unchanged: 0 }
 
   for (const c of candidates) {
@@ -96,14 +108,16 @@ export async function previewImport() {
     const fp = questionFingerprint(c.question)
     if (seen.has(fp)) { alreadyBanked += 1; continue }
     seen.add(fp)
-    if (await isInBank(fp)) { alreadyBanked += 1; continue }
+    const action = planBankAction(await lookup(fp), uid)
+    if (action === 'skip') { alreadyBanked += 1; continue }
+    if (action === 'promote') { toPromote += 1; continue }
     toImport += 1
     const lk = lookupGradeClient(index, c.meta.subject, c.meta.topic || c.question.topic)
     if (lk.grade) regrade.syllabus += 1
     else if (lk.ambiguous || normalizeGrade(c.meta.grade) === '') regrade.needsAi += 1
     else regrade.unchanged += 1
   }
-  return { found, alreadyBanked, toImport, regrade }
+  return { found, alreadyBanked, toImport, toPromote, regrade }
 }
 
 /* -------------------------------- import --------------------------------- */
@@ -121,8 +135,10 @@ async function aiGradeBatch(items) {
 }
 
 /**
- * Run the import. Writes deduped, regraded questions into the bank via the
- * normal capture path (→ Qix review). Reports progress via onProgress.
+ * Run the import. Writes deduped, regraded questions straight into the shared
+ * Master Bank (curated, already-vetted platform content — visible to every
+ * teacher without per-question Qix review) and promotes any rows an earlier
+ * run left sitting in review. Reports progress via onProgress.
  *
  * @param {{ uid:string, useAi?:boolean, onProgress?:(p)=>void }} opts
  */
@@ -130,20 +146,24 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
   if (!uid) throw new Error('Sign in as an admin to run the import.')
   const index = buildGradeIndexFromCurriculum()
   const candidates = await collectCandidates()
-  const isInBank = await makeBankChecker()
+  const lookup = await makeBankLookup(uid)
 
-  const totals = { found: candidates.length, imported: 0, skipped: 0, regraded: 0, processed: 0 }
+  const totals = { found: candidates.length, imported: 0, promoted: 0, skipped: 0, regraded: 0, processed: 0 }
   const seen = new Set()
 
   // Decide grade for one candidate (deterministic; queue AI when ambiguous).
   const aiQueue = []
   const prepared = []
+  const promoteIds = []
   for (const c of candidates) {
     totals.processed += 1
     const fp = questionFingerprint(c.question)
     if (seen.has(fp)) { totals.skipped += 1; continue }
     seen.add(fp)
-    if (await isInBank(fp)) { totals.skipped += 1; continue }
+    const existing = await lookup(fp)
+    const action = planBankAction(existing, uid)
+    if (action === 'skip') { totals.skipped += 1; continue }
+    if (action === 'promote') { promoteIds.push(existing.id); continue }
 
     const storedGrade = normalizeGrade(c.meta.grade)
     const lk = lookupGradeClient(index, c.meta.subject, c.meta.topic || c.question.topic)
@@ -151,6 +171,12 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
     if (entry.needsAi && useAi) aiQueue.push(entry)
     prepared.push(entry)
     if (totals.processed % 25 === 0) onProgress({ ...totals, phase: 'scanning' })
+  }
+
+  // Promote rows an earlier run captured as pending into the Master Bank.
+  if (promoteIds.length) {
+    totals.promoted += await promoteQuestionsToMaster(promoteIds)
+    onProgress({ ...totals, phase: 'promoting' })
   }
 
   // Resolve AI grades in batches of 25.
@@ -179,7 +205,13 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
     if (normalizeGrade(e.c.meta.grade) !== e.grade) totals.regraded += 1
   }
   for (const g of groups.values()) {
-    const { saved } = await captureQuestionsToBank(uid, g.questions, { subject: g.subject, grade: g.grade }, g.source)
+    // Curated platform content (already-published quizzes + completed exam
+    // papers) seeds the shared Master Bank directly, so every teacher sees it
+    // without waiting on per-question Qix review.
+    const { saved } = await captureQuestionsToBank(
+      uid, g.questions, { subject: g.subject, grade: g.grade }, g.source,
+      { reviewState: MASTER_REVIEW_STATE },
+    )
     totals.imported += saved
     onProgress({ ...totals, phase: 'writing' })
   }

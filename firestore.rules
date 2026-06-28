@@ -743,10 +743,19 @@ service cloud.firestore {
         || resource.data.get('masterEligible', false) == true
         || isAdmin()
       );
-      allow create: if isAuthed() && isTeacherOrAbove()
-        && incoming().ownerId == request.auth.uid
-        && incoming().get('reviewStatus', 'pending_review') == 'pending_review'
-        && incoming().get('masterEligible', false) == false;
+      // Admins curate vetted platform content straight into the shared Master
+      // Bank (the "Import existing questions" backfill), so they may create a
+      // row already approved + masterEligible. Teachers may only ever create a
+      // row as pending_review and can never self-promote into the Master Bank.
+      allow create: if isAuthed() && (
+        isAdmin()
+        || (
+          isTeacherOrAbove()
+          && incoming().ownerId == request.auth.uid
+          && incoming().get('reviewStatus', 'pending_review') == 'pending_review'
+          && incoming().get('masterEligible', false) == false
+        )
+      );
       // Owners may edit their own questions (which re-enters review) but can
       // never grant themselves Master-Bank eligibility or self-approve.
       allow update: if isAdmin() || (

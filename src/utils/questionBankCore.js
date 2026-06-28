@@ -94,6 +94,17 @@ export const REVIEW_STATUS = Object.freeze({
   ARCHIVED: 'archived',
 })
 
+/**
+ * The review state an admin curation backfill stamps on already-vetted platform
+ * content so it lands straight in the shared Master Bank (visible to every
+ * teacher) without per-question Qix review. Only admins may write this — see
+ * the questionBank create/update rules.
+ */
+export const MASTER_REVIEW_STATE = Object.freeze({
+  reviewStatus: REVIEW_STATUS.APPROVED,
+  masterEligible: true,
+})
+
 export const QUESTION_SOURCES = Object.freeze([
   'manual', 'ai', 'word', 'pdf', 'camera', 'past_paper',
   'quiz_studio', 'assessment_studio', 'test_paper_studio', 'exam_paper_studio',

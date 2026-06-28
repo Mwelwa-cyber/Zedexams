@@ -55,8 +55,14 @@ function questionHasDiagram(question) {
 /**
  * Build the Firestore row for a question. Shared by the manual save path and
  * the automatic capture path so both store identical, search-ready shapes.
+ *
+ * `reviewState` overrides the default review lifecycle. It's left null for the
+ * normal capture path (questions enter as pending_review and Qix reviews them),
+ * and set to the approved/Master state only by the admin curation backfill,
+ * which seeds already-vetted platform content straight into the shared Master
+ * Bank. firestore.rules only permit a master-eligible create for admins.
  */
-function buildBankRow(uid, question, meta = {}, source = 'manual') {
+function buildBankRow(uid, question, meta = {}, source = 'manual', reviewState = null) {
   const clean = sanitizeQuestionForBank(question)
   return {
     ownerId: uid,
@@ -75,8 +81,8 @@ function buildBankRow(uid, question, meta = {}, source = 'manual') {
     fingerprint: questionFingerprint(question),
     simhashTokens: questionTokens(question),
     source: QUESTION_SOURCES.includes(source) ? source : 'manual',
-    reviewStatus: REVIEW_STATUS.PENDING_REVIEW,
-    masterEligible: false,
+    reviewStatus: reviewState?.reviewStatus || REVIEW_STATUS.PENDING_REVIEW,
+    masterEligible: reviewState?.masterEligible === true,
     usageCount: 0,
     version: 1,
     createdAt: serverTimestamp(),
@@ -104,9 +110,13 @@ export async function saveQuestionToBank(uid, question, meta = {}, source = 'man
  * never break the surface that produced the questions.
  *
  * Returns { saved, skipped } counts. Skips empty/blank stems.
+ *
+ * `opts.reviewState` (admin curation only) seeds the rows directly as
+ * approved/Master-eligible instead of the default pending_review.
  */
-export async function captureQuestionsToBank(uid, questions, meta = {}, source = 'manual') {
+export async function captureQuestionsToBank(uid, questions, meta = {}, source = 'manual', opts = {}) {
   if (!uid || !Array.isArray(questions) || !questions.length) return { saved: 0, skipped: 0 }
+  const reviewState = opts?.reviewState || null
   let saved = 0
   let skipped = 0
   try {
@@ -118,7 +128,7 @@ export async function captureQuestionsToBank(uid, questions, meta = {}, source =
       const slice = usable.slice(i, i + 400)
       const batch = writeBatch(db)
       for (const q of slice) {
-        batch.set(doc(collection(db, 'questionBank')), buildBankRow(uid, q, meta, source))
+        batch.set(doc(collection(db, 'questionBank')), buildBankRow(uid, q, meta, source, reviewState))
       }
       await batch.commit()
       saved += slice.length
@@ -272,6 +282,34 @@ export async function editMyBankQuestion(id, edits, row) {
     aiReview: deleteField(),
     updatedAt: serverTimestamp(),
   })
+}
+
+/**
+ * Promote a batch of already-banked questions straight into the shared Master
+ * Bank (admin curation only — firestore.rules gate this to admins via the
+ * isAdmin() update branch). Used by the import backfill to surface rows that an
+ * earlier run captured as pending_review. Chunked into Firestore batch limits.
+ * Returns the number of rows promoted.
+ */
+export async function promoteQuestionsToMaster(ids = []) {
+  const clean = [...new Set((ids || []).filter(Boolean))]
+  let promoted = 0
+  for (let i = 0; i < clean.length; i += 400) {
+    const slice = clean.slice(i, i + 400)
+    const batch = writeBatch(db)
+    for (const id of slice) {
+      batch.update(doc(db, 'questionBank', id), {
+        reviewStatus: REVIEW_STATUS.APPROVED,
+        masterEligible: true,
+        duplicateOf: null,
+        similarity: null,
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    promoted += slice.length
+  }
+  return promoted
 }
 
 /** Delete a saved question. Best-effort. */

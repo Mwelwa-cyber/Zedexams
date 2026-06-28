@@ -22,9 +22,10 @@
  *   --selftest          build the grade index + classify a couple of samples,
  *                       no Firestore (proves the syllabus index loads)
  *
- * Writing each row as reviewStatus:"pending_review" triggers the Qix Cloud
- * Function (embedding + Haiku review + dedup). The dry-run reports the projected
- * count so you can budget before going live.
+ * Rows are written straight into the shared Master Bank (reviewStatus:"approved",
+ * masterEligible:true) so every teacher sees this already-vetted platform content
+ * immediately — it does NOT go through per-question Qix review. The dry-run
+ * reports the projected count so you can budget before going live.
  */
 
 import { createRequire } from 'module'
@@ -81,8 +82,10 @@ function buildRow(question, meta, source, grade, migratedFrom, FieldValue) {
     fingerprint: questionFingerprint(question),
     simhashTokens: questionTokens(question),
     source,
-    reviewStatus: REVIEW_STATUS.PENDING_REVIEW,
-    masterEligible: false,
+    // Curated platform content seeds the shared Master Bank directly so every
+    // teacher can see and reuse it (admin SDK bypasses the client create rule).
+    reviewStatus: REVIEW_STATUS.APPROVED,
+    masterEligible: true,
     usageCount: 0,
     version: 1,
     migratedFrom,
@@ -239,7 +242,7 @@ async function runMigration() {
   console.log('\n── Summary ──')
   console.log(JSON.stringify(stats, null, 2))
   const wouldWrite = stats.mapped - stats.skippedDup
-  console.log(`\n${LIVE ? `Wrote ${stats.written} questions.` : `DRY-RUN: would write ~${wouldWrite} questions`} → each triggers Qix (≈ $0.002 review). ${LIVE ? '' : 'Re-run with --live to apply.'}`)
+  console.log(`\n${LIVE ? `Wrote ${stats.written} questions straight into the Master Bank.` : `DRY-RUN: would write ~${wouldWrite} questions into the Master Bank`}. ${LIVE ? '' : 'Re-run with --live to apply.'}`)
 }
 
 /* --------------------------------- entry ---------------------------------- */

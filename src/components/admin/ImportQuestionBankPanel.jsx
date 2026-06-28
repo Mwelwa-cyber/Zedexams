@@ -20,7 +20,7 @@ export default function ImportQuestionBankPanel() {
   async function onPreview() {
     setPhase('previewing'); setError(''); setPreview(null)
     try {
-      setPreview(await previewImport())
+      setPreview(await previewImport({ uid: currentUser?.uid }))
       setPhase('idle')
     } catch (e) {
       setError(e?.message || 'Preview failed.'); setPhase('error')
@@ -65,8 +65,8 @@ export default function ImportQuestionBankPanel() {
         <p className="font-bold">Before you start</p>
         <ul className="list-disc list-inside space-y-0.5">
           <li>Click <b>Preview</b> first — it just counts, it changes nothing.</li>
-          <li><b>Import</b> adds the questions and the AI reviews each one (uses a little AI credit).</li>
-          <li>Keep this tab open while it runs. It’s safe to re-run — already-added questions are skipped.</li>
+          <li><b>Import</b> adds the questions straight to the shared Master Bank, so every teacher can see and reuse them.</li>
+          <li>Keep this tab open while it runs. It’s safe to re-run — already-added questions are skipped, and any earlier import still sitting in review is published.</li>
         </ul>
       </div>
 
@@ -92,8 +92,11 @@ export default function ImportQuestionBankPanel() {
         <div className="bg-white border theme-border rounded-2xl p-4 text-sm space-y-1">
           <p className="font-black text-gray-800">Preview</p>
           <p>📚 Questions found: <b>{preview.found}</b></p>
-          <p>✅ Already in the bank (will skip): <b>{preview.alreadyBanked}</b></p>
-          <p>➕ Will be imported: <b>{preview.toImport}</b></p>
+          <p>✅ Already in the Master Bank (will skip): <b>{preview.alreadyBanked}</b></p>
+          <p>➕ Will be added to the Master Bank: <b>{preview.toImport}</b></p>
+          {preview.toPromote > 0 && (
+            <p>⬆️ Earlier imports to publish to the Master Bank: <b>{preview.toPromote}</b></p>
+          )}
           <p className="text-gray-500 text-xs pt-1">
             Of those: {preview.regrade.syllabus} graded straight from the syllabus,
             {' '}{preview.regrade.needsAi} need the AI to decide the grade,
@@ -113,13 +116,14 @@ export default function ImportQuestionBankPanel() {
           </div>
           <div className="text-xs text-gray-500 flex gap-4 flex-wrap">
             <span>Imported: <b>{progress.imported}</b></span>
+            {progress.promoted > 0 && <span>Published from earlier import: <b>{progress.promoted}</b></span>}
             <span>Skipped (already there): <b>{progress.skipped}</b></span>
             <span>Re-graded: <b>{progress.regraded}</b></span>
           </div>
           {phase === 'done' && (
             <p className="text-sm text-green-700 font-bold">
-              Imported {progress.imported} questions. They’re now being reviewed and will appear in the
-              {' '}Question Bank shortly — check <a className="underline" href="/admin/question-review">Question review</a>.
+              Added {progress.imported + (progress.promoted || 0)} questions to the Master Bank. They’re now visible
+              to every teacher in the <a className="underline" href="/teacher/question-bank">Question Bank</a>.
             </p>
           )}
         </div>
