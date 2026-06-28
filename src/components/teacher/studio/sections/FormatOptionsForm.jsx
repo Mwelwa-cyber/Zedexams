@@ -17,10 +17,72 @@ const WRITING_STYLE_OPTIONS = [
   { value: 'professional', label: 'Professional' },
 ]
 
+// Format preview thumbnails. These were previously <img src="/studio/previews/
+// *.png"> pointing at PNG files that were never committed, so every card
+// rendered a broken-image icon in production. They're now self-contained
+// inline SVGs (data URIs) that depict each layout style — no external asset,
+// so they can never 404. 3:4 aspect to match FormatCard's frame.
+const svgUri = (body) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="120" height="160">${body}</svg>`,
+  )}`
+
+// Modern Clean — airy white card with a blue accent header and spaced lines.
+const MODERN_PREVIEW = svgUri(
+  `<rect width="120" height="160" rx="6" fill="#ffffff"/>` +
+  `<rect x="0" y="0" width="120" height="22" rx="6" fill="#2563eb"/>` +
+  `<rect x="10" y="8" width="64" height="6" rx="3" fill="#ffffff" opacity="0.95"/>` +
+  `<rect x="10" y="34" width="80" height="5" rx="2.5" fill="#1f2937"/>` +
+  `<rect x="10" y="48" width="100" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="58" width="92" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="68" width="98" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="84" width="44" height="5" rx="2.5" fill="#2563eb" opacity="0.7"/>` +
+  `<rect x="10" y="98" width="100" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="108" width="86" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="124" width="44" height="5" rx="2.5" fill="#2563eb" opacity="0.7"/>` +
+  `<rect x="10" y="138" width="100" height="3.5" rx="1.75" fill="#cbd5e1"/>` +
+  `<rect x="10" y="148" width="74" height="3.5" rx="1.75" fill="#cbd5e1"/>`,
+)
+
+// Classic — bordered document with a ruled table grid.
+const CLASSIC_PREVIEW = svgUri(
+  `<rect width="120" height="160" fill="#ffffff"/>` +
+  `<rect x="6" y="6" width="108" height="148" fill="none" stroke="#374151" stroke-width="1.5"/>` +
+  `<rect x="30" y="14" width="60" height="5" rx="1" fill="#111827"/>` +
+  `<rect x="14" y="26" width="92" height="4" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="40" width="92" height="40" fill="none" stroke="#6b7280" stroke-width="1"/>` +
+  `<line x1="14" y1="53" x2="106" y2="53" stroke="#6b7280" stroke-width="1"/>` +
+  `<line x1="14" y1="66" x2="106" y2="66" stroke="#6b7280" stroke-width="1"/>` +
+  `<line x1="44" y1="40" x2="44" y2="80" stroke="#6b7280" stroke-width="1"/>` +
+  `<rect x="14" y="90" width="92" height="3.5" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="100" width="80" height="3.5" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="110" width="92" height="3.5" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="120" width="70" height="3.5" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="134" width="92" height="3.5" rx="1" fill="#9ca3af"/>`,
+)
+
+// Official CBC — formal centred title block over a table with a shaded header.
+const OFFICIAL_PREVIEW = svgUri(
+  `<rect width="120" height="160" fill="#ffffff"/>` +
+  `<rect x="5" y="5" width="110" height="150" fill="none" stroke="#1f2937" stroke-width="1.5"/>` +
+  `<rect x="34" y="12" width="52" height="4" rx="1" fill="#111827"/>` +
+  `<rect x="42" y="20" width="36" height="3" rx="1" fill="#6b7280"/>` +
+  `<rect x="12" y="32" width="96" height="96" fill="none" stroke="#1f2937" stroke-width="1"/>` +
+  `<rect x="12" y="32" width="96" height="14" fill="#e5e7eb"/>` +
+  `<line x1="12" y1="46" x2="108" y2="46" stroke="#1f2937" stroke-width="1"/>` +
+  `<line x1="12" y1="64" x2="108" y2="64" stroke="#9ca3af" stroke-width="1"/>` +
+  `<line x1="12" y1="82" x2="108" y2="82" stroke="#9ca3af" stroke-width="1"/>` +
+  `<line x1="12" y1="100" x2="108" y2="100" stroke="#9ca3af" stroke-width="1"/>` +
+  `<line x1="12" y1="118" x2="108" y2="118" stroke="#9ca3af" stroke-width="1"/>` +
+  `<line x1="48" y1="32" x2="48" y2="128" stroke="#1f2937" stroke-width="1"/>` +
+  `<rect x="14" y="137" width="64" height="3.5" rx="1" fill="#9ca3af"/>` +
+  `<rect x="14" y="146" width="48" height="3.5" rx="1" fill="#9ca3af"/>`,
+)
+
 const FORMAT_OPTIONS = [
-  { formatId: 'modern',   label: 'Modern Clean',  previewSrc: '/studio/previews/modern-preview.png' },
-  { formatId: 'classic',  label: 'Classic',        previewSrc: '/studio/previews/classic-preview.png' },
-  { formatId: 'official', label: 'Official CBC',   previewSrc: '/studio/previews/official-preview.png' },
+  { formatId: 'modern',   label: 'Modern Clean',  previewSrc: MODERN_PREVIEW },
+  { formatId: 'classic',  label: 'Classic',        previewSrc: CLASSIC_PREVIEW },
+  { formatId: 'official', label: 'Official CBC',   previewSrc: OFFICIAL_PREVIEW },
 ]
 
 const ILLUSTRATION_OPTIONS = [
