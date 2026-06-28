@@ -15,6 +15,7 @@ import {
   PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
+  assessmentRouteBase, assessmentEditPath,
 } from '../src/components/teacher/paperTaxonomy.js'
 
 let passed = 0
@@ -106,5 +107,27 @@ for (const t of examTypeValues) {
   ok(maxTopicsFor(t) >= 10, `${t} covers many topics`)
   ok(isCumulativeType(t), `${t} is cumulative`)
 }
+
+// ── Assessment editor routing ────────────────────────────────────────────
+// Regression for the "Test paper not found" bug: every assessment (test paper
+// AND exam paper) lives in the `assessments` collection, but the editor is
+// split across two routes by paper type. A continue card / list row that links
+// an assessment to the wrong base (or sources it from the `quizzes` collection
+// entirely) lands on a studio that reports the paper missing. The edit path
+// must follow the type.
+eq(assessmentRouteBase('topic_test'), '/teacher/test-papers', 'test type → test-papers base')
+eq(assessmentRouteBase('end_of_term'), '/teacher/test-papers', 'end-of-term → test-papers base')
+eq(assessmentRouteBase('mock'), '/teacher/exam-papers', 'mock → exam-papers base')
+eq(assessmentRouteBase('exam'), '/teacher/exam-papers', 'exam → exam-papers base')
+eq(assessmentRouteBase(undefined), '/teacher/test-papers', 'missing type → test-papers base')
+
+eq(assessmentEditPath({ id: 'abc123', assessmentType: 'topic_test' }),
+  '/teacher/test-papers/abc123/edit', 'test paper edit path')
+eq(assessmentEditPath({ id: 'abc123', assessmentType: 'mock' }),
+  '/teacher/exam-papers/abc123/edit', 'exam paper edit path')
+eq(assessmentEditPath({ id: 'xyz', assessmentType: undefined }),
+  '/teacher/test-papers/xyz/edit', 'untyped paper defaults to test-papers')
+eq(assessmentEditPath({ assessmentType: 'topic_test' }), null, 'no id → null (no broken link)')
+eq(assessmentEditPath(null), null, 'null assessment → null')
 
 console.log(`✓ paper-taxonomy: ${passed} assertions passed`)

@@ -9,6 +9,7 @@ import {
   formatDate,
 } from '../../utils/teacherLibraryService'
 import { resolveTeacherPlan } from '../../utils/teacherPlans'
+import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
   getTimeGreeting,
   buildAiMessage,
@@ -594,7 +595,7 @@ function progressFor(resource) {
 
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
-  const { getMyQuizzes } = useFirestore()
+  const { getMyAssessments } = useFirestore()
   const navigate = useNavigate()
 
   // "Current plan" reflects the teacher's actual studio entitlement
@@ -609,7 +610,7 @@ export default function TeacherDashboard() {
   const { data: usage } = useTeacherUsage(currentUser?.uid)
 
   const [generations, setGenerations] = useState([])
-  const [quizzes, setQuizzes] = useState([])
+  const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [activityRange, setActivityRange] = useState('week')
@@ -618,18 +619,18 @@ export default function TeacherDashboard() {
     if (!currentUser) return
     let cancelled = false
     async function load() {
-      const [gens, qs] = await Promise.all([
+      const [gens, papers] = await Promise.all([
         listMyGenerations({ uid: currentUser.uid }).catch(() => []),
-        getMyQuizzes(currentUser.uid).catch(() => []),
+        getMyAssessments(currentUser.uid).catch(() => []),
       ])
       if (cancelled) return
       setGenerations(gens)
-      setQuizzes(qs)
+      setAssessments(papers)
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser, getMyQuizzes])
+  }, [currentUser, getMyAssessments])
 
   const librarySummary = useMemo(() => {
     const byTool = generations.reduce((acc, g) => {
@@ -658,21 +659,32 @@ export default function TeacherDashboard() {
       status: 'ready',
       questionCount: 0,
     }))
-    const fromQuizzes = quizzes.map((q) => ({
-      id: q.id,
-      kind: 'quiz',
-      tool: 'assessment',
-      subject: q.subject || '',
-      grade: q.grade || q.targetGrade || '',
-      topic: q.topic || '',
-      createdAt: toMs(q.createdAt),
-      title: q.title || q.topic || 'Untitled test paper',
-      to: `/teacher/test-papers/${q.id}/edit`,
-      status: q.published === false || q.status === 'draft' ? 'draft' : 'ready',
-      questionCount: Array.isArray(q.questions) ? q.questions.length : 0,
-    }))
-    return [...fromGens, ...fromQuizzes].sort((a, b) => b.createdAt - a.createdAt)
-  }, [generations, quizzes])
+    // Test papers + exam papers both live in the `assessments` collection and
+    // are edited by AssessmentStudio. The studio is split by paper type across
+    // two routes (/teacher/test-papers vs /teacher/exam-papers), so the
+    // continue-card link must match the type — otherwise the edit page loads
+    // the wrong studio (or, when sourced from the wrong collection entirely,
+    // 404s with "Test paper not found").
+    const fromAssessments = assessments.map((a) => {
+      const isExam = isExamPaperType(a.assessmentType)
+      return {
+        id: a.id,
+        kind: 'assessment',
+        tool: 'assessment',
+        subject: a.subject || '',
+        grade: a.grade || a.targetGrade || '',
+        topic: a.topic || '',
+        createdAt: toMs(a.createdAt),
+        title: a.title || a.topic || `Untitled ${isExam ? 'exam' : 'test'} paper`,
+        to: assessmentEditPath(a),
+        // Assessments are always editable drafts (no publish state), so the
+        // progress bar reflects how far the paper is by question count.
+        status: 'draft',
+        questionCount: typeof a.questionCount === 'number' ? a.questionCount : 0,
+      }
+    })
+    return [...fromGens, ...fromAssessments].sort((a, b) => b.createdAt - a.createdAt)
+  }, [generations, assessments])
 
   const firstName = useMemo(() => {
     const name = (userProfile?.displayName || '').trim()

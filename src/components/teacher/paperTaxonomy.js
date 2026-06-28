@@ -86,6 +86,23 @@ export function isExamPaperType(value) {
   return EXAM_PAPER_TYPE_VALUES.has(String(value || ''))
 }
 
+// Both test papers and exam papers live in the `assessments` collection and are
+// edited by AssessmentStudio, but the studio is split across two routes by
+// paper type. Any link to an assessment's editor (dashboard continue cards,
+// list rows, deep links) must pick the matching base, or the edit page loads
+// the wrong studio — or, worse, reports "not found" because the type doesn't
+// match what that route scopes to. Centralised here so there's one source of
+// truth for the route ↔ type mapping.
+export function assessmentRouteBase(assessmentType) {
+  return isExamPaperType(assessmentType) ? '/teacher/exam-papers' : '/teacher/test-papers'
+}
+
+export function assessmentEditPath(assessment) {
+  const id = assessment?.id
+  if (!id) return null
+  return `${assessmentRouteBase(assessment?.assessmentType)}/${id}/edit`
+}
+
 // How many topics each test type may cover. Topic and weekly tests are
 // narrow; an end-of-term paper is cumulative and should span everything the
 // class has learned, so its cap is large and the modal offers an
