@@ -1,0 +1,263 @@
+import { useMemo, useState } from 'react'
+
+import Button from '../../ui/Button'
+import DiagramHandlingChooser from './DiagramHandlingChooser'
+import {
+  buildReviewModel,
+  pageKey,
+  isReviewComplete,
+} from './importReviewModel'
+
+/**
+ * ImportReviewScreen — the photo-import review step for the Test Paper Studio.
+ *
+ * After a photographed/scanned paper is reconstructed into studio sections, this
+ * full-screen overlay lets the teacher check the reconstruction page-by-page
+ * before it lands in the builder: it highlights what needs attention (no answer
+ * yet, low-confidence OCR, a detected-but-missing figure), shows each detected
+ * figure beside its AI options (keep / clean / redraw / replace / remove via
+ * DiagramHandlingChooser), and lets the teacher fix the stem, pick the answer
+ * and approve each page. Nothing is flattened — every edit writes straight back
+ * into the editable studio model. The teacher always has the final say.
+ *
+ * Presentational: all data comes from `sections` and all edits go out through
+ * `onPatchItem`, so the screen reflects live studio state and stays testable.
+ *
+ * Props
+ *   open          — render the overlay
+ *   sections      — current studio sections (the reconstructed paper)
+ *   context       — { subject, grade, topic, subtopic } for diagram grounding
+ *   pageImageUrls — optional { [pageNumber]: url } of the original page photos
+ *   onPatchItem   — (item, patch) => void; merges patch into the item's question
+ *                   or passage (the studio routes by item.kind)
+ *   onClose       — dismiss without finishing (keeps the import)
+ *   onDone        — finish review and go to the builder
+ */
+export default function ImportReviewScreen({
+  open,
+  sections = [],
+  context = {},
+  pageImageUrls = {},
+  onPatchItem,
+  onClose,
+  onDone,
+}) {
+  const [approved, setApproved] = useState(() => new Set())
+
+  const model = useMemo(
+    () => buildReviewModel(sections, pageImageUrls),
+    [sections, pageImageUrls],
+  )
+
+  if (!open) return null
+
+  const { summary } = model
+  const complete = isReviewComplete(model, approved)
+
+  function toggleApproved(page) {
+    const key = pageKey(page)
+    setApproved((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function applyDiagram(item, result) {
+    if (typeof onPatchItem !== 'function') return
+    if (result?.action === 'removed') {
+      onPatchItem(item, { imageUrl: '', imageAssetId: '', diagramText: '' })
+      return
+    }
+    if (result?.url) {
+      // The new figure is a remote/library URL, so drop the in-memory crop id.
+      onPatchItem(item, { imageUrl: result.url, imageAssetId: '' })
+    }
+  }
+
+  function detectedFor(item) {
+    const ref = item.ref || {}
+    const first = Array.isArray(ref.detectedDiagrams) ? ref.detectedDiagrams[0] : null
+    return {
+      kind: (first && first.kind) || 'other',
+      caption: item.preview ? item.preview.slice(0, 80) : item.label,
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 theme-bg overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Review imported paper"
+    >
+      {/* Sticky header with the review tally + actions */}
+      <header className="sticky top-0 z-10 theme-card border-b theme-border px-4 py-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-black theme-text text-base">Review imported paper</h2>
+          <p className="text-xs theme-text-muted">
+            {summary.totalItems} question{summary.totalItems === 1 ? '' : 's'} on{' '}
+            {summary.pageCount} page{summary.pageCount === 1 ? '' : 's'}
+            {summary.needsReview ? ` · ${summary.needsReview} to check` : ''}
+            {summary.noAnswer ? ` · ${summary.noAnswer} need an answer` : ''}
+            {summary.missingDiagrams ? ` · ${summary.missingDiagrams} missing figure` : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDone}
+            title={complete ? '' : 'Approve every page first, or open the builder anyway'}
+          >
+            {complete ? 'Open in builder' : 'Open in builder anyway'}
+          </Button>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto p-4 space-y-6">
+        {model.pages.map((pageGroup) => {
+          const key = pageKey(pageGroup.page)
+          const isApproved = approved.has(key)
+          return (
+            <section key={key} className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-black theme-text text-sm">
+                  {pageGroup.page == null ? 'Unplaced items' : `Page ${pageGroup.page}`}
+                </h3>
+                <label className="inline-flex items-center gap-2 text-xs font-bold theme-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isApproved}
+                    onChange={() => toggleApproved(pageGroup.page)}
+                  />
+                  Approve this page
+                </label>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Left: original photograph of the page, when available */}
+                <div className="md:sticky md:top-20 self-start">
+                  <p className="text-[11px] uppercase tracking-wide theme-text-muted mb-1">
+                    Original
+                  </p>
+                  {pageGroup.originalUrl ? (
+                    <img
+                      src={pageGroup.originalUrl}
+                      alt={`Original page ${pageGroup.page}`}
+                      className="w-full rounded-lg border theme-border bg-white object-contain"
+                    />
+                  ) : (
+                    <div className="rounded-lg border border-dashed theme-border p-6 text-xs theme-text-muted text-center">
+                      Original page preview not available — each figure below is
+                      shown beside its result.
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: reconstructed items for this page */}
+                <div className="space-y-3">
+                  {pageGroup.items.map((item) => (
+                    <ReviewItemCard
+                      key={item.key}
+                      item={item}
+                      context={context}
+                      detected={detectedFor(item)}
+                      onPatch={onPatchItem}
+                      onDiagram={(res) => applyDiagram(item, res)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function Badge({ children, tone = 'warn' }) {
+  const cls =
+    tone === 'danger'
+      ? 'bg-[color:var(--danger)] text-white'
+      : 'theme-bg-subtle theme-accent-text'
+  return (
+    <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${cls}`}>
+      {children}
+    </span>
+  )
+}
+
+function ReviewItemCard({ item, context, detected, onPatch, onDiagram }) {
+  const ref = item.ref || {}
+  const { signals } = item
+  const isPassage = item.kind === 'passage'
+  const options = Array.isArray(ref.options) ? ref.options : []
+
+  function patch(p) {
+    if (typeof onPatch === 'function') onPatch(item, p)
+  }
+
+  return (
+    <div className="theme-card border theme-border rounded-2xl p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-black theme-text text-sm">{item.label}</p>
+        <div className="flex flex-wrap gap-1 justify-end">
+          {signals.issues.map((issue) => (
+            <Badge key={issue} tone={issue === 'No answer' || issue === 'Missing diagram' ? 'danger' : 'warn'}>
+              {issue}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {/* Editable stem / passage text — OCR output is plain, so a textarea is
+          safe and lets the teacher fix wording without leaving the screen. */}
+      <textarea
+        className="w-full text-sm theme-bg border theme-border rounded-lg p-2 theme-text"
+        rows={isPassage ? 4 : 2}
+        defaultValue={item.preview}
+        aria-label={`${item.label} text`}
+        onBlur={(e) => {
+          const value = e.target.value
+          if (value !== item.preview) patch(isPassage ? { passageText: value } : { text: value })
+        }}
+      />
+
+      {/* MCQ answer picker — clears the most common "No answer" flag inline. */}
+      {!isPassage && options.length > 0 ? (
+        <fieldset className="space-y-1">
+          <legend className="text-[11px] uppercase tracking-wide theme-text-muted">
+            Correct answer
+          </legend>
+          {options.map((opt, i) => (
+            <label key={i} className="flex items-center gap-2 text-sm theme-text cursor-pointer">
+              <input
+                type="radio"
+                name={`${item.key}-answer`}
+                checked={Number(ref.correctAnswer) === i}
+                onChange={() => patch({ correctAnswer: i, requiresReview: false })}
+              />
+              <span>{String.fromCharCode(65 + i)}. {opt || <em className="theme-text-muted">blank</em>}</span>
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+
+      {/* Diagram handling — the five options, original vs result. Shown when a
+          figure was detected or one is already attached. */}
+      {signals.hasDiagram ? (
+        <DiagramHandlingChooser
+          detected={detected}
+          context={context}
+          originalUrl={ref.imageUrl || null}
+          onResolved={onDiagram}
+        />
+      ) : null}
+    </div>
+  )
+}
