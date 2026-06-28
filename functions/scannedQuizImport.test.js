@@ -676,4 +676,47 @@ test("carries marks from the model and from a trailing annotation", () => {
   assert.equal(dflt.marks, 1);
 });
 
+// ── matching columns + word bank ─────────────────────────────────────────────
+test("schema carries matching columns + a word bank", () => {
+  const props = SCANNED_TOOL_SCHEMA.$defs.question.properties;
+  assert.ok(props.matchingLeft && props.matchingRight, "schema carries matching columns");
+  assert.ok(props.wordBank, "schema carries a word bank");
+  assert.match(CLAUDE_SYSTEM_PROMPT, /matchingLeft/);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /wordBank/);
+});
+
+test("carries matching columns for a matching question (no pairing guessed)", () => {
+  const q = normaliseScannedQuestion(
+    {
+      prompt: "Match the animal to its home.",
+      options: [],
+      questionType: "matching",
+      matchingLeft: ["Dog", "Bird", " "],
+      matchingRight: ["Kennel", "Nest", ""],
+    },
+    [1],
+  );
+  assert.equal(q.type, "matching");
+  assert.deepEqual(q.matchingLeft, ["Dog", "Bird"]); // blanks dropped
+  assert.deepEqual(q.matchingRight, ["Kennel", "Nest"]);
+  assert.equal(q.correctAnswer, ""); // never guessed
+});
+
+test("does not attach matching columns to a non-matching question", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Pick one", options: ["a", "b"], matchingLeft: ["x"], matchingRight: ["y"]},
+    [1],
+  );
+  assert.deepEqual(q.matchingLeft, []);
+  assert.deepEqual(q.matchingRight, []);
+});
+
+test("carries a printed word bank on a fill_blank question", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "The capital of Zambia is ____.", options: [], questionType: "fill_blank", wordBank: ["Lusaka", "Ndola", ""]},
+    [1],
+  );
+  assert.deepEqual(q.wordBank, ["Lusaka", "Ndola"]);
+});
+
 console.log(`\nscannedQuizImport: ${passed} passed`);

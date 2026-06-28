@@ -293,6 +293,29 @@ test('visionSectionsToLocal maps the backend question type + marks onto the edit
   assert.equal(sections[2].question.type, 'fill_blanks')
 })
 
+test('visionSectionsToLocal pre-populates matching columns + a word bank', () => {
+  const { sections } = visionSectionsToLocal(
+    [
+      { kind: 'standalone', question: {
+        text: 'Match the animal to its home.', options: [], type: 'matching',
+        matchingLeft: ['Dog', 'Bird'], matchingRight: ['Kennel', 'Nest'],
+      } },
+      { kind: 'standalone', question: {
+        text: 'The capital is ____.', options: [], type: 'fill_blank',
+        wordBank: ['Lusaka', 'Ndola'],
+      } },
+    ],
+    {},
+    fakeDeps,
+  )
+  const match = sections[0].question
+  assert.equal(match.type, 'matching')
+  assert.deepEqual(match.matchingLeft, ['Dog', 'Bird'])
+  assert.deepEqual(match.matchingRight, ['Kennel', 'Nest'])
+  assert.deepEqual(match.matchingAnswer, [-1, -1]) // one blank slot per left item
+  assert.deepEqual(sections[1].question.wordBank, ['Lusaka', 'Ndola'])
+})
+
 test('visionSectionsToLocal builds a comprehension passage with grouped questions', () => {
   const { sections } = visionSectionsToLocal(
     [{ kind: 'passage', passageKind: 'comprehension', title: 'The Lion', passageText: 'Once...', questions: [mcq({ text: 'Who?' }), mcq({ text: 'Where?' })] }],

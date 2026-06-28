@@ -282,6 +282,19 @@ function mapVisionQuestion(q, order, options, deps) {
     sourcePage: q?.sourcePage ?? null,
   }
 
+  // Structured extras the OCR read off the paper, pre-populating the right
+  // editor block. The pairing/answers stay blank (ECZ papers print no key).
+  if (canonicalType === 'matching') {
+    const left = (Array.isArray(q?.matchingLeft) ? q.matchingLeft : []).map(s => String(s ?? '').trim()).filter(Boolean)
+    const right = (Array.isArray(q?.matchingRight) ? q.matchingRight : []).map(s => String(s ?? '').trim()).filter(Boolean)
+    if (left.length) overrides.matchingLeft = left
+    if (right.length) overrides.matchingRight = right
+    // One blank answer slot per left item — the teacher sets the pairing.
+    if (left.length) overrides.matchingAnswer = left.map(() => -1)
+  }
+  const wordBank = (Array.isArray(q?.wordBank) ? q.wordBank : []).map(s => String(s ?? '').trim()).filter(Boolean)
+  if (wordBank.length) overrides.wordBank = wordBank
+
   const diagrams = Array.isArray(q?.diagrams) ? q.diagrams : []
   const hasCroppableDiagram = diagrams.some(d => d?.box)
 
