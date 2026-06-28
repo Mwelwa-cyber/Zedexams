@@ -9,6 +9,7 @@ vi.mock('../../../../../utils/syllabusKbService.js', () => ({
 import { getMergedSyllabi } from '../../../../../utils/syllabusKbService.js'
 import {
   getSubjectsForGrade,
+  getGradesWithSubjects,
   getTopicsForSubject,
   getSubtopicDetail,
   invalidatePreviousCurriculumCache,
@@ -180,6 +181,34 @@ describe('getSubjectsForGrade — previous', () => {
   it('returns empty when no subject matches', async () => {
     const subjects = await getSubjectsForGrade('Grade 4', 'previous')
     expect(subjects).toEqual([])
+  })
+})
+
+// ── getGradesWithSubjects ─────────────────────────────────────────────────────
+
+describe('getGradesWithSubjects — CBC', () => {
+  it('keeps only candidate grades that resolve to at least one subject', async () => {
+    // Fixture: Mathematics has Grade 4 + Grade 5; Science has only Grade 4.
+    // So Grade 6 has no subjects and must be dropped.
+    const grades = await getGradesWithSubjects(['Grade 4', 'Grade 5', 'Grade 6'], 'cbc')
+    expect(grades).toEqual(['Grade 4', 'Grade 5'])
+  })
+
+  it('drops a grade with no subject data (the dead-end bug)', async () => {
+    const grades = await getGradesWithSubjects(['Grade 4', 'Grade 99'], 'cbc')
+    expect(grades).toEqual(['Grade 4'])
+  })
+
+  it('returns an empty array when given no candidates', async () => {
+    expect(await getGradesWithSubjects([], 'cbc')).toEqual([])
+    expect(await getGradesWithSubjects(undefined, 'cbc')).toEqual([])
+  })
+})
+
+describe('getGradesWithSubjects — previous', () => {
+  it('keeps only grades present in the 2013 data', async () => {
+    const grades = await getGradesWithSubjects(['Grade 10', 'Grade 11'], 'previous')
+    expect(grades).toEqual(['Grade 10'])
   })
 })
 

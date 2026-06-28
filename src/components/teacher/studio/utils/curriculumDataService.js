@@ -166,6 +166,32 @@ export async function getSubjectsForGrade(grade, curriculumMode = 'cbc') {
 }
 
 /**
+ * Given a list of candidate grade strings, return only those that actually
+ * have at least one subject in the loaded syllabi for the requested curriculum
+ * mode.
+ *
+ * The grade picker offers a superset of grades (Nursery … Form 4 for CBC), but
+ * the digitised syllabi don't cover every one of them — e.g. the CBC
+ * "(Grades 4-6)" upper-primary subjects only ship a "Grade 4" sheet, so picking
+ * Grade 5 or Grade 6 (or the ECE classes, whose sheets are keyed by age band)
+ * yields zero subjects and a dead-end form the teacher can never complete. This
+ * lets the picker show only grades that resolve to real subjects — the same
+ * "never offer a dead option" rule the 2013 grade list already follows, applied
+ * data-driven so it self-corrects when an admin adds more grade data.
+ *
+ * @param {string[]} candidateGrades  e.g. ["Grade 4", "Grade 5", "Form 1"]
+ * @param {'cbc'|'previous'} [curriculumMode='cbc']
+ * @returns {Promise<string[]>}  the subset of candidateGrades that have subjects
+ */
+export async function getGradesWithSubjects(candidateGrades, curriculumMode = 'cbc') {
+  const data = await loadData(curriculumMode)
+  const sheetsList = Object.values(data || {})
+  return (candidateGrades || []).filter((grade) =>
+    sheetsList.some((sheets) => matchingSheets(sheets, grade).length > 0),
+  )
+}
+
+/**
  * Returns all topics and their subtopics for a given subject and grade.
  *
  * @param {string} subject

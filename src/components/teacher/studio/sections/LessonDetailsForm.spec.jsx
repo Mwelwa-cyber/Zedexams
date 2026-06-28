@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { LessonDetailsForm } from './LessonDetailsForm'
+import { useAvailableGrades } from '../hooks/useAvailableGrades.js'
 
 // Subjects now come from the syllabi data via this hook (so the picked value
 // is a real syllabi key). Mock it so the form's subject dropdown is
@@ -13,6 +14,15 @@ vi.mock('../hooks/useSubjectsForGrade.js', () => ({
     loading: false,
     error: null,
   })),
+}))
+
+// The Class picker filters its grade list down to grades with subject data via
+// this hook. Default mock returns `available: null` → "unknown / load not
+// resolved", which makes the form fall back to the full static candidate list,
+// so the existing grade-list assertions below are unaffected. Individual tests
+// override it to exercise the data-driven filtering.
+vi.mock('../hooks/useAvailableGrades.js', () => ({
+  useAvailableGrades: vi.fn(() => ({ available: null, loading: false })),
 }))
 
 const DEFAULT_DETAILS = {
@@ -154,6 +164,66 @@ describe('LessonDetailsForm — CBC grade optgroups', () => {
     expect(values).toContain('Form 2')
     expect(values).toContain('Form 3')
     expect(values).toContain('Form 4')
+  })
+})
+
+// ── Class picker hides grades with no subject data ────────────────────────────
+
+describe('LessonDetailsForm — grades filtered to those with subjects', () => {
+  it('omits classes that have no subject data (CBC Grade 5/6, ECE)', () => {
+    // Real CBC data only resolves subjects for Grade 1-4 + Form 1-4.
+    useAvailableGrades.mockReturnValueOnce({
+      available: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Form 1', 'Form 2', 'Form 3', 'Form 4'],
+      loading: false,
+    })
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const classSelect = container.querySelectorAll('select')[0]
+    const values = [...classSelect.querySelectorAll('option')].map((o) => o.value)
+    // The dead-end classes are gone…
+    expect(values).not.toContain('Grade 5')
+    expect(values).not.toContain('Grade 6')
+    expect(values).not.toContain('Nursery')
+    expect(values).not.toContain('Reception')
+    // …but the ones with data remain.
+    expect(values).toContain('Grade 4')
+    expect(values).toContain('Form 1')
+  })
+
+  it('clears a selected grade once it is found to have no subjects', () => {
+    const onChange = vi.fn()
+    useAvailableGrades.mockReturnValueOnce({
+      available: ['Grade 4', 'Form 1'],
+      loading: false,
+    })
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 5' }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    expect(onChange).toHaveBeenCalledWith('grade', '')
+  })
+
+  it('shows a loading placeholder while availability is resolving', () => {
+    useAvailableGrades.mockReturnValueOnce({ available: null, loading: true })
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    expect(screen.getByRole('option', { name: /loading classes/i })).toBeInTheDocument()
   })
 })
 
