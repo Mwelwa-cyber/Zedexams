@@ -141,7 +141,16 @@ check('activity stats compute totals + an up trend', () => {
   const lib = stats.find((s) => s.key === 'library')
   assert.equal(lib.total, 5)
   const week = stats.find((s) => s.key === 'week')
-  assert.equal(week.total, 4) // four items within 7 days
+  assert.equal(week.total, 4) // four items within 30 days (default month range)
+  // trend carries the human "vs last month" basis by default
+  assert.equal(plans.trend.basis, 'vs last month')
+
+  // week range compares last 7 days to the prior 7 and relabels
+  const weekly = buildActivityStats({ resources, now: NOW, range: 'week' })
+  const wk = weekly.find((s) => s.key === 'week')
+  assert.equal(wk.label, 'New this week')
+  assert.equal(wk.total, 4) // four items within 7 days
+  assert.equal(weekly[0].trend.basis, 'vs last week')
 })
 
 /* ── celebrations ─────────────────────────────────────────── */

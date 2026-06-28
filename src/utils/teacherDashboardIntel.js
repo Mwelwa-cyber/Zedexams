@@ -226,7 +226,7 @@ function trend(cur, prev) {
   return { dir: 'flat', pct: 0 }
 }
 
-export function buildActivityStats({ resources = [], now = Date.now() } = {}) {
+export function buildActivityStats({ resources = [], now = Date.now(), range = 'month' } = {}) {
   const totalOf = (fn) => countWhere(resources, fn)
   const win = (fn, from, to) => countWhere(resources, (r) => fn(r) && inWindow(r, now, from, to))
 
@@ -234,36 +234,22 @@ export function buildActivityStats({ resources = [], now = Date.now() } = {}) {
   const isNote = (r) => r.tool === 'notes'
   const isTest = (r) => r.kind === 'quiz' || r.tool === 'assessment'
 
+  // 'week' compares the last 7 days to the 7 before; 'month' the last 30 to the
+  // 30 before. The basis string is the human label the cards print verbatim.
+  const span = range === 'week' ? 7 : 30
+  const basis = range === 'week' ? 'vs last week' : 'vs last month'
+  const t = (fn) => ({ ...trend(win(fn, span, 0), win(fn, span * 2, span)), basis })
+
   return [
-    {
-      key: 'plans',
-      label: 'Lesson Plans',
-      total: totalOf(isPlan),
-      trend: trend(win(isPlan, 30, 0), win(isPlan, 60, 30)),
-    },
-    {
-      key: 'notes',
-      label: 'Notes',
-      total: totalOf(isNote),
-      trend: trend(win(isNote, 30, 0), win(isNote, 60, 30)),
-    },
-    {
-      key: 'tests',
-      label: 'Test Papers',
-      total: totalOf(isTest),
-      trend: trend(win(isTest, 30, 0), win(isTest, 60, 30)),
-    },
-    {
-      key: 'library',
-      label: 'Library',
-      total: resources.length,
-      trend: trend(win(() => true, 30, 0), win(() => true, 60, 30)),
-    },
+    { key: 'plans', label: 'Lesson plans', total: totalOf(isPlan), trend: t(isPlan) },
+    { key: 'notes', label: 'Notes', total: totalOf(isNote), trend: t(isNote) },
+    { key: 'tests', label: 'Test papers', total: totalOf(isTest), trend: t(isTest) },
+    { key: 'library', label: 'Total in library', total: resources.length, trend: t(() => true) },
     {
       key: 'week',
-      label: 'New This Week',
-      total: win(() => true, 7, 0),
-      trend: trend(win(() => true, 7, 0), win(() => true, 14, 7)),
+      label: range === 'week' ? 'New this week' : 'New this month',
+      total: win(() => true, span, 0),
+      trend: t(() => true),
     },
   ]
 }

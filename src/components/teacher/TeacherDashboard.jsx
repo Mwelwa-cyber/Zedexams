@@ -30,9 +30,9 @@ import {
   Calculator,
   CalendarDays,
   ChevronDown,
+  ChevronRight,
   ClipboardCheckList,
   ClipboardList,
-  Clock,
   DocumentTextIcon,
   FileText,
   FolderOpen,
@@ -40,7 +40,9 @@ import {
   Layers,
   LayoutGrid,
   PencilLine,
+  Play,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Target,
 } from '../ui/icons'
@@ -63,6 +65,9 @@ import iconSbaStudio from '../../assets/teacher-icons/sba-studio.webp'
 import iconLibrary from '../../assets/teacher-icons/library.webp'
 import iconSchoolCalendar from '../../assets/teacher-icons/school-calendar.webp'
 import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
+// Premium hero illustration — 3D study-desk scene that matches the brand teal,
+// so it blends straight into the hero gradient. Compressed to ~20KB WebP.
+import heroDesk from '../../assets/teacher/hero-desk.webp'
 
 // The full usage meter is heavy (its own data hook + big inline stylesheet) and
 // lives behind the collapsed "View details" card, so it's lazy-loaded — the
@@ -348,6 +353,16 @@ const TOOL_META = {
   sba_plan: { icon: Target, accent: '#dbe7f4', label: 'SBA Year Plan' },
 }
 
+// Per-activity-card icon + colour tone for the coloured badges on the
+// "Your activity" stat cards.
+const ACTIVITY_META = {
+  plans: { icon: FileText, tone: 'green' },
+  notes: { icon: BookOpen, tone: 'purple' },
+  tests: { icon: ClipboardList, tone: 'blue' },
+  week: { icon: BarChart3, tone: 'orange' },
+  library: { icon: FolderOpen, tone: 'blue' },
+}
+
 function toMs(t) {
   if (!t) return 0
   if (typeof t.toDate === 'function') return t.toDate().getTime()
@@ -458,12 +473,41 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
 }
 
 /* ── Compact monthly usage (collapsed by default) ─────────────────────────
-   Replaces the always-open UsageMeter block with a slim summary card: plan,
-   lesson-plan allowance, today's AI, and the next reset. Tapping "View
-   details" lazy-mounts the full UsageMeter beneath it. */
-function hoursToUtcMidnight(now = new Date()) {
+   Replaces the always-open UsageMeter block with a slim summary card: a
+   lesson-plan gauge, today's AI, and the next daily reset, plus the plan
+   chip. Tapping "View details" lazy-mounts the full UsageMeter beneath it. */
+function msToUtcMidnight(now = new Date()) {
   const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  return Math.max(1, Math.ceil((next - now.getTime()) / (1000 * 60 * 60)))
+  return Math.max(0, next - now.getTime())
+}
+
+function formatResetIn(ms) {
+  const totalMin = Math.max(1, Math.round(ms / 60000))
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h <= 0) return `${m}m`
+  return `${h}h ${String(m).padStart(2, '0')}m`
+}
+
+// SVG ring gauge for the lesson-plan allowance. Unlimited plans have no real
+// denominator, so the arc is a calm, fixed-ish fill that grows gently with use.
+function UsageGauge({ value, pct }) {
+  const r = 24
+  const c = 2 * Math.PI * r
+  const clamped = Math.max(0.04, Math.min(1, pct))
+  return (
+    <div className="teacher-usage-gauge">
+      <svg viewBox="0 0 60 60" aria-hidden="true">
+        <circle cx="30" cy="30" r={r} fill="none" stroke="#efe7d5" strokeWidth="7" />
+        <circle
+          cx="30" cy="30" r={r} fill="none" stroke="#2f7d5f" strokeWidth="7"
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - clamped)}
+          transform="rotate(-90 30 30)"
+        />
+      </svg>
+      <span className="teacher-usage-gauge__value">{value}</span>
+    </div>
+  )
 }
 
 function CompactUsage() {
@@ -472,51 +516,59 @@ function CompactUsage() {
   const [expanded, setExpanded] = useState(false)
 
   if (loading || !data) {
-    return <div className="teacher-usage-compact teacher-usage-compact--skeleton" aria-hidden="true" />
+    return <div className="teacher-usage-card teacher-usage-card--skeleton" aria-hidden="true" />
   }
 
   const isMax = data.plan === 'max'
   const planCap = data.caps?.plans || 0
   const planUsed = data.used?.plans || 0
-  const resetHours = hoursToUtcMidnight()
+  const unlimited = isMax || planCap >= 99999
+  // Finite plans show real used/cap; unlimited shows a gentle decorative arc.
+  const gaugePct = unlimited ? Math.min(0.85, 0.18 + planUsed / 60) : planCap ? planUsed / planCap : 0
+  const resetIn = formatResetIn(msToUtcMidnight())
 
   return (
     <div className="teacher-usage-wrap">
-      <div className="teacher-usage-compact">
-        <div className="teacher-usage-compact__cells">
-          <div className="teacher-usage-compact__cell">
-            <span className="teacher-usage-compact__k">Plan</span>
-            <span className="teacher-usage-compact__v">{data.planLabel}</span>
+      <div className="teacher-usage-card">
+        <div className="teacher-usage-card__row">
+          <div className="teacher-usage-card__metric">
+            <UsageGauge value={planUsed} pct={gaugePct} />
+            <div className="teacher-usage-card__metric-body">
+              <span className="teacher-usage-card__big">
+                {planUsed}<span className="teacher-usage-card__den"> / {unlimited ? '∞' : planCap}</span>
+              </span>
+              <span className="teacher-usage-card__k">Lesson plans</span>
+            </div>
           </div>
-          <div className="teacher-usage-compact__cell">
-            <span className="teacher-usage-compact__k">Lesson plans</span>
-            <span className="teacher-usage-compact__v">
-              {planUsed} / {isMax || planCap >= 99999 ? 'Unlimited' : planCap}
+
+          <div className="teacher-usage-card__divider" aria-hidden="true" />
+
+          <div className="teacher-usage-card__metric">
+            <span className="teacher-usage-card__spark" aria-hidden="true">
+              <Icon as={Sparkles} size="md" />
             </span>
+            <div className="teacher-usage-card__metric-body">
+              <span className="teacher-usage-card__big">
+                {data.today}<span className="teacher-usage-card__den"> / {data.daily >= 99999 ? '∞' : data.daily}</span>
+              </span>
+              <span className="teacher-usage-card__k">AI generations today</span>
+              <span className="teacher-usage-card__reset">Resets in {resetIn}</span>
+            </div>
           </div>
-          <div className="teacher-usage-compact__cell">
-            <span className="teacher-usage-compact__k">Today's AI</span>
-            <span className="teacher-usage-compact__v">
-              {data.today} / {data.daily >= 99999 ? '∞' : data.daily}
-            </span>
-          </div>
-          <div className="teacher-usage-compact__cell">
-            <span className="teacher-usage-compact__k">Resets in</span>
-            <span className="teacher-usage-compact__v">{resetHours} hour{resetHours === 1 ? '' : 's'}</span>
-          </div>
+
+          <button
+            type="button"
+            className="teacher-usage-card__toggle"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            View details
+            <Icon as={ChevronDown} size="xs" className={expanded ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="teacher-usage-compact__toggle"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? 'Hide details' : 'View details'}
-          <Icon as={ChevronDown} size="xs" className={expanded ? 'teacher-usage-compact__chevron is-open' : 'teacher-usage-compact__chevron'} />
-        </button>
       </div>
       {expanded && (
-        <Suspense fallback={<div className="teacher-usage-compact teacher-usage-compact--skeleton" aria-hidden="true" />}>
+        <Suspense fallback={<div className="teacher-usage-card teacher-usage-card--skeleton" aria-hidden="true" />}>
           <UsageMeter />
         </Suspense>
       )}
@@ -554,6 +606,7 @@ export default function TeacherDashboard() {
   const [quizzes, setQuizzes] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [activityRange, setActivityRange] = useState('week')
 
   useEffect(() => {
     if (!currentUser) return
@@ -636,8 +689,8 @@ export default function TeacherDashboard() {
     [resources, usage],
   )
   const activityStats = useMemo(
-    () => buildActivityStats({ resources, now: Date.now() }),
-    [resources],
+    () => buildActivityStats({ resources, now: Date.now(), range: activityRange }),
+    [resources, activityRange],
   )
   const celebration = useMemo(
     () => buildCelebrations({ resources })[0] || null,
@@ -676,51 +729,64 @@ export default function TeacherDashboard() {
 
       {/* ── AI Workspace hero ─────────────────────────────────────── */}
       <section className={`teacher-hero teacher-hero--${greeting.part}`}>
-        <div className="teacher-hero__art" aria-hidden="true">
-          <span className="teacher-hero__art-emoji">{greeting.emoji}</span>
-        </div>
+        <img
+          className="teacher-hero__illus"
+          src={heroDesk}
+          alt=""
+          aria-hidden="true"
+          width="880"
+          height="660"
+          fetchPriority="high"
+          decoding="async"
+        />
         <div className="teacher-hero__content">
-          <span className="teacher-hero__eyebrow">
-            <Icon as={Sparkles} size="sm" />
-            Your AI workspace
-          </span>
           <h1 className="teacher-hero__greeting">
-            {greeting.emoji} {greeting.text}
+            <span className="teacher-hero__greeting-top">
+              <span className="teacher-hero__time-icon" aria-hidden="true">{greeting.emoji}</span>
+              {greeting.label},
+            </span>
+            <span className="teacher-hero__greeting-name">
+              {firstName} <span aria-hidden="true">👋</span>
+            </span>
           </h1>
           <p className="teacher-hero__message">{aiMessage}</p>
 
           {lastItem ? (
-            <div className="teacher-hero__continue">
+            <Link to={lastItem.to} className="teacher-hero__continue">
+              <span
+                className="teacher-hero__continue-icon"
+                style={{ '--c-bg': (TOOL_META[lastItem.tool]?.accent) || '#dcefe2' }}
+              >
+                <Icon as={(TOOL_META[lastItem.tool]?.icon) || DocumentTextIcon} size="sm" />
+              </span>
               <div className="teacher-hero__continue-info">
-                <span className="teacher-hero__continue-label">Continue working</span>
-                <p className="teacher-hero__continue-title">{lastItem.title}</p>
-                <div className="teacher-hero__continue-facts">
-                  {lastItem.subject && <span>{formatSubject(lastItem.subject)}</span>}
-                  {lastItem.grade && <span>{lastItem.grade}</span>}
-                  {lastItem.topic && lastItem.topic !== lastItem.title && <span>{lastItem.topic}</span>}
-                  <span><Icon as={Clock} size="xs" /> {formatDate(lastItem.createdAt)}</span>
-                </div>
+                <span className="teacher-hero__continue-label">Last opened</span>
+                <p className="teacher-hero__continue-title">
+                  {formatSubject(lastItem.subject) || lastItem.title}
+                </p>
+                <span className="teacher-hero__continue-sub">
+                  {[lastItem.grade, lastItem.topic ? `Lesson: ${lastItem.topic}` : '']
+                    .filter(Boolean).join(' • ') || (TOOL_META[lastItem.tool]?.label || '')}
+                </span>
               </div>
-              <Link to={lastItem.to} className="teacher-hero__cta">
-                {lastItem.kind === 'generation' ? 'Continue' : 'Continue editing'}
+              <span className="teacher-hero__continue-time">{formatDate(lastItem.createdAt)}</span>
+              <span className="teacher-hero__cta">
+                Continue plan
                 <Icon as={ArrowRight} size="sm" />
-              </Link>
-            </div>
+              </span>
+            </Link>
           ) : (
-            <div className="teacher-hero__continue">
+            <Link to="/teacher/generate/lesson-plan" className="teacher-hero__continue teacher-hero__continue--empty">
               <div className="teacher-hero__continue-info">
                 <span className="teacher-hero__continue-label">Get started</span>
                 <p className="teacher-hero__continue-title">Create your first lesson</p>
-                <div className="teacher-hero__continue-facts">
-                  <span>CBC-aligned</span>
-                  <span>Under a minute</span>
-                </div>
+                <span className="teacher-hero__continue-sub">CBC-aligned • under a minute</span>
               </div>
-              <Link to="/teacher/generate/lesson-plan" className="teacher-hero__cta">
+              <span className="teacher-hero__cta">
                 <Icon as={PencilLine} size="sm" />
                 Create Your First Lesson
-              </Link>
-            </div>
+              </span>
+            </Link>
           )}
         </div>
       </section>
@@ -732,16 +798,138 @@ export default function TeacherDashboard() {
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search lessons, notes, worksheets, tests, schemes…"
+          placeholder="Search lessons, notes, tests, worksheets…"
           aria-label="Search all your teaching materials"
           className="teacher-universal-search__input"
         />
-        <button type="submit" className="teacher-universal-search__btn">Search</button>
+        <button type="submit" className="teacher-universal-search__filter" aria-label="Search">
+          <Icon as={SlidersHorizontal} size="sm" />
+        </button>
       </form>
+
+      {/* ── Continue where you left off ───────────────────────────── */}
+      <section className="teacher-continue">
+        <div className="teacher-section-head">
+          <SectionLabel>Continue where you left off</SectionLabel>
+          {lastItem && (
+            <Link to="/teacher/library" className="teacher-section-head__link">View all</Link>
+          )}
+        </div>
+        {loading ? (
+          <div className="teacher-continue-feature teacher-continue-feature--skeleton" />
+        ) : !lastItem ? (
+          <div className="teacher-empty-state">
+            <span className="teacher-empty-state__icon"><Icon as={FolderOpen} size="xl" /></span>
+            <p className="teacher-empty-state__title">Nothing recent yet</p>
+            <p className="teacher-empty-state__text">Choose a workspace below — your most recent work will appear here.</p>
+          </div>
+        ) : (
+          (() => {
+            const meta = TOOL_META[lastItem.tool] || { icon: DocumentTextIcon, accent: '#f0eee8', label: 'Item' }
+            const prog = progressFor(lastItem)
+            const steps = lastItem.tool === 'lesson_plan' ? 6 : null
+            const curStep = steps ? Math.max(1, Math.round((prog.pct / 100) * steps)) : null
+            return (
+              <div className="teacher-continue-feature">
+                <span className="teacher-continue-feature__icon" style={{ '--c-bg': meta.accent }}>
+                  <Icon as={meta.icon} size="md" />
+                </span>
+                <div className="teacher-continue-feature__body">
+                  <p className="teacher-continue-feature__title">{lastItem.topic || lastItem.title}</p>
+                  <p className="teacher-continue-feature__meta">
+                    {[formatSubject(lastItem.subject), lastItem.grade].filter(Boolean).join(' • ') || meta.label}
+                  </p>
+                  <div className="teacher-continue-feature__bar">
+                    <div className="teacher-continue-feature__fill" style={{ width: `${prog.pct}%` }} />
+                  </div>
+                  <div className="teacher-continue-feature__foot">
+                    <span>{curStep ? `Step ${curStep} of ${steps}` : meta.label}</span>
+                    <span>{prog.pct}% complete</span>
+                  </div>
+                </div>
+                <Link to={lastItem.to} className="teacher-continue-feature__cta">
+                  <Icon as={Play} size="sm" />
+                  Continue
+                </Link>
+              </div>
+            )
+          })()
+        )}
+      </section>
+
+      {/* ── Your activity ─────────────────────────────────────────── */}
+      {!loading && (
+        <section className="teacher-activity">
+          <div className="teacher-section-head">
+            <SectionLabel>Your activity</SectionLabel>
+            <label className="teacher-range">
+              <select
+                value={activityRange}
+                onChange={(e) => setActivityRange(e.target.value)}
+                aria-label="Activity range"
+              >
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+              </select>
+              <Icon as={ChevronDown} size="xs" />
+            </label>
+          </div>
+          <div className="teacher-activity__grid">
+            {activityStats.filter((s) => s.key !== 'library').map((s) => {
+              const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
+              return (
+                <div key={s.key} className="teacher-activity-card">
+                  <div className="teacher-activity-card__top">
+                    <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
+                      <Icon as={am.icon} size="sm" />
+                    </span>
+                    <p className="teacher-activity-card__value">{s.total}</p>
+                  </div>
+                  <p className="teacher-activity-card__label">{s.label}</p>
+                  <span className={`teacher-activity-card__trend teacher-activity-card__trend--${s.trend.dir}`}>
+                    {s.trend.dir === 'flat'
+                      ? '— No change'
+                      : `${s.trend.dir === 'up' ? '↑' : '↓'} ${s.trend.pct}% ${s.trend.basis}`}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {(() => {
+            const lib = activityStats.find((s) => s.key === 'library')
+            if (!lib) return null
+            return (
+              <Link to="/teacher/library" className="teacher-activity-total">
+                <span className="teacher-activity-card__badge teacher-activity-card__badge--blue">
+                  <Icon as={FolderOpen} size="sm" />
+                </span>
+                <div className="teacher-activity-total__body">
+                  <p className="teacher-activity-total__value">{lib.total}</p>
+                  <p className="teacher-activity-total__label">Total in library</p>
+                </div>
+                <Icon as={ChevronRight} size="sm" className="teacher-activity-total__arrow" />
+              </Link>
+            )
+          })()}
+        </section>
+      )}
+
+      {/* ── Your usage this month (compact, collapsed) ────────────── */}
+      <section className="teacher-usage-section">
+        <div className="teacher-section-head">
+          <SectionLabel>Your usage this month</SectionLabel>
+          {usage && usage.plan !== 'free' && (
+            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
+              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
+            </span>
+          )}
+        </div>
+        <CompactUsage />
+      </section>
 
       {/* ── AI insights ───────────────────────────────────────────── */}
       {!loading && insights.length > 0 && (
-        <section className="teacher-insights">
+        <section className="teacher-insights teacher-defer">
           <SectionLabel>AI insights</SectionLabel>
           <div className="teacher-insights__grid">
             {insights.map((it) => (
@@ -753,77 +941,6 @@ export default function TeacherDashboard() {
           </div>
         </section>
       )}
-
-      {/* ── Continue where you left off ───────────────────────────── */}
-      <section className="teacher-continue">
-        <SectionLabel>Continue where you left off</SectionLabel>
-        {loading ? (
-          <div className="teacher-continue__grid">
-            {[0, 1, 2].map((i) => <div key={i} className="teacher-continue-card teacher-continue-card--skeleton" />)}
-          </div>
-        ) : continueItems.length === 0 ? (
-          <div className="teacher-empty-state">
-            <span className="teacher-empty-state__icon"><Icon as={FolderOpen} size="xl" /></span>
-            <p className="teacher-empty-state__title">Nothing recent yet</p>
-            <p className="teacher-empty-state__text">Choose a workspace below — your most recent work will appear here.</p>
-          </div>
-        ) : (
-          <div className="teacher-continue__grid">
-            {continueItems.map((item) => {
-              const meta = TOOL_META[item.tool] || { icon: DocumentTextIcon, accent: '#f0eee8', label: 'Item' }
-              const prog = progressFor(item)
-              return (
-                <Link key={`${item.kind}-${item.id}`} to={item.to} className="teacher-continue-card">
-                  <div className="teacher-continue-card__head">
-                    <span className="teacher-continue-card__icon" style={{ '--c-bg': meta.accent }}>
-                      <Icon as={meta.icon} size="sm" />
-                    </span>
-                    <span className={`teacher-continue-card__chip teacher-continue-card__chip--${prog.label.toLowerCase()}`}>
-                      {prog.label}
-                    </span>
-                  </div>
-                  <p className="teacher-continue-card__title line-clamp-2">{item.title}</p>
-                  <p className="teacher-continue-card__meta">
-                    {[meta.label, item.grade, formatSubject(item.subject)].filter(Boolean).join(' · ')}
-                  </p>
-                  <div className="teacher-continue-card__bar">
-                    <div className="teacher-continue-card__fill" style={{ width: `${prog.pct}%` }} />
-                  </div>
-                  <div className="teacher-continue-card__foot">
-                    <span>{prog.pct}% {prog.label === 'Ready' ? 'complete' : 'done'}</span>
-                    <span>{formatDate(item.createdAt)}</span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ── Activity ──────────────────────────────────────────────── */}
-      {!loading && (
-        <section className="teacher-activity">
-          <SectionLabel>Activity</SectionLabel>
-          <div className="teacher-activity__grid">
-            {activityStats.map((s) => (
-              <div key={s.key} className="teacher-activity-card">
-                <p className="teacher-activity-card__value">{s.total}</p>
-                <p className="teacher-activity-card__label">{s.label}</p>
-                <span className={`teacher-activity-card__trend teacher-activity-card__trend--${s.trend.dir}`}>
-                  {s.trend.dir === 'up' ? '↑' : s.trend.dir === 'down' ? '↓' : '→'}{' '}
-                  {s.trend.dir === 'flat' ? 'No change' : `${s.trend.pct}%`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Monthly usage (compact, collapsed) ────────────────────── */}
-      <section className="teacher-usage-section">
-        <SectionLabel>Monthly usage</SectionLabel>
-        <CompactUsage />
-      </section>
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
       <div className="teacher-workspace-header teacher-defer">
