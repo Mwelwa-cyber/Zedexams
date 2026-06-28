@@ -2500,6 +2500,42 @@ exports.agentJobsOnApproved = createAgentJobsOnApproved();
 // review degrades gracefully without it).
 exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey, openaiApiKey);
 
+// Central Question Bank — admin-only grade classifier for the one-click
+// "Import existing questions" backfill (/admin/import-questions). Given a batch
+// of questions whose syllabus topic didn't map to one grade, returns the CBC
+// grade (4-7) for each via the shared gradeReclassifier (Haiku).
+exports.classifyQuestionGrades = onCall(
+    {secrets: [anthropicApiKey], timeoutSeconds: 120, memory: "256MiB"},
+    async (request) => {
+      const uid = request.auth && request.auth.uid;
+      if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
+      const role = await getUserRole(uid);
+      if (role !== "admin" && role !== "superAdmin") {
+        throw new HttpsError("permission-denied", "Admin only.");
+      }
+      const items = Array.isArray(request.data && request.data.questions) ?
+        request.data.questions.slice(0, 25) : [];
+      const {classifyGrade} = require("./teacherTools/gradeReclassifier");
+      const anthropicKey = anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "";
+      const emptyIndex = new Map(); // force the AI path
+      const grades = await Promise.all(items.map(async (q) => {
+        try {
+          const r = await classifyGrade({
+            subject: String(q && q.subject || ""),
+            topic: String(q && q.topic || ""),
+            text: String(q && q.text || ""),
+            options: Array.isArray(q && q.options) ? q.options : [],
+            storedGrade: String(q && q.storedGrade || ""),
+          }, {index: emptyIndex, anthropicKey});
+          return r && r.grade ? String(r.grade) : "";
+        } catch {
+          return "";
+        }
+      }));
+      return {grades};
+    },
+);
+
 // Platform Health — admin diagnostics for the agent pipeline.
 const {
   createGetPlatformHealth,

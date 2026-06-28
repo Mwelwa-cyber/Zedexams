@@ -134,6 +134,7 @@ const ManageContent = lazy(() => import('./components/admin/ManageContent'))
 const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
 const QuestionReviewQueue = lazy(() => import('./components/admin/QuestionReviewQueue'))
+const ImportQuestionBankPanel = lazy(() => import('./components/admin/ImportQuestionBankPanel'))
 const FeedbackInbox = lazy(() => import('./components/admin/FeedbackInbox'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
 const BulkGrantTrialsPanel = lazy(() => import('./components/admin/BulkGrantTrialsPanel'))
@@ -553,6 +554,7 @@ export default function App() {
           <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
           <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
           <Route path="/admin/question-review"          element={<AdminRoute><QuestionReviewQueue /></AdminRoute>} />
+          <Route path="/admin/import-questions"         element={<AdminRoute><ImportQuestionBankPanel /></AdminRoute>} />
           <Route path="/admin/feedback"                 element={<AdminRoute><FeedbackInbox /></AdminRoute>} />
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
