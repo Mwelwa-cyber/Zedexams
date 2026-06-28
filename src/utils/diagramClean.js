@@ -466,15 +466,61 @@ function makeCanvas(width, height) {
   return canvas
 }
 
-/** Load an <img> from a URL/data URL and resolve once decoded. */
-export function loadImageElement(src) {
+/**
+ * Load an <img> from a URL/data URL and resolve once decoded. `crossOrigin`
+ * defaults to 'anonymous' (so the pixels can be read back off a canvas); pass
+ * `null` for same-origin blob:/data: sources that need no CORS request.
+ */
+export function loadImageElement(src, { crossOrigin = 'anonymous' } = {}) {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    if (crossOrigin) img.crossOrigin = crossOrigin
     img.onload = () => resolve(img)
     img.onerror = () => reject(new Error('Could not load the image to clean.'))
     img.src = src
   })
+}
+
+/**
+ * Load a remote/blob image so its pixels can be read back off a canvas WITHOUT
+ * tainting it — the robust loader `cleanDiagramSource` uses.
+ *
+ * Why this is not just `loadImageElement`: elsewhere on the page the same figure
+ * is shown with a plain `<img src>` (no crossOrigin), so the browser may cache a
+ * NON-CORS response. Re-requesting that exact URL with crossOrigin='anonymous'
+ * reuses the cached entry, the CORS check fails, and `getImageData()` throws a
+ * SecurityError — surfaced to the teacher as "Could not clean this figure
+ * automatically." This dodges it the same way the crop modal does
+ * (src/components/quiz/cropImageLoad.js):
+ *   • blob:/data: URLs are same-origin → load directly, no CORS request.
+ *   • remote URLs get a cache-busting param so the CORS request can't reuse the
+ *     poisoned cache entry, with a fetch→object-URL fallback that is same-origin
+ *     and so never taints the canvas.
+ */
+export async function loadCleanableImage(src) {
+  if (typeof src !== 'string') return src
+  if (src.startsWith('blob:') || src.startsWith('data:')) {
+    return loadImageElement(src, { crossOrigin: null })
+  }
+  try {
+    const sep = src.includes('?') ? '&' : '?'
+    return await loadImageElement(`${src}${sep}_cors=${Date.now()}`, {
+      crossOrigin: 'anonymous',
+    })
+  } catch {
+    // CORS-tagged load failed (no headers, or a poisoned cache entry). Fetch the
+    // bytes and load them via a same-origin object URL, which never taints.
+    const res = await fetch(src, { mode: 'cors', cache: 'reload' })
+    if (!res.ok) {
+      throw new Error(`Could not load the image to clean (${res.status}).`)
+    }
+    const blobUrl = URL.createObjectURL(await res.blob())
+    try {
+      return await loadImageElement(blobUrl, { crossOrigin: null })
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
+  }
 }
 
 /**
@@ -550,7 +596,7 @@ export async function cleanDiagramSource(src, options = {}) {
     ...pixelOptions
   } = options
 
-  const img = typeof src === 'string' ? await loadImageElement(src) : src
+  const img = typeof src === 'string' ? await loadCleanableImage(src) : src
   let image = drawToImageData(img, { maxWidth, rotateTurns })
 
   // Crop: explicit box wins; otherwise auto-detect the drawing.
