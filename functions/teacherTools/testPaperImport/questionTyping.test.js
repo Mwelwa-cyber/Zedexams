@@ -26,7 +26,7 @@ console.log("questionTyping");
 
 test("ALLOWED_TYPES is the small studio-mappable set", () => {
   assert.deepStrictEqual(ALLOWED_TYPES, [
-    "mcq", "true_false", "fill_blank", "matching", "short_answer",
+    "mcq", "true_false", "fill_blank", "matching", "short_answer", "diagram_label",
   ]);
 });
 
@@ -37,6 +37,8 @@ test("normaliseQuestionType folds aliases and rejects junk", () => {
   assert.strictEqual(normaliseQuestionType("fill-in-the-blank"), "fill_blank");
   assert.strictEqual(normaliseQuestionType("structured"), "short_answer");
   assert.strictEqual(normaliseQuestionType("matching"), "matching");
+  assert.strictEqual(normaliseQuestionType("label the diagram"), "diagram_label");
+  assert.strictEqual(normaliseQuestionType("labelled-diagram"), "diagram_label");
   assert.strictEqual(normaliseQuestionType("nonsense"), "");
   assert.strictEqual(normaliseQuestionType(""), "");
 });
@@ -68,6 +70,24 @@ test("classifyQuestionType: blanks in stem → fill_blank", () => {
 test("classifyQuestionType: matching cue → matching", () => {
   assert.strictEqual(classifyQuestionType({prompt: "Match the following animals to their homes.", options: []}), "matching");
   assert.strictEqual(classifyQuestionType({prompt: "Column A and Column B", options: []}), "matching");
+});
+
+test("classifyQuestionType: label-the-diagram cue WITH a figure → diagram_label", () => {
+  assert.strictEqual(
+    classifyQuestionType({prompt: "Label the parts of the plant.", options: [], hasDiagram: true}),
+    "diagram_label",
+  );
+  assert.strictEqual(
+    classifyQuestionType({prompt: "Name the parts marked A, B and C.", options: [], hasDiagram: true}),
+    "diagram_label",
+  );
+});
+
+test("classifyQuestionType: label cue WITHOUT a figure stays short_answer", () => {
+  assert.strictEqual(
+    classifyQuestionType({prompt: "Label the parts of the plant.", options: [], hasDiagram: false}),
+    "short_answer",
+  );
 });
 
 test("classifyQuestionType: no options, no cue → short_answer", () => {

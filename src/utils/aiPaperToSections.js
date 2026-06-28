@@ -88,7 +88,7 @@ function readVisual(q) {
  * x/y/tx/ty are 0..1 ratios of the image, matching the diagramLabels schema.
  * Deterministic (index-based ids) so the converter stays node-testable.
  */
-function defaultDiagramLabels(labels) {
+export function defaultDiagramLabels(labels) {
   const arr = (Array.isArray(labels) ? labels : [])
     .map((s) => String(s ?? '').trim())
     .filter(Boolean)

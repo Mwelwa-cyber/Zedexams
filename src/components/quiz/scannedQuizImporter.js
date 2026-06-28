@@ -23,6 +23,7 @@
 
 import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
 import { canonicalizeQuestionType } from '../../utils/questionType.js'
+import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 
@@ -259,9 +260,15 @@ function mapVisionQuestion(q, order, options, deps) {
   }
 
   // The backend now classifies each question (mcq / true_false / fill_blank /
-  // matching / short_answer); fold that onto the editor's canonical vocabulary
-  // (true_false→tf, fill_blank→fill_blanks). Default to mcq for older results.
-  const canonicalType = q?.type ? canonicalizeQuestionType(q.type) : 'mcq'
+  // matching / short_answer / diagram_label); fold that onto the editor's
+  // canonical vocabulary (true_false→tf, fill_blank→fill_blanks). Default to
+  // mcq for older results.
+  let canonicalType = q?.type ? canonicalizeQuestionType(q.type) : 'mcq'
+  // A "label the diagram" question is stored as the editor's `diagram` type
+  // with diagramMode='identify' (that's what surfaces the label-layer editor);
+  // remember to set those once the overrides object exists.
+  const isLabelDiagram = canonicalType === 'diagram_label'
+  if (isLabelDiagram) canonicalType = 'diagram'
   const isChoice = canonicalType === 'mcq' || canonicalType === 'tf'
 
   const overrides = {
@@ -294,6 +301,16 @@ function mapVisionQuestion(q, order, options, deps) {
   }
   const wordBank = (Array.isArray(q?.wordBank) ? q.wordBank : []).map(s => String(s ?? '').trim()).filter(Boolean)
   if (wordBank.length) overrides.wordBank = wordBank
+
+  // Label-the-diagram: switch the diagram editor into "identify" mode and seed
+  // the parts the learner must name as positioned leader-line labels (default
+  // margin placement; the teacher drags each leader tip onto the figure once
+  // it's attached). The figure itself is attached by the diagram pass below.
+  if (isLabelDiagram) {
+    overrides.diagramMode = 'identify'
+    const labels = defaultDiagramLabels(Array.isArray(q?.diagramLabels) ? q.diagramLabels : [])
+    if (labels.length) overrides.diagramLabels = labels
+  }
 
   const diagrams = Array.isArray(q?.diagrams) ? q.diagrams : []
   const hasCroppableDiagram = diagrams.some(d => d?.box)

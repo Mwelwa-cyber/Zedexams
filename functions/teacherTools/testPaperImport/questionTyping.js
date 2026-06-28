@@ -22,7 +22,7 @@
 // The types the importer is allowed to emit. Deliberately a small set that maps
 // cleanly onto the quiz editor's vocabulary (true_false→tf, fill_blank→
 // fill_blanks via canonicalizeQuestionType on the client).
-const ALLOWED_TYPES = ["mcq", "true_false", "fill_blank", "matching", "short_answer"];
+const ALLOWED_TYPES = ["mcq", "true_false", "fill_blank", "matching", "short_answer", "diagram_label"];
 const ALLOWED_SET = new Set(ALLOWED_TYPES);
 
 // Common model/alias spellings folded onto our set.
@@ -48,6 +48,13 @@ const TYPE_ALIASES = {
   structured: "short_answer",
   open: "short_answer",
   written: "short_answer",
+  label_diagram: "diagram_label",
+  label_the_diagram: "diagram_label",
+  labelling: "diagram_label",
+  labeling: "diagram_label",
+  diagram_label: "diagram_label",
+  labelled_diagram: "diagram_label",
+  labeled_diagram: "diagram_label",
 };
 
 function clean(value) {
@@ -81,11 +88,15 @@ function looksTrueFalse(options) {
 // A run of underscores, a ▭ answer box, or a "fill in the blank" cue.
 const BLANK_RE = /_{2,}|▭|\.{4,}|\bfill in\b|\bfill the blank|complete the (?:sentence|blank)/i;
 const MATCH_RE = /\bmatch(?:ing)?\b|\bcolumn a\b|\bcolumn b\b|\bjoin (?:the|each)\b|draw a line to (?:match|join)/i;
+// "Label the diagram / figure", "name the parts", "label the parts marked A, B".
+const LABEL_DIAGRAM_RE = /\blabel (?:the |each )?(?:diagram|figure|picture|parts|structures?)\b|\bname the (?:labelled |marked )?parts\b|\blabel (?:and name|the parts marked)\b/i;
 
 /**
  * Infer the question type from the stem + options when the model didn't classify.
+ * `hasDiagram` lets us distinguish a "label the diagram" task (figure present)
+ * from a plain instruction that merely mentions a diagram.
  */
-function classifyQuestionType({prompt, options, optionsAreImages} = {}) {
+function classifyQuestionType({prompt, options, optionsAreImages, hasDiagram} = {}) {
   const stem = clean(prompt);
   const opts = (Array.isArray(options) ? options : []).map(clean).filter(Boolean);
 
@@ -93,6 +104,7 @@ function classifyQuestionType({prompt, options, optionsAreImages} = {}) {
   // Pictorial options or two-plus real choices read as multiple choice.
   if (optionsAreImages || opts.length >= 2) return "mcq";
   // No usable options → look at the stem.
+  if (hasDiagram && LABEL_DIAGRAM_RE.test(stem)) return "diagram_label";
   if (MATCH_RE.test(stem)) return "matching";
   if (BLANK_RE.test(stem)) return "fill_blank";
   return "short_answer";

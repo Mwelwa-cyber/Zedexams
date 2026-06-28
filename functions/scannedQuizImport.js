@@ -109,9 +109,11 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- questionType: classify EACH question — 'mcq' (printed answer choices),",
   "  'true_false' (a statement with True/False), 'fill_blank' (a sentence with a",
   "  blank line / underline / box to complete), 'matching' (two columns to join),",
-  "  or 'short_answer' (the learner writes on blank lines). Capture ALL of these",
-  "  types, not only multiple choice. Use 'short_answer' for any written-response",
-  "  item that is not a long essay/composition.",
+  "  'diagram_label' (label or name the parts of a printed figure, e.g. \"label",
+  "  the parts of the plant\" / \"name the parts marked A, B, C\"), or",
+  "  'short_answer' (the learner writes on blank lines). Capture ALL of these",
+  "  types, not only multiple choice. Use 'short_answer' for any other",
+  "  written-response item that is not a long essay/composition.",
   "- marks: the marks printed for the question (e.g. a trailing [3] or",
   "  (2 marks)); omit when none are printed.",
   "- options: one string per printed choice (usually 4: A, B, C, D), in order,",
@@ -122,6 +124,9 @@ const CLAUDE_SYSTEM_PROMPT = [
   "  matched FROM, right = options matched TO). Do NOT guess the pairing.",
   "- wordBank: if a box/list of candidate answers is printed with the question",
   "  (common for fill-in-the-blank), return those words as an array; else omit.",
+  "- diagramLabels: for a 'diagram_label' question, list the parts the learner",
+  "  must name in reading order (the printed markers like A, B, C, or the named",
+  "  parts if shown). Such a question always has its figure — set hasDiagram.",
   "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
   "  never guess. The teacher sets answers afterwards.",
   "- explanation: ''.",
@@ -262,13 +267,14 @@ const SCANNED_TOOL_SCHEMA = {
         prompt: {type: "string"},
         questionType: {
           type: "string",
-          enum: ["mcq", "true_false", "fill_blank", "matching", "short_answer"],
+          enum: ["mcq", "true_false", "fill_blank", "matching", "short_answer", "diagram_label"],
           description:
             "What KIND of question this is: 'mcq' (choose one of several " +
             "printed options), 'true_false', 'fill_blank' (a sentence with a " +
-            "blank/underline to complete), 'matching' (join two columns), or " +
+            "blank/underline to complete), 'matching' (join two columns), " +
+            "'diagram_label' (label/name the parts of a printed figure), or " +
             "'short_answer' (the learner writes an answer on blank lines). " +
-            "Use 'short_answer' for any written-response item.",
+            "Use 'short_answer' for any other written-response item.",
         },
         marks: {
           type: "integer",
@@ -305,6 +311,14 @@ const SCANNED_TOOL_SCHEMA = {
           description:
             "Any printed word bank / box of candidate answers shown with the " +
             "question (common on fill-in-the-blank items). Omit when none.",
+        },
+        diagramLabels: {
+          type: "array",
+          items: {type: "string"},
+          description:
+            "For questionType='diagram_label': the parts/labels the learner " +
+            "must name, in reading order (e.g. the printed markers 'A','B','C' " +
+            "or the named parts if shown). Omit otherwise.",
         },
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
@@ -604,7 +618,7 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   // explicit non-option type we keep the original strict MCQ gate so a misread
   // 1-option fragment is still dropped rather than imported as junk.
   const explicitType = normaliseQuestionType(raw?.questionType);
-  const OPTIONLESS_TYPES = new Set(["short_answer", "fill_blank", "matching"]);
+  const OPTIONLESS_TYPES = new Set(["short_answer", "fill_blank", "matching", "diagram_label"]);
   if (!optionsAreImages) {
     options = rawOptions.filter(Boolean).slice(0, 6);
     if (options.length < 2) {
@@ -621,8 +635,10 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   }
 
   // Final type: an explicit recognised type wins; otherwise classify from the
-  // content (so a two-option True/False set is typed tf, not mcq).
-  const type = explicitType || classifyQuestionType({prompt, options, optionsAreImages});
+  // content (so a two-option True/False set is typed tf, not mcq, and a
+  // "label the diagram" with a figure is typed diagram_label).
+  const type = explicitType ||
+    classifyQuestionType({prompt, options, optionsAreImages, hasDiagram: Boolean(raw?.hasDiagram)});
   // Marks: an explicit model value wins; else a trailing "[3 marks]" on the
   // stem; else default 1. Bounded to a sane 1..50.
   const parsedMarks = extractMarks(prompt).marks;
@@ -639,6 +655,8 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   const matchingLeft = type === "matching" ? sanitiseStringList(raw?.matchingLeft, 20) : [];
   const matchingRight = type === "matching" ? sanitiseStringList(raw?.matchingRight, 20) : [];
   const wordBank = sanitiseStringList(raw?.wordBank, 30);
+  // The parts the learner must name on a "label the diagram" question.
+  const diagramLabels = type === "diagram_label" ? sanitiseStringList(raw?.diagramLabels, 12) : [];
 
   return {
     sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
@@ -650,13 +668,15 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     marks,
     // A figure present in diagrams[] implies hasDiagram even if the model
     // forgot to set the flag — we must never silently drop a question's figure.
-    hasDiagram: Boolean(raw?.hasDiagram) || diagrams.length > 0,
+    // A label-the-diagram question always depends on its figure.
+    hasDiagram: Boolean(raw?.hasDiagram) || diagrams.length > 0 || type === "diagram_label",
     diagrams,
     optionsAreImages,
     optionImageBoxes,
     matchingLeft,
     matchingRight,
     wordBank,
+    diagramLabels,
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
     sharedInstruction: clampString(raw?.instruction, 1200).trim(),
     sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
