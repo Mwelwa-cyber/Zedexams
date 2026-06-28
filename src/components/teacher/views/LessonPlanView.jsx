@@ -405,7 +405,6 @@ function HeaderBlock({ header = {} }) {
     ['Sub-topic', header.subtopic],
     ['Term & Week', header.termAndWeek],
     ['Attendance', attendance],
-    ['Medium', header.mediumOfInstruction],
   ].filter(([, v]) => v !== undefined && v !== null && v !== '')
 
   return (

@@ -244,7 +244,6 @@ function renderMetaTable(meta) {
   if (meta.totalLessons > 1) {
     rows.push(['Lesson Sequence', `Lesson ${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`])
   }
-  rows.push(['Medium of Instruction', esc(meta.medium || 'English')])
   return `<table class="meta-table"><tbody>${rows
     .map((r) => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`)
     .join('')}</tbody></table>`
@@ -268,7 +267,6 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)])
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___'])
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___'])
-  items.push(['Medium', esc(meta.medium || 'English')])
   if (meta.totalLessons > 1) {
     items.push(['Lesson Sequence', `Lesson ${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`])
   }
@@ -303,7 +301,6 @@ function renderOfficialHeader(meta) {
   if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
   if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
   pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide'])
-  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')])
   if (meta.totalLessons > 1) {
     pairs.push(['LESSON', `${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`, 'wide'])
   }
@@ -531,7 +528,6 @@ function renderOldHeader(meta, data) {
   pairs.push(['SUBJECT', esc(meta.subject || '')])
   pairs.push(['DURATION', esc(String(meta.duration || '40')) + ' minutes'])
   pairs.push(['GRADE', esc(meta.klass || meta.grade || '')])
-  pairs.push(['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')])
   pairs.push(['TOPIC', esc(data.topic || ''), 'wide'])
   pairs.push(['SUB-TOPIC', esc(data.subtopic || ''), 'wide'])
   if (meta.showEnrolment) pairs.push(['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
@@ -663,7 +659,6 @@ function renderOldModern(data, meta) {
     ['SUBJECT', esc(meta.subject || '')],
     ['DURATION', esc(String(meta.duration || '40')) + ' minutes'],
     ['TOPIC', esc(data.topic || '')],
-    ['MEDIUM OF INSTRUCTION', esc(meta.medium || 'English')],
     ['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______'],
     ['SUB-TOPIC', esc(data.subtopic || ''), 'wide'],
   ]
