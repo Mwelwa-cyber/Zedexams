@@ -55,6 +55,18 @@ export const AGENTS = [
     invocation: 'Use the content-reviewer subagent after Cala passes a draft.',
   },
   {
+    id: 'qix',
+    name: 'Qix',
+    role: 'Question Bank Reviewer',
+    department: 'content',
+    mission: 'Reviews every captured question for the Central Question Bank — dedup, answer/curriculum/grade/quality checks — and gates it into the Master Bank.',
+    inputs: 'A questionBank/{id} doc (status pending_review)',
+    outputs: '{ reviewStatus, masterEligible, duplicateOf, aiReview }',
+    wraps: 'functions/agents/questionReview.js + questionDedupCore.js (Haiku)',
+    runtime: ['cloud-function'],
+    invocation: 'Auto-runs in the background whenever a teacher creates/imports a question. Verdicts surface in /admin/question-review.',
+  },
+  {
     id: 'pubo',
     name: 'Pubo',
     role: 'Publisher',

@@ -197,6 +197,14 @@ const STUDIO_GROUPS = [
         to: '/teacher/test-papers',
       },
       {
+        img: iconLibrary,
+        tone: 'indigo',
+        badge: 'NEW',
+        title: 'Question Bank',
+        tagline: 'Search your saved questions and the platform Master Bank. Reuse, duplicate, favourite.',
+        to: '/teacher/question-bank',
+      },
+      {
         img: iconAssessments,
         tone: 'indigo',
         badge: 'NEW',

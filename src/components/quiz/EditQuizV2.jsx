@@ -22,6 +22,7 @@ import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { classifyOnPublish } from '../../utils/quizClassification.js'
+import { captureQuestionsToBank } from '../../utils/questionBankService'
 import {
   validateStandaloneQuestion as sharedValidateStandaloneQuestion,
   collectQuizIssues,
@@ -1690,6 +1691,19 @@ export default function EditQuizV2() {
         deletedIds,
       )
       applyAssignedIds(saveIdMap)
+
+      // Central Question Bank — capture finalized questions in the background
+      // (no Share button). Only on publish/submit, not on every draft autosave,
+      // so we don't flood the bank with near-identical work-in-progress rows.
+      // Fire-and-forget: capture must never delay navigation or surface errors.
+      if (mode !== 'draft') {
+        captureQuestionsToBank(
+          currentUser.uid,
+          serializedSections.questions,
+          { subject: form.subject, grade: form.grade },
+          'quiz_studio',
+        )
+      }
 
       setQuizStatus(mode)
       setDeletedIds([])

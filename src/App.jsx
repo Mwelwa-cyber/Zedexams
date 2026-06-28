@@ -133,6 +133,7 @@ const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
 const ManageContent = lazy(() => import('./components/admin/ManageContent'))
 const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
+const QuestionReviewQueue = lazy(() => import('./components/admin/QuestionReviewQueue'))
 const FeedbackInbox = lazy(() => import('./components/admin/FeedbackInbox'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
 const BulkGrantTrialsPanel = lazy(() => import('./components/admin/BulkGrantTrialsPanel'))
@@ -188,6 +189,7 @@ const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/Pri
 const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
+const CentralQuestionBank = lazy(() => import('./components/teacher/CentralQuestionBank'))
 
 // Route-level gate: Free teachers can only open the Lesson Plan studio; every
 // other generator studio is wrapped in <StudioGate>, which shows a read-only
@@ -548,6 +550,7 @@ export default function App() {
           <Route path="/admin/import/csv"               element={<AdminRoute><AdminCsvImport /></AdminRoute>} />
           <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
           <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
+          <Route path="/admin/question-review"          element={<AdminRoute><QuestionReviewQueue /></AdminRoute>} />
           <Route path="/admin/feedback"                 element={<AdminRoute><FeedbackInbox /></AdminRoute>} />
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
@@ -650,6 +653,7 @@ export default function App() {
           <Route path="/teacher/generate/sba-planner"     element={<TeacherRoute><StudioGate tool="sba_planner"><SbaYearPlanner /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/sba"                      element={<TeacherRoute><SbaHub /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
+          <Route path="/teacher/question-bank"           element={<TeacherRoute><CentralQuestionBank /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
           <Route path="/teacher/calendar"                element={<TeacherRoute><SchoolCalendar /></TeacherRoute>} />

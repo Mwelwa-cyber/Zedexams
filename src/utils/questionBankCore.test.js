@@ -7,6 +7,7 @@
 
 import {
   bankPreview, sanitizeQuestionForBank, bankRowMatches, byNewest,
+  questionFingerprint, questionTokens, extractKeywords, jaccardSimilarity,
 } from './questionBankCore.js'
 
 let failures = 0
@@ -62,6 +63,37 @@ console.log('\nbyNewest')
   ].sort(byNewest)
   assert(rows.map(r => r.id).join('') === 'bca', 'sorts newest first')
   assert([{ id: 'x' }, { id: 'y', createdAt: { seconds: 5 } }].sort(byNewest)[0].id === 'y', 'missing createdAt sorts last')
+}
+
+console.log('\nquestionFingerprint — exact-duplicate identity')
+{
+  const a = { text: 'What is <b>photosynthesis</b>?', options: ['Light', 'Water'], correctAnswer: 0 }
+  const b = { text: 'What is photosynthesis?', options: ['Water', 'Light'], correctAnswer: 1 }
+  const c = { text: 'What is respiration?', options: ['Light', 'Water'], correctAnswer: 0 }
+  assert(questionFingerprint(a) === questionFingerprint(b), 'same stem + same option set (any order, HTML stripped) → same fingerprint')
+  assert(questionFingerprint(a) !== questionFingerprint(c), 'different stem → different fingerprint')
+  assert(/^[0-9a-f]{8}$/.test(questionFingerprint(a)), 'fingerprint is 8-char hex')
+}
+
+console.log('\nquestionTokens + jaccardSimilarity — near-duplicate detection')
+{
+  const a = { text: 'Explain how photosynthesis produces glucose in green plants', options: [] }
+  const b = { text: 'Explain how photosynthesis produces glucose in green plants today', options: [] }
+  const c = { text: 'Describe the water cycle and evaporation', options: [] }
+  const simAB = jaccardSimilarity(questionTokens(a), questionTokens(b))
+  const simAC = jaccardSimilarity(questionTokens(a), questionTokens(c))
+  assert(simAB > 0.82, 'tiny wording change stays a near-duplicate (>0.82)')
+  assert(simAC < 0.3, 'different concept is not a near-duplicate')
+  assert(jaccardSimilarity([], ['x']) === 0, 'empty token set → 0 similarity')
+  assert(jaccardSimilarity(['x', 'y'], ['x', 'y']) === 1, 'identical token sets → 1')
+  assert(!questionTokens(a).includes('the'), 'stopwords are stripped from tokens')
+}
+
+console.log('\nextractKeywords')
+{
+  const kw = extractKeywords({ text: 'Name the largest planet in the solar system' }, { subject: 'Science', topic: 'Astronomy' })
+  assert(kw.includes('planet') && kw.includes('astronomy') && kw.includes('science'), 'keywords include question + topic + subject tokens')
+  assert(kw.length === new Set(kw).size, 'keywords are de-duplicated')
 }
 
 if (failures > 0) {

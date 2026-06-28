@@ -219,21 +219,34 @@ test('studyPlanProgress is owner-only and bounded', () => {
   )
 })
 
-test('questionBank is owner-scoped and not admin-readable', () => {
+test('questionBank (Central Question Bank) gates owner + master-bank + admin reads', () => {
   const block = rules.match(/match \/questionBank\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
   assert(block, 'questionBank match block not found')
+  // Reads: a teacher sees their own rows, the approved Master Bank, or (admin) all.
   assert(
     block[1].includes('resource.data.ownerId == request.auth.uid'),
-    'questionBank reads/deletes must be gated on the document owner',
+    'questionBank reads must include the document owner',
   )
+  assert(
+    block[1].includes("resource.data.get('masterEligible', false) == true"),
+    'questionBank reads must expose approved Master-Bank questions to other teachers',
+  )
+  assert(
+    block[1].includes('isAdmin()'),
+    'admins review the Central Question Bank, so they must be able to read it',
+  )
+  // Create: pin ownerId, force pending_review, and forbid self-promotion.
   assert(
     block[1].includes('incoming().ownerId == request.auth.uid'),
     'questionBank create must pin ownerId to the caller',
   )
-  // Saved questions are private teacher content — no admin backdoor.
   assert(
-    !block[1].includes('isAdmin()'),
-    'questionBank must not grant admin access to private saved questions',
+    block[1].includes("incoming().get('reviewStatus', 'pending_review') == 'pending_review'"),
+    'questionBank create must enter the review pipeline (pending_review)',
+  )
+  assert(
+    block[1].includes("incoming().get('masterEligible', false) == false"),
+    'clients must never be able to self-promote a question into the Master Bank',
   )
 })
 

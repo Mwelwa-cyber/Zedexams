@@ -206,6 +206,8 @@ const {
   createAgentJobsOnApproved,
   runFromCala,
 } = require("./agents/dispatcher");
+// Central Question Bank — Qix reviews every captured question in the background.
+const {createQuestionReviewOnWrite} = require("./agents/questionReview");
 // AI agents — Phase 3 + Phase 5 cron (QA/Eng: nightly Quill, weekly Cala).
 const {
   nightlyQaSmoke: nightlyQaSmokeCron,
@@ -2472,6 +2474,10 @@ exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKe
 // admin flips status to "approved".
 exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
 exports.agentJobsOnApproved = createAgentJobsOnApproved();
+
+// Central Question Bank — Qix reviews each captured question (questionBank/{id})
+// in the background and writes a verdict back onto the doc (africa-south1).
+exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey);
 
 // Platform Health — admin diagnostics for the agent pipeline.
 const {
