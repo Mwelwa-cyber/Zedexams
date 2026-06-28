@@ -719,4 +719,47 @@ test("carries a printed word bank on a fill_blank question", () => {
   assert.deepEqual(q.wordBank, ["Lusaka", "Ndola"]);
 });
 
+// ── label-the-diagram ────────────────────────────────────────────────────────
+test("schema + prompt carry diagram_label + diagramLabels", () => {
+  const props = SCANNED_TOOL_SCHEMA.$defs.question.properties;
+  assert.ok(props.questionType.enum.includes("diagram_label"), "questionType enum includes diagram_label");
+  assert.ok(props.diagramLabels, "schema carries diagramLabels");
+  assert.match(CLAUDE_SYSTEM_PROMPT, /diagram_label/);
+  assert.match(CLAUDE_SYSTEM_PROMPT, /diagramLabels/);
+});
+
+test("keeps a diagram_label question: optionless, hasDiagram, labels carried", () => {
+  const q = normaliseScannedQuestion(
+    {
+      prompt: "Study the diagram and label the parts marked A, B and C.",
+      options: [],
+      questionType: "diagram_label",
+      diagramLabels: ["A", "B", "C", " "],
+      hasDiagram: true,
+    },
+    [1],
+  );
+  assert.ok(q);
+  assert.equal(q.type, "diagram_label");
+  assert.deepEqual(q.options, []);
+  assert.equal(q.hasDiagram, true);
+  assert.deepEqual(q.diagramLabels, ["A", "B", "C"]); // blank dropped
+});
+
+test("diagram_label implies hasDiagram even if the model forgot the flag", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Label the parts of the flower.", options: [], questionType: "diagram_label", diagramLabels: ["petal"]},
+    [1],
+  );
+  assert.equal(q.hasDiagram, true);
+});
+
+test("does not attach diagramLabels to a non-diagram-label question", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Explain why.", options: [], questionType: "short_answer", diagramLabels: ["A", "B"]},
+    [1],
+  );
+  assert.deepEqual(q.diagramLabels, []);
+});
+
 console.log(`\nscannedQuizImport: ${passed} passed`);

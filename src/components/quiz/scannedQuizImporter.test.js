@@ -316,6 +316,29 @@ test('visionSectionsToLocal pre-populates matching columns + a word bank', () =>
   assert.deepEqual(sections[1].question.wordBank, ['Lusaka', 'Ndola'])
 })
 
+test('visionSectionsToLocal maps a diagram_label question to the identify diagram editor', () => {
+  const { sections } = visionSectionsToLocal(
+    [{ kind: 'standalone', question: {
+      text: 'Label the parts of the plant.', options: [], type: 'diagram_label',
+      diagramLabels: ['stem', 'roots', 'leaves'], hasDiagram: true, sourcePage: 1,
+    } }],
+    { pageAssetByNumber: { 1: { id: 'pg1', imageUrl: 'blob:p1', objectUrl: 'blob:p1', sourcePage: 1 } } },
+    fakeDeps,
+  )
+  const q = sections[0].question
+  // Stored as the editor's `diagram` type in identify mode (that's what
+  // surfaces the label-layer editor), not the raw 'diagram_label' string.
+  assert.equal(q.type, 'diagram')
+  assert.equal(q.diagramMode, 'identify')
+  assert.equal(q.diagramLabels.length, 3)
+  assert.deepEqual(q.diagramLabels.map(l => l.text), ['stem', 'roots', 'leaves'])
+  // Each label has 0..1 placement ratios so it renders as a leader line.
+  q.diagramLabels.forEach(l => {
+    assert.ok(l.x >= 0 && l.x <= 1 && l.y >= 0 && l.y <= 1)
+  })
+  assert.deepEqual(q.options, []) // not a choice question
+})
+
 test('visionSectionsToLocal builds a comprehension passage with grouped questions', () => {
   const { sections } = visionSectionsToLocal(
     [{ kind: 'passage', passageKind: 'comprehension', title: 'The Lion', passageText: 'Once...', questions: [mcq({ text: 'Who?' }), mcq({ text: 'Where?' })] }],
