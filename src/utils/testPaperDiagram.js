@@ -53,6 +53,13 @@ function messageFromError(error) {
   if (code.includes('failed-precondition') && /not configured/i.test(msg)) {
     return 'Diagram generation is not available — admin needs to configure the image key.'
   }
+  // A bare "internal" (no descriptive message) means the function instance was
+  // aborted by the platform — a slow image generation that ran past the timeout
+  // or ran out of memory — so the server's own try/catch never got to attach a
+  // reason. Surface something actionable instead of the cryptic word "internal".
+  if (code.includes('internal') || !msg || msg.toLowerCase() === 'internal') {
+    return 'The diagram service took too long or hit an error. Try again, or keep / clean the original image instead.'
+  }
   return msg || 'Could not process that diagram. Please try again.'
 }
 

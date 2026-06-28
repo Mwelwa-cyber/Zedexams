@@ -26,6 +26,7 @@ import {
   computeContentBounds,
   cropImageData,
   cleanPixels,
+  loadCleanableImage,
 } from './diagramClean.js'
 
 let passed = 0
@@ -259,5 +260,99 @@ test('cleanPixels with blackAndWhite:false keeps greyscale (not 1-bit)', () => {
   for (let i = 0; i < out.data.length; i += 4) values.add(out.data[i])
   assert.ok(values.size > 2, 'expected a greyscale range, not just black/white')
 })
+
+// ─── loadCleanableImage (CORS-safe loader) ─────────────────────────────────────
+// Regression for the "Could not clean this figure automatically" bug: the figure
+// thumbnail loads the URL with a plain <img> (no crossOrigin), poisoning the
+// cache, so a naive crossOrigin='anonymous' re-request reused the tainted entry
+// and getImageData() threw. loadCleanableImage must cache-bust the CORS request
+// and fall back to a same-origin object URL when the CORS load fails.
+
+// Minimal stubs so the browser-only loader runs under node.
+function withStubs({ imgShouldFail = false, fetchOk = true } = {}, run) {
+  const created = []
+  const savedImage = global.Image
+  const savedFetch = global.fetch
+  const savedURL = global.URL
+  const revoked = []
+  global.Image = class {
+    constructor() {
+      this.crossOrigin = null
+      created.push(this)
+    }
+    set src(value) {
+      this._src = value
+      // blob:/object URLs always load; CORS URLs honour imgShouldFail.
+      const isCors = this.crossOrigin === 'anonymous'
+      void Promise.resolve().then(() => {
+        if (isCors && imgShouldFail) this.onerror?.(new Error('blocked'))
+        else this.onload?.()
+        return undefined
+      })
+    }
+    get src() {
+      return this._src
+    }
+  }
+  global.fetch = async () => ({
+    ok: fetchOk,
+    status: fetchOk ? 200 : 403,
+    blob: async () => ({ size: 1 }),
+  })
+  global.URL = {
+    createObjectURL: () => 'blob:object-url',
+    revokeObjectURL: (u) => revoked.push(u),
+  }
+  return Promise.resolve(run({ created, revoked })).finally(() => {
+    global.Image = savedImage
+    global.fetch = savedFetch
+    global.URL = savedURL
+  })
+}
+
+async function asyncTest(name, fn) {
+  await fn()
+  passed += 1
+  console.log(`  ✓ ${name}`)
+}
+
+await asyncTest('loadCleanableImage cache-busts the CORS request for remote URLs', () =>
+  withStubs({}, async ({ created }) => {
+    const img = await loadCleanableImage('https://cdn.example.com/figure.png?alt=media')
+    assert.equal(created.length, 1, 'expected one image load')
+    assert.equal(img.crossOrigin, 'anonymous')
+    assert.ok(/[?&]_cors=\d+/.test(img.src), 'expected a _cors cache-buster on the URL')
+    assert.ok(img.src.startsWith('https://cdn.example.com/figure.png?alt=media&_cors='))
+  }),
+)
+
+await asyncTest('loadCleanableImage loads blob:/data: URLs directly without CORS', () =>
+  withStubs({}, async ({ created }) => {
+    const img = await loadCleanableImage('data:image/png;base64,AAAA')
+    assert.equal(created.length, 1)
+    assert.equal(img.crossOrigin, null, 'same-origin source needs no CORS request')
+    assert.equal(img.src, 'data:image/png;base64,AAAA', 'no cache-buster on data URLs')
+  }),
+)
+
+await asyncTest('loadCleanableImage falls back to fetch→object-URL when the CORS load fails', () =>
+  withStubs({ imgShouldFail: true, fetchOk: true }, async ({ created, revoked }) => {
+    const img = await loadCleanableImage('https://cdn.example.com/figure.png')
+    // First (CORS) attempt errors; second loads the same-origin object URL.
+    assert.equal(created.length, 2)
+    assert.equal(img.src, 'blob:object-url')
+    assert.equal(img.crossOrigin, null)
+    assert.deepEqual(revoked, ['blob:object-url'], 'object URL is revoked after use')
+  }),
+)
+
+await asyncTest('loadCleanableImage surfaces a clear error when the fetch fallback also fails', () =>
+  withStubs({ imgShouldFail: true, fetchOk: false }, async () => {
+    await assert.rejects(
+      loadCleanableImage('https://cdn.example.com/figure.png'),
+      /Could not load the image to clean \(403\)/,
+    )
+  }),
+)
 
 console.log(`\n${passed} diagramClean assertions passed.`)
