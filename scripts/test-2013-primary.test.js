@@ -9,10 +9,11 @@
 
 import assert from 'node:assert'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fullCode } from './lib/syllabusPdfTable.mjs'
-import { CONFIGS } from './extract-2013-primary.mjs'
+import { CONFIGS, assertReadablePdf } from './extract-2013-primary.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -32,6 +33,43 @@ check('fullCode reads the leading dotted code', () => {
   assert.strictEqual(fullCode('1.1 NUMBERS AND NOTATION'), '1.1')
   assert.strictEqual(fullCode('The Heart'), null)
 })
+
+// Path-traversal guard on CLI-supplied PDF paths (the security-review concern):
+// the validator must reject crafted args that would read non-PDF files
+// (`../../etc/passwd`, `../.env`) and accept only a real `.pdf`.
+console.log('\npath guard')
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-2013-guard-'))
+try {
+  check('rejects a traversal path to /etc/passwd (not a .pdf)', () => {
+    assert.throws(() => assertReadablePdf('math', '../../../../etc/passwd'), /expected a \.pdf file/)
+  })
+  check('rejects a traversal path to a .env file (not a .pdf)', () => {
+    assert.throws(() => assertReadablePdf('math', '../../.env'), /expected a \.pdf file/)
+  })
+  check('rejects a null byte in the path', () => {
+    assert.throws(() => assertReadablePdf('math', 'a\0.pdf'), /invalid path/)
+  })
+  check('rejects a non-string path', () => {
+    assert.throws(() => assertReadablePdf('math', undefined), /invalid path/)
+  })
+  check('rejects a .pdf path that does not exist', () => {
+    assert.throws(() => assertReadablePdf('math', path.join(tmpDir, 'missing.pdf')), /not a readable file/)
+  })
+  check('rejects a directory named like a .pdf', () => {
+    const d = path.join(tmpDir, 'dir.pdf')
+    fs.mkdirSync(d)
+    assert.throws(() => assertReadablePdf('math', d), /not a readable file/)
+  })
+  check('accepts a real .pdf file and returns its canonical absolute path', () => {
+    const f = path.join(tmpDir, 'syllabus.pdf')
+    fs.writeFileSync(f, '%PDF-1.4\n')
+    const resolved = assertReadablePdf('math', f)
+    assert.strictEqual(resolved, fs.realpathSync(f))
+    assert.ok(path.isAbsolute(resolved), 'expected an absolute path')
+  })
+} finally {
+  fs.rmSync(tmpDir, { recursive: true, force: true })
+}
 
 for (const rel of FILES) {
   console.log(`\n${rel}`)

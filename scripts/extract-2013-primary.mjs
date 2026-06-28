@@ -93,14 +93,22 @@ export async function extractSubject(cfg, pdfPath) {
 }
 
 // This is a manually-run, developer-only migration tool, but validate the
-// CLI-supplied paths anyway so a typo or copy-paste can't make it read a
-// non-PDF (e.g. a dotfile): reject null bytes and require an existing .pdf
-// file. The source PDFs legitimately live outside the repo, so a fixed
-// directory whitelist isn't applicable.
-function assertReadablePdf(arg, p) {
-  if (p.includes('\0')) throw new Error(`${arg}: invalid path`)
+// CLI-supplied paths anyway so a typo or copy-paste — or a crafted argument —
+// can't make it read a non-PDF (e.g. a dotfile like `.env` or `/etc/passwd`).
+// The source PDFs legitimately live outside the repo, so a fixed directory
+// whitelist isn't applicable; instead we (a) require a real `.pdf` file and
+// (b) canonicalise the path (resolving `..` segments and symlinks) so the path
+// that is actually read is unambiguous and still ends in `.pdf`. That closes
+// the path-traversal vector: `a/../../../etc/passwd` or `x.pdf -> /etc/shadow`
+// either fail the extension check or resolve to a non-`.pdf` target.
+// Returns the canonical absolute path to read from.
+export function assertReadablePdf(arg, p) {
+  if (typeof p !== 'string' || p.includes('\0')) throw new Error(`${arg}: invalid path`)
   if (!/\.pdf$/i.test(p)) throw new Error(`${arg}: expected a .pdf file, got ${p}`)
   if (!fs.existsSync(p) || !fs.statSync(p).isFile()) throw new Error(`${arg}: not a readable file: ${p}`)
+  const resolved = fs.realpathSync(path.resolve(p))
+  if (!/\.pdf$/i.test(resolved)) throw new Error(`${arg}: expected a .pdf file, got ${resolved}`)
+  return resolved
 }
 
 async function main() {
@@ -112,7 +120,9 @@ async function main() {
     if (m) paths[m[1]] = m[2]
   }
   for (const cfg of Object.values(CONFIGS)) {
-    if (paths[cfg.arg]) assertReadablePdf(cfg.arg, paths[cfg.arg])
+    // Replace the raw CLI string with the validated, canonical path that
+    // assertReadablePdf vetted — so every downstream read uses the safe path.
+    if (paths[cfg.arg]) paths[cfg.arg] = assertReadablePdf(cfg.arg, paths[cfg.arg])
   }
   const extracted = {}
   for (const cfg of Object.values(CONFIGS)) {
