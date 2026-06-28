@@ -280,7 +280,19 @@ export default function LessonPlanStudio() {
       const result = await generateCallable({
         systemPrompt,
         userPrompt,
-        context: null,
+        // Lesson coordinates so the server can ground the plan on the teacher's
+        // OWN saved Scheme of Work / Weekly Forecast (resolveTeacherPlanContext).
+        // Previously this was null, so that grounding never ran — the studio
+        // ignored the teacher's pacing entirely. The resolver is vocabulary-
+        // tolerant, so the studio's "Grade 4" / "Form 1" labels work as-is.
+        context: {
+          grade: lessonDetails.grade || '',
+          subject: lessonDetails.subject || '',
+          term: lessonDetails.term || '',
+          week: lessonDetails.week || '',
+          topic: topicData.topic || '',
+          subtopic: topicData.subtopic || '',
+        },
       })
 
       const raw = String(result.data?.text || '')

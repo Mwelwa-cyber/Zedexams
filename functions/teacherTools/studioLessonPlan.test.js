@@ -1,0 +1,154 @@
+/**
+ * Plain-node tests for studioLessonPlan.js — the Lesson Plan Studio generation
+ * core (runStudioLessonPlan).
+ *
+ * Guards the "studio fails to create lesson plans" regression: the studio must
+ * call Claude with forced-tool JSON output and with thinking disabled + low
+ * effort, otherwise Sonnet 4.6's default high-effort reasoning eats the token
+ * budget and truncates the JSON, breaking the studio's JSON.parse.
+ *
+ * Run: node functions/teacherTools/studioLessonPlan.test.js
+ */
+
+"use strict";
+
+const assert = require("node:assert");
+
+// ── Mutable mock state (closed over by the Module._load stubs) ───────────────
+let lastCallClaudeOpts = null;
+let callClaudeReturn = null;
+let resolveTeacherPlanImpl = async () => "<teacher_plans>BLOCK</teacher_plans>";
+let assertAndIncrementCalls = 0;
+let loggedDocs = [];
+
+// ── Stub dependencies that studioLessonPlan.js pulls in ─────────────────────
+const Module = require("node:module");
+const originalLoad = Module._load.bind(Module);
+Module._load = function(id, parent, isMain) {
+  if (id === "firebase-admin") {
+    return {
+      firestore: Object.assign(
+        () => ({collection: () => ({add: async (d) => { loggedDocs.push(d); }})}),
+        {FieldValue: {serverTimestamp: () => "TS"}},
+      ),
+    };
+  }
+  if (id === "firebase-functions/v2/https") {
+    const HttpsError = class extends Error {
+      constructor(code, msg) { super(msg); this.code = code; }
+    };
+    return {onCall: (_opts, handler) => handler, HttpsError};
+  }
+  if (id === "../aiService") {
+    return {
+      getAnthropicApiKey: () => "test-key",
+      getUserRole: async () => "teacher",
+      isStaffRole: () => true,
+    };
+  }
+  if (id === "./anthropicClient") {
+    return {
+      DEFAULT_MODEL: "claude-sonnet-4-6",
+      callClaude: async (_key, opts) => {
+        lastCallClaudeOpts = opts;
+        if (callClaudeReturn instanceof Error) throw callClaudeReturn;
+        return callClaudeReturn;
+      },
+    };
+  }
+  if (id === "./usageMeter") {
+    return {
+      assertAndIncrement: async () => {
+        assertAndIncrementCalls++;
+        return {plan: "free", used: 1, limit: 10};
+      },
+    };
+  }
+  if (id === "./teacherPlanContext") {
+    return {resolveTeacherPlanContext: (...a) => resolveTeacherPlanImpl(...a)};
+  }
+  return originalLoad(id, parent, isMain);
+};
+
+const {runStudioLessonPlan} = require("./studioLessonPlan");
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+let passed = 0;
+function ok(name, cond) {
+  assert.ok(cond, `FAIL: ${name}`);
+  passed++;
+  console.log(`  ok  ${name}`);
+}
+
+function resetMocks() {
+  lastCallClaudeOpts = null;
+  callClaudeReturn = {
+    parsed: {lessonGoal: "Learners identify states of matter.", stages: [{name: "INTRODUCTION"}]},
+    text: "",
+    usage: {inputTokens: 100, outputTokens: 200},
+    model: "claude-sonnet-4-6",
+  };
+  resolveTeacherPlanImpl = async () => "<teacher_plans>BLOCK</teacher_plans>";
+  assertAndIncrementCalls = 0;
+  loggedDocs = [];
+}
+
+const baseArgs = (overrides = {}) => ({
+  uid: "teacher-1",
+  systemPrompt: "You are a Zambian teacher.",
+  userPrompt: "Generate a lesson plan.",
+  context: {grade: "Grade 5", subject: "integrated_science", term: "1", topic: "Matter", subtopic: "States"},
+  apiKey: "test-key",
+  ...overrides,
+});
+
+// ── Tests ─────────────────────────────────────────────────────────────────
+(async () => {
+  // 1. The regression guard: forced-tool mode + thinking off + low effort.
+  resetMocks();
+  await runStudioLessonPlan(baseArgs());
+  ok("uses forced-tool mode", lastCallClaudeOpts.mode === "tool");
+  ok("passes a tool input schema", lastCallClaudeOpts.toolInputSchema &&
+    lastCallClaudeOpts.toolInputSchema.type === "object");
+  ok("disables thinking (no high-effort token burn)",
+    lastCallClaudeOpts.thinking && lastCallClaudeOpts.thinking.type === "disabled");
+  ok("pins effort low",
+    lastCallClaudeOpts.outputConfig && lastCallClaudeOpts.outputConfig.effort === "low");
+  ok("gives the plan a generous token budget", lastCallClaudeOpts.maxTokens >= 8000);
+
+  // 2. Returns clean, parseable JSON (the studio frontend JSON.parses this).
+  resetMocks();
+  const res = await runStudioLessonPlan(baseArgs());
+  const parsed = JSON.parse(res.text);
+  ok("returns JSON that round-trips", parsed.lessonGoal === "Learners identify states of matter.");
+  ok("returns usage", res.usage && res.usage.outputTokens === 200);
+  ok("meters the lesson_plan quota once", assertAndIncrementCalls === 1);
+  ok("logs an aiGenerations row", loggedDocs.length === 1 &&
+    loggedDocs[0].tool === "lesson_plan_studio");
+
+  // 3. Teacher-plan grounding is passed through as the context block.
+  resetMocks();
+  await runStudioLessonPlan(baseArgs());
+  ok("passes teacher-plan block to Claude",
+    lastCallClaudeOpts.cbcContextBlock === "<teacher_plans>BLOCK</teacher_plans>");
+
+  // 4. Fail-open: a grounding lookup error must NOT block generation.
+  resetMocks();
+  resolveTeacherPlanImpl = async () => { throw new Error("firestore down"); };
+  const res4 = await runStudioLessonPlan(baseArgs());
+  ok("still generates when grounding lookup throws", JSON.parse(res4.text).stages.length === 1);
+  ok("sends null context block on grounding failure",
+    lastCallClaudeOpts.cbcContextBlock === null);
+
+  // 5. No teacher plan found → null context block, still generates.
+  resetMocks();
+  resolveTeacherPlanImpl = async () => "";
+  const res5 = await runStudioLessonPlan(baseArgs());
+  ok("generates with no teacher plan", Boolean(JSON.parse(res5.text).lessonGoal));
+  ok("null context block when no plan matches", lastCallClaudeOpts.cbcContextBlock === null);
+
+  console.log(`\n${passed} assertions passed.`);
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

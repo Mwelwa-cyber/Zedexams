@@ -7,9 +7,26 @@
  *
  * The function:
  *   1. Authenticates + checks teacher role.
- *   2. Meters usage under the existing `lesson_plan` tool quota.
- *   3. Calls Claude with the studio's prompts.
- *   4. Returns { text } — the raw JSON string from the model (studio parses it).
+ *   2. Grounds the plan on the teacher's OWN saved Scheme of Work / Weekly
+ *      Forecast (resolveTeacherPlanContext) when the studio sends lesson
+ *      coordinates in `context`.
+ *   3. Meters usage under the existing `lesson_plan` tool quota.
+ *   4. Calls Claude with forced-tool JSON output (mode: "tool") so the model
+ *      can never wrap the plan in prose / markdown fences, and with thinking
+ *      disabled + low effort so Sonnet 4.6's default high-effort reasoning
+ *      does not eat the token budget and truncate the JSON.
+ *   5. Returns { text } — the plan as a clean JSON string (studio parses it).
+ *
+ * Why mode "tool" + thinking off (the fix for "studio fails to create plans"):
+ * Sonnet 4.6 defaults to effort "high" when `outputConfig` is unset, so a
+ * plain `mode: "json"` call spent most of its 6144-token budget thinking and
+ * truncated the JSON object. The truncated text failed the studio's
+ * `JSON.parse`, surfacing as a generic "Something went wrong". Forcing a tool
+ * call guarantees a well-formed object, and pinning thinking off + effort low
+ * (the same settings the structured generateLessonPlan uses) keeps the whole
+ * token budget available for the plan itself. Lesson-plan generation is
+ * structured template-fill, not multi-step reasoning, so low effort is the
+ * right call here as it is for the schema-based generator.
  */
 
 const admin = require("firebase-admin");
@@ -19,8 +36,133 @@ const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 const {assertAndIncrement} = require("./usageMeter");
 const {resolveTeacherPlanContext} = require("./teacherPlanContext");
 
+// Pinned reasoning controls — see the file header. Mirrors generateLessonPlan.
+const STUDIO_THINKING = {type: "disabled"};
+const STUDIO_OUTPUT_CONFIG = {effort: "low"};
+
+// 8000 (was 6144 in the old mode:"json" path): a "Detailed" plan in the modern
+// format can be large; with thinking off the full budget goes to the plan, so
+// give it room rather than risk a truncated tool call.
+const STUDIO_MAX_TOKENS = 8000;
+
+// Permissive top-level shape. Its job is to anchor Claude to an object response
+// and force tool use (which eliminates JSON-parse failures) — the studio's own
+// renderer does the real shaping. `additionalProperties: true` keeps it
+// forward-compatible with both the CBC and Previous-curriculum shapes the
+// studio system prompts describe, and with future prompt tweaks. Only the two
+// fields common to BOTH curriculum modes are required.
+const STUDIO_TOOL_SCHEMA = {
+  type: "object",
+  description: "A complete Zambian lesson plan as a single JSON object, in " +
+    "the structure described by the system and user prompts.",
+  additionalProperties: true,
+  properties: {
+    header: {type: "object", additionalProperties: true},
+    generalCompetences: {type: "array", items: {type: "string"}},
+    specificCompetence: {type: "string"},
+    specificOutcome: {type: "string"},
+    lessonGoal: {type: "string"},
+    rationale: {type: "string"},
+    priorKnowledge: {type: "string"},
+    references: {type: "array", items: {type: "string"}},
+    learningEnvironment: {type: "object", additionalProperties: true},
+    materials: {type: "array", items: {type: "string"}},
+    expectedStandard: {type: "string"},
+    keyVocabulary: {type: "array", items: {type: "string"}},
+    stages: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: true,
+        properties: {
+          name: {type: "string"},
+          durationMinutes: {type: "number"},
+          teacherActivities: {type: "array", items: {type: "string"}},
+          learnerActivities: {type: "array", items: {type: "string"}},
+          assessmentCriteria: {type: "array", items: {type: "string"}},
+        },
+      },
+    },
+  },
+  required: ["lessonGoal", "stages"],
+};
+
 function sanitize(v, max) {
   return typeof v === "string" ? v.replace(/^@/g, "").trim().slice(0, max) : "";
+}
+
+/**
+ * Core studio lesson-plan generation. Auth + role are checked by the caller;
+ * this function takes already-trusted inputs so it can be unit tested without
+ * the onCall/firebase-functions plumbing.
+ *
+ * @param {object} args
+ *   uid (required), systemPrompt, userPrompt — studio prompts
+ *   context — { grade, subject, term, week, topic, subtopic } lesson coords
+ *   apiKey — resolved Anthropic key
+ * @returns {Promise<{text: string, usage: object}>}
+ */
+async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiKey}) {
+  // Ground the studio plan on the teacher's OWN saved Scheme of Work / Weekly
+  // Forecast for this grade+subject+term+week. Fail-open: an empty string when
+  // nothing matches or on any lookup error, so this never blocks a generation.
+  // The resolver is vocabulary-tolerant (matches on grade digits + normalised
+  // subject + topic overlap), so the studio's "Grade 4" / "Form 1" labels work
+  // without translation.
+  const ctx = context || {};
+  const [teacherPlansBlock, usage] = await Promise.all([
+    resolveTeacherPlanContext({
+      ownerUid: uid,
+      grade: typeof ctx.grade === "string" ? ctx.grade.slice(0, 40) : ctx.grade,
+      subject: typeof ctx.subject === "string" ? ctx.subject.slice(0, 80) : ctx.subject,
+      term: ctx.term,
+      week: ctx.week,
+      topic: typeof ctx.topic === "string" ? ctx.topic.slice(0, 200) : "",
+      subtopic: typeof ctx.subtopic === "string" ? ctx.subtopic.slice(0, 200) : "",
+    }).catch((err) => {
+      console.warn("[studioLessonPlan] teacher-plan context lookup failed", err);
+      return "";
+    }),
+    // Meter usage — shares the lesson_plan quota with the existing generator.
+    assertAndIncrement(uid, "lesson_plan"),
+  ]);
+
+  const response = await callClaude(apiKey, {
+    systemPrompt,
+    cbcContextBlock: teacherPlansBlock || null,
+    messages: [{role: "user", content: userPrompt}],
+    maxTokens: STUDIO_MAX_TOKENS,
+    temperature: 0.3,
+    thinking: STUDIO_THINKING,
+    outputConfig: STUDIO_OUTPUT_CONFIG,
+    mode: "tool",
+    toolName: "emit_lesson_plan",
+    toolDescription: "Emit the complete Zambian lesson plan as a single " +
+      "structured JSON object, matching the format described in the system " +
+      "and user prompts. Do not include any prose or commentary outside this " +
+      "tool call.",
+    toolInputSchema: STUDIO_TOOL_SCHEMA,
+  });
+
+  // mode:"tool" returns the parsed object on `parsed` (callClaudeTool throws on
+  // a missing/invalid tool_use block, so we get a well-formed object here).
+  // Re-serialise to keep the studio's existing JSON.parse contract.
+  const planJson = response && response.parsed &&
+    typeof response.parsed === "object" ? response.parsed : {};
+  const text = JSON.stringify(planJson);
+
+  // Log a lightweight generation record (no heavy schema validation).
+  admin.firestore().collection("aiGenerations").add({
+    ownerUid: uid,
+    tool: "lesson_plan_studio",
+    status: "complete",
+    modelUsed: (response && response.model) || DEFAULT_MODEL,
+    tokensIn: Number(response && response.usage && response.usage.inputTokens || 0),
+    tokensOut: Number(response && response.usage && response.usage.outputTokens || 0),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch(() => {/* non-fatal */});
+
+  return {text, usage: response.usage || usage};
 }
 
 function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
@@ -50,24 +192,6 @@ function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
         throw new HttpsError("invalid-argument", "systemPrompt and userPrompt are required.");
       }
 
-      // Ground the studio plan on the teacher's OWN saved Scheme of Work /
-      // Weekly Forecast for this grade+subject+term+week. Fail-open: an
-      // empty string when nothing matches or on any lookup error, so this
-      // never blocks a generation.
-      const ctx = (request.data && request.data.context) || {};
-      const teacherPlansBlock = await resolveTeacherPlanContext({
-        ownerUid: uid,
-        grade: typeof ctx.grade === "string" ? ctx.grade.slice(0, 40) : ctx.grade,
-        subject: typeof ctx.subject === "string" ? ctx.subject.slice(0, 80) : ctx.subject,
-        term: ctx.term,
-        week: ctx.week,
-        topic: typeof ctx.topic === "string" ? ctx.topic.slice(0, 200) : "",
-        subtopic: typeof ctx.subtopic === "string" ? ctx.subtopic.slice(0, 200) : "",
-      });
-
-      // Meter usage — shares the lesson_plan quota with the existing generator.
-      const usage = await assertAndIncrement(uid, "lesson_plan");
-
       let apiKey;
       try {
         apiKey = getAnthropicApiKey(anthropicApiKeySecret);
@@ -75,32 +199,20 @@ function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
         throw err;
       }
 
-      const response = await callClaude(apiKey, {
+      return runStudioLessonPlan({
+        uid,
         systemPrompt,
-        cbcContextBlock: teacherPlansBlock || null,
-        messages: [{role: "user", content: userPrompt}],
-        // 6144 (was 4096): a "Detailed" plan that also carries a few diagram
-        // specs needs more room so the JSON is not cut off mid-object (which
-        // would fail the studio's JSON.parse). "Summarised" plans, the new
-        // default, stay well under this.
-        maxTokens: 6144,
-        temperature: 0.3,
+        userPrompt,
+        context: (request.data && request.data.context) || {},
+        apiKey,
       });
-
-      // Log a lightweight generation record (no heavy schema validation).
-      admin.firestore().collection("aiGenerations").add({
-        ownerUid: uid,
-        tool: "lesson_plan_studio",
-        status: "complete",
-        modelUsed: response.model || DEFAULT_MODEL,
-        tokensIn: Number(response.usage && response.usage.inputTokens || 0),
-        tokensOut: Number(response.usage && response.usage.outputTokens || 0),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch(() => {/* non-fatal */});
-
-      return {text: response.text, usage};
     },
   );
 }
 
-module.exports = {createStudioGenerateLessonPlan};
+module.exports = {
+  createStudioGenerateLessonPlan,
+  // Exported for unit tests of the generation core.
+  runStudioLessonPlan,
+  STUDIO_TOOL_SCHEMA,
+};
