@@ -7013,715 +7013,262 @@
     "Grade 1": {
       "title": "CREATIVE AND TECHNOLOGY STUDIES SYLLABUS  —  GRADE 1",
       "columns": [
-        "COLUMN 1",
-        "THEME",
-        "COLUMN 3",
-        "SUB TOPIC",
-        "COLUMN 5",
-        "COLUMN 6",
-        "COLUMN 7",
+        "TOPIC",
+        "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "COLUMN 9",
-        "COLUMN 10",
-        "COLUMN 11",
-        "KNOWLEDGE"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "KNOWLEDGE"
+            "TOPIC": "1.1 Safety",
+            "SUB-TOPIC": "1.1.1 Safety in the work Environment 1.1.2 Body Posture",
+            "SPECIFIC OUTCOMES": "1.1.1.1 Demonstrate safety practices.",
+            "CONTENT": "• Safety rules in specialized rooms and playground, proper care of computers. • Safety on postural habit (Leo / Jumbo)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.1 Safety",
-            "THEME": "",
-            "COLUMN 3": "1.1.1 Safety in the work Environment 1.1.2 Body Posture",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.1.1.1 Demonstrate safety practices.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Safety rules in specialized rooms and playground, proper care of computers. • Safety on postural habit (Leo / Jumbo)",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.1.2.1 Perform correct postural",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.1.2.1 Perform correct postural",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.2 Tools and Equipment",
+            "SUB-TOPIC": "1.2.1 Hand tools",
+            "SPECIFIC OUTCOMES": "1.2.1.1Identify common tools used to make items.",
+            "CONTENT": "• Hammer, knife, axe, adze, chisels."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.2 Tools and Equipment",
-            "THEME": "",
-            "COLUMN 3": "1.2.1 Hand tools",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.2.1.1Identify common tools used to make items.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Hammer, knife, axe, adze, chisels.",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.3 Fundamental movement.",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.1.3.1 Movement\n1.1.3.1 Perform warm up activities",
+            "CONTENT": "• Moveme run, catc poetic so • Rhythmi and steps"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.3 Fundamental movement.",
-            "THEME": "",
-            "COLUMN 3": "1.1.3.1 Mo",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ve",
-            "COLUMN 6": "ment",
-            "COLUMN 7": "1.1.3.1 Perf",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "orm",
-            "COLUMN 10": "warm up activities",
-            "COLUMN 11": "• Moveme run, catc poetic so • Rhythmi and steps",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.1.3.2 Perform various movement skills.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.1.3.2 Perf",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "orm",
-            "COLUMN 10": "various movement",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.4 ICT Devices",
+            "SUB-TOPIC": "1.4.1 Types of ICT devices",
+            "SPECIFIC OUTCOMES": "1.4.1.1 Identify types of ICT devices",
+            "CONTENT": "• Desktops • Laptops • Tablets • Cell phone • Television"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "sk",
-            "COLUMN 9": "ills.",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.5.Home Management",
+            "SUB-TOPIC": "1.5.1 The House",
+            "SPECIFIC OUTCOMES": "1.5.1.1 Identify different types of houses 1.5.1.2 Describe rooms found in the house",
+            "CONTENT": "• Types of houses: village and town houses • Rooms in the house : bedroom, sitting room, kitchen, bathroom, toilet."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.4 ICT Devices",
-            "THEME": "",
-            "COLUMN 3": "1.4.1 Types of ICT devices",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.4.1.1 Identify types of ICT devices",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Desktops • Laptops • Tablets • Cell phone • Television",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.6 Materials",
+            "SUB-TOPIC": "1.6.1 Materials used to make items",
+            "SPECIFIC OUTCOMES": "1.6.1.1 Explain the materials used to make items.",
+            "CONTENT": "• Materials: (Clay, grass, metal, plastics, reeds, wood)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.5.Home Management",
-            "THEME": "",
-            "COLUMN 3": "1.5.1 The House",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.5.1.1 Identify different types of houses 1.5.1.2 Describe rooms found in the house",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Types of houses: village and town houses • Rooms in the house : bedroom, sitting room, kitchen, bathroom, toilet.",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.7 Drawing and colouring",
+            "SUB-TOPIC": "1.7.1 Types of lines 1.7.2",
+            "SPECIFIC OUTCOMES": "1.7.1.1 Identify different lines 1.7.1.2 Apply different lines for design.",
+            "CONTENT": "• Zigzag line • Curve line • Spiral lines\n• Identification of different lines • Application of lines in designs"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.6 Materials",
-            "THEME": "",
-            "COLUMN 3": "1.6.1 Materials used to make items",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.6.1.1 Explain the materials used to make items.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Materials: (Clay, grass, metal, plastics, reeds, wood)",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "1.7.3 Colouring",
+            "SPECIFIC OUTCOMES": "1.7.3.1 Colour different basic shapes Basic shapes:(Squares, Triangles, Rectangles, Circles).",
+            "CONTENT": "• Identification of basic shapes • Application of colours"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "KNOWLEDGE",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.8 Patterns",
+            "SUB-TOPIC": "1.8.1 Simp Patternsle",
+            "SPECIFIC OUTCOMES": "1.8.1.1 Pri 1.8.1.2 Dr patterns. 1.8.1.3 Tr 1.8.1.4 Te patterns nt using part of the hand aw simple shapes to form ace simple patterns. ar simple shapes and Patterns patterns, repeat pa trace patt tear patte (scribble tterns, erns, rns)",
+            "CONTENT": "• Designing and printing of patterns"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.7 Drawing and colouring",
-            "THEME": "",
-            "COLUMN 3": "1.7.1 Types of lines 1.7.2",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.7.1.1 Identify different lines 1.7.1.2 Apply different lines for design.",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Zigzag line • Curve line • Spiral lines",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "• Identification of different lines • Application of lines in designs"
+            "TOPIC": "1.9 Sound",
+            "SUB-TOPIC": "1.9.1 Expl sound oration of",
+            "SPECIFIC OUTCOMES": "1.9.1.1 Li the enviro sten to different sounds in nment.",
+            "CONTENT": "• Birds, ins songs. • Singing tr truments, cars, aditional songs\n• A l p"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "1.7.3 Colouring",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.7.3.1 Colour different basic shapes",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "Basic shapes:(Squares, Triangles, Rectangles, Circles).",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "• Identification of basic shapes • Application of colours"
+            "TOPIC": "1.10 Educational Gymnastics\n1.10 .1 Tumbling 1.10.1 Stunts",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.10.1.1 Perfo rm simple gymnastics",
+            "CONTENT": "• Gymnastic skills (arm, trunk, leg rolling, squatting, balancing)\n• Creativity in executing gymnastic skills"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.8 Patterns",
-            "THEME": "",
-            "COLUMN 3": "1.8.1 Simp Patterns",
-            "SUB TOPIC": "",
-            "COLUMN 5": "le",
-            "COLUMN 6": "1.8.1.1 Pri 1.8.1.2 Dr patterns. 1.8.1.3 Tr 1.8.1.4 Te patterns",
-            "COLUMN 7": "nt using part of the hand aw simple shapes to form ace simple patterns. ar simple shapes and",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "Patterns patterns, repeat pa trace patt tear patte",
-            "COLUMN 10": "",
-            "COLUMN 11": "(scribble tterns, erns, rns)",
-            "KNOWLEDGE": "• Designing and printing of patterns"
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.10.2.1 Demonstrate simple arm, leg activities",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.9 Sound",
-            "THEME": "",
-            "COLUMN 3": "1.9.1 Expl sound",
-            "SUB TOPIC": "",
-            "COLUMN 5": "oration of",
-            "COLUMN 6": "1.9.1.1 Li the enviro",
-            "COLUMN 7": "sten to different sounds in nment.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Birds, ins songs. • Singing tr",
-            "COLUMN 10": "",
-            "COLUMN 11": "truments, cars, aditional songs",
-            "KNOWLEDGE": "• A l p"
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.10.2.2 Perform simple rolling",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.10 Educational Gymnastics",
-            "THEME": "",
-            "COLUMN 3": "1.10 .1 Tumbling 1.10.1 Stunts",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.10.1.1 Pe",
-            "COLUMN 7": "rfo",
-            "SPECIFIC OUTCOMES": "rm simple gymnastics",
-            "COLUMN 9": "• Gymnastic skills (arm, trunk, leg rolling, squatting, balancing)",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "• Creativity in executing gymnastic skills"
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.10.2.3 Demonstrate simple balancing skills",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.10.2.1 Demonstrate simple arm, leg",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.11 Health and Fitness Management",
+            "SUB-TOPIC": "1.11.1 Fitness and Health",
+            "SPECIFIC OUTCOMES": "1.11.1.1 Perform a combination of various activities.",
+            "CONTENT": "• Fitness and health (climbing, running, jumping, deep breathing). • Use of (horizontal bars, Ropes, Sliders, Ladders, Stair cases)\n• Creativity through a combination of health and fitness activities"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "activities",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.12 Sports Skills Development",
+            "SUB-TOPIC": "1.12.1 Games 1.12.2 Field and Track events",
+            "SPECIFIC OUTCOMES": "1.12.1.1 Perform simple games",
+            "CONTENT": "• Modified conventional and traditional games • Field events (relays (20 meters sack race, hide and seek)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.10.2.2 Perform simple rolling",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.12.2.2 Perform field and track events.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "skills",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.13 Constructional Crafts",
+            "SUB-TOPIC": "1.13.1 Paper crafts",
+            "SPECIFIC OUTCOMES": "1.13.1.1 Make various item using paper.",
+            "CONTENT": "• Making of: (chain Belt house model, mask) • Paper collage"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.10.2.3 Demonstrate simple",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.13.1.2 Make paper collage",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "balancing skills",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "1.13.2 Modeling",
+            "SPECIFIC OUTCOMES": "1.13.2.1 M u odel different objects sing clay",
+            "CONTENT": "• Modeling objects (animal d birds) of free form olls fruits,"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.11 Health and Fitness Management",
-            "THEME": "",
-            "COLUMN 3": "1.11.1 Fitness and Health",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "1.11.1.1 Perform a combination of",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "• Fitness and health (climbing, running, jumping, deep breathing). • Use of (horizontal bars, Ropes, Sliders, Ladders, Stair cases)",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "• Creativity through a combination of health and fitness activities"
+            "TOPIC": "1.14 Swimming",
+            "SUB-TOPIC": "1.14.1 Water hygiene 1.14.2 Water orientation",
+            "SPECIFIC OUTCOMES": "1.14.1.1 Dem onstrate basic pool hygiene",
+            "CONTENT": "• Use of knowledge on pool hygiene and water orientation (diving, jumping, sliding, breathing, floating)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "various activities.",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "1.14.2.1 Perform simple water orientation skills",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "KNOWLEDGE",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.15 Computer Hardware",
+            "SUB-TOPIC": "1.15.1 Basic Components",
+            "SPECIFIC OUTCOMES": "1.15.1.1 Recognize basic computer components 1.15.1.2 Discus components of ICT and their use",
+            "CONTENT": "• Keyboard mouse, monitor, TV remote controller. • Letter keys (restrict to lower case)\n• Keyboard mouse,"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.12 Sports Skills Development",
-            "THEME": "",
-            "COLUMN 3": "1.12.1 Games 1.12.2 Field and Track events",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.12.1.1 Perform simple games",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Modified conventional and traditional games • Field events (relays (20 meters sack race, hide and seek)",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.16 Energy",
+            "SUB-TOPIC": "1.16.1 Sources of light",
+            "SPECIFIC OUTCOMES": "1.16.1.1. Identify the sources of light",
+            "CONTENT": "• Natural and artificial (sun, moon, candle, bulb, lamp)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.12.2.2 Perform field and track events.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.17 Health Education",
+            "SUB-TOPIC": "1.17.1 Hygiene",
+            "SPECIFIC OUTCOMES": "1.17.1.1 E t 1.17.1.2 D di xplain the uses of water in he home. emonstrate correct use of fferent toilets.",
+            "CONTENT": "• Uses of w drinking, cooking • Correct u closet: sit not squatt • Pit latrine messing u"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "1.13 Constructional Crafts",
-            "THEME": "",
-            "COLUMN 3": "1.13.1 Paper crafts",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.13.1.1 Make various item",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Making of: (chain Belt house model, mask) • Paper collage",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "using paper.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.13.1.2",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "Make paper collage",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "1.13.2 Mo",
-            "SUB TOPIC": "",
-            "COLUMN 5": "del",
-            "COLUMN 6": "ing",
-            "COLUMN 7": "1.13.2.1 M u",
-            "SPECIFIC OUTCOMES": "odel different objects sing clay",
-            "COLUMN 9": "",
-            "COLUMN 10": "• Modeling objects (animal d birds)",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "of free form olls fruits,"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.14 Swimming",
-            "THEME": "",
-            "COLUMN 3": "1.14.1 Water hygiene 1.14.2 Water orientation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.14.1.1 D",
-            "SPECIFIC OUTCOMES": "em",
-            "COLUMN 9": "onstrate basic pool",
-            "COLUMN 10": "• Use of knowledge on pool hygiene and water orientation (diving, jumping, sliding, breathing, floating)",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "hygiene",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.14.2.1 Perform simple water",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "orientation skills",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": "KNOWLEDGE"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.15 Computer Hardware",
-            "THEME": "",
-            "COLUMN 3": "1.15.1 Basic Components",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.15.1.1 Recognize basic computer components 1.15.1.2 Discus components of ICT and their use",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Keyboard mouse, monitor, TV remote controller. • Letter keys (restrict to lower case)",
-            "KNOWLEDGE": "• Keyboard mouse,"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.16 Energy",
-            "THEME": "",
-            "COLUMN 3": "1.16.1 Sources of light",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "1.16.1.1. Identify the sources of light",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Natural and artificial (sun, moon, candle, bulb, lamp)",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.17 Health Education",
-            "THEME": "",
-            "COLUMN 3": "1.17.1 Hy",
-            "SUB TOPIC": "",
-            "COLUMN 5": "gien",
-            "COLUMN 6": "e",
-            "COLUMN 7": "1.17.1.1 E t 1.17.1.2 D di",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "xplain the uses of water in he home. emonstrate correct use of fferent toilets.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Uses of w drinking, cooking • Correct u closet: sit not squatt • Pit latrine messing u",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "1.18 Software Manipulation",
-            "THEME": "",
-            "COLUMN 3": "1.18.1.Switch on/off. 1.18.2.2 Load Computer Software",
-            "SUB TOPIC": "1.18.1.Swi",
-            "COLUMN 5": "tch",
-            "COLUMN 6": "",
-            "COLUMN 7": "18.1.1.1Switch on/off ICT Devices. 1.18.2.1 Load Computer Software",
-            "SPECIFIC OUTCOMES": "18.1.1.1S",
-            "COLUMN 9": "witc",
-            "COLUMN 10": "h on/off ICT Devices.",
-            "COLUMN 11": "• Switching on/off of the TV, radio/cell phone, computer. • Opening and closing gaming software",
-            "KNOWLEDGE": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "on/off.",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 9": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "KNOWLEDGE": ""
+            "TOPIC": "1.18 Software Manipulation",
+            "SUB-TOPIC": "1.18.1.Switch on/off. 1.18.2.2 Load Computer Software\n1.18.1.Switch",
+            "SPECIFIC OUTCOMES": "18.1.1.1Switch on/off ICT Devices. 1.18.2.1 Load Computer Software\n18.1.1.1Switc h on/off ICT Devices. on/off.",
+            "CONTENT": "• Switching on/off of the TV, radio/cell phone, computer. • Opening and closing gaming software"
           }
         }
       ]
@@ -7729,800 +7276,271 @@
     "Grade 2": {
       "title": "CREATIVE AND TECHNOLOGY STUDIES SYLLABUS  —  GRADE 2",
       "columns": [
-        "COLUMN 1",
-        "THEME",
-        "COLUMN 3",
-        "SUB TOPIC",
-        "COLUMN 5",
-        "COLUMN 6",
+        "TOPIC",
+        "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "COLUMN 8",
-        "COLUMN 9",
-        "KNOWLEDGE",
-        "COLUMN 11",
-        "COLUMN 12"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.1 Safety",
+            "SUB-TOPIC": "2.1.1 First Aid",
+            "SPECIFIC OUTCOMES": "2.1.1.1 Explain first aid procedures with regards to injuries.",
+            "CONTENT": "• First Aid procedures (Report accidents)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.1 Safety",
-            "THEME": "",
-            "COLUMN 3": "2.1.1 First Aid",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.1.1.1 Explain first aid procedures with regards to injuries.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• First Aid procedures (Report accidents)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.2 Movement",
+            "SUB-TOPIC": "2.2.1 Movement",
+            "SPECIFIC OUTCOMES": "2.2.1.1 Perform various body movements.",
+            "CONTENT": "• Body movement (skip, bend, hoop, hop, balance, manipulation)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.2 Movement",
-            "THEME": "",
-            "COLUMN 3": "2.2.1 Movement",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.2.1.1 Perform various body",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Body movement (skip, bend, hoop, hop, balance, manipulation)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.3 Posture",
+            "SUB-TOPIC": "2.3.1 Stance",
+            "SPECIFIC OUTCOMES": "2.3.1.1 Explore various correct postural habits",
+            "CONTENT": "• Postural habits (sitting, standing, lifting, kneeling, walking)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "movements.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "2.3.1.2 Demonstrate correct postural habits",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.3 Posture",
-            "THEME": "",
-            "COLUMN 3": "2.3.1 Stance",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.3.1.1 Explore various correct postural",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Postural habits (sitting, standing, lifting, kneeling, walking)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.4 Tools",
+            "SUB-TOPIC": "2.4.1 Measuri Toolsng",
+            "SPECIFIC OUTCOMES": "2.4.1.1 Demons measuring trate the use of tools.",
+            "CONTENT": "• Rulers: (measur width, height). e length,"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "habits",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.5 Drawing and Colouring",
+            "SUB-TOPIC": "2.5.1 Colours",
+            "SPECIFIC OUTCOMES": "2.5.1.1 Identify prim ary colours",
+            "CONTENT": "• Primary colours and blue). (red , yellow"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.3.1.2 Demonstr",
-            "SPECIFIC OUTCOMES": "ate",
-            "COLUMN 8": "correct postural",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "2.5.2 Free drawing",
+            "SPECIFIC OUTCOMES": "2.5.2.1 Draw differe nt pictures",
+            "CONTENT": "• Drawing of :(An figures, birds, bu ima ildi ls, human ngs)."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "habits",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.6 Patterns",
+            "SUB-TOPIC": "2.6.1 Types of patterns",
+            "SPECIFIC OUTCOMES": "2.6.1.1 Make different patterns",
+            "CONTENT": "• Patterns (Cut paper patterns, Writing patterns)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.4 Tools",
-            "THEME": "",
-            "COLUMN 3": "2.4.1 Measuri Tools",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ng",
-            "COLUMN 6": "2.4.1.1 Demons measuring",
-            "SPECIFIC OUTCOMES": "trate the use of tools.",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Rulers: (measur width, height).",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "e length,",
-            "COLUMN 12": ""
+            "TOPIC": "2.7 Sound",
+            "SUB-TOPIC": "2.7.1 Exploration of sound",
+            "SPECIFIC OUTCOMES": "2.7.1.1 Explore different means of producing sound",
+            "CONTENT": "• Sound sources from various sounds (Imitate sounds)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.5 Drawing and Colouring",
-            "THEME": "",
-            "COLUMN 3": "2.5.1 Colour",
-            "SUB TOPIC": "",
-            "COLUMN 5": "s",
-            "COLUMN 6": "2.5.1.1 Identify p",
-            "SPECIFIC OUTCOMES": "rim",
-            "COLUMN 8": "ary colours",
-            "COLUMN 9": "• Primary colours and blue).",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "(red",
-            "COLUMN 12": ", yellow"
+            "TOPIC": "",
+            "SUB-TOPIC": "2.7.2 Singing",
+            "SPECIFIC OUTCOMES": "2.7.2.1 Sing a variety of songs.",
+            "CONTENT": "• Songs on : (HIV/AIDS, evils of corruption, child Abuse)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "2.5.2 Free drawin",
-            "SUB TOPIC": "",
-            "COLUMN 5": "g",
-            "COLUMN 6": "2.5.2.1 Draw diff",
-            "SPECIFIC OUTCOMES": "ere",
-            "COLUMN 8": "nt pictures",
-            "COLUMN 9": "• Drawing of :(An figures, birds, bu",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "ima ildi",
-            "COLUMN 12": "ls, human ngs)."
+            "TOPIC": "2.8 Recreation",
+            "SUB-TOPIC": "2.8.1 Movement and dance",
+            "SPECIFIC OUTCOMES": "2.8.1.1 Dance to traditional and contemporary music.",
+            "CONTENT": "• Movement and dance (singing movement dancing)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.6 Patterns",
-            "THEME": "",
-            "COLUMN 3": "2.6.1 Types of patterns",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.6.1.1 Make different patterns",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Patterns (Cut paper patterns, Writing patterns)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "2.8.2.1 Perform games with health messages",
+            "CONTENT": "• Games and health messages"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.7 Sound",
-            "THEME": "",
-            "COLUMN 3": "2.7.1 Exploration of sound",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.7.1.1 Explore different means of producing sound",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Sound sources from various sounds (Imitate sounds)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "2.7.2 Singing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.7.2.1 Sing a variety of songs.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Songs on : (HIV/AIDS, evils of corruption, child Abuse)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.8 Recreation",
-            "THEME": "",
-            "COLUMN 3": "2.8.1 Movement and dance",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.8.1.1 Dance to traditional and contemporary music.",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Movement and dance (singing movement dancing)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "2.8.2.1 Perform games with health",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Games and health messages",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "messages",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": "KNOWLEDGE"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.9 Constructional Crafts",
-            "THEME": "",
-            "COLUMN 3": "2.9.1 Weaving,",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "2.9 Constructional Crafts",
+            "SUB-TOPIC": "2.9.1 Weaving,",
             "SPECIFIC OUTCOMES": "2.9.1.1 Create different weaving patterns",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Weaving (mats, hats, belts)",
-            "COLUMN 12": ""
+            "CONTENT": "• Weaving (mats, hats, belts)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.10 Educational gymnastics",
-            "THEME": "",
-            "COLUMN 3": "2.10.1 Tumbling 2.10.2 Stunts",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.10.1.1 Demonstrate simple physical",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Gymnastic activities (trunk rolling, tummy rolling, balancing, hanging)",
-            "COLUMN 12": ""
+            "TOPIC": "2.10 Educational gymnastics",
+            "SUB-TOPIC": "2.10.1 Tumbling 2.10.2 Stunts",
+            "SPECIFIC OUTCOMES": "2.10.1.1 Demonstrate simple physical activities",
+            "CONTENT": "• Gymnastic activities (trunk rolling, tummy rolling, balancing, hanging)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "activities",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "2.10.1.2 Demonstrate a variety of adaptive physical activities.",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.10.1.2 Demonstrate a variety of",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.11 Health and Fitness Management",
+            "SUB-TOPIC": "2.11.1 Fitness",
+            "SPECIFIC OUTCOMES": "2.11.1.1 Perform simple developmental or evolving activities.",
+            "CONTENT": "• Management of health and fitness (deep breath in and out, climbing, hanging)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "adaptive physical activities.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.12 Handling Software",
+            "SUB-TOPIC": "2.12.1 Using proces wo sin rd g.",
+            "SPECIFIC OUTCOMES": "2.12.1.1 Write short sentences keys 2.12.1.2 I Word 2.12.1.3 Insert wor usi nse rt Word Art in Word Wo rds in Word Art",
+            "CONTENT": "• Word processi (The English a • Creative softw Art) to write w phrases and sh • Using creative (Word Art)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.11 Health and Fitness Management",
-            "THEME": "",
-            "COLUMN 3": "2.11.1 Fitness",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.11.1.1 Perform simple developmental or",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Management of health and fitness (deep breath in and out, climbing, hanging)",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "evolving activities.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.12 Handling Software",
-            "THEME": "",
-            "COLUMN 3": "2.12.1 Using proces",
-            "SUB TOPIC": "",
-            "COLUMN 5": "wo sin",
-            "COLUMN 6": "rd g.",
-            "SPECIFIC OUTCOMES": "2.12.1.1 Write short sentences keys 2.12.1.2 I Word 2.12.1.3 Insert",
-            "COLUMN 8": "",
-            "COLUMN 9": "wor usi",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Word processi (The English a • Creative softw Art) to write w phrases and sh • Using creative (Word Art)",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "nse",
-            "KNOWLEDGE": "rt Word Art in",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "Word",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "Wo",
-            "KNOWLEDGE": "rds in Word Art",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.13 Hospitality",
-            "THEME": "",
-            "COLUMN 3": "2.13.1 Welcoming visitors.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "2.13 Hospitality",
+            "SUB-TOPIC": "2.13.1 Welcoming visitors.",
             "SPECIFIC OUTCOMES": "2.13.1.1 Demonstrate ways of welcoming visitors.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Greetings, neat appearance, eye contact, tone of voice.",
-            "COLUMN 12": ""
+            "CONTENT": "• Greetings, neat appearance, eye contact, tone of voice."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.14 Food and Nutrition",
-            "THEME": "",
-            "COLUMN 3": "2.14.1 Food",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "2.14 Food and Nutrition",
+            "SUB-TOPIC": "2.14.1 Food",
             "SPECIFIC OUTCOMES": "2.14.1.1 Identify different sources of food.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Sources of food: Plant sources (fruits, and vegetables) • Animal sources: (Milk, cheese, edible insects)",
-            "COLUMN 12": ""
+            "CONTENT": "• Sources of food: Plant sources (fruits, and vegetables) • Animal sources: (Milk, cheese, edible insects)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "2.14.2 Cooking",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "2.14.2 Cooking",
             "SPECIFIC OUTCOMES": "2.14.2.1 Identify equipment used in cooking",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Stove, brazier, pots.",
-            "COLUMN 12": ""
+            "CONTENT": "• Stove, brazier, pots."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "KNOWLEDGE",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.15. Sports Skills Development",
-            "THEME": "",
-            "COLUMN 3": "2.15.1 Modified games. 2.15.2 Track and Field events",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "2.15. Sports Skills Development",
+            "SUB-TOPIC": "2.15.1 Modified games. 2.15.2 Track and Field events",
             "SPECIFIC OUTCOMES": "2.15.1.1 Perform a variety of games",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Conventional, traditional • Events: Relays (30 meters), Bottle, Bean bags, Lane, Number, Throw, Catch, Dramatic poems",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Conventional, traditional • Events: Relays (30 meters), Bottle, Bean bags, Lane, Number, Throw, Catch, Dramatic poems"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "2.15.1.2 Perform track and field events",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.16 Energy",
-            "THEME": "",
-            "COLUMN 3": "2.16.1 Light",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "2.16 Energy",
+            "SUB-TOPIC": "2.16.1 Light",
             "SPECIFIC OUTCOMES": "2.16.1.1 Design and make an artifact to produce light.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Candle (wax), lamp (kerosene), torch (cells and a bulb)",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Candle (wax), lamp (kerosene), torch (cells and a bulb)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.17Designing",
-            "THEME": "",
-            "COLUMN 3": "2.16.1 Design",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ing",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.16.1.1 Design of pap",
-            "COLUMN 8": "an er a",
-            "COLUMN 9": "d make items out nd wires.",
-            "KNOWLEDGE": "• Wire cars, boxe paper planes",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "2.17Designing",
+            "SUB-TOPIC": "2.16.1 Designing",
+            "SPECIFIC OUTCOMES": "2.16.1.1 Design of pap an er a d make items out nd wires.",
+            "CONTENT": "• Wire cars, boxe paper planes"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "2.18 Software",
-            "THEME": "",
-            "COLUMN 3": "2.17.1 The Desktop",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.17.1.1 Recogn Desktop",
-            "COLUMN 8": "ize",
-            "COLUMN 9": "icons on the",
-            "KNOWLEDGE": "• Icons (My docu Menu, Recycle clicking an icon",
-            "COLUMN 11": "• Icons (My docu",
-            "COLUMN 12": ""
+            "TOPIC": "2.18 Software",
+            "SUB-TOPIC": "2.17.1 The Desktop",
+            "SPECIFIC OUTCOMES": "2.17.1.1 Recogn Desktopize icons on the Menu, Recycle clicking an icon",
+            "CONTENT": "• Icons (My docu Menu, Recycle clicking an icon\n• Icons (My docu"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "2.17.2 The CD ROM (Compact Disc – Read Only Memory) and the CD trayy",
+            "SPECIFIC OUTCOMES": "2.17.2.1 Identif and CD tray 2.17.2.2 Load, r ROM y C un D ROM Drive and eject a CD CD ROM/CD tra • Loading, runnin ejecting a CD computer",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "2.18 Swimming",
+            "SUB-TOPIC": "2.8.2 Water hygiene 2.8.2 Water orientation",
+            "SPECIFIC OUTCOMES": "2.8.1.1 Demonstrate basic hygienic activities",
+            "CONTENT": "• Swimming skills (stroke, sail, inhale, push, pull, hold, float, balance)."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "2.8.2.1 Perform adaptive water activities",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "2.19 Entrepreneurship",
+            "SUB-TOPIC": "2.19.1 Earning Money\n2.19.1 Identify ways in which people can earn money.",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": "Menu, Recycle"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": "clicking an icon"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "2.17.2 The CD ROM (Compact Disc – Read Only Memory) and the CD tray",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "y",
-            "SPECIFIC OUTCOMES": "2.17.2.1 Identif and CD tray 2.17.2.2 Load, r ROM",
-            "COLUMN 8": "y C un",
-            "COLUMN 9": "D ROM Drive and eject a CD",
-            "KNOWLEDGE": "CD ROM/CD tra • Loading, runnin ejecting a CD computer",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.18 Swimming",
-            "THEME": "",
-            "COLUMN 3": "2.8.2 Water hygiene 2.8.2 Water orientation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.8.1.1 Demonstrate basic hygienic",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Swimming skills (stroke, sail, inhale, push, pull, hold, float, balance).",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "activities",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.8.2.1 Perform adaptive water",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "activities",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "2.19 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "2.19.1 Earning Money",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "SPECIFIC OUTCOMES": "2.19.1 Identify ways in which people can earn money.",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Entrepreneurship activities (selling food, air time, fish, groceries, repair works, black smith), formal employment.",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Entrepreneurship activities (selling food, air time, fish, groceries, repair works, black smith), formal employment."
           }
         }
       ]
@@ -8530,919 +7548,316 @@
     "Grade 3": {
       "title": "CREATIVE AND TECHNOLOGY STUDIES SYLLABUS  —  GRADE 3",
       "columns": [
-        "COLUMN 1",
-        "THEME",
-        "COLUMN 3",
-        "SUB TOPIC",
-        "COLUMN 5",
+        "TOPIC",
+        "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "COLUMN 7",
-        "COLUMN 8",
-        "COLUMN 9",
-        "KNOWLEDGE",
-        "COLUMN 11",
-        "COLUMN 12"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.1 Tools",
-            "THEME": "",
-            "COLUMN 3": "3.1.1 Cutting Tools.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.1 Tools",
+            "SUB-TOPIC": "3.1.1 Cutting Tools.",
             "SPECIFIC OUTCOMES": "3.1.1.1 Apply basic tools to cut materials",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Cut wood with saws, hacksaws.",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Cut wood with saws, hacksaws."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.2 Materials",
-            "THEME": "",
-            "COLUMN 3": "3.2.1 Uses of Materials",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.2 Materials",
+            "SUB-TOPIC": "3.2.1 Uses of Materials",
             "SPECIFIC OUTCOMES": "3.2.1.1 Design and make items out from local materials",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Make items from local materials such as clay (shelter, pottery) grass (shelter, mats)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Make items from local materials such as clay (shelter, pottery) grass (shelter, mats)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.3 Posture",
-            "THEME": "",
-            "COLUMN 3": "3.3.1 Stance",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.3.1.1 Explo",
-            "COLUMN 7": "re c",
-            "COLUMN 8": "orrect postural",
-            "COLUMN 9": "• Postural activ ups on flat su stretches, ben",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "ities (sit rfaces, ds, rolls)",
-            "COLUMN 12": ""
+            "TOPIC": "3.3 Posture",
+            "SUB-TOPIC": "3.3.1 Stance",
+            "SPECIFIC OUTCOMES": "3.3.1.1 Explo re c orrect postural habit s fo r good posture",
+            "CONTENT": "• Postural activ ups on flat su stretches, ben ities (sit rfaces, ds, rolls)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "habit",
-            "COLUMN 7": "s fo",
-            "COLUMN 8": "r good posture",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.2.1.2 Demonst rate correct postural habits in practical and adaptive activities",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.2.1.2 Demo",
-            "COLUMN 7": "nst",
-            "COLUMN 8": "rate correct postural",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.4 Drawing and colouring",
+            "SUB-TOPIC": "3.4.1 Drawing",
+            "SPECIFIC OUTCOMES": "3.4.1.1. Draw experi 3.4.1.1.Colour exper pic enc sc ien tures based on life es and events enes based on own ces .",
+            "CONTENT": "• Pictures (Stori experiences, e • Scenes (My V town, Bus sto place) es, ven illa p, M Life ts) ge, My arket"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "habits",
-            "COLUMN 7": "in practical and adaptive",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "activit",
-            "COLUMN 7": "ies",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.4 Drawing and colouring",
-            "THEME": "",
-            "COLUMN 3": "3.4.1 Draw",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ing",
-            "SPECIFIC OUTCOMES": "3.4.1.1. Draw experi 3.4.1.1.Colour exper",
-            "COLUMN 7": "pic enc sc ien",
-            "COLUMN 8": "tures based on life es and events enes based on own ces .",
-            "COLUMN 9": "• Pictures (Stori experiences, e • Scenes (My V town, Bus sto place)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "es, ven illa p, M",
-            "COLUMN 12": "Life ts) ge, My arket"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.5 Safety and Health",
-            "THEME": "",
-            "COLUMN 3": "3.5.1 Safety 3.5.2 Environmental protection",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.5 Safety and Health",
+            "SUB-TOPIC": "3.5.1 Safety 3.5.2 Environmental protection",
             "SPECIFIC OUTCOMES": "3.5.1.1 Compose songs on safety",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Apply safety and cleanliness through tiding (shoes, attire, storage) • Sing (songs on safety) Patterns • Leaf print • Potato print • String-pull",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Apply safety and cleanliness through tiding (shoes, attire, storage) • Sing (songs on safety) Patterns • Leaf print • Potato print • String-pull"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.5.2.1 Demonstrate class room safety",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.5.2.1 Demonstrate class room safety practices",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "practices",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.6 Patterns",
-            "THEME": "",
-            "COLUMN 3": "Types of Patterns",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.6 Patterns Types of Patterns",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "3.5.1.1 Identify natural objects. 3.5.1.2. Print different types of patterns",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.6 Movement",
-            "THEME": "",
-            "COLUMN 3": "3.7 Movement",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.2.1.1. Demonstrate fundamental",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Locomotion/movement (hoop, skip, speed, space, control, manipulation)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.6 Movement\n3.7 Movement",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.2.1.1. Demonstrate fundamental movements using correct techniques",
+            "CONTENT": "• Locomotion/movement (hoop, skip, speed, space, control, manipulation)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "movements using correct techniques",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.2.1.2 Perform simple adaptive movements",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.2.1.2 Perform simple adaptive",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "movements",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "KNOWLEDGE",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.8 Hardware",
-            "THEME": "",
-            "COLUMN 3": "3.8.1 The Mouse",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.8 Hardware",
+            "SUB-TOPIC": "3.8.1 The Mouse",
             "SPECIFIC OUTCOMES": "3.8.1.1 Drag items in Microsoft word and icons on the desktop",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Microsoft word and icons on the desktop",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Microsoft word and icons on the desktop"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.9 Typing",
-            "THEME": "",
-            "COLUMN 3": "3.9.1 Keyboa",
-            "SUB TOPIC": "",
-            "COLUMN 5": "rd keys",
-            "SPECIFIC OUTCOMES": "3.9.1.1 Demo skills",
-            "COLUMN 7": "",
-            "COLUMN 8": "nstrate basic typing",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Numbers, w sentences an paragraphs.",
-            "COLUMN 11": "",
-            "COLUMN 12": "ords, d short"
+            "TOPIC": "3.9 Typing",
+            "SUB-TOPIC": "3.9.1 Keyboa rd keys",
+            "SPECIFIC OUTCOMES": "3.9.1.1 Demo skills nstrate basic typing",
+            "CONTENT": "• Numbers, w sentences an paragraphs. ords, d short"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.10 Food",
-            "THEME": "",
-            "COLUMN 3": "3.10.1 Meals day",
-            "SUB TOPIC": "",
-            "COLUMN 5": "of the",
-            "SPECIFIC OUTCOMES": "3.10.1.1 Iden eaten",
-            "COLUMN 7": "",
-            "COLUMN 8": "tify in a",
-            "COLUMN 9": "different meals day.",
-            "KNOWLEDGE": "• Different me day: breakfas supper/dinne snacks",
-            "COLUMN 11": "",
-            "COLUMN 12": "als t, l r, a"
+            "TOPIC": "3.10 Food",
+            "SUB-TOPIC": "3.10.1 Meals day of the",
+            "SPECIFIC OUTCOMES": "3.10.1.1 Iden eaten tify in a different meals day.",
+            "CONTENT": "• Different me day: breakfas supper/dinne snacks als t, l r, a"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "3.10.2 Food preservation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "3.10.2 Food preservation",
             "SPECIFIC OUTCOMES": "3.10.2.1 Identify foods which can be preserved 3.10.2.2 Dry raw vegetables",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Foods that can be preserved: meat, fish, vegetables, fruits. • Raw vegetables: rape, cabbage, pumpkin leaves",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Foods that can be preserved: meat, fish, vegetables, fruits. • Raw vegetables: rape, cabbage, pumpkin leaves"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.12 Sound",
-            "THEME": "",
-            "COLUMN 3": "3.12.1 Elements of Sounds",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.12 Sound",
+            "SUB-TOPIC": "3.12.1 Elements of Sounds",
             "SPECIFIC OUTCOMES": "3.12.1.1 Identify different elements of sound",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Elements of sound (tone, pitch, rhythm, volume)",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Elements of sound (tone, pitch, rhythm, volume)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "3.12.2 Singing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "3.12.2 Singing",
             "SPECIFIC OUTCOMES": "3.12.2.1 Sing a variety of songs using local instruments",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "• Local instruments (drums, banjos, silimba).",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Local instruments (drums, banjos, silimba)."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.13 Educational gymnastics",
+            "SUB-TOPIC": "3.13.1 Tumbling 3.13.2 Stunts",
+            "SPECIFIC OUTCOMES": "3.13.1.1 Perform simple landing activities",
+            "CONTENT": "• Gymnastic skills (land, simple pyramid, balance, formation)\n• Application of simple gymnastic skills"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.13.2.1 Demonstrate simple pyramid formations",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "3.14 Health and Fitness Management",
+            "SUB-TOPIC": "3.14.1 Fitness 3.14.2 Health",
+            "SPECIFIC OUTCOMES": "3.14.1.1 Demonstrate simple isometric activities (strength training",
+            "CONTENT": "• Simple isometric\n• Application of developmental and simple isometric activities"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.8.1.1 Perform simpleexercises)",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "KNOWLEDGE",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": "SKILLS"
+            "CONTENT": "developmental activities\n• (jogging, hanging,"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.13 Educational gymnastics",
-            "THEME": "",
-            "COLUMN 3": "3.13.1 Tumbling 3.13.2 Stunts",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.13.1.1 Perform simple landing",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Gymnastic skills (land, simple pyramid, balance, formation)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Application of simple gymnastic skills",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "activities",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.13.2.1 Demonstrate simple",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "pyramid formations",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.14 Health and Fitness Management",
-            "THEME": "",
-            "COLUMN 3": "3.14.1 Fitness 3.14.2 Health",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.14.1.1 Demonstrate simple",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Simple isometric",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Application of developmental and simple isometric activities",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "isometric activities",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "(strength training",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.8.1.1 Perform simple",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "exercises)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "developmental activities",
-            "COLUMN 8": "",
-            "COLUMN 9": "• (jogging, hanging,",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "lifting, pulling,"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "lifting, pullin",
-            "KNOWLEDGE": "g,",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "pushing)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "pushing)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.15 Energy",
+            "SUB-TOPIC": "3.15.1 The torch",
+            "SPECIFIC OUTCOMES": "3.15.1.1 Iden dry cell. 3.15.1.2 Use tify external parts of a dry cells to light a bulb",
+            "CONTENT": "• Positive and terminals • Lighting a b negative ulb\n• Conne positiv termin light."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.15 Energy",
-            "THEME": "",
-            "COLUMN 3": "3.15.1 The to",
-            "SUB TOPIC": "",
-            "COLUMN 5": "rch",
-            "SPECIFIC OUTCOMES": "3.15.1.1 Iden dry cell. 3.15.1.2 Use",
-            "COLUMN 7": "",
-            "COLUMN 8": "tify external parts of a dry cells to light a bulb",
-            "COLUMN 9": "• Positive and terminals • Lighting a b",
-            "KNOWLEDGE": "negative ulb",
-            "COLUMN 11": "• Conne positiv termin light.",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.16 Cell Phones",
-            "THEME": "",
-            "COLUMN 3": "3.16.1 Use of Cell Phones.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.16 Cell Phones",
+            "SUB-TOPIC": "3.16.1 Use of Cell Phones.",
             "SPECIFIC OUTCOMES": "3.16.1.1 Demonstrate the ability to use cell phone.",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Cell phone, parts of a cell phone dialing, sending and receiving a call",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Identification of cell phone • Communication using cell phone • Demonstration usage of cell phone. • Application of cellphone.",
-            "COLUMN 12": ""
+            "CONTENT": "• Cell phone, parts of a cell phone dialing, sending and receiving a call\n• Identification of cell phone • Communication using cell phone • Demonstration usage of cell phone. • Application of cellphone."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.17 Needle work",
-            "THEME": "",
-            "COLUMN 3": "3.17.1 Stitches",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.17 Needle work",
+            "SUB-TOPIC": "3.17.1 Stitches",
             "SPECIFIC OUTCOMES": "3.17.1.1 Explain rules of working out stitches. 3.17.1.2 Workout temporal stitches",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Rules for working stitches: (One stitch at a time, choose correct thread) • Temporal stiches: even tacking, long and short tacking, tailor’s tacking",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Sewing of temporal stitches",
-            "COLUMN 12": ""
+            "CONTENT": "• Rules for working stitches: (One stitch at a time, choose correct thread) • Temporal stiches: even tacking, long and short tacking, tailor’s tacking\n• Sewing of temporal stitches"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.18 Recreation",
-            "THEME": "",
-            "COLUMN 3": "3.18.1 Dance 3.18.2 Health",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.18.1.1 Perform local dances",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Local dances (structured and unstructured",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "• Creativity in recreation activities",
-            "COLUMN 12": ""
+            "TOPIC": "3.18 Recreation",
+            "SUB-TOPIC": "3.18.1 Dance 3.18.2 Health",
+            "SPECIFIC OUTCOMES": "3.18.1.1 Perform local dances with simple rhythm",
+            "CONTENT": "• Local dances (structured and unstructured\n• Creativity in recreation activities"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "with simple rhythm",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.18.2.1 Perform games with messages of child abuse",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.18.2.1 Perform games with",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "messages of child abuse",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
             "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "movements) • Simple rhythm (Clapping, steps) • Games and child abuse messages"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "movements) • Simple rhythm (Clapping, steps) • Games and child abuse messages",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.19 Sports Skills Development",
+            "SUB-TOPIC": "3.19.1 Games (modified conventional games) 3.19.2 Track and Field events 3.19.3 Traditional Games",
+            "SPECIFIC OUTCOMES": "3.9.2.1 Perform a variety of games, track and field events al a,)",
+            "CONTENT": "• Games and track events (relays 40 meters, bucket race, formations, throw, catch, traditional games: chiyenga,)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.19 Sports Skills Development",
-            "THEME": "",
-            "COLUMN 3": "3.19.1 Games (modified conventional games) 3.19.2 Track and Field events 3.19.3 Traditional Games",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.9.2.1 Perform a variety of games,",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Games and track events (relays 40 meters, bucket race, formations, throw, catch, traditional games: chiyenga,)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.20 Constructional Crafts",
+            "SUB-TOPIC": "3.20.1 Knotting",
+            "SPECIFIC OUTCOMES": "3.20.1.1 Knot various items.",
+            "CONTENT": "• Knotting(. ro pes, bags)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "track and field events",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "TOPIC": "3.21 Swimming",
+            "SUB-TOPIC": "3.21.1 Pool hygiene 3.21.1.2 Water orientation",
+            "SPECIFIC OUTCOMES": "3.13.1.1 Demons trate pool hygieneactivities",
+            "CONTENT": "• Pool cleanliness • Skills (side stroke, unskilled strokes: push, inhale, float)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": "al a,)"
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "3.13.1.2 Demons trate a variety of basic strokes",
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "3.20 Constructional Crafts",
-            "THEME": "",
-            "COLUMN 3": "3.20.1 Knott",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ing",
-            "SPECIFIC OUTCOMES": "3.20.1.1 Knot",
-            "COLUMN 7": "various items.",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Knotting(. ro",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "pes, bags)",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.21 Swimming",
-            "THEME": "",
-            "COLUMN 3": "3.21.1 Pool hygiene 3.21.1.2 Water orientation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.13.1.1 Dem",
-            "COLUMN 7": "ons",
-            "COLUMN 8": "trate pool",
-            "COLUMN 9": "• Pool cleanliness • Skills (side stroke, unskilled strokes: push, inhale, float)",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "hygie",
-            "COLUMN 7": "ne",
-            "COLUMN 8": "activities",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "3.13.1.2 Dem",
-            "COLUMN 7": "ons",
-            "COLUMN 8": "trate a variety of",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "SPECIFIC OUTCOMES": "basic strokes",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "3.22 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "3.22.1 Business ventures",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
+            "TOPIC": "3.22 Entrepreneurship",
+            "SUB-TOPIC": "3.22.1 Business ventures",
             "SPECIFIC OUTCOMES": "3.22.1.1 Identify types of businesses in the community",
-            "COLUMN 7": "",
-            "COLUMN 8": "",
-            "COLUMN 9": "• Crop and animal related business, crafts, baking and business centers.",
-            "KNOWLEDGE": "",
-            "COLUMN 11": "",
-            "COLUMN 12": ""
+            "CONTENT": "• Crop and animal related business, crafts, baking and business centers."
           }
         }
       ]
@@ -9450,1123 +7865,361 @@
     "Grade 4": {
       "title": "CREATIVE AND TECHNOLOGY STUDIES SYLLABUS  —  GRADE 4",
       "columns": [
-        "COLUMN 1",
-        "THEME",
-        "COLUMN 3",
-        "SUB TOPIC",
-        "COLUMN 5",
-        "COLUMN 6",
-        "COLUMN 7",
+        "TOPIC",
+        "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
-        "KNOWLEDGE",
-        "COLUMN 10",
-        "COLUMN 11",
-        "SKILLS"
+        "CONTENT"
       ],
       "rows": [
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
+            "TOPIC": "4.1 Safety and Health",
+            "SUB-TOPIC": "4.1.1 Safety 4.1.2 Environmental protection",
+            "SPECIFIC OUTCOMES": "4.1.1.1 Identify appropriate dress in class",
+            "CONTENT": "• Sports attire: sports shoes, • Songs on drug abuse, safety, and care\n• Use of Assertiveness through safety and songs"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.1.2.1 Compose songs on safety and health",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.1.2.2 Demonstrate activities to keep environment safe",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2 The Computer programme",
+            "SUB-TOPIC": "4.2.1 Art program istic me",
+            "SPECIFIC OUTCOMES": "4.2.1.1 Comp 4.2.1.2 Identify Artistic program onents Demonstrate ability to use Artistic program h a • I a • a • A a",
+            "CONTENT": "• Colo pictu choo openi • closi Artis Progr Brus ur box, tool box, re, button, sing a program, ng, ng and exiting tic am(MS. Paint h)\n• Demonstration how to use artistic program. • Identification of art tool box. • Manipulation of artistic program. • Application of artistic program."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3 Tools",
+            "SUB-TOPIC": "4.3.1 Saws",
+            "SPECIFIC OUTCOMES": "4.3.1.1 Cut pieces of timber",
+            "CONTENT": "• Cutting, timber using tenon or cross cut saws\n• Crosscutting small pieces of timber."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4 Movement",
+            "SUB-TOPIC": "4.4.1 Movement",
+            "SPECIFIC OUTCOMES": "4.4.1.1 Perform structured movements",
+            "CONTENT": "• Structured movements with: (Dumb bells, climbing ropes)\n• Application of movement skills"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.5 Drawing and Colouring",
+            "SUB-TOPIC": "4.5.1 Colour",
+            "SPECIFIC OUTCOMES": "4.5.1.1 mix of two primary colours to obtain a secondary colour",
+            "CONTENT": "• Drawing of: (Cup, fruit, bottle, flowers, and pot.)\n• Drawing of objects"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.5.2 Drawing",
+            "SPECIFIC OUTCOMES": "4.5.2.1 Draw objects using different media",
+            "CONTENT": "• Drawing of: (Cup, fruit, bottle, flowers, pot)\n• Drawing of objects"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.5.3 Imaginative composition",
+            "SPECIFIC OUTCOMES": "4.4.5.1 Compose pictures to express one’s own feelings.",
+            "CONTENT": "• Composing pictures (Farms, Bus stop, Cooking, Washing)\n• Self-expression through drawing"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.6 Educational Gymnastics",
+            "SUB-TOPIC": "4.6.1 Tumbling 4.6.2 Stunts",
+            "SPECIFIC OUTCOMES": "4.6.1.1 Demonstrate refined pyramid formation activities.",
+            "CONTENT": "• Gymnastic activities (simple pyramid, Frog jumps, Backward roll, Forward roll, Crouch balance)\n• Application of refined activities\n• Cooperative learning through team work"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.6.2.1 Perform refined floor activities",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.6.2.2 Perform simple balancing activities",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.7 Drawing",
+            "SUB-TOPIC": "4.7.1 Drawing lines",
+            "SPECIFIC OUTCOMES": "4.7.1.1 Construct different types of lines w o",
+            "CONTENT": "• Construct: (Straight lines, horizontal, vertical, centre lines)\n• Drawing vertical and horizontal lines bisecting) with instruments only.\n• Appreciation of drawing using instruments."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.8 Drawing and Colouring",
+            "SUB-TOPIC": "4.8.1 Inserting closed shapes",
+            "SPECIFIC OUTCOMES": "4.8.1.1 Insert and colour basic closed shapes",
+            "CONTENT": "• Circle, triangles and rectangle, colouring\n• Identification of fill colour icons in paint or word. • Drawing of basic shapes in word or Paint brush. • Colouring of shapes and their combinations • Manipulation of word and Paint using the mouse.\n• Awareness of fill buttons. • Creativity in drawing shpes using Paint and Word • Quality work in the use of Paint and Word Shapes. • Curiosity in using Word"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.9 Materials",
+            "SUB-TOPIC": "4.9.1 Wood",
+            "SPECIFIC OUTCOMES": "4.9.1.1 Explain the various uses of wood",
+            "CONTENT": "• Uses of wood: Furniture making, house making\n• Investigating various ways wood can be utilized.\n• Appreciating the use of timber in furniture production."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.10 Traditional and contemporary songs",
+            "SUB-TOPIC": "4.10.1 Traditional songs 4.10.2 Contemporary songs",
+            "SPECIFIC OUTCOMES": "4.10.1.1 Explain the meanings of different traditional and contemporary songs Circle , tr iangles and rectan gle, colouring",
+            "CONTENT": "• Meanings of songs (Classes of songs)\n• Use of listening, singing, identification skills\n• Appreciation of traditional and contemporary songs"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.10.3 Music composition",
+            "SPECIFIC OUTCOMES": "4.10.3.1 Identify tunes using sounds from nature 4.10.3.2 Compose different musical tunes",
+            "CONTENT": "• Composition of tunes • Musical tunes\n• Application of listening, identification, composing skills\n• Appreciation of musical tunes"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.11 Health and Fitness Management",
+            "SUB-TOPIC": "4.11.1 Health 4.11.2 Fitness",
+            "SPECIFIC OUTCOMES": "4.11.1.1 Perform a series of physical activities",
+            "CONTENT": "• Developmental activities • Refined • Developmental activities using (Obstacles, Parallel bars, Mats, Muscle)\n• Application of skills in strength training\n• Appreciation of fitness and health"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.11.2. 1 Perform a series of d evelopmental activities",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": "SKILLS"
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "4.1 Safety and Health",
-            "THEME": "",
-            "COLUMN 3": "4.1.1 Safety 4.1.2 Environmental protection",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.1.1.1 Identify appropriate dress in",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Sports attire: sports shoes, • Songs on drug abuse, safety, and care",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Use of Assertiveness through safety and songs",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "class",
-            "COLUMN 7": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "4.11.2. 2 D emonstrate refined isometric a ctivities (strength training exercise)",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.1.2.1 Compose songs on safety and",
-            "COLUMN 7": "",
+            "TOPIC": "4.12 Sports Skills Development",
+            "SUB-TOPIC": "4.12.1 Games (modified conventional games) 4.12.2 Track and Field events 4.12.3 Traditional Games\n4.12.1. 1 D emonstrate various sporting activities",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": "• Various sports and games skills (Receive and pass baton, 50 meters, striking games, Short races, health related message)\n• Application of various skills in games Passing\n• Team spirit in games Self-esteem"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "health",
-            "COLUMN 7": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "4.12.1. 2 T alk about why people use d rugs in sports",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.1.2.2 Demonstrate activities to keep",
-            "COLUMN 7": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "4.12.2. 1 P erform relay activities",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "environment safe",
-            "COLUMN 7": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "4.12.3. 1 P erform a variety of traditional Games",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "4.2 The Computer programme",
-            "THEME": "",
-            "COLUMN 3": "4.2.1 Art program",
-            "SUB TOPIC": "",
-            "COLUMN 5": "istic me",
-            "COLUMN 6": "4.2.1.1 Comp 4.2.1.2",
-            "COLUMN 7": "Identify Artistic program onents Demonstrate ability to use Artistic program",
-            "SPECIFIC OUTCOMES": "• Colo pictu choo openi • closi Artis Progr Brus",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "ur box, tool box, re, button, sing a program, ng, ng and exiting tic am(MS. Paint h)",
-            "COLUMN 11": "• Demonstration how to use artistic program. • Identification of art tool box. • Manipulation of artistic program. • Application of artistic program.",
-            "SKILLS": ""
+            "TOPIC": "4.13 Swimming",
+            "SUB-TOPIC": "4.13.1 Water orientation 4.13.2 Water games",
+            "SPECIFIC OUTCOMES": "4.13.1.1 Demonstrate simple strokes",
+            "CONTENT": "• Simple skills (Side strokes) • Water games • Unskilled strokes\n• Application of swimming skills\n• Appreciation of swimming skills"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.13.2.1 Perform simple water games",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.13.2.2 Perform pair water games with balls",
+            "CONTENT": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.14 Constructional Crafts",
+            "SUB-TOPIC": "4.14.1 Papier Machè",
+            "SPECIFIC OUTCOMES": "4.14.1.1 Model different items using papier machè",
+            "CONTENT": "• Papier machè models (fruits, plates)\n• Modeling of functional items\n• Appreciation of items made out of papier mache`"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.14.1 Construction",
+            "SPECIFIC OUTCOMES": "4.14.1.1 Construct simple items using wires and paper boards",
+            "CONTENT": "• Constructing simple items (houses, wire cars) Manipulation of different materials creativity in construction"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.15 Opening files .15.1 Opening saved files",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "4.15.1.1 Locate and ope saved files S fi",
+            "CONTENT": "• Locating and opening saved files\n• Locating open and saved files. • Manipulating Save and Save As… window. • Identification of Saved and Open files.\n• Appreciation of open and saved files. • Critical thinking in locating open and saved files. • Awareness of open and saved files."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.16 Home Management",
+            "SUB-TOPIC": "4.16.1 Care of the home.",
+            "SPECIFIC OUTCOMES": "4.16.1.1 Clean the house and store different household items.",
+            "CONTENT": "• Cleaning the house: dust, sweep, mop, polish frequently • Storage of household items: e.g. long handled broom upside down bristles facing upwards, grass broom upside down\n• Cleaning the house • Storage of household items\n• Appreciating care and storage of household equipment"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.16.2 Home environment",
+            "SPECIFIC OUTCOMES": "4.16.2.1 Describe items used to clean surroundings 4.16.2.2 Clean the surrounding",
+            "CONTENT": "• Equipment used to clean the surrounding: Hard broom, Rake, Shovel. • Cleaning the surrounding: Sweeping, racking.\n• Cleaning of the surrounding\n• Awareness of items used to clean the surrounding • Appreciating clean surrounding"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.17 Food and Nutrition",
+            "SUB-TOPIC": "4.17.1 Meals",
+            "SPECIFIC OUTCOMES": "4.17.1.1 Prepare simple snacks popcorns",
+            "CONTENT": "• Simple snacks: Fruits, boiled cassava, sandwiches, fruit juice. groundnuts,\n• Cooking simple snacks\n• Appreciating snacks"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "4.17.2 Preservation",
+            "SPECIFIC OUTCOMES": "4.17.2.2 Explain reasons for preserving food 4.17.2.3 Prepare preserved food.",
+            "CONTENT": "• Reasons for preserving food: prevent decay, storing for later use and variety. • Preparing preserved food e.g. vegetables with groundnuts, samp, cassava."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.18 Energy",
+            "SUB-TOPIC": "4.18.1 Light .\n4.18.1 .1 Connect cells in series to light a bulb.",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "h a • I a • a • A a",
-            "SKILLS": ""
+            "CONTENT": "• Conn parall"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "4.3 Tools",
-            "THEME": "",
-            "COLUMN 3": "4.3.1 Saws",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.3.1.1 Cut pieces of timber",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Cutting, timber using tenon or cross cut saws",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Crosscutting small pieces of timber.",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.4 Movement",
-            "THEME": "",
-            "COLUMN 3": "4.4.1 Movement",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.4.1.1 Perform structured",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Structured movements with: (Dumb bells, climbing ropes)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Application of movement skills",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "movements",
-            "COLUMN 7": "",
+            "TOPIC": "4.19 Designing and Making.",
+            "SUB-TOPIC": "4.19.1 Designing\n4.19.1 .1 t Design and make an artifact o produce light",
             "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
+            "CONTENT": "• Artifa"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "4.5 Drawing and Colouring",
-            "THEME": "",
-            "COLUMN 3": "4.5.1 Colour",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.5.1.1 mix of two primary colours to obtain a secondary colour",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Drawing of: (Cup, fruit, bottle, flowers, and pot.)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Drawing of objects",
-            "SKILLS": ""
+            "TOPIC": "4.20 Lettering and poster work",
+            "SUB-TOPIC": "4.20.1 Lettering",
+            "SPECIFIC OUTCOMES": "4.20.1.1 Design capital and small letters",
+            "CONTENT": "• Designing letters: (spacing, size, weight)."
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.5.2 Drawing",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.5.2.1 Draw objects using different media",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Drawing of: (Cup, fruit, bottle, flowers, pot)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Drawing of objects",
-            "SKILLS": ""
+            "TOPIC": "",
+            "SUB-TOPIC": "4.20.2 Poster work",
+            "SPECIFIC OUTCOMES": "4.20.2.1 Design various posters to convey messages using capital letters",
+            "CONTENT": "• Posters based on cross-cutting themes (substance abuse, child labour)"
           }
         },
         {
           "type": "data",
           "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.5.3 Imaginative composition",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "4.4.5.1 Compose pictures to express one’s own feelings.",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Composing pictures (Farms, Bus stop, Cooking, Washing)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Self-expression through drawing",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "KNOWLEDGE",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "SKILLS",
-            "COLUMN 11": "",
-            "SKILLS": "VALUES"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.6 Educational Gymnastics",
-            "THEME": "",
-            "COLUMN 3": "4.6.1 Tumbling 4.6.2 Stunts",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.6.1.1 Demonstrate refined pyramid",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Gymnastic activities (simple pyramid, Frog jumps, Backward roll, Forward roll, Crouch balance)",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Application of refined activities",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Cooperative learning through team work",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "formation activities.",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.6.2.1 Perform refined floor",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "activities",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.6.2.2 Perform simple balancing",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "activities",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.7 Drawing",
-            "THEME": "",
-            "COLUMN 3": "4.7.1 Drawing lines",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.7.1.1 Construct different types of lines",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Construct: (Straight lines, horizontal, vertical, centre lines)",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Drawing vertical and horizontal lines bisecting) with instruments only.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciation of drawing using instruments.",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "w o",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.8 Drawing and Colouring",
-            "THEME": "",
-            "COLUMN 3": "4.8.1 Inserting closed shapes",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.8.1.1 Insert and colour basic closed shapes",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Circle, triangles and rectangle, colouring",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Identification of fill colour icons in paint or word. • Drawing of basic shapes in word or Paint brush. • Colouring of shapes and their combinations • Manipulation of word and Paint using the mouse.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Awareness of fill buttons. • Creativity in drawing shpes using Paint and Word • Quality work in the use of Paint and Word Shapes. • Curiosity in using Word",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.9 Materials",
-            "THEME": "",
-            "COLUMN 3": "4.9.1 Wood",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.9.1.1 Explain the various uses of wood",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Uses of wood: Furniture making, house making",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Investigating various ways wood can be utilized.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciating the use of timber in furniture production.",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.10 Traditional and contemporary songs",
-            "THEME": "",
-            "COLUMN 3": "4.10.1 Traditional songs 4.10.2 Contemporary songs",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.10.1.1 Explain the meanings of different traditional and contemporary songs",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Meanings of songs (Classes of songs)",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "• Use of listening, singing, identification skills",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Appreciation of traditional and contemporary songs",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "Circle",
-            "THEME": ", tr",
-            "COLUMN 3": "iangles and",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "rectan",
-            "THEME": "gle, colouring",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "KNOWLEDGE",
-            "COLUMN 10": "",
-            "COLUMN 11": "SKILLS",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.10.3 Music composition",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.10.3.1 Identify tunes using sounds from nature 4.10.3.2 Compose different musical tunes",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Composition of tunes • Musical tunes",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Application of listening, identification, composing skills",
-            "COLUMN 11": "",
-            "SKILLS": "• Appreciation of musical tunes"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.11 Health and Fitness Management",
-            "THEME": "",
-            "COLUMN 3": "4.11.1 Health 4.11.2 Fitness",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.11.1.1 Perform a series of physical",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Developmental activities • Refined • Developmental activities using (Obstacles, Parallel bars, Mats, Muscle)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Application of skills in strength training",
-            "COLUMN 11": "",
-            "SKILLS": "• Appreciation of fitness and health"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "activities",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.11.2.",
-            "COLUMN 6": "1 Perform a series of",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "d",
-            "COLUMN 7": "evelopmental activities",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.11.2.",
-            "COLUMN 6": "2 D",
-            "COLUMN 7": "emonstrate refined isometric",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "a",
-            "COLUMN 7": "ctivities (strength training",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "exercise)",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.12 Sports Skills Development",
-            "THEME": "",
-            "COLUMN 3": "4.12.1 Games (modified conventional games) 4.12.2 Track and Field events 4.12.3 Traditional Games",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.12.1.",
-            "COLUMN 6": "1 D",
-            "COLUMN 7": "emonstrate various sporting",
-            "SPECIFIC OUTCOMES": "• Various sports and games skills (Receive and pass baton, 50 meters, striking games, Short races, health related message)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Application of various skills in games Passing",
-            "COLUMN 11": "",
-            "SKILLS": "• Team spirit in games Self-esteem"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "a",
-            "COLUMN 7": "ctivities",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.12.1.",
-            "COLUMN 6": "2 T",
-            "COLUMN 7": "alk about why people use",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "d",
-            "COLUMN 7": "rugs in sports",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.12.2.",
-            "COLUMN 6": "1 P",
-            "COLUMN 7": "erform relay activities",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.12.3.",
-            "COLUMN 6": "1 P",
-            "COLUMN 7": "erform a variety of",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "traditional Games",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.13 Swimming",
-            "THEME": "",
-            "COLUMN 3": "4.13.1 Water orientation 4.13.2 Water games",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.13.1.1 Demonstrate simple strokes",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Simple skills (Side strokes) • Water games • Unskilled strokes",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Application of swimming skills",
-            "COLUMN 11": "",
-            "SKILLS": "• Appreciation of swimming skills"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.13.2.1 Perform simple water games",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.13.2.2 Perform pair water games",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "with balls",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.14 Constructional Crafts",
-            "THEME": "",
-            "COLUMN 3": "4.14.1 Papier Machè",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.14.1.1 Model different items using papier machè",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "• Papier machè models (fruits, plates)",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Modeling of functional items",
-            "COLUMN 11": "",
-            "SKILLS": "• Appreciation of items made out of papier mache`"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "KNOWLEDGE",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "SKILLS",
-            "COLUMN 10": "",
-            "COLUMN 11": "VALUES",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.14.1 Construction",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.14.1.1 Construct simple items using wires and paper boards",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Constructing simple items (houses, wire cars)",
-            "SPECIFIC OUTCOMES": "Manipulation of different materials",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "creativity in construction",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.15 Opening files",
-            "THEME": "",
-            "COLUMN 3": ".15.1 Opening saved files",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.15.1.1 Locate and ope saved files",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Locating and opening saved files",
-            "SPECIFIC OUTCOMES": "• Locating open and saved files. • Manipulating Save and Save As… window. • Identification of Saved and Open files.",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Appreciation of open and saved files. • Critical thinking in locating open and saved files. • Awareness of open and saved files.",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "S fi",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.16 Home Management",
-            "THEME": "",
-            "COLUMN 3": "4.16.1 Care of the home.",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.16.1.1 Clean the house and store different household items.",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Cleaning the house: dust, sweep, mop, polish frequently • Storage of household items: e.g. long handled broom upside down bristles facing upwards, grass broom upside down",
-            "SPECIFIC OUTCOMES": "• Cleaning the house • Storage of household items",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Appreciating care and storage of household equipment",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.16.2 Home environment",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.16.2.1 Describe items used to clean surroundings 4.16.2.2 Clean the surrounding",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Equipment used to clean the surrounding: Hard broom, Rake, Shovel. • Cleaning the surrounding: Sweeping, racking.",
-            "SPECIFIC OUTCOMES": "• Cleaning of the surrounding",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Awareness of items used to clean the surrounding • Appreciating clean surrounding",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.17 Food and Nutrition",
-            "THEME": "",
-            "COLUMN 3": "4.17.1 Meals",
-            "SUB TOPIC": "",
-            "COLUMN 5": "4.17.1.1 Prepare simple snacks",
-            "COLUMN 6": "",
-            "COLUMN 7": "• Simple snacks: Fruits, boiled cassava, sandwiches, fruit juice. groundnuts,",
-            "SPECIFIC OUTCOMES": "• Cooking simple snacks",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "• Appreciating snacks",
-            "COLUMN 11": "",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "",
-            "SKILLS": "KNOWLEDGE"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "popcorns",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.17.2 Preservation",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "4.17.2.2 Explain reasons for preserving food 4.17.2.3 Prepare preserved food.",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Reasons for preserving food: prevent decay, storing for later use and variety. • Preparing preserved food e.g. vegetables with groundnuts, samp, cassava.",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.18 Energy",
-            "THEME": "",
-            "COLUMN 3": "4.18.1 Li",
-            "SUB TOPIC": "",
-            "COLUMN 5": "ght",
-            "COLUMN 6": ".",
-            "COLUMN 7": "4.18.1",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": ".1 Connect cells in series to light a bulb.",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Conn parall",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.19 Designing and Making.",
-            "THEME": "",
-            "COLUMN 3": "4.19.1 De",
-            "SUB TOPIC": "",
-            "COLUMN 5": "sig",
-            "COLUMN 6": "ning",
-            "COLUMN 7": "4.19.1",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": ".1 t",
-            "COLUMN 10": "Design and make an artifact o produce light",
-            "COLUMN 11": "• Artifa",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.20 Lettering and poster work",
-            "THEME": "",
-            "COLUMN 3": "4.20.1 Lettering",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "4.20.1.1 Design capital and small letters",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Designing letters: (spacing, size, weight).",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "",
-            "THEME": "",
-            "COLUMN 3": "4.20.2 Poster work",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "4.20.2.1 Design various posters to convey messages using capital letters",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Posters based on cross-cutting themes (substance abuse, child labour)",
-            "SKILLS": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "COLUMN 1": "4.21 Entrepreneurship",
-            "THEME": "",
-            "COLUMN 3": "4.21.1 Project",
-            "SUB TOPIC": "",
-            "COLUMN 5": "",
-            "COLUMN 6": "",
-            "COLUMN 7": "4.21.1.1 Make different items for business purposes",
-            "SPECIFIC OUTCOMES": "",
-            "KNOWLEDGE": "",
-            "COLUMN 10": "",
-            "COLUMN 11": "• Making bags, door mats, skipping ropes, basket • Interior decorating • Roasted groundnuts, cassava, packaged dry vegetables, • Fringed mats",
-            "SKILLS": ""
+            "TOPIC": "4.21 Entrepreneurship",
+            "SUB-TOPIC": "4.21.1 Project",
+            "SPECIFIC OUTCOMES": "4.21.1.1 Make different items for business purposes",
+            "CONTENT": "• Making bags, door mats, skipping ropes, basket • Interior decorating • Roasted groundnuts, cassava, packaged dry vegetables, • Fringed mats"
           }
         }
       ]
