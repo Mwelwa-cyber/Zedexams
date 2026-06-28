@@ -210,7 +210,6 @@ function buildPrintableHtmlLegacy(plan, title) {
     ['Sub-topic',         header.subtopic],
     ['Term & Week',       header.termAndWeek],
     ['Number of Pupils',  header.numberOfPupils],
-    ['Medium',            header.mediumOfInstruction],
   ].filter(([, v]) => v != null && v !== '')
 
   const list = (items) => (items || []).length

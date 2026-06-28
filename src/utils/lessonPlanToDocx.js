@@ -252,7 +252,6 @@ function headerTable(header = {}) {
     ['Sub-topic', header.subtopic],
     ['Term & Week', header.termAndWeek],
     ['Attendance', attendance],
-    ['Medium of Instruction', header.mediumOfInstruction],
   ].filter(([, v]) => v !== undefined && v !== null && v !== '')
 
   return new Table({
