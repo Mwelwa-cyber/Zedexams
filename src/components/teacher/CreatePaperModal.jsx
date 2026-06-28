@@ -413,7 +413,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       setError('The AI returned no usable questions — try again or adjust the topics.')
       return
     }
-    setResult({ assessment, blocks, warning: res.data?.warning || '' })
+    setResult({ assessment, blocks, warning: res.data?.warning || '', sourcing: res.data?.sourcing || null })
     setStatus('done')
   }
 
@@ -744,6 +744,12 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                 {result.blocks.parts.length} section{result.blocks.parts.length === 1 ? '' : 's'} —
                 with answers and a marking guide on every question.
               </div>
+              {result.sourcing?.fromBank > 0 && (
+                <div style={{ fontSize: 12, color: '#065f46', marginTop: 6, fontWeight: 700 }}>
+                  ♻️ Reused {result.sourcing.fromBank} approved question{result.sourcing.fromBank === 1 ? '' : 's'} from the Master Bank
+                  {result.sourcing.generated > 0 ? ` · AI wrote the other ${result.sourcing.generated}` : ''}.
+                </div>
+              )}
               {result.warning && (
                 <div style={{ fontSize: 12, color: '#92400e', marginTop: 6 }}>⚠️ {result.warning}</div>
               )}
