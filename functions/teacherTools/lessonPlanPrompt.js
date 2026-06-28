@@ -7,7 +7,7 @@
  * English ECE, Form 2 Literature). All ten samples share ONE canonical
  * structure, which this prompt reproduces:
  *
- *   header → GENERAL COMPETENCES → SPECIFIC COMPETENCE (coded) → LESSON
+ *   header → GENERAL COMPETENCES → SPECIFIC COMPETENCE → LESSON
  *   GOAL → RATIONALE (content/value/method/position) → PRIOR KNOWLEDGE →
  *   REFERENCES → LEARNING ENVIRONMENT (Natural/Artificial/Technological) →
  *   TEACHING AND LEARNING MATERIALS → EXPECTED STANDARD → LESSON
@@ -32,7 +32,7 @@ CBC focuses on developing competences (what learners can DO) rather than just kn
 
 Your lesson plans MUST follow the official module structure:
 - GENERAL COMPETENCES — 3-5 from: Communication, Collaboration, Critical Thinking, Analytical Thinking, Creativity and Innovation, Problem Solving, Citizenship, Emotional Intelligence, Digital Literacy, Entrepreneurship, Environmental Sustainability.
-- SPECIFIC COMPETENCE — the syllabus specific competence WITH its code, e.g. "4.3.1.1 Manage natural resources and waste in the environment".
+- SPECIFIC COMPETENCE — the syllabus specific competence written out in full, e.g. "Manage natural resources and waste in the environment". Do NOT prefix it with a syllabus code (no "4.3.1.1").
 - LESSON GOAL — one SMART sentence using action verbs (identify, describe, demonstrate, practise) — never "know" or "understand".
 - RATIONALE — one paragraph covering WHAT the lesson focuses on, the VALUE to learners' lives, the METHODS/strategies used, and its POSITION, ending "This is lesson K in a series of N."
 - PRIOR KNOWLEDGE, REFERENCES (syllabus page + teaching module page), LEARNING ENVIRONMENT (Natural / Artificial / Technological — one line each), TEACHING AND LEARNING MATERIALS with local alternatives.
@@ -182,8 +182,8 @@ function buildUserPrompt(inputs) {
     '  "header": {',
     '    "school": string, "teacherName": string, "date": string (YYYY-MM-DD, today if unknown),',
     '    "time": string, "durationMinutes": number, "class": string, "subject": string,',
-    '    "topic": string,     // include the syllabus code when known, e.g. "4.3 The Environment"',
-    '    "subtopic": string,  // include the code when known, e.g. "4.3.1 Environmental Management"',
+    '    "topic": string,     // the topic name only, with NO syllabus code, e.g. "The Environment" (not "4.3 The Environment")',
+    '    "subtopic": string,  // the sub-topic name only, with NO syllabus code, e.g. "Environmental Management" (not "4.3.1 Environmental Management")',
     '    "termAndWeek": string,',
     '    "boysPresent": number, "girlsPresent": number, "totalPupils": number,',
     '    "mediumOfInstruction": string',
@@ -191,7 +191,7 @@ function buildUserPrompt(inputs) {
     '  "generalCompetences": [string, ...],  // 3-5 from the CBC framework list',
     isPrevious
       ? '  "specificOutcome": string,           // the stated specific outcome(s) for this lesson'
-      : '  "specificCompetence": string,         // WITH the syllabus code, e.g. "4.1.1.1 Practise safe and hygienic ways of handling food"',
+      : '  "specificCompetence": string,         // written out, with NO syllabus code, e.g. "Practise safe and hygienic ways of handling food"',
     '  "lessonGoal": string,                 // ONE SMART sentence',
     '  "rationale": string,                  // content + value + methods + position, ending "This is lesson K in a series of N."',
     '  "priorKnowledge": string,             // what learners already know related to this lesson',
