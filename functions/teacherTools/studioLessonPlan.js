@@ -74,12 +74,23 @@ const STUDIO_TOOL_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: true,
+        // The stage keys MUST match the studio system prompt's documented
+        // contract (teacher / pupils / assessment / duration) — the same keys
+        // renderPlanHtml reads. The prompt (studioSystemPrompt.js) explicitly
+        // instructs the model to use these and FORBIDS the
+        // teacherActivities/learnerActivities/assessmentCriteria family. A tool
+        // schema that named the forbidden family contradicted the prompt, and
+        // under forced tool_choice that contradiction made the model emit a
+        // degenerate, near-empty tool call — every plan rendered as an empty
+        // table skeleton. Keeping schema + prompt in lock-step is what makes
+        // the model actually fill the plan. (normalizePlanShape on the client
+        // still tolerates the array family if a future model drifts.)
         properties: {
           name: {type: "string"},
-          durationMinutes: {type: "number"},
-          teacherActivities: {type: "array", items: {type: "string"}},
-          learnerActivities: {type: "array", items: {type: "string"}},
-          assessmentCriteria: {type: "array", items: {type: "string"}},
+          duration: {type: "string"},
+          teacher: {type: "string"},
+          pupils: {type: "string"},
+          assessment: {type: "string"},
         },
       },
     },
