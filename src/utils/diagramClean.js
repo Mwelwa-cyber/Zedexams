@@ -28,6 +28,8 @@
  * and rotateRGBA powers the straighten/rotate control.
  */
 
+import { toProxyImageUrl } from './imageProxy.js'
+
 // ─── small helpers ───────────────────────────────────────────────────────────
 
 /** Clamp a number into the 0–255 byte range and round it. */
@@ -510,9 +512,31 @@ export async function loadCleanableImage(src) {
   } catch {
     // CORS-tagged load failed (no headers, or a poisoned cache entry). Fetch the
     // bytes and load them via a same-origin object URL, which never taints.
-    const res = await fetch(src, { mode: 'cors', cache: 'reload' })
-    if (!res.ok) {
-      throw new Error(`Could not load the image to clean (${res.status}).`)
+    //   1. A direct cross-origin fetch — works when the bucket DOES send CORS
+    //      headers (it just had a poisoned non-CORS cache entry).
+    //   2. The same-origin image proxy — when the bucket sends NO CORS headers
+    //      at all, even the fetch is blocked, so route through /api/image-proxy
+    //      (server-side fetch, permissive CORS) the exporters already rely on.
+    //      Without this step a bucket with missing CORS surfaces as the dreaded
+    //      "Could not clean this figure automatically."
+    let res = null
+    try {
+      res = await fetch(src, { mode: 'cors', cache: 'reload' })
+    } catch {
+      res = null
+    }
+    if (!res || !res.ok) {
+      const proxied = toProxyImageUrl(src)
+      if (proxied) {
+        try {
+          res = await fetch(proxied, { cache: 'reload' })
+        } catch {
+          res = null
+        }
+      }
+    }
+    if (!res || !res.ok) {
+      throw new Error(`Could not load the image to clean${res ? ` (${res.status})` : ''}.`)
     }
     const blobUrl = URL.createObjectURL(await res.blob())
     try {
