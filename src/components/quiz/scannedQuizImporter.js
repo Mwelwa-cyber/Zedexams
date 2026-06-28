@@ -22,6 +22,7 @@
  */
 
 import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
+import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 
@@ -257,15 +258,23 @@ function mapVisionQuestion(q, order, options, deps) {
     reviewNotes.push('Question text could not be read from the scan — please type the question here.')
   }
 
+  // The backend now classifies each question (mcq / true_false / fill_blank /
+  // matching / short_answer); fold that onto the editor's canonical vocabulary
+  // (true_false→tf, fill_blank→fill_blanks). Default to mcq for older results.
+  const canonicalType = q?.type ? canonicalizeQuestionType(q.type) : 'mcq'
+  const isChoice = canonicalType === 'mcq' || canonicalType === 'tf'
+
   const overrides = {
     text: stemHtml,
     sharedInstruction: q?.sharedInstruction ? toRichPreservingBreaks(q.sharedInstruction, toRich) : '',
-    options: opts.length ? opts : ['', '', '', ''],
+    // Choice questions keep their printed options (or 4 blanks to fill in);
+    // written-answer types (short_answer/fill/matching) carry no options.
+    options: opts.length ? opts : (isChoice ? ['', '', '', ''] : []),
     correctAnswer: '', // blank — teacher fills in
     explanation: '',
-    type: 'mcq',
-    detectedType: 'mcq',
-    marks: 1,
+    type: canonicalType,
+    detectedType: canonicalType,
+    marks: Number.isFinite(q?.marks) && q.marks > 0 ? q.marks : 1,
     order,
     requiresReview: true,
     reviewNotes,

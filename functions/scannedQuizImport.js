@@ -41,6 +41,15 @@ function httpsError(code, message) {
   }
 }
 
+// Question typing (mcq / true_false / fill_blank / matching / short_answer) +
+// marks parsing. Pure + dependency-free so requiring it at the top is safe even
+// in the root-only CI test env (no firebase deps pulled in).
+const {
+  normaliseQuestionType,
+  classifyQuestionType,
+  extractMarks,
+} = require("./teacherTools/testPaperImport/questionTyping");
+
 // The vision OCR model is configurable so the project owner can dial cost vs
 // quality without a code change. Defaults to the project-wide Anthropic model
 // (Sonnet) when no override is set.
@@ -97,8 +106,17 @@ const CLAUDE_SYSTEM_PROMPT = [
   "Question rules:",
   "- sourceQuestionNumber: the printed number (integer); 0 if unreadable.",
   "- prompt: the stem exactly as written; repair obvious OCR/spacing artefacts.",
+  "- questionType: classify EACH question — 'mcq' (printed answer choices),",
+  "  'true_false' (a statement with True/False), 'fill_blank' (a sentence with a",
+  "  blank line / underline / box to complete), 'matching' (two columns to join),",
+  "  or 'short_answer' (the learner writes on blank lines). Capture ALL of these",
+  "  types, not only multiple choice. Use 'short_answer' for any written-response",
+  "  item that is not a long essay/composition.",
+  "- marks: the marks printed for the question (e.g. a trailing [3] or",
+  "  (2 marks)); omit when none are printed.",
   "- options: one string per printed choice (usually 4: A, B, C, D), in order,",
-  "  WITHOUT the 'A.'/'B.' labels. Preserve wording exactly.",
+  "  WITHOUT the 'A.'/'B.' labels. Preserve wording exactly. Leave options EMPTY",
+  "  ([]) for fill_blank, matching and short_answer questions.",
   "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
   "  never guess. The teacher sets answers afterwards.",
   "- explanation: ''.",
@@ -164,8 +182,10 @@ const CLAUDE_SYSTEM_PROMPT = [
   "printed numbers and make sure every number you can see has a matching entry",
   "(no gaps in the sequence on these pages).",
   "",
-  "Skip ONLY the cover/instructions page and any worked 'Example'. Skip",
-  "free-response items (essays, 'explain why'). Do not invent questions.",
+  "Skip ONLY the cover/instructions page and any worked 'Example'. Capture",
+  "short written-answer questions (questionType='short_answer'); skip only LONG",
+  "essay/composition prompts (write a letter/story of several paragraphs). Do",
+  "not invent questions.",
 ].join("\n");
 
 const SCANNED_TOOL_SCHEMA = {
@@ -235,11 +255,30 @@ const SCANNED_TOOL_SCHEMA = {
       properties: {
         sourceQuestionNumber: {type: "integer"},
         prompt: {type: "string"},
+        questionType: {
+          type: "string",
+          enum: ["mcq", "true_false", "fill_blank", "matching", "short_answer"],
+          description:
+            "What KIND of question this is: 'mcq' (choose one of several " +
+            "printed options), 'true_false', 'fill_blank' (a sentence with a " +
+            "blank/underline to complete), 'matching' (join two columns), or " +
+            "'short_answer' (the learner writes an answer on blank lines). " +
+            "Use 'short_answer' for any written-response item.",
+        },
+        marks: {
+          type: "integer",
+          description:
+            "Marks printed for this question (e.g. from a trailing [3] or " +
+            "(2 marks)). Omit when no marks are printed.",
+        },
         options: {
           type: "array",
           items: {type: "string"},
-          minItems: 2,
+          minItems: 0,
           maxItems: 6,
+          description:
+            "The printed answer choices for an MCQ/true-false (no A./B. " +
+            "labels). Leave empty [] for fill_blank / matching / short_answer.",
         },
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
@@ -520,12 +559,37 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
       options = Array.from({length: count}, (_, i) => rawOptions[i] || "");
     }
   }
+  // The model may classify each item beyond MCQ. We trust an EXPLICIT,
+  // recognised type to relax the "needs ≥2 options" gate (an optionless
+  // short-answer / fill-blank / matching question is legitimate); without an
+  // explicit non-option type we keep the original strict MCQ gate so a misread
+  // 1-option fragment is still dropped rather than imported as junk.
+  const explicitType = normaliseQuestionType(raw?.questionType);
+  const OPTIONLESS_TYPES = new Set(["short_answer", "fill_blank", "matching"]);
   if (!optionsAreImages) {
     options = rawOptions.filter(Boolean).slice(0, 6);
-    if (options.length < 2) return null;
+    if (options.length < 2) {
+      if (OPTIONLESS_TYPES.has(explicitType)) {
+        options = []; // typed non-option question — keep it
+      } else if (explicitType === "true_false") {
+        options = ["True", "False"]; // a T/F item printed without its options
+      } else {
+        return null; // strict MCQ gate (unchanged default behaviour)
+      }
+    }
   } else if (options.length < 2) {
     return null;
   }
+
+  // Final type: an explicit recognised type wins; otherwise classify from the
+  // content (so a two-option True/False set is typed tf, not mcq).
+  const type = explicitType || classifyQuestionType({prompt, options, optionsAreImages});
+  // Marks: an explicit model value wins; else a trailing "[3 marks]" on the
+  // stem; else default 1. Bounded to a sane 1..50.
+  const parsedMarks = extractMarks(prompt).marks;
+  const rawMarks = Number.parseInt(raw?.marks, 10);
+  const marks = Math.min(50, Math.max(1,
+    Number.isFinite(rawMarks) && rawMarks > 0 ? rawMarks : (parsedMarks || 1)));
 
   const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
   const diagrams = sanitiseDiagrams(raw?.diagrams);
@@ -535,7 +599,8 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     options,
     correctAnswer: "", // never imported from a question paper
     explanation: "",
-    type: "mcq",
+    type,
+    marks,
     // A figure present in diagrams[] implies hasDiagram even if the model
     // forgot to set the flag — we must never silently drop a question's figure.
     hasDiagram: Boolean(raw?.hasDiagram) || diagrams.length > 0,
