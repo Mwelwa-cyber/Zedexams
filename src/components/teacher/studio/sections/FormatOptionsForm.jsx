@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormatCard } from '../cards/FormatCard'
+import { FormatPreviewModal } from '../modals/FormatPreviewModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -141,10 +142,12 @@ function SubLabel({ children }) {
  *   onUpdateAdvanced: (field: string, value: boolean) => void
  *   onUpdateMedium: (value: string) => void
  *   lessonMedium: string
+ *   curriculumMode: 'cbc' | 'previous'
  */
-export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium }) {
+export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium, curriculumMode = 'cbc' }) {
   const [open, setOpen] = useState(true)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [previewFormat, setPreviewFormat] = useState(null)
 
   const localLanguageEnabled = LOCAL_LANGUAGES.has(lessonMedium)
 
@@ -261,6 +264,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                   previewSrc={opt.previewSrc}
                   selected={formatOptions.format === opt.formatId}
                   onSelect={() => onUpdateFormat('format', opt.formatId)}
+                  onPreview={() => setPreviewFormat(opt.formatId)}
                 />
               ))}
             </div>
@@ -375,6 +379,15 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
 
         </div>
       )}
+
+      {/* Full sample preview of the chosen format — honours the live Advanced
+          Options toggles so the teacher sees what they'll actually get. */}
+      <FormatPreviewModal
+        format={previewFormat}
+        curriculumMode={curriculumMode}
+        advanced={formatOptions.advanced}
+        onClose={() => setPreviewFormat(null)}
+      />
     </div>
   )
 }

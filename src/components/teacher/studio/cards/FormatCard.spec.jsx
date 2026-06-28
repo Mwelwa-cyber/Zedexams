@@ -11,8 +11,13 @@ function renderCard(props = {}) {
     previewSrc: '/studio/previews/modern-preview.png',
     ...props,
   }
-  return { ...render(<FormatCard {...defaults} />), onSelect: defaults.onSelect }
+  return { ...render(<FormatCard {...defaults} />), onSelect: defaults.onSelect, onPreview: defaults.onPreview }
 }
+
+// The card root is a <div> wrapper (selecting and previewing are two distinct
+// buttons; a button can't nest another button). The select button is the one
+// that carries the label + thumbnail.
+const selectButton = (label = 'Modern Clean') => screen.getByText(label).closest('button')
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
@@ -38,14 +43,11 @@ describe('FormatCard — rendering', () => {
     expect(img).toHaveAttribute('src', '/studio/previews/classic-preview.png')
   })
 
-  it('renders as a <button> element', () => {
-    const { container } = renderCard()
-    expect(container.firstChild.tagName).toBe('BUTTON')
-  })
-
-  it('button has type="button"', () => {
-    const { container } = renderCard()
-    expect(container.firstChild).toHaveAttribute('type', 'button')
+  it('select control is a <button> with type="button"', () => {
+    renderCard()
+    const btn = selectButton()
+    expect(btn).toBeInTheDocument()
+    expect(btn).toHaveAttribute('type', 'button')
   })
 })
 
@@ -53,13 +55,13 @@ describe('FormatCard — rendering', () => {
 
 describe('FormatCard — aria-pressed', () => {
   it('aria-pressed is "false" when selected=false', () => {
-    const { container } = renderCard({ selected: false })
-    expect(container.firstChild).toHaveAttribute('aria-pressed', 'false')
+    renderCard({ selected: false })
+    expect(selectButton()).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('aria-pressed is "true" when selected=true', () => {
-    const { container } = renderCard({ selected: true })
-    expect(container.firstChild).toHaveAttribute('aria-pressed', 'true')
+    renderCard({ selected: true })
+    expect(selectButton()).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
@@ -87,12 +89,12 @@ describe('FormatCard — selected state styles', () => {
   })
 })
 
-// ── onClick / onSelect ────────────────────────────────────────────────────────
+// ── onSelect ──────────────────────────────────────────────────────────────────
 
 describe('FormatCard — interaction', () => {
-  it('calls onSelect when clicked', () => {
-    const { container, onSelect } = renderCard()
-    fireEvent.click(container.firstChild)
+  it('calls onSelect when the select button is clicked', () => {
+    const { onSelect } = renderCard()
+    fireEvent.click(selectButton())
     expect(onSelect).toHaveBeenCalledTimes(1)
   })
 
@@ -102,10 +104,32 @@ describe('FormatCard — interaction', () => {
   })
 
   it('calls onSelect again on each additional click', () => {
-    const { container, onSelect } = renderCard()
-    fireEvent.click(container.firstChild)
-    fireEvent.click(container.firstChild)
+    const { onSelect } = renderCard()
+    fireEvent.click(selectButton())
+    fireEvent.click(selectButton())
     expect(onSelect).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ── Preview button ────────────────────────────────────────────────────────────
+
+describe('FormatCard — preview', () => {
+  it('renders a Preview button when onPreview is provided', () => {
+    renderCard({ label: 'Classic', onPreview: vi.fn() })
+    expect(screen.getByLabelText('Preview Classic format')).toBeInTheDocument()
+  })
+
+  it('does NOT render a Preview button when onPreview is omitted', () => {
+    renderCard({ label: 'Classic' })
+    expect(screen.queryByLabelText('Preview Classic format')).not.toBeInTheDocument()
+  })
+
+  it('calls onPreview (not onSelect) when the Preview button is clicked', () => {
+    const onPreview = vi.fn()
+    const { onSelect } = renderCard({ label: 'Classic', onPreview })
+    fireEvent.click(screen.getByLabelText('Preview Classic format'))
+    expect(onPreview).toHaveBeenCalledTimes(1)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })
 

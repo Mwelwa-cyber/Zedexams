@@ -132,6 +132,7 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           onUpdateAdvanced={setAdvancedOption}
           onUpdateMedium={(value) => setLessonDetail('medium', value)}
           lessonMedium={lessonDetails.medium}
+          curriculumMode={curriculumMode}
         />
       </div>
 
