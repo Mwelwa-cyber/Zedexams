@@ -96,8 +96,52 @@ export const REVIEW_STATUS = Object.freeze({
 
 export const QUESTION_SOURCES = Object.freeze([
   'manual', 'ai', 'word', 'pdf', 'camera', 'past_paper',
-  'quiz_studio', 'assessment_studio', 'test_paper_studio',
+  'quiz_studio', 'assessment_studio', 'test_paper_studio', 'exam_paper_studio',
 ])
+
+/**
+ * Map a question from the server quiz/exam-paper schema (stem `question`, MCQ
+ * `correctAnswer` as the option *text*) to the editor shape the bank stores
+ * (stem `text`, MCQ `correctAnswer` as the option *index*). Used by the AI Exam
+ * Paper Generator's capture path — the other capture surfaces already hold
+ * editor-shaped questions, so they don't need this. Returns null when the item
+ * can't be mapped cleanly (no stem, or an MCQ whose key isn't among its
+ * options) so a broken question is dropped rather than banked.
+ */
+export function examPaperQuestionToBank(q) {
+  if (!q || typeof q !== 'object') return null
+  const stem = String(q.question ?? q.text ?? '').trim()
+  if (!stem) return null
+
+  const TYPE_MAP = { multiple_choice: 'mcq', true_false: 'tf', short_answer: 'short_answer' }
+  const type = TYPE_MAP[String(q.type || 'multiple_choice')] || 'mcq'
+  const options = Array.isArray(q.options) ? q.options.map(o => String(o)) : []
+  const base = {
+    type,
+    text: stem,
+    explanation: String(q.explanation || ''),
+    topic: String(q.topic || ''),
+    difficulty: q.difficulty || undefined,
+    marks: Number(q.marks) > 0 ? Number(q.marks) : 1,
+  }
+
+  if (type === 'mcq') {
+    if (options.length < 2) return null
+    const norm = s => String(s).trim().toLowerCase()
+    const idx = options.findIndex(o => norm(o) === norm(q.correctAnswer))
+    if (idx < 0) return null // key not among options → untrustworthy, drop
+    return { ...base, options, correctAnswer: idx }
+  }
+  if (type === 'tf') {
+    const t = String(q.correctAnswer).trim().toLowerCase()
+    const correctAnswer = (t === 'true' || t === 't' || t === '0') ? 0 : 1
+    return { ...base, options: ['True', 'False'], correctAnswer }
+  }
+  // short_answer
+  const correctAnswer = String(q.correctAnswer ?? q.answer ?? '').trim()
+  if (!correctAnswer) return null
+  return { ...base, options: [], correctAnswer }
+}
 
 // Words too common to help tell two questions apart. Kept small and
 // domain-neutral so we don't accidentally strip subject signal.

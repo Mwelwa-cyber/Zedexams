@@ -8,6 +8,7 @@
 import {
   bankPreview, sanitizeQuestionForBank, bankRowMatches, byNewest,
   questionFingerprint, questionTokens, extractKeywords, jaccardSimilarity,
+  examPaperQuestionToBank,
 } from './questionBankCore.js'
 
 let failures = 0
@@ -94,6 +95,37 @@ console.log('\nextractKeywords')
   const kw = extractKeywords({ text: 'Name the largest planet in the solar system' }, { subject: 'Science', topic: 'Astronomy' })
   assert(kw.includes('planet') && kw.includes('astronomy') && kw.includes('science'), 'keywords include question + topic + subject tokens')
   assert(kw.length === new Set(kw).size, 'keywords are de-duplicated')
+}
+
+console.log('\nexamPaperQuestionToBank — server quiz-shape → editor-shape')
+{
+  const q = examPaperQuestionToBank({
+    type: 'multiple_choice', question: 'Capital of Zambia?',
+    options: ['Ndola', 'Lusaka', 'Kitwe', 'Livingstone'], correctAnswer: 'Lusaka',
+    explanation: 'It is Lusaka', topic: 'Geography', difficulty: 'easy', marks: 1,
+  })
+  assert(q.type === 'mcq', 'multiple_choice → mcq')
+  assert(q.text === 'Capital of Zambia?', 'question → text')
+  assert(q.correctAnswer === 1, "correctAnswer option TEXT 'Lusaka' → index 1")
+  assert(q.marks === 1 && q.topic === 'Geography' && q.difficulty === 'easy', 'carries marks/topic/difficulty')
+  assert(q.options.length === 4, 'options carried over')
+
+  // Case-insensitive key match.
+  const ci = examPaperQuestionToBank({ type: 'multiple_choice', question: 'Q', options: ['Yes', 'No'], correctAnswer: 'yes' })
+  assert(ci.correctAnswer === 0, 'key matches an option case-insensitively')
+  assert(ci.marks === 1, 'marks defaults to 1 when absent')
+
+  // True/false + short answer.
+  const tf = examPaperQuestionToBank({ type: 'true_false', question: 'Sky is blue?', correctAnswer: 'True' })
+  assert(tf.type === 'tf' && tf.correctAnswer === 0 && tf.options.length === 2, "tf 'True' → index 0 with True/False options")
+  const sa = examPaperQuestionToBank({ type: 'short_answer', question: '2+2?', correctAnswer: '4' })
+  assert(sa.type === 'short_answer' && sa.correctAnswer === '4' && sa.options.length === 0, 'short_answer keeps text answer, no options')
+
+  // Unmappable → null (dropped, not banked).
+  assert(examPaperQuestionToBank({ type: 'multiple_choice', question: '', options: ['a', 'b'], correctAnswer: 'a' }) === null, 'blank stem → null')
+  assert(examPaperQuestionToBank({ type: 'multiple_choice', question: 'Q', options: ['a', 'b'], correctAnswer: 'zzz' }) === null, 'MCQ key not among options → null')
+  assert(examPaperQuestionToBank({ type: 'multiple_choice', question: 'Q', options: ['only'], correctAnswer: 'only' }) === null, 'MCQ with <2 options → null')
+  assert(examPaperQuestionToBank(null) === null, 'null input → null')
 }
 
 if (failures > 0) {

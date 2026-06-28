@@ -18,6 +18,8 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import { captureQuestionsToBank } from '../../../utils/questionBankService'
+import { examPaperQuestionToBank } from '../../../utils/questionBankCore'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect } from './studioFields'
@@ -113,6 +115,21 @@ export default function ExamPaperGenerator() {
         subject: form.subject,
         assessmentType: 'exam_paper',
       }).catch((err) => console.error('[library attach]', err))
+    }
+    // Central Question Bank — capture the generated MCQs in the background (no
+    // Share button). The exam-paper output is in the server quiz schema, so map
+    // it to the editor shape the bank stores. Fire-and-forget: capture must
+    // never affect the generate UX.
+    if (currentUser?.uid) {
+      const banked = (res.data.examPaper?.questions || [])
+        .map(examPaperQuestionToBank)
+        .filter(Boolean)
+      captureQuestionsToBank(
+        currentUser.uid,
+        banked,
+        { subject: form.subject, grade: form.grade, topic: res.data.examPaper?.header?.topic },
+        'exam_paper_studio',
+      )
     }
   }
 
