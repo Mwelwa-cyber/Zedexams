@@ -28,6 +28,34 @@ describe('suggestLessonCount', () => {
     expect(suggestLessonCount(['a']).reason.length).toBeGreaterThan(0)
     expect(suggestLessonCount([]).reason.length).toBeGreaterThan(0)
   })
+
+  it('variant 0 is the base suggestion (back-compat default)', () => {
+    expect(suggestLessonCount(ACTIVITIES, 0).count).toBe(3)
+    expect(suggestLessonCount(ACTIVITIES).count).toBe(3)
+  })
+
+  it('successive variants surface DIFFERENT counts (the "Get New Suggestion" fix)', () => {
+    // Regression guard: cycling the variant must move the count, otherwise the
+    // button is a no-op. Base of 3 → nearest-first fan-out 3,4,2,5,1,6.
+    expect(suggestLessonCount(ACTIVITIES, 0).count).toBe(3)
+    expect(suggestLessonCount(ACTIVITIES, 1).count).toBe(4)
+    expect(suggestLessonCount(ACTIVITIES, 2).count).toBe(2)
+  })
+
+  it('cycles through the full 1–6 span and wraps back to the base', () => {
+    const seen = [0, 1, 2, 3, 4, 5].map((v) => suggestLessonCount(ACTIVITIES, v).count)
+    expect([...seen].sort()).toEqual([1, 2, 3, 4, 5, 6])
+    // Wrap: variant 6 returns to the base.
+    expect(suggestLessonCount(ACTIVITIES, 6).count).toBe(3)
+  })
+
+  it('clamps every variant into 1–6', () => {
+    for (let v = 0; v < 12; v += 1) {
+      const { count } = suggestLessonCount(ACTIVITIES, v)
+      expect(count).toBeGreaterThanOrEqual(1)
+      expect(count).toBeLessThanOrEqual(6)
+    }
+  })
 })
 
 // ── Idle / guard ──────────────────────────────────────────────────────────────
@@ -102,11 +130,27 @@ describe('useAILessonCount — recommends when CBC + topic + subtopic present', 
     expect(result.current.recommendation).toBeNull()
   })
 
-  it('fetchRecommendation recomputes without throwing', () => {
+  it('fetchRecommendation surfaces a DIFFERENT suggestion each press', () => {
+    // The core "Get New Suggestion is not working" fix: each press must move the
+    // recommendation to a fresh count, not recompute the same one.
     const { result } = renderHook(() =>
       useAILessonCount(TOPIC, SUBTOPIC, ACTIVITIES, STANDARD, 'cbc'),
     )
+    expect(result.current.recommendation.count).toBe(3)
     act(() => result.current.fetchRecommendation())
+    expect(result.current.recommendation.count).toBe(4)
+    act(() => result.current.fetchRecommendation())
+    expect(result.current.recommendation.count).toBe(2)
+  })
+
+  it('resets to the base suggestion when the sub-topic changes', () => {
+    const { result, rerender } = renderHook(
+      ({ sub }) => useAILessonCount(TOPIC, sub, ACTIVITIES, STANDARD, 'cbc'),
+      { initialProps: { sub: SUBTOPIC } },
+    )
+    act(() => result.current.fetchRecommendation())
+    expect(result.current.recommendation.count).toBe(4)
+    rerender({ sub: 'A different sub-topic' })
     expect(result.current.recommendation.count).toBe(3)
   })
 })
