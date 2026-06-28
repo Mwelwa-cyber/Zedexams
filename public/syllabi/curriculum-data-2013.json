@@ -16930,7 +16930,6 @@
     "Grade 12": {
       "title": "MATHEMATICS SYLLABUS  —  GRADE 12",
       "columns": [
-        "12.1 GRAPHS OF FUNCTIONS",
         "TOPIC",
         "SUB TOPIC",
         "SPECIFIC OUTCOME",
@@ -16942,35 +16941,87 @@
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.1 GRAPHS OF FUNCTIONS",
-            "TOPIC": "",
-            "SUB TOPIC": "12.1.1 Cubic functions 12.1.2 Inverse functions",
-            "SPECIFIC OUTCOME": "12.1.1.1 Draw graphs of cubic functions 12.1.1.2 Use graphs to find solutions 12.1.1.3 Determine gradients of curves 12.1.1.4 Estimate areas under curves 12.1.2.1 Draw graphs of inverse functions 12.1.2.2 Application of graphs of functions",
-            "KNOWLEDGE": "• Drawing Graphs of cubic functions • Finding Zeros of the function, Solutions of graphs • Determining Gradients of curves • Turning points and their nature (Maximum and minimum) • Area under the graph (Counting square, Trapezium) • Drawing Graphs of inverse functions • Exponential graphs • Applying graphs of functions",
+            "TOPIC": "12.1 GRAPHS OF FUNCTIONS",
+            "SUB TOPIC": "12.1.1 Cubic functions",
+            "SPECIFIC OUTCOME": "12.1.1.1 Draw graphs of cubic functions 12.1.1.2 Use graphs to find solutions 12.1.1.3 Determine gradients of curves 12.1.1.4 Estimate areas under curves",
+            "KNOWLEDGE": "• Drawing Graphs of cubic functions • Finding Zeros of the function, Solutions of graphs • Determining Gradients of curves • Turning points and their nature (Maximum and",
             "SKILLS": "• Identification of a cubic function. • Interpretation of gradients and areas under curves. Drawing graphs of cubic and inverse functions.",
-            "VALUES": "• Neatness in sketching graphs. • Logical thinking in determining area under the curve. • Accuracy in finding the turning points."
+            "VALUES": "• Neatness in sketching graphs. • Logical thinking in determining area under the curve. • Accuracy in finding the turning"
           }
         },
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.2 LINEAR PROGRAMMING",
             "TOPIC": "",
+            "SUB TOPIC": "12.1.2 Inverse functions",
+            "SPECIFIC OUTCOME": "12.1.2.1 Draw graphs of inverse functions 12.1.2.2 Application of graphs of functions",
+            "KNOWLEDGE": "minimum) • Area under the graph (Counting square, Trapezium) • Drawing Graphs of inverse functions • Exponential graphs • Applying graphs of functions",
+            "SKILLS": "",
+            "VALUES": "points."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "12.2 LINEAR PROGRAMMING",
             "SUB TOPIC": "12.2.1 Linear programming",
-            "SPECIFIC OUTCOME": "12.2.1.2 Draw graphs of linear equations and inequations in one and two variables (as a recap) 12.2.1.3 Shade the wanted and unwanted regions 12.2.1.3 Describe the wanted or unwanted regions. 12.2.1.3 Determine maximum",
-            "KNOWLEDGE": "• Drawing graphs of linear equations and inequations in one and two variables (as a recap) • Shading the wanted and unwanted regions • Describing the wanted or unwanted region • Finding Values in the feasible region",
-            "SKILLS": "• Interpretation of the wanted or unwanted regions. • Shading of the unwanted region. • Determination of maximum and minimum values.",
-            "VALUES": "• Logical thinking in finding the wanted region. • Planning when using graph paper."
+            "SPECIFIC OUTCOME": "12.2.1.1 Draw graphs of linear equations and inequations in one and two variables (as a recap) 12.2.1.2 Shade the wanted and unwanted regions 12.2.1.3 Describe the wanted or unwanted regions. 12.2.1.4 Determine maximum and minimum values 12.2.1.5 Use the search line to determine the maximum and minimum values 12.2.1.6 Apply knowledge of linear programming in real life",
+            "KNOWLEDGE": "• Drawing graphs of linear equations and inequations in one and two variables (as a recap) • Shading the wanted and unwanted regions • Describing the wanted or unwanted region • Finding Values in the feasible region • Using the Search line to determine the maximum and minimum values • Applying knowledge of linear programming in real life",
+            "SKILLS": "• Interpretation of wanted or unwanted regions. • Shading of the unwanted region. • Determination of maximum and minimum values. • Application of linear programming in real life situation.",
+            "VALUES": "the • Logical thinking in finding the wanted region. • Planning when using graph paper."
           }
         },
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "",
+            "TOPIC": "12.3 TRAVEL GRAPHS",
+            "SUB TOPIC": "12.3.1 Velocity - time graphs (Curves)",
+            "SPECIFIC OUTCOME": "12.3.1.1 Calculate the displacement in a velocity - time graph",
+            "KNOWLEDGE": "• Distance/area under the graph in a velocity - time graph",
+            "SKILLS": "• Representation of velocity-time graphs. • Interpretation of displacement in a velocity - time graph.",
+            "VALUES": "• Curiosity in using velocity-time graphs"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "12.4 VECTORS IN TWO DIMENSIONS",
+            "SUB TOPIC": "12.4.1 Introduction to vectors",
+            "SPECIFIC OUTCOME": "12.4.1.1 Describe a vector 12.4.1.2 Represent and denote a vector",
+            "KNOWLEDGE": "• Describing a vector (direction and magnitude) • Zero and Free vectors",
+            "SKILLS": "• Representation of vector quantities • Computation of vector",
+            "VALUES": "• Appreciation of sense of direction • Logical thinking in"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
             "TOPIC": "",
-            "SUB TOPIC": "and minimum values 12.2.1.4 Use the search line to determine the maximum and minimum values 12.2.1.5 Apply knowledge of linear programming in real life",
-            "SPECIFIC OUTCOME": "• Using the Search line to determine the maximum and minimum values • Applying knowledge of linear programming in real life",
-            "KNOWLEDGE": "• Application of linear programming in real life situation.",
+            "SUB TOPIC": "12.4.2 Addition and subtraction",
+            "SPECIFIC OUTCOME": "12.4.2.1 Add and subtract vectors",
+            "KNOWLEDGE": "• Representing and denoting • Adding and subtracting",
+            "SKILLS": "related problems • Application of vector",
+            "VALUES": "solving vector problems."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.4.3 Translations",
+            "SPECIFIC OUTCOME": "12.4.3.1 Apply translations vectors and find magnitude",
+            "KNOWLEDGE": "on vectors (triangular and parallelogram laws) • Resultant vectors",
+            "SKILLS": "in Problem solving",
+            "VALUES": "• Creativity in design"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.4.4 Scalar multiplication",
+            "SPECIFIC OUTCOME": "12.4.4.1 Multiply vectors by scalars",
+            "KNOWLEDGE": "• Multiplying vectors by scalars • Translation (Position vectors)",
             "SKILLS": "",
             "VALUES": ""
           }
@@ -16978,35 +17029,10 @@
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.3 TRAVEL GRAPHS",
-            "TOPIC": "12.3.1 Velocity - time graphs (Curves)",
-            "SUB TOPIC": "12.3.1.1 Calculate the displacement in a velocity - time graph",
-            "SPECIFIC OUTCOME": "• Distance/area under the graph in a velocity - time graph",
-            "KNOWLEDGE": "• Representation of velocity-time graphs. • Interpretation of displacement in a velocity - time graph.",
-            "SKILLS": "• Curiosity in using velocity-time graphs",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.4 VECTORS IN TWO DIMENSIONS",
-            "TOPIC": "12.4.1 Introduction to vectors 12.4.2 Addition and subtraction 12.4.3 Translations 12.4.4 Scalar multiplication 12.4.5 Collinearity 12.4.6 Vector geometry",
-            "SUB TOPIC": "12.4.1.1 Describe a vector 12.4.1.2 Represent and denote a vector 12.4.2.1 Add and subtract vectors 12.4.3.1 Apply translations on vectors and find magnitude 12.4.4.1 Multiply vectors by scalars 12.4.5.1 Determine collinearity of points 12.4.6.1 Solve geometrical problems involving vectors",
-            "SPECIFIC OUTCOME": "• Describing a vector (direction and magnitude) • Zero and Free vectors • Representing and denoting • Adding and subtracting vectors (triangular and parallelogram laws) • Resultant vectors • Multiplying vectors by scalars • Translation (Position vectors) • Component form • Calculating Magnitude/Modulus of",
-            "KNOWLEDGE": "• Representation of vector quantities • Computation of vector related problems • Application of vector in Problem solving",
-            "SKILLS": "• Appreciation of sense of direction • Logical thinking in solving vector problems. • Creativity in design",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "",
             "TOPIC": "",
-            "SUB TOPIC": "",
-            "SPECIFIC OUTCOME": "vectors • Collinearity and parallelism • Ratios (Mid - point theorem) • Vector geometry",
-            "KNOWLEDGE": "",
+            "SUB TOPIC": "12.4.5 Collinearity",
+            "SPECIFIC OUTCOME": "12.4.5.1 Determine collinearity of points",
+            "KNOWLEDGE": "• Component form",
             "SKILLS": "",
             "VALUES": ""
           }
@@ -17014,23 +17040,10 @@
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.5 GEOMETRICAL TRANSFORMATIONS",
-            "TOPIC": "12.5.1 Introduction to transformation 12.5.2 Translation 12.5.3 Reflection. 12.5.4 Rotation. 12.5.5 Enlargement 12.5.6 Stretch 12.5.7 Shear 12.5.8 Combined transformations",
-            "SUB TOPIC": "12.5.1.1 Explain the concept of transformation 12.5.2.1 Use a column vector to translate an object 12.5.3.1 Reflect objects by different methods 12.5.4.1 Rotate objects by different methods 12.5.5.1 Enlarge objects by different methods 12.5.6.2 Stretch objects by different methods 12.5.6.3 Shear objects by different methods 12.5.8.1 Solve problems involving combined transformations 12.5.8.2 Find area scale factors of a stretch by determinant method",
-            "SPECIFIC OUTCOME": "• Explaining the concept of transformation (Object and Image) • Translation ( Translation vector, Mediator) • Reflection ( mirror lines and matrices of reflections) • Rotations (by construction and matrix methods) • Rotations ( Finding centre, angle and direction ) • Finding matrix of rotation • Enlargement (by construction and matrix methods) • Finding the centre, scale factor and matrix of enlargement • Stretch (by construction and matrix methods) • Finding the centre, scale factor, invariant line",
-            "KNOWLEDGE": "• Interpretation the concept of transformation • Comparison between different forms of transformation. • Computation involving transformations.",
-            "SKILLS": "• Appreciation of transformations • Logical thinking in solving transformations. • Creativity in designing.",
-            "VALUES": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "",
             "TOPIC": "",
-            "SUB TOPIC": "",
-            "SPECIFIC OUTCOME": "and matrix of stretch • Shear (by construction and matrix methods) • Finding the shear factor, invariant line and matrix of shear • Area scale factor • Determinant of a matrix • Inverse transformations",
-            "KNOWLEDGE": "",
+            "SUB TOPIC": "12.4.6 Vector geometry",
+            "SPECIFIC OUTCOME": "12.4.6.1 Solve geometrical problems involving vectors",
+            "KNOWLEDGE": "• Calculating Magnitude/Modulus of vectors • Collinearity and parallelism • Ratios (Mid - point theorem) • Vector geometry",
             "SKILLS": "",
             "VALUES": ""
           }
@@ -17038,23 +17051,43 @@
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.6 EARTH GEOMETRY",
-            "TOPIC": "12.6.1 Introduction to Earth Geometry 12.6.2 Small and great circles 12.6.3 Latitudes and Longitudes 12.6.4 Distance along latitudes and longitudes 12.6.5 Speed in Knots and time",
-            "SUB TOPIC": "12.6.1.1 Explain the concept of Earth Geometry 12.6.2.1 Distinguish between small and great circles 12.6.3.1 Calculate distance along parallels of latitudes and longitude in kilometres and nautical miles 12.6.3.2 Calculate the shortest distance between two points on the surface of the earth 12.6.5.1 Calculate speed in knots and time",
-            "SPECIFIC OUTCOME": "• Explaining the concept of Earth Geometry and its significance • Southern and Northern hemispheres ( South and North Poles) • Great Circles(the equator and all longitudes) • The Greenwich and Equator • Small Circles(latitudes) • Centre of the earth • Length ,chord , arc and sector • Angular distance • Line of axis of the Earth • Circumference of the earth • Standard units of distances in degrees and miles (1o of latitude represents 60 nautical miles/or 110.9 Km)",
-            "KNOWLEDGE": "• Application of the relationship of earth geometry in real life. • Computation of distances of latitudes and longitudes. • Location of points on the globe.",
-            "SKILLS": "• Appreciation of the concept of earth geometry. • Curiosity in exploring earth geometry. • Team work through cooperative learning",
-            "VALUES": ""
+            "TOPIC": "12.5 GEOMETRICAL TRANSFORMATIONS",
+            "SUB TOPIC": "12.5.1 Introduction to transformation",
+            "SPECIFIC OUTCOME": "12.5.1.1 Explain the concept of transformation",
+            "KNOWLEDGE": "• Explaining the concept of transformation (Object and Image)",
+            "SKILLS": "• Interpretation the concept of transformation",
+            "VALUES": "• Appreciation of transformation s • Logical thinking in"
           }
         },
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "",
             "TOPIC": "",
-            "SUB TOPIC": "",
-            "SPECIFIC OUTCOME": "• Conversion of distance in kilometre and nautical mile • Longitude and time • Greenwich Mean Time • Solving problems involving Earth Geometry in real life",
-            "KNOWLEDGE": "",
+            "SUB TOPIC": "12.5.2 Translation",
+            "SPECIFIC OUTCOME": "12.5.2.1 Use a column vector to translate an object",
+            "KNOWLEDGE": "• Translation ( Translation vector, Mediator)",
+            "SKILLS": "• Comparison between different forms of transformation.",
+            "VALUES": "solving transformations. • Creativity in"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.3 Reflection.",
+            "SPECIFIC OUTCOME": "12.5.3.1 Reflect objects by different methods",
+            "KNOWLEDGE": "• Reflection ( mirror lines and matrices of reflections) • Rotations (by construction and matrix methods)",
+            "SKILLS": "• Computation involving transformations.",
+            "VALUES": "designing."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.4 Rotation.",
+            "SPECIFIC OUTCOME": "12.5.4.1 Rotate objects by different methods",
+            "KNOWLEDGE": "• Rotations ( Finding centre, angle and direction )",
             "SKILLS": "",
             "VALUES": ""
           }
@@ -17062,13 +17095,122 @@
         {
           "type": "data",
           "cells": {
-            "12.1 GRAPHS OF FUNCTIONS": "12.7 INTRODUCT ION TO CALCULUS",
-            "TOPIC": "12.7.1 Differentiation 12.7.2 Integration",
-            "SUB TOPIC": "12.7.1.1 Explain concept of differentiation 12.7.1.3 Differentiate functions from first principles. 12.7.1.4 Use the formula for differentiation 12.7.1.8 Calculate equations of tangents and normals 12.7.2.1 Explain integration 12.7.2.3 Find Indefinite integrals 12.7.2.2 Evaluate simple definite integrals 12.7.2.3 Find the area under the curve",
-            "SPECIFIC OUTCOME": "• Explaining the concept of differentiation • Differentiating functions from first principles ( Limits) • Product rule; chain rule and quotient rule (y =axn; = nax n-1 ) • Indefinite integrals • Arbitrary constant • Definite integrals • Stationary points • Secant • Tangents • Normal • Explain integration as the reverse of differentiation • Rule of integration ( = ax n ; ∫ = + c • Area under the curve",
-            "KNOWLEDGE": "• Interpretation of differentiation and integration • Application of definite integrals. • Estimation of area under the curve.",
-            "SKILLS": "• Appreciation of calculus. • Curiosity in differentiating and integrating. • Critical thinking in using rules for differentiation and integration.",
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.5 Enlargement",
+            "SPECIFIC OUTCOME": "12.5.5.1 Enlarge objects by different methods",
+            "KNOWLEDGE": "• Finding matrix of rotation • Enlargement (by construction and matrix methods) • Finding the centre, scale factor",
+            "SKILLS": "",
             "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.6 Stretch",
+            "SPECIFIC OUTCOME": "12.5.6.1 Stretch objects by different methods 12.5.6.2 Find area, scale factors of a stretch by determinant method",
+            "KNOWLEDGE": "and matrix of enlargement • Stretch (by construction and matrix methods) • Finding the centre, scale factor, invariant line and matrix of stretch",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.7 Shear",
+            "SPECIFIC OUTCOME": "12.5.7.1 Shear objects by different methods",
+            "KNOWLEDGE": "• Shear (by construction and matrix methods) • Finding the shear factor, invariant line and matrix of shear",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.5.8 Combined transformations",
+            "SPECIFIC OUTCOME": "12.5.8.1 Solve problems involving combined transformations",
+            "KNOWLEDGE": "• Area scale factor • Determinant of a matrix • Inverse transformations",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "12.6 EARTH GEOMETRY",
+            "SUB TOPIC": "12.6.1 Introduction to Earth Geometry",
+            "SPECIFIC OUTCOME": "12.6.1.1 Explain the concept of Earth Geometry",
+            "KNOWLEDGE": "• Explaining the concept of Earth Geometry and its significance • Southern and Northern hemispheres ( South and North Poles)",
+            "SKILLS": "• Application of the relationship of earth geometry in real life. • Computation of distances of latitudes and longitudes.",
+            "VALUES": "• Appreciation of the concept of earth geometry. • Curiosity in exploring earth geometry. • Team work through"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.6.2 Small and great circles",
+            "SPECIFIC OUTCOME": "12.6.2.1 Distinguish between small and great circles",
+            "KNOWLEDGE": "• Great Circles(the equator and all longitudes)",
+            "SKILLS": "• Location of points on the globe.",
+            "VALUES": "cooperative learning"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.6.3 Latitudes and Longitudes",
+            "SPECIFIC OUTCOME": "12.6.3.1 Calculate distance along parallels of latitudes and longitude in kilometres and nautical miles",
+            "KNOWLEDGE": "• The Greenwich and Equator • Small Circles(latitudes) • Centre of the earth • Length ,chord , arc and sector • Angular distance • Line of axis of the Earth • Circumference of the earth",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.6.4 Distance along latitudes and longitudes",
+            "SPECIFIC OUTCOME": "12.6.4.1 Calculate the shortest distance between two points on the surface of the earth",
+            "KNOWLEDGE": "• Standard units of distances in o degrees and miles (1 of latitude represents 60 nautical miles/or 110.9 Km) • Conversion of distance in kilometre and nautical mile",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.6.5 Speed in Knots and time",
+            "SPECIFIC OUTCOME": "12.6.5.1 Calculate speed in knots and time",
+            "KNOWLEDGE": "• Longitude and time • Greenwich Mean Time • Solving problems involving Earth Geometry in real life",
+            "SKILLS": "",
+            "VALUES": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "12.7 INTRODUCTION TO CALCULUS",
+            "SUB TOPIC": "12.7.1 Differentiation",
+            "SPECIFIC OUTCOME": "12.7.1.1 Explain concept of differentiation 12.7.1.3 Differentiate functions from first principles. 12.7.1.4 Use the formula for differentiation 12.7.1.8 Calculate equations of tangents and normals",
+            "KNOWLEDGE": "• Explaining the concept of differentiation • Differentiating functions from first principles ( Limits) • Product rule; chain rule and quotient rule (y =ax n-1 = nax )",
+            "SKILLS": "• Interpretation of differentiation and integration • Application of definite integrals. n dy • Estimation of area ; dx under the curve.",
+            "VALUES": "• Appreciation of calculus. • Curiosity in differentiating and integrating. • Critical thinking in using rules for differentiation and"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB TOPIC": "12.7.2 Integration",
+            "SPECIFIC OUTCOME": "12.7.2.1 Explain integration 12.7.2.3 Find Indefinite integrals 12.7.2.2 Evaluate simple definite integrals 12.7.2.3 Find the area under the curve",
+            "KNOWLEDGE": "• Indefinite integrals • Arbitrary constant • Definite integrals • Stationary points • Secant • Tangents • Normal • Explain integration as the reverse of differentiation • Rule of integration ( dy n n ax ( = ax ; ax dx = dx n+1 • Area under the curve",
+            "SKILLS": "n+1 +c )",
+            "VALUES": "integration."
           }
         }
       ]
