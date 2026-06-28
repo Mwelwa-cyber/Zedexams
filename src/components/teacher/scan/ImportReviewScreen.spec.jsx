@@ -13,6 +13,13 @@ vi.mock('./DiagramHandlingChooser', () => ({
   ),
 }))
 
+// Stub the crop modal (canvas/DOM heavy). Expose a button that returns a blob.
+vi.mock('../../quiz/ImageCropModal', () => ({
+  default: ({ onCropped }) => (
+    <button onClick={() => onCropped(new Blob(['x'], { type: 'image/png' }))}>stub-crop-done</button>
+  ),
+}))
+
 const sections = [
   { kind: 'standalone', question: { text: '<p>What is 2+2?</p>', type: 'mcq', options: ['3', '4', '5', '6'], correctAnswer: '', sourceQuestionNumber: 1, sourcePage: 1, requiresReview: true } },
   { kind: 'standalone', question: { text: 'Study the figure', type: 'mcq', options: ['a', 'b'], correctAnswer: '', sourceQuestionNumber: 2, sourcePage: 1, hasDiagram: true } },
@@ -75,6 +82,33 @@ describe('ImportReviewScreen', () => {
   it('falls back to a notice when no original page image is available', () => {
     render(<ImportReviewScreen open sections={sections} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
     expect(screen.getByText('Original page preview not available', { exact: false })).toBeInTheDocument()
+  })
+
+  it('adds a missing question via the callback', () => {
+    const onAddQuestion = vi.fn()
+    render(<ImportReviewScreen open sections={sections} onPatchItem={() => {}} onAddQuestion={onAddQuestion} onClose={() => {}} onDone={() => {}} />)
+    fireEvent.click(screen.getByText('+ Add a missing question'))
+    expect(onAddQuestion).toHaveBeenCalledTimes(1)
+  })
+
+  it('crops a figure through the modal and hands the blob back', async () => {
+    const onCropFigure = vi.fn()
+    const withFigure = [
+      { kind: 'standalone', question: { text: 'Study the figure', type: 'mcq', options: ['a', 'b'], correctAnswer: 0, sourceQuestionNumber: 1, sourcePage: 1, imageUrl: 'blob:fig1' } },
+    ]
+    render(<ImportReviewScreen open sections={withFigure} onPatchItem={() => {}} onCropFigure={onCropFigure} onClose={() => {}} onDone={() => {}} />)
+    fireEvent.click(screen.getByText('Crop figure'))
+    fireEvent.click(await screen.findByText('stub-crop-done'))
+    expect(onCropFigure).toHaveBeenCalledTimes(1)
+    expect(onCropFigure.mock.calls[0][1]).toBeInstanceOf(Blob)
+  })
+
+  it('shows a "Missing labels" badge for an identify diagram with no labels', () => {
+    const labelQ = [
+      { kind: 'standalone', question: { text: 'Label the plant', type: 'diagram', diagramMode: 'identify', diagramLabels: [], imageUrl: 'blob:p', sourceQuestionNumber: 1, sourcePage: 1 } },
+    ]
+    render(<ImportReviewScreen open sections={labelQ} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
+    expect(screen.getByText('Missing labels')).toBeInTheDocument()
   })
 
   it('approving every page is required before the gate reads complete', () => {

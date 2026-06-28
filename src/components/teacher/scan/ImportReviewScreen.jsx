@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import Button from '../../ui/Button'
+import ImageCropModal from '../../quiz/ImageCropModal'
 import DiagramHandlingChooser from './DiagramHandlingChooser'
 import {
   buildReviewModel,
@@ -30,6 +31,9 @@ import {
  *   pageImageUrls — optional { [pageNumber]: url } of the original page photos
  *   onPatchItem   — (item, patch) => void; merges patch into the item's question
  *                   or passage (the studio routes by item.kind)
+ *   onAddQuestion — optional () => void; append a blank question the OCR missed
+ *   onCropFigure  — optional (item, blob) => void|Promise; replace an item's
+ *                   figure with a teacher-cropped PNG blob (uploaded by parent)
  *   onClose       — dismiss without finishing (keeps the import)
  *   onDone        — finish review and go to the builder
  */
@@ -39,10 +43,14 @@ export default function ImportReviewScreen({
   context = {},
   pageImageUrls = {},
   onPatchItem,
+  onAddQuestion,
+  onCropFigure,
   onClose,
   onDone,
 }) {
   const [approved, setApproved] = useState(() => new Set())
+  // The item whose figure is being re-cropped (drives the crop modal).
+  const [croppingItem, setCroppingItem] = useState(null)
 
   const model = useMemo(
     () => buildReviewModel(sections, pageImageUrls),
@@ -102,6 +110,7 @@ export default function ImportReviewScreen({
             {summary.needsReview ? ` · ${summary.needsReview} to check` : ''}
             {summary.noAnswer ? ` · ${summary.noAnswer} need an answer` : ''}
             {summary.missingDiagrams ? ` · ${summary.missingDiagrams} missing figure` : ''}
+            {summary.missingLabels ? ` · ${summary.missingLabels} need labels` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -168,6 +177,7 @@ export default function ImportReviewScreen({
                       detected={detectedFor(item)}
                       onPatch={onPatchItem}
                       onDiagram={(res) => applyDiagram(item, res)}
+                      onCrop={onCropFigure ? () => setCroppingItem(item) : null}
                     />
                   ))}
                 </div>
@@ -175,7 +185,30 @@ export default function ImportReviewScreen({
             </section>
           )
         })}
+
+        {/* Add a question the OCR missed entirely. */}
+        {typeof onAddQuestion === 'function' ? (
+          <div className="pt-2">
+            <Button variant="secondary" size="sm" onClick={onAddQuestion}>
+              + Add a missing question
+            </Button>
+          </div>
+        ) : null}
       </div>
+
+      {/* Re-crop a figure straight from the review screen (reuses the studio's
+          drag-to-crop modal; the parent uploads the returned PNG blob). */}
+      {croppingItem && croppingItem.ref?.imageUrl ? (
+        <ImageCropModal
+          imageUrl={croppingItem.ref.imageUrl}
+          onCropped={(blob) => {
+            const target = croppingItem
+            setCroppingItem(null)
+            if (typeof onCropFigure === 'function') onCropFigure(target, blob)
+          }}
+          onCancel={() => setCroppingItem(null)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -192,7 +225,7 @@ function Badge({ children, tone = 'warn' }) {
   )
 }
 
-function ReviewItemCard({ item, context, detected, onPatch, onDiagram }) {
+function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop }) {
   const ref = item.ref || {}
   const { signals } = item
   const isPassage = item.kind === 'passage'
@@ -212,6 +245,16 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram }) {
               {issue}
             </Badge>
           ))}
+          {/* Re-crop the attached figure (only when one is present). */}
+          {onCrop && ref.imageUrl ? (
+            <button
+              type="button"
+              className="text-[11px] font-black theme-accent-text underline"
+              onClick={onCrop}
+            >
+              Crop figure
+            </button>
+          ) : null}
         </div>
       </div>
 

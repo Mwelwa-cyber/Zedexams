@@ -968,6 +968,28 @@ export default function AssessmentStudio({ variant = 'test' }) {
     revokeReviewPageImages()
     setReviewPageImages({})
   }
+  // Append a blank question the OCR missed, from the review screen.
+  function handleAddReviewQuestion() {
+    setSections(prev => [...prev, createStandaloneSection({
+      requiresReview: true,
+      reviewNotes: ['Added during review — type the question, options and answer.'],
+    })])
+    showToast('Blank question added — it is at the end of the paper.')
+  }
+  // Replace a review item's figure with a teacher-cropped PNG blob. Diagrams are
+  // line art, so upload the lossless PNG straight (no JPEG re-compression).
+  async function handleCropReviewFigure(item, blob) {
+    if (!blob || !currentUser?.uid) return
+    try {
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-review-crop.png`
+      const snapshot = await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/png' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+      patchReviewItem(item, { imageUrl, imageAssetId: '' })
+      showToast('Figure cropped.')
+    } catch (error) {
+      showToast(`Crop failed: ${getErrorMessage(error)}`, true)
+    }
+  }
   function moveSection(sectionIndex, direction) {
     setSections(prev => {
       const next = [...prev]
@@ -2602,6 +2624,8 @@ export default function AssessmentStudio({ variant = 'test' }) {
         pageImageUrls={reviewPageImages}
         context={{ subject: form.subject, grade: form.grade, topic: form.topic }}
         onPatchItem={patchReviewItem}
+        onAddQuestion={handleAddReviewQuestion}
+        onCropFigure={handleCropReviewFigure}
         onClose={closeImportReview}
         onDone={closeImportReview}
       />
