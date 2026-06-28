@@ -628,6 +628,13 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
       : null,
     imageAlt: plain(q.imageAlt) || '',
     imageWidth: q.imageWidth || 'full',
+    // Additional figures, rendered stacked below the primary by the preview,
+    // PDF and DOCX renderers (multi-figure scanned questions).
+    images: Array.isArray(q.images)
+      ? q.images
+          .filter(img => img && img.url)
+          .map(img => ({ url: img.url, alt: plain(img.alt) || '', width: img.width || 'full' }))
+      : [],
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
     // Whether word-bank words may be reused across blanks (fill_blanks only).

@@ -76,6 +76,13 @@ function collectQuestionImagePaths(questionData, bucketName) {
 
   add(questionData.imageUrl);
 
+  // Additional stacked figures beyond the primary image.
+  if (Array.isArray(questionData.images)) {
+    for (const img of questionData.images) {
+      add(img && img.url);
+    }
+  }
+
   if (Array.isArray(questionData.optionMedia)) {
     for (const slot of questionData.optionMedia) {
       add(slot && slot.imageUrl);

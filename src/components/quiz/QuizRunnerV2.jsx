@@ -8,6 +8,7 @@ import { buildQuizDisplaySections, shuffleQuizSections } from '../../utils/quizS
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import ZoomableImage from './ZoomableImage'
+import ExtraQuestionImages from './ExtraQuestionImages'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
@@ -713,19 +714,24 @@ export default function QuizRunnerV2() {
               )}
             </div>
           )
+          const extraImages = <ExtraQuestionImages question={question} />
           if (!pos || pos === 'above' || pos === 'inline') {
             return (
               <>
                 {imageBlock}
+                {extraImages}
                 {textBlock}
               </>
             )
           }
           return (
-            <div className={imagePositionClasses(pos)}>
-              {imageBlock}
-              {textBlock}
-            </div>
+            <>
+              <div className={imagePositionClasses(pos)}>
+                {imageBlock}
+                {textBlock}
+              </div>
+              {extraImages}
+            </>
           )
         })()}
 

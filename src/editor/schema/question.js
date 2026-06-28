@@ -302,6 +302,23 @@ export const questionSchema = z
     // percentage of the content width by the studio preview and the PDF / DOCX
     // exporters). Absent on legacy docs → renderer falls back to full width.
     imageWidth: z.enum(['small', 'medium', 'large', 'full']).default('full'),
+    // Additional figures beyond the primary `imageUrl`, rendered STACKED BELOW
+    // it. Populated when a scanned question has more than one detected figure
+    // (the importer keeps the largest as `imageUrl` and the rest here). Each
+    // carries its own url/alt/width; the inner object strips unknown keys, so a
+    // transient import-only `imageAssetId` is dropped on parse. Empty on the
+    // overwhelming majority of questions, so legacy/single-image docs are
+    // unaffected.
+    images: z
+      .array(
+        z.object({
+          url: z.string(),
+          alt: z.string().max(2000).default(''),
+          width: z.enum(['small', 'medium', 'large', 'full']).default('full'),
+        }),
+      )
+      .max(6)
+      .default([]),
     diagramText: z.string().max(2000).nullable().default(null),
 
     // ── Diagram label overlays / inline table / drawing canvas ──
@@ -528,6 +545,19 @@ export function coerceQuestion(raw) {
     ? raw.optionMedia.map(m => (isPlainObject(m) ? m : null))
     : []
 
+  // Additional stacked figures. Drop invalid entries, default alt/width, and
+  // strip any transient import-only keys (e.g. imageAssetId) so only the
+  // persisted shape ({ url, alt, width }) survives.
+  const images = Array.isArray(raw.images)
+    ? raw.images
+        .filter(im => isPlainObject(im) && typeof im.url === 'string' && im.url)
+        .map(im => ({
+          url: im.url,
+          alt: typeof im.alt === 'string' ? im.alt : '',
+          width: ['small', 'medium', 'large', 'full'].includes(im.width) ? im.width : 'full',
+        }))
+    : []
+
   // Cap mirrors the write schema's `marks: z.number().int().min(1).max(20)`.
   // normalizeMarks (src/utils/questionType.js) is the single shared marks
   // policy: it used to clamp at 10 here, which silently truncated legitimate
@@ -560,6 +590,7 @@ export function coerceQuestion(raw) {
     type,
     options,
     optionMedia,
+    images,
     marks,
     tolerance,
     correctRegion,

@@ -1743,6 +1743,14 @@ export default function AssessmentStudio({ variant = 'test' }) {
           }
         })
       }
+      // Stacked extra figures from a multi-figure scanned question.
+      if (Array.isArray(q.images)) {
+        q.images.forEach(img => {
+          if (img && typeof img === 'object' && img.imageAssetId) {
+            assetIds.add(img.imageAssetId)
+          }
+        })
+      }
     })
     const uploadedById = await uploadImportedAssets(Array.from(assetIds), 'question')
     if (!uploadedById.size) return questionsToSave
@@ -1760,6 +1768,16 @@ export default function AssessmentStudio({ variant = 'test' }) {
           if (!url) return slot
           const { imageAssetId: _unused, ...rest } = slot
           return { ...rest, imageUrl: url }
+        })
+      }
+      if (Array.isArray(q.images)) {
+        next.images = q.images.map(img => {
+          if (!img || typeof img !== 'object') return img
+          const url = img.imageAssetId ? uploadedById.get(img.imageAssetId) : null
+          // Replace the transient object URL with the uploaded one and drop the
+          // asset id; keep already-uploaded entries (no imageAssetId) as-is.
+          const { imageAssetId: _unused, ...rest } = img
+          return url ? { ...rest, url } : rest
         })
       }
       return next

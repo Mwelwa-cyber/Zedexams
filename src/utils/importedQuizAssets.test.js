@@ -41,6 +41,25 @@ assert.throws(
   'a blob: URL on a passage.imageUrl must throw',
 )
 
+// A blob: URL on a stacked extra figure (images[]) must throw.
+assert.throws(
+  () => assertNoBlobImageUrls(
+    [{ imageUrl: 'https://example.com/main.jpg', images: [{ url: 'blob:http://localhost/extra' }] }],
+    [],
+  ),
+  /did not finish uploading/i,
+  'a blob: URL on an extra images[] figure must throw',
+)
+
+// Real URLs on images[] never trip the guard.
+assert.doesNotThrow(
+  () => assertNoBlobImageUrls(
+    [{ imageUrl: 'https://example.com/main.jpg', images: [{ url: 'https://example.com/extra.jpg' }] }],
+    [],
+  ),
+  'real images[] URLs should not trigger the blob guard',
+)
+
 // Empty inputs are a no-op.
 assert.doesNotThrow(() => assertNoBlobImageUrls(), 'no args is a no-op')
 assert.doesNotThrow(() => assertNoBlobImageUrls([], []), 'empty arrays are a no-op')
@@ -61,6 +80,17 @@ assert.deepEqual(stripped.optionMedia[0], { alt: 'A' }, 'blob: option imageUrl i
 assert.equal(stripped.optionMedia[1].imageUrl, 'https://example.com/keep.jpg', 'real option URLs survive')
 assert.equal(stripped.optionMedia[2], null, 'null slots pass through')
 assert.equal(stripped.other, 'preserved', 'unrelated fields pass through unchanged')
+
+// stripBlobImageUrls drops dead-blob extras but keeps already-uploaded ones.
+const strippedExtras = stripBlobImageUrls({
+  imageUrl: 'https://example.com/main.jpg',
+  images: [
+    { url: 'blob:http://localhost/dead-extra', alt: 'X' },
+    { url: 'https://example.com/kept-extra.jpg', alt: 'Y' },
+  ],
+})
+assert.equal(strippedExtras.images.length, 1, 'blob: extra figure is dropped')
+assert.equal(strippedExtras.images[0].url, 'https://example.com/kept-extra.jpg', 'uploaded extra survives')
 
 // ─── Passage schema round-trip ─────────────────────────────────────────────
 

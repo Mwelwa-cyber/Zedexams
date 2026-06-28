@@ -78,6 +78,16 @@ test('falls back to detectedDiagrams length when no extraCount is recorded', () 
   assert.strictEqual(s.extraDiagrams, 1) // 2 detected, 1 shown → 1 extra
 })
 
+test('extras attached as images[] count as handled, not missing', () => {
+  // 3 figures detected, all attached (primary + 2 in images[]) → 0 unhandled.
+  const s = getItemSignals({
+    type: 'mcq', correctAnswer: 1, imageUrl: 'blob:primary',
+    detectedDiagrams: [{ box: {} }, { box: {} }, { box: {} }],
+    images: [{ url: 'blob:extra-1' }, { url: 'blob:extra-2' }],
+  })
+  assert.strictEqual(s.extraDiagrams, 0)
+})
+
 test('flags a label-the-diagram question with no labels', () => {
   const missing = getItemSignals({ type: 'diagram', diagramMode: 'identify', diagramLabels: [] })
   assert.strictEqual(missing.missingLabels, true)

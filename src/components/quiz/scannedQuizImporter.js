@@ -749,59 +749,79 @@ async function attachQuestionDiagrams(localSections, assetByPage, usedAssetIds, 
     if (!pageAsset) continue
     const plan = planDiagramCrops({ diagrams }, pageAsset)
     if (!plan.length) continue
-    const primary = plan[0]
 
-    try {
-      const crop = await cropAssetRegion(pageAsset, primary.box)
-      let asset = crop
-      let cleaned = false
-      if (diagramHandling === 'clean' && isDiagramCleanSupported()) {
-        try {
-          const result = await cleanDiagramSource(crop.objectUrl, { mimeType: 'image/png' })
-          if (result?.blob) {
-            asset = makePageAsset(result.blob, pageAsset.sourcePage)
-            cleaned = true
-            // The raw (uncleaned) crop is now unused — release it.
-            if (crop.objectUrl && canRevokeObjectUrl()) URL.revokeObjectURL(crop.objectUrl)
+    // Crop EVERY planned figure: the largest becomes the primary (imageUrl),
+    // the rest stack below in images[]. Each cropped figure gets its own
+    // in-memory asset so the save path uploads it. Cropping one figure failing
+    // never drops the others.
+    const attached = []
+    for (const planItem of plan) {
+      try {
+        const crop = await cropAssetRegion(pageAsset, planItem.box)
+        let asset = crop
+        let cleaned = false
+        if (diagramHandling === 'clean' && isDiagramCleanSupported()) {
+          try {
+            const result = await cleanDiagramSource(crop.objectUrl, { mimeType: 'image/png' })
+            if (result?.blob) {
+              asset = makePageAsset(result.blob, pageAsset.sourcePage)
+              cleaned = true
+              // The raw (uncleaned) crop is now unused — release it.
+              if (crop.objectUrl && canRevokeObjectUrl()) URL.revokeObjectURL(crop.objectUrl)
+            }
+          } catch {
+            // Cleaning failed — keep the plain crop rather than losing the figure.
           }
-        } catch {
-          // Cleaning failed — keep the plain crop rather than losing the figure.
         }
+        attached.push({ asset, planItem, cleaned })
+        cropAssets.push(asset)
+        usedAssetIds?.add(asset.id)
+      } catch {
+        // This figure failed to crop — skip it; the rest may still attach.
       }
+    }
 
-      target.imageUrl = asset.objectUrl
-      target.imageAssetId = asset.id
-      target.imageAlt = primary.caption || target.imageAlt || ''
-      target.diagramText = diagramReviewNote(primary.classification, { cleaned })
-      target.diagramMeta = {
-        classification: primary.classification,
-        kind: primary.kind,
-        confidence: primary.confidence,
-        caption: primary.caption,
-        sourcePage: target.sourcePage ?? null,
-        handling: diagramHandling,
-        cleaned,
-        // Extra figures on the same page we did NOT auto-attach (kept to one
-        // per item to stay within the single-image question shape).
-        extraCount: Math.max(0, plan.length - 1),
-      }
-      target.requiresReview = true
-      const notes = [diagramReviewNote(primary.classification, { cleaned })]
-      if (plan.length > 1) {
-        notes.push(`${plan.length - 1} more figure${plan.length - 1 === 1 ? '' : 's'} were detected here — add ${plan.length - 1 === 1 ? 'it' : 'them'} with the Diagram Scanner if needed.`)
-      }
-      target.reviewNotes = [...new Set([...(target.reviewNotes || []), ...notes])]
-      cropAssets.push(asset)
-      usedAssetIds?.add(asset.id)
-    } catch {
-      // Crop failed — fall back to attaching the whole source page so the
+    if (!attached.length) {
+      // Every crop failed — fall back to attaching the whole source page so the
       // figure is never silently lost.
       target.imageUrl = pageAsset.imageUrl || pageAsset.objectUrl || ''
       target.imageAssetId = pageAsset.id
       target.diagramText = `Figure on page ${target.sourcePage} — crop or replace this image with just this item's diagram.`
       target.requiresReview = true
       usedAssetIds?.add(pageAsset.id)
+      continue
     }
+
+    const [primary, ...extras] = attached
+    target.imageUrl = primary.asset.objectUrl
+    target.imageAssetId = primary.asset.id
+    target.imageAlt = primary.planItem.caption || target.imageAlt || ''
+    target.diagramText = diagramReviewNote(primary.planItem.classification, { cleaned: primary.cleaned })
+    target.diagramMeta = {
+      classification: primary.planItem.classification,
+      kind: primary.planItem.kind,
+      confidence: primary.planItem.confidence,
+      caption: primary.planItem.caption,
+      sourcePage: target.sourcePage ?? null,
+      handling: diagramHandling,
+      cleaned: primary.cleaned,
+      // Figures detected but NOT attached (failed to crop) — usually 0 now that
+      // we attach every figure. Drives the review screen's "extra figures" hint.
+      extraCount: Math.max(0, plan.length - attached.length),
+    }
+    // The additional figures, in detection order, stacked below the primary.
+    // imageAssetId is transient — the save pass swaps it for the uploaded URL.
+    target.images = extras.map(e => ({
+      url: e.asset.objectUrl,
+      imageAssetId: e.asset.id,
+      alt: e.planItem.caption || '',
+      width: 'full',
+    }))
+    target.requiresReview = true
+    target.reviewNotes = [...new Set([
+      ...(target.reviewNotes || []),
+      diagramReviewNote(primary.planItem.classification, { cleaned: primary.cleaned }),
+    ])]
   }
   return cropAssets
 }
