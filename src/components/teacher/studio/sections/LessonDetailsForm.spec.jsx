@@ -1,0 +1,387 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { LessonDetailsForm } from './LessonDetailsForm'
+
+const DEFAULT_DETAILS = {
+  grade: '',
+  subject: '',
+  duration: '40',
+  medium: 'English',
+  term: '',
+  week: '',
+  date: '',
+  time: '',
+}
+
+function renderForm(props = {}) {
+  const defaults = {
+    lessonDetails: { ...DEFAULT_DETAILS },
+    curriculumMode: 'cbc',
+    onChange: vi.fn(),
+    disabled: false,
+    ...props,
+  }
+  return { ...render(<LessonDetailsForm {...defaults} />), onChange: defaults.onChange }
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+
+describe('LessonDetailsForm — section header', () => {
+  it('renders the "Lesson Details" heading', () => {
+    renderForm()
+    expect(screen.getByText('Lesson Details')).toBeInTheDocument()
+  })
+
+  it('shows a grey status dot when grade and subject are empty', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, grade: '', subject: '' } })
+    // The dot element is aria-hidden; query by class fragment via container
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    // grey dot class contains bg-[#c9c0b0]
+    expect(container.querySelector('.bg-\\[\\#c9c0b0\\]')).toBeInTheDocument()
+  })
+
+  it('shows a green status dot when both grade and subject are filled', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 4', subject: 'Mathematics' }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    expect(container.querySelector('.bg-green-500')).toBeInTheDocument()
+  })
+})
+
+// ── Collapse / expand ─────────────────────────────────────────────────────────
+
+describe('LessonDetailsForm — collapse/expand', () => {
+  it('body is visible by default (starts open)', () => {
+    renderForm()
+    // The Class select is inside the body
+    expect(screen.getByRole('combobox', { name: /class/i })).toBeInTheDocument()
+  })
+
+  it('hides the body after clicking the toggle button', () => {
+    renderForm()
+    const toggle = screen.getByRole('button', { name: /lesson details/i })
+    fireEvent.click(toggle)
+    expect(screen.queryByRole('combobox', { name: /class/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the body again after a second click', () => {
+    renderForm()
+    const toggle = screen.getByRole('button', { name: /lesson details/i })
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+    expect(screen.getByRole('combobox', { name: /class/i })).toBeInTheDocument()
+  })
+
+  it('toggle button exposes aria-expanded', () => {
+    renderForm()
+    const toggle = screen.getByRole('button', { name: /lesson details/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+// ── Grade optgroups differ by curriculum mode ─────────────────────────────────
+
+describe('LessonDetailsForm — CBC grade optgroups', () => {
+  it('renders CBC optgroups: ECE, Lower Primary, Upper Primary, Secondary', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const groups = [...container.querySelectorAll('optgroup')].map((g) => g.label)
+    expect(groups).toContain('ECE')
+    expect(groups).toContain('Lower Primary')
+    expect(groups).toContain('Upper Primary')
+    expect(groups).toContain('Secondary')
+  })
+
+  it('CBC Lower Primary contains Grade 1, Grade 2, Grade 3', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const lp = [...container.querySelectorAll('optgroup')].find((g) => g.label === 'Lower Primary')
+    const values = [...lp.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toContain('Grade 1')
+    expect(values).toContain('Grade 2')
+    expect(values).toContain('Grade 3')
+  })
+
+  it('CBC Secondary contains Form 1 through Form 4', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const sec = [...container.querySelectorAll('optgroup')].find((g) => g.label === 'Secondary')
+    const values = [...sec.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toContain('Form 1')
+    expect(values).toContain('Form 2')
+    expect(values).toContain('Form 3')
+    expect(values).toContain('Form 4')
+  })
+})
+
+describe('LessonDetailsForm — Previous Curriculum grade optgroups', () => {
+  it('Previous Upper Primary contains Grade 5, Grade 6, Grade 7 (not Grade 1-3)', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="previous"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const up = [...container.querySelectorAll('optgroup')].find((g) => g.label === 'Upper Primary')
+    const values = [...up.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toContain('Grade 5')
+    expect(values).toContain('Grade 6')
+    expect(values).toContain('Grade 7')
+    expect(values).not.toContain('Grade 1')
+    expect(values).not.toContain('Grade 2')
+    expect(values).not.toContain('Grade 3')
+  })
+
+  it('Previous Secondary contains Grade 8 through Grade 12', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="previous"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const sec = [...container.querySelectorAll('optgroup')].find((g) => g.label === 'Secondary')
+    const values = [...sec.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toContain('Grade 8')
+    expect(values).toContain('Grade 12')
+    expect(values).not.toContain('Form 1')
+  })
+
+  it('Previous does not have Form 1-4 anywhere in class options', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="previous"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    // Only look at the class select (first select in the form)
+    const classSelect = container.querySelectorAll('select')[0]
+    const values = [...classSelect.querySelectorAll('option')].map((o) => o.value)
+    expect(values).not.toContain('Form 1')
+    expect(values).not.toContain('Form 4')
+  })
+})
+
+// ── Grade resets on mode change ───────────────────────────────────────────────
+
+describe('LessonDetailsForm — grade reset on curriculum mode change', () => {
+  it('calls onChange("grade", "") when curriculumMode changes and grade is invalid', () => {
+    const onChange = vi.fn()
+    // "Form 1" is valid in CBC but not Previous
+    const { rerender } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Form 1' }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    rerender(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Form 1' }}
+        curriculumMode="previous"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    expect(onChange).toHaveBeenCalledWith('grade', '')
+  })
+
+  it('does NOT call onChange("grade", "") when grade is still valid after mode change', () => {
+    const onChange = vi.fn()
+    // "Grade 5" is valid in both CBC and Previous
+    const { rerender } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 5' }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    rerender(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Grade 5' }}
+        curriculumMode="previous"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    expect(onChange).not.toHaveBeenCalledWith('grade', '')
+  })
+
+  it('does NOT reset grade when curriculumMode is null', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS, grade: 'Form 1' }}
+        curriculumMode={null}
+        onChange={onChange}
+        disabled={true}
+      />,
+    )
+    expect(onChange).not.toHaveBeenCalledWith('grade', '')
+  })
+})
+
+// ── onChange fired correctly ──────────────────────────────────────────────────
+
+describe('LessonDetailsForm — onChange callbacks', () => {
+  it('calls onChange("grade", value) when class is changed', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: /class/i }), {
+      target: { value: 'Grade 4' },
+    })
+    expect(onChange).toHaveBeenCalledWith('grade', 'Grade 4')
+  })
+
+  it('calls onChange("subject", value) when subject is changed', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: /subject/i }), {
+      target: { value: 'Mathematics' },
+    })
+    expect(onChange).toHaveBeenCalledWith('subject', 'Mathematics')
+  })
+
+  it('calls onChange("duration", value) when duration is changed', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '60' } })
+    expect(onChange).toHaveBeenCalledWith('duration', '60')
+  })
+
+  it('calls onChange("term", value) when term is changed', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: /term/i }), {
+      target: { value: 'Term 2' },
+    })
+    expect(onChange).toHaveBeenCalledWith('term', 'Term 2')
+  })
+
+  it('calls onChange("week", value) when week is changed', () => {
+    const onChange = vi.fn()
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={onChange}
+        disabled={false}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: /week/i }), {
+      target: { value: 'Week 5' },
+    })
+    expect(onChange).toHaveBeenCalledWith('week', 'Week 5')
+  })
+})
+
+// ── Disabled state ────────────────────────────────────────────────────────────
+
+describe('LessonDetailsForm — disabled state', () => {
+  it('applies pointer-events-none and opacity-50 when disabled', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode={null}
+        onChange={vi.fn()}
+        disabled={true}
+      />,
+    )
+    const root = container.firstChild
+    expect(root.className).toMatch(/pointer-events-none/)
+    expect(root.className).toMatch(/opacity-50/)
+  })
+
+  it('does NOT apply disabled classes when enabled', () => {
+    const { container } = render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode="cbc"
+        onChange={vi.fn()}
+        disabled={false}
+      />,
+    )
+    const root = container.firstChild
+    expect(root.className).not.toMatch(/pointer-events-none/)
+    expect(root.className).not.toMatch(/opacity-50/)
+  })
+
+  it('toggle button is disabled when disabled prop is true', () => {
+    render(
+      <LessonDetailsForm
+        lessonDetails={{ ...DEFAULT_DETAILS }}
+        curriculumMode={null}
+        onChange={vi.fn()}
+        disabled={true}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /lesson details/i })).toBeDisabled()
+  })
+})
