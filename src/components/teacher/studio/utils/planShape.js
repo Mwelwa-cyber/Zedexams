@@ -86,16 +86,52 @@ export function writeStage(canonical, original = {}) {
   }
 }
 
+function isEmptyValue(v) {
+  return v == null
+    || (typeof v === 'string' && v.trim() === '')
+    || (Array.isArray(v) && v.length === 0)
+}
+
+// Canonical top-level key → variant keys the model sometimes emits instead.
+// renderPlanHtml reads the canonical names, so a pluralised/renamed variant
+// would render as a blank section. We only fill a canonical key when it is
+// missing/empty, so a correct payload is untouched.
+const TOP_LEVEL_ALIASES = {
+  generalCompetences: ['generalCompetencies', 'generalCompetence', 'competences', 'competencies'],
+  specificCompetence: ['specificCompetency', 'specificCompetences', 'specificCompetencies'],
+  lessonGoal: ['goal', 'objective', 'lessonObjective'],
+  priorKnowledge: ['prerequisiteKnowledge', 'preRequisiteKnowledge', 'prerequisites'],
+  materials: ['teachingMaterials', 'learningMaterials', 'teachingAndLearningMaterials', 'tlAids'],
+  expectedStandard: ['expectedStandards', 'standard'],
+  keyVocabulary: ['vocabulary', 'keyVocab'],
+  specificOutcomes: ['specificOutcome', 'outcomes'],
+}
+
+function foldTopLevelAliases(plan) {
+  const out = { ...plan }
+  for (const [canon, aliases] of Object.entries(TOP_LEVEL_ALIASES)) {
+    if (!isEmptyValue(out[canon])) continue
+    const hit = aliases.find((a) => !isEmptyValue(out[a]))
+    if (hit) out[canon] = out[hit]
+  }
+  return out
+}
+
 /**
  * Return a shallow clone of the plan whose stages each carry both field
- * families with identical content. Non-object input is returned unchanged.
+ * families with identical content, AND whose top-level sections are folded
+ * onto the canonical keys renderPlanHtml reads (so a model that pluralises or
+ * renames a key — "generalCompetencies", "teachingMaterials" — still renders a
+ * populated section instead of a blank one). Non-object input is returned
+ * unchanged.
  */
 export function normalizePlanShape(plan) {
   if (!plan || typeof plan !== 'object') return plan
-  if (!Array.isArray(plan.stages)) return { ...plan }
+  const folded = foldTopLevelAliases(plan)
+  if (!Array.isArray(folded.stages)) return folded
   return {
-    ...plan,
-    stages: plan.stages.map((s) => writeStage(readStage(s), s)),
+    ...folded,
+    stages: folded.stages.map((s) => writeStage(readStage(s), s)),
   }
 }
 

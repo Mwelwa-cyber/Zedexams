@@ -45,3 +45,29 @@ describe('studioSystemPrompt — writing-style honouring', () => {
     expect(STUDIO_SYSTEM_PROMPT).toBe(STUDIO_SYSTEM_PROMPT_CBC)
   })
 })
+
+// Regression for the "blank skeleton" bug: the rewrite dropped the JSON-key
+// contract, so the model invented its own keys and the renderer (which reads
+// generalCompetences / stages[].{teacher,pupils,assessment}) showed nothing.
+describe('studioSystemPrompt — JSON output contract', () => {
+  it('CBC prompt names the canonical top-level + stage keys', () => {
+    for (const key of [
+      'generalCompetences', 'specificCompetence', 'lessonGoal', 'rationale',
+      'priorKnowledge', 'references', 'learningEnvironment', 'materials',
+      'expectedStandard', '"stages"', '"teacher"', '"pupils"', '"assessment"',
+    ]) {
+      expect(STUDIO_SYSTEM_PROMPT_CBC).toContain(key)
+    }
+  })
+
+  it('CBC prompt explicitly forbids the renamed stage keys that broke the renderer', () => {
+    expect(STUDIO_SYSTEM_PROMPT_CBC).toMatch(/do NOT rename/i)
+    expect(STUDIO_SYSTEM_PROMPT_CBC).toContain('teacherActivities')
+  })
+
+  it('Previous-curriculum prompt names canonical stage keys', () => {
+    for (const key of ['"teacher"', '"pupils"', '"assessment"', '"stages"', 'specificOutcomes']) {
+      expect(STUDIO_SYSTEM_PROMPT_PREVIOUS).toContain(key)
+    }
+  })
+})

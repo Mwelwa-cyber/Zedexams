@@ -85,6 +85,25 @@ console.log('\nnormalizePlanShape — round-trips a model that emitted only arra
 ok('non-object passes through', normalizePlanShape(null) === null)
 ok('missing stages tolerated', Array.isArray(normalizePlanShape({ lessonGoal: 'x' }).stages) === false)
 
+console.log('\nnormalizePlanShape — folds variant top-level keys onto canonical ones')
+{
+  const norm = normalizePlanShape({
+    generalCompetencies: ['Communication'],
+    specificCompetency: '4.5.1 Joining of Materials',
+    teachingMaterials: ['Glue', 'Wood'],
+    expectedStandards: 'Materials joined correctly.',
+  })
+  ok('generalCompetencies -> generalCompetences', norm.generalCompetences[0] === 'Communication')
+  ok('specificCompetency -> specificCompetence', norm.specificCompetence === '4.5.1 Joining of Materials')
+  ok('teachingMaterials -> materials', norm.materials[1] === 'Wood')
+  ok('expectedStandards -> expectedStandard', norm.expectedStandard === 'Materials joined correctly.')
+}
+{
+  // A correct canonical key is never overwritten by a stray variant.
+  const norm = normalizePlanShape({ generalCompetences: ['Right'], generalCompetencies: ['Wrong'] })
+  ok('canonical key wins over variant', norm.generalCompetences[0] === 'Right')
+}
+
 console.log('\nstagesForEditing')
 ok('maps to canonical', stagesForEditing({ stages: [{ name: 'A', teacher: 'do' }] })[0].teacherActivities[0] === 'do')
 ok('empty when no stages', stagesForEditing({}).length === 0)
