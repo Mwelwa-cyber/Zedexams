@@ -58,6 +58,24 @@ test('an attached figure is present, not missing', () => {
   const s = getItemSignals({ type: 'mcq', correctAnswer: 1, detectedDiagrams: [{ box: {} }], imageUrl: 'blob:x' })
   assert.strictEqual(s.hasDiagram, true)
   assert.strictEqual(s.missingDiagram, false)
+  assert.strictEqual(s.extraDiagrams, 0) // single detected figure → no extras
+})
+
+test('counts extra detected figures from diagramMeta.extraCount', () => {
+  const s = getItemSignals({
+    type: 'mcq', correctAnswer: 1, imageUrl: 'blob:x',
+    detectedDiagrams: [{ box: {} }, { box: {} }, { box: {} }],
+    diagramMeta: { extraCount: 2 },
+  })
+  assert.strictEqual(s.extraDiagrams, 2)
+})
+
+test('falls back to detectedDiagrams length when no extraCount is recorded', () => {
+  const s = getItemSignals({
+    type: 'mcq', correctAnswer: 1, imageUrl: 'blob:x',
+    detectedDiagrams: [{ box: {} }, { box: {} }],
+  })
+  assert.strictEqual(s.extraDiagrams, 1) // 2 detected, 1 shown → 1 extra
 })
 
 test('flags a label-the-diagram question with no labels', () => {

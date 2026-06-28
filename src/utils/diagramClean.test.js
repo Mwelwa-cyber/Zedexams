@@ -20,6 +20,8 @@ import {
   whitenBackground,
   sharpen,
   binarize,
+  adaptiveBinarize,
+  fractionBelow,
   rotateRGBA,
   computeContentBounds,
   cropImageData,
@@ -146,6 +148,42 @@ test('binarize yields only black and white', () => {
   }
   assert.equal(px(out, 0, 0)[0], 0) // darkest → black
   assert.equal(px(out, 9, 0)[0], 255) // lightest → white
+})
+
+// ── adaptive (Sauvola) threshold + faint-content fallback ──────────────────────
+test('fractionBelow counts the dark share of an image', () => {
+  // 10 px ramp 0,25,…,225. Six are < 128 (0,25,50,75,100,125), four are >= 128.
+  const image = img(10, 1, (x) => [x * 25, x * 25, x * 25])
+  assert.equal(fractionBelow(image, 128), 0.6)
+  assert.equal(fractionBelow(image, 0), 0)
+})
+
+test('adaptiveBinarize inks a faint stroke that global Otsu would wash out', () => {
+  // Bright page (240) with a 2px faint vertical stroke (180) — Otsu on this
+  // near-uniform histogram tends to drop the faint stroke; Sauvola keeps it.
+  const image = img(20, 20, (x) => (x >= 9 && x <= 10 ? [180, 180, 180] : [240, 240, 240]))
+  const out = adaptiveBinarize(image)
+  assert.equal(px(out, 9, 10)[0], 0) // faint stroke → ink
+  assert.equal(px(out, 19, 19)[0], 255) // page → white
+  // Every pixel is strictly black or white.
+  for (let i = 0; i < out.data.length; i += 4) {
+    assert.ok(out.data[i] === 0 || out.data[i] === 255)
+  }
+})
+
+test('cleanPixels falls back to adaptive when Otsu keeps heavy ink but drops faint strokes', () => {
+  // A heavy ink line (20) + faint pencil strokes (185) on a page (240). Global
+  // Otsu latches onto the heavy line and thresholds the faint strokes away;
+  // the fallback recovers them.
+  const image = img(20, 20, (x) => {
+    if (x === 2) return [20, 20, 20] // heavy ink line
+    if (x === 9 || x === 10) return [185, 185, 185] // faint pencil strokes
+    return [240, 240, 240] // page
+  })
+  const out = cleanPixels(image)
+  assert.equal(px(out, 9, 10)[0], 0, 'faint stroke survives via adaptive fallback')
+  assert.equal(px(out, 2, 10)[0], 0, 'heavy ink stays black')
+  assert.equal(px(out, 16, 5)[0], 255, 'page stays white')
 })
 
 // ── rotate ─────────────────────────────────────────────────────────────────────

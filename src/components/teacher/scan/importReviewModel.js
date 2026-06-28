@@ -19,6 +19,9 @@
  *   - hasDiagram     — a figure was detected for this item
  *   - missingDiagram — a figure was detected but no image is attached (cropped
  *                      content lost / never produced)
+ *   - extraDiagrams  — count of EXTRA figures detected on the same item beyond
+ *                      the single one the studio can attach (so the teacher
+ *                      knows to add the rest with the Diagram Scanner)
  *   - missingAlt     — pictorial options without alt text
  */
 
@@ -58,6 +61,14 @@ export function getItemSignals(item = {}) {
   // teacher needs to redraw or re-crop.
   const missingDiagram = (detected.length > 0 || Boolean(item.hasDiagram)) && !hasImage
 
+  // Claude often detects several figures on one question, but the question shape
+  // holds a single image, so the importer attaches only the primary and records
+  // how many it left behind. Surface that count so the teacher can add the rest
+  // with the Diagram Scanner instead of them being silently dropped.
+  const extraDiagrams = Number.isFinite(item.diagramMeta?.extraCount)
+    ? Math.max(0, item.diagramMeta.extraCount)
+    : Math.max(0, detected.length - 1)
+
   const missingAlt =
     Array.isArray(item.optionMedia) &&
     item.optionMedia.some(
@@ -86,6 +97,7 @@ export function getItemSignals(item = {}) {
     lowConfidence,
     hasDiagram,
     missingDiagram,
+    extraDiagrams,
     missingLabels,
     missingAlt,
     issues,
