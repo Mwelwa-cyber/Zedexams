@@ -95,6 +95,19 @@ export function getItemSignals(item = {}) {
   if (missingAlt) issues.push('Missing alt text')
   if (item.requiresReview && !issues.length) issues.push('Check wording')
 
+  // Coarse readiness for the review UI's status chip. A runtime figure failure
+  // (a clean/redraw/rebuild that errored) is tracked in the component and shown
+  // as 'failed' on top of this — the model only knows 'review' vs 'ready'.
+  const status = issues.length > 0 ? 'review' : 'ready'
+
+  // Detection confidence (0..1) for an attached / just-detected figure, when the
+  // importer recorded one. Null for text-only items — we never fabricate one.
+  const confidence = Number.isFinite(item.diagramMeta?.confidence)
+    ? item.diagramMeta.confidence
+    : Number.isFinite(detected[0]?.confidence)
+      ? detected[0].confidence
+      : null
+
   return {
     needsReview: Boolean(item.requiresReview),
     noAnswer,
@@ -105,6 +118,8 @@ export function getItemSignals(item = {}) {
     missingLabels,
     missingAlt,
     issues,
+    status,
+    confidence,
   }
 }
 

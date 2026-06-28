@@ -47,6 +47,7 @@ export default function DiagramHandlingChooser({
   originalUrl = null,
   onCleanUpload = null,
   onResolved,
+  onError = null,
 }) {
   const [busy, setBusy] = useState(null) // the option id currently running
   const [result, setResult] = useState(null)
@@ -148,9 +149,12 @@ export default function DiagramHandlingChooser({
       // Tag the result with the chosen option so the matching button highlights.
       const resolved = { ...res, handling: res?.handling || option.id }
       setResult(resolved)
+      if (typeof onError === 'function') onError(null)
       if (typeof onResolved === 'function') onResolved(resolved)
     } catch (err) {
-      setError(err?.message || 'Something went wrong. Please try again.')
+      const message = err?.message || 'Something went wrong. Please try again.'
+      setError(message)
+      if (typeof onError === 'function') onError(message)
     } finally {
       setBusy(null)
     }

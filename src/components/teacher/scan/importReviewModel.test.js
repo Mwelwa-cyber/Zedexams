@@ -88,6 +88,22 @@ test('extras attached as images[] count as handled, not missing', () => {
   assert.strictEqual(s.extraDiagrams, 0)
 })
 
+test('status is ready when nothing is flagged, review when an issue exists', () => {
+  const ready = getItemSignals({ type: 'mcq', correctAnswer: 2, options: ['a', 'b'] })
+  assert.strictEqual(ready.status, 'ready')
+  const review = getItemSignals({ type: 'mcq', correctAnswer: '', options: ['a', 'b'] })
+  assert.strictEqual(review.status, 'review')
+})
+
+test('surfaces figure detection confidence, null for text-only items', () => {
+  const withFig = getItemSignals({ type: 'mcq', correctAnswer: 1, imageUrl: 'blob:x', diagramMeta: { confidence: 0.82 } })
+  assert.strictEqual(withFig.confidence, 0.82)
+  const fromDetected = getItemSignals({ type: 'mcq', correctAnswer: 1, imageUrl: 'blob:x', detectedDiagrams: [{ confidence: 0.6 }] })
+  assert.strictEqual(fromDetected.confidence, 0.6)
+  const textOnly = getItemSignals({ type: 'mcq', correctAnswer: 1 })
+  assert.strictEqual(textOnly.confidence, null)
+})
+
 test('flags a label-the-diagram question with no labels', () => {
   const missing = getItemSignals({ type: 'diagram', diagramMode: 'identify', diagramLabels: [] })
   assert.strictEqual(missing.missingLabels, true)

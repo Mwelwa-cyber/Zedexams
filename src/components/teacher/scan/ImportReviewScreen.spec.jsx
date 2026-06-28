@@ -3,13 +3,18 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 import ImportReviewScreen from './ImportReviewScreen'
 
-// Stub the diagram chooser (its real impl pulls in Firebase). Expose a button
-// that fires onResolved so we can assert the screen wires the result back.
+// Stub the diagram chooser (its real impl pulls in Firebase). Expose buttons
+// that fire onResolved / onError so we can assert the screen wires them back.
 vi.mock('./DiagramHandlingChooser', () => ({
-  default: ({ onResolved }) => (
-    <button onClick={() => onResolved({ action: 'redrawn', url: 'https://gen/x.png', source: 'generated' })}>
-      stub-redraw
-    </button>
+  default: ({ onResolved, onError }) => (
+    <>
+      <button onClick={() => onResolved({ action: 'redrawn', url: 'https://gen/x.png', source: 'generated' })}>
+        stub-redraw
+      </button>
+      <button onClick={() => onError && onError('Could not rebuild this item automatically.')}>
+        stub-fail
+      </button>
+    </>
   ),
 }))
 
@@ -41,6 +46,34 @@ describe('ImportReviewScreen', () => {
     expect(screen.getAllByText('No answer').length).toBe(2)
     // The figure question shows the missing-diagram flag.
     expect(screen.getByText('Missing diagram')).toBeInTheDocument()
+  })
+
+  it('shows a Ready status chip for a clean question and Needs review otherwise', () => {
+    const mixed = [
+      { kind: 'standalone', question: { text: 'Clean Q', type: 'mcq', options: ['a', 'b'], correctAnswer: 1, sourceQuestionNumber: 1, sourcePage: 1 } },
+      { kind: 'standalone', question: { text: 'Needs Q', type: 'mcq', options: ['a', 'b'], correctAnswer: '', sourceQuestionNumber: 2, sourcePage: 1, requiresReview: true } },
+    ]
+    render(<ImportReviewScreen open sections={mixed} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
+    expect(screen.getByText('Ready')).toBeInTheDocument()
+    expect(screen.getByText('Needs review')).toBeInTheDocument()
+  })
+
+  it('shows the figure detection confidence as a percentage', () => {
+    const withConfidence = [
+      { kind: 'standalone', question: { text: 'Figure Q', type: 'mcq', options: ['a', 'b'], correctAnswer: 0, sourceQuestionNumber: 1, sourcePage: 1, imageUrl: 'blob:f', diagramMeta: { confidence: 0.82 } } },
+    ]
+    render(<ImportReviewScreen open sections={withConfidence} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
+    expect(screen.getByText('82% match')).toBeInTheDocument()
+  })
+
+  it('flips the item to a Failed status when a figure action errors', () => {
+    const withFigure = [
+      { kind: 'standalone', question: { text: 'Study the figure', type: 'mcq', options: ['a', 'b'], correctAnswer: 0, sourceQuestionNumber: 1, sourcePage: 1, imageUrl: 'blob:f' } },
+    ]
+    render(<ImportReviewScreen open sections={withFigure} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
+    expect(screen.queryByText('Failed')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('stub-fail'))
+    expect(screen.getByText('Failed')).toBeInTheDocument()
   })
 
   it('patches the correct answer when an option is picked', () => {

@@ -114,6 +114,29 @@ describe('DiagramHandlingChooser', () => {
     expect(await screen.findByText('Blank space')).toBeInTheDocument()
   })
 
+  it('reports failure through onError so the item can flip to Failed', async () => {
+    mockRedraw.mockRejectedValueOnce(new Error('The diagram service hit an error.'))
+    const onError = vi.fn()
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} onError={onError} />)
+
+    fireEvent.click(screen.getByText('Redraw using AI'))
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('The diagram service hit an error.'))
+  })
+
+  it('clears onError after a subsequent success', async () => {
+    mockRedraw
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ action: 'redrawn', url: 'https://gen/x.png', source: 'generated' })
+    const onError = vi.fn()
+    render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} onError={onError} />)
+
+    fireEvent.click(screen.getByText('Redraw using AI'))
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('boom'))
+    fireEvent.click(screen.getByText('Replace with a better educational diagram'))
+    await waitFor(() => expect(onError).toHaveBeenLastCalledWith(null))
+  })
+
   it('surfaces an error when the wrapper rejects', async () => {
     mockRedraw.mockRejectedValueOnce(new Error('Monthly diagram limit reached.'))
     render(<DiagramHandlingChooser detected={detected} context={context} onResolved={() => {}} />)
