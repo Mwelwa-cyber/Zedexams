@@ -528,6 +528,33 @@ function canRevokeObjectUrl() {
   return typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function'
 }
 
+// Companion guard for creating object URLs (browser-only). The import review
+// screen shows the original page photos beside the reconstruction; we mint a
+// SEPARATE, review-only object URL per page so it's independent of the upload
+// assets (revoking it when review closes never touches a saved figure).
+function canCreateObjectUrl() {
+  return typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+}
+
+// Build a { [pageNumber]: objectUrl } map of review-only originals from the
+// rendered page assets. These are owned by the caller (the studio revokes them
+// when the review screen closes) and are NEVER added to imageAssets, so they
+// don't get uploaded to Storage at save time.
+export function buildReviewPageImages(assetByPage = {}) {
+  const map = {}
+  if (!canCreateObjectUrl()) return map
+  Object.entries(assetByPage).forEach(([pageNumber, asset]) => {
+    if (asset && asset.blob) {
+      try {
+        map[pageNumber] = URL.createObjectURL(asset.blob)
+      } catch {
+        // ignore — a page without a usable blob just has no original preview
+      }
+    }
+  })
+  return map
+}
+
 function dataUrlToBlob(dataUrl) {
   const [, mime, b64] = dataUrl.match(/^data:([^;]+);base64,(.*)$/) || []
   if (!b64) return null
@@ -942,6 +969,10 @@ export async function runVisionImport({
   return {
     sections,
     imageAssets,
+    // Review-only originals (one object URL per page), independent of the
+    // upload assets — the studio shows them in the import review screen and
+    // revokes them when it closes.
+    pageImageUrls: buildReviewPageImages(assetByPage),
     warnings,
     pageCount: pageImages.length,
     summary: buildScannedSummary({

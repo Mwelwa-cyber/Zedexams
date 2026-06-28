@@ -440,6 +440,19 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // After a photo/scanned import, the review screen opens over the builder so
   // the teacher can check the reconstruction page-by-page before editing.
   const [reviewingImport, setReviewingImport] = useState(false)
+  // Review-only original page images ({ [page]: objectUrl }), revoked when the
+  // review screen closes so they never leak or get uploaded.
+  const [reviewPageImages, setReviewPageImages] = useState({})
+  // Safety net: revoke any review-only page URLs if the studio unmounts (or the
+  // set is replaced) while the review screen is still open.
+  useEffect(() => () => {
+    if (typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') return
+    Object.values(reviewPageImages).forEach(url => {
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        try { URL.revokeObjectURL(url) } catch { /* already revoked */ }
+      }
+    })
+  }, [reviewPageImages])
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
@@ -940,6 +953,20 @@ export default function AssessmentStudio({ variant = 'test' }) {
       }
       return { ...section, question: { ...section.question, ...patch } }
     })
+  }
+  // Free the review-only original page object URLs. Safe to call repeatedly.
+  function revokeReviewPageImages() {
+    if (typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') return
+    Object.values(reviewPageImages).forEach(url => {
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        try { URL.revokeObjectURL(url) } catch { /* already revoked */ }
+      }
+    })
+  }
+  function closeImportReview() {
+    setReviewingImport(false)
+    revokeReviewPageImages()
+    setReviewPageImages({})
   }
   function moveSection(sectionIndex, direction) {
     setSections(prev => {
@@ -1607,7 +1634,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
       // Photo/scanned imports open the page-by-page review screen over the
       // builder so figures and answers are checked before editing. Document
       // imports (which have a text layer) go straight to the builder.
-      if (imported.scanned) setReviewingImport(true)
+      if (imported.scanned) {
+        revokeReviewPageImages()
+        setReviewPageImages(imported.pageImageUrls || {})
+        setReviewingImport(true)
+      }
       return true
     } catch (error) {
       console.error(error)
@@ -2568,10 +2599,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
       <ImportReviewScreen
         open={reviewingImport}
         sections={sections}
+        pageImageUrls={reviewPageImages}
         context={{ subject: form.subject, grade: form.grade, topic: form.topic }}
         onPatchItem={patchReviewItem}
-        onClose={() => setReviewingImport(false)}
-        onDone={() => setReviewingImport(false)}
+        onClose={closeImportReview}
+        onDone={closeImportReview}
       />
     </div>
   )
