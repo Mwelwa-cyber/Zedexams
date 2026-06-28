@@ -11,6 +11,7 @@ import { StudioShell } from './StudioShell'
 import { StudioSidebar } from './StudioSidebar'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
+import { normalizePlanShape } from './utils/planShape'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -124,6 +125,10 @@ export default function LessonPlanStudio() {
   const [lastPlanJson, setLastPlanJson] = useState(null)
   const [lastMeta, setLastMeta] = useState(null)
 
+  // Canvas view mode: 'preview' (formatted document) | 'edit' (manual + AI
+  // section editor). Session-only, resets to preview on each new generation.
+  const [viewMode, setViewMode] = useState('preview')
+
   // Illustration (AI diagram) state. `diagrams` accumulates the generated
   // figures attached to the current plan; illustrationStatus drives the
   // canvas indicator ('idle' | 'generating' | 'error').
@@ -156,6 +161,7 @@ export default function LessonPlanStudio() {
     const current = studioStateRef.current
     current.setGenerationStatus('loading')
     setGenerationError(null)
+    setViewMode('preview')
 
     const {
       lessonDetails,
@@ -302,7 +308,10 @@ export default function LessonPlanStudio() {
         .replace(/\s*```$/, '')
         .trim()
 
-      const planJson = JSON.parse(raw)
+      // Normalise the stage field-name families up front (teacher/pupils ↔
+      // teacherActivities/learnerActivities) so the preview, the Word export and
+      // the editor all read consistent data — see utils/planShape.js.
+      const planJson = normalizePlanShape(JSON.parse(raw))
 
       const meta = {
         format: formatOptions.format || 'modern',
@@ -445,6 +454,22 @@ export default function LessonPlanStudio() {
     }
   }, [lastPlanJson, lastMeta, diagrams])
 
+  // Manual / AI edits from the LessonPlanEditor. Update the source-of-truth
+  // plan JSON and re-render the preview HTML so Print and the on-screen preview
+  // always reflect the latest edits. The Word/PDF exporters read lastPlanJson
+  // directly, so they pick up edits automatically. renderPlanHtml is a pure
+  // string build, cheap enough to run per edit (the preview DOM is not mounted
+  // while editing).
+  const handlePlanChange = useCallback((nextJson) => {
+    if (!nextJson) return
+    setLastPlanJson(nextJson)
+    const mode = studioStateRef.current.curriculumMode
+    const withDiagrams = diagrams.length ? { ...nextJson, diagrams } : nextJson
+    studioStateRef.current.setGeneratedPlan(
+      renderPlanHtml(withDiagrams, lastMeta ?? {}, mode),
+    )
+  }, [diagrams, lastMeta])
+
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
     const subject = lastMeta?.subject ?? 'lesson'
@@ -491,6 +516,17 @@ export default function LessonPlanStudio() {
             illustrationStatus={illustrationStatus}
             illustrationError={illustrationError}
             onAddIllustration={handleAddIllustration}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            planJson={lastPlanJson}
+            curriculumMode={studioState.curriculumMode}
+            lessonContext={{
+              grade: studioState.lessonDetails.grade || '',
+              subject: studioState.lessonDetails.subject || '',
+              topic: studioState.topicData.topic || '',
+              subtopic: studioState.topicData.subtopic || '',
+            }}
+            onPlanChange={handlePlanChange}
           />
         }
       />

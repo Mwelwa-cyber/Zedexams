@@ -153,6 +153,8 @@
     "test:fx-rate": "node functions/fxRate.test.js",
     "test:edit-question": "node functions/editQuizQuestion.test.js",
     "test:revise-question": "node functions/teacherTools/reviseQuestion.test.js",
+    "test:revise-lesson-section": "node functions/teacherTools/reviseLessonSection.test.js",
+    "test:lesson-plan-shape": "node src/components/teacher/studio/utils/planShape.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:cors": "node functions/cors.test.js",

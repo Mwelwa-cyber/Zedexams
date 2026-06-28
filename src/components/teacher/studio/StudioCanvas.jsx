@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import LessonPlanEditor from './LessonPlanEditor'
 
 /**
  * StudioCanvas — right panel of the Lesson Plan Studio.
@@ -24,6 +25,13 @@ export function StudioCanvas({
   illustrationStatus = 'idle',
   illustrationError = null,
   onAddIllustration,
+  // Editing
+  viewMode = 'preview',
+  onViewModeChange,
+  planJson = null,
+  curriculumMode = 'cbc',
+  lessonContext = {},
+  onPlanChange,
 }) {
   const [showAdd, setShowAdd] = useState(false)
   const [desc, setDesc] = useState('')
@@ -45,10 +53,30 @@ export function StudioCanvas({
   const isDone    = generationStatus === 'done'
   const isLoading = generationStatus === 'loading'
   const isError   = generationStatus === 'error'
+  const isEditing = viewMode === 'edit'
+  const canEdit   = isDone && !!planJson && typeof onPlanChange === 'function'
+
+  function setMode(mode) {
+    if (typeof onViewModeChange === 'function') onViewModeChange(mode)
+  }
 
   function handlePrint() {
+    // Print always shows the formatted document, never the editor. The parent
+    // keeps the preview HTML in sync with edits, so flipping to preview first
+    // prints the latest version.
+    if (isEditing) {
+      setMode('preview')
+      requestAnimationFrame(() => window.print())
+      return
+    }
     window.print()
   }
+
+  // A short "Subject • Grade · Topic" title for the document toolbar.
+  const lessonTitle = [
+    lessonContext.subject,
+    lessonContext.grade,
+  ].filter(Boolean).join(' • ') + (lessonContext.topic ? ` · ${lessonContext.topic}` : '')
 
   function handleExportWord() {
     if (typeof onExportWord === 'function') onExportWord()
@@ -71,6 +99,42 @@ export function StudioCanvas({
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e5ddd0] bg-[#faf7f2]">
         {isDone && (
           <>
+            {/* Preview / Edit segmented toggle */}
+            {canEdit && (
+              <div className="mr-1 inline-flex rounded-lg border border-[#d9cfc3] bg-white p-0.5">
+                <button
+                  type="button"
+                  data-mode="preview"
+                  onClick={() => setMode('preview')}
+                  aria-pressed={!isEditing}
+                  className={`rounded-md px-3 py-1 text-[13px] font-semibold transition-colors ${!isEditing ? 'bg-[#5c4a3a] text-white' : 'text-[#5c4a3a] hover:bg-[#f5f0ea]'}`}
+                >
+                  Preview
+                </button>
+                <button
+                  type="button"
+                  data-mode="edit"
+                  onClick={() => setMode('edit')}
+                  aria-pressed={isEditing}
+                  className={`inline-flex items-center gap-1 rounded-md px-3 py-1 text-[13px] font-semibold transition-colors ${isEditing ? 'bg-[#5c4a3a] text-white' : 'text-[#5c4a3a] hover:bg-[#f5f0ea]'}`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit
+                </button>
+              </div>
+            )}
+
+            {lessonTitle && (
+              <span className="hidden md:inline-block truncate max-w-[28ch] text-[13px] font-medium text-[#7a6d5d]" title={lessonTitle}>
+                {lessonTitle}
+              </span>
+            )}
+
+            <div className="flex-1" />
+
             <button
               type="button"
               onClick={handlePrint}
@@ -221,16 +285,26 @@ export function StudioCanvas({
           </div>
         )}
 
-        {/* 3. Generated / done state */}
-        {isDone && generatedPlan && (
-          /* Safe: generatedPlan is server-rendered HTML from our Cloud Function, never user-controlled */
+        {/* 3a. Edit mode — structured manual + AI editor */}
+        {isDone && isEditing && canEdit && (
+          <LessonPlanEditor
+            planJson={planJson}
+            curriculumMode={curriculumMode}
+            context={lessonContext}
+            onChange={onPlanChange}
+          />
+        )}
+
+        {/* 3b. Generated / done state (preview) */}
+        {isDone && !isEditing && generatedPlan && (
+          /* Safe: generatedPlan is our own renderPlanHtml() output (HTML escaped), never raw user input */
           <div
             id="doc"
             className="doc"
             dangerouslySetInnerHTML={{ __html: generatedPlan }}
           />
         )}
-        {isDone && !generatedPlan && (
+        {isDone && !isEditing && !generatedPlan && (
           <div className="flex flex-col items-center justify-center text-center max-w-sm pt-20">
             <p className="text-[14px] text-[#9e8e7e]">The plan is empty. Try generating again.</p>
           </div>

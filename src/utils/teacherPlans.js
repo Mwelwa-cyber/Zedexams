@@ -46,6 +46,7 @@ export const PLAN_LIMITS = {
     slide_notes_images: 0,
     suggest_answer: 30,
     revise_question: 30,
+    revise_lesson_section: 40,
   },
   pro: {
     lesson_plan: 40,
@@ -68,6 +69,7 @@ export const PLAN_LIMITS = {
     slide_notes_images: 60,
     suggest_answer: 500,
     revise_question: 300,
+    revise_lesson_section: 400,
   },
   max: {
     lesson_plan: 200,
@@ -88,6 +90,7 @@ export const PLAN_LIMITS = {
     slide_notes_images: 1200,
     suggest_answer: 2000,
     revise_question: 1500,
+    revise_lesson_section: 2000,
   },
 }
 
