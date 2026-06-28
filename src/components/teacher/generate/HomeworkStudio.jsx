@@ -16,6 +16,8 @@ import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { captureQuestionsToBank } from '../../../utils/questionBankService'
+import { homeworkQuestionToBank } from '../../../utils/questionBankCore'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
@@ -105,6 +107,21 @@ export default function HomeworkStudio() {
         subject: form.subject,
         assessmentType: 'homework',
       }).catch((err) => console.error('[library attach]', err))
+    }
+    // Central Question Bank — capture the homework questions in the background
+    // (no Share button). Homework items are plain short-answer, mapped to the
+    // editor shape the bank stores. Fire-and-forget: must never affect the UX.
+    if (currentUser?.uid) {
+      const topic = res.data.homework?.header?.topic || form.topic
+      const banked = (res.data.homework?.questions || [])
+        .map((q) => homeworkQuestionToBank(q, { topic }))
+        .filter(Boolean)
+      captureQuestionsToBank(
+        currentUser.uid,
+        banked,
+        { subject: form.subject, grade: form.grade, topic },
+        'homework_studio',
+      )
     }
   }
 

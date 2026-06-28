@@ -8,7 +8,7 @@
 import {
   bankPreview, sanitizeQuestionForBank, bankRowMatches, byNewest,
   questionFingerprint, questionTokens, extractKeywords, jaccardSimilarity,
-  examPaperQuestionToBank,
+  examPaperQuestionToBank, homeworkQuestionToBank,
 } from './questionBankCore.js'
 
 let failures = 0
@@ -126,6 +126,24 @@ console.log('\nexamPaperQuestionToBank — server quiz-shape → editor-shape')
   assert(examPaperQuestionToBank({ type: 'multiple_choice', question: 'Q', options: ['a', 'b'], correctAnswer: 'zzz' }) === null, 'MCQ key not among options → null')
   assert(examPaperQuestionToBank({ type: 'multiple_choice', question: 'Q', options: ['only'], correctAnswer: 'only' }) === null, 'MCQ with <2 options → null')
   assert(examPaperQuestionToBank(null) === null, 'null input → null')
+}
+
+console.log('\nhomeworkQuestionToBank — homework shape → editor short-answer')
+{
+  const q = homeworkQuestionToBank({
+    prompt: 'What is 12 × 8?', answer: '96', workingNotes: '12 × 8 = 96 (multiply)',
+  }, { topic: 'Multiplication' })
+  assert(q.type === 'short_answer', 'always short_answer')
+  assert(q.text === 'What is 12 × 8?', 'prompt → text')
+  assert(q.correctAnswer === '96', 'answer → correctAnswer')
+  assert(q.explanation === '12 × 8 = 96 (multiply)', 'workingNotes → explanation (marking guide)')
+  assert(q.topic === 'Multiplication', 'topic taken from meta when absent on the question')
+  assert(q.options.length === 0 && q.marks === 1, 'no options, marks default 1')
+
+  assert(homeworkQuestionToBank({ prompt: 'Q', answer: '' }) === null, 'no answer → null (unkeyed, dropped)')
+  assert(homeworkQuestionToBank({ prompt: '', answer: 'A' }) === null, 'no prompt → null')
+  assert(homeworkQuestionToBank(null) === null, 'null input → null')
+  assert(homeworkQuestionToBank({ prompt: 'Q', answer: 'A', topic: 'Fractions' }).topic === 'Fractions', 'question topic wins over meta')
 }
 
 if (failures > 0) {
