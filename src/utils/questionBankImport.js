@@ -15,12 +15,12 @@
  */
 
 import {
-  collection, query, where, getDocs, limit,
+  collection, query, where, getDocs, limit, doc, writeBatch, serverTimestamp,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
 import { questionFingerprint, examPaperQuestionToBank, MASTER_REVIEW_STATE } from './questionBankCore.js'
-import { captureQuestionsToBank, promoteQuestionsToMaster } from './questionBankService'
+import { captureQuestionsToBank, promoteQuestionsToMaster, parseBankQuestion } from './questionBankService'
 import {
   VALID_GRADES, buildGradeIndexFromCurriculum, lookupGradeClient, normalizeGrade, planBankAction,
 } from './questionBankImportCore.js'
@@ -113,8 +113,11 @@ export async function previewImport({ uid } = {}) {
     if (action === 'promote') { toPromote += 1; continue }
     toImport += 1
     const lk = lookupGradeClient(index, c.meta.subject, c.meta.topic || c.question.topic)
+    // Exam-paper questions can't trust the paper's grade — a Grade 7 paper mixes
+    // Grades 4–7 — so AI-grade each by its text when the syllabus doesn't pin it.
+    const isExamPaper = c.source === 'exam_paper_studio'
     if (lk.grade) regrade.syllabus += 1
-    else if (lk.ambiguous || normalizeGrade(c.meta.grade) === '') regrade.needsAi += 1
+    else if (lk.ambiguous || normalizeGrade(c.meta.grade) === '' || isExamPaper) regrade.needsAi += 1
     else regrade.unchanged += 1
   }
   return { found, alreadyBanked, toImport, toPromote, regrade }
@@ -167,7 +170,11 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
 
     const storedGrade = normalizeGrade(c.meta.grade)
     const lk = lookupGradeClient(index, c.meta.subject, c.meta.topic || c.question.topic)
-    const entry = { c, fp, grade: lk.grade || storedGrade, needsAi: !lk.grade && (lk.ambiguous || !storedGrade) }
+    // Exam-paper questions inherit the paper's grade, which is wrong for the
+    // mixed-grade ones — AI-grade each by its own text unless the syllabus
+    // already pins a unique grade.
+    const isExamPaper = c.source === 'exam_paper_studio'
+    const entry = { c, fp, grade: lk.grade || storedGrade, needsAi: !lk.grade && (lk.ambiguous || !storedGrade || isExamPaper) }
     if (entry.needsAi && useAi) aiQueue.push(entry)
     prepared.push(entry)
     if (totals.processed % 25 === 0) onProgress({ ...totals, phase: 'scanning' })
@@ -216,6 +223,82 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
     onProgress({ ...totals, phase: 'writing' })
   }
 
+  onProgress({ ...totals, phase: 'done' })
+  return totals
+}
+
+/* ------------------------------ re-grade --------------------------------- */
+
+/**
+ * Re-grade questions that were already imported from exam papers and re-file
+ * each under the grade it actually belongs to. The first import inherited the
+ * exam paper's grade (so a Grade 7 paper filed all its Grade 4–6 questions as
+ * Grade 7); this reads each question's own text with the AI grader and updates
+ * the bank row's grade where it differs. Scoped to the admin's own
+ * exam-paper-sourced rows — quizzes keep their authored grade. Idempotent:
+ * re-running only changes rows whose grade still moves.
+ *
+ * @param {{ uid:string, onProgress?:(p)=>void }} opts
+ * @returns {{ found, regraded, unchanged, processed }}
+ */
+export async function regradeExistingQuestions({ uid, onProgress = () => {} } = {}) {
+  if (!uid) throw new Error('Sign in as an admin to re-grade.')
+  const index = buildGradeIndexFromCurriculum()
+
+  const snap = await getDocs(query(collection(db, 'questionBank'), where('ownerId', '==', uid)))
+  const rows = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() || {}) }))
+    .filter((r) => r.source === 'exam_paper_studio')
+
+  const totals = { found: rows.length, regraded: 0, unchanged: 0, processed: 0 }
+  if (!rows.length) { onProgress({ ...totals, phase: 'done' }); return totals }
+
+  // Decide each question's true grade — a unique syllabus match wins; otherwise
+  // the AI grader reads the question text.
+  const aiQueue = []
+  const plans = []
+  for (const r of rows) {
+    const q = parseBankQuestion(r) || {}
+    const lk = lookupGradeClient(index, r.subject, r.topic || q.topic)
+    const plan = { r, q, grade: lk.grade || normalizeGrade(r.grade), needsAi: !lk.grade }
+    if (plan.needsAi) aiQueue.push(plan)
+    plans.push(plan)
+  }
+
+  for (let i = 0; i < aiQueue.length; i += 25) {
+    const batch = aiQueue.slice(i, i + 25)
+    const grades = await aiGradeBatch(batch.map((p) => ({
+      subject: p.r.subject, topic: p.r.topic || p.q.topic,
+      text: p.q.text, options: p.q.options, storedGrade: normalizeGrade(p.r.grade),
+    })))
+    batch.forEach((p, j) => {
+      const g = normalizeGrade(grades[j])
+      if (VALID_GRADES.has(g)) p.grade = g
+    })
+    totals.processed += batch.length
+    onProgress({ ...totals, phase: 'grading' })
+  }
+  totals.processed = rows.length
+
+  // Write back only the rows whose grade actually moved.
+  const changed = plans.filter((p) => {
+    const g = normalizeGrade(p.grade)
+    return VALID_GRADES.has(g) && g !== normalizeGrade(p.r.grade)
+  })
+  for (let i = 0; i < changed.length; i += 400) {
+    const slice = changed.slice(i, i + 400)
+    const batch = writeBatch(db)
+    for (const p of slice) {
+      batch.update(doc(db, 'questionBank', p.r.id), {
+        grade: String(normalizeGrade(p.grade)),
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    totals.regraded += slice.length
+    onProgress({ ...totals, phase: 'writing' })
+  }
+  totals.unchanged = rows.length - totals.regraded
   onProgress({ ...totals, phase: 'done' })
   return totals
 }
