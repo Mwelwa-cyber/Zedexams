@@ -216,14 +216,42 @@ export function rotateInsights(insights, now = Date.now(), take = 3) {
   return out
 }
 
-/* ── Activity stat cards with trends ──────────────────────────────────── */
+/* ── Activity stat cards with trends ──────────────────────────────────────
+   The headline number on each card is the count *within the selected period*
+   (this week / this month), so the number and the trend describe the same
+   window — the old cards paired a lifetime total with a 7-day delta, which is
+   why "18 lesson plans ↑400% vs last week" read as fabricated. `trend()` is
+   honest about edge cases instead of forcing a percentage:
+     • a category that went 0 → n is "New", not "↑100%";
+     • n → 0 shows how many fewer, not "↓100%";
+     • a small previous base (1→5) shows the absolute change ("+4"), because a
+       percentage off a tiny base (here +400%) is noise, not signal. */
+
+// Below this previous-period count a percentage is misleading — 1→5 is "+400%".
+const SMALL_BASE = 5
 
 function trend(cur, prev) {
-  if (prev === 0) return cur > 0 ? { dir: 'up', pct: 100 } : { dir: 'flat', pct: 0 }
-  const pct = Math.round(((cur - prev) / prev) * 100)
-  if (pct > 0) return { dir: 'up', pct }
-  if (pct < 0) return { dir: 'down', pct: Math.abs(pct) }
-  return { dir: 'flat', pct: 0 }
+  const delta = cur - prev
+  if (prev === 0 && cur === 0) return { dir: 'flat', mode: 'none', delta: 0, pct: 0 }
+  if (prev === 0) return { dir: 'new', mode: 'new', delta, pct: 0 } // brand-new activity
+  if (cur === 0) return { dir: 'down', mode: 'gone', delta, pct: 100 } // dropped to nothing
+  const pct = Math.abs(Math.round((delta / prev) * 100))
+  const dir = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
+  // Tiny base → report the absolute move; otherwise the percentage is honest.
+  const mode = prev < SMALL_BASE ? 'abs' : 'pct'
+  return { dir, mode, delta, pct }
+}
+
+// Human-readable trend label the cards print verbatim. Pure (no JSX) so it is
+// unit-tested alongside trend().
+export function formatTrend(t, basis = '') {
+  if (!t || t.mode === 'none') return '— No change'
+  const arrow = t.dir === 'up' || t.dir === 'new' ? '↑' : t.dir === 'down' ? '↓' : '—'
+  const tail = basis ? ` ${basis}` : ''
+  if (t.mode === 'new') return `${arrow} New${tail}`
+  if (t.mode === 'gone') return `${arrow} ${Math.abs(t.delta)} fewer${tail}`
+  if (t.mode === 'abs') return `${arrow} ${t.delta > 0 ? '+' : ''}${t.delta}${tail}`
+  return `${arrow} ${t.pct}%${tail}`
 }
 
 export function buildActivityStats({ resources = [], now = Date.now(), range = 'month' } = {}) {
@@ -238,19 +266,22 @@ export function buildActivityStats({ resources = [], now = Date.now(), range = '
   // 30 before. The basis string is the human label the cards print verbatim.
   const span = range === 'week' ? 7 : 30
   const basis = range === 'week' ? 'vs last week' : 'vs last month'
-  const t = (fn) => ({ ...trend(win(fn, span, 0), win(fn, span * 2, span)), basis })
+
+  // `period` is the headline (count created in the window); `total` is the
+  // all-time count, kept for the "Total in library" row and any caller that
+  // wants the lifetime figure. `prev` is exposed so a card can show context.
+  const stat = (key, label, fn) => {
+    const period = win(fn, span, 0)
+    const prev = win(fn, span * 2, span)
+    return { key, label, total: totalOf(fn), period, prev, basis, trend: trend(period, prev) }
+  }
 
   return [
-    { key: 'plans', label: 'Lesson plans', total: totalOf(isPlan), trend: t(isPlan) },
-    { key: 'notes', label: 'Notes', total: totalOf(isNote), trend: t(isNote) },
-    { key: 'tests', label: 'Test papers', total: totalOf(isTest), trend: t(isTest) },
-    { key: 'library', label: 'Total in library', total: resources.length, trend: t(() => true) },
-    {
-      key: 'week',
-      label: range === 'week' ? 'New this week' : 'New this month',
-      total: win(() => true, span, 0),
-      trend: t(() => true),
-    },
+    stat('plans', 'Lesson plans', isPlan),
+    stat('notes', 'Notes', isNote),
+    stat('tests', 'Test papers', isTest),
+    stat('library', 'Total in library', () => true),
+    stat('week', range === 'week' ? 'New this week' : 'New this month', () => true),
   ]
 }
 
