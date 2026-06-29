@@ -52,6 +52,20 @@ vi.mock('../../../hooks/useGenerationGate', () => ({
   useGenerationGate: vi.fn(() => ({ ensureCanGenerate: vi.fn(() => true), usage: null })),
 }))
 
+// Persistent lesson memory — mocked so its Firestore writes don't flow through
+// the shared `mockSetDoc` (the series-write tests assert exact setDoc counts)
+// and the live subscription stays inert. Dedicated tests for the memory layer
+// live in scripts/test-lesson-memory.mjs + SubtopicLessonsPanel.spec.jsx.
+vi.mock('../../../utils/lessonMemoryService', () => ({
+  saveLessonPlanMemory: vi.fn(() => Promise.resolve('mem-id')),
+  setLessonTeachingStatus: vi.fn(() => Promise.resolve(true)),
+  attachGenerationToMemory: vi.fn(() => Promise.resolve(true)),
+  touchLessonProgress: vi.fn(() => Promise.resolve('prog-id')),
+}))
+vi.mock('./hooks/useLessonMemory', () => ({
+  useLessonMemory: vi.fn(() => ({ plans: [], loading: false, error: null })),
+}))
+
 // ── Child component mocks ─────────────────────────────────────────────────────
 
 vi.mock('./StudioShell', () => ({

@@ -3,6 +3,7 @@ import { CurriculumPicker }         from './sections/CurriculumPicker.jsx'
 import { LessonDetailsForm }         from './sections/LessonDetailsForm.jsx'
 import { TopicSubtopicForm }         from './sections/TopicSubtopicForm.jsx'
 import { CurriculumSummaryCard }     from './sections/CurriculumSummaryCard.jsx'
+import { SubtopicLessonsPanel }      from './sections/SubtopicLessonsPanel.jsx'
 import { CoveragePanel }             from './sections/CoveragePanel.jsx'
 import { SpecificOutcomeForm }       from './sections/SpecificOutcomeForm.jsx'
 import { LearningEnvironmentForm }   from './sections/LearningEnvironmentForm.jsx'
@@ -24,7 +25,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, planContext = null, onDismissPlanContext, coverageState = {} }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, generateLabel = 'Generate Lesson Plan', planContext = null, onDismissPlanContext, coverageState = {}, lessonMemory = {} }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -128,6 +129,12 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           selectedOutcomes={selectedOutcomes}
         />
 
+        {/* 4a. Saved Lessons — persistent memory of lessons already created for
+            the selected subtopic: progress, teaching status, recommendations,
+            and per-lesson Continue / Edit / Create actions. Hidden until a
+            subtopic is chosen. */}
+        <SubtopicLessonsPanel {...lessonMemory} />
+
         {/* 4b. Curriculum Coverage — how much of the syllabus is already planned */}
         <CoveragePanel
           grade={lessonDetails.grade}
@@ -220,7 +227,7 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           ) : (
             <span className="inline-flex items-center justify-center gap-2">
               <Sparkles size={16} aria-hidden="true" />
-              Generate Lesson Plan
+              {generateLabel}
             </span>
           )}
         </button>
