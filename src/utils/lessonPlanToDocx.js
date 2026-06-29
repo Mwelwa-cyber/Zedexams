@@ -629,7 +629,7 @@ function v3CbcHeaderTable(h) {
       text(blank, { size: 20 }),
     ],
   ]
-  const rows = left.map((lr, i) => new TableRow({ children: [metaCell(lr), metaCell(right[i])] }))
+  const rows = left.map((lr, i) => new TableRow({ cantSplit: true, children: [metaCell(lr), metaCell(right[i])] }))
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     columnWidths: [4800, 4800],
@@ -691,7 +691,7 @@ function buildV3PreviousBody(plan, opts = {}) {
   cols.push(["TEACHER'S ACTIVITY", hasContent ? 22 : 32])
   cols.push(["PUPILS' ACTIVITY", hasContent ? 22 : 32])
   if (hasMethods) cols.push(['METHODS', hasContent ? 16 : 22])
-  const headerRow = new TableRow({ children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
+  const headerRow = new TableRow({ tableHeader: true, cantSplit: true, children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
   const stageRows = stages.map((s) => {
     const cells = [
       v3StageCell([
@@ -706,7 +706,7 @@ function buildV3PreviousBody(plan, opts = {}) {
     cells.push(v3StageCell(bulletList(s.teacherActivities), cols[i++][1]))
     cells.push(v3StageCell(bulletList(s.learnerActivities), cols[i++][1]))
     if (hasMethods) cells.push(v3StageCell(bulletList(toLinesLocal(s.methods)), cols[i++][1]))
-    return new TableRow({ children: cells })
+    return new TableRow({ cantSplit: true, children: cells })
   })
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -773,6 +773,8 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
     spacing: { before: 160, after: 120 },
   }))
   const headerRow = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
     children: [
       v3HeaderCell('STAGES', 15),
       v3HeaderCell("TEACHER'S ACTIVITIES", 31),
@@ -781,6 +783,7 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
     ],
   })
   const stageRows = (plan.stages || []).map((s) => new TableRow({
+    cantSplit: true,
     children: [
       v3StageCell([
         para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),

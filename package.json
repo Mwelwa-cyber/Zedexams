@@ -130,6 +130,7 @@
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
     "test:lesson-plan-docx-client": "node src/utils/lessonPlanToDocx.test.js",
+    "test:lesson-plan-pdf-client": "node src/utils/lessonPlanToPdf.test.js",
     "test:assessment-mcq-layout": "node scripts/test-assessment-mcq-layout.mjs",
     "test:assessment-layout": "node src/utils/assessmentPaperLayout.test.js",
     "test:paper-renderers-sync": "node src/utils/paperRenderersSync.test.js",
