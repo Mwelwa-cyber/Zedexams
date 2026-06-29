@@ -28,7 +28,7 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { sanitizeXmlText } from './xmlText.js'
-import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
+import { fetchImageBytes } from './fetchImageBytes.js'
 
 /* ────────────────────────────────────────────────────────────────────
  * Lesson illustration (black-and-white drawing) embedding.
@@ -65,50 +65,14 @@ function illustrationBox(size) {
 
 // Fetch the PNG bytes so the (sync) document builder can embed them. Returns
 // `{ bytes, type }` on success, `{ failed: true }` so the builder can drop in
-// a visible note, or null when there's nothing to embed.
+// a visible note, or null when there's nothing to embed. The shared
+// fetchImageBytes helper applies the CORS-recovery strategies (warm cache →
+// reload → same-origin proxy) AND a timeout, so a stuck Storage request can't
+// hang the whole download — it falls through to the visible note instead.
 async function fetchLessonDiagramImage(diagram) {
   if (!diagram || !diagram.url) return null
-  // CORS cache-poisoning guard — see assessmentToDocx.fetchImageBytes. The
-  // preview renders the same image with a plain `<img>` (no crossOrigin), so
-  // the browser caches a no-CORS, header-less response; the `immutable`
-  // Cache-Control on diagram URLs keeps it around, and a later
-  // `fetch(url,{mode:'cors'})` reuses that poisoned entry and fails its CORS
-  // check. Retrying with `cache: 'reload'` bypasses the cache and forces a
-  // fresh request that gets the CORS headers back.
-  for (const cache of ['default', 'reload']) {
-    try {
-      const res = await fetch(diagram.url, { mode: 'cors', cache })
-      if (!res.ok) continue
-      const bytes = new Uint8Array(await res.arrayBuffer())
-      if (!bytes.length) continue
-      return { bytes, type: detectDocxImageType(bytes) }
-    } catch {
-      // CORS rejection or network error — try the next cache strategy.
-    }
-  }
-  // Last resort: the same-origin image proxy (see assessmentToDocx.fetchImageBytes).
-  // Fixes the case the cache:'reload' retry can't — a bucket whose CORS config is
-  // missing or applied to the wrong bucket name returns no CORS headers at all.
-  const proxied = toProxyImageUrl(diagram.url)
-  if (proxied) {
-    try {
-      const res = await fetch(proxied, { cache: 'reload' })
-      if (res.ok) {
-        const contentType = res.headers && res.headers.get
-          ? (res.headers.get('content-type') || '')
-          : ''
-        const bytes = new Uint8Array(await res.arrayBuffer())
-        // Only accept a real image — if the rewrite isn't live the proxy path
-        // resolves to the SPA index.html (200/text/html); embedding that would
-        // be a fresh broken-image bug, so fail closed to the visible note.
-        if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
-          return { bytes, type: detectDocxImageType(bytes) }
-        }
-      }
-    } catch {
-      // Proxy unreachable — fall through to the visible "could not embed" note.
-    }
-  }
+  const bytes = await fetchImageBytes(diagram.url)
+  if (bytes && bytes.length) return { bytes, type: detectDocxImageType(bytes) }
   return { failed: true }
 }
 

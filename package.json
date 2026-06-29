@@ -189,6 +189,7 @@
     "test:whatsapp-agent": "node functions/agents/bonga.test.js",
     "test:tmp-download-reaper": "node functions/storageCleanup/tmpDownloadReaper.test.js",
     "test:download-headers": "node functions/downloadHeaders.test.js",
+    "test:fetch-image-bytes": "node scripts/test-fetch-image-bytes.test.js",
     "test:lesson-plan-docx": "node functions/teacherTools/lessonPlanDocx.test.js",
     "test:quiz-summary": "node functions/quizSummary/index.test.js",
     "test:pdf-export-window": "node scripts/test-pdf-export-window.test.js",
