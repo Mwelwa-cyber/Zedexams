@@ -1,24 +1,29 @@
 import { useState } from 'react'
+import { Sprout } from '../../../ui/icons'
 
 /**
  * Environment options — value is the short name stored in state and passed to
- * onToggle; label is the full display name shown to the user.
+ * onToggle; label is the full display name shown to the user; emoji is a
+ * decorative glyph for the premium toggle card.
  */
 const ENVIRONMENTS = [
   {
     value: 'Natural',
     label: 'Natural Environment',
     description: 'Outdoors, field trips, community',
+    emoji: '🌳',
   },
   {
     value: 'Artificial',
     label: 'Artificial Environment',
     description: 'Classroom, lab, workshop',
+    emoji: '🏫',
   },
   {
     value: 'Technological',
     label: 'Technological Environment',
     description: 'Computer, TV, projector',
+    emoji: '💻',
   },
 ]
 
@@ -60,6 +65,7 @@ export function LearningEnvironmentForm({ learningEnvironments, onToggle, disabl
             ].join(' ')}
             aria-hidden="true"
           />
+          <Sprout size={15} className="text-[#a99e8b]" aria-hidden="true" />
           Learning Environment
         </span>
 
@@ -85,26 +91,43 @@ export function LearningEnvironmentForm({ learningEnvironments, onToggle, disabl
 
       {/* Collapsible body */}
       {open && (
-        <div className="px-4 pb-4 space-y-3">
-          {ENVIRONMENTS.map(({ value, label, description }) => {
+        <div className="lps-section-enter px-4 pb-4 space-y-2.5">
+          {ENVIRONMENTS.map(({ value, label, description, emoji }) => {
             const id = `lef-${value.toLowerCase()}`
             const checked = learningEnvironments.includes(value)
 
             return (
-              <div key={value} className="flex items-start gap-2.5">
+              <label
+                key={value}
+                className={[
+                  'lps-lift flex cursor-pointer select-none items-center gap-3 rounded-xl border px-3 py-2.5 transition-all',
+                  checked
+                    ? 'border-blue-500 bg-blue-50 lps-card-glow'
+                    : 'border-[#e0d7c8] bg-white hover:border-[#cfc3ae] hover:bg-[#f9f5ef]',
+                ].join(' ')}
+              >
+                <span
+                  className={[
+                    'grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg text-[18px] leading-none',
+                    checked ? 'bg-blue-100' : 'bg-[#f5efe1]',
+                  ].join(' ')}
+                  aria-hidden="true"
+                >
+                  {emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium text-[#3d3529]">{label}</span>
+                  <span className="block text-[11px] text-[#a39d8e]">{description}</span>
+                </span>
                 <input
                   id={id}
                   type="checkbox"
                   checked={checked}
                   onChange={() => onToggle(value)}
-                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-[#d9cfbe] text-blue-500 focus:ring-blue-400"
+                  className="h-4 w-4 flex-shrink-0 cursor-pointer rounded border-[#d9cfbe] text-blue-600 focus:ring-blue-400"
                   disabled={disabled}
                 />
-                <label htmlFor={id} className="cursor-pointer select-none">
-                  <span className="block text-[13px] font-medium text-[#3d3529]">{label}</span>
-                  <span className="block text-[11px] text-[#a39d8e]">{description}</span>
-                </label>
-              </div>
+              </label>
             )
           })}
         </div>
