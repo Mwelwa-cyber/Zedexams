@@ -27,6 +27,7 @@ import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { paywall } from '../../../utils/paywall'
+import { beginCriticalWork } from '../../../utils/criticalWork'
 import { useLessonMemory } from './hooks/useLessonMemory'
 import {
   saveLessonPlanMemory,
@@ -516,6 +517,11 @@ export default function LessonPlanStudio() {
       ? STUDIO_SYSTEM_PROMPT_PREVIOUS
       : STUDIO_SYSTEM_PROMPT_CBC
 
+    // Mark the generation as critical work so a service-worker update that
+    // lands mid-stream (registerType 'autoUpdate') defers its reload instead of
+    // wiping the in-progress plan, and a stray unload is guarded. Released in
+    // the finally below — exactly once — whichever way the handler exits.
+    const releaseCriticalWork = beginCriticalWork()
     try {
       const result = await generateCallable({
         systemPrompt,
@@ -732,6 +738,8 @@ export default function LessonPlanStudio() {
       const msg = err instanceof Error ? err.message : String(err)
       setGenerationError(msg)
       current.setGenerationStatus('error')
+    } finally {
+      releaseCriticalWork()
     }
   }, [uid]) // uid is used inside the try block for Firestore writes
 
