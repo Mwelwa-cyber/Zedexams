@@ -104,7 +104,6 @@ function buildPrintableHtmlV3(plan, title) {
   const cellList = (items) => (items || []).length
     ? items.map(i => `<p class="cl">${safe(i)}</p>`).join('')
     : ''
-  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
   const stageRows = (plan.stages || []).map(s => `
     <tr>
       <td class="stage"><strong>${safe(s.name)}</strong>${s.durationMinutes > 0 ? `<br><em>(${safe(s.durationMinutes)} min)</em>` : ''}</td>
@@ -125,6 +124,8 @@ function buildPrintableHtmlV3(plan, title) {
   h1{font-size:15pt;font-weight:800;text-align:center;letter-spacing:.12em;border-top:1.5px solid #000;border-bottom:1.5px solid #000;display:table;margin:0 auto 14px;padding:4px 18px}
   .fl{margin:3px 0}
   .fl strong{font-weight:700}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:1px 26px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;padding:6px 0;margin:6px 0 10px}
+  .meta .fl{margin:2px 0}
   ul{margin:3px 0 6px 22px}
   li{margin:2px 0}
   .pt{font-weight:700;font-size:11.5pt;letter-spacing:.04em;margin:12px 0 6px}
@@ -143,16 +144,22 @@ function buildPrintableHtmlV3(plan, title) {
 <body>
   ${h.school ? `<p class="fl" style="text-align:center;font-weight:700;font-size:13pt;margin-bottom:4px">${safe(h.school)}</p>` : ''}
   <h1>LESSON PLAN</h1>
-  ${line('NAME OF TEACHER', h.teacherName)}
-  ${line('DATE', h.date)}
-  ${line('TIME', h.time)}
-  ${line('CLASS', h.class)}
-  ${line('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : '')}
-  ${line('TERM & WEEK', h.termAndWeek)}
-  ${hasAttendance ? line('TOTAL ATTENDANCE', `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`) : ''}
-  ${line('SUBJECT', h.subject)}
-  ${line('TOPIC', h.topic)}
-  ${line('SUB-TOPIC', h.subtopic)}
+  <div class="meta">
+    <div>
+      <p class="fl"><strong>NAME OF TEACHER:</strong> ${safe(h.teacherName)}</p>
+      <p class="fl"><strong>CLASS:</strong> ${safe(h.class)}</p>
+      <p class="fl"><strong>SUBJECT:</strong> ${safe(h.subject)}</p>
+      <p class="fl"><strong>TOPIC:</strong> ${safe(h.topic)}</p>
+      <p class="fl"><strong>SUB-TOPIC:</strong> ${safe(h.subtopic)}</p>
+    </div>
+    <div>
+      <p class="fl"><strong>DATE:</strong> ${safe(h.date)}</p>
+      <p class="fl"><strong>TIME:</strong> ${safe(h.time)}</p>
+      <p class="fl"><strong>DURATION:</strong> ${h.durationMinutes ? `${safe(h.durationMinutes)} minutes` : ''}</p>
+      <p class="fl"><strong>TOTAL NO. OF PUPILS:</strong></p>
+      <p class="fl"><strong>GIRLS:</strong> ______ &nbsp;&nbsp; <strong>BOYS:</strong> ______</p>
+    </div>
+  </div>
   ${line('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', '))}
   ${line('SPECIFIC COMPETENCE', plan.specificCompetence)}
   ${line('LESSON GOAL', plan.lessonGoal)}
