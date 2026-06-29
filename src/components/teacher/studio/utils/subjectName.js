@@ -18,7 +18,17 @@
  * @returns {string}    clean subject name (falls back to the key when no suffix)
  */
 export function cleanSubjectName(key) {
-  return String(key || '')
-    .replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '')
-    .trim() || String(key || '')
+  const s = String(key || '')
+  // Strand-scoped key ("Lower Primary Syllabi (Grades 1-3)::Grade 1 - English
+  // Language") → the strand name with its grade / age-band prefix stripped
+  // ("English Language"). Keep in step with SUBJECT_KEY_SEP in
+  // curriculumDataService.js.
+  const sep = s.indexOf('::')
+  if (sep !== -1) {
+    const sheet = s.slice(sep + 2)
+    return sheet
+      .replace(/^\s*(grade\s*\d+|\d+\s*-\s*\d+\s*years?|form\s*\d+)\s*[-–:]\s*/i, '')
+      .trim() || sheet
+  }
+  return s.replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim() || s
 }

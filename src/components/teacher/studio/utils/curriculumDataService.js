@@ -121,58 +121,158 @@ function matchingSheets(sheets, grade) {
   return Object.keys(sheets).filter((sheetName) => sheetMatchesGrade(sheetName, grade))
 }
 
+// ── 2013 schema-adaptive column detection ────────────────────────────────────
+//
+// The 2013 workbooks were digitised from PDFs with WILDLY inconsistent column
+// schemas — a fixed cells.TOPIC / cells['SUB-TOPIC'] read (the old behaviour)
+// silently produced ZERO subtopics for whole subjects, which then could never
+// be generated (the studio requires a sub-topic). The real schemas seen in
+// curriculum-data-2013.json:
+//   A. [TOPIC, SUB-TOPIC, …]           → topic=TOPIC,     subtopic=SUB-TOPIC   (Biology, senior secondary)
+//   B. [TOPIC, SUBTOPIC, …]            → topic=TOPIC,     subtopic=SUBTOPIC    (Integrated Science, Social Studies)
+//   C. [THEME, SUB TOPIC, …]           → topic=THEME,     subtopic=SUB TOPIC   (Technology Studies 5-7)
+//   D. [COMPONENT, TOPIC, …]           → topic=COMPONENT, subtopic=TOPIC       (English, Zambian Language)
+//   E. [TOPIC, SPECIFIC OUTCOMES, …]   → topic=TOPIC,     subtopic=(none)      (Mathematics 1-7)
+// For schema E (and any sheet whose sub-topic column is empty), sub-topics are
+// SYNTHESISED from the SPECIFIC OUTCOMES so the subject is still usable.
+
+const PREV_DETAIL_COLS = new Set([
+  'specific outcomes', 'knowledge', 'content', 'skills', 'values',
+])
+const PREV_HEADER_WORDS = new Set([
+  'topic', 'sub-topic', 'subtopic', 'sub topic', 'specific outcomes',
+  'knowledge', 'content', 'skills', 'values', 'component', 'theme', 'strand',
+])
+const normCol = (c) => String(c == null ? '' : c).trim().toLowerCase()
+const isSubtopicCol = (c) => /sub[\s_-]*topic/i.test(String(c || ''))
+
+/** Lenient outcome splitter: any code with ≥3 dotted parts (3.1.1, 10.1.2.3). */
+function splitOutcomesLenient(raw) {
+  const t = String(raw || '').trim()
+  if (!t) return []
+  const m = t.match(/\d+(?:\.\d+){2,}[\s\S]*?(?=\s+\d+(?:\.\d+){2,}|$)/g)
+  if (!m || m.length === 0) return [t]
+  return m.map((s) => s.trim()).filter(Boolean)
+}
+
+/** Pick the topic + subtopic columns for one 2013 sheet (see schemas above). */
+function resolvePrevColumns(sheet) {
+  let columns = Array.isArray(sheet?.columns) ? sheet.columns.filter(Boolean) : []
+  if (!columns.length) {
+    const first = (sheet?.rows || []).find((r) => r.type === 'data')
+    columns = first ? Object.keys(first.cells || {}) : []
+  }
+  const subtopicCol = columns.find(isSubtopicCol) || null
+  const structural = columns.filter((c) => !PREV_DETAIL_COLS.has(normCol(c)) && c !== subtopicCol)
+  let topicCol = null
+  let subCol = subtopicCol
+  if (subtopicCol) {
+    topicCol = structural.find((c) => normCol(c) === 'topic')
+      || structural.find((c) => normCol(c) === 'theme')
+      || structural[0] || null
+  } else if (structural.length >= 2) {
+    // Grouping column + granular column (e.g. COMPONENT + TOPIC): the grouping
+    // column is the topic, the granular column is the sub-topic.
+    topicCol = structural.find((c) => ['component', 'theme', 'strand'].includes(normCol(c))) || structural[0]
+    subCol = structural.find((c) => c !== topicCol && normCol(c) === 'topic')
+      || structural.find((c) => c !== topicCol) || null
+  } else {
+    topicCol = structural[0] || columns.find((c) => normCol(c) === 'topic') || null
+    subCol = null
+  }
+  return { topicCol, subCol }
+}
+
 /**
- * Propagate the topic carry-forward for 2013 / previous curriculum rows.
+ * Parse one 2013 / previous-curriculum sheet into propagated rows, adapting to
+ * the sheet's actual column schema (see resolvePrevColumns). Skips header-echo
+ * and blank filler rows, carries the topic forward over merged-cell blanks, and
+ * — when the sheet has no usable sub-topic column — synthesises sub-topics from
+ * the specific outcomes so every subject yields at least one selectable
+ * sub-topic.
  *
- * The 2013 data uses different column names than CBC
- * (SPECIFIC OUTCOMES vs SPECIFIC COMPETENCES, etc.). rowsWithPropagatedTopic
- * from syllabusMapping only maps CBC column names, so we do the propagation
- * here and return the raw cells alongside the propagated topic.
- *
- * Also skips header-echo rows (rows where TOPIC === "TOPIC") and
- * rows where every meaningful cell is empty (blank filler rows in the PDF).
- *
- * @param {Array} rows Raw rows from the sheet.
- * @returns {Array<{topic, subtopic, specificOutcomes, content, skills, values}>}
+ * @param {object} sheet The sheet object ({ columns, rows }).
+ * @returns {Array<{topic, subtopic, specificOutcomesRaw, content}>}
  */
-function propagatePreviousRows(rows) {
+function propagatePreviousRows(sheet) {
+  const { topicCol, subCol } = resolvePrevColumns(sheet)
   const out = []
   let topic = ''
-  for (const row of rows || []) {
+  for (const row of sheet?.rows || []) {
     if (row.type !== 'data') continue
     const cells = row.cells || {}
-    const rawTopic = String(cells.TOPIC || '').trim()
-    // Skip header-echo rows ("TOPIC" in the TOPIC cell and "SUB-TOPIC" in SUB-TOPIC).
-    if (
-      rawTopic.toUpperCase() === 'TOPIC' &&
-      String(cells['SUB-TOPIC'] || '').trim().toUpperCase() === 'SUB-TOPIC'
-    ) {
+    const rawTopic = topicCol ? String(cells[topicCol] || '').trim() : ''
+    const subtopic = subCol ? String(cells[subCol] || '').trim() : ''
+    // Skip header-echo rows (the column-header line repeated mid-sheet).
+    if (PREV_HEADER_WORDS.has(normCol(rawTopic)) && (!subtopic || PREV_HEADER_WORDS.has(normCol(subtopic)))) {
       continue
     }
     if (rawTopic) topic = rawTopic
-    const subtopic = String(cells['SUB-TOPIC'] || cells.SUBTOPIC || '').trim()
     const specificOutcomesRaw = String(cells['SPECIFIC OUTCOMES'] || '').trim()
-    // Skip pure-filler rows: no subtopic and no outcomes.
-    if (!subtopic && !specificOutcomesRaw) continue
-    out.push({
-      topic,
-      subtopic,
-      specificOutcomesRaw,
-      content: String(cells.CONTENT || '').trim(),
-      skills: String(cells.Skills || '').trim(),
-      values: String(cells.Values || '').trim(),
-    })
+    const content = String(cells.CONTENT || cells.KNOWLEDGE || '').trim()
+    // Skip pure-filler rows: nothing identifying and no content.
+    if (!topic && !subtopic && !specificOutcomesRaw) continue
+    out.push({ topic: topic || subtopic, subtopic, specificOutcomesRaw, content })
+  }
+
+  // Fallback: a sheet that produced no sub-topics at all (schema E, or a
+  // sub-topic column that's blank throughout) would leave the subject
+  // ungenerable. Synthesise sub-topics from the specific outcomes — each
+  // outcome becomes one selectable sub-topic — so the subject works.
+  if (out.length && !out.some((r) => r.subtopic)) {
+    const synth = []
+    for (const r of out) {
+      const outcomes = splitOutcomesLenient(r.specificOutcomesRaw)
+      if (outcomes.length) {
+        for (const o of outcomes) {
+          synth.push({ topic: r.topic, subtopic: o, specificOutcomesRaw: o, content: r.content })
+        }
+      } else if (r.content) {
+        // Last resort: the topic stands as its own sub-topic.
+        synth.push({ topic: r.topic, subtopic: r.topic, specificOutcomesRaw: r.specificOutcomesRaw, content: r.content })
+      }
+    }
+    if (synth.length) return synth
   }
   return out
+}
+
+// ── Bundled-subject (strand) keys ─────────────────────────────────────────────
+//
+// ECE and Lower Primary are stored as ONE top-level subject whose sheets are the
+// per-strand syllabi for a grade ("Grade 1 - English Language", "Grade 1 -
+// Maths & Science", …). The old resolver returned just the top-level subject, so
+// Nursery/Reception/Grade 1-3 showed a SINGLE lumped subject with every strand's
+// topics mixed together — the teacher could not pick "Mathematics" vs "English".
+// When a top-level subject has MORE THAN ONE sheet matching a single grade, we
+// split it into one picker subject per strand, encoded as
+// `${topLevelKey}::${sheetName}` so topic/sub-topic lookups can scope to the
+// exact strand sheet. Subjects with a single matching sheet keep their plain
+// top-level key (unchanged behaviour for upper-primary + secondary).
+
+const SUBJECT_KEY_SEP = '::'
+
+function makeStrandKey(topLevel, sheetName) {
+  return `${topLevel}${SUBJECT_KEY_SEP}${sheetName}`
+}
+
+/** Split a (possibly strand-scoped) subject key into its parts. */
+export function parseSubjectKey(subject) {
+  const s = String(subject || '')
+  const i = s.indexOf(SUBJECT_KEY_SEP)
+  if (i === -1) return { topLevel: s, sheet: null }
+  return { topLevel: s.slice(0, i), sheet: s.slice(i + SUBJECT_KEY_SEP.length) }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Returns the list of subject names available for a given grade.
+ * Returns the list of subject keys available for a given grade.
  *
- * A subject is included when at least one of its sheet names matches the
- * requested grade string.
+ * A subject is included when at least one of its sheet names matches the grade.
+ * A top-level subject with several sheets matching the SAME grade (the ECE /
+ * Lower Primary strand bundles) is split into one strand key per matching sheet
+ * (`${topLevel}::${sheetName}`) so each strand is independently selectable.
  *
  * @param {string} grade           e.g. "Grade 4", "Form 1", "Grade 10"
  * @param {'cbc'|'previous'} [curriculumMode='cbc']
@@ -180,9 +280,18 @@ function propagatePreviousRows(rows) {
  */
 export async function getSubjectsForGrade(grade, curriculumMode = 'cbc') {
   const data = await loadData(curriculumMode)
-  return Object.entries(data || {})
-    .filter(([, sheets]) => matchingSheets(sheets, grade).length > 0)
-    .map(([subject]) => subject)
+  const out = []
+  for (const [subject, sheets] of Object.entries(data || {})) {
+    const matched = matchingSheets(sheets, grade)
+    if (matched.length === 0) continue
+    if (matched.length === 1) {
+      out.push(subject)
+    } else {
+      // Bundle: one selectable subject per strand sheet.
+      for (const sheetName of matched) out.push(makeStrandKey(subject, sheetName))
+    }
+  }
+  return out
 }
 
 /**
@@ -221,10 +330,15 @@ export async function getGradesWithSubjects(candidateGrades, curriculumMode = 'c
  */
 export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc') {
   const data = await loadData(curriculumMode)
-  const sheets = data?.[subject]
+  const { topLevel, sheet: strandSheet } = parseSubjectKey(subject)
+  const sheets = data?.[topLevel]
   if (!sheets) return []
 
-  const matching = matchingSheets(sheets, grade)
+  // A strand key scopes to its one sheet; a plain key uses every sheet that
+  // matches the grade (the original behaviour for single-sheet subjects).
+  const matching = strandSheet
+    ? (sheets[strandSheet] ? [strandSheet] : [])
+    : matchingSheets(sheets, grade)
   if (matching.length === 0) return []
 
   // Use a Map to preserve insertion order and deduplicate subtopics.
@@ -233,7 +347,7 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
   for (const sheetName of matching) {
     const sheet = sheets[sheetName]
     const rows = curriculumMode === 'previous'
-      ? propagatePreviousRows(sheet?.rows || [])
+      ? propagatePreviousRows(sheet)
       : rowsWithPropagatedTopic(sheet?.rows || [])
 
     for (const row of rows) {
@@ -276,10 +390,13 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
  */
 export async function getSubtopicDetail(subject, grade, topic, subtopic, curriculumMode = 'cbc') {
   const data = await loadData(curriculumMode)
-  const sheets = data?.[subject]
+  const { topLevel, sheet: strandSheet } = parseSubjectKey(subject)
+  const sheets = data?.[topLevel]
   if (!sheets) return null
 
-  const matching = matchingSheets(sheets, grade)
+  const matching = strandSheet
+    ? (sheets[strandSheet] ? [strandSheet] : [])
+    : matchingSheets(sheets, grade)
   if (matching.length === 0) return null
 
   const topicLower = String(topic || '').trim().toLowerCase()
@@ -289,7 +406,7 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
     const sheet = sheets[sheetName]
 
     if (curriculumMode === 'previous') {
-      const rows = propagatePreviousRows(sheet?.rows || [])
+      const rows = propagatePreviousRows(sheet)
       for (const row of rows) {
         if (
           String(row.topic || '').trim().toLowerCase() === topicLower &&
