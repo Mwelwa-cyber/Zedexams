@@ -1,78 +1,384 @@
 'use strict';
 
-// Unit test for the past-paper AI import duplicate collapse. The LLM that
-// extracts MCQs from a paper sometimes returns the same question twice; the
-// editor then shows it twice. dedupeExtractedQuestions removes the repeats and
-// re-sequences the survivors' order.
+// Unit tests for the past-paper AI import pure helpers. The import runs over an
+// uploaded paper of ANY length and must capture every question of every type,
+// so these tests pin the orchestration logic the redesign depends on:
+//   - page-batch planning (no page cap)
+//   - the loop-until-dry coverage loop (de-dupe new questions across rounds)
+//   - multi-type normalisation (mcq/tf/short_answer/fill_blanks/essay/numeric)
+//   - source-number gap detection + the completeness report
+// The Claude calls + Firestore writes live in pastPaperImport.js and aren't
+// exercised here (they need the functions/ runtime); this is the pure brain.
 
 const assert = require('node:assert/strict');
-const {dedupeExtractedQuestions, canWriteQuiz} = require('./pastPaperImportHelpers');
+const {
+  dedupeExtractedQuestions,
+  canWriteQuiz,
+  canonicalType,
+  questionKey,
+  planPageBatches,
+  selectNewQuestions,
+  summariseSeenStems,
+  normaliseImportedQuestion,
+  parseSourceNumber,
+  findSourceNumberGaps,
+  mergeAndRenumber,
+  validateImport,
+  computeConfidence,
+  countByType,
+  buildImportReport,
+} = require('./pastPaperImportHelpers');
+
+let pass = 0;
+const failures = [];
+function test(name, fn) {
+  try {
+    fn();
+    pass++;
+  } catch (err) {
+    failures.push({name, message: err.message});
+  }
+}
 
 function q(prompt, options, order) {
   return {prompt, options, correctAnswer: 0, explanation: '', order, requiresReview: true};
 }
 
-// 1. An identical question repeated collapses to one, order re-sequenced.
-{
+// ── dedupeExtractedQuestions (unchanged behaviour, regression-guarded) ──────
+test('repeated question collapses to one, order re-sequenced', () => {
   const input = [
     q('What is the capital of Zambia?', ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'], 0),
     q('Which gas do plants absorb?', ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Helium'], 1),
     q('What is the capital of Zambia?', ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'], 2),
   ];
   const out = dedupeExtractedQuestions(input);
-  assert.equal(out.length, 2, 'repeated question must collapse to one');
-  assert.deepEqual(out.map((x) => x.prompt), [
-    'What is the capital of Zambia?',
-    'Which gas do plants absorb?',
-  ]);
-  assert.deepEqual(out.map((x) => x.order), [0, 1], 'order must be re-sequenced 0..N');
-}
+  assert.equal(out.length, 2);
+  assert.deepEqual(out.map((x) => x.order), [0, 1]);
+});
 
-// 2. Whitespace/case-only differences are still the same question.
-{
-  const input = [
+test('whitespace/case-only differences collapse', () => {
+  const out = dedupeExtractedQuestions([
     q('What is  2 + 2?', ['3', '4', '5', '6'], 0),
     q('what is 2 + 2?', ['3', '4', '5', '6'], 1),
-  ];
-  const out = dedupeExtractedQuestions(input);
-  assert.equal(out.length, 1, 'case/whitespace variants of one question collapse');
-}
+  ]);
+  assert.equal(out.length, 1);
+});
 
-// 3. Distinct questions are all kept.
-{
-  const input = [
-    q('Q1?', ['a', 'b', 'c', 'd'], 0),
-    q('Q2?', ['a', 'b', 'c', 'd'], 1),
-    q('Q3?', ['a', 'b', 'c', 'd'], 2),
-  ];
-  const out = dedupeExtractedQuestions(input);
-  assert.equal(out.length, 3, 'distinct questions are untouched');
-}
-
-// 4. Same stem but different options are kept (a genuinely different question).
-{
-  const input = [
+test('same stem, different options stays distinct', () => {
+  const out = dedupeExtractedQuestions([
     q('Pick the odd one out.', ['cat', 'dog', 'cow', 'car'], 0),
     q('Pick the odd one out.', ['red', 'blue', 'green', 'seven'], 1),
-  ];
-  const out = dedupeExtractedQuestions(input);
-  assert.equal(out.length, 2, 'same stem with different options stays distinct');
-}
+  ]);
+  assert.equal(out.length, 2);
+});
 
-// 5. Quiz-write authorisation (IDOR guard for the clear+overwrite path).
-{
-  const mine = {createdBy: 'teacher-1'};
-  const other = {createdBy: 'teacher-2'};
-  // Owner can write their own quiz.
-  assert.equal(canWriteQuiz(mine, 'teacher-1', false), true);
-  // Non-owner, non-admin cannot — this is the IDOR that wiped other quizzes.
-  assert.equal(canWriteQuiz(other, 'teacher-1', false), false);
-  // Admin can write any quiz (past papers are admin-curated).
-  assert.equal(canWriteQuiz(other, 'teacher-1', true), true);
-  // Missing quiz doc is not writable for a non-admin.
+// ── canWriteQuiz (IDOR guard) ───────────────────────────────────────────────
+test('quiz-write authorisation', () => {
+  assert.equal(canWriteQuiz({createdBy: 'teacher-1'}, 'teacher-1', false), true);
+  assert.equal(canWriteQuiz({createdBy: 'teacher-2'}, 'teacher-1', false), false);
+  assert.equal(canWriteQuiz({createdBy: 'teacher-2'}, 'teacher-1', true), true);
   assert.equal(canWriteQuiz(null, 'teacher-1', false), false);
-  // A quiz with no createdBy is not writable for a non-admin.
   assert.equal(canWriteQuiz({}, 'teacher-1', false), false);
-}
+});
 
-console.log('pastPaperImport dedupe + auth test passed');
+// ── canonicalType ───────────────────────────────────────────────────────────
+test('type aliases fold to canonical editor types', () => {
+  assert.equal(canonicalType('multiple_choice'), 'mcq');
+  assert.equal(canonicalType('True/False'), 'tf');
+  assert.equal(canonicalType('fill_in_the_blank'), 'fill_blanks');
+  assert.equal(canonicalType('SHORT ANSWER'), 'short_answer');
+  assert.equal(canonicalType('structured'), 'short_answer'); // unsupported → nearest
+  assert.equal(canonicalType('matching'), 'short_answer');
+  assert.equal(canonicalType('calculation'), 'numeric');
+  assert.equal(canonicalType('mcq'), 'mcq'); // already canonical
+  assert.equal(canonicalType('  '), ''); // empty
+  assert.equal(canonicalType('nonsense'), ''); // unknown → empty (caller infers)
+});
+
+// ── planPageBatches — NO page cap ───────────────────────────────────────────
+test('planPageBatches splits all pages, no cap', () => {
+  const pages = Array.from({length: 26}, (_, i) => `p${i + 1}`);
+  const batches = planPageBatches(pages, 4);
+  assert.equal(batches.length, 7); // 26 / 4 → 7 batches (last has 2)
+  // Every page is covered exactly once.
+  const seen = batches.flatMap((b) => b.pages);
+  assert.equal(seen.length, 26);
+  assert.equal(batches[0].startPage, 1);
+  assert.equal(batches[0].endPage, 4);
+  assert.equal(batches[6].startPage, 25);
+  assert.equal(batches[6].endPage, 26);
+});
+
+test('planPageBatches handles a 100-page paper without truncating', () => {
+  const pages = Array.from({length: 100}, (_, i) => i);
+  const batches = planPageBatches(pages, 4);
+  assert.equal(batches.flatMap((b) => b.pages).length, 100);
+});
+
+test('planPageBatches: empty + single', () => {
+  assert.equal(planPageBatches([], 4).length, 0);
+  assert.equal(planPageBatches(['a'], 4).length, 1);
+  assert.equal(planPageBatches(['a', 'b'], 1).length, 2); // size 1
+});
+
+// ── selectNewQuestions — coverage loop de-dupe ──────────────────────────────
+test('selectNewQuestions only returns unseen questions, mutating the set', () => {
+  const seen = new Set();
+  const r1 = selectNewQuestions(seen, [
+    q('A?', ['1', '2'], 0), q('B?', ['1', '2'], 1),
+  ]);
+  assert.equal(r1.fresh.length, 2);
+  // Second round repeats A, adds C — only C is fresh.
+  const r2 = selectNewQuestions(seen, [
+    q('A?', ['1', '2'], 0), q('C?', ['1', '2'], 2),
+  ]);
+  assert.equal(r2.fresh.length, 1);
+  assert.equal(r2.fresh[0].prompt, 'C?');
+  assert.equal(seen.size, 3);
+});
+
+test('coverage loop converges: a fully-repeated round yields nothing fresh', () => {
+  const seen = new Set();
+  selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
+  const again = selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
+  assert.equal(again.fresh.length, 0); // → caller stops the loop
+});
+
+// ── summariseSeenStems ──────────────────────────────────────────────────────
+test('summariseSeenStems is bounded in count and length', () => {
+  const many = Array.from({length: 200}, (_, i) =>
+    q('x'.repeat(300) + ` ${i}`, ['a', 'b'], i));
+  const stems = summariseSeenStems(many, 60, 90);
+  assert.equal(stems.length, 60); // capped count
+  assert.ok(stems.every((s) => s.length <= 96)); // "NN. " + 90 chars
+});
+
+// ── normaliseImportedQuestion — multi-type ──────────────────────────────────
+test('mcq with valid answer index', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'mcq', prompt: 'Capital?', options: ['Lusaka', 'Ndola'], correctAnswer: 0}, 0);
+  assert.equal(n.type, 'mcq');
+  assert.equal(n.correctAnswer, 0);
+  assert.equal(n.answerKnown, true);
+});
+
+test('mcq out-of-range answer defaults to 0, flagged unknown', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'mcq', prompt: 'Q?', options: ['a', 'b'], correctAnswer: 7}, 0);
+  assert.equal(n.correctAnswer, 0);
+  assert.equal(n.answerKnown, false);
+});
+
+test('mcq with <2 options downgrades to short_answer (editor-safe)', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'mcq', prompt: 'Define X', options: ['only one'], correctAnswer: 'only one'}, 0);
+  assert.equal(n.type, 'short_answer');
+  assert.deepEqual(n.options, []);
+});
+
+test('tf normalises options + boolean answer to index', () => {
+  const t = normaliseImportedQuestion(
+    {type: 'tf', prompt: 'Sky is blue?', correctAnswer: true}, 0);
+  assert.deepEqual(t.options, ['True', 'False']);
+  assert.equal(t.correctAnswer, 0);
+  const f = normaliseImportedQuestion(
+    {type: 'truefalse', prompt: 'Fish fly?', correctAnswer: false}, 0);
+  assert.equal(f.correctAnswer, 1);
+  assert.equal(f.type, 'tf');
+});
+
+test('short_answer keeps string answer, no options', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'short_answer', prompt: 'Name the process', correctAnswer: 'photosynthesis'}, 0);
+  assert.deepEqual(n.options, []);
+  assert.equal(n.correctAnswer, 'photosynthesis');
+  assert.equal(n.answerKnown, true);
+});
+
+test('fill_blanks treated as free-text answer', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'fill_in_the_blank', prompt: 'Water is H__O', correctAnswer: '2'}, 0);
+  assert.equal(n.type, 'fill_blanks');
+  assert.equal(n.correctAnswer, '2');
+});
+
+test('essay never carries an answer', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'essay', prompt: 'Discuss colonialism.', correctAnswer: 'long'}, 0);
+  assert.equal(n.type, 'essay');
+  assert.equal(n.correctAnswer, '');
+  assert.equal(n.answerKnown, false);
+});
+
+test('numeric keeps a finite number; non-numeric downgrades to short_answer', () => {
+  const ok = normaliseImportedQuestion(
+    {type: 'numeric', prompt: '2+2?', correctAnswer: '4'}, 0);
+  assert.equal(ok.type, 'numeric');
+  assert.equal(ok.correctAnswer, 4);
+  const bad = normaliseImportedQuestion(
+    {type: 'numeric', prompt: 'Estimate', correctAnswer: 'about ten'}, 0);
+  assert.equal(bad.type, 'short_answer');
+  assert.equal(bad.correctAnswer, 'about ten');
+});
+
+test('missing type is inferred from options', () => {
+  assert.equal(normaliseImportedQuestion({prompt: 'Q', options: ['a', 'b', 'c']}, 0).type, 'mcq');
+  assert.equal(normaliseImportedQuestion({prompt: 'Q', options: []}, 0).type, 'short_answer');
+});
+
+test('empty prompt is rejected', () => {
+  assert.equal(normaliseImportedQuestion({prompt: '   ', options: ['a', 'b']}, 0), null);
+});
+
+test('answer "never guess" — null answer leaves mcq unknown', () => {
+  const n = normaliseImportedQuestion(
+    {type: 'mcq', prompt: 'Q?', options: ['a', 'b', 'c', 'd'], correctAnswer: null}, 0);
+  assert.equal(n.answerKnown, false);
+  assert.equal(n.correctAnswer, 0);
+});
+
+// ── parseSourceNumber / findSourceNumberGaps ────────────────────────────────
+test('parseSourceNumber pulls an int from many shapes', () => {
+  assert.equal(parseSourceNumber(12), 12);
+  assert.equal(parseSourceNumber('12'), 12);
+  assert.equal(parseSourceNumber('Q12'), 12);
+  assert.equal(parseSourceNumber('12.'), 12);
+  assert.equal(parseSourceNumber(null), null);
+  assert.equal(parseSourceNumber('none'), null);
+  assert.equal(parseSourceNumber(0), null);
+});
+
+test('findSourceNumberGaps reports skipped numbers', () => {
+  const qs = [1, 2, 3, 5, 6].map((n) => ({sourceNumber: n}));
+  assert.deepEqual(findSourceNumberGaps(qs), [4]);
+});
+
+test('findSourceNumberGaps stays quiet when numbering is sparse/noisy', () => {
+  // Only 1 of 5 carries a number → not enough signal.
+  const qs = [{sourceNumber: 1}, {}, {}, {}, {}];
+  assert.deepEqual(findSourceNumberGaps(qs), []);
+});
+
+test('findSourceNumberGaps ignores an absurd span', () => {
+  const qs = [{sourceNumber: 1}, {sourceNumber: 2}, {sourceNumber: 1999}];
+  assert.deepEqual(findSourceNumberGaps(qs), []);
+});
+
+test('no gaps on a clean 1..40 run', () => {
+  const qs = Array.from({length: 40}, (_, i) => ({sourceNumber: i + 1}));
+  assert.deepEqual(findSourceNumberGaps(qs), []);
+});
+
+// ── mergeAndRenumber ────────────────────────────────────────────────────────
+test('mergeAndRenumber dedupes across batches + renumbers + counts removals', () => {
+  const accum = [
+    q('A?', ['1', '2'], 0),
+    q('B?', ['1', '2'], 1),
+    q('A?', ['1', '2'], 2), // dup from a later batch / round
+    q('C?', ['1', '2'], 3),
+  ];
+  const {questions, duplicatesRemoved} = mergeAndRenumber(accum);
+  assert.equal(questions.length, 3);
+  assert.equal(duplicatesRemoved, 1);
+  assert.deepEqual(questions.map((x) => x.order), [0, 1, 2]);
+});
+
+test('mergeAndRenumber preserves a 100-question paper in full', () => {
+  const accum = Array.from({length: 100}, (_, i) => q(`Q${i}?`, ['a', 'b'], i));
+  const {questions, duplicatesRemoved} = mergeAndRenumber(accum);
+  assert.equal(questions.length, 100); // NOTHING dropped — the core fix
+  assert.equal(duplicatesRemoved, 0);
+});
+
+// ── validateImport ──────────────────────────────────────────────────────────
+test('validateImport flags gaps, missing answers, empty result', () => {
+  const v = validateImport([
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 1},
+    {type: 'mcq', options: ['a', 'b'], answerKnown: false, sourceNumber: 3},
+    {type: 'short_answer', options: [], answerKnown: false, sourceNumber: 4},
+  ]);
+  assert.ok(v.issues.some((i) => /skips/.test(i))); // gap: 2
+  assert.ok(v.issues.some((i) => /no answer marked/.test(i)));
+
+  const empty = validateImport([]);
+  assert.ok(empty.issues.some((i) => /No questions/.test(i)));
+});
+
+test('validateImport is clean on a well-formed set', () => {
+  const v = validateImport([
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 1},
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 2},
+    {type: 'essay', options: [], answerKnown: false, sourceNumber: 3},
+  ]);
+  assert.deepEqual(v.issues, []);
+});
+
+// ── computeConfidence ───────────────────────────────────────────────────────
+test('computeConfidence: 1.0 for a perfect set, lower with gaps/missing', () => {
+  const perfect = Array.from({length: 10}, (_, i) =>
+    ({type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: i + 1}));
+  assert.equal(computeConfidence(perfect), 1);
+
+  const withGap = [
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 1},
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 2},
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 5},
+  ];
+  assert.ok(computeConfidence(withGap) < 1);
+  assert.equal(computeConfidence([]), 0);
+  assert.ok(computeConfidence(perfect, {truncationHit: true}) < 1);
+});
+
+// ── countByType + buildImportReport ─────────────────────────────────────────
+test('countByType tallies each type', () => {
+  const c = countByType([
+    {type: 'mcq'}, {type: 'mcq'}, {type: 'tf'}, {type: 'essay'},
+  ]);
+  assert.deepEqual(c, {mcq: 2, tf: 1, essay: 1});
+});
+
+test('buildImportReport assembles the studio report', () => {
+  const questions = [
+    {type: 'mcq', options: ['a', 'b'], answerKnown: true, sourceNumber: 1},
+    {type: 'tf', options: ['True', 'False'], answerKnown: true, sourceNumber: 2},
+    {type: 'short_answer', options: [], answerKnown: false, sourceNumber: 3},
+  ];
+  const report = buildImportReport({
+    pagesProcessed: 8,
+    segments: 2,
+    questionsFound: 4,
+    questionsImported: 3,
+    duplicatesRemoved: 1,
+    extractionRounds: 3,
+    truncationHit: false,
+    questions,
+  });
+  assert.equal(report.pagesProcessed, 8);
+  assert.equal(report.questionsImported, 3);
+  assert.equal(report.duplicatesRemoved, 1);
+  assert.equal(report.withAnswerKey, 2);
+  assert.equal(report.withoutAnswerKey, 1);
+  assert.deepEqual(report.byType, {mcq: 1, tf: 1, short_answer: 1});
+  assert.ok(report.confidence > 0 && report.confidence <= 1);
+  // A removed duplicate is reported as an automatic correction.
+  assert.ok(report.corrections.some((c) => /duplicate/.test(c)));
+  // Extra rounds beyond #segments means the coverage loop recovered questions.
+  assert.ok(report.corrections.some((c) => /loop-until-complete/.test(c)));
+});
+
+test('buildImportReport flags a truncation-limited run', () => {
+  const report = buildImportReport({
+    questionsImported: 50, questions: [{type: 'mcq', options: ['a', 'b'], answerKnown: true}],
+    truncationHit: true, segments: 1, extractionRounds: 8,
+  });
+  assert.ok(report.issues.some((i) => /round limit/.test(i)));
+  assert.equal(report.truncationHit, true);
+});
+
+// ── Report ──────────────────────────────────────────────────────────────────
+if (failures.length) {
+  console.log(`\n✗ ${failures.length} failed of ${pass + failures.length}`);
+  failures.forEach((f) => console.log(`  × ${f.name}\n    ${f.message}`));
+  process.exit(1);
+}
+console.log(`pastPaperImport helpers: all ${pass} tests passed`);
