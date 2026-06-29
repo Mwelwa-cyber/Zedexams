@@ -241,9 +241,6 @@ function renderMetaTable(meta) {
   if (meta.subtopic) rows.push(['Sub-topic', esc(meta.subtopic)])
   if (meta.showEnrolment) rows.push(['Total Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____'])
   if (meta.showAttendance) rows.push(['Total Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____'])
-  if (meta.totalLessons > 1) {
-    rows.push(['Lesson Sequence', `Lesson ${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`])
-  }
   return `<table class="meta-table"><tbody>${rows
     .map((r) => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`)
     .join('')}</tbody></table>`
@@ -267,9 +264,6 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)])
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___'])
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___'])
-  if (meta.totalLessons > 1) {
-    items.push(['Lesson Sequence', `Lesson ${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`])
-  }
   return `<div class="meta-compact">${items
     .map(([k, v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`)
     .join('')}</div>`
@@ -301,9 +295,6 @@ function renderOfficialHeader(meta) {
   if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
   if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
   pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide'])
-  if (meta.totalLessons > 1) {
-    pairs.push(['LESSON', `${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`, 'wide'])
-  }
   const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`
   return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`
 }
@@ -534,9 +525,6 @@ function renderOldHeader(meta, data) {
   if (meta.showAttendance) pairs.push(['ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
   pairs.push(['T/L AIDS', esc(joinList(data.tlAids || data.materials, ', ')), 'wide'])
   pairs.push(['REFERENCES', esc(joinList(data.references, '; ')), 'wide'])
-  if (meta.totalLessons > 1) {
-    pairs.push(['LESSON', `${esc(String(meta.lessonNumber || 1))} of ${esc(String(meta.totalLessons))}`, 'wide'])
-  }
   const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`
   return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`
 }
