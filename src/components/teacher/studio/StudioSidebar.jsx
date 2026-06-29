@@ -3,6 +3,7 @@ import { CurriculumPicker }         from './sections/CurriculumPicker.jsx'
 import { LessonDetailsForm }         from './sections/LessonDetailsForm.jsx'
 import { TopicSubtopicForm }         from './sections/TopicSubtopicForm.jsx'
 import { CurriculumSummaryCard }     from './sections/CurriculumSummaryCard.jsx'
+import { CoveragePanel }             from './sections/CoveragePanel.jsx'
 import { SpecificOutcomeForm }       from './sections/SpecificOutcomeForm.jsx'
 import { LearningEnvironmentForm }   from './sections/LearningEnvironmentForm.jsx'
 import { LessonProgressionForm }     from './sections/LessonProgressionForm.jsx'
@@ -23,7 +24,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, planContext = null, onDismissPlanContext }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, planContext = null, onDismissPlanContext, coverageState = {} }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -125,6 +126,18 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           subtopicRow={subtopicRow}
           curriculumMode={curriculumMode}
           selectedOutcomes={selectedOutcomes}
+        />
+
+        {/* 4b. Curriculum Coverage — how much of the syllabus is already planned */}
+        <CoveragePanel
+          grade={lessonDetails.grade}
+          subject={lessonDetails.subject}
+          loading={coverageState.loading}
+          coverage={coverageState.coverage}
+          onSelectGap={(topic, subtopic) => {
+            setTopicField('topic', topic)
+            setTopicField('subtopic', subtopic)
+          }}
         />
 
         {/* 5. Specific Outcome Form — previous curriculum only */}
