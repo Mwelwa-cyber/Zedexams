@@ -34,12 +34,6 @@ export const CBC_SAMPLE_DATA = {
     'Brochures from local tourism centres',
   ],
   expectedStandard: 'Local attraction sites explored accordingly.',
-  keyVocabulary: [
-    'Tourism: visiting interesting places to learn and enjoy.',
-    'Attraction site: a place many people like to visit, such as a waterfall or museum.',
-    'Museum: a building where important old things are kept and shown.',
-    'Heritage: the special places and traditions a community keeps and protects.',
-  ],
   stages: [
     {
       name: 'INTRODUCTION',
@@ -99,7 +93,6 @@ export const CBC_SAMPLE_META = {
   showAttendance: true,
   showEnrolment: true,
   showReflection: true,
-  showVocabulary: false,
   totalLessons: 1,
   lessonNumber: 1,
 }
@@ -173,7 +166,6 @@ export const OLD_SAMPLE_META = {
   showAttendance: true,
   showEnrolment: true,
   showReflection: true,
-  showVocabulary: false,
   totalLessons: 1,
   lessonNumber: 1,
 }

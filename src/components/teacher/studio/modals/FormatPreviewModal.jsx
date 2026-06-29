@@ -14,7 +14,7 @@ import {
  *
  * The sample is rendered through the real renderPlanHtml() renderers, so the
  * preview matches the studio's actual output. The live Advanced-Options toggles
- * (compact metadata, key vocabulary, lesson evaluation, enrolment, attendance)
+ * (compact metadata, lesson evaluation, enrolment, attendance)
  * are honoured so the preview reflects the teacher's current choices.
  *
  * Props:
@@ -63,7 +63,6 @@ export function FormatPreviewModal({ format, curriculumMode = 'cbc', advanced = 
     ...baseMeta,
     format,
     compactMeta: advanced.compactMetadata ?? baseMeta.compactMeta,
-    showVocabulary: advanced.includeKeyVocabulary ?? baseMeta.showVocabulary,
     showReflection: advanced.includeLessonEvaluation ?? baseMeta.showReflection,
     showEnrolment: advanced.includeEnrolment ?? baseMeta.showEnrolment,
     showAttendance: advanced.includeAttendance ?? baseMeta.showAttendance,

@@ -304,10 +304,9 @@ function renderOfficialHeader(meta) {
 /**
  * Render the canonical pre-table field lines (classic + classic2 formats).
  * @param {object} data
- * @param {object} meta
  * @returns {string}
  */
-function renderFieldLines(data, meta) {
+function renderFieldLines(data) {
   const refs = asList(data.references)
   const refsHtml =
     refs.length > 1
@@ -321,12 +320,6 @@ function renderFieldLines(data, meta) {
       ? `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></div>` +
         mats.map((m) => `<div class="field-line" style="padding-left:18px">&bull; ${esc(m)}</div>`).join('')
       : `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong> ${esc(mats[0] || '')}</div>`
-
-  const vocab = meta.showVocabulary ? asList(data.keyVocabulary) : []
-  const vocabHtml = vocab.length
-    ? `<div class="field-line" style="margin-top:8px"><strong>KEY VOCABULARY:</strong></div>` +
-      vocab.map((v) => `<div class="field-line" style="padding-left:18px">&bull; ${esc(v)}</div>`).join('')
-    : ''
 
   return `
     <div class="field-line"><strong>TOPIC:</strong> ${esc(data.topic || '')}</div>
@@ -342,8 +335,7 @@ function renderFieldLines(data, meta) {
     <div class="field-line" style="padding-left:18px">II. <strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</div>
     <div class="field-line" style="padding-left:18px">III. <strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</div>
     ${matsHtml}
-    <div class="field-line"><strong>EXPECTED STANDARD:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>
-    ${vocabHtml}`
+    <div class="field-line"><strong>EXPECTED STANDARD:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>`
 }
 
 /**
@@ -403,11 +395,6 @@ function renderModern(data, meta) {
     )
     .join('')
 
-  const vocab =
-    meta.showVocabulary && asList(data.keyVocabulary).length
-      ? `<h2 class="sec">Key Vocabulary</h2><ul>${list(data.keyVocabulary)}</ul>`
-      : ''
-
   const support =
     data.remedialWork || data.extensionActivity
       ? `
@@ -437,7 +424,6 @@ function renderModern(data, meta) {
     <p><strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</p>
     <h2 class="sec">Teaching &amp; Learning Materials</h2><ul>${list(data.materials)}</ul>
     <h2 class="sec">Expected Standard</h2><p>${esc(data.expectedStandard || data.expectedStandards || '')}</p>
-    ${vocab}
     <h2 class="sec">Lesson Progression</h2>${stages}
     ${support}
     ${evaluation}</div>`
@@ -461,7 +447,7 @@ function renderClassic(data, meta) {
     .join('')
 
   return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
-    ${renderFieldLines(data, meta)}
+    ${renderFieldLines(data)}
     <div class="progression-title">LESSON PROGRESSION</div>
     <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
       <thead><tr><th style="width:15%;${OFFICIAL_TH}">STAGES</th><th style="width:31%;${OFFICIAL_TH}">TEACHER'S ACTIVITIES</th><th style="width:30%;${OFFICIAL_TH}">LEARNERS' ACTIVITIES</th><th style="width:24%;${OFFICIAL_TH}">ASSESSMENT CRITERIA</th></tr></thead>
@@ -497,7 +483,7 @@ function renderClassic2(data, meta) {
     .join('')
 
   return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
-    ${renderFieldLines(data, meta)}
+    ${renderFieldLines(data)}
     <div class="progression-title">LESSON PROGRESSION</div>${stages}
     ${renderLessonEvaluation(data, meta)}</div>`
 }
@@ -697,7 +683,6 @@ function renderOldModern(data, meta) {
  * @param {object} meta      - Rendering metadata:
  *   {
  *     format: 'modern' | 'classic' | 'classic2' | 'official-cbc',
- *     showVocabulary:  boolean,
  *     showReflection:  boolean,
  *     showEnrolment:   boolean,
  *     showAttendance:  boolean,

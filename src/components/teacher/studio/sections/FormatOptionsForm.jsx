@@ -109,7 +109,6 @@ const ADVANCED_TOGGLES = [
   { field: 'includeEnrolment',         label: 'Include Enrolment Row' },
   { field: 'includeAttendance',        label: 'Include Attendance Row' },
   { field: 'includeLessonEvaluation',  label: 'Include Lesson Evaluation' },
-  { field: 'includeKeyVocabulary',     label: 'Include Key Vocabulary' },
   { field: 'autoIllustrations',        label: 'Auto-add AI Illustrations' },
   { field: 'localLanguage',            label: 'Write in Local Language' },
 ]
@@ -141,7 +140,6 @@ function SubLabel({ children }) {
  *       includeEnrolment: boolean,
  *       includeAttendance: boolean,
  *       includeLessonEvaluation: boolean,
- *       includeKeyVocabulary: boolean,
  *       autoIllustrations: boolean,
  *       localLanguage: boolean
  *     }

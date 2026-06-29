@@ -103,9 +103,6 @@ export default function LessonPlanOfficialTable({ plan }) {
           </>
         )}
         <Line label="EXPECTED STANDARD">{plan.expectedStandard}</Line>
-        {plan.keyVocabulary?.length > 0 && (
-          <Line label="KEY VOCABULARY" className="mt-2">{plan.keyVocabulary.join(', ')}</Line>
-        )}
       </div>
 
       {/* Progression table */}

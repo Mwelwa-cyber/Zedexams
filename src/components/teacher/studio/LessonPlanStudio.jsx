@@ -394,7 +394,6 @@ export default function LessonPlanStudio() {
 
       const meta = {
         format: formatOptions.format || 'modern',
-        showVocabulary: formatOptions.advanced?.includeKeyVocabulary ?? false,
         showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
         showEnrolment: formatOptions.advanced?.includeEnrolment ?? false,
         showAttendance: formatOptions.advanced?.includeAttendance ?? false,

@@ -103,7 +103,6 @@ const TOP_LEVEL_ALIASES = {
   priorKnowledge: ['prerequisiteKnowledge', 'preRequisiteKnowledge', 'prerequisites'],
   materials: ['teachingMaterials', 'learningMaterials', 'teachingAndLearningMaterials', 'tlAids'],
   expectedStandard: ['expectedStandards', 'standard'],
-  keyVocabulary: ['vocabulary', 'keyVocab'],
   specificOutcomes: ['specificOutcome', 'outcomes'],
 }
 

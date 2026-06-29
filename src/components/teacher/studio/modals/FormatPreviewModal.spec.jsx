@@ -54,13 +54,13 @@ describe('FormatPreviewModal — sample content', () => {
     expect(container.textContent).toMatch(/Computer Career Opportunities/)
   })
 
-  it('honours the includeKeyVocabulary toggle', () => {
+  it('never renders a Key Vocabulary section (feature removed)', () => {
     const { container } = renderModal({
       format: 'modern',
       curriculumMode: 'cbc',
       advanced: { includeKeyVocabulary: true },
     })
-    expect(container.textContent).toMatch(/Key Vocabulary/i)
+    expect(container.textContent).not.toMatch(/Key Vocabulary/i)
   })
 })
 

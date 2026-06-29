@@ -169,7 +169,7 @@ function makeStudioState(overrides = {}) {
       illustrations: 'automatic',
       advanced: {
         compactMetadata: true, includeEnrolment: false, includeAttendance: false,
-        includeLessonEvaluation: true, includeKeyVocabulary: true,
+        includeLessonEvaluation: true,
         autoIllustrations: false, localLanguage: false,
       },
     },
@@ -395,7 +395,7 @@ describe('LessonPlanStudio — auto-illustration', () => {
         illustrations: 'none',
         advanced: {
           compactMetadata: true, includeEnrolment: false, includeAttendance: false,
-          includeLessonEvaluation: true, includeKeyVocabulary: true,
+          includeLessonEvaluation: true,
           autoIllustrations: false, localLanguage: false,
         },
       },

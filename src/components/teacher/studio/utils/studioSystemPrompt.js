@@ -60,7 +60,6 @@ OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no
   "learningEnvironment": { "natural": string, "artificial": string, "technological": string },
   "materials": [string],
   "expectedStandard": string,       // passive voice
-  "keyVocabulary": [string],        // "Term: meaning"
   "stages": [
     { "name": "INTRODUCTION", "duration": "5 min", "teacher": string, "pupils": string, "assessment": string },
     { "name": "LESSON DEVELOPMENT", "duration": "20 min", "teacher": string, "pupils": string, "assessment": string },

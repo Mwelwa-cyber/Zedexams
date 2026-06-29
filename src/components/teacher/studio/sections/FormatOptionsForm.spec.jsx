@@ -14,7 +14,6 @@ const DEFAULT_FORMAT_OPTIONS = {
     includeEnrolment: false,
     includeAttendance: false,
     includeLessonEvaluation: false,
-    includeKeyVocabulary: false,
     autoIllustrations: false,
     localLanguage: false,
   },
@@ -321,11 +320,10 @@ describe('FormatOptionsForm — Advanced toggle rows', () => {
     'Include Enrolment Row',
     'Include Attendance Row',
     'Include Lesson Evaluation',
-    'Include Key Vocabulary',
     'Write in Local Language',
   ]
 
-  it('renders all 6 toggle rows', () => {
+  it('renders all 5 toggle rows', () => {
     renderWithAdvancedOpen()
     for (const label of ALL_TOGGLE_LABELS) {
       expect(screen.getByText(label)).toBeInTheDocument()
@@ -359,10 +357,10 @@ describe('FormatOptionsForm — Advanced toggle rows', () => {
   })
 
   it('calls onUpdateAdvanced with toggled value (true → false)', () => {
-    const { onUpdateAdvanced } = renderWithAdvancedOpen({ includeKeyVocabulary: true })
-    const checkbox = screen.getByRole('checkbox', { name: /include key vocabulary/i })
+    const { onUpdateAdvanced } = renderWithAdvancedOpen({ includeLessonEvaluation: true })
+    const checkbox = screen.getByRole('checkbox', { name: /include lesson evaluation/i })
     fireEvent.click(checkbox)
-    expect(onUpdateAdvanced).toHaveBeenCalledWith('includeKeyVocabulary', false)
+    expect(onUpdateAdvanced).toHaveBeenCalledWith('includeLessonEvaluation', false)
   })
 })
 
