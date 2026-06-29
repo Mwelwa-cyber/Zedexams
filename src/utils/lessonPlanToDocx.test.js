@@ -111,7 +111,7 @@ console.log('\nheader + curriculum-aware body')
 // so the .docx came out with no teacher/subject/topic — "Word not working").
 const cbcPlan = {
   schemaVersion: '3.0',
-  header: { teacherName: 'Mr. Phiri', subject: 'Science', topic: 'The Human Heart', subtopic: 'Blood Circulation', class: 'Grade 6', durationMinutes: 40 },
+  header: { school: 'Jemareen Academy', teacherName: 'Mr. Phiri', subject: 'Science', topic: 'The Human Heart', subtopic: 'Blood Circulation', class: 'Grade 6', durationMinutes: 40 },
   generalCompetences: ['Communication'],
   specificCompetence: 'Describe how the heart pumps blood.',
   learningEnvironment: { artificial: 'Classroom' },
@@ -124,6 +124,11 @@ assert(cbcXml.includes('The Human Heart'), 'CBC: topic from header appears in th
 assert(cbcXml.includes('Blood Circulation'), 'CBC: sub-topic from header appears in the .docx')
 assert(cbcXml.includes('SPECIFIC COMPETENCE'), 'CBC: shows SPECIFIC COMPETENCE label')
 assert(cbcXml.includes('LEARNING ENVIRONMENT'), 'CBC: shows LEARNING ENVIRONMENT label')
+// Two-column header (matches the on-screen layout): labels + pupil fields.
+assert(cbcXml.includes('NAME OF TEACHER'), 'CBC: two-column header shows NAME OF TEACHER label')
+assert(cbcXml.includes('TOTAL NO. OF PUPILS'), 'CBC: header adds the Total no. of pupils field')
+assert(cbcXml.includes('GIRLS') && cbcXml.includes('BOYS'), 'CBC: header adds Girls / Boys fields')
+assert(cbcXml.includes('Jemareen Academy'), 'CBC: school name appears as the masthead title')
 
 // Previous (Outcomes-Based) curriculum: SPECIFIC OUTCOMES instead of
 // competences, and NO learning-environment / specific-competence sections.
