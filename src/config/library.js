@@ -186,53 +186,48 @@ export const LIBRARY_SECTION_BY_ID = Object.fromEntries(
 
 /* ── Syllabus types ──────────────────────────────────────────── */
 //
-// CBC      — Competence-Based Curriculum, the new framework. Covers the
-//            full journey: Grades 1–7 (primary) AND Forms 1–4 (secondary),
-//            since the CBC reform reaches into secondary. Secondary teachers
-//            on CBC use the "Form" naming, so Forms 1–4 sit in the CBC root
-//            alongside the Grades.
+// CBC      — Competence-Based Curriculum, the new framework. Mirrors the
+//            studio grade picker (see LessonDetailsForm): Grades 1–6
+//            (lower + upper primary) then Forms 1–4 (secondary). There is
+//            NO Grade 7 under CBC — primary ends at Grade 6 and the Forms
+//            begin. Grade 7 belongs to the old OBC curriculum below.
 // OBC      — Outcome-Based Curriculum, the old syllabus being phased out
 //            Still in use: G3, G5, G6, G7, G10, G11, G12
-// Secondary — Form 1–4 only (subject lists differ; secondary teachers
-//             often use the "Form" naming so we keep a separate root)
+//
+// NOTE: there is no separate "Secondary" syllabus root any more — secondary
+// lives inside CBC as Forms 1–4. SYLLABUS_TYPES.SECONDARY is kept only so
+// any legacy doc whose saved path begins "…/Secondary/…" still resolves a
+// constant; it is no longer offered as a selectable folder.
 
 export const SYLLABUS_TYPES = {
   CBC:       'CBC',
   OBC:       'OBC',
-  SECONDARY: 'Secondary',
+  SECONDARY: 'Secondary', // deprecated — legacy paths only, not selectable
 }
 
 export const SYLLABUS_OPTIONS = [
-  { value: SYLLABUS_TYPES.CBC,       label: 'CBC — Competence-Based Curriculum (New)' },
-  { value: SYLLABUS_TYPES.OBC,       label: 'OBC — Outcome-Based Curriculum (Old)' },
-  { value: SYLLABUS_TYPES.SECONDARY, label: 'Secondary (Form 1–4)' },
+  { value: SYLLABUS_TYPES.CBC, label: 'CBC — Competence-Based Curriculum (New)' },
+  { value: SYLLABUS_TYPES.OBC, label: 'OBC — Outcome-Based Curriculum (Old)' },
 ]
 
 /* ── Grades / Forms per syllabus ─────────────────────────────── */
 //
 // `active` flips on as we roll a grade/form out. Inactive entries still
 // render in admin views but are hidden from teacher-facing dropdowns.
-// Future-proofing: Grades 8–12 are listed but disabled (CBC secondary is
-// expressed as Forms 1–4 below, which ARE active).
+// CBC matches the studio: Grades 1–6 then Forms 1–4 (no Grade 7).
 
 export const GRADE_FORMS = {
   [SYLLABUS_TYPES.CBC]: [
-    { value: 'Grade 1',  label: 'Grade 1',  band: 'lower_primary',  active: true  },
-    { value: 'Grade 2',  label: 'Grade 2',  band: 'lower_primary',  active: true  },
-    { value: 'Grade 3',  label: 'Grade 3',  band: 'lower_primary',  active: true  },
-    { value: 'Grade 4',  label: 'Grade 4',  band: 'upper_primary',  active: true  },
-    { value: 'Grade 5',  label: 'Grade 5',  band: 'upper_primary',  active: true  },
-    { value: 'Grade 6',  label: 'Grade 6',  band: 'upper_primary',  active: true  },
-    { value: 'Grade 7',  label: 'Grade 7',  band: 'upper_primary',  active: true  },
-    { value: 'Form 1',   label: 'Form 1',   band: 'junior_secondary', active: true },
-    { value: 'Form 2',   label: 'Form 2',   band: 'junior_secondary', active: true },
-    { value: 'Form 3',   label: 'Form 3',   band: 'senior_secondary', active: true },
-    { value: 'Form 4',   label: 'Form 4',   band: 'senior_secondary', active: true },
-    { value: 'Grade 8',  label: 'Grade 8',  band: 'junior_secondary', active: false },
-    { value: 'Grade 9',  label: 'Grade 9',  band: 'junior_secondary', active: false },
-    { value: 'Grade 10', label: 'Grade 10', band: 'senior_secondary', active: false },
-    { value: 'Grade 11', label: 'Grade 11', band: 'senior_secondary', active: false },
-    { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: false },
+    { value: 'Grade 1', label: 'Grade 1', band: 'lower_primary',    active: true },
+    { value: 'Grade 2', label: 'Grade 2', band: 'lower_primary',    active: true },
+    { value: 'Grade 3', label: 'Grade 3', band: 'lower_primary',    active: true },
+    { value: 'Grade 4', label: 'Grade 4', band: 'upper_primary',    active: true },
+    { value: 'Grade 5', label: 'Grade 5', band: 'upper_primary',    active: true },
+    { value: 'Grade 6', label: 'Grade 6', band: 'upper_primary',    active: true },
+    { value: 'Form 1',  label: 'Form 1',  band: 'junior_secondary', active: true },
+    { value: 'Form 2',  label: 'Form 2',  band: 'junior_secondary', active: true },
+    { value: 'Form 3',  label: 'Form 3',  band: 'senior_secondary', active: true },
+    { value: 'Form 4',  label: 'Form 4',  band: 'senior_secondary', active: true },
   ],
   [SYLLABUS_TYPES.OBC]: [
     { value: 'Grade 3',  label: 'Grade 3',  band: 'lower_primary',   active: true },
@@ -242,12 +237,6 @@ export const GRADE_FORMS = {
     { value: 'Grade 10', label: 'Grade 10', band: 'senior_secondary', active: true },
     { value: 'Grade 11', label: 'Grade 11', band: 'senior_secondary', active: true },
     { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: true },
-  ],
-  [SYLLABUS_TYPES.SECONDARY]: [
-    { value: 'Form 1', label: 'Form 1', band: 'junior_secondary', active: true  },
-    { value: 'Form 2', label: 'Form 2', band: 'junior_secondary', active: false },
-    { value: 'Form 3', label: 'Form 3', band: 'senior_secondary', active: false },
-    { value: 'Form 4', label: 'Form 4', band: 'senior_secondary', active: false },
   ],
 }
 
@@ -262,13 +251,12 @@ export const TERMS = [
 /* ── Subjects per syllabus + grade/form ──────────────────────── */
 //
 // CBC Grades 1–3:  combined subjects (Mathematics & Science is ONE subject)
-// CBC Grades 4–7:  fully separated subjects
+// CBC Grades 4–6:  fully separated subjects
 // CBC Forms 1–2:   junior-secondary subjects
 // CBC Forms 3–4:   senior-secondary subjects (sciences split out)
 // OBC Grade 3:     same combined list as CBC Grades 1–3
-// OBC Grades 5–7:  same list as CBC 4–7
+// OBC Grades 5–7:  same list as CBC upper primary
 // OBC Grades 10–12: senior secondary subjects
-// Secondary Form 1: single-discipline subjects + accounting + ICT
 //
 // IMPORTANT: do NOT separate "Mathematics and Science" in Grades 1–3.
 
@@ -357,18 +345,6 @@ const OBC_SENIOR_SECONDARY_SUBJECTS = [
   'Technology Studies',
 ]
 
-const SECONDARY_FORM_1_SUBJECTS = [
-  'Physics',
-  'Chemistry',
-  'Mathematics',
-  'English Language',
-  'Geography',
-  'History',
-  'Religious Education',
-  'Principles of Accounting',
-  'Information and Communication Technology (ICT)',
-]
-
 /**
  * Returns the canonical subject list for a (syllabus, gradeForm) pair.
  * Falls back to an empty array if the combination is unknown.
@@ -380,7 +356,7 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
     if (['Grade 1', 'Grade 2', 'Grade 3'].includes(gradeForm)) {
       return CBC_LOWER_PRIMARY_SUBJECTS
     }
-    if (['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'].includes(gradeForm)) {
+    if (['Grade 4', 'Grade 5', 'Grade 6'].includes(gradeForm)) {
       return CBC_UPPER_PRIMARY_SUBJECTS
     }
     if (['Form 1', 'Form 2'].includes(gradeForm)) {
@@ -389,7 +365,6 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
     if (['Form 3', 'Form 4'].includes(gradeForm)) {
       return CBC_SENIOR_SECONDARY_SUBJECTS
     }
-    // Grades 8–12 to be added when CBC adopts the grade-numbered naming.
     return []
   }
 
@@ -400,20 +375,14 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
     return []
   }
 
-  if (syllabus === SYLLABUS_TYPES.SECONDARY) {
-    if (gradeForm === 'Form 1') return SECONDARY_FORM_1_SUBJECTS
-    // Forms 2–4 — populated as those subject lists are confirmed.
-    return []
-  }
-
   return []
 }
 
 /* ── Assessment types per grade/form ─────────────────────────── */
 //
-// Grades 1–3:  Topic, Monthly, Midterm, End of Term Test
-// Grades 4–8:  Topic, Monthly, End of Term Test
-// Form 1:      Topic, Monthly, End of Term Test
+// Grades 1–3:     Topic, Monthly, Midterm, End of Term Test
+// Grades 4–6:     Topic, Monthly, End of Term Test
+// Forms 1–4:      Topic, Monthly, End of Term Test
 
 const ASSESSMENT_TYPES_LOWER_PRIMARY = [
   { value: 'topic',       label: 'Topic Test'        },

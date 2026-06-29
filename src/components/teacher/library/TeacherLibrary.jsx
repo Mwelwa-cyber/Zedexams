@@ -62,7 +62,7 @@ import {
  *
  * Step-by-step flow (mobile-first):
  *   1. Library Type   (Schemes / Forecasts / Syllabi / Lesson Plans / Notes / Assessments)
- *   2. Syllabus       (CBC / OBC / Secondary)
+ *   2. Syllabus       (CBC / OBC)
  *   3. Grade / Form
  *   4. Term           (skipped for Syllabi)
  *   5. Subject
