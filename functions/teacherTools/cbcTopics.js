@@ -1,11 +1,19 @@
 /**
  * Zambian CBC Knowledge Base — topic seed data.
  *
- * Covers Grades 1-9 across Mathematics, English, Literacy (G1-4), Integrated
- * Science, Social Studies, Religious Education, Creative & Technology Studies
- * (CTS), and Civic Education (G8-9). Based on the 2013 Zambia Education
- * Curriculum Framework and the CDC syllabi used in government and CDC-aligned
- * private schools.
+ * Covers Early Childhood Education (Nursery `ECE_N` 3–4 yrs, Reception
+ * `ECE_R` 4–5 yrs) and Grades 1-9 across Mathematics, English, Literacy
+ * (G1-4), Integrated Science, Social Studies, Religious Education, Creative &
+ * Technology Studies (CTS), and Civic Education (G8-9). Based on the 2013 and
+ * 2023 Zambia Education Curriculum Frameworks and the CDC syllabi used in
+ * government and CDC-aligned private schools.
+ *
+ * ECE entries follow the 2023 ECE syllabus (the four learning-area sheets in
+ * public/syllabi/curriculum-data.json) and use the same canonical subject
+ * codes the ECE teacher studios pass: `english`, `zambian_language`,
+ * `numeracy` (Pre-Maths & Science) and `expressive_arts` (Creative & Tech).
+ * ECE is play-based and thematic, so `term` placements are a sensible
+ * sequencing aid rather than a strict termly split.
  *
  * Structure per entry:
  *   { id, grade, subject, term, topic,
@@ -23,6 +31,665 @@
  */
 
 const TOPICS = [
+  // ═══════════════════════════════════════════════════════════════════
+  // EARLY CHILDHOOD EDUCATION — NURSERY (ECE_N, ages 3–4)
+  // Play-based, thematic. 2023 ECE syllabus, four learning areas.
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Nursery · English Language ──────────────────────────────────────
+  {
+    id: "ece-n-eng-naming",
+    grade: "ECE_N", subject: "english", term: 1,
+    topic: "Naming",
+    subtopics: ["Own name", "Names of family members", "Things at home", "Things at school", "Things in the environment"],
+    specificOutcomes: [
+      "Tell their own name and the names of family members",
+      "Name common objects found at home, at school and in the environment",
+    ],
+    keyCompetencies: ["Communication and language", "Listening skills"],
+    values: ["Confidence", "Attentiveness"],
+    suggestedMaterials: ["Picture cards", "Real objects from home and class", "Name cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-eng-conversation",
+    grade: "ECE_N", subject: "english", term: 1,
+    topic: "Conversation and Greetings",
+    subtopics: ["Greetings for different times of day", "Simple commands", "Asking and giving permission", "Likes and dislikes"],
+    specificOutcomes: [
+      "Use appropriate greetings at different times of the day",
+      "Listen and respond to simple commands",
+      "Use polite language to ask for and give permission, and to talk about likes and dislikes",
+    ],
+    keyCompetencies: ["Communication and language", "Social and emotional skills"],
+    values: ["Respect", "Politeness"],
+    suggestedMaterials: ["Picture cards", "Greeting role-play prompts", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-eng-stories-rhymes-songs",
+    grade: "ECE_N", subject: "english", term: 2,
+    topic: "Stories, Rhymes and Songs",
+    subtopics: ["Simple stories", "Picture stories", "Rhymes", "Tongue twisters", "Simple songs", "Simple plays (drama)"],
+    specificOutcomes: [
+      "Listen and respond to simple stories and interpret picture stories",
+      "Recite rhymes and tongue twisters and sing simple songs",
+      "Dramatise simple stories and plays",
+    ],
+    keyCompetencies: ["Communication and language", "Creativity and imagination"],
+    values: ["Confidence", "Cooperation"],
+    suggestedMaterials: ["Big picture story books", "Rhyme and song charts", "Simple props for role play", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-eng-pre-reading",
+    grade: "ECE_N", subject: "english", term: 2,
+    topic: "Pre-Reading Skills",
+    subtopics: ["Book handling", "Left-to-right eye movement", "Matching", "Odd one out", "Visual memory", "Picture reading", "Initial and end sounds"],
+    specificOutcomes: [
+      "Demonstrate correct book-handling habits and left-to-right eye movement",
+      "Read pictures, recognise their own name and recall objects from memory",
+      "Recognise initial and end sounds orally in simple words",
+    ],
+    keyCompetencies: ["Pre-literacy", "Observation"],
+    values: ["Attentiveness", "Perseverance"],
+    suggestedMaterials: ["Picture books", "Name cards", "Matching and sorting cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-eng-pre-writing",
+    grade: "ECE_N", subject: "english", term: 3,
+    topic: "Pre-Writing and Handwriting",
+    subtopics: ["Eye-hand coordination", "Sitting posture", "Finger and hand manipulation", "Pencil grip (tripod)", "Scribbling", "Pattern work", "Copying own name"],
+    specificOutcomes: [
+      "Hold a pencil using the tripod grip and sit with correct posture",
+      "Trace lines and patterns using templates",
+      "Copy their own name from a name card",
+    ],
+    keyCompetencies: ["Pre-writing", "Fine motor skills"],
+    values: ["Perseverance", "Neatness"],
+    suggestedMaterials: ["Crayons and pencils", "Pattern tracing templates", "Clay or play dough", "Name cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Nursery · Zambian Languages ─────────────────────────────────────
+  {
+    id: "ece-n-zam-names-greetings",
+    grade: "ECE_N", subject: "zambian_language", term: 1,
+    topic: "Names and Greetings",
+    subtopics: ["Own name", "Names of family members", "Family relationships", "Names of body parts", "Familiar objects and animals", "Common greetings"],
+    specificOutcomes: [
+      "Tell their own name and the names and relationships of immediate family members in a Zambian Language",
+      "Name body parts, familiar objects and animals in the home environment",
+      "Use appropriate greetings for different times of the day",
+    ],
+    keyCompetencies: ["Communication and language", "Cultural identity"],
+    values: ["Respect", "Sense of belonging"],
+    suggestedMaterials: ["Picture cards", "Family photo cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-zam-conversation",
+    grade: "ECE_N", subject: "zambian_language", term: 1,
+    topic: "Conversations and Permission",
+    subtopics: ["Family experiences", "Likes and dislikes", "Home rules", "School rules", "Asking for permission", "Following instructions and directions"],
+    specificOutcomes: [
+      "Talk about family experiences, likes and dislikes in a Zambian Language",
+      "Use appropriate language to ask for permission",
+      "Follow simple instructions and directions",
+    ],
+    keyCompetencies: ["Communication and language", "Social and emotional skills"],
+    values: ["Respect", "Obedience"],
+    suggestedMaterials: ["Role-play prompts", "Picture cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-zam-stories-rhymes",
+    grade: "ECE_N", subject: "zambian_language", term: 2,
+    topic: "Stories, Rhymes and Prayer",
+    subtopics: ["Simple stories", "Simple rhymes", "Simple prayer"],
+    specificOutcomes: [
+      "Listen to a simple story told in a Zambian Language",
+      "Recite a simple rhyme and say a simple prayer",
+    ],
+    keyCompetencies: ["Communication and language", "Cultural identity"],
+    values: ["Spirituality", "Attentiveness"],
+    suggestedMaterials: ["Local folk-story collections", "Rhyme charts", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-zam-print-sounds",
+    grade: "ECE_N", subject: "zambian_language", term: 2,
+    topic: "Concept of Print and Sounds",
+    subtopics: ["Book handling", "Directionality", "Identifying print", "Animal and object sounds", "Syllables", "Letter sounds", "Picture interpretation"],
+    specificOutcomes: [
+      "Handle a book and pretend to read from left to right",
+      "Imitate animal and object sounds and interpret pictures",
+      "Identify syllables and letter sounds in simple oral words",
+    ],
+    keyCompetencies: ["Pre-literacy", "Listening skills"],
+    values: ["Curiosity", "Attentiveness"],
+    suggestedMaterials: ["Picture books", "Sound and picture cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-zam-handwriting",
+    grade: "ECE_N", subject: "zambian_language", term: 3,
+    topic: "Handwriting",
+    subtopics: ["Sitting posture", "Finger manipulation", "Tripod grip", "Pattern writing", "Tracing", "Colouring", "Drawing"],
+    specificOutcomes: [
+      "Demonstrate correct sitting posture and hold writing tools with a tripod grip",
+      "Write simple patterns and trace lines",
+      "Colour shapes and drawings and draw different objects",
+    ],
+    keyCompetencies: ["Pre-writing", "Fine motor skills"],
+    values: ["Perseverance", "Neatness"],
+    suggestedMaterials: ["Crayons and pencils", "Tracing templates", "Drawing paper", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Nursery · Pre-Maths & Science (numeracy) ────────────────────────
+  {
+    id: "ece-n-num-exploring-my-world",
+    grade: "ECE_N", subject: "numeracy", term: 1,
+    topic: "Exploring My World",
+    subtopics: ["Grouping things by characteristics", "Recognising numbers", "Recognising money"],
+    specificOutcomes: [
+      "Group things according to their characteristics",
+      "Recognise numbers and money used in everyday life",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Classification"],
+    values: ["Curiosity", "Accuracy"],
+    suggestedMaterials: ["Counters (bottle tops, stones, seeds)", "Number cards", "Toy/real coins", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-num-understanding-my-body",
+    grade: "ECE_N", subject: "numeracy", term: 1,
+    topic: "Understanding My Body",
+    subtopics: ["External body parts", "Caring for the body"],
+    specificOutcomes: [
+      "Name the external parts of the human body",
+      "Describe how to care for external parts of the body",
+    ],
+    keyCompetencies: ["Scientific exploration", "Self-management"],
+    values: ["Cleanliness", "Responsibility"],
+    suggestedMaterials: ["Body chart", "Soap, water and cloth", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-num-sky-seasons",
+    grade: "ECE_N", subject: "numeracy", term: 2,
+    topic: "Exploring the Sky and Seasons",
+    subtopics: ["Time and seasons", "Activities of the day"],
+    specificOutcomes: [
+      "Tell the time of day by linking it to daily activities",
+    ],
+    keyCompetencies: ["Scientific exploration", "Observation"],
+    values: ["Curiosity", "Orderliness"],
+    suggestedMaterials: ["Daily routine picture chart", "Weather chart", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-num-understanding-materials",
+    grade: "ECE_N", subject: "numeracy", term: 2,
+    topic: "Understanding Materials",
+    subtopics: ["Shapes and patterns", "Light and shadows"],
+    specificOutcomes: [
+      "Create simple shapes and patterns",
+      "Demonstrate how shadows are formed",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Scientific exploration"],
+    values: ["Curiosity", "Creativity"],
+    suggestedMaterials: ["Shape cut-outs", "Torch and objects for shadow play", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-num-exploring-mixtures",
+    grade: "ECE_N", subject: "numeracy", term: 3,
+    topic: "Exploring Mixtures",
+    subtopics: ["Adding things", "Subtracting things", "Everyday mathematical operations"],
+    specificOutcomes: [
+      "Use simple addition and subtraction with objects in everyday situations",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Problem solving"],
+    values: ["Accuracy", "Cooperation"],
+    suggestedMaterials: ["Counters (bottle tops, stones)", "Everyday objects for grouping", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Nursery · Creative & Technology Studies (expressive_arts) ───────
+  {
+    id: "ece-n-art-safety-hygiene",
+    grade: "ECE_N", subject: "expressive_arts", term: 1,
+    topic: "Safety and Hygiene",
+    subtopics: ["Safety in the environment", "Food hygiene", "Personal hygiene", "Environmental hygiene"],
+    specificOutcomes: [
+      "Practise safety in the environment",
+      "Practise food, personal and environmental hygiene",
+    ],
+    keyCompetencies: ["Self-management", "Health and well-being"],
+    values: ["Cleanliness", "Responsibility", "Care for the environment"],
+    suggestedMaterials: ["Soap, water and towel", "Litter bin", "Picture cards on safety", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-tools-ict-light",
+    grade: "ECE_N", subject: "expressive_arts", term: 1,
+    topic: "Tools, ICT Devices and Light",
+    subtopics: ["Hand tools", "ICT devices", "Sources of light"],
+    specificOutcomes: [
+      "Use simple hand tools found in the immediate environment",
+      "Operate ICT devices found in the locality",
+      "Use sources of light to solve simple problems",
+    ],
+    keyCompetencies: ["Technology and innovation", "Problem solving"],
+    values: ["Curiosity", "Care for property"],
+    suggestedMaterials: ["Safe child-sized hand tools", "A phone or radio (with supervision)", "Torch", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-food",
+    grade: "ECE_N", subject: "expressive_arts", term: 2,
+    topic: "Food",
+    subtopics: ["Types of food", "Sorting food by characteristics"],
+    specificOutcomes: [
+      "Sort different types of food according to their characteristics",
+    ],
+    keyCompetencies: ["Classification", "Health and well-being"],
+    values: ["Healthy living", "Curiosity"],
+    suggestedMaterials: ["Real or plastic food samples", "Food picture cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-motor-development",
+    grade: "ECE_N", subject: "expressive_arts", term: 2,
+    topic: "Motor Development",
+    subtopics: ["Gross (locomotor) skills", "Non-locomotor skills", "Eye-hand and eye-foot coordination", "Fine motor skills"],
+    specificOutcomes: [
+      "Develop gross (locomotor) and non-locomotor skills",
+      "Develop eye-hand and eye-foot coordination and fine motor skills",
+    ],
+    keyCompetencies: ["Physical development", "Coordination"],
+    values: ["Perseverance", "Cooperation"],
+    suggestedMaterials: ["Balls and bean bags", "Skipping ropes", "Beads for threading", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-music-dance-drama",
+    grade: "ECE_N", subject: "expressive_arts", term: 2,
+    topic: "Music, Dance and Drama",
+    subtopics: ["Music and dance", "Rhythm and movement", "Role play"],
+    specificOutcomes: [
+      "Explore different types of music and dance",
+      "Perform rhythm and movement and act out various roles",
+    ],
+    keyCompetencies: ["Creativity and imagination", "Aesthetic appreciation"],
+    values: ["Confidence", "Cultural identity"],
+    suggestedMaterials: ["Drums and shakers", "Local songs", "Simple costumes", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-art-crafts",
+    grade: "ECE_N", subject: "expressive_arts", term: 3,
+    topic: "Art and Crafts",
+    subtopics: ["Drawing and tracing", "Colouring", "Patterns", "Threading", "Weaving", "Modelling and moulding", "Paper crafts"],
+    specificOutcomes: [
+      "Draw lines, trace objects using templates and colour objects",
+      "Make simple patterns and thread and weave different items",
+      "Model and mould simple artifacts and make paper crafts",
+    ],
+    keyCompetencies: ["Creativity and imagination", "Fine motor skills"],
+    values: ["Creativity", "Neatness"],
+    suggestedMaterials: ["Crayons and paper", "String and beads", "Clay or play dough", "Old paper for craft", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-n-art-games",
+    grade: "ECE_N", subject: "expressive_arts", term: 3,
+    topic: "Games",
+    subtopics: ["Traditional games"],
+    specificOutcomes: [
+      "Play traditional games with others",
+    ],
+    keyCompetencies: ["Physical development", "Social and emotional skills"],
+    values: ["Cooperation", "Fair play", "Cultural identity"],
+    suggestedMaterials: ["Open play space", "Locally made play materials", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // EARLY CHILDHOOD EDUCATION — RECEPTION (ECE_R, ages 4–5)
+  // School-readiness. 2023 ECE syllabus, four learning areas.
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ── Reception · English Language ────────────────────────────────────
+  {
+    id: "ece-r-eng-conversation",
+    grade: "ECE_R", subject: "english", term: 1,
+    topic: "Conversation",
+    subtopics: ["Greetings", "Simple instructions", "Classroom rules", "Making requests"],
+    specificOutcomes: [
+      "Use appropriate greetings and make polite requests",
+      "Follow simple instructions and classroom rules",
+    ],
+    keyCompetencies: ["Communication and language", "Social and emotional skills"],
+    values: ["Respect", "Politeness"],
+    suggestedMaterials: ["Classroom rules chart", "Role-play prompts", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-eng-naming",
+    grade: "ECE_R", subject: "english", term: 1,
+    topic: "Naming",
+    subtopics: ["Things at home", "Things at school", "Domestic animals", "Wild animals", "Occupations", "Modes of transport"],
+    specificOutcomes: [
+      "Name objects found at home and at school",
+      "Name domestic and wild animals",
+      "Name different occupations in the community and modes of transport",
+    ],
+    keyCompetencies: ["Communication and language", "General knowledge"],
+    values: ["Curiosity", "Confidence"],
+    suggestedMaterials: ["Picture cards of animals, jobs and transport", "Real classroom objects", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-eng-descriptions",
+    grade: "ECE_R", subject: "english", term: 1,
+    topic: "Descriptions",
+    subtopics: ["Primary colours", "Describing things by attributes", "Home chores", "Positions of things", "Singular and plural forms"],
+    specificOutcomes: [
+      "Describe objects according to primary colours and their attributes",
+      "Use appropriate language to show the position of things",
+      "Use appropriate vocabulary to express singular and plural forms",
+    ],
+    keyCompetencies: ["Communication and language", "Pre-numeracy"],
+    values: ["Accuracy", "Curiosity"],
+    suggestedMaterials: ["Coloured objects and cards", "Positional play items (box, ball)", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-eng-songs-narration-stories",
+    grade: "ECE_R", subject: "english", term: 2,
+    topic: "Songs, Narration and Stories",
+    subtopics: ["Days of the week", "Months of the year", "Road safety rules", "Weather", "Narrating simple events", "Caring for others", "Buying and selling"],
+    specificOutcomes: [
+      "Name the days of the week and months of the year",
+      "Narrate simple events and talk about the weather and road safety rules",
+      "Use appropriate language to talk about caring for others and about buying and selling",
+    ],
+    keyCompetencies: ["Communication and language", "Social and emotional skills"],
+    values: ["Care for others", "Responsibility"],
+    suggestedMaterials: ["Calendar chart", "Weather chart", "Picture stories", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-eng-pre-reading",
+    grade: "ECE_R", subject: "english", term: 2,
+    topic: "Pre-Reading Skills",
+    subtopics: ["Matching and identification", "Reading picture stories", "Initial sounds", "Counting sounds", "Blending", "Substitution", "Rhyming", "Tongue twisters"],
+    specificOutcomes: [
+      "Read picture stories and identify objects according to their attributes",
+      "Recognise, count, blend and substitute sounds in regular words",
+      "Identify rhyming words and recite tongue twisters",
+    ],
+    keyCompetencies: ["Pre-literacy", "Phonological awareness"],
+    values: ["Attentiveness", "Perseverance"],
+    suggestedMaterials: ["Picture story cards", "Sound and letter cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-eng-pre-writing",
+    grade: "ECE_R", subject: "english", term: 3,
+    topic: "Pre-Writing and Handwriting",
+    subtopics: ["Sitting posture", "Finger manipulation", "Book handling", "Parts of a book", "Making a picture book", "Pencil grip (tripod)", "Patterns", "Copying simple words"],
+    specificOutcomes: [
+      "Demonstrate correct posture, tripod grip and book handling",
+      "Name the parts of a book and make a simple picture book",
+      "Draw lines, patterns and shapes and copy simple words",
+    ],
+    keyCompetencies: ["Pre-writing", "Fine motor skills"],
+    values: ["Neatness", "Perseverance"],
+    suggestedMaterials: ["Pencils and crayons", "Tracing templates", "Stapled blank booklets", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Reception · Zambian Languages ───────────────────────────────────
+  {
+    id: "ece-r-zam-names-greetings",
+    grade: "ECE_R", subject: "zambian_language", term: 1,
+    topic: "Names and Greetings",
+    subtopics: ["Extended family members", "Family relationships", "Objects in the school", "Occupations", "Classifying animals", "Common greetings"],
+    specificOutcomes: [
+      "Name members of the extended family and tell their relationships in a Zambian Language",
+      "Name objects in the school and occupations in the community",
+      "Classify domestic animals according to function and use greetings for different situations",
+    ],
+    keyCompetencies: ["Communication and language", "Cultural identity"],
+    values: ["Respect", "Sense of belonging"],
+    suggestedMaterials: ["Family and animal picture cards", "School-object cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-zam-conversation-messages",
+    grade: "ECE_R", subject: "zambian_language", term: 1,
+    topic: "Conversations and Messages",
+    subtopics: ["Emotions", "Means of communication", "Family experiences", "Taking turns", "Home and school chores", "Modes of transport", "Buying and selling", "Common signposts", "Instructions and directions"],
+    specificOutcomes: [
+      "Talk about emotions, chores and means of communication and take turns when conversing",
+      "Role play family experiences and buying and selling",
+      "Interpret common signposts and give simple instructions and directions",
+    ],
+    keyCompetencies: ["Communication and language", "Social and emotional skills"],
+    values: ["Respect", "Cooperation"],
+    suggestedMaterials: ["Signpost picture cards", "Play money and market props", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-zam-oral-literature",
+    grade: "ECE_R", subject: "zambian_language", term: 2,
+    topic: "Oral Literature",
+    subtopics: ["Simple stories", "Simple rhymes", "Tongue twisters", "Riddles", "Poems", "Simple prayer"],
+    specificOutcomes: [
+      "Listen to simple stories told in a Zambian Language",
+      "Recite simple rhymes, tongue twisters and poems and respond to simple riddles",
+      "Say a simple prayer",
+    ],
+    keyCompetencies: ["Communication and language", "Cultural identity"],
+    values: ["Cultural identity", "Spirituality"],
+    suggestedMaterials: ["Local folk-story and riddle collections", "Rhyme charts", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-zam-pre-reading",
+    grade: "ECE_R", subject: "zambian_language", term: 2,
+    topic: "Pre-Reading and Reading",
+    subtopics: ["Parts of a book", "Picture interpretation", "Syllables", "Initial sounds", "Letter sounds", "Listening comprehension", "Reading simple words"],
+    specificOutcomes: [
+      "Identify parts of a book and interpret pictures",
+      "Identify syllables, initial sounds and letter sounds in oral words",
+      "Blend sounds to form syllables and read simple words",
+    ],
+    keyCompetencies: ["Pre-literacy", "Phonological awareness"],
+    values: ["Attentiveness", "Perseverance"],
+    suggestedMaterials: ["Picture books", "Syllable and letter cards", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-zam-handwriting",
+    grade: "ECE_R", subject: "zambian_language", term: 3,
+    topic: "Handwriting",
+    subtopics: ["Pattern writing", "Tracing", "Copying", "Colouring", "Drawing"],
+    specificOutcomes: [
+      "Write simple patterns, trace lines and copy simple patterns",
+      "Colour shapes and drawings and draw different objects",
+    ],
+    keyCompetencies: ["Pre-writing", "Fine motor skills"],
+    values: ["Neatness", "Perseverance"],
+    suggestedMaterials: ["Crayons and pencils", "Tracing templates", "Drawing paper", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Reception · Pre-Maths & Science (numeracy) ──────────────────────
+  {
+    id: "ece-r-num-exploring-my-world",
+    grade: "ECE_R", subject: "numeracy", term: 1,
+    topic: "Exploring My World",
+    subtopics: ["Grouping things by characteristics", "Recognising numbers", "Recognising money"],
+    specificOutcomes: [
+      "Group things according to their characteristics",
+      "Recognise numbers and money used in everyday life",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Classification"],
+    values: ["Curiosity", "Accuracy"],
+    suggestedMaterials: ["Counters (bottle tops, stones, seeds)", "Number cards", "Toy/real coins", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-num-understanding-my-body",
+    grade: "ECE_R", subject: "numeracy", term: 1,
+    topic: "Understanding My Body",
+    subtopics: ["The five senses", "Caring for the senses"],
+    specificOutcomes: [
+      "Name the parts of the body associated with the five senses",
+      "Describe how to care for the parts of the body associated with the five senses",
+    ],
+    keyCompetencies: ["Scientific exploration", "Self-management"],
+    values: ["Cleanliness", "Responsibility"],
+    suggestedMaterials: ["Five-senses picture chart", "Objects to taste, smell, touch and hear", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-num-sky-seasons",
+    grade: "ECE_R", subject: "numeracy", term: 2,
+    topic: "Exploring the Sky and Seasons",
+    subtopics: ["Time and seasons", "Activities of the day"],
+    specificOutcomes: [
+      "Tell the time of day by linking it to daily activities",
+    ],
+    keyCompetencies: ["Scientific exploration", "Observation"],
+    values: ["Curiosity", "Orderliness"],
+    suggestedMaterials: ["Daily routine picture chart", "Weather chart", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-num-understanding-materials",
+    grade: "ECE_R", subject: "numeracy", term: 2,
+    topic: "Understanding Materials",
+    subtopics: ["Shapes and patterns", "Sinking and floating", "Light and shadows"],
+    specificOutcomes: [
+      "Create simple shapes and patterns",
+      "Recognise sinking and floating objects in everyday life",
+      "Demonstrate how shadows are formed",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Scientific exploration"],
+    values: ["Curiosity", "Creativity"],
+    suggestedMaterials: ["Shape cut-outs", "Basin of water with objects", "Torch for shadow play", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-num-exploring-mixtures",
+    grade: "ECE_R", subject: "numeracy", term: 3,
+    topic: "Exploring Mixtures",
+    subtopics: ["Adding things", "Subtracting things", "Everyday mathematical operations"],
+    specificOutcomes: [
+      "Use simple addition and subtraction with objects in everyday situations",
+    ],
+    keyCompetencies: ["Pre-numeracy", "Problem solving"],
+    values: ["Accuracy", "Cooperation"],
+    suggestedMaterials: ["Counters (bottle tops, stones)", "Everyday objects for grouping", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
+  // ── Reception · Creative & Technology Studies (expressive_arts) ─────
+  {
+    id: "ece-r-art-safety",
+    grade: "ECE_R", subject: "expressive_arts", term: 1,
+    topic: "Safety",
+    subtopics: ["Safety in school", "Road safety", "Storage of tools", "Personal safety (strangers)"],
+    specificOutcomes: [
+      "Practise safety in the school environment and on the road",
+      "Store tools in designated places",
+      "Recognise the dangers of interacting with strangers",
+    ],
+    keyCompetencies: ["Self-management", "Health and well-being"],
+    values: ["Responsibility", "Self-protection"],
+    suggestedMaterials: ["Road safety picture cards", "Tool storage box", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-art-hygiene-hospitality",
+    grade: "ECE_R", subject: "expressive_arts", term: 1,
+    topic: "Hygiene and Hospitality",
+    subtopics: ["Food hygiene and preservation", "Personal hygiene", "Environmental hygiene", "Good manners", "Eating habits"],
+    specificOutcomes: [
+      "Practise personal, food and environmental hygiene",
+      "Practise good manners and good eating habits",
+    ],
+    keyCompetencies: ["Self-management", "Social and emotional skills"],
+    values: ["Cleanliness", "Good manners", "Care for the environment"],
+    suggestedMaterials: ["Soap, water and towel", "Place setting for table manners", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-art-heat-ict-materials",
+    grade: "ECE_R", subject: "expressive_arts", term: 2,
+    topic: "Heat, ICT and Materials",
+    subtopics: ["Sources of heat", "ICT devices", "Types of materials"],
+    specificOutcomes: [
+      "Explore the various sources of heat",
+      "Use ICT devices and utilise different materials",
+    ],
+    keyCompetencies: ["Technology and innovation", "Scientific exploration"],
+    values: ["Curiosity", "Care for property"],
+    suggestedMaterials: ["Pictures of heat sources", "A phone or radio (with supervision)", "Assorted craft materials", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-art-motor-development",
+    grade: "ECE_R", subject: "expressive_arts", term: 2,
+    topic: "Motor Development",
+    subtopics: ["Gross (locomotor) skills", "Non-locomotor skills", "Eye-hand and eye-foot coordination", "Fine motor skills"],
+    specificOutcomes: [
+      "Develop locomotor and non-locomotor skills",
+      "Develop eye-hand and eye-foot coordination and fine motor skills",
+    ],
+    keyCompetencies: ["Physical development", "Coordination"],
+    values: ["Perseverance", "Cooperation"],
+    suggestedMaterials: ["Balls and bean bags", "Skipping ropes", "Beads for threading", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-art-music-dance-drama-games",
+    grade: "ECE_R", subject: "expressive_arts", term: 2,
+    topic: "Music, Dance, Drama and Games",
+    subtopics: ["Music and movement", "Rhythm and balance", "Musical instruments", "Drama", "Traditional and conventional games"],
+    specificOutcomes: [
+      "Practise music, movement and rhythm and control the body to balance",
+      "Play different musical instruments and dramatise different scenarios",
+      "Perform traditional and conventional games",
+    ],
+    keyCompetencies: ["Creativity and imagination", "Physical development"],
+    values: ["Confidence", "Fair play", "Cultural identity"],
+    suggestedMaterials: ["Drums, shakers and rattles", "Local songs", "Open play space", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+  {
+    id: "ece-r-art-art-crafts",
+    grade: "ECE_R", subject: "expressive_arts", term: 3,
+    topic: "Art and Crafts",
+    subtopics: ["Drawing and colouring", "Patterns", "Weaving", "Modelling and moulding", "Mosaic and collage"],
+    specificOutcomes: [
+      "Draw and colour pictures",
+      "Make patterns, weave items and model familiar artifacts",
+      "Recognise materials for making collage and mosaic pictures",
+    ],
+    keyCompetencies: ["Creativity and imagination", "Fine motor skills"],
+    values: ["Creativity", "Neatness"],
+    suggestedMaterials: ["Crayons and paper", "String and weaving strips", "Clay or play dough", "Seeds and scraps for collage", "ECE Syllabus 3–5 Years (CDC)"],
+    reviewStatus: "needs_check",
+  },
+
   // ═══════════════════════════════════════════════════════════════════
   // GRADE 1 — Foundation phase
   // ═══════════════════════════════════════════════════════════════════
