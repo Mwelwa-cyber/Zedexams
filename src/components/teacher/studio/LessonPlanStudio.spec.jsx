@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 // ── Firebase mocks ────────────────────────────────────────────────────────────
 // vi.hoisted() runs before vi.mock() hoisting so innerCallable is defined
@@ -120,6 +121,16 @@ const { mockGenerateDiagram } = vi.hoisted(() => ({
 }))
 vi.mock('../../../utils/generateDiagram', () => ({
   generateDiagram: mockGenerateDiagram,
+}))
+
+// Auto-save: a successful generation persists the plan to the library via
+// saveLessonPlanGeneration. Mock it so the studio's auto-save resolves (and so
+// we can assert it ran) instead of hitting the real Firestore writer.
+const { mockSaveLessonPlanGeneration } = vi.hoisted(() => ({
+  mockSaveLessonPlanGeneration: vi.fn(() => Promise.resolve('gen-id-123')),
+}))
+vi.mock('../../../utils/teacherLibraryService', () => ({
+  saveLessonPlanGeneration: mockSaveLessonPlanGeneration,
 }))
 
 vi.mock('./utils/studioSystemPrompt', () => ({
@@ -337,6 +348,29 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
       expect(screen.getByTestId('canvas-status')).toHaveTextContent('done')
     })
     expect(screen.getByTestId('canvas-plan')).toHaveTextContent('rendered plan')
+  })
+
+  it('auto-saves the generated plan to the library (no manual Save needed)', async () => {
+    const { renderPlanHtml } = await import('./utils/renderPlanHtml')
+    mockSaveLessonPlanGeneration.mockClear()
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+    renderPlanHtml.mockReturnValue('<p>rendered plan</p>')
+
+    renderStudioWithGeneration()
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    // A successful generation persists to the library on its own — this is what
+    // makes the plan show up under Library → Lesson Plans (and feeds the
+    // Template Bank trigger, which only fires on saved `lesson_plan` docs).
+    await waitFor(() => {
+      expect(mockSaveLessonPlanGeneration).toHaveBeenCalledTimes(1)
+    })
+    const arg = mockSaveLessonPlanGeneration.mock.calls[0][0]
+    expect(arg.uid).toBe('test-uid-123')
+    expect(arg.planJson).toBeTruthy()
+    expect(arg.classification.libraryType).toBe(LIBRARY_TYPES.LESSON_PLANS)
   })
 
   it('sets generationStatus to "loading" immediately after clicking generate', async () => {

@@ -479,6 +479,53 @@ export default function LessonPlanStudio() {
       setIllustrationError(null)
       setIllustrationStatus('idle')
 
+      // Auto-save the freshly generated plan straight to the teacher's library
+      // so it appears under Library → Lesson Plans without a manual click (and
+      // so the Template Bank trigger, which only fires on saved `lesson_plan`
+      // docs, can pick it up). We save the LOCAL planJson/meta here rather than
+      // calling persistPlanToLibrary() — that closure reads `lastPlanJson` from
+      // state, which the setLastPlanJson above hasn't committed yet. The canvas
+      // then shows a "Saved · View" indicator (saveStatus + onViewLibrary), so
+      // the teacher knows it's in the library and can open it. Fail-soft: a save
+      // miss flips the Save button back on for a manual retry but never hides
+      // the plan that's already on screen. (A background auto-illustration, if
+      // any, lands after this and re-enables Save so the teacher can re-save the
+      // illustrated copy.)
+      if (uid) {
+        setSaveStatus('saving')
+        try {
+          const savedId = await saveLessonPlanGeneration({
+            uid,
+            planJson,
+            html,
+            meta,
+            studioFormat: meta.format || 'modern',
+            inputs: {
+              grade: lessonDetails.grade || null,
+              subject: lessonDetails.subject || null,
+              topic: topicData.topic || null,
+              subtopic: topicData.subtopic || null,
+            },
+            classification: {
+              libraryType: LIBRARY_TYPES.LESSON_PLANS,
+              grade: lessonDetails.grade,
+              subject: lessonDetails.subject,
+            },
+          })
+          setSavedPlanId(savedId)
+          setSavedSignature(JSON.stringify({ plan: planJson, diagrams: [] }))
+          setSaveStatus('saved')
+        } catch (saveErr) {
+          console.warn('[zedexams] lesson-plan auto-save failed', saveErr)
+          setSaveError(
+            saveErr instanceof Error ?
+              `Plan generated, but auto-saving to your library failed: ${saveErr.message}` :
+              'Plan generated, but auto-saving to your library failed. Use “Save to library” to retry.',
+          )
+          setSaveStatus('error')
+        }
+      }
+
       // Auto-illustration: when the teacher chose "Automatic" (or the advanced
       // Auto-add toggle), generate one relevant illustration in the BACKGROUND
       // and inject it once ready — the plan is already on screen, so the image
