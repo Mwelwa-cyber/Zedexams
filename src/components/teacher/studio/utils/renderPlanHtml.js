@@ -252,21 +252,34 @@ function renderMetaTable(meta) {
  * @returns {string}
  */
 function renderMetaCompact(meta) {
-  const items = []
-  if (meta.teacherName) items.push(["Teacher's name", esc(meta.teacherName)])
-  else if (meta.teacher) items.push(["Teacher's name", esc(meta.teacher) + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')])
-  if (meta.date) items.push(['Date', esc(meta.date)])
-  if (meta.time) items.push(['Time', esc(meta.time)])
-  items.push(['Subject', esc(meta.subject || '')])
-  items.push(['Duration', esc(String(meta.duration || '40')) + ' min'])
-  items.push(['Class', esc(meta.klass || meta.grade || '')])
-  if (meta.topic) items.push(['Topic', esc(meta.topic)])
-  if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)])
-  if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___'])
-  if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___'])
-  return `<div class="meta-compact">${items
-    .map(([k, v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`)
-    .join('')}</div>`
+  const teacherDisplay = meta.teacherName
+    ? esc(meta.teacherName)
+    : meta.teacher
+      ? esc(meta.teacher) + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')
+      : ''
+  // Two aligned columns: identity/subject on the left, scheduling/attendance on
+  // the right — mirrors the official CDC lesson-plan header layout.
+  const left = [
+    ['Name of teacher', teacherDisplay],
+    ['Class', esc(meta.klass || meta.grade || '')],
+    ['Subject', esc(meta.subject || '')],
+    ['Topic', esc(meta.topic || '')],
+    ['Sub-topic', esc(meta.subtopic || '')],
+  ]
+  const right = [
+    ['Date', esc(meta.date || '')],
+    ['Time', esc(meta.time || '')],
+    ['Duration', esc(String(meta.duration || '40')) + ' min'],
+    ['Total no. of pupils', ''],
+    ['Girls', '______ &nbsp;&nbsp;&nbsp; <span class="lbl">Boys:</span> ______'],
+  ]
+  const item = ([k, v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`
+  return (
+    '<div class="meta-compact two-col">' +
+    `<div class="meta-col">${left.map(item).join('')}</div>` +
+    `<div class="meta-col">${right.map(item).join('')}</div>` +
+    '</div>'
+  )
 }
 
 /**
