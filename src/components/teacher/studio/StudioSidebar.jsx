@@ -23,7 +23,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, planContext = null, onDismissPlanContext }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -64,6 +64,33 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           </div>
         </div>
       </div>
+
+      {/* ── "This week's lesson" auto-fill banner ── */}
+      {planContext && (planContext.topic || planContext.subjectLabel) && (
+        <div className="mx-4 mb-2 flex items-start gap-2 rounded-xl border border-indigo-100 bg-gradient-to-br from-blue-50 to-indigo-50/60 px-3 py-2 lps-soft-shadow lps-section-enter">
+          <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11.5px] font-semibold text-[#3d3529]">This week&rsquo;s lesson — filled in for you</p>
+            <p className="truncate text-[11px] text-[#6b6452]">
+              {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
+              {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
+            </p>
+          </div>
+          {typeof onDismissPlanContext === 'function' && (
+            <button
+              type="button"
+              onClick={onDismissPlanContext}
+              aria-label="Dismiss this week's lesson suggestion"
+              className="-mr-1 -mt-0.5 shrink-0 rounded-md p-1 text-[#a39d8e] hover:bg-white/60 hover:text-[#6b6452]"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Sections ── */}
       <div className="flex-1">
