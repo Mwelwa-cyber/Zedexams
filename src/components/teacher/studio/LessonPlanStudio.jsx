@@ -16,6 +16,8 @@ import { normalizePlanShape } from './utils/planShape'
 import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
+import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
+import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
@@ -27,6 +29,14 @@ import { paywall } from '../../../utils/paywall'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
+
+// Teaching Kit tools surfaced once a plan exists. `id` drives openKitTool().
+const KIT_TOOLS = [
+  { id: 'worksheet', label: 'Worksheet',  icon: '📝' },
+  { id: 'homework',  label: 'Homework',   icon: '🏡' },
+  { id: 'notes',     label: 'Notes',      icon: '📚' },
+  { id: 'test',      label: 'Test Paper', icon: '📄' },
+]
 
 // Map a studioGenerateLessonPlan quota rejection to the matching upgrade
 // paywall. The server's usage meter (functions/teacherTools/usageMeter.js)
@@ -181,6 +191,13 @@ export default function LessonPlanStudio() {
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState(null)
   const [savedSignature, setSavedSignature] = useState(null)
+  // The aiGenerations doc id of the last-saved plan — used as `lessonPlanId` so
+  // the Teaching Kit can ground companion tools on this exact plan.
+  const [savedPlanId, setSavedPlanId] = useState(null)
+  // Teaching Kit busy flag (Notes needs the plan saved first, which is async).
+  const [kitBusy, setKitBusy] = useState(false)
+  // "This week's lesson" auto-fill banner dismissal (session-only).
+  const [planContextDismissed, setPlanContextDismissed] = useState(false)
 
   // Illustration (AI diagram) state. `diagrams` accumulates the generated
   // figures attached to the current plan; illustrationStatus drives the
@@ -202,6 +219,33 @@ export default function LessonPlanStudio() {
 
   // Series progress — live Firestore subscription via useLessonSeries.
   const uid = currentUser?.uid ?? null
+
+  // ── "This week's lesson" auto-fill ──────────────────────────────────────────
+  // Read the teacher's latest Weekly Forecast and, once, prefill the studio's
+  // EMPTY fields with this week's grade / subject / topic / subtopic / date.
+  // Mirrors the prefilledIdentityRef pattern: fill only blanks, never clobber
+  // anything the teacher has typed, and no-op cleanly when there's no forecast.
+  const { suggestion: planContext } = useTeacherPlanContext(uid)
+  const appliedPlanContextRef = useRef(false)
+  useEffect(() => {
+    if (!planContext || appliedPlanContextRef.current) return
+    const s = studioStateRef.current
+    // Forecasts are CBC; don't touch a teacher who has chosen Previous.
+    if (s.curriculumMode === 'previous') return
+    appliedPlanContextRef.current = true
+    if (!s.curriculumMode) s.setCurriculumMode('cbc')
+    s.setLessonDetails((prev) => ({
+      ...prev,
+      grade: prev.grade || planContext.grade || prev.grade,
+      subject: prev.subject || planContext.subject || prev.subject,
+      date: prev.date || planContext.date || prev.date,
+    }))
+    if (planContext.topic && !s.topicData.topic) {
+      // setTopicField('topic') resets subtopic; set topic first, then subtopic.
+      s.setTopicField('topic', planContext.topic)
+      if (planContext.subtopic) s.setTopicField('subtopic', planContext.subtopic)
+    }
+  }, [planContext])
   const seriesId = studioState.lessonSeries?.seriesId ?? null
   const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
   const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
@@ -237,6 +281,7 @@ export default function LessonPlanStudio() {
     setSaveStatus('idle')
     setSaveError(null)
     setSavedSignature(null)
+    setSavedPlanId(null)
 
     const {
       lessonDetails,
@@ -566,41 +611,93 @@ export default function LessonPlanStudio() {
   // Save the current (possibly edited) plan as a snapshot in the teacher
   // library. Each save creates a fresh library entry — see
   // saveLessonPlanGeneration for why there is no in-place update path.
-  const handleSaveToLibrary = useCallback(async () => {
-    const uid = currentUser?.uid
-    if (!uid || !lastPlanJson) return
+  // Core persist: write the current (possibly edited) plan to the library and
+  // return its aiGenerations doc id. Shared by the Save button and the Teaching
+  // Kit's "ensure saved" step. Does no UI-state bookkeeping beyond stamping the
+  // saved id + signature so callers can layer their own status on top.
+  const persistPlanToLibrary = useCallback(async () => {
+    const ownerUid = currentUser?.uid
+    if (!ownerUid || !lastPlanJson) return null
     const s = studioStateRef.current
     const mode = s.curriculumMode
+    const planJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
+    const html = renderPlanHtml(planJson, lastMeta ?? {}, mode)
+    const id = await saveLessonPlanGeneration({
+      uid: ownerUid,
+      planJson,
+      html,
+      meta: lastMeta ?? {},
+      studioFormat: lastMeta?.format || 'modern',
+      inputs: {
+        grade: s.lessonDetails.grade || null,
+        subject: s.lessonDetails.subject || null,
+        topic: s.topicData.topic || null,
+        subtopic: s.topicData.subtopic || null,
+      },
+      classification: {
+        libraryType: LIBRARY_TYPES.LESSON_PLANS,
+        grade: s.lessonDetails.grade,
+        subject: s.lessonDetails.subject,
+      },
+    })
+    setSavedPlanId(id)
+    setSavedSignature(JSON.stringify({ plan: lastPlanJson, diagrams }))
+    // Reflect the persisted state in the canvas Save control — whether the save
+    // came from the Save button or the Teaching Kit's silent "ensure saved".
+    setSaveStatus('saved')
+    return id
+  }, [currentUser, lastPlanJson, lastMeta, diagrams])
+
+  const handleSaveToLibrary = useCallback(async () => {
+    if (!currentUser?.uid || !lastPlanJson) return
     setSaveStatus('saving')
     setSaveError(null)
     try {
-      const planJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
-      const html = renderPlanHtml(planJson, lastMeta ?? {}, mode)
-      await saveLessonPlanGeneration({
-        uid,
-        planJson,
-        html,
-        meta: lastMeta ?? {},
-        studioFormat: lastMeta?.format || 'modern',
-        inputs: {
-          grade: s.lessonDetails.grade || null,
-          subject: s.lessonDetails.subject || null,
-          topic: s.topicData.topic || null,
-          subtopic: s.topicData.subtopic || null,
-        },
-        classification: {
-          libraryType: LIBRARY_TYPES.LESSON_PLANS,
-          grade: s.lessonDetails.grade,
-          subject: s.lessonDetails.subject,
-        },
-      })
-      setSavedSignature(JSON.stringify({ plan: lastPlanJson, diagrams }))
-      setSaveStatus('saved')
+      await persistPlanToLibrary()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err))
       setSaveStatus('error')
     }
-  }, [currentUser, lastPlanJson, lastMeta, diagrams])
+  }, [currentUser, lastPlanJson, persistPlanToLibrary])
+
+  // Ensure the current plan is in the library and return its id. Reuses the
+  // already-saved id when the plan hasn't changed since the last save, so the
+  // Teaching Kit doesn't create a duplicate on every click.
+  const ensurePlanSaved = useCallback(async () => {
+    if (savedPlanId && planSignature && planSignature === savedSignature) return savedPlanId
+    return persistPlanToLibrary()
+  }, [savedPlanId, planSignature, savedSignature, persistPlanToLibrary])
+
+  // ── Teaching Kit ───────────────────────────────────────────────────────────
+  // Turn the finished plan into aligned companion materials in one click. Notes
+  // grounds on the saved plan via `lessonPlanId` (true full-plan grounding, see
+  // functions/teacherTools/generateNotes.js); worksheet / homework / test paper
+  // receive the plan's CBC anchors through the generators' existing
+  // `instructions` field so their output stays on the same lesson + competency.
+  const openKitTool = useCallback(async (tool) => {
+    if (!kit) return
+    const alignInstructions = buildAlignmentInstructions(lastPlanJson)
+    const withAlign = alignInstructions ? { ...kit, instructions: alignInstructions } : kit
+    if (tool === 'notes') {
+      setKitBusy(true)
+      try {
+        const id = await ensurePlanSaved()
+        navigate('/teacher/generate/notes' + buildGeneratorQueryString(id ? { ...kit, lessonPlanId: id } : kit))
+      } catch {
+        // Saving failed (offline / quota) — still open Notes prefilled by topic.
+        navigate('/teacher/generate/notes' + buildGeneratorQueryString(kit))
+      } finally {
+        setKitBusy(false)
+      }
+      return
+    }
+    const path = tool === 'homework'
+      ? '/teacher/generate/homework'
+      : tool === 'test'
+        ? '/teacher/test-papers/new'
+        : '/teacher/generate/worksheet'
+    navigate(path + buildGeneratorQueryString(withAlign))
+  }, [kit, lastPlanJson, ensurePlanSaved, navigate])
 
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
@@ -667,6 +764,8 @@ export default function LessonPlanStudio() {
             onContinue={handleContinue}
             onViewCompleted={handleViewCompleted}
             isValid={isValid}
+            planContext={planContextDismissed ? null : planContext}
+            onDismissPlanContext={() => setPlanContextDismissed(true)}
           />
         }
         canvas={
@@ -699,13 +798,31 @@ export default function LessonPlanStudio() {
         }
       />
       {kit && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e0d5] bg-white px-4 py-3 shadow-lg sm:px-6">
-          <span className="shrink-0 text-sm font-medium text-[#5c4a3a]">Create for this lesson</span>
-          <div className="flex gap-2 overflow-x-auto">
-            <button onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Worksheet</button>
-            <button onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Homework</button>
-            <button onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Notes</button>
-            <button onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Test Paper</button>
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e8e0d5] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(60,53,41,0.25)] backdrop-blur sm:px-5">
+          <div className="mx-auto flex max-w-5xl items-center gap-3">
+            <div className="hidden shrink-0 sm:block">
+              <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#3d3529]">
+                <span aria-hidden="true">✨</span> Teaching Kit
+              </p>
+              <p className="text-[11px] text-[#8a7d6b]">Aligned to this lesson</p>
+            </div>
+            <div className="flex flex-1 gap-2 overflow-x-auto">
+              {KIT_TOOLS.map(({ id, label, icon }) => {
+                const busy = id === 'notes' && kitBusy
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => openKitTool(id)}
+                    disabled={busy}
+                    className="lps-lift inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#e0d7c8] bg-white px-3 py-2 text-[12px] font-semibold text-[#3d3529] transition-colors hover:border-[#cfc3ae] hover:bg-[#f9f5ef] disabled:opacity-60"
+                  >
+                    <span aria-hidden="true">{icon}</span>
+                    {busy ? 'Saving…' : label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
