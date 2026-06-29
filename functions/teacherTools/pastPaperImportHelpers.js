@@ -95,6 +95,77 @@ function textToParagraphHtml(text) {
     .join("");
 }
 
+// Table capture bounds. The quiz runner renders sanitised <table> HTML (the
+// rich-text sanitiser allows table tags), so a captured table shows as a real
+// grid rather than a wall of pipes. These caps just keep a mis-read table from
+// ballooning a doc.
+const TABLE_MAX_COLS = 12;
+const TABLE_MAX_ROWS = 60;
+const TABLE_CELL_MAX = 200;
+
+function cleanCell(v) {
+  return str(v).replace(/\s+/g, " ").trim().slice(0, TABLE_CELL_MAX);
+}
+
+/**
+ * Clamp a raw model table into a clean {headers, rows} grid, or null when it
+ * isn't a real table (fewer than 2 columns, or no data). Ragged rows are
+ * squared off to the column count so the rendered grid is never jagged.
+ */
+function normaliseTable(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  let headers = Array.isArray(raw.headers) ?
+    raw.headers.map(cleanCell).slice(0, TABLE_MAX_COLS) : [];
+  let rows = Array.isArray(raw.rows) ?
+    raw.rows
+      .filter(Array.isArray)
+      .map((r) => r.map(cleanCell).slice(0, TABLE_MAX_COLS))
+      .filter((r) => r.some((c) => c !== ""))
+      .slice(0, TABLE_MAX_ROWS) : [];
+  const cols = Math.max(
+    headers.length,
+    rows.reduce((m, r) => Math.max(m, r.length), 0),
+  );
+  if (cols < 2 || (!rows.length && !headers.some((h) => h !== ""))) return null;
+  if (headers.length) {
+    headers = headers.slice(0, cols);
+    while (headers.length < cols) headers.push("");
+  }
+  rows = rows.map((r) => {
+    const rr = r.slice(0, cols);
+    while (rr.length < cols) rr.push("");
+    return rr;
+  });
+  if (!rows.length) return null;
+  return {headers: headers.some((h) => h !== "") ? headers : [], rows};
+}
+
+function tableCellCount(t) {
+  if (!t) return 0;
+  return (t.headers || []).length +
+    (t.rows || []).reduce((n, r) => n + r.length, 0);
+}
+
+/**
+ * Render a {headers, rows} table as sanitiser-safe HTML the quiz runner's
+ * <RichContent> displays as a real grid. Cells are HTML-escaped. Returns "" for
+ * a non-table.
+ */
+function tableToHtml(raw) {
+  const t = normaliseTable(raw);
+  if (!t) return "";
+  const head = t.headers.length ?
+    "<thead><tr>" +
+      t.headers.map((h) => "<th>" + escapeHtml(h) + "</th>").join("") +
+      "</tr></thead>" : "";
+  const body = "<tbody>" +
+    t.rows.map((r) =>
+      "<tr>" + r.map((c) => "<td>" + escapeHtml(c) + "</td>").join("") + "</tr>",
+    ).join("") +
+    "</tbody>";
+  return "<table>" + head + body + "</table>";
+}
+
 // A passage block is either a reading "comprehension" extract or a shared
 // "map"/figure/table several questions read from. Fold the model's wording onto
 // the editor's two passageKind values.
@@ -116,12 +187,17 @@ function normalisePassageRef(raw) {
   const ref = str(raw.ref).trim();
   const title = str(raw.title).trim();
   const text = str(raw.text).trim();
-  if (!ref && !title && !text) return null;
+  const table = normaliseTable(raw.table);
+  if (!ref && !title && !text && !table) return null;
   const key = ref ||
     (title ? "title:" + title.toLowerCase() :
-      "text:" + text.slice(0, 48).toLowerCase());
+      (text ? "text:" + text.slice(0, 48).toLowerCase() :
+        "table:" + JSON.stringify((table.rows[0] || [])).slice(0, 48).toLowerCase()));
   if (!key) return null;
-  return {ref: key, title, text, kind: canonicalPassageKind(raw.kind)};
+  return {
+    ref: key, title, text, kind: canonicalPassageKind(raw.kind),
+    ...(table ? {table} : {}),
+  };
 }
 
 function canonicalType(raw) {
@@ -322,6 +398,7 @@ function normaliseImportedQuestion(raw, idx) {
   }
 
   const passage = normalisePassageRef(raw && raw.passage);
+  const table = normaliseTable(raw && raw.table);
 
   return {
     type,
@@ -334,6 +411,7 @@ function normaliseImportedQuestion(raw, idx) {
     order: Number.isInteger(idx) ? idx : 0,
     requiresReview: true,
     ...(passage ? {passage} : {}),
+    ...(table ? {table} : {}),
   };
 }
 
@@ -357,12 +435,13 @@ function collectPassages(questions) {
     const ord = Number.isInteger(q.order) ? q.order : i;
     let g = groups.get(p.ref);
     if (!g) {
-      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0};
+      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null};
       groups.set(p.ref, g);
     }
     g.count += 1;
     if (p.title && p.title.length > g.title.length) g.title = p.title;
     if (p.text && p.text.length > g.passageText.length) g.passageText = p.text;
+    if (p.table && tableCellCount(p.table) > tableCellCount(g.table)) g.table = p.table;
     if (p.kind === "map") g.passageKind = "map";
     if (ord < g.order) g.order = ord;
   });
@@ -371,7 +450,8 @@ function collectPassages(questions) {
   const passages = [];
   let idx = 0;
   for (const g of groups.values()) {
-    if (!g.passageText && g.count < 2) continue; // lone, text-less → not a passage
+    // A lone block with no text AND no table is a mislabelled standalone.
+    if (!g.passageText && !g.table && g.count < 2) continue;
     idx += 1;
     const id = `p${String(idx).padStart(3, "0")}`;
     refToId.set(g.ref, id);
@@ -379,8 +459,9 @@ function collectPassages(questions) {
       id,
       title: g.title,
       passageText: g.passageText,
-      passageKind: g.passageKind || "comprehension",
+      passageKind: g.table && !g.passageText ? "map" : g.passageKind || "comprehension",
       order: g.order,
+      ...(g.table ? {table: g.table} : {}),
     });
   }
 
@@ -546,6 +627,7 @@ function buildImportReport({
   truncationHit = false,
   droppedForSize = 0,
   passagesCaptured = 0,
+  tablesCaptured = 0,
   questions = [],
   extraNotes = [],
 } = {}) {
@@ -568,6 +650,11 @@ function buildImportReport({
       "each comprehension question to its passage.",
     );
   }
+  if (tablesCaptured > 0) {
+    corrections.push(
+      `Rebuilt ${tablesCaptured} printed table(s) as a formatted grid.`,
+    );
+  }
   const withAnswer = questions.filter((q) => q.answerKnown).length;
   return {
     pagesProcessed,
@@ -583,6 +670,7 @@ function buildImportReport({
     truncationHit: Boolean(truncationHit),
     droppedForSize,
     passagesCaptured,
+    tablesCaptured,
     confidence: computeConfidence(questions, {truncationHit}),
     issues,
     corrections,
@@ -615,4 +703,7 @@ module.exports = {
   normalisePassageRef,
   collectPassages,
   textToParagraphHtml,
+  // Table capture.
+  normaliseTable,
+  tableToHtml,
 };

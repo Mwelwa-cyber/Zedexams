@@ -31,6 +31,8 @@ const {
   normalisePassageRef,
   collectPassages,
   textToParagraphHtml,
+  normaliseTable,
+  tableToHtml,
 } = require('./pastPaperImportHelpers');
 
 let pass = 0;
@@ -461,6 +463,62 @@ test('buildImportReport reports passagesCaptured + a correction line', () => {
   });
   assert.equal(report.passagesCaptured, 1);
   assert.ok(report.corrections.some(c => /reading passage/.test(c)));
+});
+
+// ── Table capture ───────────────────────────────────────────────────────────
+test('normaliseTable cleans cells, squares ragged rows, needs >=2 cols + a row', () => {
+  const t = normaliseTable({ headers: ['Town', 'Time'], rows: [['Lusaka', '09:30'], ['Nyimba']] });
+  assert.deepEqual(t.headers, ['Town', 'Time']);
+  assert.deepEqual(t.rows, [['Lusaka', '09:30'], ['Nyimba', '']]); // ragged row squared
+  // headerless table keeps rows, drops the empty headers
+  const h = normaliseTable({ rows: [['a', 'b'], ['c', 'd']] });
+  assert.deepEqual(h.headers, []);
+  assert.equal(h.rows.length, 2);
+});
+
+test('normaliseTable rejects non-tables (1 column, empty, junk)', () => {
+  assert.equal(normaliseTable(null), null);
+  assert.equal(normaliseTable({ headers: ['x'], rows: [['only one col']] }), null); // <2 cols
+  assert.equal(normaliseTable({ headers: [], rows: [] }), null);
+  assert.equal(normaliseTable({ rows: [['', '']] }), null); // all-empty rows dropped → none left
+});
+
+test('tableToHtml builds sanitiser-safe escaped table HTML', () => {
+  const html = tableToHtml({ headers: ['A', 'B'], rows: [['1', '2 < 3'], ['x & y', 'z']] });
+  assert.ok(html.startsWith('<table><thead><tr><th>A</th><th>B</th></tr></thead>'));
+  assert.ok(html.includes('<td>2 &lt; 3</td>'));
+  assert.ok(html.includes('<td>x &amp; y</td>'));
+  assert.ok(html.endsWith('</tbody></table>'));
+  assert.equal(tableToHtml(null), '');
+  // headerless table omits <thead>
+  assert.ok(!tableToHtml({ rows: [['a', 'b']] }).includes('<thead>'));
+});
+
+test('normaliseImportedQuestion carries a question-level table', () => {
+  const n = normaliseImportedQuestion(
+    { type: 'mcq', prompt: 'Read the table', options: ['a', 'b'], table: { headers: ['H1', 'H2'], rows: [['1', '2']] } }, 0);
+  assert.ok(n.table);
+  assert.deepEqual(n.table.headers, ['H1', 'H2']);
+});
+
+test('collectPassages keeps a shared table on the passage (and survives the misfire guard)', () => {
+  const qs = [
+    { prompt: 'Q1', order: 0, passage: { ref: 'T1', kind: 'map', table: { headers: ['Town', 'Time'], rows: [['Lusaka', '09:30']] } } },
+  ];
+  const { passages, questions } = collectPassages(qs);
+  assert.equal(passages.length, 1); // table-only passage kept despite single question
+  assert.ok(passages[0].table);
+  assert.equal(passages[0].passageKind, 'map');
+  assert.equal(questions[0].passageId, 'p001');
+});
+
+test('buildImportReport reports tablesCaptured + a correction line', () => {
+  const report = buildImportReport({
+    questionsImported: 3, tablesCaptured: 2,
+    questions: [{ type: 'mcq', options: ['a', 'b'], answerKnown: true }],
+  });
+  assert.equal(report.tablesCaptured, 2);
+  assert.ok(report.corrections.some(c => /table/.test(c)));
 });
 
 // ── Report ──────────────────────────────────────────────────────────────────

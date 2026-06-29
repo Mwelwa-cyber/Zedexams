@@ -47,9 +47,31 @@ const {
   mergeAndRenumber,
   collectPassages,
   textToParagraphHtml,
+  tableToHtml,
   buildImportReport,
   dedupeExtractedQuestions,
 } = require("./pastPaperImportHelpers");
+
+// A reusable JSON-schema fragment describing a printed table/timetable, shared
+// by the per-question and per-passage table slots.
+const TABLE_SCHEMA = {
+  type: ["object", "null"],
+  description:
+    "A printed table/timetable/data grid this question (or passage) reads " +
+    "from. Capture headers + every row so it rebuilds as a real table.",
+  properties: {
+    headers: {
+      type: "array",
+      items: {type: "string"},
+      description: "Column headings in order. Empty array if the table has none.",
+    },
+    rows: {
+      type: "array",
+      items: {type: "array", items: {type: "string"}},
+      description: "Each row as an array of cell strings, left to right.",
+    },
+  },
+};
 
 const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-6";
 
@@ -139,8 +161,10 @@ const QUESTIONS_TOOL_SCHEMA = {
                 type: "string",
                 description: "'comprehension' for a reading text, or 'map' for a shared map/figure/table.",
               },
+              table: TABLE_SCHEMA,
             },
           },
+          table: TABLE_SCHEMA,
           explanation: {type: "string"},
         },
         required: ["prompt"],
@@ -161,6 +185,7 @@ For each question:
 - prompt: the full question text. Preserve maths, fractions, powers/superscripts, subscripts, units, chemical formulae, currency, percentages, scientific notation, and labels exactly. Keep multi-part questions (a), (b), (c) together in one prompt with their parts.
 - options: for mcq list every choice (usually A–D) with exact wording; for tf use ["True","False"]; leave empty otherwise.
 - passage: when a question depends on a shared reading passage, story, letter, poem, advert, dialogue, OR a shared map/figure/table that several questions read from, set the passage object — give every question about that same passage an IDENTICAL ref (e.g. "P1"), and include the FULL passage text (verbatim) on at least the first of them. Transcribe the whole comprehension extract; do not summarise it. Use kind:"comprehension" for reading text and kind:"map" for a shared figure/map/table. Standalone questions omit passage.
+- table: whenever a question (or a shared passage) includes a printed TABLE, TIMETABLE or data grid, capture it in the table field — headers as the column headings and rows as arrays of cell strings, transcribing EVERY row and column. Put a table that several questions share on the passage.table; put a table belonging to one question on that question's table. Capture the table data even when the cells also appear in the text.
 - correctAnswer: only if the paper actually marks it (answer key, asterisk, shading) — the 0-based option index for mcq/tf, or the answer text for short_answer/fill_blanks/numeric. If the answer is NOT printed, return null. NEVER guess an answer.
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
 - explanation: one short sentence on the concept tested, or empty if unsure.
@@ -529,9 +554,14 @@ async function clearQuizQuestions(quizId) {
  * types; a finite number for numeric; an index for mcq/tf).
  */
 function toQuestionDoc(q, order) {
+  // A question-level table renders as sanitised <table> HTML appended to the
+  // (escaped) prompt; otherwise the prompt stays plain text as before.
+  const tableHtml = q.table ? tableToHtml(q.table) : "";
+  const text = tableHtml ?
+    textToParagraphHtml(q.prompt) + tableHtml : q.prompt;
   const base = {
     type: q.type,
-    text: q.prompt,
+    text,
     textJSON: null,
     explanation: q.explanation || "",
     explanationJSON: null,
@@ -651,13 +681,18 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     id: p.id,
     title: p.title || "",
     instructions: "",
-    passageText: textToParagraphHtml(p.passageText),
+    // A shared table renders as a real grid under the passage prose.
+    passageText: textToParagraphHtml(p.passageText) +
+      (p.table ? tableToHtml(p.table) : ""),
     imageUrl: "",
     imageAlt: "",
     passageKind: p.passageKind || "comprehension",
     manualMarks: null,
     order: p.order,
   }));
+  const tablesCaptured =
+    questions.filter((q) => q.table).length +
+    passages.filter((p) => p.table).length;
 
   // Persist + keep the parent quiz count + passages in sync.
   let cleared = 0;
@@ -690,6 +725,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     truncationHit,
     droppedForSize,
     passagesCaptured: passagesForQuiz.length,
+    tablesCaptured,
     questions,
     extraNotes: [extraNote],
   });
@@ -712,6 +748,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       questionsWritten: written,
       questionsCleared: cleared,
       passagesCaptured: passagesForQuiz.length,
+      tablesCaptured,
       confidence: report.confidence,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
