@@ -17,6 +17,7 @@ import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
+import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
@@ -246,6 +247,17 @@ export default function LessonPlanStudio() {
       if (planContext.subtopic) s.setTopicField('subtopic', planContext.subtopic)
     }
   }, [planContext])
+
+  // ── Curriculum coverage / pacing ────────────────────────────────────────────
+  // For the selected grade+subject, how much of the syllabus has the teacher
+  // already planned, and what's left? Feeds the sidebar Coverage panel.
+  const coverageState = useCoverageAnalysis(
+    uid,
+    studioState.lessonDetails.grade,
+    studioState.lessonDetails.subject,
+    studioState.curriculumMode,
+  )
+
   const seriesId = studioState.lessonSeries?.seriesId ?? null
   const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
   const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
@@ -766,6 +778,7 @@ export default function LessonPlanStudio() {
             isValid={isValid}
             planContext={planContextDismissed ? null : planContext}
             onDismissPlanContext={() => setPlanContextDismissed(true)}
+            coverageState={coverageState}
           />
         }
         canvas={
