@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import './lessonStudio.css'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'

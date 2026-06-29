@@ -165,7 +165,7 @@ export function StudioCanvas({
           <>
             {/* Preview / Edit segmented toggle */}
             {canEdit && (
-              <div className="mr-1 inline-flex rounded-lg border border-[#d9cfc3] bg-white p-0.5">
+              <div className="mr-1 inline-flex rounded-xl border border-[#d9cfc3] bg-white p-0.5">
                 <button
                   type="button"
                   data-mode="preview"
@@ -202,7 +202,7 @@ export function StudioCanvas({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors"
             >
               <svg
                 width="14" height="14"
@@ -225,7 +225,7 @@ export function StudioCanvas({
               type="button"
               data-export="word"
               onClick={handleExportWord}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors"
             >
               <svg
                 width="14" height="14"
@@ -263,7 +263,7 @@ export function StudioCanvas({
                     data-action="save-library"
                     onClick={onSaveToLibrary}
                     disabled={!canSave}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50"
+                    className="lps-lift inline-flex items-center gap-1.5 rounded-xl border border-transparent lps-brand-gradient px-3 py-1.5 text-[13px] font-semibold text-white transition-all hover:brightness-105 active:brightness-95 disabled:opacity-50"
                   >
                     {saveStatus === 'saving' ? (
                       <>
@@ -296,7 +296,7 @@ export function StudioCanvas({
                 data-action="add-illustration"
                 onClick={() => setShowAdd((v) => !v)}
                 disabled={illustrationBusy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#d9cfc3] bg-white px-3 py-1.5 text-[13px] font-medium text-[#3d3530] hover:bg-[#f5f0ea] active:bg-[#ede7df] transition-colors disabled:opacity-50"
               >
                 <svg
                   width="14" height="14"
@@ -361,14 +361,14 @@ export function StudioCanvas({
 
         {/* 1. Idle / empty state */}
         {generationStatus === 'idle' && (
-          <div className="flex flex-col items-center justify-center text-center max-w-sm pt-20">
-            <div className="mb-4 text-[#9e8e7e]">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-3xl border border-[#ece4d6] bg-white/70 px-8 py-10 text-center lps-soft-shadow lps-section-enter mt-12 md:mt-20">
+            <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl text-white lps-brand-gradient lps-soft-shadow">
               <svg
-                width="48" height="48"
+                width="30" height="30"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.4"
+                strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
@@ -377,10 +377,10 @@ export function StudioCanvas({
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
               </svg>
             </div>
-            <h2 className="text-[18px] font-bold text-[#3d3530] mb-2">
+            <h2 className="mb-2 text-[19px] font-bold text-[#3d3530]">
               An empty page is waiting
             </h2>
-            <p className="text-[14px] text-[#7a6d5d] leading-relaxed">
+            <p className="text-[14px] leading-relaxed text-[#7a6d5d]">
               Fill in your details on the left, then hit{' '}
               <strong>Generate Lesson Plan</strong>.
             </p>
@@ -416,7 +416,7 @@ export function StudioCanvas({
              justify-center, overflowed off BOTH edges on phones (text clipped
              left and right). w-full + max-w lets it shrink to the viewport while
              the fixed-layout tables wrap inside. */
-          <div className="doc-wrap w-full max-w-[794px] mx-auto">
+          <div className="doc-wrap mx-auto w-full max-w-[794px] rounded-2xl lps-soft-shadow-lg lps-section-enter">
             {/* Safe: generatedPlan is our own renderPlanHtml() output (HTML escaped), never raw user input */}
             <div
               id="doc"
@@ -433,7 +433,7 @@ export function StudioCanvas({
 
         {/* 4. Error state */}
         {isError && (
-          <div className="flex flex-col items-center justify-center text-center max-w-sm pt-20">
+          <div className="mt-12 flex w-full max-w-sm flex-col items-center rounded-3xl border border-red-100 bg-white/70 px-8 py-10 text-center lps-soft-shadow lps-section-enter md:mt-20">
             <div className="mb-4 text-red-500">
               <svg
                 width="40" height="40"

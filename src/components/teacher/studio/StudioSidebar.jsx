@@ -1,3 +1,4 @@
+import { Sparkles }                  from '../../ui/icons'
 import { CurriculumPicker }         from './sections/CurriculumPicker.jsx'
 import { LessonDetailsForm }         from './sections/LessonDetailsForm.jsx'
 import { TopicSubtopicForm }         from './sections/TopicSubtopicForm.jsx'
@@ -44,8 +45,26 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
 
   return (
     <div
-      className="w-full md:w-[380px] md:min-w-[320px] md:max-w-[420px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
+      className="w-full md:w-[400px] md:min-w-[340px] md:max-w-[440px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
     >
+      {/* ── Compact studio header ── */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-2xl text-white lps-brand-gradient lps-soft-shadow"
+            aria-hidden="true"
+          >
+            <Sparkles size={18} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-bold leading-tight text-[#2d2519]">Lesson Plan Studio</h1>
+            <p className="text-[11.5px] leading-tight text-[#8a7d6b]">
+              Create smart lesson plans in minutes.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ── Sections ── */}
       <div className="flex-1">
 
@@ -141,19 +160,29 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
       </div>
 
       {/* ── Generate Button — sticky at bottom ── */}
-      <div className="sticky bottom-0 bg-[#faf7f2] border-t border-[#e5ddd0] p-4">
+      <div className="sticky bottom-0 z-20 border-t border-[#e5ddd0] bg-[#faf7f2]/95 p-4 backdrop-blur">
         <button
           type="button"
           onClick={onGenerate}
           disabled={!isValid || isGenerating}
           className={[
-            'w-full rounded-xl py-3 text-[14px] font-semibold transition-colors',
+            'lps-lift w-full rounded-2xl py-3.5 text-[14px] font-semibold text-white transition-all',
             !isValid || isGenerating
-              ? 'bg-blue-300 text-white cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+              ? 'cursor-not-allowed bg-[#b9c2e8]'
+              : 'lps-brand-gradient lps-btn-ready hover:brightness-105 active:brightness-95',
           ].join(' ')}
         >
-          {isGenerating ? 'Generating…' : 'Generate Lesson Plan'}
+          {isGenerating ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Generating…
+            </span>
+          ) : (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Sparkles size={16} aria-hidden="true" />
+              Generate Lesson Plan
+            </span>
+          )}
         </button>
       </div>
     </div>

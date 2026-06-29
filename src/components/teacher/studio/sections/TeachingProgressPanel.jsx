@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChartBarIcon } from '../../../ui/icons'
 
 /**
  * TeachingProgressPanel — collapsible sidebar section showing CBC lesson series progress.
@@ -52,6 +53,7 @@ export function TeachingProgressPanel({
             ].join(' ')}
             aria-hidden="true"
           />
+          <ChartBarIcon size={15} className="text-[#a99e8b]" aria-hidden="true" />
           Teaching Progress
         </span>
 
