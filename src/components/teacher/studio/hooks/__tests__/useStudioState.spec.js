@@ -150,7 +150,7 @@ describe('useStudioState — initial state shape', () => {
       detail: 'standard',
       writingStyle: 'standard',
       format: 'modern',
-      illustrations: 'automatic',
+      illustrations: 'none',
       advanced: {
         compactMetadata: true,
         includeEnrolment: false,
@@ -358,7 +358,7 @@ describe('useStudioState — updateFormatOption (top-level)', () => {
     const { result } = renderHook(() => useStudioState())
     act(() => result.current.updateFormatOption('format', 'classic'))
     expect(result.current.formatOptions.writingStyle).toBe('standard')
-    expect(result.current.formatOptions.illustrations).toBe('automatic')
+    expect(result.current.formatOptions.illustrations).toBe('none')
   })
 
   it('is stable across re-renders', () => {
