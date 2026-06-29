@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import SeoHelmet from '../seo/SeoHelmet'
-import { previewImport, runImport } from '../../utils/questionBankImport'
+import { previewImport, runImport, regradeExistingQuestions } from '../../utils/questionBankImport'
 import { bulkApproveOwnedPending } from '../../utils/adminQuestionBankService'
 
 /**
@@ -19,6 +19,8 @@ export default function ImportQuestionBankPanel() {
   const [error, setError] = useState('')
   const [approving, setApproving] = useState(false)
   const [approved, setApproved] = useState(null)
+  const [regrading, setRegrading] = useState(false)
+  const [regrade, setRegrade] = useState(null) // { found, regraded, unchanged } | { phase, ... }
 
   async function onPreview() {
     setPhase('previewing'); setError(''); setPreview(null)
@@ -62,7 +64,26 @@ export default function ImportQuestionBankPanel() {
     setApproved(n)
   }
 
-  const busy = phase === 'previewing' || phase === 'importing' || approving
+  async function onRegrade() {
+    if (!currentUser?.uid) { setError('Please sign in as an admin.'); return }
+    if (!window.confirm(
+      'Re-grade your imported exam-paper questions and re-file each under the grade it really belongs to?\n\n' +
+      'This reads each question with the AI (uses a little AI credit) — best for the Grade 7 papers that mix Grades 4–7.',
+    )) return
+    setRegrading(true); setError(''); setRegrade(null)
+    try {
+      const totals = await regradeExistingQuestions({
+        uid: currentUser.uid,
+        onProgress: (p) => setRegrade(p),
+      })
+      setRegrade(totals)
+    } catch (e) {
+      setError(e?.message || 'Re-grade failed.')
+    }
+    setRegrading(false)
+  }
+
+  const busy = phase === 'previewing' || phase === 'importing' || approving || regrading
   const pct = progress && progress.found
     ? Math.min(100, Math.round((progress.processed / progress.found) * 100))
     : 0
@@ -163,6 +184,28 @@ export default function ImportQuestionBankPanel() {
         {approved != null && !approving && (
           <p className="text-sm text-green-700 font-bold">
             ✓ Approved {approved} question{approved === 1 ? '' : 's'} into the Master Bank. They’re live now.
+          </p>
+        )}
+      </div>
+
+      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+        <div>
+          <p className="font-black text-purple-900">🎯 Fix mixed grades (re-grade exam-paper questions)</p>
+          <p className="text-purple-800 text-sm mt-1">
+            Exam papers mix grades — a Grade 7 paper pulls questions from Grades 4–7. The first import filed them all
+            under the paper’s grade. This reads each imported exam-paper question with the AI and re-files it under the
+            grade it really belongs to. Uses a little AI credit; safe to re-run.
+          </p>
+        </div>
+        <Button variant="primary" disabled={busy} onClick={onRegrade}>
+          {regrading
+            ? `Re-grading… (${regrade?.processed ?? 0}/${regrade?.found ?? '…'})`
+            : 'Re-grade exam-paper questions'}
+        </Button>
+        {regrade && !regrading && (
+          <p className="text-sm text-green-700 font-bold">
+            ✓ Checked {regrade.found} exam-paper question{regrade.found === 1 ? '' : 's'} — re-filed{' '}
+            <b>{regrade.regraded}</b> under a corrected grade, {regrade.unchanged} were already right.
           </p>
         )}
       </div>
