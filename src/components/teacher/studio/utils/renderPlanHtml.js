@@ -251,20 +251,27 @@ function renderMetaTable(meta) {
  * @param {object} meta
  * @returns {string}
  */
-function renderMetaCompact(meta) {
+/**
+ * Shared two-column lesson-plan header used by every CBC format (modern,
+ * classic, classic2). Identity/subject on the left, scheduling/attendance on
+ * the right — mirrors the official CDC lesson-plan header layout. Topic and
+ * sub-topic are read from the plan `data` when present, falling back to `meta`.
+ * @param {object} meta
+ * @param {object} [data]
+ * @returns {string}
+ */
+function renderTwoColMeta(meta, data = {}) {
   const teacherDisplay = meta.teacherName
     ? esc(meta.teacherName)
     : meta.teacher
       ? esc(meta.teacher) + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')
       : ''
-  // Two aligned columns: identity/subject on the left, scheduling/attendance on
-  // the right — mirrors the official CDC lesson-plan header layout.
   const left = [
     ['Name of teacher', teacherDisplay],
     ['Class', esc(meta.klass || meta.grade || '')],
     ['Subject', esc(meta.subject || '')],
-    ['Topic', esc(meta.topic || '')],
-    ['Sub-topic', esc(meta.subtopic || '')],
+    ['Topic', esc(data.topic || meta.topic || '')],
+    ['Sub-topic', esc(data.subtopic || meta.subtopic || '')],
   ]
   const right = [
     ['Date', esc(meta.date || '')],
@@ -282,6 +289,10 @@ function renderMetaCompact(meta) {
   )
 }
 
+function renderMetaCompact(meta) {
+  return renderTwoColMeta(meta)
+}
+
 /**
  * Dispatch to compact or full meta based on meta.compactMeta.
  * @param {object} meta
@@ -292,24 +303,15 @@ function renderMeta(meta) {
 }
 
 /**
- * Official header block for classic formats — tight LABEL: value lines
- * matching the official CDC module appendices.
+ * Official header block for classic formats. Uses the shared two-column header
+ * so classic/classic2 match the modern format exactly (name/class/subject/topic/
+ * sub-topic on the left; date/time/duration/pupil counts on the right).
  * @param {object} meta
+ * @param {object} [data]
  * @returns {string}
  */
-function renderOfficialHeader(meta) {
-  const pairs = []
-  const teacherDisplay = (meta.teacherName || meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')
-  pairs.push(['NAME OF TEACHER', esc(teacherDisplay), 'wide'])
-  pairs.push(['DATE', esc(meta.date || '')])
-  pairs.push(['TIME', esc(meta.time || '')])
-  pairs.push(['CLASS', esc(meta.klass || meta.grade || '')])
-  pairs.push(['DURATION', esc(String(meta.duration || '40')) + ' minutes'])
-  if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
-  if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
-  pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide'])
-  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`
-  return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`
+function renderOfficialHeader(meta, data) {
+  return renderTwoColMeta(meta, data)
 }
 
 // ── Field line helpers ────────────────────────────────────────────────────────
@@ -335,8 +337,6 @@ function renderFieldLines(data) {
       : `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong> ${esc(mats[0] || '')}</div>`
 
   return `
-    <div class="field-line"><strong>TOPIC:</strong> ${esc(data.topic || '')}</div>
-    <div class="field-line"><strong>SUB-TOPIC:</strong> ${esc(data.subtopic || '')}</div>
     <div class="field-line"><strong>GENERAL COMPETENCES:</strong> ${esc(joinList(data.generalCompetences, ', '))}</div>
     <div class="field-line"><strong>SPECIFIC COMPETENCE:</strong> ${esc(data.specificCompetence || '')}</div>
     <div class="field-line" style="margin-top:8px"><strong>LESSON GOAL:</strong> ${esc(data.lessonGoal || '')}</div>
@@ -459,7 +459,7 @@ function renderClassic(data, meta) {
     )
     .join('')
 
-  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
+  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta, data)}
     ${renderFieldLines(data)}
     <div class="progression-title">LESSON PROGRESSION</div>
     <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
@@ -495,7 +495,7 @@ function renderClassic2(data, meta) {
     )
     .join('')
 
-  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
+  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta, data)}
     ${renderFieldLines(data)}
     <div class="progression-title">LESSON PROGRESSION</div>${stages}
     ${renderLessonEvaluation(data, meta)}</div>`
