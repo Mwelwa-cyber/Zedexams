@@ -45,6 +45,8 @@ const {
   summariseSeenStems,
   normaliseImportedQuestion,
   mergeAndRenumber,
+  collectPassages,
+  textToParagraphHtml,
   buildImportReport,
   dedupeExtractedQuestions,
 } = require("./pastPaperImportHelpers");
@@ -112,6 +114,33 @@ const QUESTIONS_TOOL_SCHEMA = {
               "fill_blanks/numeric: the answer text. Null/empty when the paper " +
               "does not print a key — never guess.",
           },
+          passage: {
+            type: ["object", "null"],
+            description:
+              "Set ONLY when this question depends on a shared reading passage, " +
+              "story, extract, map, figure or table that several questions read " +
+              "from. Standalone questions omit it (null).",
+            properties: {
+              ref: {
+                type: "string",
+                description:
+                  "A short stable label (e.g. 'P1') identical for EVERY " +
+                  "question that reads from the same passage, so they group.",
+              },
+              title: {type: "string", description: "The passage/section heading, if printed."},
+              text: {
+                type: "string",
+                description:
+                  "The FULL passage/extract text, verbatim. Include it on at " +
+                  "least the first question of the group; later questions with " +
+                  "the same ref may leave it empty.",
+              },
+              kind: {
+                type: "string",
+                description: "'comprehension' for a reading text, or 'map' for a shared map/figure/table.",
+              },
+            },
+          },
           explanation: {type: "string"},
         },
         required: ["prompt"],
@@ -125,10 +154,13 @@ const SYSTEM_PROMPT = `You are digitising a Zambian ECZ examination paper. The u
 
 COMPLETENESS IS THE TOP PRIORITY. Capture every question on every page, in the order they appear. Do not stop early, do not summarise, do not skip a question because it has a diagram or is hard to read — transcribe what you can. A paper may have 20, 50, or 100+ questions; return all of them.
 
+READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
+
 For each question:
 - type: choose the closest of mcq, tf (true/false), short_answer, fill_blanks, essay, numeric. For matching, ordering, structured (a/b/c parts), table, or diagram-label questions that don't fit those, use short_answer and put the full question (including its parts) in the prompt. NEVER discard a question.
 - prompt: the full question text. Preserve maths, fractions, powers/superscripts, subscripts, units, chemical formulae, currency, percentages, scientific notation, and labels exactly. Keep multi-part questions (a), (b), (c) together in one prompt with their parts.
 - options: for mcq list every choice (usually A–D) with exact wording; for tf use ["True","False"]; leave empty otherwise.
+- passage: when a question depends on a shared reading passage, story, letter, poem, advert, dialogue, OR a shared map/figure/table that several questions read from, set the passage object — give every question about that same passage an IDENTICAL ref (e.g. "P1"), and include the FULL passage text (verbatim) on at least the first of them. Transcribe the whole comprehension extract; do not summarise it. Use kind:"comprehension" for reading text and kind:"map" for a shared figure/map/table. Standalone questions omit passage.
 - correctAnswer: only if the paper actually marks it (answer key, asterisk, shading) — the 0-based option index for mcq/tf, or the answer text for short_answer/fill_blanks/numeric. If the answer is NOT printed, return null. NEVER guess an answer.
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
 - explanation: one short sentence on the concept tested, or empty if unsure.
@@ -505,6 +537,9 @@ function toQuestionDoc(q, order) {
     explanationJSON: null,
     marks: 1,
     order,
+    // Link comprehension/map questions to their passage block on the quiz doc;
+    // null for standalone questions.
+    passageId: q.passageId || null,
     requiresReview: true,
     importedAt: admin.firestore.FieldValue.serverTimestamp(),
     importSource: "past_paper_ai",
@@ -606,9 +641,25 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   }
 
   const questionsFound = accum.length;
-  const {questions, duplicatesRemoved} = mergeAndRenumber(accum);
+  const merged = mergeAndRenumber(accum);
+  const duplicatesRemoved = merged.duplicatesRemoved;
+  // Lift shared reading passages / maps out of the flat list into the editor's
+  // passage model: a deduped passages[] array + a passageId stamped on each
+  // child question.
+  const {passages, questions} = collectPassages(merged.questions);
+  const passagesForQuiz = passages.map((p) => ({
+    id: p.id,
+    title: p.title || "",
+    instructions: "",
+    passageText: textToParagraphHtml(p.passageText),
+    imageUrl: "",
+    imageAlt: "",
+    passageKind: p.passageKind || "comprehension",
+    manualMarks: null,
+    order: p.order,
+  }));
 
-  // Persist + keep the parent quiz count in sync.
+  // Persist + keep the parent quiz count + passages in sync.
   let cleared = 0;
   let written = 0;
   if (quizId && questions.length) {
@@ -617,6 +668,10 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     try {
       await admin.firestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,
+        // Always write the array (empty when the paper has no passages) so a
+        // re-run clears any stale passages from a previous import.
+        passages: passagesForQuiz,
+        passageCount: passagesForQuiz.length,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
     } catch (err) {
@@ -634,6 +689,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     extractionRounds,
     truncationHit,
     droppedForSize,
+    passagesCaptured: passagesForQuiz.length,
     questions,
     extraNotes: [extraNote],
   });
@@ -655,6 +711,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       questionsReturned: questions.length,
       questionsWritten: written,
       questionsCleared: cleared,
+      passagesCaptured: passagesForQuiz.length,
       confidence: report.confidence,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
