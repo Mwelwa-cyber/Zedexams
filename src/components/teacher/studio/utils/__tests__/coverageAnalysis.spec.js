@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { coveredSubtopicSet, computeCoverage } from '../coverageAnalysis.js'
+import {
+  coveredSubtopicSet,
+  computeCoverage,
+  coveredSubtopicKeySet,
+  computeCoverageByKey,
+} from '../coverageAnalysis.js'
+import { buildSubtopicKey, buildGradeSubjectKey } from '../lessonMemory.js'
 
 const TOPICS = [
   { label: 'Fractions', subtopics: ['Proper Fractions', 'Improper Fractions'] },
@@ -77,5 +83,89 @@ describe('computeCoverage', () => {
   it('accepts an array of covered names (not just a Set)', () => {
     const c = computeCoverage(TOPICS, ['placevalue'])
     expect(c.coveredCount).toBe(1)
+  })
+})
+
+// ── Memory-driven (key-based) coverage ────────────────────────────────────────
+
+const COVERAGE_CTX = { curriculumType: 'CBC', grade: 'Grade 4', subject: 'Mathematics' }
+
+function memoryPlan(topic, subtopic, extra = {}) {
+  return {
+    subtopicKey: buildSubtopicKey({ ...COVERAGE_CTX, topic, subtopic }),
+    gradeSubjectKey: buildGradeSubjectKey(COVERAGE_CTX),
+    status: 'draft',
+    ...extra,
+  }
+}
+
+describe('coveredSubtopicKeySet', () => {
+  it('collects subtopic keys for the matching grade+subject only', () => {
+    const gsKey = buildGradeSubjectKey(COVERAGE_CTX)
+    const plans = [
+      memoryPlan('Fractions', 'Proper Fractions'),
+      memoryPlan('Whole Numbers', 'Place Value'),
+      // Different grade+subject → different gradeSubjectKey, excluded.
+      { subtopicKey: 'x', gradeSubjectKey: 'other', status: 'draft' },
+      // Archived → excluded.
+      memoryPlan('Fractions', 'Improper Fractions', { status: 'archived' }),
+    ]
+    const set = coveredSubtopicKeySet(plans, gsKey)
+    expect(set.size).toBe(2)
+    expect(set.has(buildSubtopicKey({ ...COVERAGE_CTX, topic: 'Fractions', subtopic: 'Proper Fractions' }))).toBe(true)
+    expect(set.has(buildSubtopicKey({ ...COVERAGE_CTX, topic: 'Whole Numbers', subtopic: 'Place Value' }))).toBe(true)
+  })
+
+  it('returns an empty set for no plans', () => {
+    expect(coveredSubtopicKeySet([], 'k').size).toBe(0)
+    expect(coveredSubtopicKeySet(null, 'k').size).toBe(0)
+  })
+})
+
+describe('computeCoverageByKey', () => {
+  it('matches syllabus subtopics by rebuilt key', () => {
+    const covered = coveredSubtopicKeySet(
+      [memoryPlan('Fractions', 'Proper Fractions'), memoryPlan('Whole Numbers', 'Place Value')],
+      buildGradeSubjectKey(COVERAGE_CTX),
+    )
+    const c = computeCoverageByKey(TOPICS, covered, COVERAGE_CTX)
+    expect(c.totalSubtopics).toBe(4)
+    expect(c.coveredCount).toBe(2)
+    expect(c.percent).toBe(50)
+    expect(c.gaps).toEqual([
+      { topic: 'Fractions', subtopic: 'Improper Fractions' },
+      { topic: 'Whole Numbers', subtopic: 'Rounding' },
+    ])
+  })
+
+  it('matches even when a syllabus label carries an embedded code', () => {
+    const topics = [{ label: 'Body', subtopics: ['O.1.2.1 The External Human Body Parts'] }]
+    const planned = memoryPlan('Body', 'O.1.2.1 The External Human Body Parts')
+    const covered = coveredSubtopicKeySet([planned], buildGradeSubjectKey(COVERAGE_CTX))
+    const c = computeCoverageByKey(topics, covered, COVERAGE_CTX)
+    expect(c.coveredCount).toBe(1)
+    expect(c.percent).toBe(100)
+    expect(c.gaps).toEqual([])
+  })
+
+  it('biases the next suggestion to the current topic', () => {
+    const c = computeCoverageByKey(TOPICS, new Set(), { ...COVERAGE_CTX, currentTopic: 'Whole Numbers' })
+    expect(c.nextSuggestion).toEqual({ topic: 'Whole Numbers', subtopic: 'Place Value' })
+  })
+
+  it('reports 100% / no gaps when everything is planned', () => {
+    const covered = coveredSubtopicKeySet(
+      [
+        memoryPlan('Fractions', 'Proper Fractions'),
+        memoryPlan('Fractions', 'Improper Fractions'),
+        memoryPlan('Whole Numbers', 'Place Value'),
+        memoryPlan('Whole Numbers', 'Rounding'),
+      ],
+      buildGradeSubjectKey(COVERAGE_CTX),
+    )
+    const c = computeCoverageByKey(TOPICS, covered, COVERAGE_CTX)
+    expect(c.percent).toBe(100)
+    expect(c.gaps).toEqual([])
+    expect(c.nextSuggestion).toBeNull()
   })
 })

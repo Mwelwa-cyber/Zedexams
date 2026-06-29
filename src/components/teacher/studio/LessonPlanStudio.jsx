@@ -274,26 +274,33 @@ export default function LessonPlanStudio() {
     }
   }, [planContext])
 
+  // ── Persistent lesson memory ────────────────────────────────────────────────
+  // Live subscription to every lesson plan the teacher has saved. This is the
+  // single source of truth for BOTH the per-subtopic Saved Lessons panel and
+  // the Curriculum Coverage panel below — reselecting a subtopic instantly
+  // reflects what already exists, surviving reloads and sign-outs.
+  const memory = useLessonMemory(uid)
+
   // ── Curriculum coverage / pacing ────────────────────────────────────────────
   // For the selected grade+subject, how much of the syllabus has the teacher
-  // already planned, and what's left? Feeds the sidebar Coverage panel.
+  // already planned, and what's left? Computed from the SAME lesson memory the
+  // Saved Lessons panel uses (matched by subtopic key), so the two never
+  // disagree — a freshly generated lesson bumps coverage immediately.
   const coverageState = useCoverageAnalysis(
     uid,
     studioState.lessonDetails.grade,
     studioState.lessonDetails.subject,
     studioState.curriculumMode,
+    memory.plans,
+    studioState.topicData.topic,
   )
 
   const seriesId = studioState.lessonSeries?.seriesId ?? null
   const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
   const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
 
-  // ── Persistent lesson memory ────────────────────────────────────────────────
-  // Live subscription to every lesson plan the teacher has saved. Reselecting a
-  // subtopic instantly shows what already exists, what's missing, teaching
-  // progress, and what to do next — surviving reloads and sign-outs. All the
-  // per-subtopic maths lives in pure helpers (utils/lessonMemory.js).
-  const memory = useLessonMemory(uid)
+  // Per-subtopic derived memory (used by the Saved Lessons panel + adaptive
+  // Generate button). All the maths lives in pure helpers (utils/lessonMemory).
   const curriculumType = curriculumTypeLabel(studioState.curriculumMode)
   const memGrade = studioState.lessonDetails.grade
   const memSubject = studioState.lessonDetails.subject
