@@ -76,6 +76,130 @@ function str(v) {
   return v == null ? "" : String(v);
 }
 
+function escapeHtml(s) {
+  return str(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Convert a plain-text passage/extract into the simple paragraph HTML the quiz
+ * runner's <RichContent> renders. Blank lines become paragraph breaks, single
+ * newlines become <br> so a comprehension story keeps its shape. Returns "" for
+ * empty input.
+ */
+function textToParagraphHtml(text) {
+  const t = str(text).trim();
+  if (!t) return "";
+  return t
+    .split(/\n{2,}/)
+    .map((p) => "<p>" + escapeHtml(p.trim()).replace(/\n/g, "<br>") + "</p>")
+    .join("");
+}
+
+// Table capture bounds. The quiz runner renders sanitised <table> HTML (the
+// rich-text sanitiser allows table tags), so a captured table shows as a real
+// grid rather than a wall of pipes. These caps just keep a mis-read table from
+// ballooning a doc.
+const TABLE_MAX_COLS = 12;
+const TABLE_MAX_ROWS = 60;
+const TABLE_CELL_MAX = 200;
+
+function cleanCell(v) {
+  return str(v).replace(/\s+/g, " ").trim().slice(0, TABLE_CELL_MAX);
+}
+
+/**
+ * Clamp a raw model table into a clean {headers, rows} grid, or null when it
+ * isn't a real table (fewer than 2 columns, or no data). Ragged rows are
+ * squared off to the column count so the rendered grid is never jagged.
+ */
+function normaliseTable(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  let headers = Array.isArray(raw.headers) ?
+    raw.headers.map(cleanCell).slice(0, TABLE_MAX_COLS) : [];
+  let rows = Array.isArray(raw.rows) ?
+    raw.rows
+      .filter(Array.isArray)
+      .map((r) => r.map(cleanCell).slice(0, TABLE_MAX_COLS))
+      .filter((r) => r.some((c) => c !== ""))
+      .slice(0, TABLE_MAX_ROWS) : [];
+  const cols = Math.max(
+    headers.length,
+    rows.reduce((m, r) => Math.max(m, r.length), 0),
+  );
+  if (cols < 2 || (!rows.length && !headers.some((h) => h !== ""))) return null;
+  if (headers.length) {
+    headers = headers.slice(0, cols);
+    while (headers.length < cols) headers.push("");
+  }
+  rows = rows.map((r) => {
+    const rr = r.slice(0, cols);
+    while (rr.length < cols) rr.push("");
+    return rr;
+  });
+  if (!rows.length) return null;
+  return {headers: headers.some((h) => h !== "") ? headers : [], rows};
+}
+
+function tableCellCount(t) {
+  if (!t) return 0;
+  return (t.headers || []).length +
+    (t.rows || []).reduce((n, r) => n + r.length, 0);
+}
+
+/**
+ * Render a {headers, rows} table as sanitiser-safe HTML the quiz runner's
+ * <RichContent> displays as a real grid. Cells are HTML-escaped. Returns "" for
+ * a non-table.
+ */
+function tableToHtml(raw) {
+  const t = normaliseTable(raw);
+  if (!t) return "";
+  const head = t.headers.length ?
+    "<thead><tr>" +
+      t.headers.map((h) => "<th>" + escapeHtml(h) + "</th>").join("") +
+      "</tr></thead>" : "";
+  const body = "<tbody>" +
+    t.rows.map((r) =>
+      "<tr>" + r.map((c) => "<td>" + escapeHtml(c) + "</td>").join("") + "</tr>",
+    ).join("") +
+    "</tbody>";
+  return "<table>" + head + body + "</table>";
+}
+
+// A passage block is either a reading "comprehension" extract or a shared
+// "map"/figure/table several questions read from. Fold the model's wording onto
+// the editor's two passageKind values.
+function canonicalPassageKind(raw) {
+  const s = str(raw).trim().toLowerCase();
+  if (/map|diagram|figure|table|graph|chart|apparatus|picture/.test(s)) return "map";
+  return "comprehension";
+}
+
+/**
+ * Normalise the optional passage descriptor the model attaches to a
+ * comprehension/map question into {ref,title,text,kind}, or null when there's
+ * nothing usable. `ref` is the stable group key shared by every question about
+ * the same passage; when the model omits it we synthesise one from the title or
+ * a text prefix so the questions still group.
+ */
+function normalisePassageRef(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const ref = str(raw.ref).trim();
+  const title = str(raw.title).trim();
+  const text = str(raw.text).trim();
+  const table = normaliseTable(raw.table);
+  if (!ref && !title && !text && !table) return null;
+  const key = ref ||
+    (title ? "title:" + title.toLowerCase() :
+      (text ? "text:" + text.slice(0, 48).toLowerCase() :
+        "table:" + JSON.stringify((table.rows[0] || [])).slice(0, 48).toLowerCase()));
+  if (!key) return null;
+  return {
+    ref: key, title, text, kind: canonicalPassageKind(raw.kind),
+    ...(table ? {table} : {}),
+  };
+}
+
 function canonicalType(raw) {
   const key = str(raw).trim().toLowerCase();
   if (!key) return "";
@@ -273,6 +397,9 @@ function normaliseImportedQuestion(raw, idx) {
     answerKnown = type !== "essay" && Boolean(correctAnswer);
   }
 
+  const passage = normalisePassageRef(raw && raw.passage);
+  const table = normaliseTable(raw && raw.table);
+
   return {
     type,
     prompt,
@@ -283,7 +410,70 @@ function normaliseImportedQuestion(raw, idx) {
     answerKnown,
     order: Number.isInteger(idx) ? idx : 0,
     requiresReview: true,
+    ...(passage ? {passage} : {}),
+    ...(table ? {table} : {}),
   };
+}
+
+/**
+ * Pull shared reading passages / maps out of the flat question list and turn
+ * them into the editor's passage model: a deduped `passages[]` array (one entry
+ * per distinct passage ref, richest title/text kept) plus the same questions
+ * with `passageId` stamped on each child (null on standalone questions and the
+ * transient `passage` descriptor stripped).
+ *
+ * A ref that ends up with no text AND only one question is treated as a misfire
+ * (a standalone question the model mislabelled) — its question stays standalone
+ * rather than creating an empty passage block.
+ */
+function collectPassages(questions) {
+  const list = Array.isArray(questions) ? questions : [];
+  const groups = new Map();
+  list.forEach((q, i) => {
+    const p = q && q.passage;
+    if (!p || !p.ref) return;
+    const ord = Number.isInteger(q.order) ? q.order : i;
+    let g = groups.get(p.ref);
+    if (!g) {
+      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null};
+      groups.set(p.ref, g);
+    }
+    g.count += 1;
+    if (p.title && p.title.length > g.title.length) g.title = p.title;
+    if (p.text && p.text.length > g.passageText.length) g.passageText = p.text;
+    if (p.table && tableCellCount(p.table) > tableCellCount(g.table)) g.table = p.table;
+    if (p.kind === "map") g.passageKind = "map";
+    if (ord < g.order) g.order = ord;
+  });
+
+  const refToId = new Map();
+  const passages = [];
+  let idx = 0;
+  for (const g of groups.values()) {
+    // A lone block with no text AND no table is a mislabelled standalone.
+    if (!g.passageText && !g.table && g.count < 2) continue;
+    idx += 1;
+    const id = `p${String(idx).padStart(3, "0")}`;
+    refToId.set(g.ref, id);
+    passages.push({
+      id,
+      title: g.title,
+      passageText: g.passageText,
+      passageKind: g.table && !g.passageText ? "map" : g.passageKind || "comprehension",
+      order: g.order,
+      ...(g.table ? {table: g.table} : {}),
+    });
+  }
+
+  const outQuestions = list.map((q) => {
+    const rest = {...q};
+    delete rest.passage;
+    const pid = q && q.passage && q.passage.ref ? refToId.get(q.passage.ref) : null;
+    rest.passageId = pid || null;
+    return rest;
+  });
+
+  return {passages, questions: outQuestions};
 }
 
 function boolToIndex(v) {
@@ -436,6 +626,8 @@ function buildImportReport({
   extractionRounds = 0,
   truncationHit = false,
   droppedForSize = 0,
+  passagesCaptured = 0,
+  tablesCaptured = 0,
   questions = [],
   extraNotes = [],
 } = {}) {
@@ -452,6 +644,17 @@ function buildImportReport({
       "questions were found (loop-until-complete).",
     );
   }
+  if (passagesCaptured > 0) {
+    corrections.push(
+      `Captured ${passagesCaptured} reading passage/figure block(s) and linked ` +
+      "each comprehension question to its passage.",
+    );
+  }
+  if (tablesCaptured > 0) {
+    corrections.push(
+      `Rebuilt ${tablesCaptured} printed table(s) as a formatted grid.`,
+    );
+  }
   const withAnswer = questions.filter((q) => q.answerKnown).length;
   return {
     pagesProcessed,
@@ -466,6 +669,8 @@ function buildImportReport({
     extractionRounds,
     truncationHit: Boolean(truncationHit),
     droppedForSize,
+    passagesCaptured,
+    tablesCaptured,
     confidence: computeConfidence(questions, {truncationHit}),
     issues,
     corrections,
@@ -493,4 +698,12 @@ module.exports = {
   computeConfidence,
   countByType,
   buildImportReport,
+  // Passage capture.
+  canonicalPassageKind,
+  normalisePassageRef,
+  collectPassages,
+  textToParagraphHtml,
+  // Table capture.
+  normaliseTable,
+  tableToHtml,
 };

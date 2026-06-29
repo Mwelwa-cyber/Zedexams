@@ -1181,8 +1181,8 @@ function ImportReportCard({ report }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {stat('With answer key', report.withAnswerKey ?? 0)}
         {stat('Need an answer', report.withoutAnswerKey ?? 0)}
-        {stat('Extraction rounds', report.extractionRounds ?? '—')}
-        {stat('Page batches', report.segments ?? '—')}
+        {stat('Reading passages', report.passagesCaptured ?? 0)}
+        {stat('Tables rebuilt', report.tablesCaptured ?? 0)}
       </div>
 
       {typeEntries.length > 0 && (
