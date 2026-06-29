@@ -98,11 +98,16 @@ const NEUTRAL_PALETTE = {
 const SECTION_PALETTE = {
   [LIBRARY_TYPES.SCHEMES_OF_WORK]:  { from: '#fffdf4', to: '#fdeec0', border: '#efdfa9', tab: '#f9ecc2' }, // warm cream
   [LIBRARY_TYPES.WEEKLY_FORECASTS]: { from: '#f4fbf5', to: '#d9f0de', border: '#c2e2ca', tab: '#ddf1e1' }, // soft mint
+  [LIBRARY_TYPES.RECORDS_OF_WORK]:  { from: '#fff7f0', to: '#fce3ce', border: '#f1d2b4', tab: '#fbe5d2' }, // soft peach
   [LIBRARY_TYPES.SYLLABI]:          { from: '#f4f9fe', to: '#d9e9f8', border: '#c3d9ee', tab: '#dcebf8' }, // soft blue
   [LIBRARY_TYPES.LESSON_PLANS]:     { from: '#f9f6fe', to: '#e7dcf7', border: '#d7c8ec', tab: '#e9def7' }, // lavender
   [LIBRARY_TYPES.NOTES]:            { from: '#f2fbfa', to: '#d4f0ec', border: '#bce2dc', tab: '#d8f1ed' }, // soft teal
   [LIBRARY_TYPES.ASSESSMENTS]:      { from: '#fff6f3', to: '#fcdcd2', border: '#f1c9bc', tab: '#fbded5' }, // soft coral
+  [LIBRARY_TYPES.SBA_TASKS]:        { from: '#eff9fe', to: '#d2ebf7', border: '#bbdcec', tab: '#d8eef9' }, // soft sky
+  [LIBRARY_TYPES.SBA_MARK_SHEETS]:  { from: '#f6faf1', to: '#e0eecd', border: '#cbe0b2', tab: '#e5f0d3' }, // soft sage
+  [LIBRARY_TYPES.SBA_PLANS]:        { from: '#f5f6fe', to: '#dee2f8', border: '#c8cdf0', tab: '#e1e5f9' }, // soft periwinkle
   [LIBRARY_TYPES.MARK_SCHEDULES]:   { from: '#fdf6f9', to: '#f8dfeb', border: '#ecc9da', tab: '#f7e1ec' }, // soft rose
+  [LIBRARY_TYPES.CLASS_TIMETABLES]: { from: '#fffdf0', to: '#f8edbe', border: '#ebdb9b', tab: '#f6ebbe' }, // soft butter
 }
 
 function paletteFor(sectionId) {
@@ -121,7 +126,11 @@ const SECTION_ICON = {
   [LIBRARY_TYPES.LESSON_PLANS]:     PencilLine,
   [LIBRARY_TYPES.NOTES]:            DocumentTextIcon,
   [LIBRARY_TYPES.ASSESSMENTS]:      BarChart3,
+  [LIBRARY_TYPES.SBA_TASKS]:        ClipboardCheckList,
+  [LIBRARY_TYPES.SBA_MARK_SHEETS]:  Calculator,
+  [LIBRARY_TYPES.SBA_PLANS]:        Layers,
   [LIBRARY_TYPES.MARK_SCHEDULES]:   ListChecks,
+  [LIBRARY_TYPES.CLASS_TIMETABLES]: CalendarDays,
 }
 
 const TOOL_ICON = {
@@ -164,21 +173,35 @@ function gradeFormIcon(value) {
 
 const SUBJECT_ICON = {
   'Mathematics':                                     Calculator,
+  'Additional Mathematics':                          Calculator,
   'Mathematics and Science':                         Calculator,
   'English Language':                                BookOpen,
   'Literacy and Language':                           Language,
   'Zambian Language':                                Language,
   'Integrated Science':                              BeakerIcon,
+  'Science':                                         BeakerIcon,
+  'Biology':                                         Sprout,
   'Social Studies':                                  Globe,
   'History':                                         Clock,
   'Geography':                                       Globe,
+  'Civic Education':                                 Globe,
   'Religious Education':                             BookOpen,
   'Technology Studies':                              ComputerDesktop,
+  'Computer Studies':                                ComputerDesktop,
+  'Design and Technology':                           ComputerDesktop,
   'Creative and Technology Studies':                 Palette,
+  'Art and Design':                                  Palette,
   'Home Economics':                                  FileText,
+  'Home Management':                                 FileText,
+  'Food and Nutrition':                              FileText,
   'Expressive Arts':                                 MusicalNote,
+  'Physical Education':                              Target,
+  'Agricultural Science':                            Sprout,
   'Physics':                                         BeakerIcon,
   'Chemistry':                                       BeakerIcon,
+  'Business Studies':                                BarChart3,
+  'Commerce':                                        BarChart3,
+  'Principles of Accounts':                          BarChart3,
   'Principles of Accounting':                        BarChart3,
   'Information and Communication Technology (ICT)':  ComputerDesktop,
 }

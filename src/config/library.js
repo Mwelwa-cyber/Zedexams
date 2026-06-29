@@ -186,8 +186,11 @@ export const LIBRARY_SECTION_BY_ID = Object.fromEntries(
 
 /* ── Syllabus types ──────────────────────────────────────────── */
 //
-// CBC      — Competence-Based Curriculum, the new framework
-//            Currently live: ECE, G1, G2, G4, G8 (Form 1), G9 (Form 2)
+// CBC      — Competence-Based Curriculum, the new framework. Covers the
+//            full journey: Grades 1–7 (primary) AND Forms 1–4 (secondary),
+//            since the CBC reform reaches into secondary. Secondary teachers
+//            on CBC use the "Form" naming, so Forms 1–4 sit in the CBC root
+//            alongside the Grades.
 // OBC      — Outcome-Based Curriculum, the old syllabus being phased out
 //            Still in use: G3, G5, G6, G7, G10, G11, G12
 // Secondary — Form 1–4 only (subject lists differ; secondary teachers
@@ -209,7 +212,8 @@ export const SYLLABUS_OPTIONS = [
 //
 // `active` flips on as we roll a grade/form out. Inactive entries still
 // render in admin views but are hidden from teacher-facing dropdowns.
-// Future-proofing: Grades 8–12 and Forms 2–4 are listed but disabled.
+// Future-proofing: Grades 8–12 are listed but disabled (CBC secondary is
+// expressed as Forms 1–4 below, which ARE active).
 
 export const GRADE_FORMS = {
   [SYLLABUS_TYPES.CBC]: [
@@ -220,6 +224,10 @@ export const GRADE_FORMS = {
     { value: 'Grade 5',  label: 'Grade 5',  band: 'upper_primary',  active: true  },
     { value: 'Grade 6',  label: 'Grade 6',  band: 'upper_primary',  active: true  },
     { value: 'Grade 7',  label: 'Grade 7',  band: 'upper_primary',  active: true  },
+    { value: 'Form 1',   label: 'Form 1',   band: 'junior_secondary', active: true },
+    { value: 'Form 2',   label: 'Form 2',   band: 'junior_secondary', active: true },
+    { value: 'Form 3',   label: 'Form 3',   band: 'senior_secondary', active: true },
+    { value: 'Form 4',   label: 'Form 4',   band: 'senior_secondary', active: true },
     { value: 'Grade 8',  label: 'Grade 8',  band: 'junior_secondary', active: false },
     { value: 'Grade 9',  label: 'Grade 9',  band: 'junior_secondary', active: false },
     { value: 'Grade 10', label: 'Grade 10', band: 'senior_secondary', active: false },
@@ -255,6 +263,8 @@ export const TERMS = [
 //
 // CBC Grades 1–3:  combined subjects (Mathematics & Science is ONE subject)
 // CBC Grades 4–7:  fully separated subjects
+// CBC Forms 1–2:   junior-secondary subjects
+// CBC Forms 3–4:   senior-secondary subjects (sciences split out)
 // OBC Grade 3:     same combined list as CBC Grades 1–3
 // OBC Grades 5–7:  same list as CBC 4–7
 // OBC Grades 10–12: senior secondary subjects
@@ -279,6 +289,50 @@ const CBC_UPPER_PRIMARY_SUBJECTS = [
   'Home Economics',
   'Expressive Arts',
   'Zambian Language',
+]
+
+// CBC junior secondary (Forms 1–2) — broad, integrated offering.
+const CBC_JUNIOR_SECONDARY_SUBJECTS = [
+  'English Language',
+  'Mathematics',
+  'Integrated Science',
+  'Social Studies',
+  'Civic Education',
+  'Geography',
+  'History',
+  'Religious Education',
+  'Business Studies',
+  'Computer Studies',
+  'Home Economics',
+  'Design and Technology',
+  'Expressive Arts',
+  'Agricultural Science',
+  'Zambian Language',
+]
+
+// CBC senior secondary (Forms 3–4) — sciences split into separate
+// disciplines and commercial subjects added.
+const CBC_SENIOR_SECONDARY_SUBJECTS = [
+  'English Language',
+  'Mathematics',
+  'Additional Mathematics',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'Science',
+  'Geography',
+  'History',
+  'Civic Education',
+  'Religious Education',
+  'Commerce',
+  'Principles of Accounts',
+  'Business Studies',
+  'Computer Studies',
+  'Agricultural Science',
+  'Food and Nutrition',
+  'Home Management',
+  'Art and Design',
+  'Physical Education',
 ]
 
 // OBC Grades 5–7 mirror the CBC upper-primary list — same subjects.
@@ -329,7 +383,13 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
     if (['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'].includes(gradeForm)) {
       return CBC_UPPER_PRIMARY_SUBJECTS
     }
-    // Grades 8–12 to be added when secondary CBC rolls out.
+    if (['Form 1', 'Form 2'].includes(gradeForm)) {
+      return CBC_JUNIOR_SECONDARY_SUBJECTS
+    }
+    if (['Form 3', 'Form 4'].includes(gradeForm)) {
+      return CBC_SENIOR_SECONDARY_SUBJECTS
+    }
+    // Grades 8–12 to be added when CBC adopts the grade-numbered naming.
     return []
   }
 
