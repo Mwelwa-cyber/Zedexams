@@ -65,6 +65,23 @@ const CBC_2023_BANDS = Object.freeze({
 // syllabus" warning for grades present here, so the system never invents
 // rules for grades that haven't been verified.
 const CBC_2023_GRADE_SUBJECTS = Object.freeze({
+  // Early Childhood Education — the 2023 ECE syllabus defines exactly four
+  // learning areas (the four sheets in curriculum-data.json). Nursery and
+  // Reception share the same set. Keys are normalizeSubject() output and
+  // match the codes the ECE teacher studios pass (see ECE_SUBJECTS in
+  // src/config/teacherTaxonomy.js).
+  ECE_N: Object.freeze([
+    "english",
+    "zambian_language",
+    "numeracy",
+    "expressive_arts",
+  ]),
+  ECE_R: Object.freeze([
+    "english",
+    "zambian_language",
+    "numeracy",
+    "expressive_arts",
+  ]),
   G4: Object.freeze([
     "english",
     "mathematics",
