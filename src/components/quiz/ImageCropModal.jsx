@@ -92,6 +92,10 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
   const [zoom, setZoom] = useState(MIN_ZOOM)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // The source <img> failed to load (e.g. a revoked blob: URL after an
+  // autosave). Surface it loudly instead of leaving a collapsed, empty box the
+  // teacher can't crop and can't diagnose.
+  const [loadFailed, setLoadFailed] = useState(false)
 
   function pointFromEvent(event) {
     const box = imgRef.current?.getBoundingClientRect()
@@ -204,10 +208,12 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
               alt="Crop source"
               draggable={false}
               onPointerDown={handleImagePointerDown}
-              className="block w-full"
+              onLoad={() => setLoadFailed(false)}
+              onError={() => setLoadFailed(true)}
+              className="block w-full min-h-[3rem]"
             />
             {/* overlay matches the image box exactly; only the box + handles capture pointers */}
-            <div className="pointer-events-none absolute inset-0">
+            <div className={`pointer-events-none absolute inset-0 ${loadFailed ? 'hidden' : ''}`}>
               <div
                 className="pointer-events-auto absolute cursor-move border-2 border-amber-400 bg-amber-400/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
                 style={{ left: pct(safe.x), top: pct(safe.y), width: pct(safe.w), height: pct(safe.h) }}
@@ -227,6 +233,11 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
           </div>
         </div>
 
+        {loadFailed && (
+          <p className="text-xs font-bold text-red-600">
+            This figure could not be loaded — its temporary image may have expired. Close this and use “Clean original drawing” or “Replace” on the figure instead.
+          </p>
+        )}
         {error && <p className="text-xs font-bold text-red-600">{error}</p>}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -271,7 +282,7 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
             <button
               type="button"
               onClick={handleCrop}
-              disabled={busy}
+              disabled={busy || loadFailed}
               className="theme-accent-fill theme-on-accent rounded-lg px-4 py-1.5 text-xs font-black disabled:opacity-50"
             >
               {busy ? 'Cropping…' : 'Crop'}
