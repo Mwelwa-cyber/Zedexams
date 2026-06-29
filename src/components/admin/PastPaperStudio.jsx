@@ -58,12 +58,14 @@ import {
 const PdfJsViewer = lazy(() => import('../papers/PdfJsViewer'))
 
 const fns = getFunctions(undefined, 'us-central1')
-// The vision model can take 30-60s on a 12-page scan; bump the SDK
-// timeout above the default 70s so the call doesn't abort.
+// A long paper runs several vision/extraction calls in sequence (one per page
+// batch, plus coverage rounds), so the importer can take a few minutes. Bump
+// the SDK timeout to match the function's 540s budget so the call doesn't abort
+// mid-import on a 60+ question paper.
 const importPastPaperQuestionsCallable = httpsCallable(
   fns,
   'importPastPaperQuestions',
-  { timeout: 240_000 },
+  { timeout: 540_000 },
 )
 import SeoHelmet from '../seo/SeoHelmet'
 
@@ -212,6 +214,10 @@ export default function PastPaperStudio() {
   const [linkingQuiz, setLinkingQuiz] = useState(false)
   // AI import over a non-empty quiz waits on ConfirmDialog — { quizId }.
   const [pendingImport, setPendingImport] = useState(null)
+  // Structured report from the last AI import (pages, counts, confidence,
+  // issues) — surfaced under the Quiz step so the admin can spot a paper that
+  // imported short or with un-keyed answers.
+  const [importReport, setImportReport] = useState(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [discarding, setDiscarding] = useState(false)
 
@@ -521,10 +527,12 @@ export default function PastPaperStudio() {
   async function runImport(quizId) {
     setError('')
     setInfo('')
+    setImportReport(null)
     setImporting(true)
     try {
       const res = await importPastPaperQuestionsCallable({ paperId, quizId })
       const written = Number(res?.data?.questionsWritten || 0)
+      setImportReport(res?.data?.report || null)
       if (!written) {
         setError(res?.data?.warning || 'The AI could not extract any questions from this paper.')
         return
@@ -681,17 +689,20 @@ export default function PastPaperStudio() {
       )}
       {step === 2 && <DetailsStep details={details} setDetail={setDetail} />}
       {step === 3 && (
-        <QuizStep
-          paperId={paperId}
-          quizId={existingQuizId}
-          quizCount={quizCount}
-          hasAssets={assets.length > 0}
-          linkingQuiz={linkingQuiz}
-          importing={importing}
-          onOpenEditor={openQuizEditor}
-          onImportWithAi={importQuestionsWithAi}
-          onRefreshCount={refreshQuizCount}
-        />
+        <>
+          <QuizStep
+            paperId={paperId}
+            quizId={existingQuizId}
+            quizCount={quizCount}
+            hasAssets={assets.length > 0}
+            linkingQuiz={linkingQuiz}
+            importing={importing}
+            onOpenEditor={openQuizEditor}
+            onImportWithAi={importQuestionsWithAi}
+            onRefreshCount={refreshQuizCount}
+          />
+          {importReport && <ImportReportCard report={importReport} />}
+        </>
       )}
       {step === 4 && (
         <PublishStep
@@ -1076,8 +1087,8 @@ function QuizStep({
         <p className="theme-text-muted text-sm">
           Build the quiz in the full Quiz Editor — it supports images per option,
           rich text, multiple question types, and reordering. Use AI import to
-          pre-fill MCQs from the uploaded paper, then open the editor to attach
-          pictures and review answers.
+          read every question from the uploaded paper (any length, all question
+          types), then open the editor to attach pictures and review answers.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <button
@@ -1094,7 +1105,7 @@ function QuizStep({
             disabled={importing || !hasAssets}
             className="theme-card border-2 theme-border rounded-full px-4 py-2 text-sm font-black theme-text hover:theme-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {importing ? 'Importing… 30-60 s' : '✨ Import with AI'}
+            {importing ? 'Importing… reading every page' : '✨ Import with AI'}
           </button>
           {quizCount > 0 && (
             <a
@@ -1128,6 +1139,79 @@ function QuizStep({
         open at the same time. When you come back, click <em>Refresh count</em>
         to see how many questions the editor now holds.
       </div>
+    </section>
+  )
+}
+
+// Render the structured report returned by the AI importer: what it processed,
+// what it found, the per-type breakdown, the confidence score, and any issues
+// (numbering gaps, un-keyed answers) it detected + automatic corrections it
+// applied. Gives the admin a verifiable "did it import the whole paper" view.
+const TYPE_LABELS = {
+  mcq: 'Multiple choice', tf: 'True / false', short_answer: 'Short answer',
+  fill_blanks: 'Fill in the blanks', essay: 'Essay', numeric: 'Numeric',
+}
+
+function ImportReportCard({ report }) {
+  if (!report) return null
+  const pct = Math.round((Number(report.confidence) || 0) * 100)
+  const confTone = pct >= 85 ? 'text-emerald-700' : pct >= 60 ? 'text-amber-700' : 'text-rose-700'
+  const stat = (label, value) => (
+    <div className="theme-bg-subtle rounded-lg px-3 py-2">
+      <p className="text-[11px] font-bold uppercase tracking-wide theme-text-muted">{label}</p>
+      <p className="theme-text font-black text-lg leading-tight">{value}</p>
+    </div>
+  )
+  const byType = report.byType && typeof report.byType === 'object' ? report.byType : {}
+  const typeEntries = Object.entries(byType).filter(([, n]) => n > 0)
+  return (
+    <section className="theme-card border theme-border rounded-radius-md p-5 space-y-4">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <p className="theme-accent-text font-black text-xs uppercase tracking-widest">Import report</p>
+        <p className={`text-sm font-black ${confTone}`}>Confidence {pct}%</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {stat('Pages processed', report.pagesProcessed ?? '—')}
+        {stat('Questions found', report.questionsFound ?? '—')}
+        {stat('Questions imported', report.questionsImported ?? '—')}
+        {stat('Duplicates removed', report.duplicatesRemoved ?? 0)}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {stat('With answer key', report.withAnswerKey ?? 0)}
+        {stat('Need an answer', report.withoutAnswerKey ?? 0)}
+        {stat('Extraction rounds', report.extractionRounds ?? '—')}
+        {stat('Page batches', report.segments ?? '—')}
+      </div>
+
+      {typeEntries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {typeEntries.map(([type, n]) => (
+            <span key={type} className="theme-bg-subtle rounded-full px-3 py-1 text-xs font-bold theme-text">
+              {TYPE_LABELS[type] || type}: {n}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {Array.isArray(report.corrections) && report.corrections.length > 0 && (
+        <div className="border-l-4 border-emerald-500 bg-emerald-50 text-emerald-900 text-xs rounded-r-lg p-3">
+          <p className="font-black mb-1">Automatically corrected</p>
+          <ul className="list-disc ml-4 space-y-0.5">
+            {report.corrections.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {Array.isArray(report.issues) && report.issues.length > 0 && (
+        <div className="border-l-4 border-amber-500 bg-amber-50 text-amber-900 text-xs rounded-r-lg p-3">
+          <p className="font-black mb-1">Review before publishing</p>
+          <ul className="list-disc ml-4 space-y-0.5">
+            {report.issues.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
     </section>
   )
 }
