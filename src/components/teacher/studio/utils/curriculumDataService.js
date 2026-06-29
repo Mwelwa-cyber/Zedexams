@@ -76,20 +76,40 @@ async function loadData(mode) {
 }
 
 /**
+ * ECE class name → age-band sheet prefix.
+ *
+ * The Early Childhood Education syllabi are digitised as age-band sheets
+ * ("3-4 Years - English Language", "4-5 Years - Pre-Maths & Science", …), but
+ * the Lesson Plan Studio's Class picker offers the friendly ECE class names
+ * "Nursery" and "Reception". Without this bridge, picking Nursery/Reception
+ * matched no sheet, so the grades were filtered out of the picker entirely and
+ * resolved to zero subjects/topics. Map each class to its age band so the same
+ * grade→sheet matching used for every other class works for ECE too.
+ */
+const ECE_GRADE_TO_AGE_BAND = {
+  nursery: '3-4 years',
+  reception: '4-5 years',
+}
+
+/**
  * Check whether a sheet name belongs to the requested grade (case-insensitive).
  *
  * CBC sheets:  "Form 1", "Form 2", "Grade 4", "3-4 Years - English Language", …
  * 2013 sheets: "Grade 10", "Grade 11", …
  *
  * Matching:
- *   1. Exact match.
- *   2. Sheet starts with grade string (sheet "Form 1 - English" matches grade "Form 1").
- *   3. Grade starts with sheet string (symmetric).
+ *   1. ECE class names ("Nursery"/"Reception") are first translated to their
+ *      age-band sheet prefix ("3-4 Years"/"4-5 Years") — see
+ *      ECE_GRADE_TO_AGE_BAND — so they line up with how the ECE syllabi are keyed.
+ *   2. Exact match.
+ *   3. Sheet starts with grade string (sheet "Form 1 - English" matches grade "Form 1").
+ *   4. Grade starts with sheet string (symmetric).
  */
 function sheetMatchesGrade(sheetName, grade) {
   if (!sheetName || !grade) return false
   const sheet = String(sheetName).trim().toLowerCase()
-  const g = String(grade).trim().toLowerCase()
+  const rawGrade = String(grade).trim().toLowerCase()
+  const g = ECE_GRADE_TO_AGE_BAND[rawGrade] ?? rawGrade
   return sheet === g || sheet.startsWith(g + ' ') || g.startsWith(sheet + ' ')
 }
 
