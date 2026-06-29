@@ -88,6 +88,40 @@ const CBC_FIXTURE = {
       ],
     },
   },
+  // Early Childhood Education is keyed by age-band sheets, NOT by the friendly
+  // class names ("Nursery"/"Reception") the studio's Class picker offers.
+  'Early Childhood Education Syllabi (3-5 Years)': {
+    '3-4 Years - English Language': {
+      columns: ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
+      rows: [
+        {
+          type: 'data',
+          cells: {
+            TOPIC: 'Listening and Speaking',
+            'SUB-TOPIC': 'Greetings',
+            'SPECIFIC COMPETENCES': 'Greet others politely',
+            'LEARNING ACTIVITIES': '• Role-play greetings\n• Singing greeting songs',
+            'EXPECTED STANDARD': '• Greets others correctly',
+          },
+        },
+      ],
+    },
+    '4-5 Years - Pre-Maths & Science': {
+      columns: ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
+      rows: [
+        {
+          type: 'data',
+          cells: {
+            TOPIC: 'Numbers',
+            'SUB-TOPIC': 'Counting to 10',
+            'SPECIFIC COMPETENCES': 'Count objects up to 10',
+            'LEARNING ACTIVITIES': '• Counting blocks\n• Number rhymes',
+            'EXPECTED STANDARD': '• Counts to 10 correctly',
+          },
+        },
+      ],
+    },
+  },
 }
 
 // Minimal 2013 studio JSON — one subject, one grade.
@@ -170,6 +204,16 @@ describe('getSubjectsForGrade — CBC', () => {
     const subjects = await getSubjectsForGrade('Grade 99', 'cbc')
     expect(subjects).toEqual([])
   })
+
+  it('resolves the ECE "Nursery" class to its 3-4 Years age-band syllabi', async () => {
+    const subjects = await getSubjectsForGrade('Nursery', 'cbc')
+    expect(subjects).toContain('Early Childhood Education Syllabi (3-5 Years)')
+  })
+
+  it('resolves the ECE "Reception" class to its 4-5 Years age-band syllabi', async () => {
+    const subjects = await getSubjectsForGrade('Reception', 'cbc')
+    expect(subjects).toContain('Early Childhood Education Syllabi (3-5 Years)')
+  })
 })
 
 describe('getSubjectsForGrade — previous', () => {
@@ -202,6 +246,15 @@ describe('getGradesWithSubjects — CBC', () => {
   it('returns an empty array when given no candidates', async () => {
     expect(await getGradesWithSubjects([], 'cbc')).toEqual([])
     expect(await getGradesWithSubjects(undefined, 'cbc')).toEqual([])
+  })
+
+  it('keeps the ECE Nursery + Reception classes (the dropdown regression)', async () => {
+    // Both map to age-band sheets, so the picker must keep offering them.
+    const grades = await getGradesWithSubjects(
+      ['Nursery', 'Reception', 'Grade 4', 'Grade 99'],
+      'cbc',
+    )
+    expect(grades).toEqual(['Nursery', 'Reception', 'Grade 4'])
   })
 })
 
@@ -241,6 +294,18 @@ describe('getTopicsForSubject — CBC', () => {
   it('returns an empty array when grade does not match', async () => {
     const topics = await getTopicsForSubject('Mathematics Syllabus (Grades 4-6)', 'Grade 99', 'cbc')
     expect(topics).toEqual([])
+  })
+
+  it('returns ECE topics when the grade is the friendly Nursery class name', async () => {
+    const topics = await getTopicsForSubject(
+      'Early Childhood Education Syllabi (3-5 Years)',
+      'Nursery',
+      'cbc',
+    )
+    // Nursery → "3-4 Years" age band, which only has the English sheet here.
+    expect(topics).toHaveLength(1)
+    expect(topics[0].label).toBe('Listening and Speaking')
+    expect(topics[0].subtopics).toEqual(['Greetings'])
   })
 })
 
