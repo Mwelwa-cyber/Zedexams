@@ -3,6 +3,12 @@ import { saveBlob } from './saveBlob.js'
 import { isNativePlatform, isMobileBrowser } from './runtime.js'
 import { saveBlobNative } from './nativeDownload.js'
 import { saveViaStampedUrl } from './stampedDownload.js'
+import { reportClientError } from './clientErrorReporting.js'
+
+// Mocked so we can assert which share failures get reported: a blocked share
+// (NotAllowedError/SecurityError — expired gesture / WebView) is benign noise
+// and must NOT be reported; a genuinely unexpected error still is.
+vi.mock('./clientErrorReporting.js', () => ({ reportClientError: vi.fn() }))
 
 // Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
 // own blob:-URL anchor fallback (file-saver internally does the same blob:-URL
@@ -167,6 +173,38 @@ describe('saveBlob', () => {
     expect(saveViaStampedUrl).toHaveBeenCalledOnce()
     expect(a.click).toHaveBeenCalledOnce()
     expect(a.download).toBe('Grade 4 Science Notes.docx')
+  })
+
+  it('does NOT report a blocked share (NotAllowedError) but still saves via fallback', async () => {
+    // Expired user-gesture (the export is built async) or a WebView that bans
+    // file sharing → NotAllowedError "Permission denied". The user still gets
+    // the file via the fallback, so it is benign noise, not an app bug.
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    const share = stubWebShare({
+      shareImpl: () => Promise.reject(Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' })),
+    })
+    const a = stubAnchor()
+    stubObjectUrl()
+
+    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
+
+    expect(share).toHaveBeenCalledOnce()
+    expect(reportClientError).not.toHaveBeenCalled()
+    expect(a.click).toHaveBeenCalledOnce()
+    expect(a.download).toBe('Grade 4 Science Notes.docx')
+  })
+
+  it('DOES report a genuinely unexpected share error', async () => {
+    vi.mocked(isMobileBrowser).mockReturnValue(true)
+    stubWebShare({
+      shareImpl: () => Promise.reject(Object.assign(new Error('boom'), { name: 'TypeError' })),
+    })
+    stubAnchor()
+    stubObjectUrl()
+
+    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
+
+    expect(reportClientError).toHaveBeenCalledOnce()
   })
 
   it('uses the Storage-stamped fallback when the mobile browser has no Web Share', async () => {
