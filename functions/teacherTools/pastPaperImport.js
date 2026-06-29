@@ -45,6 +45,7 @@ const {
   summariseSeenStems,
   normaliseImportedQuestion,
   mergeAndRenumber,
+  findSourceNumberGaps,
   collectPassages,
   textToParagraphHtml,
   tableToHtml,
@@ -93,6 +94,12 @@ const SAMPLE_MAX_IMAGES = 12;
 const IMAGE_PAGES_PER_BATCH = 4;
 const MAX_ROUNDS_PER_SEGMENT = 8;
 const EXTRACTION_MAX_TOKENS = 16000;
+// After the main extraction, if the printed numbering has holes (the model
+// confidently returned "nothing new" while specific numbers are missing), chase
+// those exact numbers over the source. Bounded so a number that genuinely isn't
+// on the paper can't loop forever.
+const MAX_GAP_RECOVERY_ROUNDS = 2;
+const MAX_GAP_NUMBERS_PER_ASK = 40;
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -529,6 +536,72 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
   return {rounds, truncationHit, usage};
 }
 
+function buildGapRecoveryPrompt({paper, segment, missingNumbers}) {
+  const nums = missingNumbers.join(", ");
+  return [
+    `The paper contains questions printed with these numbers which have NOT ` +
+    `yet been captured: ${nums}.`,
+    `Look carefully at ${segment.label} and return ONLY those questions you ` +
+    "can find there — full prompt text, options, type and sourceNumber, using " +
+    "the tool schema. If a listed number is genuinely not printed on this part " +
+    "of the paper, simply omit it. Do not return any other questions.",
+    "",
+    buildContextLines(paper),
+  ].join("\n");
+}
+
+/**
+ * Targeted recovery for holes in the printed numbering. The main coverage loop
+ * stops when the model reports nothing new, but a model can confidently skip a
+ * specific numbered question. After extraction we look for gaps in the source
+ * numbering and re-ask the model for those EXACT numbers over each segment —
+ * the same number-driven recovery the scanned-paper importer uses. Bounded by
+ * round + count caps so a number that truly isn't on the paper can't loop.
+ */
+async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys}) {
+  let rounds = 0;
+  const usage = {inputTokens: 0, outputTokens: 0};
+  for (let r = 0; r < MAX_GAP_RECOVERY_ROUNDS; r++) {
+    const merged = mergeAndRenumber(accum);
+    const gaps = findSourceNumberGaps(merged.questions).slice(0, MAX_GAP_NUMBERS_PER_ASK);
+    if (!gaps.length) break;
+    rounds += 1;
+    let recoveredAny = false;
+    for (const segment of segments) {
+      const promptText = buildGapRecoveryPrompt({paper, segment, missingNumbers: gaps});
+      let result;
+      try {
+        result = await callClaude(apiKey, {
+          systemPrompt: SYSTEM_PROMPT,
+          messages: [{role: "user", content: [...segment.blocks, {type: "text", text: promptText}]}],
+          model: IMPORT_MODEL,
+          maxTokens: EXTRACTION_MAX_TOKENS,
+          temperature: 0,
+          mode: "tool",
+          toolName: "return_questions",
+          toolDescription: "Return the recovered exam questions.",
+          toolInputSchema: QUESTIONS_TOOL_SCHEMA,
+        });
+      } catch (err) {
+        console.warn("[pastPaperImport] gap recovery round failed",
+          segment.label, err && err.message);
+        continue;
+      }
+      usage.inputTokens += Number(result?.usage?.inputTokens || 0);
+      usage.outputTokens += Number(result?.usage?.outputTokens || 0);
+      const raw = Array.isArray(result?.parsed?.questions) ? result.parsed.questions : [];
+      const normalised = raw
+        .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
+        .filter(Boolean);
+      const {fresh} = selectNewQuestions(seenKeys, normalised);
+      fresh.forEach((q) => accum.push(q));
+      if (fresh.length) recoveredAny = true;
+    }
+    if (!recoveredAny) break; // the missing numbers truly aren't recoverable
+  }
+  return {rounds, usage};
+}
+
 /**
  * Erase the existing question set on a quiz before writing fresh AI output.
  * Past-paper quizzes are AI-curated end-to-end; the admin re-runs the importer
@@ -669,6 +742,14 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     usage.outputTokens += segResult.usage.outputTokens;
     pagesProcessed += segment.pageCount;
   }
+
+  // Targeted recovery for holes in the printed numbering (e.g. the model
+  // skipped Q21/Q22 while reporting "nothing new"). No-op when the numbering is
+  // already complete or too sparse to trust.
+  const gapRecovery = await recoverNumberGaps({apiKey, paper, segments, accum, seenKeys});
+  extractionRounds += gapRecovery.rounds;
+  usage.inputTokens += gapRecovery.usage.inputTokens;
+  usage.outputTokens += gapRecovery.usage.outputTokens;
 
   const questionsFound = accum.length;
   const merged = mergeAndRenumber(accum);
