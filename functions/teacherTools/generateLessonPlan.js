@@ -90,13 +90,18 @@ const LESSON_PLAN_TOOL_SCHEMA = {
   required: ["header", "lessonGoal", "stages"],
 };
 
-// Output scales roughly with lesson length. A 20-min lesson rarely fills 4000
-// tokens; a 90-min lesson sometimes truncates at 4000. Scaling cuts wall-clock
-// for short lessons (generation time is ~linear in output tokens) while giving
-// long ones room. Capped at 5000 to keep runaway lessons in check.
+// Output scales roughly with lesson length, but max_tokens is only a CEILING —
+// Anthropic bills per token actually generated, so a higher cap costs and slows
+// short/sparse lessons nothing; it only stops the dense ones truncating. The
+// old 5000 cap was too tight for the v3 schema (six stages with parallel
+// teacher/learner activities + every CBC section): a 40-min plan would hit the
+// cap and get cut off mid tool-JSON, which the SSE path then fails on with
+// "AI returned malformed structured output". Give generous headroom (matching
+// the studio path's ≥8000 budget) so a full plan always fits, and let the model
+// stop naturally well before the cap on shorter lessons.
 function lessonPlanMaxTokens(durationMinutes) {
-  const scaled = 2200 + Math.round(Number(durationMinutes || 40) * 35);
-  return Math.min(5000, Math.max(2500, scaled));
+  const scaled = 2800 + Math.round(Number(durationMinutes || 40) * 60);
+  return Math.min(8000, Math.max(4000, scaled));
 }
 
 const ALLOWED_GRADES = new Set([
