@@ -614,6 +614,48 @@ export const CORRECTIONS = {
   "ZAMB IA": "ZAMBIA",
   "Zambi a": "Zambia",
   "Zambi an": "Zambian",
+  // ── Lesson Plan Studio topic/subtopic garbles ──────────────────────────
+  // Surfaced by the "4.2 NUTRITION ANDHEALTH" / "4.1 THE HUMA N BODY" bug:
+  // letters split off a word, words fused together, or a transposition that
+  // the dictionary-shard heuristic above doesn't cover. Each is an explicit,
+  // in-context reviewed pair (case-sensitive, anchored on word boundaries).
+  "HUMA N": "HUMAN",
+  "ANDHEALTH": "AND HEALTH",
+  "ANDM ANAGEMENT": "AND MANAGEMENT",
+  "WEATHERAND": "WEATHER AND",
+  "SoilStructure": "Soil Structure",
+  "HumanRights": "Human Rights",
+  "ClimateChange": "Climate Change",
+  "Obligationsand": "Obligations and",
+  "Dutiesof": "Duties of",
+  "Citizen s": "Citizens",
+  "andTrack": "and Track",
+  "theAlphabet": "the Alphabet",
+  "toMarketing": "to Marketing",
+  "insports": "in sports",
+  "morden": "modern",
+  "World(Cold": "World (Cold",
+  "(AU )": "(AU)",
+  "Trad e": "Trade",
+  "Sec ond": "Second",
+  "vic es": "vices",
+  "Cri ses": "Crises",
+  "Tr ust": "Trust",
+  "Plan ts": "Plants",
+  "Serv ices": "Services",
+  "Mo tor": "Motor",
+  "mixt ures": "mixtures",
+  "MealPa tterns": "Meal Patterns",
+  "Sportsbod ies": "Sports Bodies",
+  "WA R": "WAR",
+  "BUSINE S S": "BUSINESS",
+  "PUNCTUAT ION": "PUNCTUATION",
+  "SOCIE T Y": "SOCIETY",
+  "SAUCE SAN D": "SAUCES AND",
+  "Eye-han d": "Eye-hand",
+  "Eye - foot": "Eye-foot",
+  "Basicso f": "Basics of",
+  "pSreadsheet": "Spreadsheet",
 }
 
 // Match keys longest-first so multi-token repairs (e.g. "p reser ves")
@@ -637,14 +679,50 @@ export function fixSpacing(text) {
   return text
 }
 
+// Repair spacing around the leading dotted numeric code of a label. The PDF
+// extraction left two artifacts that read as garbled codes in the Studio's
+// Topic / Subtopic pickers (the "4.2 NUTRITION ANDHEALTH" bug had this on its
+// siblings):
+//   • a missing space between code and text — "3.2.1Food" -> "3.2.1 Food",
+//     "4.4ENTREPRENEURSHIP" -> "4.4 ENTREPRENEURSHIP"
+//   • stray spaces *inside* the code — "1. 1.4Sources" -> "1.1.4 Sources",
+//     "3.4 .6Grains" -> "3.4.6 Grains", "4 .6.10The" -> "4.6.10 The"
+// Deliberately conservative so it only ever touches a genuine CBC code prefix:
+//   - the code must contain at least one dot ("3D shapes", "21st" are left
+//     alone — they are not codes),
+//   - a space is only inserted when a LETTER directly follows the code, never
+//     when a dot does, so the "code.Text" outcome style used throughout the
+//     ECE syllabi (e.g. "0.1.11.9.1.Form a series") is untouched.
+export function normaliseNumericPrefix(text) {
+  if (typeof text !== 'string') return text
+  // Collapse stray spaces inside a leading dotted code.
+  let v = text.replace(/^\d+(?:\s*\.\s*\d+)+/, (m) => m.replace(/\s+/g, ''))
+  // Insert one space between the code and the word fused directly onto it.
+  v = v.replace(/^(\d+(?:\.\d+)+)([A-Za-z])/, '$1 $2')
+  return v
+}
+
+// Full per-string repair: normalise the numeric code prefix first (which can
+// expose a space the shard repairs then need), then run the word-spacing pass.
+//
+// numericPrefix is gated per curriculum era. The 2013 ("previous") syllabi are
+// parsed by a depth-based bucketer (curriculumDataService.propagatePreviousRows)
+// that keys columns off the exact code formatting, so inserting a space after a
+// code there can reshuffle which column a value lands in. The current CBC data
+// is read column-by-name and is safe to normalise, so numeric-prefix repair is
+// applied only to the CBC files (see main()).
+export function repairString(text, { numericPrefix = true } = {}) {
+  return fixSpacing(numericPrefix ? normaliseNumericPrefix(text) : text)
+}
+
 // Deep-walk the curriculum object, repairing every string value in place.
 // Only string *values* are touched; object keys, arrays, and structure are
 // preserved exactly. Returns the number of strings changed.
-export function fixCurriculumData(node) {
+export function fixCurriculumData(node, { numericPrefix = true } = {}) {
   let changed = 0
   function walk(value, set) {
     if (typeof value === 'string') {
-      const fixed = fixSpacing(value)
+      const fixed = repairString(value, { numericPrefix })
       if (fixed !== value) { changed += 1; set(fixed) }
       return
     }
@@ -666,7 +744,10 @@ function main() {
     const file = path.join(ROOT, rel)
     if (!fs.existsSync(file)) { console.warn(`! ${rel}: not found, skipping`); continue }
     const data = JSON.parse(fs.readFileSync(file, 'utf8'))
-    const changed = fixCurriculumData(data)
+    // Numeric-prefix repair only on the current CBC data; the 2013 parser is
+    // code-spacing sensitive (see repairString).
+    const numericPrefix = !rel.includes('2013')
+    const changed = fixCurriculumData(data, { numericPrefix })
     if (changed === 0) { console.log(`= ${rel}: already clean`); continue }
     fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`)
     changedAny = true
