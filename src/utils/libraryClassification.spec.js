@@ -16,12 +16,17 @@ import {
 describe('resolveGradeForm', () => {
   it('maps internal CBC grade ids to academic grade forms', () => {
     expect(resolveGradeForm('G4')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 4' })
-    expect(resolveGradeForm('G7')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 7' })
+    expect(resolveGradeForm('G6')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 6' })
   })
 
-  it('maps internal secondary grade ids to forms', () => {
-    expect(resolveGradeForm('G8')).toEqual({ syllabus: 'Secondary', gradeForm: 'Form 1' })
-    expect(resolveGradeForm('G12')).toEqual({ syllabus: 'Secondary', gradeForm: 'Form 4' })
+  it('maps internal secondary grade ids to CBC forms', () => {
+    // Secondary now lives inside CBC as Forms 1–4 (no separate Secondary root).
+    expect(resolveGradeForm('G8')).toEqual({ syllabus: 'CBC', gradeForm: 'Form 1' })
+    expect(resolveGradeForm('G12')).toEqual({ syllabus: 'CBC', gradeForm: 'Form 4' })
+  })
+
+  it('files Grade 7 under OBC (CBC primary ends at Grade 6)', () => {
+    expect(resolveGradeForm('G7')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 7' })
   })
 
   it('treats ECE buckets as CBC Grade 1', () => {
@@ -31,7 +36,7 @@ describe('resolveGradeForm', () => {
 
   it('accepts already-academic forms, normalising case/spacing', () => {
     expect(resolveGradeForm('Grade 4')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 4' })
-    expect(resolveGradeForm('form 1')).toEqual({ syllabus: 'Secondary', gradeForm: 'Form 1' })
+    expect(resolveGradeForm('form 1')).toEqual({ syllabus: 'CBC', gradeForm: 'Form 1' })
   })
 
   it('lets an explicit syllabus hint override the default', () => {
