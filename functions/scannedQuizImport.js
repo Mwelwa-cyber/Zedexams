@@ -66,8 +66,17 @@ const MAX_PAGES_PER_CALL = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // per page, decoded
 const MAX_QUESTIONS_PER_CALL = 60;
 // Targeted re-ask rounds when Claude's first pass missed printed numbers
-// Gemini saw. Bounded to cap cost/latency.
-const MAX_REASK_ROUNDS = 2;
+// Gemini saw. Bounded to cap cost/latency — but high enough that a long,
+// dense batch that keeps surfacing more missing numbers each round isn't
+// abandoned with questions still un-recovered (the "stops short on big
+// papers" complaint). Each round only re-asks for the still-missing numbers,
+// so a clean batch still costs zero extra rounds.
+const MAX_REASK_ROUNDS = 3;
+// Cap on how many missing printed numbers we re-ask for in one batch. Guards
+// against a hallucinated Gemini number list triggering an unbounded re-ask,
+// but set well above any real batch's question count so a genuinely long run
+// is fully recovered rather than truncated at the old 40.
+const MAX_REASK_NUMBERS = 120;
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
   "image/png",
@@ -831,7 +840,7 @@ function extractedNumberSet(sections = []) {
 function computeMissingNumbers(expected = [], extractedSet = new Set()) {
   return expected
     .filter((n) => !extractedSet.has(n))
-    .slice(0, 40);
+    .slice(0, MAX_REASK_NUMBERS);
 }
 
 // The expected set of printed numbers for a batch: the numbers Gemini saw,
@@ -1096,6 +1105,7 @@ module.exports = {
   expectedBatchNumbers,
   buildReaskMessages,
   MAX_REASK_ROUNDS,
+  MAX_REASK_NUMBERS,
   buildClaudeMessages,
   buildGeminiImages,
   CLAUDE_SYSTEM_PROMPT,
