@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useSubjectsForGrade } from '../hooks/useSubjectsForGrade.js'
 import { useAvailableGrades } from '../hooks/useAvailableGrades.js'
+import { cleanSubjectName } from '../utils/subjectName.js'
 
 /**
  * Turn a syllabi subject key into a friendlier label for the dropdown while
  * the stored value stays the exact key (so topic lookup still matches).
  *   "Mathematics Syllabus (Grades 4-6)" → "Mathematics"
  *   "Lower Primary Syllabi (Grades 1-3)" → "Lower Primary"
+ * Shared with the generator (utils/subjectName) so the dropdown label and the
+ * subject printed on the finished plan stay identical.
  */
-function subjectLabel(key) {
-  return String(key || '').replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim() || key
-}
+const subjectLabel = cleanSubjectName
 
 /**
  * Grade lists per curriculum mode.

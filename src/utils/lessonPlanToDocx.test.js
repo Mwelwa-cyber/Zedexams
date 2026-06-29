@@ -105,6 +105,46 @@ assert(docXml.includes('Show real objects'), 'readable activity text survives sa
 const coreXml = strFromU8(parts['docProps/core.xml'])
 assert(!ILLEGAL_RE.test(coreXml), 'packed docProps/core.xml (title) contains no XML-illegal characters')
 
+console.log('\nheader + curriculum-aware body')
+// The studio supplies the lesson coordinates via a header object built from its
+// meta. The CBC body must surface them (previously the studio passed no header,
+// so the .docx came out with no teacher/subject/topic — "Word not working").
+const cbcPlan = {
+  schemaVersion: '3.0',
+  header: { teacherName: 'Mr. Phiri', subject: 'Science', topic: 'The Human Heart', subtopic: 'Blood Circulation', class: 'Grade 6', durationMinutes: 40 },
+  generalCompetences: ['Communication'],
+  specificCompetence: 'Describe how the heart pumps blood.',
+  learningEnvironment: { artificial: 'Classroom' },
+  stages: [{ name: 'INTRODUCTION', durationMinutes: 5, teacherActivities: ['Ask about pulse'], learnerActivities: ['Feel pulse'], assessmentCriteria: ['Locates pulse'] }],
+}
+const cbcDoc = buildLessonPlanDocument(cbcPlan, { curriculumMode: 'cbc' })
+const cbcXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(cbcDoc)))['word/document.xml'])
+assert(cbcXml.includes('Mr. Phiri'), 'CBC: teacher name from header appears in the .docx')
+assert(cbcXml.includes('The Human Heart'), 'CBC: topic from header appears in the .docx')
+assert(cbcXml.includes('Blood Circulation'), 'CBC: sub-topic from header appears in the .docx')
+assert(cbcXml.includes('SPECIFIC COMPETENCE'), 'CBC: shows SPECIFIC COMPETENCE label')
+assert(cbcXml.includes('LEARNING ENVIRONMENT'), 'CBC: shows LEARNING ENVIRONMENT label')
+
+// Previous (Outcomes-Based) curriculum: SPECIFIC OUTCOMES instead of
+// competences, and NO learning-environment / specific-competence sections.
+const prevPlan = {
+  schemaVersion: '3.0',
+  header: { teacherName: 'Mrs. Zulu', subject: 'Mathematics', topic: 'Fractions', class: 'Grade 5', durationMinutes: 40 },
+  rationale: 'Fractions underpin division.',
+  prerequisiteKnowledge: 'Whole numbers',
+  specificOutcomes: ['Identify a fraction', 'Compare two fractions'],
+  stages: [{ name: 'DEVELOPMENT', durationMinutes: 20, teacherActivities: ['Demonstrate'], learnerActivities: ['Practise'], methods: 'Demonstration' }],
+  homework: 'Exercise 4 page 22',
+}
+const prevDoc = buildLessonPlanDocument(prevPlan, { curriculumMode: 'previous' })
+const prevXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(prevDoc)))['word/document.xml'])
+assert(prevXml.includes('SPECIFIC OUTCOMES'), 'previous: shows SPECIFIC OUTCOMES label')
+assert(prevXml.includes('Identify a fraction'), 'previous: outcome text appears in the .docx')
+assert(prevXml.includes('Mrs. Zulu'), 'previous: teacher name from header appears in the .docx')
+assert(!prevXml.includes('LEARNING ENVIRONMENT'), 'previous: omits the CBC-only LEARNING ENVIRONMENT section')
+assert(!prevXml.includes('SPECIFIC COMPETENCE'), 'previous: omits the CBC-only SPECIFIC COMPETENCE section')
+assert(prevXml.includes('HOMEWORK'), 'previous: shows HOMEWORK / EXERCISE')
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
   process.exit(1)

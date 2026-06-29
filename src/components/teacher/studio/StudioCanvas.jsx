@@ -3,6 +3,47 @@ import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import LessonPlanEditor from './LessonPlanEditor'
 
 /**
+ * Wrap the rendered lesson-plan HTML (renderPlanHtml output, already escaped)
+ * in a standalone, print-ready A4 document. It reuses the studio's own
+ * stylesheet (/studio/lesson.css) and the same DOM scaffold the preview uses
+ * (#view-plans > .doc-wrap > .doc), so the printed page / saved PDF matches the
+ * on-screen preview exactly, and the lesson.css @media print rules (A4 size,
+ * margins, chrome hidden) take effect. The inline <script> waits for the
+ * stylesheet + images to load, then prints once.
+ */
+function buildPrintableDocument(planHtml) {
+  const css = (typeof window !== 'undefined' && window.location ? window.location.origin : '') + '/studio/lesson.css'
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Lora:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="${css}">
+<style>
+  html,body{margin:0;background:#fff}
+  /* On screen, give the page a little breathing room; print CSS resets this. */
+  @media screen{ #view-plans .workspace-print{padding:18px} }
+  #view-plans .doc{min-height:0}
+</style>
+</head>
+<body>
+  <div id="view-plans"><div class="workspace-print"><div class="doc-wrap"><div class="doc">${planHtml}</div></div></div></div>
+  <script>
+    (function(){
+      function go(){ try{ window.focus(); window.print(); }catch(e){} }
+      if (document.readyState === 'complete') { setTimeout(go, 350); }
+      else { window.addEventListener('load', function(){ setTimeout(go, 350); }); }
+    })();
+  </script>
+</body>
+</html>`
+}
+
+/**
  * StudioCanvas — right panel of the Lesson Plan Studio.
  *
  * Displays the generated lesson plan, a toolbar with print/export actions,
@@ -67,15 +108,32 @@ export function StudioCanvas({
   }
 
   function handlePrint() {
-    // Print always shows the formatted document, never the editor. The parent
-    // keeps the preview HTML in sync with edits, so flipping to preview first
-    // prints the latest version.
-    if (isEditing) {
-      setMode('preview')
-      requestAnimationFrame(() => window.print())
+    // Print/Save-as-PDF must show ONLY the lesson plan, never the studio chrome.
+    // A bare window.print() on this React studio printed the whole app, because
+    // the print-isolation CSS in lesson.css is scoped to the OLD vanilla studio
+    // (#view-plans) which doesn't exist here. Instead, open a clean window that
+    // contains just the rendered plan, wrapped exactly like the preview
+    // (#view-plans > .doc-wrap > .doc) and linked to the same lesson.css — so the
+    // print/PDF output is byte-for-byte the preview, and the lesson.css @media
+    // print rules (A4 page, margins) apply. `generatedPlan` is the live preview
+    // HTML and is kept in sync with edits, so this works in edit mode too.
+    if (!generatedPlan) return
+    const printable = buildPrintableDocument(generatedPlan)
+    const win = window.open('', '_blank', 'width=900,height=1100')
+    if (!win) {
+      // Pop-up blocked — fall back to the (chrome-isolated where possible) inline
+      // print so the teacher still gets a dialog rather than nothing.
+      if (isEditing) {
+        setMode('preview')
+        requestAnimationFrame(() => window.print())
+      } else {
+        window.print()
+      }
       return
     }
-    window.print()
+    win.document.open()
+    win.document.write(printable)
+    win.document.close()
   }
 
   // A short "Subject • Grade · Topic" title for the document toolbar.
@@ -353,12 +411,19 @@ export function StudioCanvas({
 
         {/* 3b. Generated / done state (preview) */}
         {isDone && !isEditing && generatedPlan && (
-          /* Safe: generatedPlan is our own renderPlanHtml() output (HTML escaped), never raw user input */
-          <div
-            id="doc"
-            className="doc"
-            dangerouslySetInnerHTML={{ __html: generatedPlan }}
-          />
+          /* The .doc-wrap caps the document at A4 width (794px) and centres it;
+             without it the bare .doc sized to its content and, under the parent's
+             justify-center, overflowed off BOTH edges on phones (text clipped
+             left and right). w-full + max-w lets it shrink to the viewport while
+             the fixed-layout tables wrap inside. */
+          <div className="doc-wrap w-full max-w-[794px] mx-auto">
+            {/* Safe: generatedPlan is our own renderPlanHtml() output (HTML escaped), never raw user input */}
+            <div
+              id="doc"
+              className="doc"
+              dangerouslySetInnerHTML={{ __html: generatedPlan }}
+            />
+          </div>
         )}
         {isDone && !isEditing && !generatedPlan && (
           <div className="flex flex-col items-center justify-center text-center max-w-sm pt-20">

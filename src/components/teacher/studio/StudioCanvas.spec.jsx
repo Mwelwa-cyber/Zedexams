@@ -250,18 +250,36 @@ describe('StudioCanvas — toolbar visibility', () => {
 // ── Print button ──────────────────────────────────────────────────────────────
 
 describe('StudioCanvas — Print button', () => {
-  beforeEach(() => {
-    vi.spyOn(window, 'print').mockImplementation(() => {})
-  })
-
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('calls window.print() when Print is clicked', () => {
+  it('opens a clean print window containing only the plan (not the app chrome)', () => {
+    // The fix: Print no longer calls a bare window.print() (which dumped the
+    // whole React app), it opens a standalone document that reuses the preview
+    // HTML so the printed page / saved PDF matches the on-screen preview.
+    const writes = []
+    const fakeWin = {
+      document: {
+        open: vi.fn(),
+        write: (html) => writes.push(html),
+        close: vi.fn(),
+      },
+    }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeWin)
     renderCanvas({ generationStatus: 'done', generatedPlan: '<p>plan</p>' })
     fireEvent.click(screen.getByRole('button', { name: /print/i }))
-    expect(window.print).toHaveBeenCalledTimes(1)
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(writes.join('')).toContain('<p>plan</p>')
+    expect(writes.join('')).toContain('/studio/lesson.css')
+  })
+
+  it('falls back to window.print() when the pop-up is blocked', () => {
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    renderCanvas({ generationStatus: 'done', generatedPlan: '<p>plan</p>' })
+    fireEvent.click(screen.getByRole('button', { name: /print/i }))
+    expect(printSpy).toHaveBeenCalledTimes(1)
   })
 })
 

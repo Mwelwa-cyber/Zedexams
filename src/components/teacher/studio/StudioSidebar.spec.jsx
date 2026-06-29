@@ -152,9 +152,21 @@ describe('StudioSidebar — section presence', () => {
     expect(screen.getByTestId('curriculum-summary-card')).toBeInTheDocument()
   })
 
-  it('always renders LearningEnvironmentForm', () => {
-    renderSidebar()
+  it('renders LearningEnvironmentForm only for the CBC curriculum', () => {
+    // Learning Environment is a CBC-only concept — hidden for the Previous
+    // (Outcomes-Based) curriculum and before a curriculum is chosen.
+    renderSidebar({ curriculumMode: 'cbc' })
     expect(screen.getByTestId('learning-environment-form')).toBeInTheDocument()
+  })
+
+  it('does NOT render LearningEnvironmentForm for the Previous curriculum', () => {
+    renderSidebar({ curriculumMode: 'previous' })
+    expect(screen.queryByTestId('learning-environment-form')).not.toBeInTheDocument()
+  })
+
+  it('does NOT render LearningEnvironmentForm before a curriculum is chosen', () => {
+    renderSidebar({ curriculumMode: null })
+    expect(screen.queryByTestId('learning-environment-form')).not.toBeInTheDocument()
   })
 
   it('always renders FormatOptionsForm', () => {

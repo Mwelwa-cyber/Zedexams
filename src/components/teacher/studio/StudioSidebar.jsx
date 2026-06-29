@@ -91,12 +91,16 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           />
         )}
 
-        {/* 6. Learning Environment */}
-        <LearningEnvironmentForm
-          learningEnvironments={learningEnvironments}
-          onToggle={toggleLearningEnvironment}
-          disabled={!topicData.subtopicRow}
-        />
+        {/* 6. Learning Environment — CBC only. The Previous (Outcomes-Based)
+            curriculum has no Learning Environment section, so it is hidden for
+            that mode and no environments are generated. */}
+        {curriculumMode === 'cbc' && (
+          <LearningEnvironmentForm
+            learningEnvironments={learningEnvironments}
+            onToggle={toggleLearningEnvironment}
+            disabled={!topicData.subtopicRow}
+          />
+        )}
 
         {/* 7. Lesson Progression Form — CBC only */}
         {curriculumMode === 'cbc' && (

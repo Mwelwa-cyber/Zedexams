@@ -12,6 +12,7 @@ import { StudioSidebar } from './StudioSidebar'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
 import { normalizePlanShape } from './utils/planShape'
+import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -148,6 +149,18 @@ export default function LessonPlanStudio() {
     }))
   }, [userProfile, setLessonDetails])
 
+  // Learning Environment is a CBC-only concept. When the teacher switches to
+  // the Previous (Outcomes-Based) curriculum, clear any environments selected
+  // while in CBC mode so they are never folded into the generation prompt or a
+  // stale value blocks validation. The section is also hidden in that mode.
+  const { setLearningEnvironments } = studioState
+  const previousLearningEnvironments = studioState.learningEnvironments
+  useEffect(() => {
+    if (studioState.curriculumMode === 'previous' && previousLearningEnvironments.length > 0) {
+      setLearningEnvironments([])
+    }
+  }, [studioState.curriculumMode, previousLearningEnvironments, setLearningEnvironments])
+
   // Ephemeral generation state — not persisted to Firestore, lives only
   // for the current session. generationStatus / generatedPlan already live
   // in useStudioState so they can gate the Generate button; generationError
@@ -258,11 +271,16 @@ export default function LessonPlanStudio() {
       ? 'Generate a Zambian lesson plan (Previous Curriculum / Outcomes-Based) for the following lesson:'
       : 'Generate a Zambian CBC lesson plan for the following lesson:'
 
+    // The clean subject name for everything the teacher reads (plan, prompt,
+    // header, filename); lessonDetails.subject keeps the raw syllabi key used
+    // for the data lookups already resolved into topicData/subtopicRow.
+    const subjectName = cleanSubjectName(lessonDetails.subject)
+
     const userPromptLines = [
       openingLine,
       '',
       `- Grade / Class: ${lessonDetails.grade}`,
-      `- Subject: ${lessonDetails.subject}`,
+      `- Subject: ${subjectName}`,
       `- Topic: ${topicData.topic}`,
       topicData.subtopic ? `- Sub-topic: ${topicData.subtopic}` : '',
       totalLessons > 1
@@ -354,7 +372,7 @@ export default function LessonPlanStudio() {
         // tolerant, so the studio's "Grade 4" / "Form 1" labels work as-is.
         context: {
           grade: lessonDetails.grade || '',
-          subject: lessonDetails.subject || '',
+          subject: subjectName || '',
           term: lessonDetails.term || '',
           week: lessonDetails.week || '',
           topic: topicData.topic || '',
@@ -386,7 +404,7 @@ export default function LessonPlanStudio() {
         date: lessonDetails.date || '',
         time: lessonDetails.time || '',
         grade: lessonDetails.grade || '',
-        subject: lessonDetails.subject || '',
+        subject: subjectName || '',
         topic: topicData.topic || '',
         subtopic: topicData.subtopic || '',
         duration: lessonDetails.duration || 40,
@@ -586,12 +604,43 @@ export default function LessonPlanStudio() {
 
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
-    const subject = lastMeta?.subject ?? 'lesson'
-    const grade   = lastMeta?.grade   ?? ''
+    const m = lastMeta ?? {}
+    const mode = studioStateRef.current.curriculumMode
+    const subject = m.subject ?? 'lesson'
+    const grade   = m.grade   ?? ''
     const filename = `lesson-plan-${grade}-${subject}.docx`.replace(/\s+/g, '-').toLowerCase()
-    // Include any generated illustrations so the Word export matches the preview.
-    const exportJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
-    await downloadLessonPlanDocx(exportJson, filename, lastMeta ?? {})
+
+    // The generated plan JSON has no `header` object — its identity/coordinate
+    // fields live in `meta`. The Word builder reads `plan.header.*`, so without
+    // this mapping the .docx came out with no teacher / date / class / subject /
+    // topic (the "Word export not working" report). Build the header the docx
+    // expects from the studio meta, keeping any header the plan already carries.
+    const header = {
+      ...(lastPlanJson.header || {}),
+      school: m.school || '',
+      teacherName: m.teacherName || '',
+      date: m.date || '',
+      time: m.time || '',
+      class: m.grade || '',
+      durationMinutes: Number(m.duration) || undefined,
+      subject: m.subject || '',
+      topic: m.topic || '',
+      subtopic: m.subtopic || '',
+    }
+
+    // Carry the on-screen illustration into the Word file. The preview attaches
+    // figures as plan.diagrams[]; the docx embeds the single plan.lessonDiagram.
+    const firstDiagram = diagrams.length ? diagrams[0] : null
+    const lessonDiagram = lastPlanJson.lessonDiagram
+      || (firstDiagram?.url ? { url: firstDiagram.url, prompt: firstDiagram.caption || '' } : undefined)
+
+    const exportJson = {
+      ...lastPlanJson,
+      header,
+      ...(diagrams.length ? { diagrams } : {}),
+      ...(lessonDiagram ? { lessonDiagram } : {}),
+    }
+    await downloadLessonPlanDocx(exportJson, filename, { ...m, curriculumMode: mode })
   }, [lastPlanJson, lastMeta, diagrams])
 
   // Navigate to the teacher's saved lesson library.

@@ -588,29 +588,128 @@ function v3StageCell(children, widthPct) {
   })
 }
 
-function buildV3Body(plan, opts = {}) {
+// Official CAPS header label lines, shared by both curricula. The grade/class
+// label differs (CBC "CLASS" vs previous "GRADE") so it is passed in.
+function v3HeaderLines(h, { classLabel = 'CLASS' } = {}) {
+  const lines = []
+  if (h.school) lines.push(fieldLine('SCHOOL', h.school))
+  lines.push(fieldLine('NAME OF TEACHER', h.teacherName || ''))
+  lines.push(fieldLine('DATE', h.date || ''))
+  if (h.time) lines.push(fieldLine('TIME', h.time))
+  lines.push(fieldLine(classLabel, h.class || ''))
+  lines.push(fieldLine('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''))
+  if (h.termAndWeek) lines.push(fieldLine('TERM & WEEK', h.termAndWeek))
+  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
+  if (hasAttendance) {
+    lines.push(fieldLine(
+      'TOTAL ATTENDANCE',
+      `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`,
+    ))
+  }
+  lines.push(fieldLine('SUBJECT', h.subject || ''))
+  lines.push(fieldLine('TOPIC', h.topic || ''))
+  lines.push(fieldLine('SUB-TOPIC', h.subtopic || ''))
+  return lines
+}
+
+/**
+ * v3 body for the Previous (Outcomes-Based / 2013) curriculum. Mirrors the
+ * on-screen preview (renderOldClassic): RATIONALE → PRE-REQUISITE → SPECIFIC
+ * OUTCOMES, one ruled progression table whose columns are the old-curriculum
+ * STAGE / TEACHER / PUPILS (+ optional CONTENT / METHODS) headings, then
+ * HOMEWORK and the pupil/teacher evaluation blanks. No CBC-only sections
+ * (general/specific competences, learning environment, expected standard).
+ */
+function buildV3PreviousBody(plan, opts = {}) {
+  const h = plan.header || {}
+  const children = []
+  children.push(...v3HeaderLines(h, { classLabel: 'GRADE' }))
+
+  const materials = plan.materials?.length ? plan.materials : (plan.tlAids || [])
+  if (materials.length) {
+    children.push(para(text('TEACHING / LEARNING MATERIALS:', { bold: true, size: 20 })))
+    children.push(...bulletList(materials))
+  }
+  if (plan.references?.length) {
+    children.push(para(text('REFERENCES:', { bold: true, size: 20 })))
+    children.push(...bulletList(plan.references))
+  }
+  children.push(fieldLine('RATIONALE', plan.rationale || ''))
+  children.push(fieldLine('PRE-REQUISITE KNOWLEDGE', plan.prerequisiteKnowledge || plan.priorKnowledge || ''))
+  if (plan.specificOutcomes?.length) {
+    children.push(para(text('SPECIFIC OUTCOMES (by the end of the lesson, pupils should be able to):', { bold: true, size: 20 })))
+    children.push(...numberedList(plan.specificOutcomes))
+  }
+
+  children.push(...lessonIllustrationParagraphs(plan, opts))
+
+  // Decide whether to show the optional CONTENT / METHODS columns: only when at
+  // least one stage carries that data, so the table stays clean otherwise.
+  const stages = plan.stages || []
+  const hasContent = stages.some((s) => String(s.content || '').trim())
+  const hasMethods = stages.some((s) => String(s.methods || '').trim())
+
+  children.push(new Paragraph({
+    children: [text('LESSON DEVELOPMENT', { bold: true, size: 22 })],
+    spacing: { before: 160, after: 120 },
+  }))
+  const cols = [['STAGE / TIME', 14]]
+  if (hasContent) cols.push(['CONTENT', 26])
+  cols.push(["TEACHER'S ACTIVITY", hasContent ? 22 : 32])
+  cols.push(["PUPILS' ACTIVITY", hasContent ? 22 : 32])
+  if (hasMethods) cols.push(['METHODS', hasContent ? 16 : 22])
+  const headerRow = new TableRow({ children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
+  const stageRows = stages.map((s) => {
+    const cells = [
+      v3StageCell([
+        para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),
+        ...(s.durationMinutes > 0
+          ? [para(text(`(${s.durationMinutes} min)`, { italics: true, size: 16 }), { spacing: { after: 0 } })]
+          : []),
+      ], cols[0][1]),
+    ]
+    let i = 1
+    if (hasContent) cells.push(v3StageCell(bulletList(toLinesLocal(s.content)), cols[i++][1]))
+    cells.push(v3StageCell(bulletList(s.teacherActivities), cols[i++][1]))
+    cells.push(v3StageCell(bulletList(s.learnerActivities), cols[i++][1]))
+    if (hasMethods) cells.push(v3StageCell(bulletList(toLinesLocal(s.methods)), cols[i++][1]))
+    return new TableRow({ children: cells })
+  })
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [headerRow, ...stageRows],
+  }))
+  children.push(para([]))
+
+  if (plan.homework) children.push(fieldLine('HOMEWORK / EXERCISE', plan.homework))
+  children.push(new Paragraph({
+    children: [text('EVALUATION:', { bold: true, size: 20 })],
+    spacing: { before: 160, after: 80 },
+  }))
+  const blank = '_'.repeat(60)
+  children.push(fieldLine('Pupil evaluation', '_'.repeat(18)))
+  children.push(para(text(blank, { size: 20 })))
+  children.push(fieldLine('Teacher evaluation', '_'.repeat(18)))
+  children.push(para(text(blank, { size: 20 })))
+  return children
+}
+
+// Local string→lines coercion (the docx module is otherwise self-contained;
+// avoids importing the studio planShape helper into the exporter).
+function toLinesLocal(value) {
+  if (Array.isArray(value)) return value.map((x) => String(x == null ? '' : x).trim()).filter(Boolean)
+  return String(value == null ? '' : value).split(/\n|;\s*/).map((s) => s.trim()).filter(Boolean)
+}
+
+function buildV3Body(plan, opts = {}, mode = 'cbc') {
+  if (mode === 'previous') return buildV3PreviousBody(plan, opts)
+
   const h = plan.header || {}
   const le = plan.learningEnvironment || {}
   const children = []
 
   // Header block — official CAPS label lines.
-  if (h.school) children.push(fieldLine('SCHOOL', h.school))
-  children.push(fieldLine('NAME OF TEACHER', h.teacherName || ''))
-  children.push(fieldLine('DATE', h.date || ''))
-  if (h.time) children.push(fieldLine('TIME', h.time))
-  children.push(fieldLine('CLASS', h.class || ''))
-  children.push(fieldLine('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''))
-  if (h.termAndWeek) children.push(fieldLine('TERM & WEEK', h.termAndWeek))
-  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
-  if (hasAttendance) {
-    children.push(fieldLine(
-      'TOTAL ATTENDANCE',
-      `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`,
-    ))
-  }
-  children.push(fieldLine('SUBJECT', h.subject || ''))
-  children.push(fieldLine('TOPIC', h.topic || ''))
-  children.push(fieldLine('SUB-TOPIC', h.subtopic || ''))
+  children.push(...v3HeaderLines(h, { classLabel: 'CLASS' }))
 
   // Official field sections.
   children.push(fieldLine('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', ')))
@@ -694,6 +793,7 @@ function buildV3Body(plan, opts = {}) {
 export function buildLessonPlanDocument(plan, opts = {}) {
   const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
   if (isV3) {
+    const mode = opts.curriculumMode === 'previous' ? 'previous' : 'cbc'
     return new Document({
       creator: 'zedexams.com',
       title: sanitizeXmlText(`Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`),
@@ -703,7 +803,7 @@ export function buildLessonPlanDocument(plan, opts = {}) {
           document: { run: { font: 'Calibri', size: 20 } },
         },
       },
-      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan, opts)] }],
+      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan, opts, mode)] }],
     })
   }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
