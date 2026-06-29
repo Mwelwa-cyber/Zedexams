@@ -234,6 +234,37 @@ async function main() {
   ok("both time out → deadline-exceeded (not bare internal)",
     Boolean(threw) && threw.code === "deadline-exceeded");
 
+  // ── 9. Kie disabled: a colour request is served by gpt-image-1 with the
+  //       colour-illustration guard, and Kie is never called ─────────────────
+  calls.length = 0;
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
+  out = await runGenerateDiagram({
+    uid: "t9", rawInputs: {prompt: "A market scene", provider: "kie"},
+    recraftKey: "rk", openaiKey: "ok", kieKey: "kk",
+  });
+  ok("kie request → provider openai", out.provider === "openai");
+  const colourCall = calls.find((c) => c.provider === "openai");
+  ok("kie keeps the colour-illustration guard",
+    /colourful flat illustration/i.test(colourCall.body.prompt));
+  ok("kie does NOT use the line-art guard",
+    !/black-and-white line art/i.test(colourCall.body.prompt));
+  ok("kie does NOT use the photoreal guard",
+    !/photograph/i.test(colourCall.body.prompt));
+
+  // ── 10. Kie disabled with no OpenAI key → clear config error ──────────────
+  threw = null;
+  try {
+    await runGenerateDiagram({
+      uid: "t10", rawInputs: {prompt: "A market scene", provider: "kie"},
+      recraftKey: "rk", openaiKey: "", kieKey: "kk",
+    });
+  } catch (err) {
+    threw = err;
+  }
+  ok("kie + no OpenAI key → failed-precondition config error",
+    Boolean(threw) && threw.code === "failed-precondition" &&
+    /Image generation is not configured/.test(threw.message));
+
   console.log(`\ngenerateDiagram provider routing: ${passed} checks passed`);
 }
 

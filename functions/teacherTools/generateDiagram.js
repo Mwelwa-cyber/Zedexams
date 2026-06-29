@@ -52,6 +52,13 @@ const ALLOWED_PROVIDERS = new Set(["recraft", "openai", "kie"]);
 // RECRAFT_API_KEY) to re-enable Recraft.
 const RECRAFT_ENABLED = false;
 
+// Kie (full-colour illustration) is likewise disabled (2026-06): the owner
+// consolidated all image generation onto OpenAI. Every "kie" request is now
+// served by gpt-image-1 using the SAME colour-illustration prompt, so colour
+// figures keep their bright flat look while all spend moves to OpenAI. Set back
+// to true (and re-fund KIE_API_KEY) to re-enable the Kie provider.
+const KIE_ENABLED = false;
+
 // Per-request network deadlines. Without these a hung provider (Recraft, the
 // OpenAI image API, or a stalled CDN download) blocks the await until the 300s
 // FUNCTION timeout, at which point the platform KILLS the instance mid-await
@@ -324,10 +331,19 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
       "Photoreal images are not available — admin needs to configure the OpenAI key.",
     );
   }
-  if (provider === "kie" && !kieKey) {
+  // Kie (full-colour) is served by gpt-image-1 (Kie itself is disabled), so the
+  // OpenAI key is what this path needs. If Kie is ever re-enabled it needs its
+  // own key again.
+  if (provider === "kie" && KIE_ENABLED && !kieKey) {
     throw new HttpsError(
       "failed-precondition",
       "Colour illustrations are not available — admin needs to configure the Kie API key.",
+    );
+  }
+  if (provider === "kie" && !KIE_ENABLED && !openaiKey) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Image generation is not configured — admin needs to set the OpenAI key.",
     );
   }
   // Recraft (B&W line-art) is served by gpt-image-1 (Recraft itself is
@@ -354,7 +370,7 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
   // The provider that actually produced the image — differs from the
   // requested provider when the Recraft→OpenAI fallback kicks in.
   let providerUsed = provider;
-  if (provider === "kie") {
+  if (provider === "kie" && KIE_ENABLED) {
     // Kie is asynchronous (create task → poll). generateKieImage handles
     // the polling and returns a CDN URL we then stream into Storage like
     // Recraft. Map our pixel size onto Kie's aspect_ratio + ask for 2K.
@@ -396,13 +412,13 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
     storageSource = {bytes: Buffer.from(b64, "base64")};
     modelId = usedModel || "gpt-image-1";
   } else {
-    // Recraft (B&W line art). Recraft is disabled (see RECRAFT_ENABLED), so the
-    // image is produced by gpt-image-1 with the SAME line-art prompt (NOT the
-    // photoreal guard) — the teacher gets the same printable B&W figure, billed
-    // to OpenAI. If Recraft is ever re-enabled it is tried first and gpt-image-1
-    // becomes the fallback for an out-of-credits / outage / missing-key case.
+    // The remaining providers — recraft (B&W line art) and a disabled kie
+    // (full colour) — are both served by gpt-image-1 using the prompt already
+    // built for the requested provider, so each keeps its own look (line-art vs
+    // colour) while billing to OpenAI. Recraft is tried first only if it has
+    // been re-enabled; otherwise we go straight to gpt-image-1.
     let recraftFailure = null;
-    if (RECRAFT_ENABLED && recraftKey) {
+    if (provider === "recraft" && RECRAFT_ENABLED && recraftKey) {
       try {
         const recraftUrl = await fetchRecraftImage(recraftKey, {finalPrompt, style, size});
         storageSource = {url: recraftUrl};
@@ -419,13 +435,12 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
         throw recraftFailure ||
           new HttpsError("failed-precondition", "Image generation is not configured — admin needs to set the OpenAI key.");
       }
-      console.warn("generateDiagram: serving B&W line-art via gpt-image-1", {
+      console.warn("generateDiagram: serving via gpt-image-1", {
         uid,
-        reason: !RECRAFT_ENABLED ?
-          "Recraft disabled — routed to OpenAI" :
-          (recraftFailure ?
-            String(recraftFailure.message || recraftFailure).slice(0, 300) :
-            "RECRAFT_API_KEY not configured"),
+        requested: provider,
+        reason: recraftFailure ?
+          String(recraftFailure.message || recraftFailure).slice(0, 300) :
+          `${provider} routed to OpenAI`,
       });
       providerUsed = "openai";
       openaiSizeUsed = OPENAI_SIZE_BY_RECRAFT_SIZE[size] || "1536x1024";
