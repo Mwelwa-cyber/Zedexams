@@ -18,6 +18,7 @@ const {
   questionKey,
   planPageBatches,
   selectNewQuestions,
+  extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
   parseSourceNumber,
@@ -148,6 +149,42 @@ test('coverage loop converges: a fully-repeated round yields nothing fresh', () 
   selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   const again = selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   assert.equal(again.fresh.length, 0); // → caller stops the loop
+});
+
+// ── extractionProgress — resume marker for the continuation loop ────────────
+test('extractionProgress reports count + highest source number', () => {
+  const p = extractionProgress([
+    {prompt: 'Q1', sourceNumber: 1},
+    {prompt: 'Q2', sourceNumber: 2},
+    {prompt: 'Q3', sourceNumber: 3},
+  ]);
+  assert.equal(p.count, 3);
+  assert.equal(p.maxSourceNumber, 3);
+});
+
+test('extractionProgress picks the MAX number even when out of order', () => {
+  // The model can return questions out of order or with a late high number; the
+  // resume marker must point past the furthest one captured, not the last one.
+  const p = extractionProgress([
+    {prompt: 'Q3', sourceNumber: 3},
+    {prompt: 'Q40', sourceNumber: 40},
+    {prompt: 'Q12', sourceNumber: '12'},
+  ]);
+  assert.equal(p.count, 3);
+  assert.equal(p.maxSourceNumber, 40); // → next round asks for 41 onward
+});
+
+test('extractionProgress falls back to null number when none are printed', () => {
+  const p = extractionProgress([
+    {prompt: 'Q1'}, {prompt: 'Q2', sourceNumber: null},
+  ]);
+  assert.equal(p.count, 2);
+  assert.equal(p.maxSourceNumber, null); // caller resumes by count instead
+});
+
+test('extractionProgress handles empty/garbage input', () => {
+  assert.deepEqual(extractionProgress([]), {count: 0, maxSourceNumber: null});
+  assert.deepEqual(extractionProgress(null), {count: 0, maxSourceNumber: null});
 });
 
 // ── summariseSeenStems ──────────────────────────────────────────────────────

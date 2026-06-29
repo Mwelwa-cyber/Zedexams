@@ -42,6 +42,7 @@ const {
   canWriteQuiz,
   planPageBatches,
   selectNewQuestions,
+  extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
   mergeAndRenumber,
@@ -441,7 +442,7 @@ function buildContextLines(paper) {
   ].filter(Boolean).join("\n");
 }
 
-function buildExtractionPrompt({paper, segment, seenStems, round}) {
+function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
   const context = buildContextLines(paper);
   if (round === 0) {
     return [
@@ -451,17 +452,35 @@ function buildExtractionPrompt({paper, segment, seenStems, round}) {
       context,
     ].join("\n");
   }
-  // Continuation round: ask only for what was missed / cut off.
+  // Continuation round. The model re-reads the SAME source each round, so it
+  // must be told to CONTINUE from where it stopped — otherwise it restarts from
+  // the top, re-emits the early questions (which dedupe to nothing), and the
+  // loop stalls at whatever fit in the first response (the "stops at ~40" bug on
+  // long PDFs). Resume by printed question number when the paper has one; fall
+  // back to a count-based resume when it doesn't.
+  const count = progress && Number.isInteger(progress.count) ? progress.count : 0;
+  const maxNum = progress ? progress.maxSourceNumber : null;
+  const resumeLine = maxNum != null ?
+    `So far you have captured ${count} question(s), up to and including ` +
+    `question number ${maxNum}. CONTINUE from the next question ` +
+    `(number ${maxNum + 1} onward) and extract every remaining question, in ` +
+    "order, through to the end of the paper." :
+    `So far you have captured ${count} question(s). CONTINUE from exactly where ` +
+    "you stopped and extract every remaining question, in order, through to the " +
+    "end of the paper.";
   const already = seenStems.length ?
     seenStems.join("\n") : "(none yet)";
   return [
-    `You have already extracted these questions from ${segment.label}:`,
+    resumeLine,
+    "",
+    "For reference, here are the most recent questions already captured from " +
+    `${segment.label} — do NOT return any of these again:`,
     already,
     "",
-    "Return ONLY questions from this paper that you have NOT already returned " +
-    "above — any you missed or that were cut off. Do not repeat any question " +
-    "listed above. If every question has now been captured, return an empty " +
-    "questions array.",
+    "Return ONLY questions you have NOT already returned — the ones that come " +
+    "AFTER the list above. Do not restart from the beginning, do not repeat or " +
+    "re-number a question listed above. If you have genuinely reached the end of " +
+    "the paper and every question is now captured, return an empty questions array.",
     "",
     context,
   ].join("\n");
@@ -482,7 +501,10 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
   for (let round = 0; round < MAX_ROUNDS_PER_SEGMENT; round++) {
     rounds += 1;
     const seenStems = summariseSeenStems(segmentQuestions);
-    const promptText = buildExtractionPrompt({paper, segment, seenStems, round});
+    const progress = extractionProgress(segmentQuestions);
+    const promptText = buildExtractionPrompt({
+      paper, segment, seenStems, round, progress,
+    });
     const messages = [{
       role: "user",
       content: [...segment.blocks, {type: "text", text: promptText}],
