@@ -98,6 +98,10 @@
 .meta-compact .item{display:flex;gap:6px;align-items:baseline;min-width:0}
 .meta-compact .item .lbl{font-weight:700;color:var(--ink);white-space:nowrap;flex-shrink:0}
 .meta-compact .item .val{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Two explicit columns (left: identity/subject, right: scheduling/attendance).
+   Each .meta-col stacks its own .item rows so the columns align side by side. */
+.meta-compact.two-col{align-items:start;gap:6px 40px}
+.meta-compact.two-col .meta-col{display:flex;flex-direction:column;gap:6px;min-width:0}
 .official-meta{margin:8px 0 10px;padding:8px 0;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);font-size:10.5pt}
 .official-meta.two-col{display:grid;grid-template-columns:1fr 1fr;gap:3px 26px}
 .official-meta .om-item{margin:2px 0;line-height:1.4}

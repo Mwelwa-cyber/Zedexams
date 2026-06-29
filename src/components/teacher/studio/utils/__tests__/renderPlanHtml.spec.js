@@ -354,6 +354,58 @@ describe('renderPlanHtml — previous curriculum, classic2 format', () => {
   })
 })
 
+// ── renderPlanHtml — compact meta header (two columns) ────────────────────────
+
+describe('renderPlanHtml — compact meta header', () => {
+  const meta = {
+    ...BASE_META,
+    compactMeta: true,
+    teacherName: 'Chibuye Dorica',
+    grade: 'Grade 2A',
+    subject: 'Mathematics and Science',
+    date: '26th March 2026',
+    time: '07:00 – 08:00',
+    duration: 60,
+  }
+
+  it('renders the two-column compact meta wrapper', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('class="meta-compact two-col"')
+    expect(html).toContain('class="meta-col"')
+  })
+
+  it('labels the teacher field "Name of teacher"', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('Name of teacher')
+    expect(html).toContain('Chibuye Dorica')
+    expect(html).not.toContain("Teacher's name")
+  })
+
+  it('renders Date, Time and Duration in the header', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('26th March 2026')
+    expect(html).toContain('07:00 – 08:00')
+    expect(html).toContain('60 min')
+  })
+
+  it('adds the Total no. of pupils / Girls / Boys fields', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('Total no. of pupils')
+    expect(html).toContain('Girls')
+    expect(html).toContain('Boys')
+  })
+
+  it('no longer renders the Lesson Sequence row', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, { ...meta, totalLessons: 6, lessonNumber: 1 }, 'cbc')
+    expect(html).not.toContain('Lesson Sequence')
+  })
+
+  it('escapes the teacher name', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, { ...meta, teacherName: 'John & Jane' }, 'cbc')
+    expect(html).toContain('John &amp; Jane')
+  })
+})
+
 // ── renderPlanHtml — XSS safety ───────────────────────────────────────────────
 
 describe('renderPlanHtml — XSS safety', () => {
