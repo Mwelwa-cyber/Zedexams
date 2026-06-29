@@ -124,8 +124,10 @@ function buildPrintableHtmlV3(plan, title) {
   h1{font-size:15pt;font-weight:800;text-align:center;letter-spacing:.12em;border-top:1.5px solid #000;border-bottom:1.5px solid #000;display:table;margin:0 auto 14px;padding:4px 18px}
   .fl{margin:3px 0}
   .fl strong{font-weight:700}
-  .meta{display:grid;grid-template-columns:1fr 1fr;gap:1px 26px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;padding:6px 0;margin:6px 0 10px}
-  .meta .fl{margin:2px 0}
+  /* A borderless two-column header — a <table> (not CSS grid) so the
+     rasteriser used by the PDF download renders both columns reliably. */
+  table.meta{width:100%;border-collapse:collapse;border:0;border-top:1.5px solid #000;border-bottom:1.5px solid #000;margin:6px 0 10px}
+  table.meta td{border:0;width:50%;padding:3px 22px 3px 0;font-size:10.5pt;vertical-align:top}
   ul{margin:3px 0 6px 22px}
   li{margin:2px 0}
   .pt{font-weight:700;font-size:11.5pt;letter-spacing:.04em;margin:12px 0 6px}
@@ -135,31 +137,29 @@ function buildPrintableHtmlV3(plan, title) {
   td.stage{width:15%;font-size:9pt}
   .cl{margin:0 0 5px}
   .rule{border-bottom:1px solid #000;height:1.3em;margin:0 0 6px}
-  .illus{margin:8px 0 12px;text-align:center;page-break-inside:avoid}
+  .illus{margin:8px 0 12px;text-align:center;page-break-inside:avoid;break-inside:avoid}
   .illus img{max-width:80%;max-height:260px;height:auto;border:1px solid #000}
   .illus figcaption{font-size:9pt;font-style:italic;margin-top:4px}
-  @media print{ body{padding:14mm 16mm;max-width:none} table{page-break-inside:auto} tr{page-break-inside:avoid} }
+  /* Keep these out of @media print: the PDF download rasterises in screen
+     media and reads these computed styles to decide where NOT to cut a page.
+     A whole header block and any single progression row stay intact. */
+  table{page-break-inside:auto}
+  table.meta{page-break-inside:avoid;break-inside:avoid}
+  tr{page-break-inside:avoid;break-inside:avoid}
+  thead{display:table-header-group}
+  @media print{ body{padding:14mm 16mm;max-width:none} }
 </style>
 </head>
 <body>
   ${h.school ? `<p class="fl" style="text-align:center;font-weight:700;font-size:13pt;margin-bottom:4px">${safe(h.school)}</p>` : ''}
   <h1>LESSON PLAN</h1>
-  <div class="meta">
-    <div>
-      <p class="fl"><strong>NAME OF TEACHER:</strong> ${safe(h.teacherName)}</p>
-      <p class="fl"><strong>CLASS:</strong> ${safe(h.class)}</p>
-      <p class="fl"><strong>SUBJECT:</strong> ${safe(h.subject)}</p>
-      <p class="fl"><strong>TOPIC:</strong> ${safe(h.topic)}</p>
-      <p class="fl"><strong>SUB-TOPIC:</strong> ${safe(h.subtopic)}</p>
-    </div>
-    <div>
-      <p class="fl"><strong>DATE:</strong> ${safe(h.date)}</p>
-      <p class="fl"><strong>TIME:</strong> ${safe(h.time)}</p>
-      <p class="fl"><strong>DURATION:</strong> ${h.durationMinutes ? `${safe(h.durationMinutes)} minutes` : ''}</p>
-      <p class="fl"><strong>TOTAL NO. OF PUPILS:</strong></p>
-      <p class="fl"><strong>GIRLS:</strong> ______ &nbsp;&nbsp; <strong>BOYS:</strong> ______</p>
-    </div>
-  </div>
+  <table class="meta"><tbody>
+    <tr><td><strong>NAME OF TEACHER:</strong> ${safe(h.teacherName)}</td><td><strong>DATE:</strong> ${safe(h.date)}</td></tr>
+    <tr><td><strong>CLASS:</strong> ${safe(h.class)}</td><td><strong>TIME:</strong> ${safe(h.time)}</td></tr>
+    <tr><td><strong>SUBJECT:</strong> ${safe(h.subject)}</td><td><strong>DURATION:</strong> ${h.durationMinutes ? `${safe(h.durationMinutes)} minutes` : ''}</td></tr>
+    <tr><td><strong>TOPIC:</strong> ${safe(h.topic)}</td><td><strong>TOTAL NO. OF PUPILS:</strong></td></tr>
+    <tr><td><strong>SUB-TOPIC:</strong> ${safe(h.subtopic)}</td><td><strong>GIRLS:</strong> ______ &nbsp;&nbsp; <strong>BOYS:</strong> ______</td></tr>
+  </tbody></table>
   ${line('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', '))}
   ${line('SPECIFIC COMPETENCE', plan.specificCompetence)}
   ${line('LESSON GOAL', plan.lessonGoal)}
