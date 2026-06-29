@@ -226,6 +226,22 @@ describe('renderPlanHtml — classic format, cbc', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
     expect(html).toContain('Lusaka Primary')
   })
+
+  it('uses the shared two-column meta header', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('class="meta-compact two-col"')
+    expect(html).toContain('Name of teacher')
+    expect(html).toContain('Total no. of pupils')
+  })
+
+  it('shows topic and sub-topic in the header, not as a duplicate field line', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    expect(html).toContain('Whole Numbers')
+    expect(html).toContain('Counting to 100')
+    // The old uppercase TOPIC: / SUB-TOPIC: field lines are gone (now in header).
+    expect(html).not.toContain('<strong>TOPIC:</strong>')
+    expect(html).not.toContain('<strong>SUB-TOPIC:</strong>')
+  })
 })
 
 // ── renderPlanHtml — classic2 / official-cbc format ───────────────────────────
