@@ -86,8 +86,14 @@ async function trySaveViaShare(blob, filename) {
     // AbortError = the user closed the share sheet on purpose. Treat as handled
     // so we don't immediately re-trigger a UUID-named anchor download.
     if (err && err.name === 'AbortError') return true
-    // Any other failure (NotAllowedError, share unsupported for files, …) →
-    // report and let the caller fall through to the file-saver/anchor route.
+    // NotAllowedError / SecurityError = the browser blocked the share — almost
+    // always an expired user-gesture (the export is built async, so the tap's
+    // transient activation has lapsed by the time we call share) or a WebView
+    // that disallows file sharing. The caller falls back to a normal download,
+    // so the user still gets the file; this is environmental, not an app bug,
+    // so we DON'T report it (it was the top "Permission denied" noise source).
+    if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) return false
+    // Any other, genuinely unexpected failure → report and fall back.
     reportClientError(err, 'share_save_fallback')
     return false
   }
