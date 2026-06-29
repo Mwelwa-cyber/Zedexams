@@ -887,7 +887,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // only when focus is outside an editable element do we drive paper undo.
   useEffect(() => {
     function onKeyDown(e) {
-      const key = e.key.toLowerCase()
+      // e.key can be undefined for some IME/soft-keyboard (Android) keydown
+      // events — guard so the handler never throws "Cannot read properties of
+      // undefined (reading 'toLowerCase')" and crash the studio.
+      const key = (e.key || '').toLowerCase()
       if (key !== 'z' && key !== 'y') return
       if (!(e.ctrlKey || e.metaKey)) return
       const el = e.target
