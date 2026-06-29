@@ -96,7 +96,6 @@ export const TEACHER_SAMPLES = [
         "Learner's Book Grade 5, page 26 exercise",
       ],
       expectedStandard: 'Fractions with the same denominator added correctly and answers expressed in simplest form.',
-      keyVocabulary: ['fraction', 'numerator', 'denominator', 'sum', 'simplest form', 'equal parts'],
       stages: [
         {
           name: 'INTRODUCTION',

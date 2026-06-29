@@ -14,7 +14,6 @@ const SAMPLE_PLAN = {
   references: ['Mathematics Learner Book Grade 1', 'CBC Teacher Guide'],
   materials: ['Number cards', 'Abacus'],
   expectedStandard: 'Counts correctly to 100 without assistance',
-  keyVocabulary: ['count', 'number', 'sequence'],
   learningEnvironment: {
     natural: 'Outdoor counting walk',
     artificial: 'Classroom',
@@ -47,7 +46,6 @@ const SAMPLE_PLAN = {
 
 const BASE_META = {
   format: 'modern',
-  showVocabulary: false,
   showReflection: false,
   showEnrolment: false,
   showAttendance: false,
@@ -177,15 +175,10 @@ describe('renderPlanHtml — modern format, cbc', () => {
     expect(html).toContain('class="plan-official"')
   })
 
-  it('does NOT include Key Vocabulary section when showVocabulary is false', () => {
-    const html = renderPlanHtml(SAMPLE_PLAN, { ...BASE_META, showVocabulary: false }, 'cbc')
+  it('never includes a Key Vocabulary section (feature removed)', () => {
+    const withVocab = { ...SAMPLE_PLAN, keyVocabulary: ['count', 'number', 'sequence'] }
+    const html = renderPlanHtml(withVocab, { ...BASE_META, showVocabulary: true }, 'cbc')
     expect(html).not.toContain('Key Vocabulary')
-  })
-
-  it('includes Key Vocabulary section when showVocabulary is true', () => {
-    const html = renderPlanHtml(SAMPLE_PLAN, { ...BASE_META, showVocabulary: true }, 'cbc')
-    expect(html).toContain('Key Vocabulary')
-    expect(html).toContain('count')
   })
 
   it('does NOT include Lesson Evaluation when showReflection is false', () => {

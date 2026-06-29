@@ -156,7 +156,6 @@ describe('useStudioState — initial state shape', () => {
         includeEnrolment: false,
         includeAttendance: false,
         includeLessonEvaluation: true,
-        includeKeyVocabulary: true,
         autoIllustrations: false,
         localLanguage: false,
       },

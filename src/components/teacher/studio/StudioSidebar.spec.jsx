@@ -83,7 +83,6 @@ function makeStudioState(overrides = {}) {
         includeEnrolment: false,
         includeAttendance: false,
         includeLessonEvaluation: false,
-        includeKeyVocabulary: false,
         autoIllustrations: false,
         localLanguage: false,
       },

@@ -444,12 +444,6 @@ export default function LessonPlanEditor({ planJson, curriculumMode = 'cbc', con
           curriculumMode={curriculumMode} context={context}
           onChange={(v) => setField('expectedStandard', v)} />
       )}
-      {has('keyVocabulary') && (
-        <ListField label="Key Vocabulary" items={plan.keyVocabulary}
-          curriculumMode={curriculumMode} context={context}
-          onChange={(v) => setField('keyVocabulary', v)} placeholder="Term: meaning" />
-      )}
-
       {/* ── Lesson progression (stages) ── */}
       <div className="mt-5 mb-2 flex items-center justify-between">
         <h3 className="text-[13px] font-bold uppercase tracking-wide text-[#5c4a3a]">Lesson Progression</h3>

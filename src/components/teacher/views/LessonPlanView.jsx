@@ -91,12 +91,6 @@ function LessonPlanViewV3({ plan }) {
         </div>
       </div>
 
-      {plan.keyVocabulary?.length > 0 && (
-        <Section title="Key Vocabulary">
-          <UnorderedList items={plan.keyVocabulary} />
-        </Section>
-      )}
-
       <Section title="Lesson Progression">
         {(plan.stages || []).map((s, i) => (
           <PhaseBlock

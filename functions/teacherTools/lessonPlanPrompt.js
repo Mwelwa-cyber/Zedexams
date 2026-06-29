@@ -199,7 +199,6 @@ function buildUserPrompt(inputs) {
     '  "learningEnvironment": { "natural": string, "artificial": string, "technological": string },  // one line each; "" if genuinely not used',
     '  "materials": [string, ...],           // 3-6 specific teaching/learning materials with local alternatives',
     '  "expectedStandard": string,           // PASSIVE voice from the syllabus, e.g. "Road safety practised correctly."',
-    '  "keyVocabulary": [string, ...],       // 4-8 entries "Term: short learner-friendly meaning"',
     '  "stages": [',
     isPrevious
       ? [

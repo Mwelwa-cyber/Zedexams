@@ -20,7 +20,6 @@ function samplePlan() {
     references: ['Syllabus p. 12'],
     learningEnvironment: { natural: 'garden', artificial: 'classroom', technological: 'tablet' },
     materials: ['chart', 'real leaves'],
-    keyVocabulary: ['Root: anchors the plant'],
     stages: [
       {
         name: 'INTRODUCTION',

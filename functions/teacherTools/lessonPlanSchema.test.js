@@ -54,7 +54,6 @@ function validPlan() {
     },
     materials: ["Pictures of local attraction sites", "Video clip", "Brochures"],
     expectedStandard: "Local attraction sites explored accordingly.",
-    keyVocabulary: ["Tourism: visiting interesting places to learn and enjoy."],
     stages: [
       officialStage("INTRODUCTION", 5),
       officialStage("LESSON DEVELOPMENT", 15),

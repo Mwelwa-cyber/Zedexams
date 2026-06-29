@@ -5,7 +5,7 @@
  * official 2023-curriculum CDC teaching modules: general competences,
  * coded specific competence, lesson goal, rationale, prior knowledge,
  * references, learning environment (natural/artificial/technological),
- * materials, expected standard, key vocabulary, and a stages array using
+ * materials, expected standard, and a stages array using
  * the official progression (INTRODUCTION → LESSON DEVELOPMENT →
  * EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION), closing with remedial
  * work / extension activity.
@@ -163,8 +163,6 @@ function validateLessonPlan(input) {
   if (!out.expectedStandard) {
     errors.push("expectedStandard is required (passive voice, from the syllabus)");
   }
-
-  out.keyVocabulary = cleanStringArray(input.keyVocabulary);
 
   // ── LESSON PROGRESSION (official stages) ───────────────────────────
   const rawStages = Array.isArray(input.stages) ? input.stages : [];

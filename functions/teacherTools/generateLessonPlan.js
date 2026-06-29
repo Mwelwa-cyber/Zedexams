@@ -69,7 +69,6 @@ const LESSON_PLAN_TOOL_SCHEMA = {
     learningEnvironment: {type: "object", additionalProperties: true},
     materials: {type: "array", items: {type: "string"}},
     expectedStandard: {type: "string"},
-    keyVocabulary: {type: "array", items: {type: "string"}},
     stages: {
       type: "array",
       items: {

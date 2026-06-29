@@ -730,10 +730,6 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
     children.push(...bulletList(plan.materials))
   }
   children.push(fieldLine('EXPECTED STANDARD', plan.expectedStandard || ''))
-  if (plan.keyVocabulary?.length) {
-    children.push(para(text('KEY VOCABULARY:', { bold: true, size: 20 })))
-    children.push(...bulletList(plan.keyVocabulary))
-  }
 
   children.push(...lessonIllustrationParagraphs(plan, opts))
 

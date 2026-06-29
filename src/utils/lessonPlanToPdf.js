@@ -165,7 +165,6 @@ function buildPrintableHtmlV3(plan, title) {
   ${line('III. Technological', le.technological)}
   ${plan.materials?.length ? `<p class="fl"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></p>${list(plan.materials)}` : ''}
   ${line('EXPECTED STANDARD', plan.expectedStandard)}
-  ${plan.keyVocabulary?.length ? `<p class="fl"><strong>KEY VOCABULARY:</strong></p>${list(plan.keyVocabulary)}` : ''}
   ${plan.lessonDiagram?.url ? `<p class="fl"><strong>TEACHING ILLUSTRATION:</strong></p>${diagramFigureHtml(plan, safe)}` : ''}
 
   <p class="pt">LESSON PROGRESSION</p>
