@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import Button from '../../ui/Button'
 import {
@@ -11,6 +11,28 @@ import {
   isDiagramCleanSupported,
   sourceToBlob,
 } from '../../../utils/diagramClean.js'
+
+// A photographed TABLE / pictograph is never improved by the AI image
+// generator — redrawing it as line art just produces a wrong picture, and that
+// generation is the flaky path that surfaces "the diagram service took too long
+// or hit an error". Tables have a dedicated, reliable path ("Rebuild as table",
+// Claude vision → editable typed table) that never touches image generation. So
+// for table-like figures we (1) auto-run that path, (2) make it the primary
+// recommended action, and (3) hide the two image-gen options.
+function isTableLikeKind(kind) {
+  const k = String(kind || '').toLowerCase()
+  return (
+    k.includes('table') ||
+    k.includes('pictograph') ||
+    k.includes('pictogram') ||
+    k.includes('tally') ||
+    k.includes('chart')
+  )
+}
+
+// The image-generation options that are the wrong tool (and the flaky path) for
+// a table — hidden when the figure is table-like.
+const IMAGE_GEN_OPTION_IDS = new Set(['redraw', 'replace'])
 
 /**
  * DiagramHandlingChooser — per-figure control in the Test Paper Studio photo
@@ -65,6 +87,15 @@ export default function DiagramHandlingChooser({
 
   const caption =
     (detected && (detected.caption || detected.kind)) || 'Detected figure'
+
+  // A table/pictograph: reroute away from the flaky image generator and onto the
+  // reliable "Rebuild as table" path. We can only rebuild when there's a crop to
+  // read and an uploader to stage it through (the review screen always wires one).
+  const isTable = isTableLikeKind(detected && detected.kind)
+  const canRebuildTable =
+    isTable &&
+    typeof onCleanUpload === 'function' &&
+    Boolean(pristineOriginalUrl || originalUrl)
 
   // Clean the scanned figure in-browser, upload it, and return the result the
   // chooser surfaces. Kept separate so a cleaning failure (e.g. a cross-origin
@@ -159,6 +190,35 @@ export default function DiagramHandlingChooser({
       setBusy(null)
     }
   }
+
+  // Table/pictograph figures rebuild themselves automatically (once) the moment
+  // a crop + uploader are available, so the teacher lands on a clean editable
+  // table instead of having to find the right button — and never gets routed
+  // into the image generator that was failing. If the rebuild errors, the
+  // options stay visible for a manual retry (or to keep the original).
+  const autoRebuiltRef = useRef(false)
+  useEffect(() => {
+    if (autoRebuiltRef.current) return
+    if (result || busy) return
+    if (!canRebuildTable) return
+    autoRebuiltRef.current = true
+    const option = DIAGRAM_HANDLING_OPTIONS.find((o) => o.id === 'rebuild_as_table')
+    if (option) choose(option)
+    // choose is stable enough for this one-shot guarded effect; deps cover the
+    // inputs that gate whether an auto-rebuild is possible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canRebuildTable, result, busy])
+
+  // For a table, hide the image-generation options (wrong tool + flaky path) and
+  // surface "Rebuild as table" first as the recommended primary action.
+  const visibleOptions = isTable
+    ? [
+        ...DIAGRAM_HANDLING_OPTIONS.filter((o) => o.id === 'rebuild_as_table'),
+        ...DIAGRAM_HANDLING_OPTIONS.filter(
+          (o) => o.id !== 'rebuild_as_table' && !IMAGE_GEN_OPTION_IDS.has(o.id),
+        ),
+      ]
+    : DIAGRAM_HANDLING_OPTIONS
 
   const resolvedUrl = result?.url || null
   const isRemoved = result?.action === 'removed'
@@ -262,19 +322,32 @@ export default function DiagramHandlingChooser({
         <p className="text-xs font-bold text-[color:var(--danger)]">{error}</p>
       ) : null}
 
+      {/* Table figures: explain why we rebuild rather than redraw, so the lone
+          recommended action doesn't look like a missing feature. */}
+      {isTable ? (
+        <p className="text-[11px] theme-text-muted">
+          This looks like a table — it’s rebuilt as a clean, editable table
+          rather than redrawn as a picture.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
-        {DIAGRAM_HANDLING_OPTIONS.map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={result && result.handling === option.id ? 'primary' : 'secondary'}
-            loading={busy === option.id}
-            disabled={Boolean(busy)}
-            onClick={() => choose(option)}
-          >
-            {option.label}
-          </Button>
-        ))}
+        {visibleOptions.map((option) => {
+          const recommended = isTable && option.id === 'rebuild_as_table'
+          const isActive = result && result.handling === option.id
+          return (
+            <Button
+              key={option.id}
+              size="sm"
+              variant={isActive || recommended ? 'primary' : 'secondary'}
+              loading={busy === option.id}
+              disabled={Boolean(busy)}
+              onClick={() => choose(option)}
+            >
+              {recommended ? `${option.label} (recommended)` : option.label}
+            </Button>
+          )
+        })}
       </div>
     </div>
   )

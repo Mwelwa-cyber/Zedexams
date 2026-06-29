@@ -52,7 +52,7 @@ describe('DiagramHandlingChooser', () => {
     expect(screen.getByText('Remove diagram and leave blank space')).toBeInTheDocument()
   })
 
-  it('rebuilds a figure into an editable table and previews it', async () => {
+  it('auto-rebuilds a table figure into an editable table on mount (no click)', async () => {
     mockRebuildTable.mockResolvedValueOnce({
       action: 'rebuilt_table',
       tableData: { headers: ['Fruit', 'People'], rows: [['orange', '3'], ['mango', '5']] },
@@ -70,8 +70,8 @@ describe('DiagramHandlingChooser', () => {
       />,
     )
 
-    fireEvent.click(screen.getByText('Rebuild as table'))
-
+    // Table figures rebuild themselves automatically — the teacher never has to
+    // find the right button, and is never routed into the flaky image generator.
     await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
     // The original crop is uploaded, then the vision rebuild runs on that URL.
     expect(mockSourceToBlob).toHaveBeenCalledTimes(1)
@@ -87,6 +87,26 @@ describe('DiagramHandlingChooser', () => {
     expect(await screen.findByText('Rebuilt as table')).toBeInTheDocument()
     expect(screen.getByText('orange')).toBeInTheDocument()
     expect(screen.getByText('People')).toBeInTheDocument()
+  })
+
+  it('hides the image-generation options for a table figure and recommends Rebuild as table', () => {
+    // No uploader/crop here, so nothing auto-runs — this is a pure render check.
+    render(
+      <DiagramHandlingChooser
+        detected={{ kind: 'table', caption: 'Results table' }}
+        context={context}
+        onResolved={() => {}}
+      />,
+    )
+    expect(screen.getByText('Rebuild as table (recommended)')).toBeInTheDocument()
+    // The flaky AI image-generation options are not offered for a table.
+    expect(screen.queryByText('Redraw using AI')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Replace with a better educational diagram'),
+    ).not.toBeInTheDocument()
+    // Non-generating fallbacks remain available.
+    expect(screen.getByText('Keep original image')).toBeInTheDocument()
+    expect(screen.getByText('Remove diagram and leave blank space')).toBeInTheDocument()
   })
 
   it('calls the redraw wrapper and surfaces a reused-from-library result', async () => {
