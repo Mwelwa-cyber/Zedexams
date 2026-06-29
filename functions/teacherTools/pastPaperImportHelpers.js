@@ -293,6 +293,28 @@ function selectNewQuestions(seenKeys, incoming) {
 }
 
 /**
+ * Summarise how far extraction has progressed through a segment: how many
+ * questions are captured and the highest printed question number seen so far.
+ * A continuation round uses this to tell the model where to RESUME — without it
+ * the model re-reads the same source from the top, re-emits the early questions
+ * (which dedupe to nothing), and the loop stalls at whatever fit in the first
+ * response (the "stops at ~40" bug on long PDFs). `maxSourceNumber` is null when
+ * the paper prints no usable numbering, in which case the caller falls back to a
+ * count-based resume.
+ */
+function extractionProgress(questions) {
+  const list = Array.isArray(questions) ? questions : [];
+  let maxSourceNumber = null;
+  for (const q of list) {
+    const n = parseSourceNumber(q && q.sourceNumber);
+    if (n != null && (maxSourceNumber == null || n > maxSourceNumber)) {
+      maxSourceNumber = n;
+    }
+  }
+  return {count: list.length, maxSourceNumber};
+}
+
+/**
  * Build a compact, bounded list of the question stems already extracted, for
  * the "do not repeat these" half of a continuation prompt. Bounded in both the
  * number of stems and the length of each so a 100-question paper's reask prompt
@@ -689,6 +711,7 @@ module.exports = {
   questionKey,
   planPageBatches,
   selectNewQuestions,
+  extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
   parseSourceNumber,
