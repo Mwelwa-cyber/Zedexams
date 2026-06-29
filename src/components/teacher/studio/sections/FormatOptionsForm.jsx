@@ -96,6 +96,14 @@ const ILLUSTRATION_OPTIONS = [
   { value: 'manual',   label: 'Add Manually' },
 ]
 
+// Illustrations are temporarily hidden from the Lesson Plan Studio while the
+// feature is being reworked. Flip this back to `true` to re-surface the
+// Illustrations bar (section 4) and the "Auto-add AI Illustrations" advanced
+// toggle. The underlying generation pipeline is left untouched — only the
+// controls are hidden, and useStudioState defaults `illustrations` to 'none'
+// so nothing fires while the bar is gone.
+const SHOW_ILLUSTRATIONS = false
+
 const ADVANCED_TOGGLES = [
   { field: 'compactMetadata',          label: 'Compact Metadata Layout' },
   { field: 'includeEnrolment',         label: 'Include Enrolment Row' },
@@ -270,36 +278,38 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
             </div>
           </div>
 
-          {/* 4. Illustrations */}
-          <div>
-            <SubLabel>Illustrations</SubLabel>
-            <div className="flex gap-2">
-              {ILLUSTRATION_OPTIONS.map((opt) => {
-                const selected = formatOptions.illustrations === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => onUpdateFormat('illustrations', opt.value)}
-                    aria-pressed={selected}
-                    className={[
-                      'flex-1 rounded-full border px-2 py-1.5 text-[11px] font-semibold transition-colors',
-                      selected
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
-                    ].join(' ')}
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
+          {/* 4. Illustrations — temporarily hidden (see SHOW_ILLUSTRATIONS) */}
+          {SHOW_ILLUSTRATIONS && (
+            <div>
+              <SubLabel>Illustrations</SubLabel>
+              <div className="flex gap-2">
+                {ILLUSTRATION_OPTIONS.map((opt) => {
+                  const selected = formatOptions.illustrations === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onUpdateFormat('illustrations', opt.value)}
+                      aria-pressed={selected}
+                      className={[
+                        'flex-1 rounded-full border px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                        selected
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
+                      ].join(' ')}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {formatOptions.illustrations === 'manual' && (
+                <p className="mt-1.5 text-[11px] text-[#7a6d5d] italic">
+                  Use the Add Diagram button in the preview
+                </p>
+              )}
             </div>
-            {formatOptions.illustrations === 'manual' && (
-              <p className="mt-1.5 text-[11px] text-[#7a6d5d] italic">
-                Use the Add Diagram button in the preview
-              </p>
-            )}
-          </div>
+          )}
 
           {/* 5. Advanced Options */}
           <div>
@@ -349,7 +359,9 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                   </select>
                 </div>
 
-                {ADVANCED_TOGGLES.map(({ field, label }) => {
+                {ADVANCED_TOGGLES
+                  .filter(({ field }) => SHOW_ILLUSTRATIONS || field !== 'autoIllustrations')
+                  .map(({ field, label }) => {
                   const isLocalLanguage = field === 'localLanguage'
                   const disabled = isLocalLanguage && !localLanguageEnabled
                   const checked = Boolean(formatOptions.advanced[field])

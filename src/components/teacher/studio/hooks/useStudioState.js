@@ -51,7 +51,7 @@ export function useStudioState() {
     detail: 'standard', // 'simplified' | 'standard' | 'detailed'
     writingStyle: 'standard', // 'simple' | 'standard' | 'professional'
     format: 'modern', // 'modern' | 'classic' | 'official-cbc'
-    illustrations: 'automatic', // 'none' | 'automatic' | 'manual'
+    illustrations: 'none', // 'none' | 'automatic' | 'manual' — defaults to 'none' while the Illustrations bar is hidden (see SHOW_ILLUSTRATIONS in FormatOptionsForm)
     advanced: {
       compactMetadata: true,
       includeEnrolment: false,

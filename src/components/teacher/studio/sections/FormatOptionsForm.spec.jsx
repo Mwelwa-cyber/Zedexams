@@ -95,9 +95,9 @@ describe('FormatOptionsForm — all 5 sub-sections present', () => {
     expect(screen.getByText('Lesson Plan Format')).toBeInTheDocument()
   })
 
-  it('renders "Illustrations" sub-section label', () => {
+  it('does NOT render the "Illustrations" sub-section label (bar is hidden)', () => {
     renderForm()
-    expect(screen.getByText('Illustrations')).toBeInTheDocument()
+    expect(screen.queryByText('Illustrations')).not.toBeInTheDocument()
   })
 
   it('renders "Advanced Options" toggle button', () => {
@@ -239,52 +239,22 @@ describe('FormatOptionsForm — Lesson Plan Format cards', () => {
 
 // ── Illustrations ─────────────────────────────────────────────────────────────
 
-describe('FormatOptionsForm — Illustrations', () => {
-  it('renders None, Automatic, Add Manually pills', () => {
+// The Illustrations bar is temporarily hidden behind SHOW_ILLUSTRATIONS while
+// the feature is reworked. None of its controls should render.
+describe('FormatOptionsForm — Illustrations (hidden)', () => {
+  it('does NOT render the None / Automatic / Add Manually pills', () => {
     renderForm()
-    expect(screen.getByRole('button', { name: 'None' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Automatic' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add Manually' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'None' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Automatic' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add Manually' })).not.toBeInTheDocument()
   })
 
-  it('calls onUpdateFormat("illustrations", "automatic") when Automatic is clicked', () => {
-    const { onUpdateFormat } = renderForm()
-    fireEvent.click(screen.getByRole('button', { name: 'Automatic' }))
-    expect(onUpdateFormat).toHaveBeenCalledWith('illustrations', 'automatic')
-  })
-
-  it('calls onUpdateFormat("illustrations", "manual") when Add Manually is clicked', () => {
-    const { onUpdateFormat } = renderForm()
-    fireEvent.click(screen.getByRole('button', { name: 'Add Manually' }))
-    expect(onUpdateFormat).toHaveBeenCalledWith('illustrations', 'manual')
-  })
-
-  it('does NOT show the Add Diagram note when illustrations is "none"', () => {
-    renderForm()
-    expect(
-      screen.queryByText(/use the add diagram button/i),
-    ).not.toBeInTheDocument()
-  })
-
-  it('shows the Add Diagram note when illustrations is "manual"', () => {
+  it('does NOT show the Add Diagram note even when illustrations is "manual"', () => {
     renderForm({
       formatOptions: {
         ...DEFAULT_FORMAT_OPTIONS,
         advanced: { ...DEFAULT_FORMAT_OPTIONS.advanced },
         illustrations: 'manual',
-      },
-    })
-    expect(
-      screen.getByText(/use the add diagram button/i),
-    ).toBeInTheDocument()
-  })
-
-  it('does NOT show the Add Diagram note when illustrations is "automatic"', () => {
-    renderForm({
-      formatOptions: {
-        ...DEFAULT_FORMAT_OPTIONS,
-        advanced: { ...DEFAULT_FORMAT_OPTIONS.advanced },
-        illustrations: 'automatic',
       },
     })
     expect(
@@ -344,21 +314,27 @@ describe('FormatOptionsForm — Advanced toggle rows', () => {
     return result
   }
 
+  // 'Auto-add AI Illustrations' is intentionally omitted — it's hidden along
+  // with the Illustrations bar (see SHOW_ILLUSTRATIONS in FormatOptionsForm).
   const ALL_TOGGLE_LABELS = [
     'Compact Metadata Layout',
     'Include Enrolment Row',
     'Include Attendance Row',
     'Include Lesson Evaluation',
     'Include Key Vocabulary',
-    'Auto-add AI Illustrations',
     'Write in Local Language',
   ]
 
-  it('renders all 7 toggle rows', () => {
+  it('renders all 6 toggle rows', () => {
     renderWithAdvancedOpen()
     for (const label of ALL_TOGGLE_LABELS) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
+  })
+
+  it('does NOT render the "Auto-add AI Illustrations" toggle while illustrations are hidden', () => {
+    renderWithAdvancedOpen()
+    expect(screen.queryByText('Auto-add AI Illustrations')).not.toBeInTheDocument()
   })
 
   it('calls onUpdateAdvanced("compactMetadata", true) when its checkbox is clicked (currently false)', () => {
