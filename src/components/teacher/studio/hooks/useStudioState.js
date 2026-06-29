@@ -144,6 +144,7 @@ export function useStudioState() {
       )
     }, []),
     learningEnvironments,
+    setLearningEnvironments,
     toggleLearningEnvironment,
     lessonSeries,
     setLessonSeries,
