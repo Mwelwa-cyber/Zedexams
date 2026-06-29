@@ -19,6 +19,7 @@
 
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
+import { messageFromError, messageFromTableError } from './testPaperDiagramErrors'
 
 const functions = getFunctions(app, 'us-central1')
 const redrawCallable = httpsCallable(functions, 'redrawTestPaperDiagram')
@@ -41,31 +42,6 @@ export const DIAGRAM_HANDLING_OPTIONS = [
 // generation completes and a real server error surfaces, rather than the client
 // giving up first (and never letting the server's descriptive error through).
 const REDRAW_TIMEOUT_MS = 310000
-
-function messageFromError(error) {
-  const code = error?.code || ''
-  const msg = error?.message || ''
-  if (code.includes('resource-exhausted')) {
-    return 'Monthly diagram limit reached. Upgrade your plan or try again next month.'
-  }
-  if (code.includes('permission-denied')) {
-    return 'Diagram tools are only available to approved teachers.'
-  }
-  if (code.includes('unauthenticated')) {
-    return 'Please sign in to redraw diagrams.'
-  }
-  if (code.includes('failed-precondition') && /not configured/i.test(msg)) {
-    return 'Diagram generation is not available — admin needs to configure the image key.'
-  }
-  // A bare "internal" (no descriptive message) means the function instance was
-  // aborted by the platform — a slow image generation that ran past the timeout
-  // or ran out of memory — so the server's own try/catch never got to attach a
-  // reason. Surface something actionable instead of the cryptic word "internal".
-  if (code.includes('internal') || !msg || msg.toLowerCase() === 'internal') {
-    return 'The diagram service took too long or hit an error. Try again, or keep / clean the original image instead.'
-  }
-  return msg || 'Could not process that diagram. Please try again.'
-}
 
 function withTimeout(promise, ms) {
   return new Promise((resolve, reject) => {
@@ -104,27 +80,6 @@ export async function redrawTestPaperDiagram({
   } catch (error) {
     throw new Error(messageFromError(error))
   }
-}
-
-function messageFromTableError(error) {
-  const code = error?.code || ''
-  const msg = error?.message || ''
-  if (code.includes('resource-exhausted')) {
-    return 'Monthly limit reached. Try again next month or upgrade your plan.'
-  }
-  if (code.includes('permission-denied')) {
-    return 'Table tools are only available to approved teachers.'
-  }
-  if (code.includes('unauthenticated')) {
-    return 'Please sign in to rebuild tables.'
-  }
-  // The server attaches a helpful, specific reason for these (e.g. "No table
-  // could be read from this figure. Try Redraw…") — surface it as-is.
-  if (code.includes('failed-precondition') && msg) return msg
-  if (code.includes('internal') || !msg || msg.toLowerCase() === 'internal') {
-    return 'Could not rebuild this table automatically. Please choose another option below.'
-  }
-  return msg || 'Could not rebuild this table. Please try again.'
 }
 
 /**

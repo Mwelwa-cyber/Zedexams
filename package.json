@@ -227,6 +227,7 @@
     "test:parse-syllabus-upload": "node scripts/test-parse-syllabus-upload.mjs",
     "test:parse-syllabus-grade-sheets": "node scripts/test-parse-syllabus-grade-sheets.mjs",
     "test:imported-assets": "node src/utils/importedQuizAssets.test.js",
+    "test:diagram-errors": "node src/utils/testPaperDiagramErrors.test.js",
     "test:import-review-summary": "node src/utils/importReviewSummary.test.js",
     "test:quiz-validation": "node src/utils/quizValidation.test.js",
     "test:feedback": "node src/components/feedback/feedbackOptions.test.js",

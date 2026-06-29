@@ -1,7 +1,10 @@
 /**
- * Provider-routing tests for runGenerateDiagram — above all the
- * Recraft → OpenAI (gpt-image-1) fallback added when the Recraft balance
- * ran dry mid starter-pack (2026-06) and the owner switched to ChatGPT.
+ * Provider-routing tests for runGenerateDiagram.
+ *
+ * Recraft was decommissioned (2026-06, RECRAFT_ENABLED = false): every B&W
+ * line-art ("recraft") request is now served directly by gpt-image-1 with the
+ * line-art prompt, so the Recraft HTTP endpoint is never called even when a key
+ * is present. Explicit `openai` (photoreal) and `kie` (colour) are unchanged.
  *
  * Plain `node` script (repo convention — no test runner). CI runs these
  * with a root-only `npm ci`, where functions/node_modules does NOT exist,
@@ -100,45 +103,43 @@ function ok(name, cond) {
 async function main() {
   console.log("generateDiagram provider routing");
 
-  // ── 1. Healthy Recraft serves line art, no fallback ────────────────────
+  // ── 1. Recraft disabled: a line-art request is served by gpt-image-1, and
+  //       the Recraft endpoint is NEVER called even with a key present ───────
   calls.length = 0;
-  recraftResponse = () => ok200({data: [{url: RECRAFT_CDN_URL}]});
-  openaiResponse = () => {
-    throw new Error("OpenAI must not be called when Recraft is healthy");
+  recraftResponse = () => {
+    throw new Error("Recraft must not be called — it is disabled");
   };
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   let out = await runGenerateDiagram({
     uid: "t1", rawInputs: {prompt: "A labelled human ear"},
     recraftKey: "rk", openaiKey: "ok", kieKey: "",
   });
-  ok("healthy Recraft → provider recraft", out.provider === "recraft");
-  ok("healthy Recraft → model recraft-v3", out.model === "recraft-v3");
-  ok("healthy Recraft → no OpenAI call", calls.every((c) => c.provider !== "openai"));
+  ok("line-art request → provider openai", out.provider === "openai");
+  ok("line-art request → model gpt-image-1", out.model === "gpt-image-1");
+  ok("line-art request → no Recraft HTTP call (disabled, key ignored)",
+    calls.every((c) => c.provider !== "recraft" && c.provider !== "recraft-cdn"));
   ok("returns a tokened storage URL", /firebasestorage\.googleapis\.com/.test(out.url));
 
-  // ── 2. Recraft out of credits → gpt-image-1 fallback, line-art prompt ──
+  // ── 2. The OpenAI line-art path keeps the B&W guard + size mapping ─────────
   calls.length = 0;
-  recraftResponse = () => fail(400, "{\"code\":\"not_enough_credits\"}");
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t2", rawInputs: {prompt: "A labelled human ear"},
     recraftKey: "rk", openaiKey: "ok", kieKey: "",
   });
-  ok("credits dry → provider openai", out.provider === "openai");
-  ok("credits dry → model gpt-image-1", out.model === "gpt-image-1");
-  const fallbackCall = calls.find((c) => c.provider === "openai");
-  ok("fallback hit the OpenAI API once",
-    Boolean(fallbackCall) && calls.filter((c) => c.provider === "openai").length === 1);
-  ok("fallback keeps the B&W line-art guard",
-    /black-and-white line art/i.test(fallbackCall.body.prompt));
-  ok("fallback does NOT use the photoreal guard",
-    !/photograph/i.test(fallbackCall.body.prompt));
-  ok("fallback maps 1365x1024 → 1536x1024",
-    fallbackCall.body.size === "1536x1024" && out.size === "1536x1024");
-  ok("fallback stores the decoded PNG bytes", out.sizeBytes === FAKE_PNG.length);
+  const lineArtCall = calls.find((c) => c.provider === "openai");
+  ok("line-art keeps the B&W line-art guard",
+    /black-and-white line art/i.test(lineArtCall.body.prompt));
+  ok("line-art does NOT use the photoreal guard",
+    !/photograph/i.test(lineArtCall.body.prompt));
+  ok("line-art maps 1365x1024 → 1536x1024",
+    lineArtCall.body.size === "1536x1024" && out.size === "1536x1024");
+  ok("line-art stores the decoded PNG bytes", out.sizeBytes === FAKE_PNG.length);
 
-  // ── 3. Recraft fails with no OpenAI key → original error surfaces ──────
+  // ── 3. Line-art request with no OpenAI key → clear config error ────────────
+  // Recraft is disabled, so the OpenAI key is what this path needs; a recraftKey
+  // alone no longer satisfies it.
   calls.length = 0;
-  recraftResponse = () => fail(400, "{\"code\":\"not_enough_credits\"}");
   let threw = null;
   try {
     await runGenerateDiagram({
@@ -148,8 +149,9 @@ async function main() {
   } catch (err) {
     threw = err;
   }
-  ok("no fallback key → rethrows the Recraft error",
-    Boolean(threw) && /Recraft request failed \(400\)/.test(threw.message));
+  ok("no OpenAI key → failed-precondition config error",
+    Boolean(threw) && threw.code === "failed-precondition" &&
+    /Image generation is not configured/.test(threw.message));
 
   // ── 4. Recraft key missing entirely → straight to gpt-image-1 ──────────
   calls.length = 0;
@@ -190,31 +192,25 @@ async function main() {
   }
   ok("no keys → failed-precondition",
     Boolean(threw) && threw.code === "failed-precondition" &&
-    /Recraft API key is not configured/.test(threw.message));
+    /Image generation is not configured/.test(threw.message));
 
-  // ── 7. Recraft hangs (request times out) → fail over to OpenAI ──────────
-  // A hung Recraft used to block the await until the 300s function timeout
-  // killed the instance → bare "internal". With the per-request deadline the
-  // aborted fetch surfaces as a timeout, the recraft branch catches it, and the
-  // OpenAI fallback still produces a figure. (AbortError simulates the abort so
-  // the test doesn't actually wait the full timeout.)
+  // ── 7. A line-art request is served by OpenAI exactly once ────────────────
+  // (Recraft is disabled; its mock would throw if ever reached.)
   calls.length = 0;
   recraftResponse = () => {
-    const e = new Error("aborted");
-    e.name = "AbortError";
-    throw e;
+    throw new Error("Recraft must not be called — it is disabled");
   };
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t7", rawInputs: {prompt: "A labelled human ear"},
     recraftKey: "rk", openaiKey: "ok", kieKey: "",
   });
-  ok("Recraft timeout → provider openai", out.provider === "openai");
-  ok("Recraft timeout → OpenAI fallback produced the PNG", out.sizeBytes === FAKE_PNG.length);
-  ok("Recraft timeout → OpenAI called exactly once",
+  ok("line-art → provider openai", out.provider === "openai");
+  ok("line-art → OpenAI produced the PNG", out.sizeBytes === FAKE_PNG.length);
+  ok("line-art → OpenAI called exactly once",
     calls.filter((c) => c.provider === "openai").length === 1);
 
-  // ── 8. Both providers hang → a clean deadline error, never bare internal ─
+  // ── 8. OpenAI hangs → a clean deadline error, never bare internal ─────────
   calls.length = 0;
   recraftResponse = () => {
     const e = new Error("aborted");
@@ -237,6 +233,37 @@ async function main() {
   }
   ok("both time out → deadline-exceeded (not bare internal)",
     Boolean(threw) && threw.code === "deadline-exceeded");
+
+  // ── 9. Kie disabled: a colour request is served by gpt-image-1 with the
+  //       colour-illustration guard, and Kie is never called ─────────────────
+  calls.length = 0;
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
+  out = await runGenerateDiagram({
+    uid: "t9", rawInputs: {prompt: "A market scene", provider: "kie"},
+    recraftKey: "rk", openaiKey: "ok", kieKey: "kk",
+  });
+  ok("kie request → provider openai", out.provider === "openai");
+  const colourCall = calls.find((c) => c.provider === "openai");
+  ok("kie keeps the colour-illustration guard",
+    /colourful flat illustration/i.test(colourCall.body.prompt));
+  ok("kie does NOT use the line-art guard",
+    !/black-and-white line art/i.test(colourCall.body.prompt));
+  ok("kie does NOT use the photoreal guard",
+    !/photograph/i.test(colourCall.body.prompt));
+
+  // ── 10. Kie disabled with no OpenAI key → clear config error ──────────────
+  threw = null;
+  try {
+    await runGenerateDiagram({
+      uid: "t10", rawInputs: {prompt: "A market scene", provider: "kie"},
+      recraftKey: "rk", openaiKey: "", kieKey: "kk",
+    });
+  } catch (err) {
+    threw = err;
+  }
+  ok("kie + no OpenAI key → failed-precondition config error",
+    Boolean(threw) && threw.code === "failed-precondition" &&
+    /Image generation is not configured/.test(threw.message));
 
   console.log(`\ngenerateDiagram provider routing: ${passed} checks passed`);
 }
