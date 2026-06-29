@@ -721,6 +721,45 @@ service cloud.firestore {
       }
     }
 
+    // ── lessonPlans (Lesson Plan Studio persistent lesson memory) ─────
+    // One lightweight record per lesson a teacher creates, keyed by a
+    // deterministic id per (teacher, subtopic, lessonNumber) slot so
+    // re-generating a lesson updates one record instead of duplicating it.
+    // The full plan content + HTML stays in `aiGenerations` (linked via
+    // `generationId`); this collection is the curriculum-indexed memory the
+    // studio queries when a teacher reselects a subtopic (what already exists,
+    // what's missing, teaching progress, what to do next). Strictly owner-
+    // scoped; `teacherId` is immutable and the two status enums are validated.
+    match /lessonPlans/{planId} {
+      function validLessonPlanWrite() {
+        return incoming().teacherId is string
+          && incoming().teacherId == request.auth.uid
+          && (!('lessonNumber' in incoming()) || incoming().lessonNumber is number)
+          && (!('status' in incoming()) || incoming().status in ['draft', 'completed', 'taught', 'archived'])
+          && (!('teachingStatus' in incoming()) || incoming().teachingStatus in ['not_started', 'planned', 'taught', 'needs_revision']);
+      }
+      allow read:   if isAuthed() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && validLessonPlanWrite();
+      allow update: if isAuthed()
+                       && resource.data.teacherId == request.auth.uid
+                       && incoming().teacherId == resource.data.teacherId
+                       && validLessonPlanWrite();
+      allow delete: if isAuthed() && (resource.data.teacherId == request.auth.uid || isAdmin());
+    }
+
+    // ── lessonProgress (per grade+subject coverage rollup) ───────────
+    // One rollup per (teacher, curriculum, grade, subject) carrying coverage
+    // totals + the last-opened topic/subtopic so the studio resumes where the
+    // teacher left off. Owner-scoped; `teacherId` immutable.
+    match /lessonProgress/{progressId} {
+      allow read:   if isAuthed() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && incoming().teacherId == request.auth.uid;
+      allow update: if isAuthed()
+                       && resource.data.teacherId == request.auth.uid
+                       && incoming().teacherId == resource.data.teacherId;
+      allow delete: if isAuthed() && (resource.data.teacherId == request.auth.uid || isAdmin());
+    }
+
     // ── questionBank (Central Question Bank) ──────────────────
     // Every question a teacher creates/imports is captured here automatically
     // and reviewed in the background by the Qix Cloud Function. Each doc
