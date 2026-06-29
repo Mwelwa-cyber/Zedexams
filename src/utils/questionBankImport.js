@@ -229,14 +229,22 @@ export async function runImport({ uid, useAi = true, onProgress = () => {} } = {
 
 /* ------------------------------ re-grade --------------------------------- */
 
+// Sources produced by the admin import backfill. Past papers / mixed-grade
+// exam papers live on the platform as PUBLISHED QUIZZES (source 'quiz_studio'),
+// not just as 'exam_paper_studio' generations — so re-grade both. 'manual' admin
+// captures are left alone.
+const IMPORTED_SOURCES = new Set([
+  'quiz_studio', 'exam_paper_studio', 'past_paper',
+  'assessment_studio', 'test_paper_studio', 'homework_studio',
+])
+
 /**
- * Re-grade questions that were already imported from exam papers and re-file
- * each under the grade it actually belongs to. The first import inherited the
- * exam paper's grade (so a Grade 7 paper filed all its Grade 4–6 questions as
- * Grade 7); this reads each question's own text with the AI grader and updates
- * the bank row's grade where it differs. Scoped to the admin's own
- * exam-paper-sourced rows — quizzes keep their authored grade. Idempotent:
- * re-running only changes rows whose grade still moves.
+ * Re-grade the admin's imported questions and re-file each under the grade it
+ * actually belongs to. Imports inherited their source paper/quiz's grade (so a
+ * Grade 7 paper filed all its Grade 4–6 questions as Grade 7); this re-decides
+ * each question's grade — a unique syllabus match wins, otherwise the AI grader
+ * reads the question text — and updates the bank row's grade where it differs.
+ * Idempotent: re-running only changes rows whose grade still moves.
  *
  * @param {{ uid:string, onProgress?:(p)=>void }} opts
  * @returns {{ found, regraded, unchanged, processed }}
@@ -248,7 +256,7 @@ export async function regradeExistingQuestions({ uid, onProgress = () => {} } = 
   const snap = await getDocs(query(collection(db, 'questionBank'), where('ownerId', '==', uid)))
   const rows = snap.docs
     .map((d) => ({ id: d.id, ...(d.data() || {}) }))
-    .filter((r) => r.source === 'exam_paper_studio')
+    .filter((r) => IMPORTED_SOURCES.has(r.source))
 
   const totals = { found: rows.length, regraded: 0, unchanged: 0, processed: 0 }
   if (!rows.length) { onProgress({ ...totals, phase: 'done' }); return totals }

@@ -67,8 +67,9 @@ export default function ImportQuestionBankPanel() {
   async function onRegrade() {
     if (!currentUser?.uid) { setError('Please sign in as an admin.'); return }
     if (!window.confirm(
-      'Re-grade your imported exam-paper questions and re-file each under the grade it really belongs to?\n\n' +
-      'This reads each question with the AI (uses a little AI credit) — best for the Grade 7 papers that mix Grades 4–7.',
+      'Re-grade your imported questions and re-file each under the grade it really belongs to?\n\n' +
+      'This re-checks every imported question (quizzes and exam papers) and reads the tricky ones with the AI ' +
+      '(uses a little AI credit) — it fixes the past/exam papers that mix Grades 4–7.',
     )) return
     setRegrading(true); setError(''); setRegrade(null)
     try {
@@ -190,21 +191,22 @@ export default function ImportQuestionBankPanel() {
 
       <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
         <div>
-          <p className="font-black text-purple-900">🎯 Fix mixed grades (re-grade exam-paper questions)</p>
+          <p className="font-black text-purple-900">🎯 Fix mixed grades (re-grade imported questions)</p>
           <p className="text-purple-800 text-sm mt-1">
-            Exam papers mix grades — a Grade 7 paper pulls questions from Grades 4–7. The first import filed them all
-            under the paper’s grade. This reads each imported exam-paper question with the AI and re-files it under the
-            grade it really belongs to. Uses a little AI credit; safe to re-run.
+            Past papers and exam papers mix grades — a Grade 7 paper pulls questions from Grades 4–7 — and the import
+            filed them all under the paper’s grade. This re-checks every imported question (quizzes and exam papers):
+            a clear syllabus match wins, otherwise the AI reads the question and re-files it under the grade it really
+            belongs to. Uses a little AI credit; safe to re-run.
           </p>
         </div>
         <Button variant="primary" disabled={busy} onClick={onRegrade}>
           {regrading
             ? `Re-grading… (${regrade?.processed ?? 0}/${regrade?.found ?? '…'})`
-            : 'Re-grade exam-paper questions'}
+            : 'Re-grade imported questions'}
         </Button>
         {regrade && !regrading && (
           <p className="text-sm text-green-700 font-bold">
-            ✓ Checked {regrade.found} exam-paper question{regrade.found === 1 ? '' : 's'} — re-filed{' '}
+            ✓ Checked {regrade.found} imported question{regrade.found === 1 ? '' : 's'} — re-filed{' '}
             <b>{regrade.regraded}</b> under a corrected grade, {regrade.unchanged} were already right.
           </p>
         )}
