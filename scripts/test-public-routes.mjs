@@ -207,12 +207,12 @@ for (const loc of locs) {
 }
 
 // ── 4b. Every advertised public URL is prerendered ──────────────────
-// A sitemap URL that is NOT in the prerender list falls back to
-// dist/index.html — the neutral SPA shell, which carries no
-// <link rel="canonical"> — so Googlebot reads identical raw HTML for it and
-// the homepage and files it under "Duplicate without user-selected canonical",
-// keeping it out of the index. The homepage ("/") is the one allowed
-// exception: it *is* that shell, on purpose (see scripts/prerender.mjs).
+// A sitemap URL that is NOT prerendered falls back to dist/app.html — the
+// neutral SPA shell, which carries no <link rel="canonical"> — so Googlebot
+// reads identical raw HTML for it and the homepage and files it under
+// "Duplicate without user-selected canonical", keeping it out of the index.
+// The homepage ("/") IS prerendered, but by prerender.mjs directly (into
+// dist/index.html), not via buildRouteList — so it's skipped here.
 console.log('\nevery advertised public URL is prerendered (ships a self-canonical)')
 const prerendered = new Set(buildRouteList())
 for (const loc of locs) {
@@ -226,6 +226,35 @@ for (const loc of locs) {
     )
   })
 }
+
+// ── 4c. Hosting fallback ↔ prerender split stay in sync ─────────────
+// Prerendering "/" into dist/index.html is only safe because the SPA `**`
+// fallback serves the neutral shell from dist/app.html instead — and that file
+// exists only because prerender.mjs copies it before overwriting index.html. If
+// either side drifts, every fallback route either 404s (no app.html) or
+// re-inherits the homepage's canonical="/". Pin both.
+console.log('\nhomepage prerender ↔ Hosting fallback split is consistent')
+const hostingCfg = Array.isArray(firebaseJson.hosting) ? firebaseJson.hosting[0] : firebaseJson.hosting
+const prerenderMjs = read('scripts/prerender.mjs')
+test('Hosting ** fallback serves the neutral shell (/app.html), not the prerendered homepage', () => {
+  const fallback = (hostingCfg.rewrites || []).find((r) => r.source === '**')
+  assert(fallback, 'firebase.json must keep a `**` SPA fallback rewrite')
+  assert(
+    fallback.destination === '/app.html',
+    `the ** fallback must serve /app.html (the neutral shell) so prerendering "/" into ` +
+      `index.html cannot poison fallback routes — got "${fallback.destination}"`,
+  )
+})
+test('prerender.mjs produces dist/app.html and prerenders "/"', () => {
+  assert(
+    prerenderMjs.includes('copyFileSync') && /['"]app\.html['"]/.test(prerenderMjs),
+    'prerender.mjs must copy the neutral dist/index.html to dist/app.html before prerendering "/"',
+  )
+  assert(
+    /const routes = \[[^\]]*'\/'[^\]]*\]/.test(prerenderMjs) && /buildRouteList\(\)/.test(prerenderMjs),
+    'prerender.mjs must include "/" in its route list so the homepage gets a snapshot',
+  )
+})
 
 // Redirect SOURCES must never be advertised as canonical sitemap URLs.
 // Exception: a splat redirect INTO its own base ("/teachers/**" -> "/teachers")

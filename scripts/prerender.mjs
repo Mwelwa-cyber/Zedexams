@@ -22,13 +22,16 @@
  *    Chromium-free so Android/Capacitor builds and lint-only CI don't pull a
  *    browser. Only `deploy-hosting.yml` runs this step.
  *
- *  - We DO NOT prerender "/" (the homepage). dist/index.html doubles as the
- *    SPA fallback that Firebase Hosting serves for every route without its
- *    own file (the whole authed app, 404s, etc.). If we baked the homepage's
- *    canonical="/" into it, every fallback route would re-inherit the
- *    homepage-canonical bug we removed earlier. Leaving index.html as the
- *    neutral shell keeps the fallback safe; the homepage is already indexed
- *    and Google renders it fine.
+ *  - We DO prerender "/" (the homepage) — into dist/index.html — so crawlers,
+ *    social scrapers, and slow cold mobile loads get real content + the correct
+ *    self-canonical on the first fetch instead of a blank SPA shell (real-user
+ *    p75 FCP/LCP on "/" was several seconds). The old reason for skipping it was
+ *    that dist/index.html doubled as the SPA fallback for every route without
+ *    its own file, so baking canonical="/" into it poisoned those fallback
+ *    routes. We break that coupling here: BEFORE prerendering "/", we copy the
+ *    neutral, canonical-less shell to dist/app.html, and firebase.json's `**`
+ *    fallback now points at /app.html. So fallback routes still get a neutral
+ *    shell; only a literal request to "/" gets the homepage snapshot.
  *
  *  - Data-driven public pages (/papers, /games, /games/leaderboard, /status)
  *    ARE prerendered. They read live Firestore at runtime, so the snapshot
@@ -49,7 +52,7 @@
 
 import { preview } from 'vite'
 import puppeteer from 'puppeteer'
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, existsSync, copyFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildRouteList } from './prerenderRoutes.mjs'
@@ -107,7 +110,25 @@ async function main() {
     process.exit(1)
   }
 
-  const routes = buildRouteList()
+  // Preserve the freshly-built, canonical-less SPA shell as dist/app.html BEFORE
+  // we prerender "/" over dist/index.html below. Firebase Hosting's `**` fallback
+  // now points at /app.html (see firebase.json), so every route without its own
+  // prerendered file gets this neutral shell — never the homepage's content or
+  // its canonical="/" (which is exactly the duplicate-canonical poisoning we
+  // avoided by NOT prerendering "/" before). The homepage itself is served from
+  // dist/index.html, which "/" overwrites with a real snapshot in the loop.
+  copyFileSync(join(DIST, 'index.html'), join(DIST, 'app.html'))
+  console.log('[prerender] saved neutral SPA shell → dist/app.html (Hosting ** fallback)')
+
+  // "/" is prerendered LAST, on purpose. The Vite preview server serves
+  // dist/index.html as the live SPA fallback for every route it renders, so if we
+  // overwrote it with the homepage snapshot (which carries a baked canonical="/")
+  // up front, every subsequent route would read that canonical off the served
+  // <head> and fail its gate. Rendering "/" last keeps the neutral shell live
+  // until the very end. Anonymous "/" renders <Marketing/> with
+  // <SeoHelmet path="/">, so it satisfies the same content + canonical gates;
+  // outputPathFor('/') resolves to dist/index.html.
+  const routes = [...buildRouteList(), '/']
   console.log(`[prerender] ${routes.length} route(s):`, routes.join(', '))
 
   const server = await preview({

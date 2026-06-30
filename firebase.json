@@ -162,7 +162,7 @@
       },
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/app.html"
       }
     ]
   },
