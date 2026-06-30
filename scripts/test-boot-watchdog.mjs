@@ -66,11 +66,29 @@ test('watchdog reads the shared mount flag', () => {
   )
 })
 
-test('watchdog also treats a non-empty #root as mounted', () => {
+test('watchdog detects a real React mount via #root children, ignoring the boot skeleton', () => {
+  // The inline boot skeleton makes #root non-empty before React mounts, so the
+  // watchdog can no longer treat "any child" as mounted — it must look past the
+  // skeleton, or a genuine hang would never trip the white-screen fallback.
   assert(
-    /childElementCount/.test(indexHtml),
-    'watchdog must check #root.childElementCount as the primary mounted signal',
+    /root\.children/.test(indexHtml),
+    'watchdog must inspect #root children as a DOM-based mounted signal',
   )
+  assert(
+    indexHtml.includes('zed-boot-skeleton'),
+    'watchdog must reference the boot skeleton so it does not count it as a real mount',
+  )
+})
+
+test('an inline boot skeleton paints before the JS bundle (FCP guard)', () => {
+  // Paints the brand + spinner in the first frame so a cold mobile load is not
+  // a blank screen for several seconds. Lives inside #root so createRoot() drops
+  // it on mount.
+  assert(
+    /<div id="root">[\s\S]*id="zed-boot-skeleton"[\s\S]*<\/div>\s*<\/div>/.test(indexHtml),
+    'index.html must render an inline #zed-boot-skeleton inside #root',
+  )
+  assert(/ZedExams|Zed<span/.test(indexHtml), 'the boot skeleton should show the brand wordmark')
 })
 
 test('watchdog listens for boot errors AND a hard timeout', () => {
