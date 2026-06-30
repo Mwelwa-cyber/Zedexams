@@ -283,8 +283,14 @@ export function hasPremiumAccess(userProfile) {
 
   if (!hasAccessFlag) return false
 
+  // Fail closed: a premium access flag with no parseable expiry grants access
+  // ONLY when it's an explicit lifetime/comp grant (subscriptionLifetime ===
+  // true, set by grantPremium(uid, plan, 0)). Expiry is enforced solely at
+  // read time — no server cron flips premium=false — so without this guard any
+  // path that set a flag without a valid expiry would mint a never-expiring
+  // account. Super-admins are the only other no-expiry premium path (above).
   const expiry = toDateValue(userProfile?.subscriptionExpiry)
-  if (!expiry) return true
+  if (!expiry) return userProfile?.subscriptionLifetime === true
   return expiry > new Date()
 }
 
