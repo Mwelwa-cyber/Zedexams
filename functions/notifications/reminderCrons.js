@@ -100,64 +100,72 @@ const subscriptionExpiryReminders = onSchedule(
       const cutoff = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
       const summary = {candidates: 0, written: 0};
 
-      // Range on a single field → no composite index needed. premium filtered
-      // in memory.
-      const snap = await db
-          .collection("users")
-          .where("subscriptionExpiry", ">", admin.firestore.Timestamp.fromDate(now))
-          .where("subscriptionExpiry", "<=", admin.firestore.Timestamp.fromDate(cutoff))
-          .limit(500)
-          .get()
-          .catch((err) => {
-            console.error("[subscriptionExpiryReminders] query failed", err);
-            return null;
-          });
-      if (!snap || snap.empty) return;
+      // Range on a single field, ordered by it so we can paginate past the page
+      // limit (more than one page of users may expire in the window at scale).
+      // premium is filtered in memory.
+      let last = null;
+      const PAGE = 500;
+      for (let round = 0; round < 40; round++) {
+        let q = db
+            .collection("users")
+            .where("subscriptionExpiry", ">", admin.firestore.Timestamp.fromDate(now))
+            .where("subscriptionExpiry", "<=", admin.firestore.Timestamp.fromDate(cutoff))
+            .orderBy("subscriptionExpiry")
+            .limit(PAGE);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get().catch((err) => {
+          console.error("[subscriptionExpiryReminders] query failed", err);
+          return null;
+        });
+        if (!snap || snap.empty) break;
 
-      for (const docSnap of snap.docs) {
-        const data = docSnap.data() || {};
-        if (!(data.premium === true || data.isPremium === true)) continue;
-        const last = data.notifyExpiryReminderAt &&
-          typeof data.notifyExpiryReminderAt.toMillis === "function" ?
-          data.notifyExpiryReminderAt.toMillis() : 0;
-        if (last && now.getTime() - last < COOLDOWN_MS) continue; // cooled down
-        summary.candidates += 1;
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data() || {};
+          if (!(data.premium === true || data.isPremium === true)) continue;
+          const lastSent = data.notifyExpiryReminderAt &&
+            typeof data.notifyExpiryReminderAt.toMillis === "function" ?
+            data.notifyExpiryReminderAt.toMillis() : 0;
+          if (lastSent && now.getTime() - lastSent < COOLDOWN_MS) continue;
+          summary.candidates += 1;
 
-        const expiry = data.subscriptionExpiry &&
-          typeof data.subscriptionExpiry.toDate === "function" ?
-          data.subscriptionExpiry.toDate() : null;
-        const days = expiry ?
-          Math.max(1, Math.ceil((expiry.getTime() - now.getTime()) / 86400000)) :
-          3;
+          const expiry = data.subscriptionExpiry &&
+            typeof data.subscriptionExpiry.toDate === "function" ?
+            data.subscriptionExpiry.toDate() : null;
+          const days = expiry ?
+            Math.max(1, Math.ceil((expiry.getTime() - now.getTime()) / 86400000)) :
+            3;
 
-        try {
-          const res = await createNotification({
-            uid: docSnap.id,
-            category: "payments",
-            type: "subscription_expiry",
-            title: "Your subscription is expiring soon",
-            body: `Your plan ends in ${days} day${days === 1 ? "" : "s"}. Renew to keep full access.`,
-            priority: "high",
-            icon: "credit-card",
-            action: {label: "Renew now", url: "/subscription"},
-            dedupeKey: `expiry-${dateKey(0)}`,
-            source: "subscription-expiry-reminder",
-            userData: data,
-          });
-          if (res.written) {
-            summary.written += 1;
-            await docSnap.ref
-                .update({
-                  notifyExpiryReminderAt: admin.firestore.FieldValue.serverTimestamp(),
-                })
-                .catch(() => {});
+          try {
+            const res = await createNotification({
+              uid: docSnap.id,
+              category: "payments",
+              type: "subscription_expiry",
+              title: "Your subscription is expiring soon",
+              body: `Your plan ends in ${days} day${days === 1 ? "" : "s"}. Renew to keep full access.`,
+              priority: "high",
+              icon: "credit-card",
+              action: {label: "Renew now", url: "/subscription"},
+              dedupeKey: `expiry-${dateKey(0)}`,
+              source: "subscription-expiry-reminder",
+              userData: data,
+            });
+            if (res.written) {
+              summary.written += 1;
+              await docSnap.ref
+                  .update({
+                    notifyExpiryReminderAt: admin.firestore.FieldValue.serverTimestamp(),
+                  })
+                  .catch(() => {});
+            }
+          } catch (err) {
+            console.warn(
+                `[subscriptionExpiryReminders] ${docSnap.id} failed`,
+                (err && err.message) || err,
+            );
           }
-        } catch (err) {
-          console.warn(
-              `[subscriptionExpiryReminders] ${docSnap.id} failed`,
-              (err && err.message) || err,
-          );
         }
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < PAGE) break;
       }
       console.log(
           `[subscriptionExpiryReminders] ${summary.written}/${summary.candidates} written`,

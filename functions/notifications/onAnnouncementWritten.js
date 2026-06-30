@@ -83,6 +83,10 @@ const onAnnouncementWritten = onDocumentWritten(
       let last = null;
       let delivered = 0;
       let scanned = 0;
+      // Deliver per page with bounded concurrency so a large audience finishes
+      // well inside the function timeout (a serial await-per-user loop could
+      // exceed it, and the claim flag would then leave the tail undelivered).
+      const CONCURRENCY = 25;
       try {
         // Paginate all users by id; role-filter in memory (index-free).
         while (true) {
@@ -90,26 +94,35 @@ const onAnnouncementWritten = onDocumentWritten(
           if (last) q = q.startAfter(last);
           const snap = await q.get();
           if (snap.empty) break;
-          for (const docSnap of snap.docs) {
+          const recipients = snap.docs.filter((docSnap) => {
             scanned += 1;
             const data = docSnap.data() || {};
             const role = typeof data.role === "string" ? data.role : "learner";
-            if (!audienceMatchesRole(after.audience, role)) continue;
-            const res = await createNotification({
-              uid: docSnap.id,
-              category: "announcements",
-              type: "announcement",
-              title,
-              body,
-              priority,
-              icon: "megaphone",
-              source: `announcement:${annId}`,
-              // The notificationsFannedOut flag is the idempotency guard, so we
-              // skip the per-user dedupe query, and reuse the user doc we just
-              // read to skip a second read.
-              userData: data,
-            });
-            if (res.written) delivered += 1;
+            return audienceMatchesRole(after.audience, role);
+          });
+          for (let i = 0; i < recipients.length; i += CONCURRENCY) {
+            const chunk = recipients.slice(i, i + CONCURRENCY);
+            const results = await Promise.allSettled(
+                chunk.map((docSnap) =>
+                  createNotification({
+                    uid: docSnap.id,
+                    category: "announcements",
+                    type: "announcement",
+                    title,
+                    body,
+                    priority,
+                    icon: "megaphone",
+                    source: `announcement:${annId}`,
+                    // The notificationsFannedOut flag is the idempotency guard,
+                    // so we skip the per-user dedupe query, and reuse the user
+                    // doc we just read to skip a second read.
+                    userData: docSnap.data() || {},
+                  }),
+                ),
+            );
+            delivered += results.filter(
+                (r) => r.status === "fulfilled" && r.value && r.value.written,
+            ).length;
           }
           last = snap.docs[snap.docs.length - 1];
           if (snap.size < PAGE || scanned >= MAX_USERS) break;

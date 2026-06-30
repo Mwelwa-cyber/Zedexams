@@ -207,7 +207,7 @@ export function NotificationProvider({ children }) {
     async (id) => {
       if (!uid || !id) return
       const target = notifications.find((n) => n.id === id)
-      if (target && target.read) return
+      if (!target || target.read) return
       // Optimistic.
       setLivePage((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
       setOlderPages((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
@@ -219,8 +219,9 @@ export function NotificationProvider({ children }) {
         })
       } catch (err) {
         console.warn('[notifications] markRead failed:', err)
-        refreshUnread()
       }
+      // Reconcile against the server either way (corrects any optimistic drift).
+      refreshUnread()
     },
     [uid, notifications, refreshUnread],
   )
