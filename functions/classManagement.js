@@ -246,6 +246,26 @@ const approveLearner = onCall({
     learners: admin.firestore.FieldValue.arrayUnion(learnerUid),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // Tell the learner they're in (best-effort).
+  try {
+    const {createNotification} = require("./notifications/createNotification");
+    await createNotification({
+      uid: learnerUid,
+      category: "learning",
+      type: "class_approved",
+      title: "You've joined a class",
+      body: `${String(classData.name || "Your class").slice(0, 120)} approved you. Your assigned work will show up here.`,
+      priority: "medium",
+      icon: "academic-cap",
+      action: {label: "View dashboard", url: "/dashboard"},
+      dedupeKey: `class-approved-${classId}`,
+      source: "class-management",
+    });
+  } catch (err) {
+    console.warn("[classManagement] approve notification failed", (err && err.message) || err);
+  }
+
   return {ok: true};
 });
 
@@ -437,6 +457,31 @@ const createClassAssignment = onCall({
     learnerUids: learnerUids && learnerUids.length > 0 ? learnerUids : null,
     assignedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // Notify the targeted learners (best-effort — never block the assignment).
+  if (notifyLearners && !isScheduled) {
+    const recipients = (learnerUids && learnerUids.length > 0)
+      ? learnerUids
+      : (Array.isArray(classData.learners) ? classData.learners : []);
+    const {createNotification} = require("./notifications/createNotification");
+    const label = resourceType === "exam" ? "Open exam" : "Open quiz";
+    await Promise.all(
+        recipients.slice(0, 200).map((learnerUid) =>
+          createNotification({
+            uid: learnerUid,
+            category: "assessments",
+            type: "assignment_assigned",
+            title: "New work from your teacher",
+            body: `${String(resourceTitle).slice(0, 120)} has been assigned to you.`,
+            priority: "medium",
+            icon: "clipboard-check",
+            action: {label, url: "/dashboard"},
+            dedupeKey: `assignment-${ref.id}`,
+            source: "class-assignment",
+          }).catch(() => null),
+        ),
+    );
+  }
 
   return {
     assignmentId: ref.id,

@@ -922,6 +922,14 @@
         { "fieldPath": "grade",   "order": "ASCENDING" },
         { "fieldPath": "subject", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "feed",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dedupeKey", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

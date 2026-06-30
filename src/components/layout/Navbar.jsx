@@ -22,6 +22,7 @@ import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import CharacterAvatar from '../profile/CharacterAvatar'
+import NotificationBell from '../notifications/NotificationBell'
 import MobileBottomNav from './MobileBottomNav'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 
@@ -145,6 +146,7 @@ export default function Navbar() {
 
         {/* Right side — desktop */}
         <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+          {userProfile && <NotificationBell />}
           {/* Access badge */}
           <span className={`inline-flex items-center gap-1 font-black text-xs px-2.5 py-1 rounded-full border ${badgeClass}`}>
             <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
@@ -175,8 +177,9 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile right — avatar + hamburger */}
+        {/* Mobile right — bell + avatar + hamburger */}
         <div className="flex lg:hidden items-center gap-2">
+          {userProfile && <NotificationBell />}
           <Link
             to="/profile"
             aria-label="Open your profile"
