@@ -1,5 +1,5 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { auth } from '../firebase/config'
+import app, { auth, getAppCheckToken } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
 
 const functions = getFunctions(app, 'us-central1')
@@ -313,12 +313,14 @@ export function sendAIChatStream({
       }, AI_CHAT_STREAM_STALL_MS)
     }
     try {
+      const appCheckToken = await getAppCheckToken()
       const response = await withTimeout(
         fetch(apiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
+            ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
           },
           body: JSON.stringify(payload),
           signal: controller?.signal,
@@ -408,6 +410,7 @@ export async function sendAIChat({
   try {
     const token = await auth.currentUser?.getIdToken()
     if (!token) throw new Error('Please sign in before using Zed.')
+    const appCheckToken = await getAppCheckToken()
 
     const response = await withTimeout(
       fetch(apiUrl('/api/ai/chat'), {
@@ -415,6 +418,7 @@ export async function sendAIChat({
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
         },
         body: JSON.stringify(payload),
       }),

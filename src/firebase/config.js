@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
+import { initializeAppCheck, ReCaptchaV3Provider, getToken } from 'firebase/app-check'
 import {
   getAuth,
   setPersistence,
@@ -130,6 +130,13 @@ applyAuthPersistence()
 // attestation tokens.
 const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY
 
+// Captured App Check handles so getAppCheckToken() can mint a token for the
+// raw-fetch HTTP/SSE endpoints. Firebase callables attach an App Check token
+// automatically; a plain fetch() does not, so those endpoints need the header
+// set by hand. Null until initAppCheck() runs (or when App Check is unconfigured).
+let webAppCheck = null
+let nativeAppCheck = null
+
 async function initAppCheck() {
   if (typeof window === 'undefined') return
 
@@ -169,6 +176,7 @@ async function initAppCheck() {
       await FirebaseAppCheck.initialize({
         isTokenAutoRefreshEnabled: true,
       })
+      nativeAppCheck = FirebaseAppCheck
     } catch (err) {
       console.warn('[appCheck] native init failed:', err?.message || err)
     }
@@ -185,7 +193,7 @@ async function initAppCheck() {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
   }
   try {
-    initializeAppCheck(app, {
+    webAppCheck = initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(APPCHECK_RECAPTCHA_KEY),
       // Auto-refresh tokens behind the scenes; the SDK handles it.
       isTokenAutoRefreshEnabled: true,
@@ -194,6 +202,33 @@ async function initAppCheck() {
     // initializeAppCheck throws if called twice (HMR + StrictMode);
     // safe to swallow.
     console.warn('[appCheck] init failed (probably double-init):', err?.message || err)
+  }
+}
+
+/**
+ * Mint a current App Check token for manual attachment to the HTTP/SSE
+ * endpoints that a raw fetch() reaches (Zed chat, the teacher streams) — those
+ * don't get the automatic token a Firebase callable would. Never throws and
+ * never blocks: returns '' when App Check isn't initialised yet (e.g. the
+ * deferred web init hasn't run, or no reCAPTCHA key is configured) or token
+ * minting fails, so the caller just omits the header (the server records it as
+ * "missing", exactly as today — no regression).
+ *
+ * @returns {Promise<string>}
+ */
+export async function getAppCheckToken() {
+  try {
+    if (isNativePlatform()) {
+      if (!nativeAppCheck) return ''
+      const res = await nativeAppCheck.getToken()
+      return (res && res.token) || ''
+    }
+    if (!webAppCheck) return ''
+    const res = await getToken(webAppCheck, /* forceRefresh */ false)
+    return (res && res.token) || ''
+  } catch (err) {
+    console.warn('[appCheck] getAppCheckToken failed:', err?.message || err)
+    return ''
   }
 }
 
