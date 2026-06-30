@@ -172,7 +172,15 @@ async function reconcilePendingPayments({
 
     try {
       if (status === "successful") {
-        const r = await activate({paymentId: id, lencoStatus: status, emailSecrets});
+        // Forward Lenco's reported collected amount so activation verifies it
+        // against the charged amount (same guard as the webhook path).
+        const r = await activate({
+          paymentId: id,
+          lencoStatus: status,
+          collectedAmount: resp && resp.data ? resp.data.amount : undefined,
+          collectedCurrency: resp && resp.data ? resp.data.currency : undefined,
+          emailSecrets,
+        });
         // activate() is idempotent — only a real flip counts as a recovery.
         if (r && r.activated) {
           summary.recovered.push({
