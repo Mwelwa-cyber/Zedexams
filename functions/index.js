@@ -2068,6 +2068,10 @@ function makeStreamingEndpoint({tool, runCore}) {
         }
         const decoded = await admin.auth().verifyIdToken(token);
         uid = decoded.uid;
+        // App Check observability + opt-in enforcement gate (throws
+        // permission-denied only when APPCHECK_ENFORCE=1). Mirrors apiAiChat so
+        // the teacher streams show up in appCheckHealth alongside it.
+        await softVerifyAppCheckHttp(req, `api${tool}`);
         const {getUserRole, isStaffRole} = require("./aiService");
         const role = await getUserRole(uid);
         if (!isStaffRole(role)) {

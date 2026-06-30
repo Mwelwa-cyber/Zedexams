@@ -6,7 +6,7 @@
  */
 
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { auth } from '../firebase/config'
+import app, { auth, getAppCheckToken } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
 import { LEARNING_ENVIRONMENTS } from '../config/learningEnvironments'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../config/teacherTaxonomy'
@@ -543,6 +543,7 @@ function runStreamingGenerator({
       grade: inputs?.grade, subject: inputs?.subject, topic: inputs?.topic,
     })
 
+    const appCheckToken = await getAppCheckToken()
     let response
     try {
       response = await fetch(apiUrl(streamPath), {
@@ -550,6 +551,7 @@ function runStreamingGenerator({
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
         },
         body: JSON.stringify(inputs || {}),
         signal: abortController.signal,
