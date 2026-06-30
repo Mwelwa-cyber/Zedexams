@@ -8,7 +8,7 @@ import {
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
-import { resolveTeacherPlan } from '../../utils/teacherPlans'
+import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
   getTimeGreeting,
@@ -19,7 +19,6 @@ import {
   buildCelebrations,
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
-import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
@@ -594,6 +593,38 @@ function progressFor(resource) {
   return { pct: 25, label: 'Started' }
 }
 
+/* ── Compact plan card ────────────────────────────────────────────────────
+   Slim replacement for the old large promotional SubscriptionReminderCard
+   banner. Shows only the teacher's current subscription on the left and a
+   quick upgrade action on the right (hidden once they're on the top tier). */
+function PlanQuickCard({ plan }) {
+  const navigate = useNavigate()
+  const label = `${PLAN_LABELS[plan] || 'Free'} Plan`
+  // Free/expired teachers upgrade to Pro; Pro teachers upgrade to Max; Max has
+  // nothing higher, so the action is hidden.
+  const upgradeLabel = plan === 'pro' ? 'Upgrade to Max' : 'Upgrade to Pro'
+  const showUpgrade = plan !== 'max'
+
+  return (
+    <section className="zx-card flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+      <span className="inline-flex items-center gap-2 text-sm font-black text-slate-900">
+        <span aria-hidden="true">⭐</span>
+        {label}
+      </span>
+      {showUpgrade && (
+        <button
+          type="button"
+          onClick={() => navigate('/my-subscription')}
+          className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
+        >
+          {upgradeLabel}
+          <Icon as={ArrowRight} size="xs" />
+        </button>
+      )}
+    </section>
+  )
+}
+
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
   const { getMyAssessments } = useFirestore()
@@ -735,9 +766,6 @@ export default function TeacherDashboard() {
     <div className="teacher-dashboard-surface">
       <SeoHelmet title="Teacher dashboard" noIndex />
       <TeacherOnboardingTour />
-      {/* Subscription reminder — Free/Expired teachers get an upgrade card
-          listing their Pro toolkit; self-hides once they're on Pro/Max. */}
-      <SubscriptionReminderCard audience="teacher" />
 
       {celebration && (
         <div className="teacher-celebrate" role="status">
@@ -825,6 +853,22 @@ export default function TeacherDashboard() {
           <Icon as={SlidersHorizontal} size="sm" />
         </button>
       </form>
+
+      {/* ── Free Plan card (compact subscription indicator) ───────── */}
+      <PlanQuickCard plan={teacherPlan} />
+
+      {/* ── Your usage this month (compact, collapsed) ────────────── */}
+      <section className="teacher-usage-section">
+        <div className="teacher-section-head">
+          <SectionLabel>Your usage this month</SectionLabel>
+          {usage && usage.plan !== 'free' && (
+            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
+              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
+            </span>
+          )}
+        </div>
+        <CompactUsage />
+      </section>
 
       {/* ── Continue where you left off ───────────────────────────── */}
       <section className="teacher-continue">
@@ -932,19 +976,6 @@ export default function TeacherDashboard() {
           })()}
         </section>
       )}
-
-      {/* ── Your usage this month (compact, collapsed) ────────────── */}
-      <section className="teacher-usage-section">
-        <div className="teacher-section-head">
-          <SectionLabel>Your usage this month</SectionLabel>
-          {usage && usage.plan !== 'free' && (
-            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
-              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
-            </span>
-          )}
-        </div>
-        <CompactUsage />
-      </section>
 
       {/* ── AI insights ───────────────────────────────────────────── */}
       {!loading && insights.length > 0 && (
