@@ -96,6 +96,7 @@
     "test:sw-recovery": "node scripts/test-sw-recovery.mjs",
     "test:pwa-reload": "node scripts/test-pwa-reload-cooperative.mjs",
     "test:pwa-auto-reload": "node scripts/test-pwa-auto-reload.mjs",
+    "test:critical-work": "node scripts/test-critical-work.mjs",
     "test:scroll-to-top": "node scripts/test-scroll-to-top.mjs",
     "test:rules-text": "node scripts/test-firestore-rules-text.mjs",
     "test:pdfjs-loader": "node scripts/test-pdfjs-loader.mjs",
