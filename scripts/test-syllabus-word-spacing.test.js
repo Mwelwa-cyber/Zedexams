@@ -193,6 +193,20 @@ const LABEL_FIXES = [
   ['4.3.2Obligationsand Dutiesof Citizen s', '4.3.2 Obligations and Duties of Citizens'],
   ['4.8.1 Basicso f pSreadsheet', '4.8.1 Basics of Spreadsheet'],
   ['4.6WEATHERAND CLIMATE', '4.6 WEATHER AND CLIMATE'],
+  // #1436 follow-up: labels the first sweep still left garbled in the pickers.
+  ['0.1.11.8 Creative Expressio n', '0.1.11.8 Creative Expression'],
+  ['0.1.11.10 Copying Own Nam e', '0.1.11.10 Copying Own Name'],
+  ['2.1 SLAVERY AND SLAVE TRAD E', '2.1 SLAVERY AND SLAVE TRADE'],
+  ['4.8.1 Basic S ewing Skills', '4.8.1 Basic Sewing Skills'],
+  ['1.17 LETTERIN G', '1.17 LETTERING'],
+  ['2.8 COMPUTE R', '2.8 COMPUTER'],
+  ['4.5. ENTREPRENEURS HIP', '4.5. ENTREPRENEURSHIP'],
+  ['• Movementpattern s and Movement expl oration',
+    '• Movement patterns and Movement exploration'],
+  // Single-token OCR misspellings (dropped/altered letter).
+  ['3.5 LECTROMAGNETISM', '3.5 ELECTROMAGNETISM'],
+  ['0.2.7 VISUAL DESCRIMINATION', '0.2.7 VISUAL DISCRIMINATION'],
+  ['4.5 ...INTERNATIONAL COOPORATING PARTNERS', '4.5 ...INTERNATIONAL COOPERATING PARTNERS'],
 ]
 for (const [broken, fixed] of LABEL_FIXES) {
   check(`${JSON.stringify(broken)} -> ${JSON.stringify(fixed)}`, () => {

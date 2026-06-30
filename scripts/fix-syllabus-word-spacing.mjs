@@ -656,6 +656,27 @@ export const CORRECTIONS = {
   "Eye - foot": "Eye-foot",
   "Basicso f": "Basics of",
   "pSreadsheet": "Spreadsheet",
+  // ── #1436 follow-up: garbles still reaching the Studio pickers ──────────
+  // A second sweep of the TOPIC / SUB-TOPIC cells turned up more labels the
+  // first pass missed: letters split off a word, a fused word, plus a few
+  // single-token OCR misspellings (a dropped/added letter) that read as
+  // garbled topic names. Each verified in context against its sibling rows.
+  "Expressio n": "Expression",
+  "Nam e": "Name",
+  "TRAD E": "TRADE",
+  "S ewing": "Sewing",
+  "LETTERIN G": "LETTERING",
+  "COMPUTE R": "COMPUTER",
+  "ENTREPRENEURS HIP": "ENTREPRENEURSHIP",
+  "expl oration": "exploration",
+  "Movementpattern s": "Movement patterns",
+  "Fo r": "For",
+  "Topi c": "Topic",
+  // Dropped/altered letters (confirmed by the correctly-spelt sibling rows:
+  // "ELECTROMAGNETIC INDUCTION", "VISUAL DISCRIMINATION", "...COOPERATING...").
+  "LECTROMAGNETISM": "ELECTROMAGNETISM",
+  "DESCRIMINATION": "DISCRIMINATION",
+  "COOPORATING": "COOPERATING",
 }
 
 // Match keys longest-first so multi-token repairs (e.g. "p reser ves")
