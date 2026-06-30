@@ -1712,6 +1712,7 @@ service cloud.firestore {
         allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
         allow create: if isTeacherOrAbove()
           && incoming().teacherUid == request.auth.uid
+          && _registerOwner(classId) == request.auth.uid
           && incoming().fullName is string
           && incoming().fullName.size() >= 1 && incoming().fullName.size() <= 120;
         allow update: if isAuthed()
@@ -1723,7 +1724,9 @@ service cloud.firestore {
       match /records/{recordId} {
         // Parent-owned — see roster read above (unconstrained/empty list).
         allow read: if isAuthed() && (_registerOwner(classId) == request.auth.uid || isAdmin());
-        allow create: if isTeacherOrAbove() && incoming().teacherUid == request.auth.uid;
+        allow create: if isTeacherOrAbove()
+          && incoming().teacherUid == request.auth.uid
+          && _registerOwner(classId) == request.auth.uid;
         allow update: if isAuthed()
           && resource.data.teacherUid == request.auth.uid
           && incoming().teacherUid == resource.data.teacherUid;

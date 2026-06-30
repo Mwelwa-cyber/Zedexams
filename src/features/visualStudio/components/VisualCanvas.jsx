@@ -154,13 +154,17 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
     function onKey(e) {
       const tag = (e.target.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea') return
+      // e.key is undefined for some IME / Android soft-keyboard keydown
+      // events — guard before .toLowerCase() so this window listener can't
+      // throw (same crash class as #1438).
+      const key = (e.key || '').toLowerCase()
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault()
         commit(objects.filter((o) => o.id !== selectedId))
         setSelectedId(null)
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      } else if ((e.ctrlKey || e.metaKey) && key === 'z' && !e.shiftKey) {
         e.preventDefault(); undo()
-      } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+      } else if ((e.ctrlKey || e.metaKey) && (key === 'y' || (key === 'z' && e.shiftKey))) {
         e.preventDefault(); redo()
       } else if (e.key === 'Escape') {
         setSelectedId(null)
