@@ -42,7 +42,7 @@ import { compressImage } from '../../utils/imageCompression'
 import { getSchoolProfile } from '../../utils/schoolProfileService'
 import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/schoolProfile'
 import { collectQuizIssues } from '../../utils/quizValidation.js'
-import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
+import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../utils/importedQuizAssets.js'
 import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentAutosave.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -887,7 +887,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // only when focus is outside an editable element do we drive paper undo.
   useEffect(() => {
     function onKeyDown(e) {
-      const key = e.key.toLowerCase()
+      // e.key can be undefined for some IME/soft-keyboard (Android) keydown
+      // events — guard so the handler never throws "Cannot read properties of
+      // undefined (reading 'toLowerCase')" and crash the studio.
+      const key = (e.key || '').toLowerCase()
       if (key !== 'z' && key !== 'y') return
       if (!(e.ctrlKey || e.metaKey)) return
       const el = e.target
@@ -1753,8 +1756,8 @@ export default function AssessmentStudio({ variant = 'test' }) {
       }
     })
     const uploadedById = await uploadImportedAssets(Array.from(assetIds), 'question')
-    if (!uploadedById.size) return questionsToSave
-    return questionsToSave.map(q => {
+    if (!uploadedById.size) return { questions: questionsToSave, uploadedById }
+    const questions = questionsToSave.map(q => {
       const next = { ...q }
       const stemUrl = uploadedById.get(q.imageAssetId)
       if (stemUrl) {
@@ -1782,6 +1785,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
       }
       return next
     })
+    // Surface the asset→URL map so the caller can write the same Storage URLs
+    // back into the live `sections` state before the transient blobs are
+    // revoked (otherwise on-screen imported figures break after save).
+    return { questions, uploadedById }
   }
 
   // Same shape as uploadImportedQuestionImages, but for the parallel
@@ -1790,12 +1797,13 @@ export default function AssessmentStudio({ variant = 'test' }) {
   async function uploadImportedPassageImages(passagesToSave) {
     const assetIds = Array.from(new Set(passagesToSave.map(p => p.imageAssetId).filter(Boolean)))
     const uploadedById = await uploadImportedAssets(assetIds, 'passage')
-    if (!uploadedById.size) return passagesToSave
-    return passagesToSave.map(p => {
+    if (!uploadedById.size) return { passages: passagesToSave, uploadedById }
+    const passages = passagesToSave.map(p => {
       const uploadedUrl = uploadedById.get(p.imageAssetId)
       if (!uploadedUrl) return p
       return { ...p, imageUrl: uploadedUrl, imageAssetId: '' }
     })
+    return { passages, uploadedById }
   }
 
   // Persist the current paper to the teacher's durable library (create or
@@ -1805,8 +1813,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // createdIdRef so repeated saves update one doc instead of duplicating.
   async function persistAssessment() {
     const serialized = serializeQuizSections(sections, parts)
-    const questionsForSave = await uploadImportedQuestionImages(serialized.questions)
-    const passagesForSave = await uploadImportedPassageImages(serialized.passages)
+    const { questions: questionsForSave, uploadedById: questionUploads } =
+      await uploadImportedQuestionImages(serialized.questions)
+    const { passages: passagesForSave, uploadedById: passageUploads } =
+      await uploadImportedPassageImages(serialized.passages)
     // Defensive: catch any blob: URL that slipped through the upload pass
     // before it can land in Firestore and break for every learner.
     assertNoBlobImageUrls(questionsForSave, passagesForSave)
@@ -1890,6 +1900,16 @@ export default function AssessmentStudio({ variant = 'test' }) {
       // new-paper draft so it doesn't resurrect on the next visit.
       clearAssessmentDraft(currentUser.uid)
       clearAssessmentDraftRemote(currentUser.uid)
+    }
+    // Point the LIVE editor at the persistent Storage URLs before the transient
+    // import blobs are revoked below. Without this, every on-screen imported
+    // figure (e.g. the review screen's crop modal) would break the instant the
+    // autosave clears importedAssets, since `sections` still held the dead
+    // blob: URLs. Reconcile-by-assetId returns the same ref when nothing
+    // matched, so a no-figure save never triggers a spurious re-render.
+    const uploadedById = new Map([...questionUploads, ...passageUploads])
+    if (uploadedById.size) {
+      setSections(prev => applyUploadedImageUrls(prev, uploadedById))
     }
     setImportedAssets({})
     // The durable library copy now exists / is updated — reflect that.

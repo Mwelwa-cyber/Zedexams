@@ -1,6 +1,14 @@
 import { useState } from 'react'
+import { Settings, AlignLeft, FileText, Layers } from '../../../ui/icons'
 import { FormatCard } from '../cards/FormatCard'
 import { FormatPreviewModal } from '../modals/FormatPreviewModal'
+
+// Decorative icon per detail option (keyed by value).
+const DETAIL_ICONS = {
+  simplified: AlignLeft,
+  standard: FileText,
+  detailed: Layers,
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -168,7 +176,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
       >
         <span className="flex items-center gap-2 text-[13px] font-semibold text-[#3d3529]">
           {/* Settings icon — no status dot for this section */}
-          <span aria-hidden="true" className="text-[#a39d8e]">⚙</span>
+          <Settings size={15} className="text-[#a99e8b]" aria-hidden="true" />
           Format &amp; Options
         </span>
 
@@ -194,7 +202,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
 
       {/* ── Collapsible body ── */}
       {open && (
-        <div className="px-4 pb-4 space-y-5">
+        <div className="lps-section-enter px-4 pb-4 space-y-5">
 
           {/* 1. Lesson Plan Detail */}
           <div>
@@ -202,6 +210,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
             <div className="space-y-2">
               {DETAIL_OPTIONS.map((opt) => {
                 const selected = formatOptions.detail === opt.value
+                const DetailIcon = DETAIL_ICONS[opt.value] ?? FileText
                 return (
                   <button
                     key={opt.value}
@@ -209,22 +218,33 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                     onClick={() => onUpdateFormat('detail', opt.value)}
                     aria-pressed={selected}
                     className={[
-                      'w-full rounded-lg border px-3 py-2 text-left transition-colors',
+                      'lps-lift flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all',
                       selected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-[#d9cfbe] bg-white hover:bg-[#f9f5ef]',
+                        ? 'border-blue-500 bg-blue-50 lps-card-glow'
+                        : 'border-[#e0d7c8] bg-white hover:border-[#cfc3ae] hover:bg-[#f9f5ef]',
                     ].join(' ')}
                   >
                     <span
                       className={[
-                        'block text-[12px] font-semibold',
-                        selected ? 'text-blue-700' : 'text-[#3d3529]',
+                        'grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg',
+                        selected ? 'bg-blue-100 text-blue-600' : 'bg-[#f5efe1] text-[#a99e8b]',
                       ].join(' ')}
+                      aria-hidden="true"
                     >
-                      {opt.label}
+                      <DetailIcon size={15} />
                     </span>
-                    <span className="block text-[11px] text-[#7a6d5d] mt-0.5">
-                      {opt.description}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={[
+                          'block text-[12px] font-semibold',
+                          selected ? 'text-blue-700' : 'text-[#3d3529]',
+                        ].join(' ')}
+                      >
+                        {opt.label}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-[#7a6d5d]">
+                        {opt.description}
+                      </span>
                     </span>
                   </button>
                 )
@@ -245,9 +265,9 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                     onClick={() => onUpdateFormat('writingStyle', opt.value)}
                     aria-pressed={selected}
                     className={[
-                      'flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors',
+                      'flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all',
                       selected
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        ? 'border-blue-500 lps-brand-gradient text-white shadow-sm'
                         : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
                     ].join(' ')}
                   >
@@ -315,7 +335,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
               type="button"
               onClick={() => setAdvancedOpen((v) => !v)}
               aria-expanded={advancedOpen}
-              className="flex w-full items-center justify-between rounded-lg border border-[#d9cfbe] bg-white px-3 py-2 text-[11px] font-semibold text-[#3d3529] hover:bg-[#f9f5ef] transition-colors"
+              className="flex w-full items-center justify-between rounded-xl border border-[#e0d7c8] bg-white px-3 py-2.5 text-[11px] font-semibold text-[#3d3529] hover:border-[#cfc3ae] hover:bg-[#f9f5ef] transition-colors"
             >
               <span>Advanced Options</span>
               <svg

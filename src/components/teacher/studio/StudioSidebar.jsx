@@ -1,7 +1,10 @@
+import { Sparkles }                  from '../../ui/icons'
 import { CurriculumPicker }         from './sections/CurriculumPicker.jsx'
 import { LessonDetailsForm }         from './sections/LessonDetailsForm.jsx'
 import { TopicSubtopicForm }         from './sections/TopicSubtopicForm.jsx'
 import { CurriculumSummaryCard }     from './sections/CurriculumSummaryCard.jsx'
+import { SubtopicLessonsPanel }      from './sections/SubtopicLessonsPanel.jsx'
+import { CoveragePanel }             from './sections/CoveragePanel.jsx'
 import { SpecificOutcomeForm }       from './sections/SpecificOutcomeForm.jsx'
 import { LearningEnvironmentForm }   from './sections/LearningEnvironmentForm.jsx'
 import { LessonProgressionForm }     from './sections/LessonProgressionForm.jsx'
@@ -22,7 +25,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, generateLabel = 'Generate Lesson Plan', planContext = null, onDismissPlanContext, coverageState = {}, lessonMemory = {} }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -44,8 +47,53 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
 
   return (
     <div
-      className="w-full md:w-[380px] md:min-w-[320px] md:max-w-[420px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
+      className="w-full md:w-[400px] md:min-w-[340px] md:max-w-[440px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
     >
+      {/* ── Compact studio header ── */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-2xl text-white lps-brand-gradient lps-soft-shadow"
+            aria-hidden="true"
+          >
+            <Sparkles size={18} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-bold leading-tight text-[#2d2519]">Lesson Plan Studio</h1>
+            <p className="text-[11.5px] leading-tight text-[#8a7d6b]">
+              Create smart lesson plans in minutes.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── "This week's lesson" auto-fill banner ── */}
+      {planContext && (planContext.topic || planContext.subjectLabel) && (
+        <div className="mx-4 mb-2 flex items-start gap-2 rounded-xl border border-indigo-100 bg-gradient-to-br from-blue-50 to-indigo-50/60 px-3 py-2 lps-soft-shadow lps-section-enter">
+          <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11.5px] font-semibold text-[#3d3529]">This week&rsquo;s lesson — filled in for you</p>
+            <p className="truncate text-[11px] text-[#6b6452]">
+              {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
+              {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
+            </p>
+          </div>
+          {typeof onDismissPlanContext === 'function' && (
+            <button
+              type="button"
+              onClick={onDismissPlanContext}
+              aria-label="Dismiss this week's lesson suggestion"
+              className="-mr-1 -mt-0.5 shrink-0 rounded-md p-1 text-[#a39d8e] hover:bg-white/60 hover:text-[#6b6452]"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Sections ── */}
       <div className="flex-1">
 
@@ -79,6 +127,24 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           subtopicRow={subtopicRow}
           curriculumMode={curriculumMode}
           selectedOutcomes={selectedOutcomes}
+        />
+
+        {/* 4a. Saved Lessons — persistent memory of lessons already created for
+            the selected subtopic: progress, teaching status, recommendations,
+            and per-lesson Continue / Edit / Create actions. Hidden until a
+            subtopic is chosen. */}
+        <SubtopicLessonsPanel {...lessonMemory} />
+
+        {/* 4b. Curriculum Coverage — how much of the syllabus is already planned */}
+        <CoveragePanel
+          grade={lessonDetails.grade}
+          subject={lessonDetails.subject}
+          loading={coverageState.loading}
+          coverage={coverageState.coverage}
+          onSelectGap={(topic, subtopic) => {
+            setTopicField('topic', topic)
+            setTopicField('subtopic', subtopic)
+          }}
         />
 
         {/* 5. Specific Outcome Form — previous curriculum only */}
@@ -141,19 +207,29 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
       </div>
 
       {/* ── Generate Button — sticky at bottom ── */}
-      <div className="sticky bottom-0 bg-[#faf7f2] border-t border-[#e5ddd0] p-4">
+      <div className="sticky bottom-0 z-20 border-t border-[#e5ddd0] bg-[#faf7f2]/95 p-4 backdrop-blur">
         <button
           type="button"
           onClick={onGenerate}
           disabled={!isValid || isGenerating}
           className={[
-            'w-full rounded-xl py-3 text-[14px] font-semibold transition-colors',
+            'lps-lift w-full rounded-2xl py-3.5 text-[14px] font-semibold text-white transition-all',
             !isValid || isGenerating
-              ? 'bg-blue-300 text-white cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+              ? 'cursor-not-allowed bg-[#b9c2e8]'
+              : 'lps-brand-gradient lps-btn-ready hover:brightness-105 active:brightness-95',
           ].join(' ')}
         >
-          {isGenerating ? 'Generating…' : 'Generate Lesson Plan'}
+          {isGenerating ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Generating…
+            </span>
+          ) : (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Sparkles size={16} aria-hidden="true" />
+              {generateLabel}
+            </span>
+          )}
         </button>
       </div>
     </div>

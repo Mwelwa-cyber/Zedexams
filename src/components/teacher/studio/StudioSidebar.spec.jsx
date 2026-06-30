@@ -30,6 +30,10 @@ vi.mock('./sections/CurriculumSummaryCard.jsx', () => ({
   CurriculumSummaryCard: () => <div data-testid="curriculum-summary-card" />,
 }))
 
+vi.mock('./sections/CoveragePanel.jsx', () => ({
+  CoveragePanel: () => <div data-testid="coverage-panel" />,
+}))
+
 vi.mock('./sections/SpecificOutcomeForm.jsx', () => ({
   SpecificOutcomeForm: () => <div data-testid="specific-outcome-form" />,
 }))

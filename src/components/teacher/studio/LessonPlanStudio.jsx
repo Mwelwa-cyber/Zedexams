@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import './lessonStudio.css'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
@@ -15,6 +16,9 @@ import { normalizePlanShape } from './utils/planShape'
 import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { useAILessonCount } from './hooks/useAILessonCount'
+import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
+import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
+import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
@@ -23,9 +27,39 @@ import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { paywall } from '../../../utils/paywall'
+import { beginCriticalWork } from '../../../utils/criticalWork'
+import { useLessonMemory } from './hooks/useLessonMemory'
+import {
+  saveLessonPlanMemory,
+  setLessonTeachingStatus,
+  attachGenerationToMemory,
+  touchLessonProgress,
+} from '../../../utils/lessonMemoryService'
+import {
+  buildSubtopicKey,
+  buildGradeSubjectKey,
+  curriculumTypeLabel,
+  lessonsForSubtopic,
+  resolveExpectedCount,
+  generateButtonState,
+  findLessonByNumber,
+  subtopicProgress,
+  lessonPlanDocId,
+  extractCode,
+  stripCode,
+} from './utils/lessonMemory'
+import { DuplicateLessonModal } from './modals/DuplicateLessonModal'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
+
+// Teaching Kit tools surfaced once a plan exists. `id` drives openKitTool().
+const KIT_TOOLS = [
+  { id: 'worksheet', label: 'Worksheet',  icon: '📝' },
+  { id: 'homework',  label: 'Homework',   icon: '🏡' },
+  { id: 'notes',     label: 'Notes',      icon: '📚' },
+  { id: 'test',      label: 'Test Paper', icon: '📄' },
+]
 
 // Map a studioGenerateLessonPlan quota rejection to the matching upgrade
 // paywall. The server's usage meter (functions/teacherTools/usageMeter.js)
@@ -180,6 +214,18 @@ export default function LessonPlanStudio() {
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState(null)
   const [savedSignature, setSavedSignature] = useState(null)
+  // The aiGenerations doc id of the last-saved plan — used as `lessonPlanId` so
+  // the Teaching Kit can ground companion tools on this exact plan.
+  const [savedPlanId, setSavedPlanId] = useState(null)
+  // Teaching Kit busy flag (Notes needs the plan saved first, which is async).
+  const [kitBusy, setKitBusy] = useState(false)
+  // "This week's lesson" auto-fill banner dismissal (session-only).
+  const [planContextDismissed, setPlanContextDismissed] = useState(false)
+
+  // Duplicate-lesson guard (requirement #6). Holds { lessonNumber,
+  // nextLessonNumber } when the teacher is about to (re)create a lesson that
+  // already exists in memory; null when the dialog is closed.
+  const [dupModal, setDupModal] = useState(null)
 
   // Illustration (AI diagram) state. `diagrams` accumulates the generated
   // figures attached to the current plan; illustrationStatus drives the
@@ -201,9 +247,111 @@ export default function LessonPlanStudio() {
 
   // Series progress — live Firestore subscription via useLessonSeries.
   const uid = currentUser?.uid ?? null
+
+  // ── "This week's lesson" auto-fill ──────────────────────────────────────────
+  // Read the teacher's latest Weekly Forecast and, once, prefill the studio's
+  // EMPTY fields with this week's grade / subject / topic / subtopic / date.
+  // Mirrors the prefilledIdentityRef pattern: fill only blanks, never clobber
+  // anything the teacher has typed, and no-op cleanly when there's no forecast.
+  const { suggestion: planContext } = useTeacherPlanContext(uid)
+  const appliedPlanContextRef = useRef(false)
+  useEffect(() => {
+    if (!planContext || appliedPlanContextRef.current) return
+    const s = studioStateRef.current
+    // Forecasts are CBC; don't touch a teacher who has chosen Previous.
+    if (s.curriculumMode === 'previous') return
+    appliedPlanContextRef.current = true
+    if (!s.curriculumMode) s.setCurriculumMode('cbc')
+    s.setLessonDetails((prev) => ({
+      ...prev,
+      grade: prev.grade || planContext.grade || prev.grade,
+      subject: prev.subject || planContext.subject || prev.subject,
+      date: prev.date || planContext.date || prev.date,
+    }))
+    if (planContext.topic && !s.topicData.topic) {
+      // setTopicField('topic') resets subtopic; set topic first, then subtopic.
+      s.setTopicField('topic', planContext.topic)
+      if (planContext.subtopic) s.setTopicField('subtopic', planContext.subtopic)
+    }
+  }, [planContext])
+
+  // ── Persistent lesson memory ────────────────────────────────────────────────
+  // Live subscription to every lesson plan the teacher has saved. This is the
+  // single source of truth for BOTH the per-subtopic Saved Lessons panel and
+  // the Curriculum Coverage panel below — reselecting a subtopic instantly
+  // reflects what already exists, surviving reloads and sign-outs.
+  const memory = useLessonMemory(uid)
+
+  // ── Curriculum coverage / pacing ────────────────────────────────────────────
+  // For the selected grade+subject, how much of the syllabus has the teacher
+  // already planned, and what's left? Computed from the SAME lesson memory the
+  // Saved Lessons panel uses (matched by subtopic key), so the two never
+  // disagree — a freshly generated lesson bumps coverage immediately.
+  const coverageState = useCoverageAnalysis(
+    uid,
+    studioState.lessonDetails.grade,
+    studioState.lessonDetails.subject,
+    studioState.curriculumMode,
+    memory.plans,
+    studioState.topicData.topic,
+  )
+
   const seriesId = studioState.lessonSeries?.seriesId ?? null
   const { completedCount, completedLessons, seriesLoading, seriesError } = useLessonSeries(uid, seriesId)
   const seriesState = { completedCount, completedLessons, seriesLoading, seriesError }
+
+  // Per-subtopic derived memory (used by the Saved Lessons panel + adaptive
+  // Generate button). All the maths lives in pure helpers (utils/lessonMemory).
+  const curriculumType = curriculumTypeLabel(studioState.curriculumMode)
+  const memGrade = studioState.lessonDetails.grade
+  const memSubject = studioState.lessonDetails.subject
+  const memTopic = studioState.topicData.topic
+  const memSubtopic = studioState.topicData.subtopic
+  const subtopicKey = memGrade && memSubject && memTopic && memSubtopic
+    ? buildSubtopicKey({ curriculumType, grade: memGrade, subject: memSubject, topic: memTopic, subtopic: memSubtopic })
+    : null
+  const subtopicLessons = useMemo(
+    () => (subtopicKey ? lessonsForSubtopic(memory.plans, subtopicKey) : []),
+    [memory.plans, subtopicKey],
+  )
+  const expectedCount = resolveExpectedCount({
+    breakdownLength: studioState.lessonSeries?.planningMode === 'series'
+      ? (studioState.lessonBreakdown?.length || 0)
+      : 0,
+    aiRecommended: aiState?.recommendation?.count,
+    created: subtopicLessons.length,
+  })
+  const genButton = generateButtonState({ lessons: subtopicLessons, expected: expectedCount })
+  const nextRecommendedSubtopic = coverageState?.coverage?.nextSuggestion?.subtopic || null
+
+  // Persist a grade+subject progress rollup (lessonProgress/{id}) whenever the
+  // teacher opens a subtopic, so "continue where you left off" survives a
+  // reload. Fail-soft inside the service. Throttled by the dependency list.
+  useEffect(() => {
+    if (!uid || !memGrade || !memSubject) return
+    const gsKey = buildGradeSubjectKey({ curriculumType, grade: memGrade, subject: memSubject })
+    const completedLessonsCount = memory.plans.filter(
+      (p) => p.gradeSubjectKey === gsKey && (p.teachingStatus === 'taught' || p.status === 'taught'),
+    ).length
+    touchLessonProgress({
+      uid,
+      schoolId: studioState.lessonDetails.school || '',
+      curriculumType,
+      grade: memGrade,
+      subject: memSubject,
+      totals: coverageState?.coverage
+        ? {
+            totalSubtopics: coverageState.coverage.totalSubtopics,
+            plannedSubtopics: coverageState.coverage.coveredCount,
+            completedLessons: completedLessonsCount,
+          }
+        : { completedLessons: completedLessonsCount },
+      lastOpenedTopic: memTopic || null,
+      lastOpenedSubtopic: memSubtopic || null,
+      nextRecommendedSubtopic,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, curriculumType, memGrade, memSubject, memTopic, memSubtopic, coverageState?.coverage?.coveredCount, nextRecommendedSubtopic])
 
   // Quota pre-flight (payment gate). Every other studio routes through this so a
   // capped teacher sees the upgrade paywall instead of watching a generation
@@ -220,8 +368,15 @@ export default function LessonPlanStudio() {
 
   // ── Generate handler ──────────────────────────────────────────────────────
 
-  const handleGenerate = useCallback(async (lessonIndex = 0) => {
+  const handleGenerate = useCallback(async (lessonIndex = 0, opts = {}) => {
     const current = studioStateRef.current
+    // The sticky Generate button wires onClick directly, so the first arg can
+    // arrive as a DOM event rather than a numeric index — coerce defensively.
+    const idx = typeof lessonIndex === 'number' ? lessonIndex : 0
+    // Explicit lesson-number override (from the memory panel's "Create Lesson N"
+    // / adaptive Generate button / duplicate dialog). Takes precedence over the
+    // series-breakdown / single-lesson number below.
+    const lessonNumberOverride = Number(opts.lessonNumber) || null
 
     // Pre-flight quota gate: if the teacher is already out of lesson-plan quota
     // (monthly or daily, with no purchased top-up credit), open the matching
@@ -236,6 +391,7 @@ export default function LessonPlanStudio() {
     setSaveStatus('idle')
     setSaveError(null)
     setSavedSignature(null)
+    setSavedPlanId(null)
 
     const {
       lessonDetails,
@@ -260,10 +416,10 @@ export default function LessonPlanStudio() {
     }
     const lessonItem =
       planningMode === 'series' && Array.isArray(lessonBreakdown) && lessonBreakdown.length > 0
-        ? lessonBreakdown[lessonIndex] ?? null
+        ? lessonBreakdown[idx] ?? null
         : null
 
-    const lessonNumber = lessonItem?.lessonNumber ?? lessonDetails.lessonNumber ?? 1
+    const lessonNumber = lessonNumberOverride ?? lessonItem?.lessonNumber ?? lessonDetails.lessonNumber ?? 1
     const totalLessons = planningMode === 'series' ? (lessonBreakdown?.length ?? 1) : 1
 
     // Build the user prompt from React state.
@@ -361,6 +517,11 @@ export default function LessonPlanStudio() {
       ? STUDIO_SYSTEM_PROMPT_PREVIOUS
       : STUDIO_SYSTEM_PROMPT_CBC
 
+    // Mark the generation as critical work so a service-worker update that
+    // lands mid-stream (registerType 'autoUpdate') defers its reload instead of
+    // wiping the in-progress plan, and a stray unload is guarded. Released in
+    // the finally below — exactly once — whichever way the handler exits.
+    const releaseCriticalWork = beginCriticalWork()
     try {
       const result = await generateCallable({
         systemPrompt,
@@ -421,6 +582,53 @@ export default function LessonPlanStudio() {
       setIllustrationError(null)
       setIllustrationStatus('idle')
 
+      // Auto-save the freshly generated plan straight to the teacher's library
+      // so it appears under Library → Lesson Plans without a manual click (and
+      // so the Template Bank trigger, which only fires on saved `lesson_plan`
+      // docs, can pick it up). We save the LOCAL planJson/meta here rather than
+      // calling persistPlanToLibrary() — that closure reads `lastPlanJson` from
+      // state, which the setLastPlanJson above hasn't committed yet. The canvas
+      // then shows a "Saved · View" indicator (saveStatus + onViewLibrary), so
+      // the teacher knows it's in the library and can open it. Fail-soft: a save
+      // miss flips the Save button back on for a manual retry but never hides
+      // the plan that's already on screen. (A background auto-illustration, if
+      // any, lands after this and re-enables Save so the teacher can re-save the
+      // illustrated copy.)
+      if (uid) {
+        setSaveStatus('saving')
+        try {
+          const savedId = await saveLessonPlanGeneration({
+            uid,
+            planJson,
+            html,
+            meta,
+            studioFormat: meta.format || 'modern',
+            inputs: {
+              grade: lessonDetails.grade || null,
+              subject: lessonDetails.subject || null,
+              topic: topicData.topic || null,
+              subtopic: topicData.subtopic || null,
+            },
+            classification: {
+              libraryType: LIBRARY_TYPES.LESSON_PLANS,
+              grade: lessonDetails.grade,
+              subject: lessonDetails.subject,
+            },
+          })
+          setSavedPlanId(savedId)
+          setSavedSignature(JSON.stringify({ plan: planJson, diagrams: [] }))
+          setSaveStatus('saved')
+        } catch (saveErr) {
+          console.warn('[zedexams] lesson-plan auto-save failed', saveErr)
+          setSaveError(
+            saveErr instanceof Error ?
+              `Plan generated, but auto-saving to your library failed: ${saveErr.message}` :
+              'Plan generated, but auto-saving to your library failed. Use “Save to library” to retry.',
+          )
+          setSaveStatus('error')
+        }
+      }
+
       // Auto-illustration: when the teacher chose "Automatic" (or the advanced
       // Auto-add toggle), generate one relevant illustration in the BACKGROUND
       // and inject it once ready — the plan is already on screen, so the image
@@ -468,6 +676,37 @@ export default function LessonPlanStudio() {
         totalLessons,
       })
 
+      // ── Persistent lesson memory ────────────────────────────────────────
+      // Record this lesson against its curriculum coordinates so the studio
+      // remembers it after the teacher leaves and returns. Keyed by
+      // curriculum+grade+subject+topic+subtopic+lessonNumber (deterministic doc
+      // id), so re-generating the same lesson updates one record instead of
+      // piling up duplicates. Fail-soft: the plan is already rendered + 'done',
+      // so a memory-write miss must never throw out of this handler.
+      saveLessonPlanMemory({
+        uid,
+        schoolId: lessonDetails.school || '',
+        curriculumType: curriculumTypeLabel(curriculumMode),
+        grade: lessonDetails.grade || '',
+        // Raw subject key (not the cleaned display name) so the memory key
+        // matches the one the sidebar panel builds from studioState.
+        subject: lessonDetails.subject || '',
+        topic: topicData.topic || '',
+        subtopic: topicData.subtopic || '',
+        topicName: stripCode(topicData.topic || ''),
+        topicCode: extractCode(topicData.topic || ''),
+        subtopicName: stripCode(topicData.subtopic || ''),
+        subtopicCode: extractCode(topicData.subtopic || ''),
+        competence: curriculumMode === 'previous'
+          ? (selectedOutcomes || []).join(' | ')
+          : (topicData.subtopicRow?.specificCompetence || ''),
+        lessonNumber,
+        title: planJson?.lessonTitle || planJson?.title || topicData.subtopic || topicData.topic || '',
+        focus: lessonFocus || '',
+        status: 'draft',
+        teachingStatus: 'planned',
+      }).catch(() => {})
+
       // Persist series progress to Firestore when in series mode.
       // Schema: lessonSeries/{uid}/{seriesId}/{lessonNumber}
       // Fail-soft: the plan is already rendered and marked 'done' above, so a
@@ -499,6 +738,8 @@ export default function LessonPlanStudio() {
       const msg = err instanceof Error ? err.message : String(err)
       setGenerationError(msg)
       current.setGenerationStatus('error')
+    } finally {
+      releaseCriticalWork()
     }
   }, [uid]) // uid is used inside the try block for Firestore writes
 
@@ -565,41 +806,112 @@ export default function LessonPlanStudio() {
   // Save the current (possibly edited) plan as a snapshot in the teacher
   // library. Each save creates a fresh library entry — see
   // saveLessonPlanGeneration for why there is no in-place update path.
-  const handleSaveToLibrary = useCallback(async () => {
-    const uid = currentUser?.uid
-    if (!uid || !lastPlanJson) return
+  // Core persist: write the current (possibly edited) plan to the library and
+  // return its aiGenerations doc id. Shared by the Save button and the Teaching
+  // Kit's "ensure saved" step. Does no UI-state bookkeeping beyond stamping the
+  // saved id + signature so callers can layer their own status on top.
+  const persistPlanToLibrary = useCallback(async () => {
+    const ownerUid = currentUser?.uid
+    if (!ownerUid || !lastPlanJson) return null
     const s = studioStateRef.current
     const mode = s.curriculumMode
+    const planJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
+    const html = renderPlanHtml(planJson, lastMeta ?? {}, mode)
+    const id = await saveLessonPlanGeneration({
+      uid: ownerUid,
+      planJson,
+      html,
+      meta: lastMeta ?? {},
+      studioFormat: lastMeta?.format || 'modern',
+      inputs: {
+        grade: s.lessonDetails.grade || null,
+        subject: s.lessonDetails.subject || null,
+        topic: s.topicData.topic || null,
+        subtopic: s.topicData.subtopic || null,
+      },
+      classification: {
+        libraryType: LIBRARY_TYPES.LESSON_PLANS,
+        grade: s.lessonDetails.grade,
+        subject: s.lessonDetails.subject,
+      },
+    })
+    setSavedPlanId(id)
+    setSavedSignature(JSON.stringify({ plan: lastPlanJson, diagrams }))
+
+    // Link this saved library copy to the lesson's persistent memory record so
+    // the Saved Lessons panel's "Edit" button can reopen the exact plan, and
+    // mark the lesson slot completed. Fail-soft — never blocks the save.
+    try {
+      const ct = curriculumTypeLabel(s.curriculumMode)
+      const stKey = buildSubtopicKey({
+        curriculumType: ct,
+        grade: s.lessonDetails.grade || '',
+        subject: s.lessonDetails.subject || '',
+        topic: s.topicData.topic || '',
+        subtopic: s.topicData.subtopic || '',
+      })
+      const ln = Number(lastMeta?.lessonNumber) || 1
+      const memId = lessonPlanDocId({ uid: ownerUid, subtopicKey: stKey, lessonNumber: ln })
+      attachGenerationToMemory(memId, id)
+    } catch {
+      /* fail-soft: the library save already succeeded */
+    }
+    // Reflect the persisted state in the canvas Save control — whether the save
+    // came from the Save button or the Teaching Kit's silent "ensure saved".
+    setSaveStatus('saved')
+    return id
+  }, [currentUser, lastPlanJson, lastMeta, diagrams])
+
+  const handleSaveToLibrary = useCallback(async () => {
+    if (!currentUser?.uid || !lastPlanJson) return
     setSaveStatus('saving')
     setSaveError(null)
     try {
-      const planJson = diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson
-      const html = renderPlanHtml(planJson, lastMeta ?? {}, mode)
-      await saveLessonPlanGeneration({
-        uid,
-        planJson,
-        html,
-        meta: lastMeta ?? {},
-        studioFormat: lastMeta?.format || 'modern',
-        inputs: {
-          grade: s.lessonDetails.grade || null,
-          subject: s.lessonDetails.subject || null,
-          topic: s.topicData.topic || null,
-          subtopic: s.topicData.subtopic || null,
-        },
-        classification: {
-          libraryType: LIBRARY_TYPES.LESSON_PLANS,
-          grade: s.lessonDetails.grade,
-          subject: s.lessonDetails.subject,
-        },
-      })
-      setSavedSignature(JSON.stringify({ plan: lastPlanJson, diagrams }))
-      setSaveStatus('saved')
+      await persistPlanToLibrary()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err))
       setSaveStatus('error')
     }
-  }, [currentUser, lastPlanJson, lastMeta, diagrams])
+  }, [currentUser, lastPlanJson, persistPlanToLibrary])
+
+  // Ensure the current plan is in the library and return its id. Reuses the
+  // already-saved id when the plan hasn't changed since the last save, so the
+  // Teaching Kit doesn't create a duplicate on every click.
+  const ensurePlanSaved = useCallback(async () => {
+    if (savedPlanId && planSignature && planSignature === savedSignature) return savedPlanId
+    return persistPlanToLibrary()
+  }, [savedPlanId, planSignature, savedSignature, persistPlanToLibrary])
+
+  // ── Teaching Kit ───────────────────────────────────────────────────────────
+  // Turn the finished plan into aligned companion materials in one click. Notes
+  // grounds on the saved plan via `lessonPlanId` (true full-plan grounding, see
+  // functions/teacherTools/generateNotes.js); worksheet / homework / test paper
+  // receive the plan's CBC anchors through the generators' existing
+  // `instructions` field so their output stays on the same lesson + competency.
+  const openKitTool = useCallback(async (tool) => {
+    if (!kit) return
+    const alignInstructions = buildAlignmentInstructions(lastPlanJson)
+    const withAlign = alignInstructions ? { ...kit, instructions: alignInstructions } : kit
+    if (tool === 'notes') {
+      setKitBusy(true)
+      try {
+        const id = await ensurePlanSaved()
+        navigate('/teacher/generate/notes' + buildGeneratorQueryString(id ? { ...kit, lessonPlanId: id } : kit))
+      } catch {
+        // Saving failed (offline / quota) — still open Notes prefilled by topic.
+        navigate('/teacher/generate/notes' + buildGeneratorQueryString(kit))
+      } finally {
+        setKitBusy(false)
+      }
+      return
+    }
+    const path = tool === 'homework'
+      ? '/teacher/generate/homework'
+      : tool === 'test'
+        ? '/teacher/test-papers/new'
+        : '/teacher/generate/worksheet'
+    navigate(path + buildGeneratorQueryString(withAlign))
+  }, [kit, lastPlanJson, ensurePlanSaved, navigate])
 
   const handleExportWord = useCallback(async () => {
     if (!lastPlanJson) return
@@ -647,6 +959,87 @@ export default function LessonPlanStudio() {
     navigate('/teacher/library')
   }, [navigate])
 
+  // ── Persistent-memory actions (Saved Lessons panel + adaptive Generate) ─────
+
+  // Open an existing saved lesson to continue editing. If it was saved to the
+  // library (has a generationId), jump straight to that document; otherwise it
+  // was generated but never saved — regenerate that lesson number.
+  const handleOpenLesson = useCallback((lesson) => {
+    if (lesson?.generationId) {
+      navigate(`/teacher/library/${lesson.generationId}`)
+      return
+    }
+    handleGenerate(0, { lessonNumber: Number(lesson?.lessonNumber) || 1 })
+  }, [navigate, handleGenerate])
+
+  // "Create Lesson N" from the Saved Lessons panel. Guards against duplicating
+  // an existing lesson number (requirement #6).
+  const handleCreateLesson = useCallback((lessonNumber) => {
+    const existing = findLessonByNumber(subtopicLessons, lessonNumber)
+    if (existing) {
+      const prog = subtopicProgress(subtopicLessons, expectedCount)
+      setDupModal({ lessonNumber, nextLessonNumber: prog.nextToCreate })
+      return
+    }
+    handleGenerate(0, { lessonNumber })
+  }, [subtopicLessons, expectedCount, handleGenerate])
+
+  // Persist a teaching-status change (Not started / Planned / Taught / Needs
+  // revision). The live subscription re-renders the panel; no local state.
+  const handleSetTeachingStatus = useCallback((lessonId, status) => {
+    setLessonTeachingStatus(lessonId, status)
+  }, [])
+
+  // The sticky Generate button. Its label adapts via genButton; this routes the
+  // click to the matching action (generate / create-next / continue / review)
+  // and guards against duplicates. Series planning keeps its dedicated flow.
+  const handlePrimaryGenerate = useCallback(() => {
+    const planningMode = studioStateRef.current.lessonSeries?.planningMode ?? 'single'
+    if (planningMode === 'series' || !subtopicKey) {
+      handleGenerate(0)
+      return
+    }
+    if (genButton.action === 'review') {
+      handleViewCompleted()
+      return
+    }
+    if (genButton.action === 'continue') {
+      const target = findLessonByNumber(subtopicLessons, genButton.nextLessonNumber)
+      if (target) {
+        handleOpenLesson(target)
+        return
+      }
+    }
+    const targetNum = genButton.nextLessonNumber || 1
+    const existing = findLessonByNumber(subtopicLessons, targetNum)
+    if (existing) {
+      const prog = subtopicProgress(subtopicLessons, expectedCount)
+      setDupModal({ lessonNumber: targetNum, nextLessonNumber: prog.nextToCreate })
+      return
+    }
+    handleGenerate(0, { lessonNumber: targetNum })
+  }, [subtopicKey, genButton, subtopicLessons, expectedCount, handleGenerate, handleViewCompleted, handleOpenLesson])
+
+  // Duplicate-dialog resolutions (requirement #6).
+  const handleDupContinue = useCallback(() => {
+    const num = dupModal?.lessonNumber
+    setDupModal(null)
+    const lesson = findLessonByNumber(subtopicLessons, num)
+    if (lesson) handleOpenLesson(lesson)
+  }, [dupModal, subtopicLessons, handleOpenLesson])
+
+  const handleDupDuplicate = useCallback(() => {
+    const num = dupModal?.lessonNumber
+    setDupModal(null)
+    if (num) handleGenerate(0, { lessonNumber: num })
+  }, [dupModal, handleGenerate])
+
+  const handleDupCreateNext = useCallback(() => {
+    const next = dupModal?.nextLessonNumber
+    setDupModal(null)
+    if (next) handleGenerate(0, { lessonNumber: next })
+  }, [dupModal, handleGenerate])
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -662,10 +1055,25 @@ export default function LessonPlanStudio() {
             studioState={studioState}
             aiState={aiState}
             seriesState={seriesState}
-            onGenerate={handleGenerate}
+            onGenerate={handlePrimaryGenerate}
             onContinue={handleContinue}
             onViewCompleted={handleViewCompleted}
             isValid={isValid}
+            generateLabel={genButton.label}
+            planContext={planContextDismissed ? null : planContext}
+            onDismissPlanContext={() => setPlanContextDismissed(true)}
+            coverageState={coverageState}
+            lessonMemory={{
+              subtopicName: stripCode(memSubtopic || ''),
+              subtopicCode: extractCode(memSubtopic || ''),
+              lessons: subtopicLessons,
+              expectedCount,
+              loading: memory.loading,
+              nextRecommendedSubtopic,
+              onSetTeachingStatus: handleSetTeachingStatus,
+              onCreateLesson: handleCreateLesson,
+              onOpenLesson: handleOpenLesson,
+            }}
           />
         }
         canvas={
@@ -698,16 +1106,45 @@ export default function LessonPlanStudio() {
         }
       />
       {kit && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e0d5] bg-white px-4 py-3 shadow-lg sm:px-6">
-          <span className="shrink-0 text-sm font-medium text-[#5c4a3a]">Create for this lesson</span>
-          <div className="flex gap-2 overflow-x-auto">
-            <button onClick={() => navigate(`/teacher/generate/worksheet${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Worksheet</button>
-            <button onClick={() => navigate(`/teacher/generate/homework${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Homework</button>
-            <button onClick={() => navigate(`/teacher/generate/notes${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Notes</button>
-            <button onClick={() => navigate(`/teacher/test-papers/new${buildGeneratorQueryString(kit)}`)} className="shrink-0 whitespace-nowrap rounded-md bg-[#f0ebe4] px-3 py-1.5 text-xs font-medium text-[#5c4a3a] hover:bg-[#e8e0d5]">Test Paper</button>
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e8e0d5] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(60,53,41,0.25)] backdrop-blur sm:px-5">
+          <div className="mx-auto flex max-w-5xl items-center gap-3">
+            <div className="hidden shrink-0 sm:block">
+              <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#3d3529]">
+                <span aria-hidden="true">✨</span> Teaching Kit
+              </p>
+              <p className="text-[11px] text-[#8a7d6b]">Aligned to this lesson</p>
+            </div>
+            <div className="flex flex-1 gap-2 overflow-x-auto">
+              {KIT_TOOLS.map(({ id, label, icon }) => {
+                const busy = id === 'notes' && kitBusy
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => openKitTool(id)}
+                    disabled={busy}
+                    className="lps-lift inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#e0d7c8] bg-white px-3 py-2 text-[12px] font-semibold text-[#3d3529] transition-colors hover:border-[#cfc3ae] hover:bg-[#f9f5ef] disabled:opacity-60"
+                  >
+                    <span aria-hidden="true">{icon}</span>
+                    {busy ? 'Saving…' : label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
+
+      <DuplicateLessonModal
+        open={!!dupModal}
+        lessonNumber={dupModal?.lessonNumber}
+        nextLessonNumber={dupModal?.nextLessonNumber}
+        subtopicName={stripCode(memSubtopic || '')}
+        onContinue={handleDupContinue}
+        onDuplicate={handleDupDuplicate}
+        onCreateNext={handleDupCreateNext}
+        onCancel={() => setDupModal(null)}
+      />
     </CurriculumContext.Provider>
   )
 }

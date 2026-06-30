@@ -1,0 +1,92 @@
+/*
+ * lessonStudio.css — premium polish layer for the Lesson Plan Studio.
+ *
+ * Purely presentational: soft shadows, selected-card glow, gentle section
+ * enter motion, and a "ready" pulse on the Generate button. Imported once from
+ * studio/LessonPlanStudio.jsx. Class names are `lps-` prefixed so they never
+ * collide with the rest of the app, and every animation is disabled under
+ * `prefers-reduced-motion` so the studio stays calm for motion-sensitive users.
+ *
+ * No layout, structure, or behaviour lives here — it only makes the existing
+ * studio look better.
+ */
+
+/* Layered soft shadow used on cards and the document frame. */
+.lps-soft-shadow {
+  box-shadow:
+    0 1px 2px rgba(60, 53, 41, 0.04),
+    0 6px 16px -8px rgba(60, 53, 41, 0.12);
+}
+
+.lps-soft-shadow-lg {
+  box-shadow:
+    0 1px 3px rgba(60, 53, 41, 0.05),
+    0 12px 32px -12px rgba(60, 53, 41, 0.18);
+}
+
+/* Soft brand glow on a selected card (blue → indigo). */
+.lps-card-glow {
+  box-shadow:
+    0 0 0 1px rgba(79, 70, 229, 0.45),
+    0 8px 22px -10px rgba(79, 70, 229, 0.45);
+}
+
+/* Gentle fade + rise when a collapsible section body appears. */
+@keyframes lpsSectionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lps-section-enter {
+  animation: lpsSectionEnter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Brand gradient used by the primary Generate button + accents. */
+.lps-brand-gradient {
+  background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%);
+}
+
+/* Soft, slow pulse on the Generate button once the plan is ready to create. */
+@keyframes lpsReadyPulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.55);
+  }
+  50% {
+    box-shadow: 0 10px 28px -6px rgba(124, 58, 237, 0.75);
+  }
+}
+
+.lps-btn-ready {
+  animation: lpsReadyPulse 2.6s ease-in-out infinite;
+}
+
+/* Subtle lift on hover for interactive cards / primary buttons. */
+.lps-lift {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+  will-change: transform;
+}
+
+.lps-lift:hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lps-section-enter,
+  .lps-btn-ready,
+  .lps-lift {
+    animation: none !important;
+    transition: none !important;
+  }
+  .lps-lift:hover {
+    transform: none !important;
+  }
+}

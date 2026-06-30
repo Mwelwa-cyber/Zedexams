@@ -239,7 +239,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "0.1.8.1. 4Use appropriate language to talk about simple events",
+            "SPECIFIC COMPETENCES": "0.1.8.1.4 Use appropriate language to talk about simple events",
             "LEARNING ACTIVITIES": "• Using appropriate language to talk about different events (independence, birthdays, Christmas)\n• Dramatising different events (independence, birthdays, Christmas)",
             "EXPECTED STANDARD": "• Language to talk about simple events used correctly."
           }
@@ -249,7 +249,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "0.1.8.1. 5Use appropriate language for buying and selling",
+            "SPECIFIC COMPETENCES": "0.1.8.1.5 Use appropriate language for buying and selling",
             "LEARNING ACTIVITIES": "• Discussing language to use when selling and buying (How much …, It is expensive, may I have…, thank you…)\n• Role playing selling and buying",
             "EXPECTED STANDARD": "• Appropriate language for buying and selling used correctly."
           }
@@ -289,7 +289,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "0.1.9.2 Left to Right Eye Movement.",
-            "SPECIFIC COMPETENCES": "0.1.9.2.1Practise left to right eye movement.",
+            "SPECIFIC COMPETENCES": "0.1.9.2.1 Practise left to right eye movement.",
             "LEARNING ACTIVITIES": "• Ordering objects from left to right (stones, bottle tops, sticks…)",
             "EXPECTED STANDARD": "• Objects ordered from left to right."
           }
@@ -299,7 +299,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "0.1.9.3 Matching",
-            "SPECIFIC COMPETENCES": "0.1.9.3.1Demonstrate left to right eye movement .",
+            "SPECIFIC COMPETENCES": "0.1.9.3.1 Demonstrate left to right eye movement .",
             "LEARNING ACTIVITIES": "• Matching things from left to right (based on colours, shapes, sizes of objects…)",
             "EXPECTED STANDARD": "• Left to right eye movement demonstrated correctly."
           }
@@ -309,7 +309,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "0.1.9.4 Identification",
-            "SPECIFIC COMPETENCES": "0.1.9.4.1Identify objects according to their attributes",
+            "SPECIFIC COMPETENCES": "0.1.9.4.1 Identify objects according to their attributes",
             "LEARNING ACTIVITIES": "• Identify different sounds in our environment (animal sounds, sounds made by objects…)\n• Identifying and sorting objects of similar properties (by colour, size, shape, length…)\n• Matching items according to their attributes (chicken- chick, mother – baby, dog –puppy…)",
             "EXPECTED STANDARD": "• Objects identified and matched according to their attributes correctly."
           }
@@ -478,7 +478,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "0.1.11.8 Creative Expressio n",
+            "SUB-TOPIC": "0.1.11.8 Creative Expression",
             "SPECIFIC COMPETENCES": "0.1.11.8.1 Colour different objects and letters",
             "LEARNING ACTIVITIES": "• Colouring different objects.\n• Colouring different letters.",
             "EXPECTED STANDARD": "• Objects and letters coloured accordingly."
@@ -499,7 +499,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "0.1.11.9.2Copy series of shapes",
+            "SPECIFIC COMPETENCES": "0.1.11.9.2 Copy series of shapes",
             "LEARNING ACTIVITIES": "• Copying shapes (Circle, squares, triangle, and rectangle) – in air, on paper, with stones.",
             "EXPECTED STANDARD": "• Shapes copied accurately"
           }
@@ -508,8 +508,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "0.1.11.10 Copying Own Nam e",
-            "SPECIFIC COMPETENCES": "0.1.11.10.1Copy own name from name card",
+            "SUB-TOPIC": "0.1.11.10 Copying Own Name",
+            "SPECIFIC COMPETENCES": "0.1.11.10.1 Copy own name from name card",
             "LEARNING ACTIVITIES": "• Forming shapes using different objects.\n• Copying own names from given name cards",
             "EXPECTED STANDARD": "• Own names copied from name cards accurately."
           }
@@ -519,7 +519,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "0.1.11.11 Matching Images",
-            "SPECIFIC COMPETENCES": "0.1.11.11.1Match image to initial letters",
+            "SPECIFIC COMPETENCES": "0.1.11.11.1 Match image to initial letters",
             "LEARNING ACTIVITIES": "• Matching images to their initial letters (image of a pin-p…)",
             "EXPECTED STANDARD": "• Images matched to their initial letters correctly."
           }
@@ -1733,7 +1733,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "0.2.7 VISUAL DESCRIMINATION",
+            "TOPIC": "0.2.7 VISUAL DISCRIMINATION",
             "SUB-TOPIC": "0.2.7.1 Matching",
             "SPECIFIC COMPETENCES": "0.2.7.1.1 Demonstrate left to right eye movement.",
             "LEARNING ACTIVITIES": "• Practising left to right eye movement by: -Tracking with fingers to follow lines from left to right. -Reading pointer sticks (use pointer sticks to follow words or lines from left to right..) -Singing and moving (movement from left to right)\n• Matching similar things from left to right (pictures, objects, patterns, numbers shapes, size, colour…)",
@@ -1915,7 +1915,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "0.2.9.6 Simple Gadget Exploration",
-            "SPECIFIC COMPETENCES": "02.9.6.1Manipulate simple gadgets.",
+            "SPECIFIC COMPETENCES": "02.9.6.1 Manipulate simple gadgets.",
             "LEARNING ACTIVITIES": "• Handling different gadgets, demonstrating how they work and exploring their functions (phone, mini tablets, min computers…)",
             "EXPECTED STANDARD": "• Simple gadgets manipulated correctly"
           }
@@ -2351,7 +2351,7 @@
           "cells": {
             "TOPIC": "0.2.13 CONCEPT OF PRINT",
             "SUB-TOPIC": "0.2.13.1 Parts of a B o o k",
-            "SPECIFIC COMPETENCES": "0 .2.13.1.1 Identify parts of a book",
+            "SPECIFIC COMPETENCES": "0.2.13.1.1 Identify parts of a book",
             "LEARNING ACTIVITIES": "• Naming parts of a book (front, back cover and title of a book)",
             "EXPECTED STANDARD": "• Parts of a book identified accordingly"
           }
@@ -2884,7 +2884,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "0.2.7 MOTOR DEVELOPMENT",
-            "SUB-TOPIC": "0.2.7.1Eye-han d and Eye - foot coordination.",
+            "SUB-TOPIC": "0.2.7.1 Eye-hand and Eye-foot coordination.",
             "SPECIFIC COMPETENCES": "0.2.7.1.1 Develop Eye - hand and eye - foot coordination",
             "LEARNING ACTIVITIES": "• Performing eye- hand and eye -foot coordination activities. (Throwing, kicking, catching and lacing…)\n• Performing throwing and catching activities (Timing, throw object to target, catch object with both hands, and throw a ball under and over one arm)\n• Demonstrating kicking and rolling activities. (Targeting, timing, kicking a stationary ball to a target, rolling a ball at a target)",
             "EXPECTED STANDARD": "• Eye- hand and eye -foot coordination skills developed accordingly."
@@ -2894,7 +2894,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "0.2.7.2Fine Mo tor Skills.",
+            "SUB-TOPIC": "0.2.7.2 Fine Motor Skills.",
             "SPECIFIC COMPETENCES": "0.2.7.2.1 Develop Various Fine motor skills.",
             "LEARNING ACTIVITIES": "• Manipulating different objects to build a tower up to 10 pieces (Building blocks, plastic lids…)\n• Performing dressing up activities. (Dressing oneself, zipping, buttoning, and tying shoe laces…)\n• Practising scooping activities (measurement and size estimation…)\n• Performing clipping activities. (Holding, clipping, opening and closing, use of tongs and tweezers…)",
             "EXPECTED STANDARD": "• Various fine motor skills developed accordingly"
@@ -4029,7 +4029,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.11CONSUMER EDUCATION",
+            "TOPIC": "2.11 CONSUMER EDUCATION",
             "SUB-TOPIC": "2.11.1 Consumer Rights and Responsibilities",
             "SPECIFIC COMPETENCES": "2.11.1.1 Apply consumer rights and responsibilities.",
             "LEARNING ACTIVITIES": "• Discussing consumer rights and responsibilities: (rights, education, safety, choice, redress…).\n• Identifying sources of consumer education: (government agencies, regulatory bodies, educational institutions, media outlets…)\n• Discussing methods of redress: (warranties, guaranties)\n• Role playing on the rights of the consumer",
@@ -4063,7 +4063,7 @@
           "cells": {
             "TOPIC": "3.1 GROOMING AND PERSONAL HYGIENE",
             "SUB-TOPIC": "3.1.1 Cosmetology",
-            "SPECIFIC COMPETENCES": "3. 1.2.1 Show manicure and pedicure skills.",
+            "SPECIFIC COMPETENCES": "3.1.2.1 Show manicure and pedicure skills.",
             "LEARNING ACTIVITIES": "• Explaining the importance of manicure and pedicure skills in the fashion industry.\n• Describing the tools used, (nail clippers, files, buffers, cuticle pushers …)\n• Showing manicure and pedicure skill (practical….)",
             "EXPECTED STANDARD": "Manicure and pedicure demonstrated appropriately"
           }
@@ -4781,7 +4781,7 @@
           "cells": {
             "TOPIC": "2.2 RECIPES",
             "SUB-TOPIC": "2.2.1 Formulation of Recipes",
-            "SPECIFIC COMPETENCES": "2 . 2 . 1 . 1 Develop different recipes",
+            "SPECIFIC COMPETENCES": "2.2.1.1 Develop different recipes",
             "LEARNING ACTIVITIES": "• Outlining key considerations in recipe formulation: (Flavour balance, Texture contrast…)\n• Developing different recipes: (Ingredient selection, Measurement Techniques…)\n• Interpreting recipe instructions: (Main sections of the recipe, arranging ingredients of the recipe in order of use…)\n• Experimenting on the formulated recipes: (Identifying Variables, Conducting Experiments, Analyzing Results, Iterative Process…)\n• Documenting the formulated recipes: (Recipe name, Ingredients, Procedure…)",
             "EXPECTED STANDARD": "Different recipes developed skillfully"
           }
@@ -4899,7 +4899,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.7 STOCKS, SOUPS, SAUCE SAN D GRAVY",
+            "TOPIC": "2.7 STOCKS, SOUPS, SAUCES AND GRAVY",
             "SUB-TOPIC": "2.7.1 Stock",
             "SPECIFIC COMPETENCES": "2.7.1.1 Prepare stock",
             "LEARNING ACTIVITIES": "• Discussing stocks:( definition, types, rules…)\n• Analysing the uses of stock in meal preparation: (base for soups, sauces, enhancing flavour…)\n• Preparing different types of stocks: (chicken, fish, Vegetable stock…)\n• Cooking dishes using stock: (curries, casseroles, risottos…)\n• Making homemade stock cubes (project)",
@@ -4981,7 +4981,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.1FOOD CONTAMINATION",
+            "TOPIC": "3.1 FOOD CONTAMINATION",
             "SUB-TOPIC": "3.1.1 Personal Hygiene",
             "SPECIFIC COMPETENCES": "3.1.1.1 Apply personal Hygienepractices",
             "LEARNING ACTIVITIES": "• Discussing personal hygiene practices: (body hygiene, oral hygiene, health and communicable diseases…).\n• Illustrating hand washing and sanitising techniques: (Wet your hands, scrub your hands, Rinse your hands…)\n• Developing and implementing a personal hygiene plan including habits and routines:(schools, kitchen, hotel…)",
@@ -4992,8 +4992,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.1.2.1Food Hygiene",
-            "SPECIFIC COMPETENCES": "3 . 1 . 2 . 1 Practice food hygiene",
+            "SUB-TOPIC": "3.1.2.1 Food Hygiene",
+            "SPECIFIC COMPETENCES": "3.1.2.1 Practice food hygiene",
             "LEARNING ACTIVITIES": "• Analysing safe food handling practices: (food storage, food handling, food safety…)\n• Demonstrating ways of preventing food contamination: (food prepa ration, cooking, serving, leftover foods...)\n• Designing and developing a food hygiene training program for food handler.",
             "EXPECTED STANDARD": "Food hygiene pra cticed app ropriately"
           }
@@ -5002,8 +5002,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.1.3Kitchen Hygiene",
-            "SPECIFIC COMPETENCES": "3.1.3.1Practice kitchen hygiene",
+            "SUB-TOPIC": "3.1.3 Kitchen Hygiene",
+            "SPECIFIC COMPETENCES": "3.1.3.1 Practice kitchen hygiene",
             "LEARNING ACTIVITIES": "• Discussing kitchen hygiene: (Food Handling Practices, Kitchen Cleaning and Sanitizing…)\n• Demonstrating waste disposal techniques : (land filling, recycling, composting…)\n• Developing a pest management plan: (Monitor pest activity, identify any changes in pest population and identify changes in the environment that may impact pest activities…)\n• Making home-made pesticide: (project)",
             "EXPECTED STANDARD": "Kitchen hyg iene practiced correctly"
           }
@@ -5011,9 +5011,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.2FOOD SPOILAGE AND POISONING",
-            "SUB-TOPIC": "3.2.1Food",
-            "SPECIFIC COMPETENCES": "3.2.1.1Apply techniques to reduce foodspoilage",
+            "TOPIC": "3.2 FOOD SPOILAGE AND POISONING",
+            "SUB-TOPIC": "3.2.1 Food",
+            "SPECIFIC COMPETENCES": "3.2.1.1 Apply techniques to reduce foodspoilage",
             "LEARNING ACTIVITIES": "• Explaining food spoilage: (types, causes, foods that spoil easily…)\n• Analysingfactors that lead to food spoilage: (enzymatic reactions, microbial growth, and chemical reactions).\n• Elaborating the conditions that favor food spoilage: (temperature, humidity, light…).\n• Experimenting on food spoilage: (carrots, milk, bread...,).\n• Appling techniquest o reduce food spoilage: (storage, food preparation, food preservation techniques…)",
             "EXPECTED STANDARD": "Techniques to reduce food spoilage appliedcorrectly"
           }
@@ -5022,7 +5022,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.2.2Food Poisoning",
+            "SUB-TOPIC": "3.2.2 Food Poisoning",
             "SPECIFIC COMPETENCES": "3.2.2.1 Apply techniques to prevent foodpoisoning",
             "LEARNING ACTIVITIES": "• Categorisingf ood poisoning: (Biological, physical chemical…)\n• Discussing symptoms of food poisoning (nausea, vomiting…)\n• Appling techniques to prevent food Poisoning:( Kitchen Cleaning and Sanitation, Food Handling Practices…)\n• Conducting a case study on food poisoning",
             "EXPECTED STANDARD": "Techniquesto prevent food poisoning applied correctly"
@@ -5031,8 +5031,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.3FOOD PRESERVATION",
-            "SUB-TOPIC": "3.3.1Traditional Methods",
+            "TOPIC": "3.3 FOOD PRESERVATION",
+            "SUB-TOPIC": "3.3.1 Traditional Methods",
             "SPECIFIC COMPETENCES": "3.3.1.1 Preserve foods using tradit ional methods.",
             "LEARNING ACTIVITIES": "• Discussing food preservation: (aims, reasons,).\n• Investigating the techniques involved in traditional methods of preservation: (drying, fermentation, curing…).\n• Preserving foods using tra ditional methods: (sun drying, smoking, ash or earth storage, potting…)",
             "EXPECTED STANDARD": "Foods preserved using traditional methods methodically"
@@ -5042,8 +5042,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.3.2Modern Methods",
-            "SPECIFIC COMPETENCES": "3.3.2.1Preserve foodsusing modern metho ds",
+            "SUB-TOPIC": "3.3.2 Modern Methods",
+            "SPECIFIC COMPETENCES": "3.3.2.1 Preserve foodsusing modern metho ds",
             "LEARNING ACTIVITIES": "• Demonstrat ing the understanding of advanced modern food preservation technologies: (modified atmosphere packaging (MAP), refrigeration, ultra-high temperature…)\n• Discussing alternative methods of food p reservation due to emerging issues: (natural disaster and power outages…).\n• Preparing different types of preserves: (jam, pickles, pepper…)\n• Inventing and desig ning a high technique food preservation system: (vacuum packaging, UV light treatment to kill bacteria...)",
             "EXPECTED STANDARD": "Modern methods of preserving food used appropriately"
           }
@@ -5051,8 +5051,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.4FOOD COMMODITIES",
-            "SUB-TOPIC": "3.4.1Animals and Animal Products",
+            "TOPIC": "3.4 FOOD COMMODITIES",
+            "SUB-TOPIC": "3.4.1 Animals and Animal Products",
             "SPECIFIC COMPETENCES": "3.4.1.1 Make use of animals and animal products in meal preparation",
             "LEARNING ACTIVITIES": "• Discussing the different animals and animal products: (structure, composition, nutritive value, choice …).\n• Testing on the effects of heat on animals and animal products: (coagulation, shrinkage, denaturing…).\n• Preparing different dishes using animalsand animal products",
             "EXPECTED STANDARD": "Animals and animal products in meal preparation used properly"
@@ -5062,7 +5062,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.4.2Fruits",
+            "SUB-TOPIC": "3.4.2 Fruits",
             "SPECIFIC COMPETENCES": "3.4.2.1 Use fruits in meal preparation",
             "LEARNING ACTIVITIES": "• Discussing fruits: (classification, nutritive value, choice….).\n• Using scientific principles underlying preparing, cooking and serving of fruits: (oxidation, ripening …)\n• Preparing fruit dishes and beverages.\n• Researching on indigenous fruits to make interesting beverages and dishes.",
             "EXPECTED STANDARD": "Fruits used in meal pre paration methodically ."
@@ -5072,8 +5072,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.4.3Vegetables",
-            "SPECIFIC COMPETENCES": "3 .4 . 3 . 1 Use ve g etables in meal preparation",
+            "SUB-TOPIC": "3.4.3 Vegetables",
+            "SPECIFIC COMPETENCES": "3.4.3.1 Use ve g etables in meal preparation",
             "LEARNING ACTIVITIES": "• Discussing vegetables: (clas sification, nutritive value, choice….).\n• Using scientific principles underlying preparing, cooking and serving of vegetables: (oxidation, ripening …)\n• Preparing vegetable dishes and beverages.\n• Researching on indigenous vegetables to make interesting dishes: (salads, juices, smoothies…)",
             "EXPECTED STANDARD": "Vegetables used in meal preparation methodically"
           }
@@ -5082,8 +5082,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.4.4Legumes and Oily Seeds",
-            "SPECIFIC COMPETENCES": "3.4.4.1Use legumes and oily seeds in meal preparation",
+            "SUB-TOPIC": "3.4.4 Legumes and Oily Seeds",
+            "SPECIFIC COMPETENCES": "3.4.4.1 Use legumes and oily seeds in meal preparation",
             "LEARNING ACTIVITIES": "• Discussing legumes and oily seeds: (sources, nutritive value, use…)\n• Preparing different dishes using legumes and oily seeds.\n• Creating new interesting legumes and seeds dishes: (pumpkin seed stew, cowpea fritters, porridge, muesli…)",
             "EXPECTED STANDARD": "Legumes and oily seeds used in mealpreparationskillfully"
           }
@@ -5092,7 +5092,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.4.5Alternative Proteins",
+            "SUB-TOPIC": "3.4.5 Alternative Proteins",
             "SPECIFIC COMPETENCES": "3.4.5.1 Make alternative protein foods",
             "LEARNING ACTIVITIES": "• Discussing alternative protein foods: (sources, nutritive value, advantages, disadvantages …)\n• Producing new interesting alternative proteins: (milk from almonds, vegan cheese, alternative based juices…)( projects)",
             "EXPECTED STANDARD": "Alternative protein foods madeco rrectly"
@@ -5102,7 +5102,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.4 .6Grains and Cereals",
+            "SUB-TOPIC": "3.4.6 Grains and Cereals",
             "SPECIFIC COMPETENCES": "3.4.6.1 Use grains and cereals",
             "LEARNING ACTIVITIES": "• Analysing of grains and cereals: (classification, sources, nutritive value…)\n• Illustrating the structure of a grain.\n• Demonstrating the stages of flour extraction: (cleaning, grinding, sifting, purification and packaging.).\n• Experimenting on the effects of heat on cereals and grains: (gelatinization, caramelization, dextrinization, syneresis…).\n• Cooking different dishes using cereals and grains: (use bran in soups, sauces…)\n• Producing new interesting cereal and grain dishes and products: (rice wine, muesli, porridge…)",
             "EXPECTED STANDARD": "Grains and cereals used appropriately"
@@ -5111,9 +5111,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.5FLOUR MIXTURES",
-            "SUB-TOPIC": "3.5.1Ingredients in Flour Mixtures",
-            "SPECIFIC COMPETENCES": "3.5.1.1Apply the culinary science behind using different in ingredients flour mixtures",
+            "TOPIC": "3.5 FLOUR MIXTURES",
+            "SUB-TOPIC": "3.5.1 Ingredients in Flour Mixtures",
+            "SPECIFIC COMPETENCES": "3.5.1.1 Apply the culinary science behind using different in ingredients flour mixtures",
             "LEARNING ACTIVITIES": "• Explaining the usesand roleof different ingredients in flour mixtures: ( flour, sugar, fat, raising agents, liquid...).\n• Analysing and adjusting ingredient ratios to achieve desired outcomes in flour mixtures: (ingredient ratios).\n• Experimenting on ingredient substitution challenge: (substituting sugar for honey, making an evaluation…).",
             "EXPECTED STANDARD": "Theculinaryscience behind using different ingredients in flour mixtures applied correctly"
           }
@@ -5122,8 +5122,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.2Raising agents",
-            "SPECIFIC COMPETENCES": "3.5.2.1Applyculinary science behind using different raising agents inflour mixtures",
+            "SUB-TOPIC": "3.5.2 Raising agents",
+            "SPECIFIC COMPETENCES": "3.5.2.1 Applyculinary science behind using different raising agents inflour mixtures",
             "LEARNING ACTIVITIES": "• Discussing raising agents: ( classes, types, uses, functions…)\n• Experimenting the chemical reactions involved in raising agent activity: (acid-base reactions, fermentation…)\n• Testing on raising agent subs titutions: (test substituting one raising agent for another and evaluate the results…)",
             "EXPECTED STANDARD": "Culinary science behind using different raising agents in flour mixturesapplied methodically"
           }
@@ -5132,8 +5132,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.3Batters",
-            "SPECIFIC COMPETENCES": "3.5.3.1Use batteries in cookery",
+            "SUB-TOPIC": "3.5.3 Batters",
+            "SPECIFIC COMPETENCES": "3.5.3.1 Use batteries in cookery",
             "LEARNING ACTIVITIES": "• Analysing batters: (types , consistencies, uses, rules and faults…).\n• Composing different dishes from batter mixtures: (pancakes, fritters, toad in a hole…)",
             "EXPECTED STANDARD": "Batters used in cookery appropriately"
           }
@@ -5142,7 +5142,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5 .4Cakes and Biscuits",
+            "SUB-TOPIC": "3.5.4 Cakes and Biscuits",
             "SPECIFIC COMPETENCES": "3.5.4.1 Make cakes and biscuits",
             "LEARNING ACTIVITIES": "• Discussing cakes and biscuits: (classifications, methods, faults…).\n• Adjusting ingredient proportions to achieve desired outcomes in cakes and biscuits making.\n• Designing and construction of cakes and biscuits: (cake structure experiment –multi – tiered, spherical. Cake engineering challenge; hanging cake, cake with moving parts…).",
             "EXPECTED STANDARD": "Cakes and biscuits made skillfully"
@@ -5152,7 +5152,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.5Cake decorations",
+            "SUB-TOPIC": "3.5.5 Cake decorations",
             "SPECIFIC COMPETENCES": "3.5.5.1 Decorate cakes",
             "LEARNING ACTIVITIES": "• Decorating cakes: (tools-piping bags, nozzles, smoothers., cake coverings –fondant, ganache, butter cream, Fino whip…,)\n• Demonstrating creativity in cake decorating: (showcasing artistic expressions, themed cake design; style…)",
             "EXPECTED STANDARD": "Cakes decorated skillfully"
@@ -5162,7 +5162,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.6Pastries",
+            "SUB-TOPIC": "3.5.6 Pastries",
             "SPECIFIC COMPETENCES": "3.5.6.1 Make pastries",
             "LEARNING ACTIVITIES": "• Discussing pastries: (types, uses, rules to follow, faults and remedies…)\n• Making different dishes from pastries: (pies, flans,)",
             "EXPECTED STANDARD": "Pastries made methodically"
@@ -5172,7 +5172,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.7Wraps",
+            "SUB-TOPIC": "3.5.7 Wraps",
             "SPECIFIC COMPETENCES": "3.5.7.1 Make wraps",
             "LEARNING ACTIVITIES": "• Discuss ing wraps: (types, uses, accompaniments…)\n• Making wraps: (tortil la, chapatti, pitta bread, naan…).\n• Showing styles of serving wraps: (classic, folded, rolled …)",
             "EXPECTED STANDARD": "Wraps made skillfully"
@@ -5182,7 +5182,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.8Yeast mixt ures",
+            "SUB-TOPIC": "3.5.8 Yeast mixtures",
             "SPECIFIC COMPETENCES": "3.5.8.1. Prepareyeast mixtures",
             "LEARNING ACTIVITIES": "• Discussing yeast mixtures: (types, uses, storage…).\n• Demonstrating the basic method in bread making: (the steps of making bread).\n• Creating new yeast-based dishes: (mea lie bread, sweetpotato ye ast buns, ground nut yeast bread…).\n• Researching on the effectiveness of yeast: (PH, temperature, sugar…).",
             "EXPECTED STANDARD": "Yeast mixtures prepared accordingly"
@@ -5224,8 +5224,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.1.3Research Format",
-            "SPECIFIC COMPETENCES": "4.1.3.1Design a research format in food and nutrition",
+            "SUB-TOPIC": "4.1.3 Research Format",
+            "SPECIFIC COMPETENCES": "4.1.3.1 Design a research format in food and nutrition",
             "LEARNING ACTIVITIES": "• Discussing a research procedure: (identify a problem, proposal, research and report)\n• Designing a research report format: (Title, Introduction, Literature review…)",
             "EXPECTED STANDARD": "Research format in food and nutrition designed correctly"
           }
@@ -5234,8 +5234,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.1.4Carry Out a Research",
-            "SPECIFIC COMPETENCES": "4.1.4.1Conduct research in food and nutrition",
+            "SUB-TOPIC": "4.1.4 Carry Out a Research",
+            "SPECIFIC COMPETENCES": "4.1.4.1 Conduct research in food and nutrition",
             "LEARNING ACTIVITIES": "• Discussing types of research tools: (questionnaire, interviews, survey…)\n• Conducting research in food and nutrition: (dietetic, public health and nutrition, food security and sustainability, food chemistry…)",
             "EXPECTED STANDARD": "Research in food and nutrition conducted correctly"
           }
@@ -5245,7 +5245,7 @@
           "cells": {
             "TOPIC": "4.2 FOOD SERVICE",
             "SUB-TOPIC": "4.2.1 Food Presentation",
-            "SPECIFIC COMPETENCES": "4.2.1.1Apply principles of food presentation",
+            "SPECIFIC COMPETENCES": "4.2.1.1 Apply principles of food presentation",
             "LEARNING ACTIVITIES": "• Discussing food presentation: (classesto ols, styles... )\n• Determining fundamental rules in food presentation :( balance, harmony, proportion...)\n• Illustrating basic elements of food presentation: (Colour, texture, variety…)\n• Presenting food:(plating, portion control, garnishing and decorating...)",
             "EXPECTED STANDARD": "Principles of food presentationap plied skillfully"
           }
@@ -5255,7 +5255,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.2.2 Meal Service",
-            "SPECIFIC COMPETENCES": "4.2.2.1Apply differentm eal servicete chniques",
+            "SPECIFIC COMPETENCES": "4.2.2.1 Apply differentm eal servicete chniques",
             "LEARNING ACTIVITIES": "• Examining meal service: (types, menu planning, food presentation, meal service styles ...)\n• Designing menu plan: (a la carte, table d’hote, cycle...)\n• Demonstrating customer care in meal service: (taking orders, communication...)\n• Presenting different meal service styles (plated, buffet, tray...)",
             "EXPECTED STANDARD": "Different meal service techniques applied accurately"
           }
@@ -5264,8 +5264,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.2.3The Art of Entertaining",
-            "SPECIFIC COMPETENCES": "4.2.3.1Createthe art of entertainment during food service",
+            "SUB-TOPIC": "4.2.3 The Art of Entertaining",
+            "SPECIFIC COMPETENCES": "4.2.3.1 Createthe art of entertainment during food service",
             "LEARNING ACTIVITIES": "• Analysing ways of entertaining guests during food service :( live music, visual entertainment, themed events…)\n• Explaining the type of entertainment conducted during festivals and celebrations: (Holidayclassics, Seasonal foods, Performing arts…)\n• Demonstrating different ways of entertaining guest during meals: (Engaging Conversation, Live Entertainment…)",
             "EXPECTED STANDARD": "The art of entertainment during food service create appropriately"
           }
@@ -5293,9 +5293,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.4ENTREPRENEURSHIP",
-            "SUB-TOPIC": "4.4.1Business Ventures in Food and Nutrition",
-            "SPECIFIC COMPETENCES": "4.4.1.1Establish business ventures infood and nutrition",
+            "TOPIC": "4.4 ENTREPRENEURSHIP",
+            "SUB-TOPIC": "4.4.1 Business Ventures in Food and Nutrition",
+            "SPECIFIC COMPETENCES": "4.4.1.1 Establish business ventures infood and nutrition",
             "LEARNING ACTIVITIES": "• Explaining entrepreneurship: (defining, qualities of a good entrepreneur, skills in financial, leadership...)\n• Inviting a business motivation speaker\n• Establishing businesses in food and nutrition: (corporate wellness programs, meal kits,health food restaurant or café, Meal preparation services ….)",
             "EXPECTED STANDARD": "Business ventures in food and nutrition established correctly"
           }
@@ -5304,8 +5304,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.2Business Plan",
-            "SPECIFIC COMPETENCES": "4.4.2.1Make a business plan in food and nutrition",
+            "SUB-TOPIC": "4.4.2 Business Plan",
+            "SPECIFIC COMPETENCES": "4.4.2.1 Make a business plan in food and nutrition",
             "LEARNING ACTIVITIES": "• Constructing a business plan in food and nutrition:(Stages- Executive summary,Company description,Organization and management,Products or services …)",
             "EXPECTED STANDARD": "Business plan in food and nutrition made correctly"
           }
@@ -5333,7 +5333,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Fo r Sub -Topi c -Heat transfer -Methods of cooking",
+            "TOPIC": "For Sub -Topic -Heat transfer -Methods of cooking",
             "SUB-TOPIC": "m 1 Content -Apply principles underlying heat transfer -Prepare dishes using -various methods of cooking",
             "SPECIFIC COMPETENCES": "Form 2 Sub - Topic Content -Soups - Prepare and serve soups -Sauces - Prepare and serve Sauces -Gravy - Prepare Gravy -Convenience - Prepare meals foods using convenience foods -Food Storage-Store different foods -Storage -Store food Equipmentusing different Equipment",
             "LEARNING ACTIVITIES": "Form 3 Sub - Topic Content -Batters -Use batters in cookery -Cakes and -Make cakes and biscuits biscuits -Cake -Decorate cakes decorations Pastries -Make pastries -Wraps-Make wraps -Yeast -Prepare yeast mixturesmixtures",
@@ -5359,7 +5359,7 @@
           "cells": {
             "TOPIC": "1.1 Geography 1.2.The Solar System",
             "SUB-TOPIC": "1.1.1 .Introduction to Geography 1.2.1.The Earth in the Solar System",
-            "SPECIFIC COMPETENCES": "1.1.1 .1.Demonstrate understanding of Geography 1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
+            "SPECIFIC COMPETENCES": "1.1.1.1.Demonstrate understanding of Geography 1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
             "LEARNING ACTIVITIES": "• Discus singGeogra phy(Major concepts in Geogra phy)\n• Identifying various branches of Geography (Physical and Hu man )\n• Analysing the importance of studying Geography (Conservation of the environment, spatial and navigational skill…)\n• Identifyingvarious elements found in the solar system (Sun, Planets, Meteors…)\n• Engaging in observing celestial activities as a hobby or for educational purposes such as (observing visibleplanets, phases of the moon, st ars, eclipses, meteor showers…)",
             "EXPECTED STANDARD": "• Understanding of Geography demonstrated clearly\n• Understanding of the position of the earth in the solar system demonstrated correctly"
           }
@@ -6125,7 +6125,7 @@
           "cells": {
             "TOPIC": "4.2. Forestry in Zambia",
             "SUB-TOPIC": "4.2.1 .Vegetation of Zambia",
-            "SPECIFIC COMPETENCES": "4.2.1. 1.Promote sustainable use of vegetation",
+            "SPECIFIC COMPETENCES": "4.2.1.1.Promote sustainable use of vegetation",
             "LEARNING ACTIVITIES": "• Describing the types of vegetation in Zambia : (tropical rain forests, miombo woodlands, mopane woodlands, munga woodlands, riverine forest, montane, swamp forests…)\n• Identifying exotic plants and the areas of their location: forest plantations (Chichele, Chati, Itimpi on the Copperbelt, Shiwang’ndu…Species: eucalyptus, pine, cedar, gmelina, Cyprus….)\n• Identifying the forest products and their uses (timber, medicine, cha rcoal, fruits, vegetables, fibre…)\n• Engaging in actions that help to sustain vegetation(tree planting, preserving vegetation in protected areas and buffer zones, selective cutting of trees for timber and wood fuel…)",
             "EXPECTED STANDARD": "• Sustainable use of vegetation promoted accord ingly"
           }
@@ -6184,7 +6184,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.4.Farming and ClimateChange",
+            "SUB-TOPIC": "4.3.4.Farming and Climate Change",
             "SPECIFIC COMPETENCES": "4.3.4.1.Analyse relationship between farming and climate change",
             "LEARNING ACTIVITIES": "• Describing the impact of climate change on farming (seasonal variations and extreme weather conditions, temperature increase, change in rainfall patterns, shifts in growing season, impacts on pollinators, soil degradation and water scarcity on food production processes…)\n• Providing solutions to the impact of climate change on agriculture (climate smart agricultural practices, crop and animal diversification, irrigation management, water harvesting, support for climate resilient agriculture research and development…)\n• Discussing the impacts of commercial f arming practiceson biodiversity and climate change (emi ssion of Greenhouse Gases (GHGs) through pesticide and fertilizer use, over exploitation of soil, vast monocultures…)",
             "EXPECTED STANDARD": "• Relationship between farming and climate change analysed accordingly"
@@ -6435,7 +6435,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.7.2 .Mineral Processing and Economic Growth in Zambia",
-            "SPECIFIC COMPETENCES": "4.7.2. 1.Relate mineral processing to economic growth in Zambia",
+            "SPECIFIC COMPETENCES": "4.7.2.1.Relate mineral processing to economic growth in Zambia",
             "LEARNING ACTIVITIES": "• Describing stages of mineral processing in Zambia: (blasting, crushing, floatation, smelting and refining… )\n• Establishing a relationship between mining and economic growth: (contribute Gross Domestic Product (G.D.P), employment, export revenues, infrastructure development. . .)",
             "EXPECTED STANDARD": "• Mineral processing and economic growth in Zambia related accordingly"
           }
@@ -6445,7 +6445,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.7.3 .Uses of Major Minerals",
-            "SPECIFIC COMPETENCES": "4.7.3 .1.Use opportunities within Zambia’s mineral value chain.",
+            "SPECIFIC COMPETENCES": "4.7.3.1.Use opportunities within Zambia’s mineral value chain.",
             "LEARNING ACTIVITIES": "• Describing various uses of major minerals: (Copper-alloys, electrical wires, coins, ornaments, roofing…) Lead-for piping, battery plates, cables, tanks, reinforced cylinders for transporting nuclear wastes. Zinc-for roofing, tubes and castings) Coal-(thermal electricity, smelting, raw material and heating…)\n• Exploring ideas of value addition (creating finished products…)",
             "EXPECTED STANDARD": "• Opportunities within Zambia’s mineral value chain used accordingly"
           }
@@ -6465,7 +6465,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.7.5 .Mining in the Sub-Region (Angola and South Africa)",
-            "SPECIFIC COMPETENCES": "4.7.5. 1.Draw lessons of mining from Angola and South Afric a",
+            "SPECIFIC COMPETENCES": "4.7.5.1.Draw lessons of mining from Angola and South Afric a",
             "LEARNING ACTIVITIES": "• Locating mining areas on the map of Angola and South Afric a: Ango la(petroleum, diamond and gold…) South Africa (diamond, gold, Uranium… )\n• Discussing the effects of mining on the environment (pollution, deforestation, loss of life, depletion of underground water…)\n• Drawing lessons of mining from Angola and South Africa (investing in technology, renewable energy, strong regulation and enforcement…)",
             "EXPECTED STANDARD": "• Lessons of mining drawn from Angola and South Africa accordingly"
           }
@@ -6578,8 +6578,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.1 INTRODUCTION TO HISTORY",
-            "SUB-TOPIC": "1.1.1Reasons for Learning History",
-            "SPECIFIC COMPETENCES": "1.1.1.1Communicate relevance of past events",
+            "SUB-TOPIC": "1.1.1 Reasons for Learning History",
+            "SPECIFIC COMPETENCES": "1.1.1.1 Communicate relevance of past events",
             "LEARNING ACTIVITIES": "• Explaining the meaning of History (Past events)\n• Describing past events in the family (funerals, weddings, outings …)\n• Describing the importance of past events (past experience can provide present or future solutions, become better citizens, develop critical thinking …)\n• Showing the importance of history in different fields and topics (Medicine: understanding the origins of diseases and treatment, understanding patterns and trends in diseases progression…, Music: identifying influential composers and musicians, appreciating cultural and social contexts, learning from past music masters and innovators, Law: making reference to similar past cases to make judgment in present cases…)",
             "EXPECTED STANDARD": "• Relevance of past events communicated correctly"
           }
@@ -6588,8 +6588,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.1.2Local History",
-            "SPECIFIC COMPETENCES": "1.1.2.1Interpret local history",
+            "SUB-TOPIC": "1.1.2 Local History",
+            "SPECIFIC COMPETENCES": "1.1.2.1 Interpret local history",
             "LEARNING ACTIVITIES": "• Discussingthe history of your township/village\n• Analysing the developm ents that have taken place in your township/village in the recent past.\n• Examining the importance of local history",
             "EXPECTED STANDARD": "• Local history interpreted accordingly"
           }
@@ -6598,8 +6598,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.1.3Types or Branches of History",
-            "SPECIFIC COMPETENCES": "1.1.3.1Classify types or branches of history",
+            "SUB-TOPIC": "1.1.3 Types or Branches of History",
+            "SPECIFIC COMPETENCES": "1.1.3.1 Classify types or branches of history",
             "LEARNING ACTIVITIES": "• Identifying types/branches of history study (Chronological: Ancient history, Medieval history, Modern history…, Thematic: Political history, Social history, Economic history…, (Geographical: World History, African History…, and Music history, Sports history…).\n• Classifying branches of history",
             "EXPECTED STANDARD": "• Types or branches of history classified correctly"
           }
@@ -6608,8 +6608,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1. 1.4Sources of History",
-            "SPECIFIC COMPETENCES": "1.1.4. 1Assess credibility of sources of historical information",
+            "SUB-TOPIC": "1.1.4 Sources of History",
+            "SPECIFIC COMPETENCES": "1.1.4.1 Assess credibility of sources of historical information",
             "LEARNING ACTIVITIES": "• Discussing methods of gathering information about the past (Oral tradition, Written records, Anthropology, Archaeology, Linguistics, Genetics…)\n• Analysing the reliability of methods of gathering information about the past.\n• Utilising reliable methods to write history",
             "EXPECTED STANDARD": "• Credibility of sources of historical information assessed appropriately"
           }
@@ -6678,8 +6678,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.4 STONE AGE",
-            "SUB-TOPIC": "1.4.1The Way of Life in Stone Age",
-            "SPECIFIC COMPETENCES": "1.4.1.1Draw lessons from Stone A ge way of life",
+            "SUB-TOPIC": "1.4.1 The Way of Life in Stone Age",
+            "SPECIFIC COMPETENCES": "1.4.1.1 Draw lessons from Stone A ge way of life",
             "LEARNING ACTIVITIES": "• Classifying Stone Age (Paleolithic also known as old age or Early stone Age, Mesolithic also known as Middle Stone Age and Neolithic also known as New Stone Age or Late Stone Age)\n• Identifying creatures that existed in three Stone Ages (Early: Homo-Habilis. Middle: Broken Hillman. Late: Bushmen/San)\n• Describing social, political, economic aspects of the Stone Age.\n• Analysing the use of various Stone Age tools (Hunting, cutting, digging ...)\n• Contrasting Stone A ge way of life with modern way of life",
             "EXPECTED STANDARD": "• Lessons from Stone Age wayof life drawn appropriately"
           }
@@ -6688,8 +6688,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.4.2Stone Age Sites in Zambia",
-            "SPECIFIC COMPETENCES": "1.4.2.1Assess importance of Stone Age sites in Zambia",
+            "SUB-TOPIC": "1.4.2 Stone Age Sites in Zambia",
+            "SPECIFIC COMPETENCES": "1.4.2.1 Assess importance of Stone Age sites in Zambia",
             "LEARNING ACTIVITIES": "• Locating Stone Age sites on the map of Zambia (Mwela rocks, Nachikufu caves, Gwisho Hot Spring…)\n• Analysing the importance of Stone Age sites (Tourism, Cultural Heritage...)",
             "EXPECTED STANDARD": "• Importance of Stone Age sites in Zambia assessed appropriately"
           }
@@ -6698,8 +6698,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.5 THE BEGINNING AND SPREAD OF IRON-WORKING AND FARMING",
-            "SUB-TOPIC": "1.5.1Development of Iron-Technology and Farming",
-            "SPECIFIC COMPETENCES": "1.5.1.1Analyse impact of Iron technology in farming",
+            "SUB-TOPIC": "1.5.1 Development of Iron-Technology and Farming",
+            "SPECIFIC COMPETENCES": "1.5.1.1 Analyse impact of Iron technology in farming",
             "LEARNING ACTIVITIES": "• Locating on the map early areas of farming and Iron- working (In the Middle East and Africa)\n• Identifying settlement areas of Iron Age farmers in Zambia (Kalundu, Isamu Pati in Kalo mo and In’gombe Ilede).",
             "EXPECTED STANDARD": "• Impact of Iron technology in farming analysed accordingly"
           }
@@ -6708,8 +6708,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.5 THE BEGINNING AND SPEAD OF",
-            "SUB-TOPIC": "1.5.1Development of Iron-Technology",
-            "SPECIFIC COMPETENCES": "1.5.1.1Analyse impact of Iron technology in farming",
+            "SUB-TOPIC": "1.5.1 Development of Iron-Technology",
+            "SPECIFIC COMPETENCES": "1.5.1.1 Analyse impact of Iron technology in farming",
             "LEARNING ACTIVITIES": "HISTORY SYLLABUS SECON",
             "EXPECTED STANDARD": "DARY EDUCATION ORDINARY FORM 1-4"
           }
@@ -6738,8 +6738,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.6 THE BANTU SPEAKING PEOPLE",
-            "SUB-TOPIC": "1.6.1Early Bantu Settlement in Africa",
-            "SPECIFIC COMPETENCES": "1.6.1.1Locate origins of Bantu Speaking People in Africa",
+            "SUB-TOPIC": "1.6.1 Early Bantu Settlement in Africa",
+            "SPECIFIC COMPETENCES": "1.6.1.1 Locate origins of Bantu Speaking People in Africa",
             "LEARNING ACTIVITIES": "• Discussing the term, Bantu.\n• Identifying the Bantu speaking people.\n• Outlining reasons for early Bantu migrations fr om West Africa.\n• Analysing the course of early Bantu migrations from West Africa.\n• Locating on the map of Africa early Bantu settlement in West Africa.",
             "EXPECTED STANDARD": "• Origins of Bantu Speaking People in Africa located correctly."
           }
@@ -6748,8 +6748,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.6.2Bantu Migrations into Zambia",
-            "SPECIFIC COMPETENCES": "1.6.2.1Use knowledge of common origins of Zambian people to promote National unity",
+            "SUB-TOPIC": "1.6.2 Bantu Migrations into Zambia",
+            "SPECIFIC COMPETENCES": "1.6.2.1 Use knowledge of common origins of Zambian people to promote National unity",
             "LEARNING ACTIVITIES": "• Discussing causes for movement of various Bantu Speaking groups into Zambia (From Katanga: political, economic, social…; From South Africa: effects of Mfecane\n• Discussing the course of Bantu Migrations into Zambia (East Africa, Katanga, South Afric a)\n• Drawing a map of Zambia showing historical settlements for Bantu Speaking People.\n• Analysing the effects of Bantu migrations on national unity\n• Using shared heritage to foster National Unity in Zambia",
             "EXPECTED STANDARD": "• Knowledge of common origins of Zambian people, used to promote National unity accordingly"
           }
@@ -6758,8 +6758,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.6.3Decentralised Societies in Pre Colonial Zambia",
-            "SPECIFIC COMPETENCES": "1.6.3.1Analyse features of decentralised societies",
+            "SUB-TOPIC": "1.6.3 Decentralised Societies in Pre Colonial Zambia",
+            "SPECIFIC COMPETENCES": "1.6.3.1 Analyse features of decentralised societies",
             "LEARNING ACTIVITIES": "• Identifying decentralised societies in Zambia (Tonga, Ila Lenje, Soli, Sala, Senga, Nsenga, Kunda, Tumbuka, Lamba, Namwanga, Mambwe, Lungu, Lambya)\n• Locating on the map of Zambia areas of settlement for decentralised societies.\n• Analysing key features of decentralised societies in general (loose political system, mainly farmers, involved in local trade, no tribute system, and weak military organisation, organised in small villages...)",
             "EXPECTED STANDARD": "• Features of decentralised societies analysed accordingly"
           }
@@ -6768,7 +6768,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.6.4Centralised Societies in Pre- Colonial Zambia",
+            "SUB-TOPIC": "1.6.4 Centralised Societies in Pre- Colonial Zambia",
             "SPECIFIC COMPETENCES": "1.6.4.1 Integrate features of Centralised Societies in modern Zambian society",
             "LEARNING ACTIVITIES": "• Identifying centralised societies in pre – colonial Zambia (Luvale, Kaonde, Chewa, Ngoni, Bemba, Lunda, Luyi ...)\n• Locating centralised societies on the map of Zambia.\n• Analysing key features of centralised societies in general (mainly from Katanga, centralised political power, monopoly of trade, tribute system, organised traditional ceremonies, strong military structure…)\n• Integrating features of Centralised societies in modern Zambia",
             "EXPECTED STANDARD": "• Features of Centralised societies integrated in modern Zambian society accordingly"
@@ -6829,9 +6829,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.1 SLAVERY AND SLAVE TRAD E",
-            "SUB-TOPIC": "2. 1.1Development of Slavery and Slave Trad e",
-            "SPECIFIC COMPETENCES": "2.1.1. 1Show respect for human dignity",
+            "TOPIC": "2.1 SLAVERY AND SLAVE TRADE",
+            "SUB-TOPIC": "2.1.1 Development of Slavery and Slave Trade",
+            "SPECIFIC COMPETENCES": "2.1.1.1 Show respect for human dignity",
             "LEARNING ACTIVITIES": "• Discussing slavery and slave trade\n• Identifying forms of slavery (forced labour, domestic servitude, unlawful recruitment, debt bondage…)\n• Assessing reasons for the development of slavery and slave trade\n• Locating on the map of Africa major slave trade routes\n• Describing the major stages of the triangular slave trade.\n• Analysing the impact of sla very and slave trade in Africa (Development of Europe and underdevelopment of Africa, loss of life…)\n• Discussing reasons for the abolishment of slavery and slave trade (humanitarian campaigns, laws against slave trade enacted, Industrial Revolution)",
             "EXPECTED STANDARD": "• Respect for human dignity shown appropriately."
           }
@@ -6840,8 +6840,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.1.2Europe and the benefits from Slave trade",
-            "SPECIFIC COMPETENCES": "2.1.2.1Analyse Europeans’s benefits from slave trade",
+            "SUB-TOPIC": "2.1.2 Europe and the benefits from Slave trade",
+            "SPECIFIC COMPETENCES": "2.1.2.1 Analyse Europeans’s benefits from slave trade",
             "LEARNING ACTIVITIES": "• Discussing benefits European countries from slave trade (Infrastructural development, development of Multi- Corporation…)",
             "EXPECTED STANDARD": "• European benefits from Slave trade analysed correctly"
           }
@@ -6850,8 +6850,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.1.3Human Trafficking as a morden form of slave trade",
-            "SPECIFIC COMPETENCES": "2.1.3.1Show respect for Human rights",
+            "SUB-TOPIC": "2.1.3 Human Trafficking as a modern form of slave trade",
+            "SPECIFIC COMPETENCES": "2.1.3.1 Show respect for Human rights",
             "LEARNING ACTIVITIES": "• Discussing human trafficking\n• Identifying forms of human trafficking (escort services, illicit massage, health, and beauty, residential domestic work, restaurants and food service, recreation, remote interactive sexual acts…)\n• Analysing effects of human traffi cking\n• Demonstrating respect for human rights.",
             "EXPECTED STANDARD": "• Respect for Human rights shown accordingly"
           }
@@ -6860,8 +6860,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2. 1.4Slave Trade and Black Friday",
-            "SPECIFIC COMPETENCES": "2.1.4. 1Relate Black Friday to modern day commerce",
+            "SUB-TOPIC": "2.1.4 Slave Trade and Black Friday",
+            "SPECIFIC COMPETENCES": "2.1.4.1 Relate Black Friday to modern day commerce",
             "LEARNING ACTIVITIES": "• Explaining the origin of Black Friday (When slave traders sold slaves at a reduced price)\n• Showing how Zambia has embraced black Friday (reduced prices of goods in most outlets stores)",
             "EXPECTED STANDARD": "• Bl ack Friday related to modern day commerce accordingly"
           }
@@ -6870,7 +6870,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.2 MISSIONARY ACTIVITIES FROM PRE COLONIAL TO POST COLONIAL ZAMBIA",
-            "SUB-TOPIC": "2.2 .1Missionary Work in Zambia",
+            "SUB-TOPIC": "2.2.1 Missionary Work in Zambia",
             "SPECIFIC COMPETENCES": "2.2.1.1 Analyse impact of missionary activities in Zambia",
             "LEARNING ACTIVITIES": "• Identifying different missionary groups that operated in Zambia (Church of Scotland, London Missionary Society…)\n• Analysing aims/motives of missionary activities\n• Explaining activities of missionaries in Zambia\n• Locating on the map of Zambia successful missionary stations (Mbereshi, Chilubula, Kayambi, Mwenzo, Kawimbe, Fwambo, Magwero, Sefula, Lealui…)\n• Exploring the impact of missionary work in Zambia (Education, Health, agents of colonialism…)\n• Showing the activities of modern day missionaries in Zambia (Education, health, agriculture, radio stations, humanitarian aid, job creation, …)\n• Explaining the impact of missionary work in modern Zambia",
             "EXPECTED STANDARD": "• Im pact of Missionary activities in Zambia analysed accordingly"
@@ -6880,8 +6880,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.3 ESTABLISHMENT OF COLONIAL RULE IN ZAMBIA",
-            "SUB-TOPIC": "2.3.1British Occupation of Northern Rhodesia",
-            "SPECIFIC COMPETENCES": "2.3.1.1Analyse process of colonial occupation of Northern Rhodesia",
+            "SUB-TOPIC": "2.3.1 British Occupation of Northern Rhodesia",
+            "SPECIFIC COMPETENCES": "2.3.1.1 Analyse process of colonial occupation of Northern Rhodesia",
             "LEARNING ACTIVITIES": "• Discussing colonisation\n• Analysing motives for colonisation.\n• Identifying the regions that formed Northern Rhodesia in 1911 (North-Eastern and North- Western Rhodesia)\n• Explaining the occupation of Northern Rhodesia by the British (NER by force, NWR through Treaty signing)",
             "EXPECTED STANDARD": "• The process of colonial occupation of Northern Rhodesia analysed correctly"
           }
@@ -6890,8 +6890,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.4 COLONIAL ADMINISTRATION IN NORTHERN RHODESIA",
-            "SUB-TOPIC": "2 .4.1Types of governance in Northern Rhodesia",
-            "SPECIFIC COMPETENCES": "2.4.1 .1Critique colonial types of governance",
+            "SUB-TOPIC": "2.4.1 Types of governance in Northern Rhodesia",
+            "SPECIFIC COMPETENCES": "2.4.1.1 Critique colonial types of governance",
             "LEARNING ACTIVITIES": "• Discussing types of governance introduced by colonial administration (direct and indirect rule)\n• Discussing features of colonial governance (Hatch system, racial discrimination in education, health, employment…)\n• Assessing the impact of colonial administration (loss of land, loss of political power by chiefs, built infrastructure such as schools and hospitals…)\n• Showing ways in which colonialism is related to neo- colonialism",
             "EXPECTED STANDARD": "• Colonial types of government in Northern Rhodesia critiqued fairly."
           }
@@ -6900,8 +6900,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.4.2The Central African Federation (1953-1963)",
-            "SPECIFIC COMPETENCES": "2.4.2.1Dem onstrate understanding of Central African Federation",
+            "SUB-TOPIC": "2.4.2 The Central African Federation (1953-1963)",
+            "SPECIFIC COMPETENCES": "2.4.2.1 Dem onstrate understanding of Central African Federation",
             "LEARNING ACTIVITIES": "• Discus sing the formation of the Central African Federation (reasons for and against the formation of Central African)\n• Assess ing African’s collaboration in dismantling the Central African Federation\n• Showing ways in which former Central African Federation members are collaborating today",
             "EXPECTED STANDARD": "• Understan ding of Central African Federation demonstrated accordingly"
           }
@@ -6910,7 +6910,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.5 RESISTANCE TO COLONIAL RULE IN NORTHERN RHODE SIA",
-            "SUB-TOPIC": "2. 5.1Primary and Secondary Resistance to Colonial Rule",
+            "SUB-TOPIC": "2.5.1 Primary and Secondary Resistance to Colonial Rule",
             "SPECIFIC COMPETENCES": "2.5.1.1 Interpret resistance methods to colonial rule",
             "LEARNING ACTIVITIES": "• Discussing Primary/Early resistance (Chiefs: Kazembe and mpezeni, African Independent churches…)\n• Discussing Secondary/Later resistance (Welfare societies, trade unions, political Parties)\n• Identifying some of the places that were key in the liberation struggle of Zambia (Chilenje House No. 394, Isa ya Mwamba in Choma, Mukuyu tree in Kabwe…)",
             "EXPECTED STANDARD": "• Various forms of resistance by indigenous people interpreted correctly"
@@ -6920,7 +6920,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.6 ZAMBIA’S STRUGGLE FOR INDEPENDENCE",
-            "SUB-TOPIC": "2.6 .1Nationalists in Zambia’s Independence Struggle",
+            "SUB-TOPIC": "2.6.1 Nationalists in Zambia’s Independence Struggle",
             "SPECIFIC COMPETENCES": "2.6.1.1 Appreciate the role of nationalists and Freedom fighters during Independence struggle",
             "LEARNING ACTIVITIES": "• Summarising the role of Zambia’s leading nationalists in the struggle for independence (Godwin Mbikusita Lewanika, Harry Mwaanga Nkumbula Kenneth Kaunda, Simon Mwansa Kapwepwe, Julia Mulenga Nsofwa, Mainza Chona…)\n• Identifying other individuals involved inth e resistance struggle (Zanco Mpundu Mutembo, Moses Chinyama Luneta, stone- throwers/mposa mabwe\n• Demonstrating respect to our nationalists and Freedom fighters (tell their stories, remembering them posthumously…)",
             "EXPECTED STANDARD": "• Role of Nationalists and freedom fighters during independence struggle appreciated accordingly"
@@ -6943,7 +6943,7 @@
           "cells": {
             "TOPIC": "3.1 COPPER MINING IN ZAM BIA",
             "SUB-TOPIC": "The History of Copper mining in Zambia",
-            "SPECIFIC COMPETENCES": "3.1.1.1Explore Copper mining in Zambia",
+            "SPECIFIC COMPETENCES": "3.1.1.1 Explore Copper mining in Zambia",
             "LEARNING ACTIVITIES": "• Describing the background of copper mining in Zambia (Mining in pre-colonial, colonial and post-colonial)\n• Analysing the impact of copper mining in Zambia (Economic, social, political...)",
             "EXPECTED STANDARD": "• Copper Mining in Zambia explored accordingly"
           }
@@ -6951,7 +6951,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.2LABOUR MIGRATION",
+            "TOPIC": "3.2 LABOUR MIGRATION",
             "SUB-TOPIC": "3.2.1 Labour Migration in Colonial and Post- Colonial Zambia.",
             "SPECIFIC COMPETENCES": "3.2.1.1 Assess impact of labour migration in colonial and post-colonial Zambia",
             "LEARNING ACTIVITIES": "• Examining the causes of labour migration in colonial and post-colonial Zambia (hut tax, incentives …)\n• Identifying organisations that recruited labour migration in colonial Zambia (Northern Rhodesia Native labour Bureau, WENELA…).\n• Describing the impact of labour migration in colonial and post-colonial Zambia (Positive: increased income, exposure to urban life…, negative: disintegration of families, mushrooming of shanty compounds, prostitution…)",
@@ -6962,8 +6962,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.3 LIBERATION STRUGGLE IN SOUTHERN AFRICA",
-            "SUB-TOPIC": "3.3.1Zambia’s role in the liberation struggle of Southern Africa",
-            "SPECIFIC COMPETENCES": "3.3.1.1Evaluate Zambia’s role in liberation struggle of Southern Africa",
+            "SUB-TOPIC": "3.3.1 Zambia’s role in the liberation struggle of Southern Africa",
+            "SPECIFIC COMPETENCES": "3.3.1.1 Evaluate Zambia’s role in liberation struggle of Southern Africa",
             "LEARNING ACTIVITIES": "• Identifying countries in Southern Africa which Zambia helped to LiberateZ(imbabwe, Angola, Namibia, South Africa, Mozambique)\n• Analysing Zambia’s role in the liberation struggle of Southern Africa (Contribution at international forums such as OAU and UN, hosting of key Liberation leaders, diplomacy, Financial, moral, and military support)\n• Discussing the impact Zambia’s involvement in the liberation of Southern Africa (Loss of human life, wasted resources, destroyed infrastructure, presence of land mines…)",
             "EXPECTED STANDARD": "• Zambia’s role in the liberation struggle of Southern Africa evaluated accordingly"
           }
@@ -6972,8 +6972,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.4 THE PAN- AFRICAN MOVEMENT",
-            "SUB-TOPIC": "3.4.1The Pan- Africanism",
-            "SPECIFIC COMPETENCES": "3.4.1.1Promote unity in Africa through Pan-Africanism",
+            "SUB-TOPIC": "3.4.1 The Pan- Africanism",
+            "SPECIFIC COMPETENCES": "3.4.1.1 Promote unity in Africa through Pan-Africanism",
             "LEARNING ACTIVITIES": "• Describing the aims of the Pan-African movement\n• Examining the role played by African leaders(Kenneth Kaunda, Kwame Nkrumah, Muammar Gadaffi…) in promoting unity\n• Assessing the efforts made by various African leaders to achieve the idea of Pan-Africanism",
             "EXPECTED STANDARD": "• Unity in Africa through Pan- Africanism promoted correctly"
           }
@@ -6981,7 +6981,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3 .5POLITICAL AND SOCIO- ECONOMIC DEVELOPMENTS IN ZAMBIA (1964 TO DATE)",
+            "TOPIC": "3.5 POLITICAL AND SOCIO- ECONOMIC DEVELOPMENTS IN ZAMBIA (1964 TO DATE)",
             "SUB-TOPIC": "3.5.1 United National Independence Party’s (UNIP) Domestic policy-1964 –1991",
             "SPECIFIC COMPETENCES": "3.5.1.1 Examine UNIP’s domestic policies (Political and socio- economic)",
             "LEARNING ACTIVITIES": "• Discussing the domestic policy of the UNIP government (political, social and economic)\n• Analysing the challenges faced by the UNIP government (political, economic, social…)",
@@ -6992,8 +6992,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.5.2UNIP and the Search for National Unity.",
-            "SPECIFIC COMPETENCES": "3.5.2.1Promote culture of national unity",
+            "SUB-TOPIC": "3.5.2 UNIP and the Search for National Unity.",
+            "SPECIFIC COMPETENCES": "3.5.2.1 Promote culture of national unity",
             "LEARNING ACTIVITIES": "• Discussing the meaning of One Zambia One Nation motto\n• Assessing the efforts of UNIP government in promoting national unity (Boarding school system, civil servants were deployed to regions where they did not come from, use of football, balancing of the cabinet …)",
             "EXPECTED STANDARD": "• Culture of national unity promoted accordingly."
           }
@@ -7003,7 +7003,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "3.6.1 UNIP and the Lumpa Church",
-            "SPECIFIC COMPETENCES": "3.6.1. 1Utilise different strategies in responding to challenges",
+            "SPECIFIC COMPETENCES": "3.6.1.1 Utilise different strategies in responding to challenges",
             "LEARNING ACTIVITIES": "• Examining activities of the Lumpa Church (how these activities threatened UNIP rule)\n• Assessing UNIP’s response to the Lumpa church problem\n• Analysing the rebirth of the church after the change of government in 1991(Jerusalem Church)",
             "EXPECTED STANDARD": "• Different strategies in responding to challenges utilised accordingly"
           }
@@ -7012,8 +7012,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.2UNIP and the Insurgency of Adamson Mushala",
-            "SPECIFIC COMPETENCES": "3.6.2.1Engage in ways of conflict resolution in society",
+            "SUB-TOPIC": "3.6.2 UNIP and the Insurgency of Adamson Mushala",
+            "SPECIFIC COMPETENCES": "3.6.2.1 Engage in ways of conflict resolution in society",
             "LEARNING ACTIVITIES": "• Exploring ways of conflict resolution\n• Accounting for the rise of Adamson Mushala\n• Describing activities of Adamson Mushala",
             "EXPECTED STANDARD": "• Ways of engaging in conflict resolution in society explored accordingly"
           }
@@ -7022,8 +7022,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.3UNIP’s reign and attempted military coups.",
-            "SPECIFIC COMPETENCES": "3.6.3.1Promote the culture of ascending to power democratically",
+            "SUB-TOPIC": "3.6.3 UNIP’s reign and attempted military coups.",
+            "SPECIFIC COMPETENCES": "3.6.3.1 Promote the culture of ascending to power democratically",
             "LEARNING ACTIVITIES": "• Identifying attempted military coups under UNIP’s reign (Christon Tembo, Mwamba Luchembe)\n• Assessing reasons for attempted coups during the UNIP regime\n• Evaluating the impact of the attempted coups on Zambia politics",
             "EXPECTED STANDARD": "• Democratic methods of ascending to power promoted accordingly"
           }
@@ -7042,8 +7042,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.5Zambia under the Movement for Multi- Party Democracy (MMD): 1991 –2011.",
-            "SPECIFIC COMPETENCES": "3.6.5.1Analyse policies of the MMD government",
+            "SUB-TOPIC": "3.6.5 Zambia under the Movement for Multi- Party Democracy (MMD): 1991 –2011.",
+            "SPECIFIC COMPETENCES": "3.6.5.1 Analyse policies of the MMD government",
             "LEARNING ACTIVITIES": "• Identifying the Presidents of Zambia under the MMD (Fredrick T.J Chiluba, Levy P. Mwanawasa, and Rupiah B. Banda).\n• Discussing the domestic policy of the MMD government (Political, economic, social...)\n• Analysing the challenges that came witht he MMD’s domestic policy (Privatization, loss of jobs, economic problems, 1997 attempted coup…)\n• Discussing the MMD’s foreign policy (promotion of international relations, Non-Aligned…)",
             "EXPECTED STANDARD": "• Policies of the MMD government analysed correctly"
           }
@@ -7052,8 +7052,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.6Zambia under the Patriotic Front (PF): 2011– 2021",
-            "SPECIFIC COMPETENCES": "3.6.6 .1Examine PF government policies",
+            "SUB-TOPIC": "3.6.6 Zambia under the Patriotic Front (PF): 2011– 2021",
+            "SPECIFIC COMPETENCES": "3.6.6.1 Examine PF government policies",
             "LEARNING ACTIVITIES": "• Identifying the Presidents of Zambia under the PF(Michael C. Sata, Edgar C. Lungu)\n• Discussing the domestic policy of the PF government (Political, socio- economic...)\n• Discussing the Foreign policy of the PF government.\n• Analysing the challenges faced by the PF government arising from its domestic and foreign policies",
             "EXPECTED STANDARD": "• Policies of the PF government examined correctly"
           }
@@ -7062,8 +7062,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.7Zambia under the United Party for National Development (UPND): since 2021",
-            "SPECIFIC COMPETENCES": "3.6.7.1Analyse UPND’s policies since 2021",
+            "SUB-TOPIC": "3.6.7 Zambia under the United Party for National Development (UPND): since 2021",
+            "SPECIFIC COMPETENCES": "3.6.7.1 Analyse UPND’s policies since 2021",
             "LEARNING ACTIVITIES": "• Identifying the president of Zambia under the UPND (Hakainde Hichilema)\n• Discussing the domestic policy of the UPND government (Political, economic, social...)\n• Analysing the Foreign policy of the UPND government",
             "EXPECTED STANDARD": "• Policies of the UPND government analysed accordingly"
           }
@@ -7144,7 +7144,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.1 THE FIRST WORLD WAR (1914 –1919)",
-            "SUB-TOPIC": "4.1 .1Causes of the First World War",
+            "SUB-TOPIC": "4.1.1 Causes of the First World War",
             "SPECIFIC COMPETENCES": "4.1.1.1 Analyse events leading to the First World War",
             "LEARNING ACTIVITIES": "• Analysing events in Europe that led to tension building between 1900 – 1914:(Anglo –Germany naval rivalry, and arms race, the Alliance system in Europe, Imperialism and conflicts related to imperialism in Africa, and Nationalismin the Balkans…)\n• Evaluating sho rt term causes of the First World War (Murder at Sarajevo)\n• Showing course of the First World War (Schlieffen Plan)\n• Analysing results of the First World War (loss of human life, destruction of infrastructure…)",
             "EXPECTED STANDARD": "• Events leading to the First World War analysed accordingly"
@@ -7154,8 +7154,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.2 ATTEMPTS AT WORLD PEACE: 1919 TO 1939",
-            "SUB-TOPIC": "4.2.1The Paris Peace Conference (1919)",
-            "SPECIFIC COMPETENCES": "4.2.1.1Promote peaceful methods of conflict resolution",
+            "SUB-TOPIC": "4.2.1 The Paris Peace Conference (1919)",
+            "SPECIFIC COMPETENCES": "4.2.1.1 Promote peaceful methods of conflict resolution",
             "LEARNING ACTIVITIES": "• Discussing the terms of the Versailles Treaty of Versailles\n• Critiquing the impact of the Versailles Treaty on defeated nations\n• Analysing the views of the ‘Big Three’ at resolving future conflicts",
             "EXPECTED STANDARD": "• Peaceful methods of conflict resolution promoted accordingly"
           }
@@ -7164,7 +7164,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.2 .2 The League of Nations.",
+            "SUB-TOPIC": "4.2.2 The League of Nations.",
             "SPECIFIC COMPETENCES": "4.2.2.1 Assess the work of the League of Nations",
             "LEARNING ACTIVITIES": "• Identifying factors for the formation of the League.\n• Assessing the work of the League of Nations (successesand events leading to its failure)",
             "EXPECTED STANDARD": "• The work of the League of Nations assessed accordingly"
@@ -7173,9 +7173,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.3 THE SECOND WORLD WA R (1939 TO 1945)",
-            "SUB-TOPIC": "4.3.1Causes of the Sec ond World War",
-            "SPECIFIC COMPETENCES": "4.3.1.1Analyse events leading to the Second World War",
+            "TOPIC": "4.3 THE SECOND WORLD WAR (1939 TO 1945)",
+            "SUB-TOPIC": "4.3.1 Causes of the Second World War",
+            "SPECIFIC COMPETENCES": "4.3.1.1 Analyse events leading to the Second World War",
             "LEARNING ACTIVITIES": "• Analysing events in Europe that led to the collapse of peace by 1939: (Hitler’s and Mussolini’s activities in Foreign Policy, British and French Policy of Appeasement, weaknesses of the League of Nations that led to the outbreak of the World War two.\n• Analysing the impact of the Second World War (loss of human life, destruction of infrastructure, …)",
             "EXPECTED STANDARD": "• Events leading to Second World War analysed appropriately"
           }
@@ -7184,7 +7184,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3. 2Zambia and World Wars",
+            "SUB-TOPIC": "4.3.2 Zambia and World Wars",
             "SPECIFIC COMPETENCES": "4.3.2.1 Evaluate Zambia’s role in World Wars",
             "LEARNING ACTIVITIES": "• Describing Zambia’s involvement in World Wars\n• Analysing the impact of the First and Second World Wars on Zambia (copper boom, loss of life, increased production, rise of nationalism, increased funding in agriculture and health …)\n• Identifying ways on how Zambia commemorates World Wars (honoring war veterans, laying of wreaths at the cenotaph, visiting war monuments…)",
             "EXPECTED STANDARD": "• Zambia’s role in World Wars evaluated accordingly"
@@ -7194,8 +7194,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.3Capitalist versus Communist World(Cold War)",
-            "SPECIFIC COMPETENCES": "4.3.3.1Examine ideologies of Capitalism and Communism since 1945",
+            "SUB-TOPIC": "4.3.3 Capitalist versus Communist World (Cold War)",
+            "SPECIFIC COMPETENCES": "4.3.3.1 Examine ideologies of Capitalism and Communism since 1945",
             "LEARNING ACTIVITIES": "• Discussing ideologies Communism and Capitalism.\n• Analysing ways in which both the Communists and the Capitalists made attempts to strengthen their ideologies (Truman Doctrine, Marshall Aid, formation of NATO, Cominform, formation of Warsaw Pact, formation of the iron curtain…)\n• Stating incidences of rivalry and influence between the Capitalist and Communist World (Korean War, Cuban Missile Crisis, Berlin Blockade…)\n• Analysing how the Cold War accelerated nuclear proliferation between the Capitalist and the Communist\n• Discussing ways in which Zambia was affected during the Cold War (Non-aligned movement)",
             "EXPECTED STANDARD": "• Ideologies of Capitalism and Communism examined correctly."
           }
@@ -7204,8 +7204,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.4 FURTHER ATTEMPTS AT WORLD PEACE",
-            "SUB-TOPIC": "4.4.1The United Nations (UN) since 1945",
-            "SPECIFIC COMPETENCES": "4.4.1.1Assess the work of the UN since 1945",
+            "SUB-TOPIC": "4.4.1 The United Nations (UN) since 1945",
+            "SPECIFIC COMPETENCES": "4.4.1.1 Assess the work of the UN since 1945",
             "LEARNING ACTIVITIES": "• Discussing the establishment of the UN (Winston Churchill and Franklin Delano Roosevelt’s idea, Atlantic Charter, Moscow Conference, Dumbarton Oaks conference, Ya lta conference…)\n• Describing the aims of the UN\n• Outlining the organisational structure of the UN\n• Assessing the collaboration between the UN and Zambia.",
             "EXPECTED STANDARD": "• Work of the UN since 1945 assessed accordingly"
           }
@@ -7214,7 +7214,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4 .4.2The African Union (AU )",
+            "SUB-TOPIC": "4.4.2 The African Union (AU)",
             "SPECIFIC COMPETENCES": "4.4.2.1 Demonstrate understanding the role of African unity",
             "LEARNING ACTIVITIES": "• Describing the historical background of the AU (prelude of the OAU)\n• Evaluating aims of the AU\n• Analysing the role of the AU in promoting peace and unity\n• Assessing the achievements and failures of the AU\n• Examining Zam bia’s contributions to the AU",
             "EXPECTED STANDARD": "• Und erstanding the role of African unity demonstrated appropriately"
@@ -7223,9 +7223,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.5 ZAMBIA AND ITS INTERNATIONAL COOPORATING PARTNERS (1964 TO PRESENT TIME)",
-            "SUB-TOPIC": "4.5.1Zambia and its international partners",
-            "SPECIFIC COMPETENCES": "4.5.1.1Appreciate bilateral relationsbetween Zambia and its international partners",
+            "TOPIC": "4.5 ZAMBIA AND ITS INTERNATIONAL COOPERATING PARTNERS (1964 TO PRESENT TIME)",
+            "SUB-TOPIC": "4.5.1 Zambia and its international partners",
+            "SPECIFIC COMPETENCES": "4.5.1.1 Appreciate bilateral relationsbetween Zambia and its international partners",
             "LEARNING ACTIVITIES": "• Identifying Zambia’s cooperating partners since independence (Britain, China, Russia, Cuba, Finland, Japan, Sweden, Denmark and USA)\n• Discussing the role of cooperating partners in transforming Zambia’s socio-economic and political landscape (health, education, agriculture, infrastructure…)",
             "EXPECTED STANDARD": "• Bilateral relations between Zambia and its international partners appreciated accordingly"
           }
@@ -7234,8 +7234,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.6 CONTEMPORARY ISSUES",
-            "SUB-TOPIC": "4.6.1Pandemics and Epidemics",
-            "SPECIFIC COMPETENCES": "4.6.1.1Participate in awareness campaign on the prevention of pandemics and epidemics",
+            "SUB-TOPIC": "4.6.1 Pandemics and Epidemics",
+            "SPECIFIC COMPETENCES": "4.6.1.1 Participate in awareness campaign on the prevention of pandemics and epidemics",
             "LEARNING ACTIVITIES": "• Discussing pandemic and epidemic\n• Identifying pandemics (HIV\\AIDS, COVID-19…) and epidemics (Cholera, Typhoid, dysentery…)\n• Discussing causes of Pandemics and Epidemics.\n• Analysing the impact of pandemics and epidemics in our society.\n• Exploring ways of preventing pandemics and epidemics",
             "EXPECTED STANDARD": "• Awareness campaigns on the prevention of pandemics and epidemics participated in accordingly"
           }
@@ -7244,7 +7244,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6 .2Communicable and non communicable diseases",
+            "SUB-TOPIC": "4.6.2 Communicable and non communicable diseases",
             "SPECIFIC COMPETENCES": "4.6.2.1 Engage in awareness campaigns on the prevention of communicable and non-communicable diseases",
             "LEARNING ACTIVITIES": "• Identifying communicable and non- communicable diseases\n• Causes of communicable and non-communicable diseases.\n• Analysing the impact of communicable and non- communicable diseases in our society\n• Engaging in wa ys of preventing communicable and non-communicable diseases",
             "EXPECTED STANDARD": "• Fu ll engagement in the awareness campaigns on the prevention of communicable and non-communicable diseases achieved"
@@ -7254,8 +7254,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6.3National Values and Principles",
-            "SPECIFIC COMPETENCES": "4.6.3.1Promote culture of respect",
+            "SUB-TOPIC": "4.6.3 National Values and Principles",
+            "SPECIFIC COMPETENCES": "4.6.3.1 Promote culture of respect",
             "LEARNING ACTIVITIES": "• Discussing National Values and Principles.\n• Recognising elders in our society (In families, church, national leaders, traditional, spiritual…)\n• Demonstrating ways of showing respect to elders and leaders.\n• Promoting the culture of",
             "EXPECTED STANDARD": "• Culture of respect promoted accordingly"
           }
@@ -7264,8 +7264,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6.6Street vending in Zambia",
-            "SPECIFIC COMPETENCES": "4.6.6.1Assess impact of street vending.",
+            "SUB-TOPIC": "4.6.6 Street vending in Zambia",
+            "SPECIFIC COMPETENCES": "4.6.6.1 Assess impact of street vending.",
             "LEARNING ACTIVITIES": "• Discussing street vending.\n• Examining causes of street vending\n• Analysing the impact of street vending (positive",
             "EXPECTED STANDARD": "• Impact of street vending assessed accordingly"
           }
@@ -7274,8 +7274,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6.7Emerging social vic es in Zambia",
-            "SPECIFIC COMPETENCES": "4.6.7.1Promote good morals",
+            "SUB-TOPIC": "4.6.7 Emerging social vices in Zambia",
+            "SPECIFIC COMPETENCES": "4.6.7.1 Promote good morals",
             "LEARNING ACTIVITIES": "• Role playing awareness on trending social vices (juvenile delinquency such as junkies, child marriage…)\n• Analysing causes and effects of trending social vices in society.\n• Suggesting possible solutions to trending social vices.\n• Discussing attitudes that are progressive (studying, playing games, helping at home…)",
             "EXPECTED STANDARD": "• Good morals promoted accordingly"
           }
@@ -7284,7 +7284,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6 .8Terrorism",
+            "SUB-TOPIC": "4.6.8 Terrorism",
             "SPECIFIC COMPETENCES": "4.6.8.1 Recognise ways of promoting a culture of peace in society",
             "LEARNING ACTIVITIES": "• Discussing forms of terro rism (Domestic/Homegrown Terrorism, International Terrorism)\n• Analysing the activities of the Mailon Brothers in Central Zambia as an example of Domestic terrorism\n• Discussing the activities of the Al-Qaeda network as an example of International Terrorism (Leadership of the Al-Qaeda, the Twin Tower attack of 2001...)\n• Assessing the impact of Terrorism in our society (instilling fear in people, damage to infrastructure, displacement of people, killing of people...)\n• Identfying ways of promoting a culture of peace in our society",
             "EXPECTED STANDARD": "• Ways of promoting a culture of peace in society recognised appropriately"
@@ -7294,8 +7294,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.6.9The 1994 Rwandan Genocide",
-            "SPECIFIC COMPETENCES": "4.6.9.1Assess the impact of Rwandan Genocide",
+            "SUB-TOPIC": "4.6.9 The 1994 Rwandan Genocide",
+            "SPECIFIC COMPETENCES": "4.6.9.1 Assess the impact of Rwandan Genocide",
             "LEARNING ACTIVITIES": "• Discussing causes of the 1994 Rwandan Genocide\n• Analysing the impact of the Rwandan Genocide",
             "EXPECTED STANDARD": "• Impact of the R wandan Genocide assessed accordingly"
           }
@@ -7304,8 +7304,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4 .6.10The Middle East Cri ses",
-            "SPECIFIC COMPETENCES": "4.6.10 .1Analyse conflicts in the Middle East since 1948",
+            "SUB-TOPIC": "4.6.10 The Middle East Crises",
+            "SPECIFIC COMPETENCES": "4.6.10.1 Analyse conflicts in the Middle East since 1948",
             "LEARNING ACTIVITIES": "• Discussing causes of conflicts in the Middle East since 1948\n• Showing how conflicts have escalated today",
             "EXPECTED STANDARD": "• Conflicts in the Middle East since 1948 analysed accordingly"
           }
@@ -7314,8 +7314,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4 .6.11DR Congo regional conflict",
-            "SPECIFIC COMPETENCES": "4.6.11 .1Demonstrate understanding of Congo DR conflicts",
+            "SUB-TOPIC": "4.6.11 DR Congo regional conflict",
+            "SPECIFIC COMPETENCES": "4.6.11.1 Demonstrate understanding of Congo DR conflicts",
             "LEARNING ACTIVITIES": "• Discussing the origins of the betweenCongo DR and the M23 Rebels of Rwanda\n• Analysing the impact of the conflict to regional peace",
             "EXPECTED STANDARD": "• Understanding of Congo DR conflicts demonstrated accordingly"
           }
@@ -7418,7 +7418,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.5 MealPa tterns",
+            "SUB-TOPIC": "4.3.5 Meal Patterns",
             "SPECIFIC COMPETENCES": "4.3.5.1 Plan different meals for the day",
             "LEARNING ACTIVITIES": "• Discussing meal planning\n• Planning meal patterns (breakfast, lunch and supper/dinner).\n• Making a menu",
             "EXPECTED STANDARD": "Different meals for the day planned appropriately"
@@ -7538,7 +7538,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.8 SEWING",
-            "SUB-TOPIC": "4.8.1 Basic S ewing Skills",
+            "SUB-TOPIC": "4.8.1 Basic Sewing Skills",
             "SPECIFIC COMPETENCES": "4.8.1.1 Develop the Basic Sewing Skills .",
             "LEARNING ACTIVITIES": "• Observing safety precautions during travel (seat belts, emergency exits, check safety signage, and staying with a group).\n• Using simple sewing tools (needles, pins, thread, scissors, seam ripper, thimble, measuring tape, fabric marking tools, pin cushion)\n• Demonstrating basic Sewing Skills: (thread a needle, tie knots, and sew basic stitches (like running stitch and backstitch).\n• Elaborating the importance of precision and patience in sewing.\n• Designing and making projects such as felt bookmarks, fabric coasters, or small stuffed animals.",
             "EXPECTED STANDARD": "Basic sewing skills developed accordingly"
@@ -8287,7 +8287,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.5. ENTREPRENEURS HIP",
+            "TOPIC": "4.5. ENTREPRENEURSHIP",
             "SUB-TOPIC": "4.5.1. Events Management",
             "SPECIFIC COMPETENCES": "4.5.1.1 Manage an event",
             "LEARNING ACTIVITIES": "• Discussing key elements in events planning:(Event objectives, Event scope, Event budget, Event time line, Venue selection…) l Exploring event planning stages:(Event Definition, Event Preparation, Event Implementation, Event Evaluation…)\n• Demonstrating events planning skills by planning school events: (Sports, cultural, social, send-off party…)",
@@ -8501,7 +8501,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.6 ICT IN BUSINE S S",
+            "TOPIC": "1.6 ICT IN BUSINESS",
             "SUB-TOPIC": "1.6.1 Introduction to ICT in Business",
             "SPECIFIC COMPETENCES": "1.6.1.1 Appreciate ICT tools in Business",
             "LEARNING ACTIVITIES": "• Identifying different ICT tools in businesses and entrepreneurship\n• Discussing the role of ICT in managing business finances\n• Watching videos on digital finance applications\n• Interviewing local entrepreneurs on ICT use in business\n• Presenting findings on ICT’s impact on financial management\n• Discussing how ICT can be used to safeguard Businesses\n• Role playing on how ICT can positively impact business operations",
@@ -11323,7 +11323,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.17 LETTERIN G",
+            "TOPIC": "1.17 LETTERING",
             "SUB-TOPIC": "1.17.1 Letters of the Alphabet",
             "SPECIFIC COMPETENCES": "1.17.1.1 Design letters of the alphabet",
             "LEARNING ACTIVITIES": "• Designing letters of the alphabet (copy, cut-out, paint letters…)",
@@ -11879,7 +11879,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.18PUNCTUAT ION",
+            "TOPIC": "2.18 PUNCTUATION",
             "SUB-TOPIC": "2.18.1 Punctuate sentences.",
             "SPECIFIC COMPETENCES": "2.18.1.1 Use commas and question marks in sentences.",
             "LEARNING ACTIVITIES": "• Punctuating a list of items with a comma (banana, apple, mango ….)\n• Adding question marks to interrogative statements (What is your name? Where do you live?…)\n• Using punctuation marks in given sentences (capital letter, full stop, spacing, question mark, comma)",
@@ -12185,7 +12185,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.9LISTENING COMPREHENSION",
+            "TOPIC": "2.9 LISTENING COMPREHENSION",
             "SUB-TOPIC": "2.9.1 Making Inferences",
             "SPECIFIC COMPETENCES": "2.9.1.1 Draw inferences from the information they have heard.",
             "LEARNING ACTIVITIES": "• Drawing inferences from a story",
@@ -12769,7 +12769,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.8 COMPUTE R",
+            "TOPIC": "2.8 COMPUTER",
             "SUB-TOPIC": "2.8.1 Computer Hardware",
             "SPECIFIC COMPETENCES": "2.8.1.1 Operate basic Computer Hardware",
             "LEARNING ACTIVITIES": "• Using different types of computer hardware (mouse, keyboard, monitor)",
@@ -12821,7 +12821,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.11.2 Energy Conservation",
-            "SPECIFIC COMPETENCES": "2.11.1.1Identify items that conserve energy",
+            "SPECIFIC COMPETENCES": "2.11.1.1 Identify items that conserve energy",
             "LEARNING ACTIVITIES": "• Identifying items for conserving energy (traditional stove and oven, brazier...)",
             "EXPECTED STANDARD": "• Items that conserve energy identified accordingly"
           }
@@ -12841,7 +12841,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.12.2 Educational Gymnastics",
-            "SPECIFIC COMPETENCES": "2.12.2.1Perform tumbling activities",
+            "SPECIFIC COMPETENCES": "2.12.2.1 Perform tumbling activities",
             "LEARNING ACTIVITIES": "• Performing tumbling activities (trunk rolling, tummy rolling, balancing…)",
             "EXPECTED STANDARD": "• Tumbling activities performed correctly"
           }
@@ -12851,7 +12851,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "2.12.2.2Perform stunts activities",
+            "SPECIFIC COMPETENCES": "2.12.2.2 Perform stunts activities",
             "LEARNING ACTIVITIES": "• Performing stunts activities (high jump, twisting…)",
             "EXPECTED STANDARD": "• Stunts activities performed correctly"
           }
@@ -12861,7 +12861,7 @@
           "cells": {
             "TOPIC": "2.13 NEEDLEWORK",
             "SUB-TOPIC": "2.13.1 Needlework tools",
-            "SPECIFIC COMPETENCES": "2.13.1.1Use needlework tools",
+            "SPECIFIC COMPETENCES": "2.13.1.1 Use needlework tools",
             "LEARNING ACTIVITIES": "• Discussing small needlework tools (seam riper, cutting scissor, needles…)\n• Drawing and labelling small needlework tools\n• Using small needlework tools, make small items (fridge mat, head bands…)",
             "EXPECTED STANDARD": "• Needlework tools used appropriately"
           }
@@ -12871,7 +12871,7 @@
           "cells": {
             "TOPIC": "2.14 RECREATION",
             "SUB-TOPIC": "2.14.1 Movement and Dance",
-            "SPECIFIC COMPETENCES": "2.14.1.1Perform structured movements",
+            "SPECIFIC COMPETENCES": "2.14.1.1 Perform structured movements",
             "LEARNING ACTIVITIES": "• Performing structured movements (using traditional songs, contemporary music…)",
             "EXPECTED STANDARD": "• Structured movements performed appropriately"
           }
@@ -12881,7 +12881,7 @@
           "cells": {
             "TOPIC": "2.15 CRAFTS",
             "SUB-TOPIC": "2.15.1 Plaiting",
-            "SPECIFIC COMPETENCES": "2.15.1.1Plait using locally available materials",
+            "SPECIFIC COMPETENCES": "2.15.1.1 Plait using locally available materials",
             "LEARNING ACTIVITIES": "• Plaiting using available local materials (sisal, grass, pieces of fabric…)",
             "EXPECTED STANDARD": "• Plaiting using locally available materials done skillfully"
           }
@@ -12891,7 +12891,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.15.2 Weaving",
-            "SPECIFIC COMPETENCES": "2.15.2.1Make familiar objects using weaving techniques",
+            "SPECIFIC COMPETENCES": "2.15.2.1 Make familiar objects using weaving techniques",
             "LEARNING ACTIVITIES": "• Making familiar objects by weaving (mats, hats, belts…)",
             "EXPECTED STANDARD": "Familiar objects using weaving techniques wove skillfully"
           }
@@ -12901,7 +12901,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.15.3 Papier Maché",
-            "SPECIFIC COMPETENCES": "2.15.3.1Model items using Papier maché",
+            "SPECIFIC COMPETENCES": "2.15.3.1 Model items using Papier maché",
             "LEARNING ACTIVITIES": "• Preparing paper pulp for modeling\n• Modeling various items using Papier maché (fruits, balls…)",
             "EXPECTED STANDARD": "• Items using papier maché modelled correctly"
           }
@@ -12911,7 +12911,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.15.4 Construction",
-            "SPECIFIC COMPETENCES": "2.15.4.1Construct familiar objects",
+            "SPECIFIC COMPETENCES": "2.15.4.1 Construct familiar objects",
             "LEARNING ACTIVITIES": "• Constructing familiar objects (human figures, bicycles, wire cars…)\n• Decorating finished objects\n• Making structures using geometric shapes",
             "EXPECTED STANDARD": "• Familiar objects constructed accordingly"
           }
@@ -12921,7 +12921,7 @@
           "cells": {
             "TOPIC": "2.16 SPORTS SKILLS DEVELOPMENT",
             "SUB-TOPIC": "2.16.1 Games",
-            "SPECIFIC COMPETENCES": "2.16.1.1Apply skills in conventional and traditional games",
+            "SPECIFIC COMPETENCES": "2.16.1.1 Apply skills in conventional and traditional games",
             "LEARNING ACTIVITIES": "• Applying skills in conventional and traditional games,",
             "EXPECTED STANDARD": "• Skills in conventional and traditional games applied appropriately."
           }
@@ -12930,8 +12930,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.16.2 Field andTrack Events",
-            "SPECIFIC COMPETENCES": "2.16.2.1Perform Field and Track Events",
+            "SUB-TOPIC": "2.16.2 Field and Track Events",
+            "SPECIFIC COMPETENCES": "2.16.2.1 Perform Field and Track Events",
             "LEARNING ACTIVITIES": "• Performing Field and Track Events (30meter relays, Bottle race, Bean bags, Lane, Throw, Catch…)",
             "EXPECTED STANDARD": "• Field and track events performed correctly"
           }
@@ -12941,7 +12941,7 @@
           "cells": {
             "TOPIC": "2.17 DESIGNING",
             "SUB-TOPIC": "2.17.1 Designing",
-            "SPECIFIC COMPETENCES": "2.17.1.1Make designs of different objects",
+            "SPECIFIC COMPETENCES": "2.17.1.1 Make designs of different objects",
             "LEARNING ACTIVITIES": "• Identifying objects to be designed (car, bicycle, house, boat…)\n• Designing identified objects",
             "EXPECTED STANDARD": "• Designs of different objects made accordingly."
           }
@@ -12950,7 +12950,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.18 LETTERING",
-            "SUB-TOPIC": "2.18.1 Letters of theAlphabet",
+            "SUB-TOPIC": "2.18.1 Letters of the Alphabet",
             "SPECIFIC COMPETENCES": "2.1 8.1.1Design and cut letters of the alphabet",
             "LEARNING ACTIVITIES": "• Designing and cutting - out letters (lower case and uppercase letters)",
             "EXPECTED STANDARD": "• Letters of the alphabet designed and cut appropriately"
@@ -12961,7 +12961,7 @@
           "cells": {
             "TOPIC": "2.19 SWIMMING",
             "SUB-TOPIC": "2.19.1 Water Orientation",
-            "SPECIFIC COMPETENCES": "2.19.1.1Exhibit swimming skills",
+            "SPECIFIC COMPETENCES": "2.19.1.1 Exhibit swimming skills",
             "LEARNING ACTIVITIES": "• Exhibiting swimming skills (diving, jumping, sliding, breathing and floating...)",
             "EXPECTED STANDARD": "• Swimming skills exhibited accordingly"
           }
@@ -12971,7 +12971,7 @@
           "cells": {
             "TOPIC": "2.20 ENTREPRENEURSHIP",
             "SUB-TOPIC": "2.20.1 Entrepreneurial Activities",
-            "SPECIFIC COMPETENCES": "2.20.1.1Demonstrate entrepreneurial activities",
+            "SPECIFIC COMPETENCES": "2.20.1.1 Demonstrate entrepreneurial activities",
             "LEARNING ACTIVITIES": "• Identifying entrepreneurial activities (buying and selling at the market, cookery, crafts…)\n• Demonstrating entrepreneurial activities (buying and selling…)",
             "EXPECTED STANDARD": "• Entrepreneurial activities demonstrated correctly."
           }
@@ -13297,7 +13297,7 @@
           "cells": {
             "TOPIC": "3.13 INDEPENDENT READING",
             "SUB-TOPIC": "3.13.1 Stories and Texts",
-            "SPECIFIC COMPETENCES": "3.13.1.1Read stories and texts with understanding",
+            "SPECIFIC COMPETENCES": "3.13.1.1 Read stories and texts with understanding",
             "LEARNING ACTIVITIES": "• Reading of fiction and non-fiction genres independently/ according to personal preference.\n• Reading passages on various themes (cultural celebrations and festivals, traditional ceremonies entrepreneurship, health…)",
             "EXPECTED STANDARD": "• Stories and texts read correctly with understanding."
           }
@@ -14256,8 +14256,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.1.SAFETY",
-            "SUB-TOPIC": "3.1.1Safety in handling hand tools",
-            "SPECIFIC COMPETENCES": "3.1.1.1Practise safety in handling hand tools",
+            "SUB-TOPIC": "3.1.1 Safety in handling hand tools",
+            "SPECIFIC COMPETENCES": "3.1.1.1 Practise safety in handling hand tools",
             "LEARNING ACTIVITIES": "• Applying safety rules in handling hand tools\n• Packing tools in safe places",
             "EXPECTED STANDARD": "Safety in handling hand tools practiced correctly"
           }
@@ -14266,8 +14266,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.1.2First Aid",
-            "SPECIFIC COMPETENCES": "3.1.2.1Apply First Aid in different situations",
+            "SUB-TOPIC": "3.1.2 First Aid",
+            "SPECIFIC COMPETENCES": "3.1.2.1 Apply First Aid in different situations",
             "LEARNING ACTIVITIES": "• Role playing First Aid in different situations (cuts, bruises, n ose bleeding, scalds…)",
             "EXPECTED STANDARD": "• First Aid applied corre ctly in different situations"
           }
@@ -14276,8 +14276,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.1.3Body Posture",
-            "SPECIFIC COMPETENCES": "3.1.3.1Demonstratepostural activities",
+            "SUB-TOPIC": "3.1.3 Body Posture",
+            "SPECIFIC COMPETENCES": "3.1.3.1 Demonstratepostural activities",
             "LEARNING ACTIVITIES": "• Demonstratingpostural activities (sit ups on flat surfaces, stretches, bends, rolls, sitting at a computer…)",
             "EXPECTED STANDARD": "• Postural activ ities demonstratedappropriately"
           }
@@ -14286,8 +14286,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.2.COOKERY",
-            "SUB-TOPIC": "3.2.1Snacks",
-            "SPECIFIC COMPETENCES": "3.2.1.1Make healthy snacks",
+            "SUB-TOPIC": "3.2.1 Snacks",
+            "SPECIFIC COMPETENCES": "3.2.1.1 Make healthy snacks",
             "LEARNING ACTIVITIES": "• Making healthy snacks (sandwich, roasted nuts, roasted cassava, smoothies…)",
             "EXPECTED STANDARD": "• Healthy snacks made accordingly"
           }
@@ -14296,8 +14296,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.3.DRAWING AND COLOURING",
-            "SUB-TOPIC": "3.3.1Drawing",
-            "SPECIFIC COMPETENCES": "3.3.1.1Draw pictures",
+            "SUB-TOPIC": "3.3.1 Drawing",
+            "SPECIFIC COMPETENCES": "3.3.1.1 Draw pictures",
             "LEARNING ACTIVITIES": "• Drawing pictures based on life experiences and events (worshiping, dancing…)",
             "EXPECTED STANDARD": "• Pictures drawn accordingly"
           }
@@ -14306,8 +14306,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.3.2Colouring",
-            "SPECIFIC COMPETENCES": "3.3.2.1Colour pictures.",
+            "SUB-TOPIC": "3.3.2 Colouring",
+            "SPECIFIC COMPETENCES": "3.3.2.1 Colour pictures.",
             "LEARNING ACTIVITIES": "• Identifying secondary colours (orange, green, violet)\n• Colouring various pictures depicting life experiences (my village, my town, market place…)",
             "EXPECTED STANDARD": "• Pictures coloured appropriately"
           }
@@ -14650,7 +14650,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.2.SETS",
-            "SUB-TOPIC": "1.2.1Set Builder Notation",
+            "SUB-TOPIC": "1.2.1 Set Builder Notation",
             "SPECIFIC COMPETENCES": "1.2.1.1. Apply the concept of set-builder notation and set operations in real life",
             "LEARNING ACTIVITIES": "• Exploring sets in the environment\n• Exploring types of sets\n• Interpreting set builder notation\n• Presenting sets in set builder notation",
             "EXPECTED STANDARD": "The concept of set builder notation and set operations applied correctly"
@@ -14660,7 +14660,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.2.2Operations on Sets",
+            "SUB-TOPIC": "1.2.2 Operations on Sets",
             "SPECIFIC COMPETENCES": "1.2.2.1. Apply the concept of set operations in real life",
             "LEARNING ACTIVITIES": "• Performing single and combined operations involving intersection, union and complement of sets (combining up to three sets)\n• Illust rating sets using Venn diagrams\n• Finding the number of elements in a given set, n(A)\n• Describing the shaded region using set notation\n• Shading regions described by a set notation\n• Applying distributive, associative and commutative laws of set operations\n• Using ICT tools to enhance understanding the concepts of Sets",
             "EXPECTED STANDARD": ""
@@ -14669,9 +14669,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.3INTEGERS",
-            "SUB-TOPIC": "1.3.1The Four Operations",
-            "SPECIFIC COMPETENCES": "1.3.1.1Apply the four operations on integers in real life situation",
+            "TOPIC": "1.3 INTEGERS",
+            "SUB-TOPIC": "1.3.1 The Four Operations",
+            "SPECIFIC COMPETENCES": "1.3.1.1 Apply the four operations on integers in real life situation",
             "LEARNING ACTIVITIES": "• Exploring integers\n• Comparing situations which depict integers such as loss and profit in business, low and high temperatures, elevation below and above sea level\n• Adding integers\n• Subtracting integers\n• Multiplying integ ers\n• Dividing integers\n• Applying combined operations on inte gers\n• Using ICT tools to enhance understanding of integ ers",
             "EXPECTED STANDARD": "The four operations applied on integers accurately in real life situations"
           }
@@ -14679,8 +14679,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.4ALGEBRA",
-            "SUB-TOPIC": "1.4.1Algebraic Expressions",
+            "TOPIC": "1.4 ALGEBRA",
+            "SUB-TOPIC": "1.4.1 Algebraic Expressions",
             "SPECIFIC COMPETENCES": "1.4.1.1. Apply algebraic expressions in different life contexts",
             "LEARNING ACTIVITIES": "• Constructing algebraic expressions from word statements\n• Relating letters and numbers (terms)\n• Identifying variables and coefficients in an algebraic expression\n• Grouping like and unlike terms.\n• Simplifying algebraic expressions\n• Applying Commutative, Associative and Distributive (CAD) laws\n• Expanding and simplifying algebraic expressions\n• Factorising algebraic expressions using common factors\n• Applying the four operations on algebraic expressions\n• Evaluating algebraic expressions by substituting variables with numbers",
             "EXPECTED STANDARD": "Algebraic expressions applied correctly in different life contextsaccordingly"
@@ -14690,8 +14690,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.5. ESTIMATION AND APPR OXIMATION",
-            "SUB-TOPIC": "1.5.1Estimation and Approximation in Context.",
-            "SPECIFIC COMPETENCES": "1.5.1.1Use Estimation and Approximation in practical context.",
+            "SUB-TOPIC": "1.5.1 Estimation and Approximation in Context.",
+            "SPECIFIC COMPETENCES": "1.5.1.1 Use Estimation and Approximation in practical context.",
             "LEARNING ACTIVITIES": "• Exploring the concept of Estimation and Approximation\n• Estimating measures and comparing them with actual measurements\n• Interpreting errors (absolute, relative, percentage) and tolerance\n• Approximating measurements/numbers by rounding off to the nearest degree of accuracy (unit, fraction or decimal)\n• Stating the number of significant figures in a given number\n• Expressing numbers in scientific notation or standard form\n• Approximating numbers in scientific notation to a given degree of accuracy\n• Using Project-based activities to apply estimation and approximation",
             "EXPECTED STANDARD": "Estimation and approximation used appropriately in practical context."
           }
@@ -14700,8 +14700,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.6. COORDINATE GEOMETRY",
-            "SUB-TOPIC": "1.6.1The Cartesian Plane",
-            "SPECIFIC COMPETENCES": "1.6.1.1Apply the concept of the Cartesian Plane in real life",
+            "SUB-TOPIC": "1.6.1 The Cartesian Plane",
+            "SPECIFIC COMPETENCES": "1.6.1.1 Apply the concept of the Cartesian Plane in real life",
             "LEARNING ACTIVITIES": "• Exploring ways of finding a location\n• Exploring the Cartesian plane\n• Identifying the x-axis, y- axis and the origin\n• Numbering of the x and y axes\n• Plotting and labelling points on the Cartesian plane\n• Reading co-ordinates (x, y) on the Cartesian plane\n• Joining points to come up with different shapes\n• Naming shapes formed.\n• Drawing straight lines\n• Determining the mid-point of two points\n• Finding the gradient of a straight line\n• Finding the equation of a straight line\n• Using ICT tools to enhance understanding the concept of Coordinate Geometry",
             "EXPECTED STANDARD": "The concepts of Cartesian planeapplied correctly in real life"
           }
@@ -14710,8 +14710,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.7. RELATIONS AND FUNCTIONS",
-            "SUB-TOPIC": "1.7.1Types of Relations and Functions",
-            "SPECIFIC COMPETENCES": "1.7.1.1Apply the concepts of relations and functions in real life situations",
+            "SUB-TOPIC": "1.7.1 Types of Relations and Functions",
+            "SPECIFIC COMPETENCES": "1.7.1.1 Apply the concepts of relations and functions in real life situations",
             "LEARNING ACTIVITIES": "• Exploring relationships in the society\n• Exploring different types of relations\n• Describing different types of relations(one to one, one to many, many to one and many to many)\n• Representing relations using ordered pairs, arrow diagrams, tables, graphs, and mappings\n• Determining features which make a mapping into a function\n• Representing a function in the form f: x→a or f(x) = a\n• Recognising the domain and range\n• Finding the range of the function given the domain\n• Finding a function given a set of ordered pairs\n• Drawing graphs of linear functions and reflecting them\n• Using ICT tools to enhance the understanding of Relations and Functions",
             "EXPECTED STANDARD": "The concepts of relations and functions applied in real life situationscorrectly"
           }
@@ -14720,7 +14720,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.8. ANGLES AND POLYGONS",
-            "SUB-TOPIC": "1.8.1Properties of Angles and Polygons",
+            "SUB-TOPIC": "1.8.1 Properties of Angles and Polygons",
             "SPECIFIC COMPETENCES": "1.8.1.1 Apply the concept of angles and polygons in different contexts",
             "LEARNING ACTIVITIES": "• Exploring shapes in the environment\n• Exploring angles and polygons (regular and irregular)\n• Identifying angles related with straight lines\n• Calculating the sizes of angles represented by a variable between intersecting lines, lines from a point and triangles (interior and exterior angles)\n• Describing properties of interior and exterior angles of regular polygons\n• Calculating interior, exterior and sum of interior angles of a regular polygon\n• Distinguishing angles of elevation from angles of depression\n• Finding angles of depression and elevation\n• Using ICT and project- based activities in angles and polygons",
             "EXPECTED STANDARD": "The concept of angles and polygons applied in different contextsappropriately"
@@ -14740,7 +14740,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.10. DIRECTIONS AND BEARINGS",
-            "SUB-TOPIC": "1.10.1Navigational Bearings",
+            "SUB-TOPIC": "1.10.1 Navigational Bearings",
             "SPECIFIC COMPETENCES": "1.10.1.1. Apply concepts of directions and bearings inreal life situations",
             "LEARNING ACTIVITIES": "• Exploring concepts of positions, directions and bearings\n• Identifying the four cardinal points on the compass (North, East, West and South)\n• Describing the direction of a place from a given point using the compass points (NE, NNE)\n• Identifying, reading and writing bearings in different formats: Compass/Quadrant bearings (W), Three figure bearings (270, 025, 005) and Degree-minutes- seconds bearings (\n• Demonstrating compass and three figure bearings using a pair of compasses and a protractor\n• Drawing and labelling diagrams to represent directions and bearings\n• Describing the bearing of a place from a given point\n• Creating computer simulations to visualise directions and bearings",
             "EXPECTED STANDARD": "The concepts of directions and bearings applied in real life situations correctly"
@@ -14750,8 +14750,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.11. SIMILARITY AND CONGRUENCY",
-            "SUB-TOPIC": "1.11.1Similar and Congruent Figures",
-            "SPECIFIC COMPETENCES": "1.11.1.1Use the concepts of similarity and congruencyin real contexts",
+            "SUB-TOPIC": "1.11.1 Similar and Congruent Figures",
+            "SPECIFIC COMPETENCES": "1.11.1.1 Use the concepts of similarity and congruencyin real contexts",
             "LEARNING ACTIVITIES": "• Exploring similar things in the surrounding.\n• Exploring the concepts of similarity and congruency\n• Identifying similar and congruent shapes in the environment\n• Making similar and congruent shapes and objects\n• Designing similar and congruent shapes using ICT tools\n• Creating appropriate scale drawings (e.g classroom, football pitch)\n• Calculating the scale on a map\n• Calculating length and area using a given scale\n• Calculating the len gth, area and volume of similar figures using ratios",
             "EXPECTED STANDARD": "The concepts of similarityand congruency used in real contexts accordingly"
           }
@@ -14771,7 +14771,7 @@
           "cells": {
             "TOPIC": "1.13. MENSURATION",
             "SUB-TOPIC": "1.13.1. The Circle",
-            "SPECIFIC COMPETENCES": "1.13.1.1Apply concepts of the circle in real life situations",
+            "SPECIFIC COMPETENCES": "1.13.1.1 Apply concepts of the circle in real life situations",
             "LEARNING ACTIVITIES": "• Exploring the circular things in the environment\n• Identifying parts of the circle.\n• Demon strating how to obtain the value of Pi through practical activities\n• Finding the circumference, arc length using radius or diameter of the circle [constant pi (π =3.14) or (π =3.142) or (π = )]\n• Finding the perimeter of a sector\n• Establishing the formula for the area of circle (by demonstration)\n• Calculating the area of a circle [constant pi (π = 3.14) or (π =3.142) or (π = )]\n• Calculating the area of a sector (minor and major)\n• Using ICT tools to illustrate concepts of the circle",
             "EXPECTED STANDARD": "The concepts of a circle applied in real life situations correctly"
           }
@@ -14823,7 +14823,7 @@
           "cells": {
             "TOPIC": "2.4. ALGEBRA",
             "SUB-TOPIC": "2.4.1. Basic Processes",
-            "SPECIFIC COMPETENCES": "2.4.1.1Apply basic processes of algebra in different contexts",
+            "SPECIFIC COMPETENCES": "2.4.1.1 Apply basic processes of algebra in different contexts",
             "LEARNING ACTIVITIES": "• Exploring patterns and relationships in relation to algebra\n• Factorising by grouping terms, quadratic expressions and difference of two squares\n• Adding, subtracting, multiplying and dividing algebraic fractions\n• Simplifying algebraic fractions using Lowest Common Multiples (LCM) and factorisation",
             "EXPECTED STANDARD": "Basic Processes of algebra applied accurately in different contexts"
           }
@@ -14904,7 +14904,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.1. EQUATIONS AND INEQUALITIES",
-            "SUB-TOPIC": "3.1.1Quadratic Equations and Inequalities",
+            "SUB-TOPIC": "3.1.1 Quadratic Equations and Inequalities",
             "SPECIFIC COMPETENCES": "3.1.1.1 Use concepts of quadratic equations and inequalities in real life context",
             "LEARNING ACTIVITIES": "• Exploring quadratic equations and inequalities.\n• Formulating quadratic equations from word statement\n• Expressing quadratic equations in standard form,\n• Solving quadratic equations using different methods such as factorization and completing the square method\n• Deriving the quadratic formula\n• Solving quadratic equations using the quadratic formula method\n• Formulating quadratic inequations from word statement\n• Solving quadratic inequalities\n• Using the discriminant to determine the nature of roots\n• Using the roots to find the quadratic equation\n• Using ICT tools to solve quadratic equations and inequalities",
             "EXPECTED STANDARD": "The concepts of quadratic equations and inequalities used correctly in real life context"
@@ -14953,9 +14953,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.5SEQUENCES AND SERIES",
-            "SUB-TOPIC": "3.5.1Arithmetic and Geometric Progressions",
-            "SPECIFIC COMPETENCES": "3.5.1.1Use concepts of arithmetic and geometric progressions in real life context",
+            "TOPIC": "3.5 SEQUENCES AND SERIES",
+            "SUB-TOPIC": "3.5.1 Arithmetic and Geometric Progressions",
+            "SPECIFIC COMPETENCES": "3.5.1.1 Use concepts of arithmetic and geometric progressions in real life context",
             "LEARNING ACTIVITIES": "• Exploring different types of sequences and series\n• Generating arithmetic progression (AP) and geometric progression (GP)\n• Finding the nth term of an arithmetic and geometric progression\n• Finding the number of terms of an AP and a GP\n• Finding arithmetic and geometric means between two terms of a progression\n• Finding the sum of a given number of terms in an AP and GP\n• Finding the sum to infinity of a GP\n• Using ICT tools in arithmetic and geometric progression such as creating algorithms for managing data structures",
             "EXPECTED STANDARD": "The concepts of arithmetic and geometric progressions usedcorrectly in real life context"
           }
@@ -14983,9 +14983,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.8TRAVEL GRAPHS",
-            "SUB-TOPIC": "3.8.1Distance and velocity time graphs",
-            "SPECIFIC COMPETENCES": "3.8.1.1Apply the concepts of distance and velocity timegraphs in real life situations",
+            "TOPIC": "3.8 TRAVEL GRAPHS",
+            "SUB-TOPIC": "3.8.1 Distance and velocity time graphs",
+            "SPECIFIC COMPETENCES": "3.8.1.1 Apply the concepts of distance and velocity timegraphs in real life situations",
             "LEARNING ACTIVITIES": "• Exploring distance and velocity time graphs\n• Drawing distance -time graphs\n• Interpreting distance -time graphs\n• Calcula ting average speed, distance and time\n• Converting speed from one unit to another (from km/h to m/s…)\n• Drawing velocity -time graphs\n• Interpr eting velocity -time graphs\n• Calcula ting velocity, acceleration and retardation/deceleration\n• Calculating the area under a velocity -time graph (Relating area to distance)\n• Relating the concept of similarities to distance and velocity time graphs\n• Using ICT tools in distance and velocity time graphs",
             "EXPECTED STANDARD": "Distance and velocity time graphs applied correctly in real life situations"
           }
@@ -15026,8 +15026,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.2. VECTORS",
-            "SUB-TOPIC": "4.2.1Vectors in two Dimensions",
-            "SPECIFIC COMPETENCES": "4.2.1.1Use the concepts of two dimensional vectors in real life situations",
+            "SUB-TOPIC": "4.2.1 Vectors in two Dimensions",
+            "SPECIFIC COMPETENCES": "4.2.1.1 Use the concepts of two dimensional vectors in real life situations",
             "LEARNING ACTIVITIES": "• Exploring concepts of two dimensional vectors\n• Distinguishing vector and scalar quantities (direction, magnitude)\n• Denoting a vector with notations; , , , (include the use of the Cartesian plane)\n• Distinguishing position vectors from free vectors\n• Finding position vector of a point\n• Applying position vectors in calculations\n• Adding and subtracting vectors (includ ing directed line segments)\n• Applying translations on vectors\n• Finding magnitude of a vector\n• Multiplying vectors by scalars\n• Finding unit vector\n• Using (scalar) product of two vectors\n• Using dot product to find angles between two vectors\n• Solving vector equation of a straight line\n• Determining collinearity of points and parallelism\n• Solving vector geometry (Include ratio and mid-point theorems)\n• Using ICT tools and Project based activities in vectors",
             "EXPECTED STANDARD": "The concepts of vectors in two dimensions used correctly in real life situations"
           }
@@ -15046,8 +15046,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.4. EARTH GEOMETRY",
-            "SUB-TOPIC": "4.4.1Latitudes and Longitudes",
-            "SPECIFIC COMPETENCES": "4.4.1.1Apply the concept of Earth Geometry in real life context.",
+            "SUB-TOPIC": "4.4.1 Latitudes and Longitudes",
+            "SPECIFIC COMPETENCES": "4.4.1.1 Apply the concept of Earth Geometry in real life context.",
             "LEARNING ACTIVITIES": "• Exploring concepts of Earth Geometry\n• Identifying great circles such as the equator and all longitudes with their opposite meridians and small circles (latitudes)\n• Locating points using latitudes and longitudes\n• Finding the difference in latitudes and longitudes\n• Calculating distance along parallels of latitudes and longitudes in Kilometres and Nautical miles (include standard units)\n• Calculating the shortest distance between two points on the surface of the Earth\n• Calculating time difference between two given points\n• Calculating speed in knots\n• Using ICT tools to apply the concept of Earth Geometry",
             "EXPECTED STANDARD": "The concept of Earth Geometry appliedcorrectly in real life context"
           }
@@ -15057,7 +15057,7 @@
           "cells": {
             "TOPIC": "4.5. GEOMETRICAL TRANSFORMATI ONS",
             "SUB-TOPIC": "4.5.1 Isometries and non-isometries",
-            "SPECIFIC COMPETENCES": "4.5.1.1Apply concepts of geometrical transformations in real life situations",
+            "SPECIFIC COMPETENCES": "4.5.1.1 Apply concepts of geometrical transformations in real life situations",
             "LEARNING ACTIVITIES": "• Exploring geometrical transformations\n• Using a column vector to translate an object\n• Reflecting geometrical shapes by way of mirror lines and matrix\n• Rotating geometrical shapes by way of construction and matrix\n• Finding the centre of rotation, direction and angle by construction and formula\n• Finding a matrix of rotation using different methods\n• Dilating objects using different methods such as construction and matrix method\n• Finding the centre, scale factor and dilation matrix\n• Stretching objects using different methods such as construction and matrix method\n• Finding centre, area, scale factor, invariant line and stretch matrix\n• Shearing objects by different methods such as construction and matrix method\n• Finding the shear factor, invariant line and shear matrix\n• Perform ing combined transformations on objects\n• Using ICT tools and Project- based activities in geometrical transformations",
             "EXPECTED STANDARD": "The concept of geometrical transformations applied correctly in real life situations"
           }
@@ -15100,8 +15100,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.1 NUMBERS",
-            "SUB-TOPIC": "1.1.1Classification of Numbers",
-            "SPECIFIC COMPETENCES": "1.1.1.1Aply classification of numbers in real life context",
+            "SUB-TOPIC": "1.1.1 Classification of Numbers",
+            "SPECIFIC COMPETENCES": "1.1.1.1 Aply classification of numbers in real life context",
             "LEARNING ACTIVITIES": "• Exploring properties of different types of numbers (natural numbers, whole, integers, prime numbers, even numbers, odd numbers, rational and irrational numbers, composite numbers) using materials (puzzles, number cards, games…)\n• Investigating the factors and multiples of numbers\n• Investigating ways of find ing highest common factor (HCF) and lowest common multiple (LCM) (prime factorization, listing…)\n• Creating number patterns (games, puzzles…)",
             "EXPECTED STANDARD": "Numbers applied in real life situations consistently"
           }
@@ -15140,8 +15140,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.3.2Estimations",
-            "SPECIFIC COMPETENCES": "1.3.2.1Use Estimation to make informed decisions in real life",
+            "SUB-TOPIC": "1.3.2 Estimations",
+            "SPECIFIC COMPETENCES": "1.3.2.1 Use Estimation to make informed decisions in real life",
             "LEARNING ACTIVITIES": "• Estimating measures and comparing them with actual measurements\n• Interpreting the abs olute, relative percentage errors and tolerance in real life context (height, packaging, designing…)",
             "EXPECTED STANDARD": "Estimation to make informed decisions in real lifeused correctly"
           }
@@ -15170,7 +15170,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.6 MATRICES",
-            "SUB-TOPIC": "1.6.1Operations on Matrices",
+            "SUB-TOPIC": "1.6.1 Operations on Matrices",
             "SPECIFIC COMPETENCES": "1.6.1.1 Apply Matrices toreal life situations",
             "LEARNING ACTIVITIES": "• Formulating matric es from real life situations (making a pay roll, shop records, distribution of resources, planning…)\n• Identifying the order of matrices\n• Transpos ing matrices\n• Exploringvarious typ es of Matrices and their properties (singular, equal, identity matrices …)\n• Carrying out operations on matrices in real life situations (Addition, subtraction,multiplication; matrix bya scalar,matrix by matrixup to 2 x 2)",
             "EXPECTED STANDARD": "Matrices applied to real life situations correctly"
@@ -15191,7 +15191,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "1.7.2 Angle of Elevation and Depression",
-            "SPECIFIC COMPETENCES": "1.7.2.1Use Angle of Elevation and Depression everyday life",
+            "SPECIFIC COMPETENCES": "1.7.2.1 Use Angle of Elevation and Depression everyday life",
             "LEARNING ACTIVITIES": "• Exploring angles of depression and elevation practicallyusing real life situations\n• Distinguish ing angles of elevation and depression in real life situations\n• Finding the angle of depression and ele vation",
             "EXPECTED STANDARD": "Angle of Elevation and Depression used in everyday life correctly"
           }
@@ -15200,7 +15200,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.8 TRIGONOMETRY",
-            "SUB-TOPIC": "1.8.1Pythagoras Theorem",
+            "SUB-TOPIC": "1.8.1 Pythagoras Theorem",
             "SPECIFIC COMPETENCES": "1.8.1.1 Use the Pythagoras theorem to solve problems in different contexts",
             "LEARNING ACTIVITIES": "• ExploringPythagoras theoremthrough practical activities(a ladder against a wall, creating Geo board with squares and triangles…)\n• Investigating sides of the right-angled triangle (two adjacent sides and hypotenuse)\n• Deriving the Pythagoras theorem (a2+ b2= c2)\n• Solving real life problems usingPythagoras Theorem",
             "EXPECTED STANDARD": "Pythagoras theorem used to solve problems in different contextscorrectly"
@@ -15253,7 +15253,7 @@
           "cells": {
             "TOPIC": "2.2 RELATIONS AND FUNCTIONS",
             "SUB-TOPIC": "2.2.1 Relations",
-            "SPECIFIC COMPETENCES": "2.2.1.1Apply relations to model and solve problems",
+            "SPECIFIC COMPETENCES": "2.2.1.1 Apply relations to model and solve problems",
             "LEARNING ACTIVITIES": "• Exploring the types of relationsin real life situations.(One to one, One to many, many to one, many to many)\n• Representing relations using arrow diagrams/mappings, ordered pairs",
             "EXPECTED STANDARD": "Relations to model and solve problems applied correctly"
           }
@@ -15263,7 +15263,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.2.2 Functions",
-            "SPECIFIC COMPETENCES": "2.2.2.1Apply functions to model and solve problems",
+            "SPECIFIC COMPETENCES": "2.2.2.1 Apply functions to model and solve problems",
             "LEARNING ACTIVITIES": "• Determining which relations are functions and non- functions\n• Representing a function as\n• Finding the range given the domain and vice versa\n• Finding a function give n a set of ordered pairs\n• Investigating the In verse of a function using real life situations(order of parking and unparking a box…)\n• Determining a function without an inverse\n• Exploring composite functions\n• Solving problems involving composite functions",
             "EXPECTED STANDARD": "Functions to model and solve problemsapplied correctly"
           }
@@ -15375,7 +15375,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "3.2.2 Three Dimensional Shapes",
-            "SPECIFIC COMPETENCES": "3.2.2.1Use the concept of Three-dimensional shapes in real life situations",
+            "SPECIFIC COMPETENCES": "3.2.2.1 Use the concept of Three-dimensional shapes in real life situations",
             "LEARNING ACTIVITIES": "• Exploring three-dimension al shapes and their nets (face, edge and vertex) in real life(Icecream Cones, waste bins…)\n• Finding the to tal surface area of a cylinder, triangular prism,pyramid ,cone and other shapes in t h e environment\n• Finding the volume of a, cylinder, triangular prism, pyramidandcone\n• Determining the volumeo f a frustum(pyramid,cone )\n• Making three-dimensional shapes",
             "EXPECTED STANDARD": "Concept of Three- dimensionalshapes used correctly in real life situations"
           }
@@ -15385,7 +15385,7 @@
           "cells": {
             "TOPIC": "3.3 SYMMETRY",
             "SUB-TOPIC": "3.3.1 Symmetry of 2 Dimensional Shapes",
-            "SPECIFIC COMPETENCES": "3.3.1.1Apply the concept of 2-Dimensional symmetry in real life context",
+            "SPECIFIC COMPETENCES": "3.3.1.1 Apply the concept of 2-Dimensional symmetry in real life context",
             "LEARNING ACTIVITIES": "• Exploring rotational symmetry in 2 dimensional shapes\n• Determining the order of rotational symmetry\n• Finding the angle of rotational symmetry\n• Describing the rotational symmetry of a 2dimensional shape",
             "EXPECTED STANDARD": "Concept of 2-Dimensional symmetry applied correctly in real life context"
           }
@@ -15465,7 +15465,7 @@
           "cells": {
             "TOPIC": "3.9 VARIATIONS",
             "SUB-TOPIC": "3.9.1 Types of Variations",
-            "SPECIFIC COMPETENCES": "3.9.1.1Apply variations to solve real world problems",
+            "SPECIFIC COMPETENCES": "3.9.1.1 Apply variations to solve real world problems",
             "LEARNING ACTIVITIES": "• Exploring real life situations in which direct variation and inverse variations arise (speed, and stopping time, carbon emission and rainfall…)\n• Expressing direct variation in algebraic form\n• Solving problems involving direct variation\n• Expressing inverse variation in algebraic form\n• Solving problems involving Inverse variation\n• Exploring real life situations in which joint variation arises (carbon emission, globalwarming and reduced rainfall… )\n• Expressing joint va r iation in algebraic form\n• Solving problems involving joint variation",
             "EXPECTED STANDARD": "Variations applied to solve real world problems correctly"
           }
@@ -15507,7 +15507,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.1.2 Quadratic Functions",
-            "SPECIFIC COMPETENCES": "4.1.2.1Apply quadratic functions to model and solve problems",
+            "SPECIFIC COMPETENCES": "4.1.2.1 Apply quadratic functions to model and solve problems",
             "LEARNING ACTIVITIES": "• Investigating the Meaning of\n• Finding the domain and codomain of a quadratic function\n• Exploring the nature of a quadratic function (maximum and minimum)\n• Finding the maximum and minimum\n• Determining the x and y intercepts\n• Sketching the graphs of quadratic function\n• Using technologies to explore quadratic functions",
             "EXPECTED STANDARD": "Quadratic functions applied to model and solve problems correctly"
           }
@@ -15537,7 +15537,7 @@
           "cells": {
             "TOPIC": "4.3 VECTORS",
             "SUB-TOPIC": "4.3.1 Vectors in 2 Dimensions",
-            "SPECIFIC COMPETENCES": "4.3.1.1Apply vectors in problem solving",
+            "SPECIFIC COMPETENCES": "4.3.1.1 Apply vectors in problem solving",
             "LEARNING ACTIVITIES": "• Exploring the concept of vectors (properties of vectors)\n• Expressing vectors in different forms (directed line segment, component form)\n• Adding and subtracting vectors\n• Applying translations on position vectors\n• Finding the magnitude of a vector\n• Exploring scalar multiples of factors\n• Multiplying vectors by a scalar\n• Determining parallelism of vectors\n• Solving problems involving vector geometry",
             "EXPECTED STANDARD": "Vectors applied in problem solving appropriately"
           }
@@ -15557,7 +15557,7 @@
           "cells": {
             "TOPIC": "4.5 GEOMETRICAL TRANSFORMATIONS",
             "SUB-TOPIC": "4.5.1 Isometric Transformations",
-            "SPECIFIC COMPETENCES": "4.5.1.1Apply Isometric Transformations to problem solving",
+            "SPECIFIC COMPETENCES": "4.5.1.1 Apply Isometric Transformations to problem solving",
             "LEARNING ACTIVITIES": "• Exploring the concept of Isometric Transformations (Orientation, shape, area: Translation, Reflection, Rotation)\n• Using a column vector to link objects to their images\n• Describing a translation given an object and image\n• Reflecting objects using the coordinate plane\n• Finding the mirror line\n• Reflecting objects by matrix method\n• Describing a Reflection given an object and image\n• Exploring the rotation of objects, (clockwise, anticlockwise)\n• Finding the image given object, centre, angle and direction (using geometrical instruments, matrices and technology)\n• Finding centre, angle and direction of rotation\n• Describing a Rotation given an object and image",
             "EXPECTED STANDARD": "Isometric Transformations applied to problem solving correctly"
           }
@@ -15600,8 +15600,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.1. SETS",
-            "SUB-TOPIC": "4.1. 1 Operations on Sets",
-            "SPECIFIC COMPETENCES": "4.1.1.1Apply set operations in everyday life",
+            "SUB-TOPIC": "4.1.1 Operations on Sets",
+            "SPECIFIC COMPETENCES": "4.1.1.1 Apply set operations in everyday life",
             "LEARNING ACTIVITIES": "• Illustrating the concept of intersection set of two given sets and its notation “∩” using life contexts, real objects, computer animations and circle diagrams…\n• Identifying the intersection set of two sets\n• Presenting two sets with no common members (disjoint sets)\n• Illustrating the concept of Union set of two given sets and its notation “U” using life contexts, real objects, computer animations, circle diagrams…\n• Identifying the Union set of two sets",
             "EXPECTED STANDARD": "• Set operations applied in everyday life appropriately"
           }
@@ -15631,7 +15631,7 @@
           "cells": {
             "TOPIC": "4.3. FRACTIONS",
             "SUB-TOPIC": "4.3.1 Comm on Fractions",
-            "SPECIFIC COMPETENCES": "4.3.1.1Apply theconcept of fractions in different contexts",
+            "SPECIFIC COMPETENCES": "4.3.1.1 Apply theconcept of fractions in different contexts",
             "LEARNING ACTIVITIES": "• Illustrating equivalent fractions\n• Arranging common fractions either in ascending or descending order, such as using a proportion line\n• Identifying and representing improper and mixed numbers\n• Converting mixed numbers to improper fractions and vice versa\n• Adding and subtracting proper and improper fractions and mixed numbers with a common denominator",
             "EXPECTED STANDARD": "• Concept of fractions applied appropriately"
           }
@@ -15641,7 +15641,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "4.3.2.Decimal Fractions",
-            "SPECIFIC COMPETENCES": "4.3.2.1Utilise decimal Fractions in life situations",
+            "SPECIFIC COMPETENCES": "4.3.2.1 Utilise decimal Fractions in life situations",
             "LEARNING ACTIVITIES": "• Illustrating the understanding of decimal fractions Practically such asrelatingdecimalsto commonfractions with denominators of 10 and 100\n• Identifying place values in a decimal number up to 2 decimal places\n• Reading and writing decimals (up to 2 decimal places)\n• Adding and subtracting decimal numbers up to 2 decimal places\n• Multiplying decimal numbers (up to 2 decimal places)by whole numbers\n• Dividing decimal numbers (up to 2 decimal places) by whole numbers (up to 2-digits) WITHOUT REMAINDER",
             "EXPECTED STANDARD": "• Decimal fractions utilised correctly"
           }
@@ -15690,7 +15690,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.7 MEASURES",
-            "SUB-TOPIC": "4.7.1Time and Area",
+            "SUB-TOPIC": "4.7.1 Time and Area",
             "SPECIFIC COMPETENCES": "4.7.1.1. Apply theconcept of measurement in different life in situations",
             "LEARNING ACTIVITIES": "• Determining duration of time elapsed between events (subtraction and addition of time)\n• Relating seconds, minutes, hours and day\n• Illustrating the concept of area by using nonstandard units such as squared grids, tiles\n• Describing standard units to measure area (mm2, cm2, m2)\n• Deriving formulae for finding area of rectangle and square\n• Using the formulae for finding area of rectangle and square",
             "EXPECTED STANDARD": "• Concept of measurement applied appropriately"
@@ -15883,7 +15883,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.8SWIMMING",
+            "TOPIC": "1.8 SWIMMING",
             "SUB-TOPIC": "1.8.1 Water safety .",
             "SPECIFIC COMPETENCES": "1.8.1.1 Apply water safety practices.",
             "LEARNING ACTIVITIES": "• Creating simulated water safety scenario. (Mock pool emergency …).\n• Researching and presenting about diﬀerent water safety topics. (Rip currents, pool safety, water-borne illnesses…).\n• Demonstrating water safety practices. (Use of life jacket, walking safely, hygiene, depth of the pool, Life-saving practices: breath ing,…).",
@@ -16095,7 +16095,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.6 ORGANISATION ANDM ANAGEMENT OF GAMES AND SPORTS EVENTS.",
+            "TOPIC": "2.6 ORGANISATION AND MANAGEMENT OF GAMES AND SPORTS EVENTS.",
             "SUB-TOPIC": "2.6.1 The Sports Structure in Zambia",
             "SPECIFIC COMPETENCES": "2.6.1.1 Design a model of the sports structure in Zambia",
             "LEARNING ACTIVITIES": "• Describing the sports structure in Zambia . (Ministry of Youth Sports and Arts, NSCZ, NOCZ…) .\n• Describe the sports structure in Zambia.",
@@ -16116,8 +16116,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.6.3International Sportsbod ies",
-            "SPECIFIC COMPETENCES": "2.6.3.1Demo nstrate knowledge of International Sports Bodies",
+            "SUB-TOPIC": "2.6.3 International Sports Bodies",
+            "SPECIFIC COMPETENCES": "2.6.3.1 Demo nstrate knowledge of International Sports Bodies",
             "LEARNING ACTIVITIES": "·Discu ssing international sports bodies (FIFA, FINA, IOC, FIBA…). ·Comp aring and contrasting diﬀerent international sports bodies in the world.",
             "EXPECTED STANDARD": "·Knowle dge international sports bodies demonstrated accordingly"
           }
@@ -16338,8 +16338,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.2Diet insports.",
-            "SPECIFIC COMPETENCES": "3.6.2.1Plan a diet for a sports person.",
+            "SUB-TOPIC": "3.6.2 Diet in sports.",
+            "SPECIFIC COMPETENCES": "3.6.2.1 Plan a diet for a sports person.",
             "LEARNING ACTIVITIES": "• Planning a diet for a sports person.\n• Practising good eating habits by observing balanced diet.",
             "EXPECTED STANDARD": "• Diet for a sports person planned accordingly"
           }
@@ -16348,8 +16348,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.7 SPORTS SKILLS DEVELOPMENT",
-            "SUB-TOPIC": "3.7.1Athletics",
-            "SPECIFIC COMPETENCES": "3.7.1.1Utiliseskills in ﬁeld events.",
+            "SUB-TOPIC": "3.7.1 Athletics",
+            "SPECIFIC COMPETENCES": "3.7.1.1 Utiliseskills in ﬁeld events.",
             "LEARNING ACTIVITIES": "• Performing ﬁeld events. (Throws…).",
             "EXPECTED STANDARD": "• Skills in ﬁeld events utilised appropriately."
           }
@@ -16358,8 +16358,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.7.2Ball games",
-            "SPECIFIC COMPETENCES": "3.7.2.1Practise skills in Basketball and baseball.",
+            "SUB-TOPIC": "3.7.2 Ball games",
+            "SPECIFIC COMPETENCES": "3.7.2.1 Practise skills in Basketball and baseball.",
             "LEARNING ACTIVITIES": "• Practising basic skills in Basketball and baseball.",
             "EXPECTED STANDARD": "• Skills in Basketball and baseball practiced appropriately."
           }
@@ -16368,8 +16368,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.7.3Board games",
-            "SPECIFIC COMPETENCES": "3.7.3.1Useskills in Scrabble and Monopoly.",
+            "SUB-TOPIC": "3.7.3 Board games",
+            "SPECIFIC COMPETENCES": "3.7.3.1 Useskills in Scrabble and Monopoly.",
             "LEARNING ACTIVITIES": "• Describing the game of scrabble and monopoly\n• Performing basic skills in Scrabble and Monopoly.",
             "EXPECTED STANDARD": "• Skills in Scrabble and Monopoly used properly."
           }
@@ -16450,8 +16450,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.1 FACILITIES AND EQUIPMENT",
-            "SUB-TOPIC": "4.1.1Sports facilities and equipment.",
-            "SPECIFIC COMPETENCES": "4.1.1.1Designindoor and outdoor sports facilities and equipment.",
+            "SUB-TOPIC": "4.1.1 Sports facilities and equipment.",
+            "SPECIFIC COMPETENCES": "4.1.1.1 Designindoor and outdoor sports facilities and equipment.",
             "LEARNING ACTIVITIES": "• Identifying indoor and outdoor sports facilities and equipment (Swimming pools, sports halls…). (Pitches, route planning in cross- Country…).\n• Discussing indoor and outdoorsports facilities and equipment.\n• Designing indoor and outdoor sports facilities and equipment .",
             "EXPECTED STANDARD": "• Indoor and outdoor sports facilities and equipment designed correctly."
           }
@@ -16461,7 +16461,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "4.1.1.2Usepublicandprivate sportscentresfor practise .",
+            "SPECIFIC COMPETENCES": "4.1.1.2 Usepublicandprivate sportscentresfor practise .",
             "LEARNING ACTIVITIES": "• Comparing and contrastingpublicand private sports centres of excellence.\n• Practicing sporting activities at sports centres of excellence of their choice:",
             "EXPECTED STANDARD": "Public and private sports centres used for practise accordingly."
           }
@@ -16480,8 +16480,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.2.2Sports Body Types",
-            "SPECIFIC COMPETENCES": "4.2.2.1Demonstrate knowledge on the characteristics of diﬀerent body types.",
+            "SUB-TOPIC": "4.2.2 Sports Body Types",
+            "SPECIFIC COMPETENCES": "4.2.2.1 Demonstrate knowledge on the characteristics of diﬀerent body types.",
             "LEARNING ACTIVITIES": "• Categorisingbody types relating to athletic performance and sports participation. (Endomorph, Ectomorph, Mesomorph)",
             "EXPECTED STANDARD": "• Knowledge on the characteristics of diﬀerent body typesdemonstrated accordingly."
           }
@@ -16490,8 +16490,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.3 ORGANISATION AND MANAGEMENT OF GAMES AND SPORTS EVENTS.",
-            "SUB-TOPIC": "4.3.1Tournaments.",
-            "SPECIFIC COMPETENCES": "4.3.1.1Organise tournaments.",
+            "SUB-TOPIC": "4.3.1 Tournaments.",
+            "SPECIFIC COMPETENCES": "4.3.1.1 Organise tournaments.",
             "LEARNING ACTIVITIES": "• Identifying types of tournaments (Knock-out, league, combination and challenge tournaments).\n• Organising various tournaments.",
             "EXPECTED STANDARD": "• Tournaments organised correctly."
           }
@@ -16510,8 +16510,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.4 SPORTS SKILLS DEVELOPMENT.",
-            "SUB-TOPIC": "4.4.1Athletics",
-            "SPECIFIC COMPETENCES": "4.4.1.1Utilisesporting skills in track events",
+            "SUB-TOPIC": "4.4.1 Athletics",
+            "SPECIFIC COMPETENCES": "4.4.1.1 Utilisesporting skills in track events",
             "LEARNING ACTIVITIES": "• Performing sporting skills in track events. (Long distance and hurdles…)",
             "EXPECTED STANDARD": "• Sporting skills in track events utilisedproperly."
           }
@@ -16520,8 +16520,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.2Ball games",
-            "SPECIFIC COMPETENCES": "4.4.2.1Perform sporting skills in Rugby.",
+            "SUB-TOPIC": "4.4.2 Ball games",
+            "SPECIFIC COMPETENCES": "4.4.2.1 Perform sporting skills in Rugby.",
             "LEARNING ACTIVITIES": "• Performing basic skills in Rugby.",
             "EXPECTED STANDARD": "• Sporting skills in Rugby performed properly."
           }
@@ -16530,8 +16530,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.3Billiard games",
-            "SPECIFIC COMPETENCES": "4.4.3.1Perform sporting skills in snooker and Pool.",
+            "SUB-TOPIC": "4.4.3 Billiard games",
+            "SPECIFIC COMPETENCES": "4.4.3.1 Perform sporting skills in snooker and Pool.",
             "LEARNING ACTIVITIES": "• Performing basic skills in snooker andPool.",
             "EXPECTED STANDARD": "• Sporting skills in snooker andPool performed correctly."
           }
@@ -16540,8 +16540,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.4Target games",
-            "SPECIFIC COMPETENCES": "4.4.4.1Perform sporting skills in darts.",
+            "SUB-TOPIC": "4.4.4 Target games",
+            "SPECIFIC COMPETENCES": "4.4.4.1 Perform sporting skills in darts.",
             "LEARNING ACTIVITIES": "• Performing basic skills in darts. (Set-up, pull-back, release and follow- through).",
             "EXPECTED STANDARD": "• Sporting skills in darts performed properly."
           }
@@ -16570,8 +16570,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.5 ANATOMY AND PHYSIOLOGY",
-            "SUB-TOPIC": "4.5.1Human Circulatory System.",
-            "SPECIFIC COMPETENCES": "4.5.1.1Perform aerobic activities.",
+            "SUB-TOPIC": "4.5.1 Human Circulatory System.",
+            "SPECIFIC COMPETENCES": "4.5.1.1 Perform aerobic activities.",
             "LEARNING ACTIVITIES": "• Drawing and labelling the structure of the Circulatory system.\n• Discussing the functions of the circulatory system in relation to sporting activities.\n• Performing aerobic activities. (Shuttle runs, jogging, swimming…).",
             "EXPECTED STANDARD": "• Aerobic activities performed appropriately"
           }
@@ -16580,8 +16580,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.6 SPORTS BIOMECHANICS",
-            "SUB-TOPIC": "4.6.1Newton’s laws of motion.",
-            "SPECIFIC COMPETENCES": "4.6.1.1ApplyNewton’slaws of motionin sporting activities.",
+            "SUB-TOPIC": "4.6.1 Newton’s laws of motion.",
+            "SPECIFIC COMPETENCES": "4.6.1.1 ApplyNewton’slaws of motionin sporting activities.",
             "LEARNING ACTIVITIES": "• Demonstrating Newton’s laws of motion. stnd rd (1, 2and 3laws of motion).\n• Applying Newton’s laws of motion to solve problems involving forces, acceleration and friction in relation to sports.",
             "EXPECTED STANDARD": "• Newton’slaws of motion in sporting activities applied precisely."
           }
@@ -16591,7 +16591,7 @@
           "cells": {
             "TOPIC": "4.7 ORIENTEERING",
             "SUB-TOPIC": "4.7.1 Environment terrains",
-            "SPECIFIC COMPETENCES": "4.7.1.1Adapt to diﬀerent environmentalte rrains",
+            "SPECIFIC COMPETENCES": "4.7.1.1 Adapt to diﬀerent environmentalte rrains",
             "LEARNING ACTIVITIES": "• Manipulating various environmental terrains. (Mountainous, rocky, forests, sandy, swampy, weather/climate…).",
             "EXPECTED STANDARD": "Diﬀerent environmental terrains adapted accordingly"
           }
@@ -16620,8 +16620,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.8 ENTREPRENEUR SHIP IN SPORTS",
-            "SUB-TOPIC": "4.8.1Legal and ethical issues in sports entrepreneurship.",
-            "SPECIFIC COMPETENCES": "4.8.1.1Interpret sport legal frameworksin sports entrepreneurship.",
+            "SUB-TOPIC": "4.8.1 Legal and ethical issues in sports entrepreneurship.",
+            "SPECIFIC COMPETENCES": "4.8.1.1 Interpret sport legal frameworksin sports entrepreneurship.",
             "LEARNING ACTIVITIES": "• Interpreting sportsrelated legal frameworks. (Sports contracts, intellectual property, and liability…).\n• Discussing ethical issues in sports entrepreneurship. (Fair play, doping, and athlete wel fare, breach of contract…).",
             "EXPECTED STANDARD": "• Sportslegal frameworksin sportsentrepreneurship interpreted correctly."
           }
@@ -16680,7 +16680,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "Movements and Perceptual motor learning",
-            "SUB-TOPIC": "• Movementpattern s and formations\n• Movement expl oration\n• Perceptual motor learning activities.",
+            "SUB-TOPIC": "• Movement patterns and formations\n• Movement exploration\n• Perceptual motor learning activities.",
             "SPECIFIC COMPETENCES": "",
             "LEARNING ACTIVITIES": "",
             "EXPECTED STANDARD": ""
@@ -17287,7 +17287,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.5 LECTROMAGNETISM",
+            "TOPIC": "3.5 ELECTROMAGNETISM",
             "SUB-TOPIC": "3.5.1 Magnetic effect of Electric- Current",
             "SPECIFIC COMPETENCES": "3.5.1.1 Apply magnetic effect of electric current to solve problems",
             "LEARNING ACTIVITIES": "• Demonstrating the magnetic field patterns of electric currents including the direction (refer to; the right-hand grip rule, Corkscrew rule …)\n• Creating a system that uses the magnetic effect of an electric current (electric bell, relay switches …)\n• Demonstrating the behaviour of an electric current in a magnetic field (apply Fleming’s left-hand rule)\n• Demonstrating the nature of forces between parallel currents\n• Investigating the effects of magnetic fields on human health and environment\n• Designing innovative solutions to real- world problems involving the magnetic effect of electric that uses the application of current-carrying conductor placed in the magnetic field (DC motor, galvanometers, ammeters …)",
@@ -17464,7 +17464,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.1.2Four Religions in Zambia",
+            "SUB-TOPIC": "1.1.2 Four Religions in Zambia",
             "SPECIFIC COMPETENCES": "1.1.2.1 Evaluating the four Religions in Zambia 1.2.1.2 Demonstrate responsible citizenship in grow ing up",
             "LEARNING ACTIVITIES": "• Identifying the four religions in Zambia ( Christianity, Hinduism, Islam and Zambian Traditional Religion)\n• Describing the historical development of four Religions in Zambia (Important dates)\n• Identifying the scriptures of the four religions in Zambia (Christianity; Bible, Islam; Quran and Hadith, Hinduism; Vedas, Bhagavad- Gita, Mahabharata, Isha Upanishads; Zambian Traditional Religion; Proverbs and Songs…)\n• Describing the composition of scriptures of the four religions.\n• Explaining responsible citizenship\n• Identifying qualities of a responsible citizen\n• Applying sense of responsibility as you grow up",
             "EXPECTED STANDARD": "• Four Religions evaluated accordingly\n• Responsible citizenship in growing up demonstrated accordingly"
@@ -17554,7 +17554,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1. 5.2Tr ust",
+            "SUB-TOPIC": "1.5.2 Trust",
             "SPECIFIC COMPETENCES": "1.5.2.1 Justify importance of trust in real life",
             "LEARNING ACTIVITIES": "• Describing trust\n• Demonstrating how trust can be created (keeping promise, keeping secret, giving back what has been borrowed…)\n• Discussing the importance of trust in competition and cooperation\n• Role playing consequences of lack of trust",
             "EXPECTED STANDARD": "• Importance of trust in real life justified accordingly"
@@ -17667,7 +17667,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.2.2 The teachings of the four religions in Zambia on freedom in community",
-            "SPECIFIC COMPETENCES": "2.2.2.1Apply teachings of the four religions in Zambia on freedom in community",
+            "SPECIFIC COMPETENCES": "2.2.2.1 Apply teachings of the four religions in Zambia on freedom in community",
             "LEARNING ACTIVITIES": "• Evaluating religious teachingsof the four religions on freedom in community. Christianity (Deuteronomy 24:10-18,Mark 3:1- 6, 1 Cor. 10:24-25, Matthew 22:37-40), Hinduism(B. Gita 5:25), Islam (Quran 2:256), Zambia Traditional Religion (proverbs…)",
             "EXPECTED STANDARD": "• Teachings of the four religions in Zambia on freedom in community applied accordingly"
           }
@@ -17676,8 +17676,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.3 SELF- ESTEEM",
-            "SUB-TOPIC": "2.3.1Self-Esteem",
-            "SPECIFIC COMPETENCES": "2.3.1.1Analyse personal strength and weakness",
+            "SUB-TOPIC": "2.3.1 Self-Esteem",
+            "SPECIFIC COMPETENCES": "2.3.1.1 Analyse personal strength and weakness",
             "LEARNING ACTIVITIES": "• Exploring the meaning of self esteem\n• Describing types of self-esteem\n• Identifying factors influencing self-esteem(Conscious living, self- acceptance, self-responsibility, self-assertiveness, purposive living, personal integrity)",
             "EXPECTED STANDARD": "• Personal strength and weakness analysed accordingly"
           }
@@ -17686,7 +17686,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.3.2Social and Emotional learning (SEL)",
+            "SUB-TOPIC": "2.3.2 Social and Emotional learning (SEL)",
             "SPECIFIC COMPETENCES": "2.3.2.1 Practise Social and Emotion Learning competences",
             "LEARNING ACTIVITIES": "• Identifying Social and Emotional Learning competences\n• Exploring self-awareness, self- management, social awareness, relationship skills and responsible decision making\n• Discussing personal challenges with others Applying Soc ial and Emotional Learning competences in daily life",
             "EXPECTED STANDARD": "• Social and Emotional Learning c ompetences practised accordingly"
@@ -17697,7 +17697,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.3.3 Religious teachings on self-esteem",
-            "SPECIFIC COMPETENCES": "2.3.3.1Apply teachings of the four religions in Zambia on self-e steem",
+            "SPECIFIC COMPETENCES": "2.3.3.1 Apply teachings of the four religions in Zambia on self-e steem",
             "LEARNING ACTIVITIES": "• Examining the teaching of self- esteem indiff erent religions; Christianity (Genesis 1: 26-27, Joshua 1:1-9, 1 Samuel 16:7, 2 Tim 1:7),Hin duism,Islam , Zambia Traditional Religion (text from scholars, proverbs, songs, riddles…)\n• Applying teachings of the four religions in Zambia on self-esteem to real life situation",
             "EXPECTED STANDARD": "• Teachings of the four religions in Zambia on self-esteem applied accordingly"
           }
@@ -17706,8 +17706,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.4 AMBITIONS AND HOPE",
-            "SUB-TOPIC": "2.4.1Ambitions",
-            "SPECIFIC COMPETENCES": "2.4.1.1Promote one’s ambitions",
+            "SUB-TOPIC": "2.4.1 Ambitions",
+            "SPECIFIC COMPETENCES": "2.4.1.1 Promote one’s ambitions",
             "LEARNING ACTIVITIES": "• Explaining meaning of ambition\n• Illustrating positive and negative effects of ambitions\n• Describing factors that determine ambitions\n• Promoting one’s ambitions ( Determination, set goals…)",
             "EXPECTED STANDARD": "• One’s ambitions promoted appropriately"
           }
@@ -17717,7 +17717,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "2.4.1.2Demonstrate creativity and innovation in ambitions and hope",
+            "SPECIFIC COMPETENCES": "2.4.1.2 Demonstrate creativity and innovation in ambitions and hope",
             "LEARNING ACTIVITIES": "• Describing creativity and innovat i on\n• Discussing the importance of creativity and innovation in ambition\n• Explaining steps in designing a project(Identifying an ambition, describing it, planning the project and acting/conducting project)\n• Designing a project based on their ambitions and hope",
             "EXPECTED STANDARD": "• Creativity and innovation in ambitions and hope demonstrated accordingly"
           }
@@ -17726,8 +17726,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.4.2Hope",
-            "SPECIFIC COMPETENCES": "2.4.2.1Apply hope in daily life",
+            "SUB-TOPIC": "2.4.2 Hope",
+            "SPECIFIC COMPETENCES": "2.4.2.1 Apply hope in daily life",
             "LEARNING ACTIVITIES": "• Describing hope\n• Exploring attributes of hope\n• Explaining the types of hope\n• Analysing factors that influence hope",
             "EXPECTED STANDARD": "• Hope applied in daily life accordingly"
           }
@@ -17736,8 +17736,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.4.3Religious teachings on Ambitions and",
-            "SPECIFIC COMPETENCES": "2.4.3.1Analyse religious teachings on ambitions and hope",
+            "SUB-TOPIC": "2.4.3 Religious teachings on Ambitions and",
+            "SPECIFIC COMPETENCES": "2.4.3.1 Analyse religious teachings on ambitions and hope",
             "LEARNING ACTIVITIES": "• Explorin greligious teachings on ambitions and hopein the four religions. Christianity(Luke 12:16- 21; 12:22-34),Hinduism, Islam , Zambian Tradition Religion .",
             "EXPECTED STANDARD": "• Teachings of religions on ambitions and hope analysed on accordingly"
           }
@@ -17745,9 +17745,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.5 JUSTICE IN SOCIE T Y",
+            "TOPIC": "2.5 JUSTICE IN SOCIETY",
             "SUB-TOPIC": "2.5.1 Justice and injustice",
-            "SPECIFIC COMPETENCES": "2.5.1.1De monstrate understanding of justice in society",
+            "SPECIFIC COMPETENCES": "2.5.1.1 De monstrate understanding of justice in society",
             "LEARNING ACTIVITIES": "• Discussing justice and injustice in society\n• Ex plaining forms of justice within a social system(Distributive, Procedural, Retributive, Restorative)\n• Analysing forms of injustice within a social system(Bribery, Tribalism, Corruption, Nepotism…)\n• Describing steps needed to arrive at an informed decision\n• Showing importance of justice in society ( equality, human dignity, equity…)",
             "EXPECTED STANDARD": "• Unde rstanding of justice in society demonstrated appropriately"
           }
@@ -17757,7 +17757,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "2.5.1.2Demonstratehow good gov ernance promo tes social justice",
+            "SPECIFIC COMPETENCES": "2.5.1.2 Demonstratehow good gov ernance promo tes social justice",
             "LEARNING ACTIVITIES": "• Discussing goo d governance\n• Ex plaining importance of good governance in promoting social justice\n• Evaluating social justice and good governance in society.",
             "EXPECTED STANDARD": "• Howgood governance promotes social justice demon stratedeffectively"
           }
@@ -17766,8 +17766,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.5.2Religious teachings on Justice in society",
-            "SPECIFIC COMPETENCES": "2.5.2.1Apply religious tea chings on Justice in society",
+            "SUB-TOPIC": "2.5.2 Religious teachings on Justice in society",
+            "SPECIFIC COMPETENCES": "2.5.2.1 Apply religious tea chings on Justice in society",
             "LEARNING ACTIVITIES": "• Evaluatingreligious teaching son justicein the four religions, Christianity(Exodus 22:21-27, 2 Samuel 12;1-13, Mark 12:38-40, Luke 5:21-48; James 2: 1-19), Hinduism(None violence as only path to justice, humility, prayer, total self-knowledge, good and honesty living, deep contemplation. Also read B. Gita 3:25),Islam(Respect for workers, work is honourable, honesty and integrity, also read Quran 4:58),ZambiaTraditional Religion(Justice is not concerned with revenge or punishment , but centred on reco nciliation, compensation, harmony)\n• Showing how religious teachings on",
             "EXPECTED STANDARD": "• Religious teachings on Justice in society applied accordingly"
           }
@@ -17807,7 +17807,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "2.6.1.3Show that entrepreneurial activities constitute work",
+            "SPECIFIC COMPETENCES": "2.6.1.3 Show that entrepreneurial activities constitute work",
             "LEARNING ACTIVITIES": "• Describing entrepreneurial activities\n• Identifying entrepreneurial activities in the community\n• Justifying entrepreneurial activities as a form of employment",
             "EXPECTED STANDARD": "• Entrepreneurial activities constitute work shown accordingly"
           }
@@ -17816,8 +17816,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.6.2Ethics",
-            "SPECIFIC COMPETENCES": "2.6.2.1Show positive attitudes towards work",
+            "SUB-TOPIC": "2.6.2 Ethics",
+            "SPECIFIC COMPETENCES": "2.6.2.1 Show positive attitudes towards work",
             "LEARNING ACTIVITIES": "• Describing ethics\n• Demonstrating the relationship between ethics and work\n• Evaluating attitudes to work in Zambia today\n• Exploring importance of positive attitudes towards work\n• Examining relevance of the Code of ethics at work (dress code, conduct, punctuality… )",
             "EXPECTED STANDARD": "• Positive attitudes towards work shown accordingly"
           }
@@ -18091,7 +18091,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "4.1.1.2Show empathy for other people",
+            "SPECIFIC COMPETENCES": "4.1.1.2 Show empathy for other people",
             "LEARNING ACTIVITIES": "• Exploring how people react to bereavement\n• Showing ways of expressing empathy to other people who have lost the beloved one\n• Analysing the essence of expressing empathy to other people",
             "EXPECTED STANDARD": "• Empathy for other people shownaccordingly"
           }
@@ -18100,8 +18100,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.1.2Religious teachings about death",
-            "SPECIFIC COMPETENCES": "4.1.2.1Analyse religious teachings on",
+            "SUB-TOPIC": "4.1.2 Religious teachings about death",
+            "SPECIFIC COMPETENCES": "4.1.2.1 Analyse religious teachings on",
             "LEARNING ACTIVITIES": "• Examiningteachings on death and life after death(Isa 38:9-20, Dan 12:1-3, John 11:11-44, 1 Cor 15:1-28, Luke",
             "EXPECTED STANDARD": "• Understanding of religious teachings on death and life after death analysed accordingly"
           }
@@ -18170,8 +18170,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.2Marriage",
-            "SPECIFIC COMPETENCES": "4 .3.2.1Demonstrate understanding ofhealthy marriages",
+            "SUB-TOPIC": "4.3.2 Marriage",
+            "SPECIFIC COMPETENCES": "4.3.2.1 Demonstrate understanding ofhealthy marriages",
             "LEARNING ACTIVITIES": "• Describing Marriage\n• Explaining importance of marriage in modern society\n• Explaining importance of marriage in modern society\n• Discussing the difference between courtship and marriage\n• Identifying Qualities of agood husband (Caring, Loving, Supportive, Faithfulness)\n• Identifying qualities of a good wife (submission, loving, kind, cheerful, understanding…)\n• Identifying Responsibilities of husbands (protecting wife, support wife and family, help train and teach children…)\n• Identifying Responsibilities of wives (Brings up children and trains them, care for family and home, fulfils husband need…)",
             "EXPECTED STANDARD": "• Understanding of Healthy marriages demonstrated accordingly"
           }
@@ -18250,8 +18250,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.6 ECUMENISM",
-            "SUB-TOPIC": "4.6.1Ecumenism",
-            "SPECIFIC COMPETENCES": "4.6.1.1Explore merging technologies in promoting unity and cooperation",
+            "SUB-TOPIC": "4.6.1 Ecumenism",
+            "SPECIFIC COMPETENCES": "4.6.1.1 Explore merging technologies in promoting unity and cooperation",
             "LEARNING ACTIVITIES": "• Discussing Ecumenism\n• Identifying emerging technologies in promoting ecuminism\n• Identifying typesEcumenism (Governmental faith ecumenism, service life and action oriented ecumenism, Biblical ecumenism)\n• Explaining importance of Ecumenism\n• Justifying the use of emerging technologies in ecumenical work\n• Discussing challenges faced in Ecumenism(Prejudice, dogmatism, religionism…)\n• Identifying ways in which religions can work together",
             "EXPECTED STANDARD": "• Merging technologies in promoting unity and cooperation explored accordingly"
           }
@@ -18293,7 +18293,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.1 THE HUMA N BODY",
+            "TOPIC": "4.1 THE HUMAN BODY",
             "SUB-TOPIC": "4.1.1 The Respiratory System",
             "SPECIFIC COMPETENCES": "4.1.1.1 Demonstrate understanding of the respiratory system in the human body",
             "LEARNING ACTIVITIES": "• Describing the respiratory system in humans\n• Analysing the main parts of the respiratory system in man (nose, trachea, bronchi, and lungs)\n• Drawing of the human respiratory system\n• Making models and charts of the human respiratory system illustrating the movement of air from outside into the lungs and vice-versa\n• Investigating respiratory diseases and disorders in man (Bronchitis, Tuberculosis, Influenza, Asthma…)\n• Creating a self-care plan to promote respiratory health",
@@ -18313,7 +18313,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.2 NUTRITION ANDHEALTH",
+            "TOPIC": "4.2 NUTRITION AND HEALTH",
             "SUB-TOPIC": "4.2.1 Classification of Food",
             "SPECIFIC COMPETENCES": "4.2.1.1 Classify foods based on their nutritional content",
             "LEARNING ACTIVITIES": "• Collecting different foods found in the local environment (raw and processed foods)\n• Sorting a variety of foods into their respective groups based on the nutritive content (cereals and tubers; fish, insects and meat; pulses, beans, nuts and seeds; dairy products; vegetables; and fruits)\n• Classifying food nutrients into proteins, carbohydrates, fats, vitamins and minerals",
@@ -18404,8 +18404,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.4 SoilStructure",
-            "SPECIFIC COMPETENCES": "4.4.4.1Analysesoil profile",
+            "SUB-TOPIC": "4.4.4 Soil Structure",
+            "SPECIFIC COMPETENCES": "4.4.4.1 Analysesoil profile",
             "LEARNING ACTIVITIES": "• Describing soil profile\n• Profil ing soil(top soil,sub soil,weatheredrock and parent r o ck) by digginga trench\n• Drawing and labeling the layers of the soil profile",
             "EXPECTED STANDARD": "• Soilprofilea n alysed correctly"
           }
@@ -18415,7 +18415,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "4.4.4.2Classify types of soil based on their characteristics",
+            "SPECIFIC COMPETENCES": "4.4.4.2 Classify types of soil based on their characteristics",
             "LEARNING ACTIVITIES": "• Collecting different soil samples from the local environment\n• Experimentingon different soil samples to identify the soilt ypes\n• Deducingth e type of soil based on experimental results (loam, clay and sand)\n• Analysing the importance of soil in crop production",
             "EXPECTED STANDARD": "• Types of soils classified correctly"
           }
@@ -18424,7 +18424,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4 .5Classification of Plan ts",
+            "SUB-TOPIC": "4.4.5 Classification of Plants",
             "SPECIFIC COMPETENCES": "4.4.5.1 Classify plants into flowering and non- flowering plants",
             "LEARNING ACTIVITIES": "• Identifying floweringpl ants found in the local environment using common names (monocotyledonous and dicotyledonous)\n• Identifying non-flowering plantsfound in the local environmentusing common names (algae,mosses, ferns…)\n• Distinguishing flowering plants from non-flowering plants based on their physical characteristics\n• Investigating the importance of flowering and non-flowering plants (ornamental, health, income, source of oxygen …)",
             "EXPECTED STANDARD": "• Fl oweringand non - flowering plants classified based on their characteristics accordingly"
@@ -18627,9 +18627,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.3GOVERNANCE",
-            "SUB-TOPIC": "4.3.1HumanRights",
-            "SPECIFIC COMPETENCES": "4.3.1.1Recogniseone’s Rights",
+            "TOPIC": "4.3 GOVERNANCE",
+            "SUB-TOPIC": "4.3.1 Human Rights",
+            "SPECIFIC COMPETENCES": "4.3.1.1 Recogniseone’s Rights",
             "LEARNING ACTIVITIES": "• Identifying one’s rights (Right to life, food,health, education, shelter)\n• Practising one’s rights responsibly\n• Reporting human rights abuses to relevant authorities (parents, responsible adults, teachers)",
             "EXPECTED STANDARD": "• One’s rights recognised correctly"
           }
@@ -18638,8 +18638,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.2Obligationsand Dutiesof Citizen s",
-            "SPECIFIC COMPETENCES": "4.3.2.1Demonstrate Patriotism for one’s country",
+            "SUB-TOPIC": "4.3.2 Obligations and Duties of Citizens",
+            "SPECIFIC COMPETENCES": "4.3.2.1 Demonstrate Patriotism for one’s country",
             "LEARNING ACTIVITIES": "• Carryingoutobligationsandduties ofa citizen (V otin g, environm enta l protection , reporting criminal activities, participatinginsimpleactivit ies…)",
             "EXPECTED STANDARD": "• Patriotism for one’s country demonstrated accordingly"
           }
@@ -18648,8 +18648,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.3.3Child Abuse",
-            "SPECIFIC COMPETENCES": "4.3.3.2Report childab use",
+            "SUB-TOPIC": "4.3.3 Child Abuse",
+            "SPECIFIC COMPETENCES": "4.3.3.2 Report childab use",
             "LEARNING ACTIVITIES": "• Identifyingformsofchildabuse(Child sexual abuse, child d efilem ent, child corporalpunishment,childbattering, child neglect, child labour, child trafficking)",
             "EXPECTED STANDARD": "• Child abuse reported accordingly"
           }
@@ -18688,7 +18688,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.5 TRANSPORT AND COMMUNICATION",
-            "SUB-TOPIC": "4.5.1Forms of Transport and Communication Serv ices",
+            "SUB-TOPIC": "4.5.1 Forms of Transport and Communication Services",
             "SPECIFIC COMPETENCES": "4.5.1.1 Recognise different forms of transport and communication services",
             "LEARNING ACTIVITIES": "• Exploring different forms of transport and communication services Transport: (walking, scotch carts, cycling , riding, motor vehicles…) Communication: (messenger, drum, letter, telex, land phone, cell phone, internet)\n• Using appropriate transportation methods, such as walking, cycling, or public transit.\n• Using knowledge of different forms of communication to send and receive information",
             "EXPECTED STANDARD": "• Different forms of transport and communication services recognised accordingly"
@@ -18707,7 +18707,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.6WEATHERAND CLIMATE",
+            "TOPIC": "4.6 WEATHER AND CLIMATE",
             "SUB-TOPIC": "4.6.1 Elements of Weather and Climate",
             "SPECIFIC COMPETENCES": "4.6.1.1 Use appropriate instruments to measure weather and climate",
             "LEARNING ACTIVITIES": "• Explaining weather and climate (Weather: Daily changing atmospheric conditions of a place. Climate: Average weather conditions measured over a long period of time)\n• Identifying the elements of weather and climate. (Temperature, Sunshine, Wind, Rain, cloud cover, Humidity, Pressure)\n• Measuring weather and climate (Thermometer, Sunshine recorder, Wind vane, Anemometer, Rain gauge…)",
@@ -18717,7 +18717,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4 .7 ENVIRONMENT",
+            "TOPIC": "4.7 ENVIRONMENT",
             "SUB-TOPIC": "4.7.1 Natural Resource Management",
             "SPECIFIC COMPETENCES": "4.7.1.1 Manage natural resources",
             "LEARNING ACTIVITIES": "• Identifying natural resources in the community (Minerals, land, water, forest…)\n• Exploring actions that contribute to the destruction of the environment (Burning of waste, deforestation…)\n• Managing natural resources (Planting trees, grass and flowers, placing waste in appropriate places, pollution control)",
@@ -18872,7 +18872,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.8 SPREAD SHEET",
-            "SUB-TOPIC": "4.8.1 Basicso f pSreadsheet",
+            "SUB-TOPIC": "4.8.1 Basics of Spreadsheet",
             "SPECIFIC COMPETENCES": "4.8.1.1 Use spreadsheet applications",
             "LEARNING ACTIVITIES": "• Exploring features of the spreadsheet (insertion, active cell, rows, columns…)\n• Navigating the ribbon of the spreadsheet\n• Identifying cells, rows and columns of a spreadsheet\n• Naming cells by column and row (A1, C5, D6…)\n• Entering data in cells",
             "EXPECTED STANDARD": "• Spreadsheet application used accordingly"
@@ -18932,8 +18932,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.9.6Circles",
-            "SPECIFIC COMPETENCES": "4.9.6.1Construct circles",
+            "SUB-TOPIC": "4.9.6 Circles",
+            "SPECIFIC COMPETENCES": "4.9.6.1 Construct circles",
             "LEARNING ACTIVITIES": "• Identifying parts of a circle (radius,diameter,centre-line, centre, circumference)\n• Constructingcirclesgiventhe radius or diameter\n• Recordingdimensionsof a circle inmillimetresor centimetres\n• Makingdesigns usingcircles",
             "EXPECTED STANDARD": "• Circles constructed correctly"
           }
@@ -18942,8 +18942,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.9.7Graphic Software",
-            "SPECIFIC COMPETENCES": "4.9.7.1Usegraphic softwarein prod uct design",
+            "SUB-TOPIC": "4.9.7 Graphic Software",
+            "SPECIFIC COMPETENCES": "4.9.7.1 Usegraphic softwarein prod uct design",
             "LEARNING ACTIVITIES": "• Identifying graphic software (CorelDRAW,paint,photoshop, publisher…)\n• Exploringtoolsfordrawingand editing shapes.\n• Creatinggraphicimages (stickers, logos… ).",
             "EXPECTED STANDARD": "• Graphic software used in product designcorrectly"
           }
@@ -19055,7 +19055,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.2TOURISTS",
+            "TOPIC": "1.2 TOURISTS",
             "SUB-TOPIC": "1.2.1 Tourists’ codes of behaviour",
             "SPECIFIC COMPETENCES": "1.2.1.1 Practice responsible travel behaviour",
             "LEARNING ACTIVITIES": "• Brainstorming behaviours expected in different cultural and tourist settings (dressing modestly, greeting people respectfully, being polite …).\n• Explaining the significance of respecting local cultures and traditions.\n• Discussing the risks and concerns while traveling and how to reduce them (crime, financial risk, health concerns, personal security…)\n• Discussing tourists with special needs: (elderly travelers, pregnant women, children and infants…)\n• Researching on the Tourist’s Codes of behaviour: (respect local culture, respect human right, environmental responsibility…).",
@@ -19066,7 +19066,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.3 MOTIVATION IN TOURISM",
-            "SUB-TOPIC": "1.3.1Motivation to travel",
+            "SUB-TOPIC": "1.3.1 Motivation to travel",
             "SPECIFIC COMPETENCES": "1.3.1.1 Analyse aspects of travel motivation",
             "LEARNING ACTIVITIES": "• Discussing the factors that influence travel motivation: (income, climate, safety, security, people’s hospitality…)\n• Describing activities that influence travel motivation: (holiday, culture, religion, education, sports, workshop…)\n• Analysing travel motivators: (Physical motivators, cultural motivators, Interpersonal motivators, status, prestige motivators…).\n• Designing a simple survey asking people in their community or family about their motivations for adventure travel (present their findings in a report, discussing common trends in adventure travel).",
             "EXPECTED STANDARD": "Aspects of travel motivation analysed correctly"
@@ -19137,7 +19137,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.3INTERMEDIARIES IN TOURISM",
+            "TOPIC": "2.3 INTERMEDIARIES IN TOURISM",
             "SUB-TOPIC": "2.3.1 Interme diaries in the Tourism industry (Travel Agents, Tour Operators)",
             "SPECIFIC COMPETENCES": "2.3.1.1 Demonstrate skills used by intermediaries in Tourism industry",
             "LEARNING ACTIVITIES": "• Identifying intermediaries in the tourism industry: (Travel Agents, Tour Operators)\n• Analysing the functions of intermediaries (Information provision, Travel/tour planning, Product packaging, Price negotiation, Booking and reservation, Payment processing…)\n• Demonstrating skills used in the travel agency operations (Travel Guidance, Tour Itinerary, Tour Package, Flight Reservations…)\n• Discussing drawbacks of intermediaries (added costs, limited options, communication barriers…)\n• Exploring job opportunities in travel agency operations: (Travel Agent/Consultant, Sales Consultant, Customer Service Representative, Tour Operator, Travel Coordinator/Planner …).\n• Drawing a diagram of the tourism value chain placing different types of intermediaries at the appropriate stages (travel agencies for distribution, tour operators for package creation …).",
@@ -19270,7 +19270,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.6 MARKETING AND PROMOTIONS IN TOURISM",
-            "SUB-TOPIC": "3.6.1 Introduction toMarketing",
+            "SUB-TOPIC": "3.6.1 Introduction to Marketing",
             "SPECIFIC COMPETENCES": "3.6.1.1 Apply marketing concepts and principles",
             "LEARNING ACTIVITIES": "• Explaining marketing concepts (segmentation, targeting, positioning, market mix...)\n• Discussing importance of marketing: (business growth, adaptation, customer engagement…)",
             "EXPECTED STANDARD": "Marketing concepts and principles applied correctly"
@@ -19311,7 +19311,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "3.6.5 Marketing mix",
-            "SPECIFIC COMPETENCES": "3.6.5.1Apply marketing mix concept to improve marketing strategies in tourism",
+            "SPECIFIC COMPETENCES": "3.6.5.1 Apply marketing mix concept to improve marketing strategies in tourism",
             "LEARNING ACTIVITIES": "• Discussing marketing strategies (marketing mix – the7ps product, price, place, promotion, packaging, positioning, people)\n• Applying marketing mix strategies in tourism: (the7ps product, price, place, promotion, packaging, positioning, people)",
             "EXPECTED STANDARD": "Marketing mix concept applied to improve marketing strategies applied correctly"
           }

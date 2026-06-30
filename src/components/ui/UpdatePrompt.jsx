@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { usePwaUpdate } from '../../hooks/usePwaUpdate'
 import { pwaReloadOnNavigate } from '../../hooks/pwaAutoReload'
+import { isCriticalWorkInFlight, subscribeCriticalWork } from '../../utils/criticalWork'
 import Icon from './Icon'
 import { RefreshCw, XMarkIcon } from './icons'
 
@@ -37,13 +38,20 @@ export default function UpdatePrompt() {
   updateRef.current = update
   const armedRef = useRef(false)
 
+  // Track critical work in flight (e.g. a lesson-plan generation) so we never
+  // reload onto a new build mid-operation and wipe the user's in-progress work.
+  const [busy, setBusy] = useState(isCriticalWorkInFlight())
+  useEffect(() => subscribeCriticalWork(setBusy), [])
+
   // Apply a pending update on the next in-app navigation. Arms at the location
-  // where the update became ready, then reloads on the following route change.
+  // where the update became ready, then reloads on the following route change —
+  // but stays disarmed while critical work is in flight, so the swap waits for
+  // the operation to finish and the user to navigate.
   useEffect(() => {
-    const { armed, reload } = pwaReloadOnNavigate({ armed: armedRef.current, updateReady })
+    const { armed, reload } = pwaReloadOnNavigate({ armed: armedRef.current, updateReady, busy })
     armedRef.current = armed
     if (reload) updateRef.current()
-  }, [updateReady, location.pathname])
+  }, [updateReady, location.pathname, busy])
 
   if (!updateReady) return null
 

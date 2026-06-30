@@ -48,9 +48,14 @@ export function normaliseDiagramHandling(mode) {
 // while still capturing a passage/map that crosses a boundary whole.
 export const SCANNED_BATCH_SIZE = 4
 export const SCANNED_BATCH_OVERLAP = 1
-// Hard ceiling on pages we OCR in one import, to bound cost/latency. ECZ
-// papers are ≤ ~16 pages; longer uploads are almost always the wrong file.
-export const SCANNED_MAX_PAGES = 40
+// Ceiling on pages we OCR in one import. This bounds browser memory (each page
+// is rasterised to a ~1500px canvas) and the daily AI meter — it is NOT a
+// question cap: pages are processed in small batches and merged, so a 100+
+// question paper imports in full as long as its pages fit here. Set high enough
+// to cover a long multi-part paper; if a PDF still exceeds it the importer
+// surfaces a clear "only the first N pages were read" warning rather than
+// silently dropping the rest.
+export const SCANNED_MAX_PAGES = 120
 // Below this many extracted characters per sampled page, a PDF is treated as
 // a scanned image (no usable text layer).
 const SCANNED_TEXT_CHARS_PER_PAGE = 40

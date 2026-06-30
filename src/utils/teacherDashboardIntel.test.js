@@ -12,6 +12,7 @@ import {
   buildActivityStats,
   buildCelebrations,
   favouriteSubject,
+  formatTrend,
 } from './teacherDashboardIntel.js'
 
 const NOW = Date.UTC(2026, 5, 28, 9, 0, 0) // fixed clock for determinism
@@ -126,7 +127,7 @@ check('rotateInsights returns at most `take` and stays in range', () => {
 })
 
 /* ── activity stats ───────────────────────────────────────── */
-check('activity stats compute totals + an up trend', () => {
+check('activity stats: headline is the period count, total is lifetime', () => {
   const resources = [
     res({ tool: 'lesson_plan', createdAt: daysAgo(2) }),
     res({ tool: 'lesson_plan', createdAt: daysAgo(5) }),
@@ -136,21 +137,70 @@ check('activity stats compute totals + an up trend', () => {
   ]
   const stats = buildActivityStats({ resources, now: NOW })
   const plans = stats.find((s) => s.key === 'plans')
-  assert.equal(plans.total, 3)
-  assert.equal(plans.trend.dir, 'up') // 2 in last 30d vs 1 in prev 30d
+  assert.equal(plans.total, 3) // lifetime lesson plans
+  assert.equal(plans.period, 2) // created in the last 30 days
+  assert.equal(plans.prev, 1) // created in the 30 days before that
+  assert.equal(plans.trend.dir, 'up') // 2 this period vs 1 previous
+  // basis now lives on the stat, not the trend object
+  assert.equal(plans.basis, 'vs last month')
+
   const lib = stats.find((s) => s.key === 'library')
-  assert.equal(lib.total, 5)
+  assert.equal(lib.total, 5) // all-time library count is unchanged
+
   const week = stats.find((s) => s.key === 'week')
-  assert.equal(week.total, 4) // four items within 30 days (default month range)
-  // trend carries the human "vs last month" basis by default
-  assert.equal(plans.trend.basis, 'vs last month')
+  assert.equal(week.total, 5) // lifetime everything
+  assert.equal(week.period, 4) // four items within 30 days (default month range)
 
   // week range compares last 7 days to the prior 7 and relabels
   const weekly = buildActivityStats({ resources, now: NOW, range: 'week' })
   const wk = weekly.find((s) => s.key === 'week')
   assert.equal(wk.label, 'New this week')
-  assert.equal(wk.total, 4) // four items within 7 days
-  assert.equal(weekly[0].trend.basis, 'vs last week')
+  assert.equal(wk.period, 4) // four items within 7 days
+  assert.equal(weekly[0].basis, 'vs last week')
+})
+
+check('trend: 0 → n is "New", not a fake 100%', () => {
+  const resources = [res({ tool: 'lesson_plan', createdAt: daysAgo(2) })] // none in prior window
+  const plans = buildActivityStats({ resources, now: NOW }).find((s) => s.key === 'plans')
+  assert.equal(plans.trend.dir, 'new')
+  assert.equal(plans.trend.mode, 'new')
+  assert.equal(formatTrend(plans.trend, plans.basis), '↑ New vs last month')
+})
+
+check('trend: n → 0 reports how many fewer, not 100%', () => {
+  const resources = [res({ tool: 'lesson_plan', createdAt: daysAgo(40) })] // only in prior window
+  const plans = buildActivityStats({ resources, now: NOW }).find((s) => s.key === 'plans')
+  assert.equal(plans.period, 0)
+  assert.equal(plans.trend.dir, 'down')
+  assert.equal(plans.trend.mode, 'gone')
+  assert.equal(formatTrend(plans.trend, plans.basis), '↓ 1 fewer vs last month')
+})
+
+check('trend: small base shows the absolute change, not an inflated %', () => {
+  // 1 in the prior window, 5 in the current window → "+4", never "+400%"
+  const resources = [
+    res({ tool: 'lesson_plan', createdAt: daysAgo(40) }),
+    ...Array.from({ length: 5 }, () => res({ tool: 'lesson_plan', createdAt: daysAgo(3) })),
+  ]
+  const plans = buildActivityStats({ resources, now: NOW }).find((s) => s.key === 'plans')
+  assert.equal(plans.trend.mode, 'abs')
+  assert.equal(formatTrend(plans.trend, plans.basis), '↑ +4 vs last month')
+})
+
+check('trend: large base keeps a real percentage', () => {
+  // 10 prior, 15 current → +50%
+  const resources = [
+    ...Array.from({ length: 10 }, () => res({ tool: 'lesson_plan', createdAt: daysAgo(40) })),
+    ...Array.from({ length: 15 }, () => res({ tool: 'lesson_plan', createdAt: daysAgo(3) })),
+  ]
+  const plans = buildActivityStats({ resources, now: NOW }).find((s) => s.key === 'plans')
+  assert.equal(plans.trend.mode, 'pct')
+  assert.equal(plans.trend.pct, 50)
+  assert.equal(formatTrend(plans.trend, plans.basis), '↑ 50% vs last month')
+})
+
+check('formatTrend: no activity in either window reads as no change', () => {
+  assert.equal(formatTrend({ dir: 'flat', mode: 'none', delta: 0, pct: 0 }, 'vs last week'), '— No change')
 })
 
 /* ── celebrations ─────────────────────────────────────────── */

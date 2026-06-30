@@ -31,12 +31,16 @@ const GRADE_FORM_MAP = {
   G4:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 4' },
   G5:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 5' },
   G6:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 6' },
-  G7:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 7' },
-  G8:  { syllabus: SYLLABUS_TYPES.SECONDARY, gradeForm: 'Form 1' },
-  G9:  { syllabus: SYLLABUS_TYPES.SECONDARY, gradeForm: 'Form 2' },
-  G10: { syllabus: SYLLABUS_TYPES.SECONDARY, gradeForm: 'Form 3' },
-  G11: { syllabus: SYLLABUS_TYPES.SECONDARY, gradeForm: 'Form 4' },
-  G12: { syllabus: SYLLABUS_TYPES.SECONDARY, gradeForm: 'Form 4' }, // best-effort mapping
+  // CBC primary ends at Grade 6; Grade 7 is the old OBC curriculum's final
+  // primary year, so it files under OBC rather than CBC.
+  G7:  { syllabus: SYLLABUS_TYPES.OBC, gradeForm: 'Grade 7' },
+  // Secondary now lives inside CBC as Forms 1–4 (the standalone Secondary
+  // syllabus root was removed), so the secondary grade ids map there.
+  G8:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 1' },
+  G9:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 2' },
+  G10: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 3' },
+  G11: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 4' },
+  G12: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 4' }, // best-effort mapping
 }
 
 /**
@@ -61,7 +65,8 @@ export function resolveGradeForm(grade, syllabusHint) {
   }
   if (/^Form\s+\d+$/i.test(raw)) {
     return {
-      syllabus:  syllabusHint || SYLLABUS_TYPES.SECONDARY,
+      // Forms live inside CBC now (no separate Secondary root).
+      syllabus:  syllabusHint || SYLLABUS_TYPES.CBC,
       gradeForm: raw.replace(/\s+/g, ' ').replace(/form/i, 'Form'),
     }
   }

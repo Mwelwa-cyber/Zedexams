@@ -53,5 +53,38 @@ test('a fresh arm cycle never reloads on the SAME tick the update arrived', () =
   assert(t2.reload === true, 'must reload on the first navigation after arming')
 })
 
+// ── busy guard: critical work in flight (e.g. a lesson-plan generation) ──────
+console.log('\npwa auto-reload — busy guard (critical work in flight)')
+
+test('update ready but busy → disarms, never reloads', () => {
+  const r = pwaReloadOnNavigate({ armed: false, updateReady: true, busy: true })
+  assert(r.armed === false && r.reload === false, `got ${JSON.stringify(r)}`)
+})
+
+test('busy disarms even when previously armed → no reload on navigation mid-op', () => {
+  const r = pwaReloadOnNavigate({ armed: true, updateReady: true, busy: true })
+  assert(r.armed === false && r.reload === false, `expected disarm while busy, got ${JSON.stringify(r)}`)
+})
+
+test('the reported bug: update arrives mid-generation, teacher navigates, op finishes, then navigates again', () => {
+  // Update arrives while generating (busy): must NOT arm and must NOT reload.
+  const t1 = pwaReloadOnNavigate({ armed: false, updateReady: true, busy: true })
+  assert(t1.reload === false && t1.armed === false, 'must not reload/arm while generating')
+  // A navigation happens WHILE still generating: still safe — no reload.
+  const t2 = pwaReloadOnNavigate({ armed: t1.armed, updateReady: true, busy: true })
+  assert(t2.reload === false, 'a navigation during generation must never reload')
+  // Generation finishes (busy clears): arms on this run, still no reload.
+  const t3 = pwaReloadOnNavigate({ armed: t2.armed, updateReady: true, busy: false })
+  assert(t3.reload === false && t3.armed === true, 'arms when busy clears, no reload yet')
+  // Next navigation after the op: now it reloads onto the new build.
+  const t4 = pwaReloadOnNavigate({ armed: t3.armed, updateReady: true, busy: false })
+  assert(t4.reload === true, 'reloads on the first navigation after the op completes')
+})
+
+test('busy defaults to false → existing (non-busy) behaviour is unchanged', () => {
+  const r = pwaReloadOnNavigate({ armed: true, updateReady: true })
+  assert(r.armed === true && r.reload === true, `expected unchanged reload, got ${JSON.stringify(r)}`)
+})
+
 console.log(`\n─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)
 if (fail > 0) { for (const f of failures) console.error(`\n✖ ${f.name}\n  ${f.err.stack || f.err.message}`); process.exit(1) }

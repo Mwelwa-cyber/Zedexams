@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ListOrdered } from '../../../ui/icons'
 import { LessonBreakdownItem } from '../cards/LessonBreakdownItem.jsx'
 
 // ── Shared style constants ────────────────────────────────────────────────────
@@ -243,6 +244,7 @@ export function LessonProgressionForm({
             ].join(' ')}
             aria-hidden="true"
           />
+          <ListOrdered size={15} className="text-[#a99e8b]" aria-hidden="true" />
           Lesson Progression
         </span>
 

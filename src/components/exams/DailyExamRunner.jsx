@@ -518,7 +518,12 @@ function DailyExamRunnerInner() {
                 selected={userAnswer === idx}
                 onClick={() => pickAnswer(question.id, idx)}
               >
-                {option}
+                {/* Options can be plain strings OR Tiptap rich-text docs
+                    ({type:'doc', content:[…]}). Render through RichContent —
+                    same as QuizRunnerV2 — so a rich-text option shows its text
+                    instead of crashing the exam with React error #31
+                    ("Objects are not valid as a React child"). */}
+                {option != null ? <RichContent value={option} className="rich-option" /> : null}
               </OptionButton>
             ))}
           </div>

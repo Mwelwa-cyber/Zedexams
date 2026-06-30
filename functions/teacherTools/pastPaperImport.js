@@ -42,12 +42,38 @@ const {
   canWriteQuiz,
   planPageBatches,
   selectNewQuestions,
+  extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
   mergeAndRenumber,
+  findSourceNumberGaps,
+  collectPassages,
+  textToParagraphHtml,
+  tableToHtml,
   buildImportReport,
   dedupeExtractedQuestions,
 } = require("./pastPaperImportHelpers");
+
+// A reusable JSON-schema fragment describing a printed table/timetable, shared
+// by the per-question and per-passage table slots.
+const TABLE_SCHEMA = {
+  type: ["object", "null"],
+  description:
+    "A printed table/timetable/data grid this question (or passage) reads " +
+    "from. Capture headers + every row so it rebuilds as a real table.",
+  properties: {
+    headers: {
+      type: "array",
+      items: {type: "string"},
+      description: "Column headings in order. Empty array if the table has none.",
+    },
+    rows: {
+      type: "array",
+      items: {type: "array", items: {type: "string"}},
+      description: "Each row as an array of cell strings, left to right.",
+    },
+  },
+};
 
 const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-6";
 
@@ -69,6 +95,12 @@ const SAMPLE_MAX_IMAGES = 12;
 const IMAGE_PAGES_PER_BATCH = 4;
 const MAX_ROUNDS_PER_SEGMENT = 8;
 const EXTRACTION_MAX_TOKENS = 16000;
+// After the main extraction, if the printed numbering has holes (the model
+// confidently returned "nothing new" while specific numbers are missing), chase
+// those exact numbers over the source. Bounded so a number that genuinely isn't
+// on the paper can't loop forever.
+const MAX_GAP_RECOVERY_ROUNDS = 2;
+const MAX_GAP_NUMBERS_PER_ASK = 40;
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -112,6 +144,35 @@ const QUESTIONS_TOOL_SCHEMA = {
               "fill_blanks/numeric: the answer text. Null/empty when the paper " +
               "does not print a key — never guess.",
           },
+          passage: {
+            type: ["object", "null"],
+            description:
+              "Set ONLY when this question depends on a shared reading passage, " +
+              "story, extract, map, figure or table that several questions read " +
+              "from. Standalone questions omit it (null).",
+            properties: {
+              ref: {
+                type: "string",
+                description:
+                  "A short stable label (e.g. 'P1') identical for EVERY " +
+                  "question that reads from the same passage, so they group.",
+              },
+              title: {type: "string", description: "The passage/section heading, if printed."},
+              text: {
+                type: "string",
+                description:
+                  "The FULL passage/extract text, verbatim. Include it on at " +
+                  "least the first question of the group; later questions with " +
+                  "the same ref may leave it empty.",
+              },
+              kind: {
+                type: "string",
+                description: "'comprehension' for a reading text, or 'map' for a shared map/figure/table.",
+              },
+              table: TABLE_SCHEMA,
+            },
+          },
+          table: TABLE_SCHEMA,
           explanation: {type: "string"},
         },
         required: ["prompt"],
@@ -125,10 +186,16 @@ const SYSTEM_PROMPT = `You are digitising a Zambian ECZ examination paper. The u
 
 COMPLETENESS IS THE TOP PRIORITY. Capture every question on every page, in the order they appear. Do not stop early, do not summarise, do not skip a question because it has a diagram or is hard to read — transcribe what you can. A paper may have 20, 50, or 100+ questions; return all of them.
 
+SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of an exam paper carries only the heading — the exam title, candidate-information boxes (name, examination number, school), the time allowed, the total marks, and general directions such as "Answer ALL questions", "Do not open this paper until told", or "Write your answers in the spaces provided". These are NOT questions. Never turn an instruction, a heading, or a candidate-info field into a question. Begin extracting at the FIRST printed, numbered question, and number each question with the number printed beside it on the paper.
+
+READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
+
 For each question:
 - type: choose the closest of mcq, tf (true/false), short_answer, fill_blanks, essay, numeric. For matching, ordering, structured (a/b/c parts), table, or diagram-label questions that don't fit those, use short_answer and put the full question (including its parts) in the prompt. NEVER discard a question.
 - prompt: the full question text. Preserve maths, fractions, powers/superscripts, subscripts, units, chemical formulae, currency, percentages, scientific notation, and labels exactly. Keep multi-part questions (a), (b), (c) together in one prompt with their parts.
 - options: for mcq list every choice (usually A–D) with exact wording; for tf use ["True","False"]; leave empty otherwise.
+- passage: when a question depends on a shared reading passage, story, letter, poem, advert, dialogue, OR a shared map/figure/table that several questions read from, set the passage object — give every question about that same passage an IDENTICAL ref (e.g. "P1"), and include the FULL passage text (verbatim) on at least the first of them. Transcribe the whole comprehension extract; do not summarise it. Use kind:"comprehension" for reading text and kind:"map" for a shared figure/map/table. Standalone questions omit passage.
+- table: whenever a question (or a shared passage) includes a printed TABLE, TIMETABLE or data grid, capture it in the table field — headers as the column headings and rows as arrays of cell strings, transcribing EVERY row and column. Put a table that several questions share on the passage.table; put a table belonging to one question on that question's table. Capture the table data even when the cells also appear in the text.
 - correctAnswer: only if the paper actually marks it (answer key, asterisk, shading) — the 0-based option index for mcq/tf, or the answer text for short_answer/fill_blanks/numeric. If the answer is NOT printed, return null. NEVER guess an answer.
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
 - explanation: one short sentence on the concept tested, or empty if unsure.
@@ -377,7 +444,7 @@ function buildContextLines(paper) {
   ].filter(Boolean).join("\n");
 }
 
-function buildExtractionPrompt({paper, segment, seenStems, round}) {
+function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
   const context = buildContextLines(paper);
   if (round === 0) {
     return [
@@ -387,17 +454,35 @@ function buildExtractionPrompt({paper, segment, seenStems, round}) {
       context,
     ].join("\n");
   }
-  // Continuation round: ask only for what was missed / cut off.
+  // Continuation round. The model re-reads the SAME source each round, so it
+  // must be told to CONTINUE from where it stopped — otherwise it restarts from
+  // the top, re-emits the early questions (which dedupe to nothing), and the
+  // loop stalls at whatever fit in the first response (the "stops at ~40" bug on
+  // long PDFs). Resume by printed question number when the paper has one; fall
+  // back to a count-based resume when it doesn't.
+  const count = progress && Number.isInteger(progress.count) ? progress.count : 0;
+  const maxNum = progress ? progress.maxSourceNumber : null;
+  const resumeLine = maxNum != null ?
+    `So far you have captured ${count} question(s), up to and including ` +
+    `question number ${maxNum}. CONTINUE from the next question ` +
+    `(number ${maxNum + 1} onward) and extract every remaining question, in ` +
+    "order, through to the end of the paper." :
+    `So far you have captured ${count} question(s). CONTINUE from exactly where ` +
+    "you stopped and extract every remaining question, in order, through to the " +
+    "end of the paper.";
   const already = seenStems.length ?
     seenStems.join("\n") : "(none yet)";
   return [
-    `You have already extracted these questions from ${segment.label}:`,
+    resumeLine,
+    "",
+    "For reference, here are the most recent questions already captured from " +
+    `${segment.label} — do NOT return any of these again:`,
     already,
     "",
-    "Return ONLY questions from this paper that you have NOT already returned " +
-    "above — any you missed or that were cut off. Do not repeat any question " +
-    "listed above. If every question has now been captured, return an empty " +
-    "questions array.",
+    "Return ONLY questions you have NOT already returned — the ones that come " +
+    "AFTER the list above. Do not restart from the beginning, do not repeat or " +
+    "re-number a question listed above. If you have genuinely reached the end of " +
+    "the paper and every question is now captured, return an empty questions array.",
     "",
     context,
   ].join("\n");
@@ -409,7 +494,7 @@ function buildExtractionPrompt({paper, segment, seenStems, round}) {
  * ones, until a round adds nothing (or the round cap is hit). This is what
  * makes a single truncated call unable to lose questions.
  */
-async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
+async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, accum}) {
   const segmentQuestions = [];
   let rounds = 0;
   let truncationHit = false;
@@ -418,7 +503,10 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
   for (let round = 0; round < MAX_ROUNDS_PER_SEGMENT; round++) {
     rounds += 1;
     const seenStems = summariseSeenStems(segmentQuestions);
-    const promptText = buildExtractionPrompt({paper, segment, seenStems, round});
+    const progress = extractionProgress(segmentQuestions);
+    const promptText = buildExtractionPrompt({
+      paper, segment, seenStems, round, progress,
+    });
     const messages = [{
       role: "user",
       content: [...segment.blocks, {type: "text", text: promptText}],
@@ -453,7 +541,7 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
     const normalised = rawQuestions
       .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
       .filter(Boolean);
-    const {fresh} = selectNewQuestions(seenKeys, normalised);
+    const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
     fresh.forEach((q) => {
       segmentQuestions.push(q);
       accum.push(q);
@@ -470,6 +558,72 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
   }
 
   return {rounds, truncationHit, usage};
+}
+
+function buildGapRecoveryPrompt({paper, segment, missingNumbers}) {
+  const nums = missingNumbers.join(", ");
+  return [
+    `The paper contains questions printed with these numbers which have NOT ` +
+    `yet been captured: ${nums}.`,
+    `Look carefully at ${segment.label} and return ONLY those questions you ` +
+    "can find there — full prompt text, options, type and sourceNumber, using " +
+    "the tool schema. If a listed number is genuinely not printed on this part " +
+    "of the paper, simply omit it. Do not return any other questions.",
+    "",
+    buildContextLines(paper),
+  ].join("\n");
+}
+
+/**
+ * Targeted recovery for holes in the printed numbering. The main coverage loop
+ * stops when the model reports nothing new, but a model can confidently skip a
+ * specific numbered question. After extraction we look for gaps in the source
+ * numbering and re-ask the model for those EXACT numbers over each segment —
+ * the same number-driven recovery the scanned-paper importer uses. Bounded by
+ * round + count caps so a number that truly isn't on the paper can't loop.
+ */
+async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers}) {
+  let rounds = 0;
+  const usage = {inputTokens: 0, outputTokens: 0};
+  for (let r = 0; r < MAX_GAP_RECOVERY_ROUNDS; r++) {
+    const merged = mergeAndRenumber(accum);
+    const gaps = findSourceNumberGaps(merged.questions).slice(0, MAX_GAP_NUMBERS_PER_ASK);
+    if (!gaps.length) break;
+    rounds += 1;
+    let recoveredAny = false;
+    for (const segment of segments) {
+      const promptText = buildGapRecoveryPrompt({paper, segment, missingNumbers: gaps});
+      let result;
+      try {
+        result = await callClaude(apiKey, {
+          systemPrompt: SYSTEM_PROMPT,
+          messages: [{role: "user", content: [...segment.blocks, {type: "text", text: promptText}]}],
+          model: IMPORT_MODEL,
+          maxTokens: EXTRACTION_MAX_TOKENS,
+          temperature: 0,
+          mode: "tool",
+          toolName: "return_questions",
+          toolDescription: "Return the recovered exam questions.",
+          toolInputSchema: QUESTIONS_TOOL_SCHEMA,
+        });
+      } catch (err) {
+        console.warn("[pastPaperImport] gap recovery round failed",
+          segment.label, err && err.message);
+        continue;
+      }
+      usage.inputTokens += Number(result?.usage?.inputTokens || 0);
+      usage.outputTokens += Number(result?.usage?.outputTokens || 0);
+      const raw = Array.isArray(result?.parsed?.questions) ? result.parsed.questions : [];
+      const normalised = raw
+        .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
+        .filter(Boolean);
+      const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
+      fresh.forEach((q) => accum.push(q));
+      if (fresh.length) recoveredAny = true;
+    }
+    if (!recoveredAny) break; // the missing numbers truly aren't recoverable
+  }
+  return {rounds, usage};
 }
 
 /**
@@ -497,14 +651,22 @@ async function clearQuizQuestions(quizId) {
  * types; a finite number for numeric; an index for mcq/tf).
  */
 function toQuestionDoc(q, order) {
+  // A question-level table renders as sanitised <table> HTML appended to the
+  // (escaped) prompt; otherwise the prompt stays plain text as before.
+  const tableHtml = q.table ? tableToHtml(q.table) : "";
+  const text = tableHtml ?
+    textToParagraphHtml(q.prompt) + tableHtml : q.prompt;
   const base = {
     type: q.type,
-    text: q.prompt,
+    text,
     textJSON: null,
     explanation: q.explanation || "",
     explanationJSON: null,
     marks: 1,
     order,
+    // Link comprehension/map questions to their passage block on the quiz doc;
+    // null for standalone questions.
+    passageId: q.passageId || null,
     requiresReview: true,
     importedAt: admin.firestore.FieldValue.serverTimestamp(),
     importSource: "past_paper_ai",
@@ -589,6 +751,10 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // dedupes across segments AND rounds; `accum` is the running question list.
   const accum = [];
   const seenKeys = new Set();
+  // Printed question numbers captured so far — a re-read of an already-seen
+  // number (OCR drift across continuation rounds) is dropped rather than
+  // inflating the count. Shared across segments + the gap-recovery pass.
+  const seenNumbers = new Set();
   let pagesProcessed = 0;
   let extractionRounds = 0;
   let truncationHit = false;
@@ -596,7 +762,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
 
   for (const segment of segments) {
     const segResult = await extractSegment({
-      apiKey, paper, segment, seenKeys, accum,
+      apiKey, paper, segment, seenKeys, seenNumbers, accum,
     });
     extractionRounds += segResult.rounds;
     if (segResult.truncationHit) truncationHit = true;
@@ -605,10 +771,39 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     pagesProcessed += segment.pageCount;
   }
 
-  const questionsFound = accum.length;
-  const {questions, duplicatesRemoved} = mergeAndRenumber(accum);
+  // Targeted recovery for holes in the printed numbering (e.g. the model
+  // skipped Q21/Q22 while reporting "nothing new"). No-op when the numbering is
+  // already complete or too sparse to trust.
+  const gapRecovery = await recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers});
+  extractionRounds += gapRecovery.rounds;
+  usage.inputTokens += gapRecovery.usage.inputTokens;
+  usage.outputTokens += gapRecovery.usage.outputTokens;
 
-  // Persist + keep the parent quiz count in sync.
+  const questionsFound = accum.length;
+  const merged = mergeAndRenumber(accum);
+  const duplicatesRemoved = merged.duplicatesRemoved;
+  // Lift shared reading passages / maps out of the flat list into the editor's
+  // passage model: a deduped passages[] array + a passageId stamped on each
+  // child question.
+  const {passages, questions} = collectPassages(merged.questions);
+  const passagesForQuiz = passages.map((p) => ({
+    id: p.id,
+    title: p.title || "",
+    instructions: "",
+    // A shared table renders as a real grid under the passage prose.
+    passageText: textToParagraphHtml(p.passageText) +
+      (p.table ? tableToHtml(p.table) : ""),
+    imageUrl: "",
+    imageAlt: "",
+    passageKind: p.passageKind || "comprehension",
+    manualMarks: null,
+    order: p.order,
+  }));
+  const tablesCaptured =
+    questions.filter((q) => q.table).length +
+    passages.filter((p) => p.table).length;
+
+  // Persist + keep the parent quiz count + passages in sync.
   let cleared = 0;
   let written = 0;
   if (quizId && questions.length) {
@@ -617,6 +812,10 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     try {
       await admin.firestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,
+        // Always write the array (empty when the paper has no passages) so a
+        // re-run clears any stale passages from a previous import.
+        passages: passagesForQuiz,
+        passageCount: passagesForQuiz.length,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
     } catch (err) {
@@ -634,6 +833,8 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     extractionRounds,
     truncationHit,
     droppedForSize,
+    passagesCaptured: passagesForQuiz.length,
+    tablesCaptured,
     questions,
     extraNotes: [extraNote],
   });
@@ -655,6 +856,8 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       questionsReturned: questions.length,
       questionsWritten: written,
       questionsCleared: cleared,
+      passagesCaptured: passagesForQuiz.length,
+      tablesCaptured,
       confidence: report.confidence,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });

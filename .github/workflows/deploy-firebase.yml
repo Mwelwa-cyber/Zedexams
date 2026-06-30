@@ -42,7 +42,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Functions are deployed in small sequential chunks (see "Deploy to
+    # Firebase"). A worst-case deploy where the source bundle changed and every
+    # function rebuilds runs ~7 batches back-to-back, so give it room. Most
+    # deploys change a few functions and finish in well under 10 minutes.
+    timeout-minutes: 40
 
     # Explicit minimum permissions — some org settings restrict actions
     # unless this is stated explicitly.
@@ -110,12 +114,151 @@ jobs:
             echo "only=firestore,storage,functions" >> "$GITHUB_OUTPUT"
           fi
 
+      # Deploy CHUNKED so we never build a per-region operations backlog.
+      #
+      # Deploying all ~139 functions in one `firebase deploy --only functions`
+      # makes Cloud Functions (Gen 2) return "HTTP Error: 409, unable to queue
+      # the operation" for a random handful of them. firebase-tools LOGS those
+      # per-function failures but STILL EXITS 0 — so a green deploy could
+      # silently leave functions running stale code. That is exactly what bit
+      # the past-paper importer: #1418/#1425/#1427 all reported a successful
+      # deploy while importPastPaperQuestions kept the old 40-question cap.
+      #
+      # Retry-timing alone does NOT fix this. We tried re-deploying only the
+      # failed functions on a 15-75s backoff (#1439) and then on a 2-4min
+      # backoff (#1445): both rode the 6-attempt ceiling and failed, because a
+      # function that catches the 409 keeps catching it — the full deploy leaves
+      # a large set of operations in flight, and any new update on a function
+      # whose op is still pending is rejected, no matter how long we wait inside
+      # one job.
+      #
+      # The root-cause fix is to never fire the whole fleet at once. Each
+      # `firebase deploy --only functions:a,b,…` invocation WAITS for its
+      # operations to complete before returning, so deploying in small
+      # sequential chunks keeps in-flight operations well under the per-region
+      # cap and lets each batch fully settle before the next starts. No backlog,
+      # no 409. We still scan every batch's output for per-function failure
+      # markers (never trusting the exit code) and fail the job loudly if any
+      # function is still unresolved, so a green check genuinely means
+      # "deployed".
+      #
+      # firestore.rules / firestore.indexes / storage.rules have no such quota,
+      # so they go first in a single fast deploy.
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          # Un-coloured, deterministic output so the failure-line parser below
+          # never has to step around ANSI escape codes.
+          NO_COLOR: "1"
         run: |
-          npx firebase-tools@latest deploy \
-            --only "${{ steps.target.outputs.only }}" \
-            --non-interactive \
-            --project examsprepzambia \
-            --force
+          set -uo pipefail
+
+          only="${{ steps.target.outputs.only }}"
+          PROJECT=examsprepzambia
+          # Max functions per deploy invocation. The 409 tail appeared at ~80
+          # concurrent operations, so 20 stays comfortably under the per-region
+          # cap while keeping the batch count (and total wall-clock) reasonable.
+          CHUNK=20
+
+          # Names of the functions firebase-tools reported as failed. It logs
+          # each as "failed to update/create function .../functions/<name>" and
+          # sometimes STILL exits 0, so we always scan, regardless of exit code.
+          parse_failed() {
+            grep -iE "failed to (update|create) function" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
+          # Run one `firebase deploy --only <target>` with a small targeted
+          # retry on any transient per-function 409. All deploy logs go to
+          # stdout (visible/grouped in the Actions log); the names that are
+          # still failing after the retries are written to the file named in $2
+          # (empty file == clean). Returns nonzero iff something is unresolved.
+          deploy_target() {
+            local target="$1" outfile="$2" max=3 attempt=0 out code failed cur="$1"
+            : > "${outfile}"
+            while : ; do
+              attempt=$((attempt + 1))
+              echo "::group::firebase deploy --only ${cur} (attempt ${attempt}/${max})"
+              set +e
+              out=$(npx firebase-tools@latest deploy \
+                --only "${cur}" \
+                --non-interactive \
+                --project "${PROJECT}" \
+                --force 2>&1)
+              code=$?
+              set -e
+              echo "${out}"
+              echo "::endgroup::"
+
+              failed=$(printf '%s\n' "${out}" | parse_failed) || true
+              if [ "${code}" -eq 0 ] && [ -z "${failed}" ]; then
+                return 0
+              fi
+              if [ "${attempt}" -ge "${max}" ]; then
+                printf '%s\n' "${failed}" > "${outfile}"
+                return 1
+              fi
+              # Narrow the retry to just the failed functions when we have them.
+              if [ -n "${failed}" ]; then
+                cur=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
+              fi
+              echo "Batch reported transient failure(s); retrying [--only ${cur}] in 60s…"
+              sleep 60
+            done
+          }
+
+          unresolved=""
+          fail_file=$(mktemp)
+
+          # 1) Rules + indexes first (no concurrency quota). Deploy whichever of
+          #    firestore / storage were requested, in one shot.
+          rules=""
+          case ",${only}," in *,firestore,*) rules="firestore" ;; esac
+          case ",${only}," in *,storage,*)   rules="${rules:+${rules},}storage" ;; esac
+          if [ -n "${rules}" ]; then
+            if ! deploy_target "${rules}" "${fail_file}"; then
+              echo "::error::Failed to deploy ${rules} rules/indexes."
+              exit 1
+            fi
+          fi
+
+          # 2) Functions in small sequential chunks. The export names in
+          #    functions/index.js are the function ids firebase deploys by name.
+          case ",${only}," in
+            *,functions,*)
+              mapfile -t FNS < <(grep -oE '^exports\.[A-Za-z0-9_]+' functions/index.js \
+                | sed 's/^exports\.//' | sort -u)
+              total=${#FNS[@]}
+              if [ "${total}" -eq 0 ]; then
+                echo "::error::Could not enumerate any functions from functions/index.js."
+                exit 1
+              fi
+              batches=$(( (total + CHUNK - 1) / CHUNK ))
+              echo "Deploying ${total} functions in ${batches} chunk(s) of up to ${CHUNK}."
+              n=0
+              for (( i=0; i<total; i+=CHUNK )); do
+                n=$((n + 1))
+                batch=( "${FNS[@]:i:CHUNK}" )
+                target=$(printf 'functions:%s,' "${batch[@]}"); target="${target%,}"
+                echo "=== Functions chunk ${n}/${batches} (${#batch[@]} functions) ==="
+                if ! deploy_target "${target}" "${fail_file}"; then
+                  unresolved=$(printf '%s\n%s' "${unresolved}" "$(cat "${fail_file}")")
+                fi
+                # Brief settle so the just-finished batch's operations are fully
+                # clear before the next chunk starts.
+                sleep 15
+              done
+              ;;
+          esac
+
+          # Fail loudly if anything is still stale, so a green check means
+          # "everything actually deployed".
+          unresolved=$(printf '%s\n' "${unresolved}" | grep -vE '^[[:space:]]*$' | sort -u || true)
+          if [ -n "${unresolved}" ]; then
+            echo "::error::Firebase deploy left functions running stale code after chunked retries:"
+            printf '%s\n' "${unresolved}" | sed 's/^/::error::  unresolved function: /'
+            exit 1
+          fi
+          echo "Firebase deploy clean — all targets deployed."

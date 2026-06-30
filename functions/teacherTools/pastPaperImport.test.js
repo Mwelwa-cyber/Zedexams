@@ -18,6 +18,8 @@ const {
   questionKey,
   planPageBatches,
   selectNewQuestions,
+  dedupeBySourceNumber,
+  extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
   parseSourceNumber,
@@ -27,6 +29,12 @@ const {
   computeConfidence,
   countByType,
   buildImportReport,
+  canonicalPassageKind,
+  normalisePassageRef,
+  collectPassages,
+  textToParagraphHtml,
+  normaliseTable,
+  tableToHtml,
 } = require('./pastPaperImportHelpers');
 
 let pass = 0;
@@ -142,6 +150,101 @@ test('coverage loop converges: a fully-repeated round yields nothing fresh', () 
   selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   const again = selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   assert.equal(again.fresh.length, 0); // → caller stops the loop
+});
+
+// ── number-aware de-dup: the scanned-paper over-extraction fix ──────────────
+test('selectNewQuestions drops an OCR-drift re-read of an already-seen number', () => {
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  // Round 0 captures Q30.
+  const r0 = selectNewQuestions(seenKeys, [
+    {prompt: 'On the coat of arms, the ... stands for farming.', options: ['a', 'b', 'c', 'd'], sourceNumber: 30, order: 0},
+  ], seenNumbers);
+  assert.equal(r0.fresh.length, 1);
+  // Round 1 re-reads the SAME question with OCR drift (different stem text) but
+  // the same printed number — must NOT be treated as new.
+  const r1 = selectNewQuestions(seenKeys, [
+    {prompt: 'On the coat of arms the . stands for farmlng.', options: ['a', 'b', 'c', 'd'], sourceNumber: 30, order: 1},
+    {prompt: 'Which is an element of weather?', options: ['a', 'b', 'c', 'd'], sourceNumber: 31, order: 2},
+  ], seenNumbers);
+  assert.equal(r1.fresh.length, 1); // only the genuinely-new Q31
+  assert.equal(r1.fresh[0].sourceNumber, 31);
+});
+
+test('selectNewQuestions without seenNumbers keeps the original stem-only behaviour', () => {
+  const seenKeys = new Set();
+  // No seenNumbers passed → OCR-drifted re-reads (different stems) are NOT
+  // collapsed (legacy behaviour preserved for callers that opt out).
+  selectNewQuestions(seenKeys, [{prompt: 'Q30a', options: ['a', 'b'], sourceNumber: 30}]);
+  const again = selectNewQuestions(seenKeys, [{prompt: 'Q30b', options: ['a', 'b'], sourceNumber: 30}]);
+  assert.equal(again.fresh.length, 1);
+});
+
+test('dedupeBySourceNumber collapses same-number re-reads, keeps the first, leaves unnumbered alone', () => {
+  const out = dedupeBySourceNumber([
+    {prompt: 'Q1 read A', sourceNumber: 1},
+    {prompt: 'Q2', sourceNumber: 2},
+    {prompt: 'Q1 read B (ocr drift)', sourceNumber: 1}, // dup number → dropped
+    {prompt: 'unnumbered one', sourceNumber: null},
+    {prompt: 'unnumbered two', sourceNumber: null}, // both kept (no number)
+  ]);
+  assert.equal(out.removed, 1);
+  assert.equal(out.questions.length, 4);
+  assert.equal(out.questions[0].prompt, 'Q1 read A'); // first occurrence wins
+  assert.ok(out.questions.every((x) => x.prompt !== 'Q1 read B (ocr drift)'));
+});
+
+test('mergeAndRenumber collapses a doubled scanned paper back to its real count', () => {
+  // Simulates the production bug: a 4-question paper re-read twice with OCR
+  // drift → 8 entries, none of them exact-stem duplicates, all with the right
+  // printed numbers. Number-dedup must bring it back to 4.
+  const doubled = [];
+  for (const pass of ['', ' ']) { // second pass adds a stray space = OCR drift
+    for (let n = 1; n <= 4; n++) {
+      doubled.push({prompt: `Question ${n}${pass}`, options: ['a', 'b', 'c', 'd'], sourceNumber: n, order: doubled.length});
+    }
+  }
+  assert.equal(doubled.length, 8);
+  const {questions, duplicatesRemoved} = mergeAndRenumber(doubled);
+  assert.equal(questions.length, 4); // ← the fix: 8 → 4, not 8
+  assert.equal(duplicatesRemoved, 4);
+  assert.deepEqual(questions.map((x) => x.sourceNumber), [1, 2, 3, 4]);
+});
+
+// ── extractionProgress — resume marker for the continuation loop ────────────
+test('extractionProgress reports count + highest source number', () => {
+  const p = extractionProgress([
+    {prompt: 'Q1', sourceNumber: 1},
+    {prompt: 'Q2', sourceNumber: 2},
+    {prompt: 'Q3', sourceNumber: 3},
+  ]);
+  assert.equal(p.count, 3);
+  assert.equal(p.maxSourceNumber, 3);
+});
+
+test('extractionProgress picks the MAX number even when out of order', () => {
+  // The model can return questions out of order or with a late high number; the
+  // resume marker must point past the furthest one captured, not the last one.
+  const p = extractionProgress([
+    {prompt: 'Q3', sourceNumber: 3},
+    {prompt: 'Q40', sourceNumber: 40},
+    {prompt: 'Q12', sourceNumber: '12'},
+  ]);
+  assert.equal(p.count, 3);
+  assert.equal(p.maxSourceNumber, 40); // → next round asks for 41 onward
+});
+
+test('extractionProgress falls back to null number when none are printed', () => {
+  const p = extractionProgress([
+    {prompt: 'Q1'}, {prompt: 'Q2', sourceNumber: null},
+  ]);
+  assert.equal(p.count, 2);
+  assert.equal(p.maxSourceNumber, null); // caller resumes by count instead
+});
+
+test('extractionProgress handles empty/garbage input', () => {
+  assert.deepEqual(extractionProgress([]), {count: 0, maxSourceNumber: null});
+  assert.deepEqual(extractionProgress(null), {count: 0, maxSourceNumber: null});
 });
 
 // ── summariseSeenStems ──────────────────────────────────────────────────────
@@ -373,6 +476,146 @@ test('buildImportReport flags a truncation-limited run', () => {
   });
   assert.ok(report.issues.some((i) => /round limit/.test(i)));
   assert.equal(report.truncationHit, true);
+});
+
+// ── Passage capture ─────────────────────────────────────────────────────────
+test('canonicalPassageKind folds figure/map words to "map", else comprehension', () => {
+  assert.equal(canonicalPassageKind('comprehension'), 'comprehension');
+  assert.equal(canonicalPassageKind('reading'), 'comprehension');
+  assert.equal(canonicalPassageKind('map'), 'map');
+  assert.equal(canonicalPassageKind('the diagram'), 'map');
+  assert.equal(canonicalPassageKind('data table'), 'map');
+  assert.equal(canonicalPassageKind(''), 'comprehension');
+});
+
+test('normalisePassageRef keeps ref/title/text, synthesises a ref when missing', () => {
+  assert.equal(normalisePassageRef(null), null);
+  assert.equal(normalisePassageRef({}), null);
+  const p = normalisePassageRef({ ref: 'P1', title: 'The Pencil', text: 'Long ago...', kind: 'comprehension' });
+  assert.equal(p.ref, 'P1');
+  assert.equal(p.title, 'The Pencil');
+  assert.equal(p.kind, 'comprehension');
+  // No ref → synthesised from title so questions still group.
+  const t = normalisePassageRef({ title: 'A Map of Zambia', kind: 'map' });
+  assert.ok(t.ref.startsWith('title:'));
+  assert.equal(t.kind, 'map');
+});
+
+test('normaliseImportedQuestion carries a passage descriptor through', () => {
+  const n = normaliseImportedQuestion(
+    { type: 'mcq', prompt: 'What does the writer mean?', options: ['a', 'b'], passage: { ref: 'P1', text: 'Story text', kind: 'comprehension' } }, 0);
+  assert.ok(n.passage);
+  assert.equal(n.passage.ref, 'P1');
+});
+
+test('collectPassages groups child questions and stamps passageId', () => {
+  const qs = [
+    { prompt: 'Q1', type: 'mcq', options: ['a', 'b'], order: 0 }, // standalone
+    { prompt: 'Q2', type: 'short_answer', options: [], order: 1, passage: { ref: 'P1', title: 'The Pencil', text: 'A long passage about pencils.', kind: 'comprehension' } },
+    { prompt: 'Q3', type: 'short_answer', options: [], order: 2, passage: { ref: 'P1', text: '', kind: 'comprehension' } },
+  ];
+  const { passages, questions } = collectPassages(qs);
+  assert.equal(passages.length, 1);
+  assert.equal(passages[0].id, 'p001');
+  assert.equal(passages[0].title, 'The Pencil');
+  assert.equal(passages[0].passageText, 'A long passage about pencils.'); // richest text kept
+  assert.equal(passages[0].order, 1); // first child's order
+  assert.equal(questions[0].passageId, null); // standalone
+  assert.equal(questions[1].passageId, 'p001');
+  assert.equal(questions[2].passageId, 'p001');
+  assert.ok(!('passage' in questions[1])); // transient field stripped
+});
+
+test('collectPassages drops a lone text-less "passage" (misfire) to standalone', () => {
+  const qs = [
+    { prompt: 'Q1', type: 'mcq', options: ['a', 'b'], order: 0, passage: { ref: 'X', text: '', kind: 'comprehension' } },
+  ];
+  const { passages, questions } = collectPassages(qs);
+  assert.equal(passages.length, 0);
+  assert.equal(questions[0].passageId, null);
+});
+
+test('collectPassages keeps two distinct passages separate', () => {
+  const qs = [
+    { prompt: 'Q1', order: 0, passage: { ref: 'P1', text: 'First story', kind: 'comprehension' } },
+    { prompt: 'Q2', order: 1, passage: { ref: 'P2', text: 'A map caption', kind: 'map' } },
+  ];
+  const { passages } = collectPassages(qs);
+  assert.equal(passages.length, 2);
+  assert.deepEqual(passages.map(p => p.passageKind), ['comprehension', 'map']);
+});
+
+test('textToParagraphHtml builds safe paragraph HTML, escapes, preserves breaks', () => {
+  assert.equal(textToParagraphHtml(''), '');
+  assert.equal(textToParagraphHtml('one line'), '<p>one line</p>');
+  assert.equal(textToParagraphHtml('a\n\nb'), '<p>a</p><p>b</p>');
+  assert.equal(textToParagraphHtml('a\nb'), '<p>a<br>b</p>');
+  assert.equal(textToParagraphHtml('x < y & z'), '<p>x &lt; y &amp; z</p>'); // escaped
+});
+
+test('buildImportReport reports passagesCaptured + a correction line', () => {
+  const report = buildImportReport({
+    questionsImported: 5, passagesCaptured: 1,
+    questions: [{ type: 'short_answer', options: [], answerKnown: false, passageId: 'p001' }],
+  });
+  assert.equal(report.passagesCaptured, 1);
+  assert.ok(report.corrections.some(c => /reading passage/.test(c)));
+});
+
+// ── Table capture ───────────────────────────────────────────────────────────
+test('normaliseTable cleans cells, squares ragged rows, needs >=2 cols + a row', () => {
+  const t = normaliseTable({ headers: ['Town', 'Time'], rows: [['Lusaka', '09:30'], ['Nyimba']] });
+  assert.deepEqual(t.headers, ['Town', 'Time']);
+  assert.deepEqual(t.rows, [['Lusaka', '09:30'], ['Nyimba', '']]); // ragged row squared
+  // headerless table keeps rows, drops the empty headers
+  const h = normaliseTable({ rows: [['a', 'b'], ['c', 'd']] });
+  assert.deepEqual(h.headers, []);
+  assert.equal(h.rows.length, 2);
+});
+
+test('normaliseTable rejects non-tables (1 column, empty, junk)', () => {
+  assert.equal(normaliseTable(null), null);
+  assert.equal(normaliseTable({ headers: ['x'], rows: [['only one col']] }), null); // <2 cols
+  assert.equal(normaliseTable({ headers: [], rows: [] }), null);
+  assert.equal(normaliseTable({ rows: [['', '']] }), null); // all-empty rows dropped → none left
+});
+
+test('tableToHtml builds sanitiser-safe escaped table HTML', () => {
+  const html = tableToHtml({ headers: ['A', 'B'], rows: [['1', '2 < 3'], ['x & y', 'z']] });
+  assert.ok(html.startsWith('<table><thead><tr><th>A</th><th>B</th></tr></thead>'));
+  assert.ok(html.includes('<td>2 &lt; 3</td>'));
+  assert.ok(html.includes('<td>x &amp; y</td>'));
+  assert.ok(html.endsWith('</tbody></table>'));
+  assert.equal(tableToHtml(null), '');
+  // headerless table omits <thead>
+  assert.ok(!tableToHtml({ rows: [['a', 'b']] }).includes('<thead>'));
+});
+
+test('normaliseImportedQuestion carries a question-level table', () => {
+  const n = normaliseImportedQuestion(
+    { type: 'mcq', prompt: 'Read the table', options: ['a', 'b'], table: { headers: ['H1', 'H2'], rows: [['1', '2']] } }, 0);
+  assert.ok(n.table);
+  assert.deepEqual(n.table.headers, ['H1', 'H2']);
+});
+
+test('collectPassages keeps a shared table on the passage (and survives the misfire guard)', () => {
+  const qs = [
+    { prompt: 'Q1', order: 0, passage: { ref: 'T1', kind: 'map', table: { headers: ['Town', 'Time'], rows: [['Lusaka', '09:30']] } } },
+  ];
+  const { passages, questions } = collectPassages(qs);
+  assert.equal(passages.length, 1); // table-only passage kept despite single question
+  assert.ok(passages[0].table);
+  assert.equal(passages[0].passageKind, 'map');
+  assert.equal(questions[0].passageId, 'p001');
+});
+
+test('buildImportReport reports tablesCaptured + a correction line', () => {
+  const report = buildImportReport({
+    questionsImported: 3, tablesCaptured: 2,
+    questions: [{ type: 'mcq', options: ['a', 'b'], answerKnown: true }],
+  });
+  assert.equal(report.tablesCaptured, 2);
+  assert.ok(report.corrections.some(c => /table/.test(c)));
 });
 
 // ── Report ──────────────────────────────────────────────────────────────────

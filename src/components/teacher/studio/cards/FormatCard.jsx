@@ -14,9 +14,9 @@ export function FormatCard({ formatId, label, selected, onSelect, onPreview, pre
     <div
       data-format-id={formatId}
       className={[
-        'relative flex flex-col items-center rounded-lg border p-1.5 text-center transition-colors w-full',
+        'lps-lift relative flex w-full flex-col items-center rounded-xl border p-1.5 text-center transition-all',
         selected
-          ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50'
+          ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 lps-card-glow'
           : 'border-[#d9cfbe] bg-white hover:bg-[#f9f5ef]',
       ].join(' ')}
     >

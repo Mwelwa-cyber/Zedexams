@@ -576,6 +576,75 @@ function v3HeaderLines(h, { classLabel = 'CLASS' } = {}) {
   return lines
 }
 
+// School name as a centred title above "LESSON PLAN" (mirrors the on-screen
+// renderHeader masthead).
+function schoolHeading(name) {
+  return new Paragraph({
+    children: [text(name, { bold: true, size: 30 })],
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 80 },
+  })
+}
+
+const NONE_EDGE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+const RULE_EDGE = { style: BorderStyle.SINGLE, size: 6, color: '000000' }
+
+// One borderless cell carrying a "LABEL: value" run sequence.
+function metaCell(runs) {
+  return new TableCell({
+    children: [new Paragraph({ children: runs, spacing: { after: 60 } })],
+    width: { size: 50, type: WidthType.PERCENTAGE },
+    margins: { top: 20, bottom: 20, right: 160 },
+  })
+}
+
+function lvRuns(label, value) {
+  const runs = [text(`${label}: `, { bold: true, size: 20 })]
+  if (value != null && value !== '') runs.push(text(String(value), { size: 20 }))
+  return runs
+}
+
+// Two-column CBC header matching the on-screen renderTwoColMeta layout:
+//   left  — Name of teacher, Class, Subject, Topic, Sub-topic
+//   right — Date, Time, Duration, Total no. of pupils, Girls / Boys
+// Bracketed top and bottom by a single black rule, no inner lines.
+function v3CbcHeaderTable(h) {
+  const blank = '______'
+  const left = [
+    lvRuns('NAME OF TEACHER', h.teacherName || ''),
+    lvRuns('CLASS', h.class || ''),
+    lvRuns('SUBJECT', h.subject || ''),
+    lvRuns('TOPIC', h.topic || ''),
+    lvRuns('SUB-TOPIC', h.subtopic || ''),
+  ]
+  const right = [
+    lvRuns('DATE', h.date || ''),
+    lvRuns('TIME', h.time || ''),
+    lvRuns('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''),
+    lvRuns('TOTAL NO. OF PUPILS', ''),
+    [
+      text('GIRLS: ', { bold: true, size: 20 }),
+      text(`${blank}     `, { size: 20 }),
+      text('BOYS: ', { bold: true, size: 20 }),
+      text(blank, { size: 20 }),
+    ],
+  ]
+  const rows = left.map((lr, i) => new TableRow({ cantSplit: true, children: [metaCell(lr), metaCell(right[i])] }))
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [4800, 4800],
+    borders: {
+      top: RULE_EDGE,
+      bottom: RULE_EDGE,
+      left: NONE_EDGE,
+      right: NONE_EDGE,
+      insideHorizontal: NONE_EDGE,
+      insideVertical: NONE_EDGE,
+    },
+    rows,
+  })
+}
+
 /**
  * v3 body for the Previous (Outcomes-Based / 2013) curriculum. Mirrors the
  * on-screen preview (renderOldClassic): RATIONALE → PRE-REQUISITE → SPECIFIC
@@ -622,7 +691,7 @@ function buildV3PreviousBody(plan, opts = {}) {
   cols.push(["TEACHER'S ACTIVITY", hasContent ? 22 : 32])
   cols.push(["PUPILS' ACTIVITY", hasContent ? 22 : 32])
   if (hasMethods) cols.push(['METHODS', hasContent ? 16 : 22])
-  const headerRow = new TableRow({ children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
+  const headerRow = new TableRow({ tableHeader: true, cantSplit: true, children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
   const stageRows = stages.map((s) => {
     const cells = [
       v3StageCell([
@@ -637,7 +706,7 @@ function buildV3PreviousBody(plan, opts = {}) {
     cells.push(v3StageCell(bulletList(s.teacherActivities), cols[i++][1]))
     cells.push(v3StageCell(bulletList(s.learnerActivities), cols[i++][1]))
     if (hasMethods) cells.push(v3StageCell(bulletList(toLinesLocal(s.methods)), cols[i++][1]))
-    return new TableRow({ children: cells })
+    return new TableRow({ cantSplit: true, children: cells })
   })
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -672,8 +741,9 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
   const le = plan.learningEnvironment || {}
   const children = []
 
-  // Header block — official CAPS label lines.
-  children.push(...v3HeaderLines(h, { classLabel: 'CLASS' }))
+  // Header block — two aligned columns (matches the on-screen renderTwoColMeta).
+  children.push(v3CbcHeaderTable(h))
+  children.push(para([]))
 
   // Official field sections.
   children.push(fieldLine('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', ')))
@@ -703,6 +773,8 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
     spacing: { before: 160, after: 120 },
   }))
   const headerRow = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
     children: [
       v3HeaderCell('STAGES', 15),
       v3HeaderCell("TEACHER'S ACTIVITIES", 31),
@@ -711,6 +783,7 @@ function buildV3Body(plan, opts = {}, mode = 'cbc') {
     ],
   })
   const stageRows = (plan.stages || []).map((s) => new TableRow({
+    cantSplit: true,
     children: [
       v3StageCell([
         para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),
@@ -754,6 +827,11 @@ export function buildLessonPlanDocument(plan, opts = {}) {
   const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
   if (isV3) {
     const mode = opts.curriculumMode === 'previous' ? 'previous' : 'cbc'
+    // CBC moves the school name to a centred masthead (the two-column header
+    // table drops it); the previous-curriculum body keeps it in its field lines.
+    const head = []
+    if (mode === 'cbc' && plan.header?.school) head.push(schoolHeading(plan.header.school))
+    head.push(h1('LESSON PLAN'))
     return new Document({
       creator: 'zedexams.com',
       title: sanitizeXmlText(`Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`),
@@ -763,7 +841,7 @@ export function buildLessonPlanDocument(plan, opts = {}) {
           document: { run: { font: 'Calibri', size: 20 } },
         },
       },
-      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan, opts, mode)] }],
+      sections: [{ ...attributionSection(opts), children: [...head, ...buildV3Body(plan, opts, mode)] }],
     })
   }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'

@@ -5,8 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- Primary SEO -->
-    <title>ZedExams</title>
-    <meta name="description" content="ZedExams — Zambian CBC exam prep." />
+    <!--
+      Brand-level defaults. This file is the SPA fallback shell for every route
+      and the homepage card source (prerender skips "/" on purpose), and no-JS
+      social scrapers (WhatsApp/Facebook/LinkedIn) read these static tags. Keep
+      the copy brand-level, not route-specific — per-route titles/descriptions
+      come from <SeoHelmet> at runtime and from the prerendered route HTML.
+    -->
+    <title>ZedExams — Zambian CBC Exam Prep, Quizzes &amp; AI Study Help</title>
+    <meta name="description" content="Daily exams, quizzes, lessons, games and AI study help for Zambian CBC learners (Grade 4–7), plus printable lesson-planning tools for teachers." />
     <meta name="author" content="ZedExams" />
     <!--
       No static canonical link element here, on purpose.
@@ -52,8 +59,8 @@
     <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ZedExams" />
-    <meta property="og:title" content="ZedExams" />
-    <meta property="og:description" content="ZedExams — Zambian CBC exam prep." />
+    <meta property="og:title" content="ZedExams — Zambian CBC Exam Prep, Quizzes &amp; AI Study Help" />
+    <meta property="og:description" content="Daily exams, quizzes, lessons, games and AI study help for Zambian CBC learners (Grade 4–7), plus printable lesson-planning tools for teachers." />
     <meta property="og:url" content="https://zedexams.com/" />
     <meta property="og:image" content="https://zedexams.com/zedexams-logo.png?v=5" />
     <meta property="og:image:alt" content="ZedExams" />
@@ -64,8 +71,8 @@
 
     <!-- Twitter card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ZedExams" />
-    <meta name="twitter:description" content="ZedExams — Zambian CBC exam prep." />
+    <meta name="twitter:title" content="ZedExams — Zambian CBC Exam Prep, Quizzes &amp; AI Study Help" />
+    <meta name="twitter:description" content="Daily exams, quizzes, lessons, games and AI study help for Zambian CBC learners (Grade 4–7), plus printable lesson-planning tools for teachers." />
     <meta name="twitter:image" content="https://zedexams.com/zedexams-logo.png?v=5" />
 
     <!-- Structured data — helps Google show rich results for queries
@@ -191,7 +198,24 @@
         }
       })();
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Inline boot skeleton — paints in the first frame with no JS/CSS bundle,
+        so a cold mobile load shows the brand + spinner instantly instead of a
+        blank screen for several seconds (real-user FCP p75 was ~4.5s on
+        mobile). React's createRoot() clears #root when it mounts, so this is
+        removed automatically; the boot watchdog's appMounted() ignores it so a
+        genuine hang still surfaces the recovery UI.
+      -->
+      <div id="zed-boot-skeleton" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#FDF6EC;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
+        <div style="font-size:2rem;font-weight:800;letter-spacing:-0.02em;color:#1A1F2E;">Zed<span style="color:#EA580C;">Exams</span></div>
+        <div class="zed-boot-spinner" style="width:34px;height:34px;border:3px solid #EBD9C2;border-top-color:#EA580C;border-radius:50%;animation:zed-boot-spin 0.8s linear infinite;"></div>
+        <style>
+          @keyframes zed-boot-spin { to { transform: rotate(360deg); } }
+          @media (prefers-reduced-motion: reduce) { .zed-boot-spinner { animation: none; } }
+        </style>
+      </div>
+    </div>
     <!--
       Boot watchdog (white-screen guard).
 
@@ -220,8 +244,16 @@
         var ERROR_GRACE = 2000;   // wait after a boot error in case React still recovers
         var shown = false;
         function appMounted() {
+          if (window.__ZED_APP_MOUNTED__) return true;
           var root = document.getElementById('root');
-          return !!(window.__ZED_APP_MOUNTED__ || (root && root.childElementCount > 0));
+          if (!root) return false;
+          // The inline boot skeleton lives inside #root before React mounts; it
+          // must NOT count as "mounted" or the white-screen guard would never
+          // fire on a genuine hang. Any other child means React has rendered.
+          for (var i = 0; i < root.children.length; i++) {
+            if (root.children[i].id !== 'zed-boot-skeleton') return true;
+          }
+          return false;
         }
         window.zedClearCacheReload = function () {
           var done = function () { location.reload(); };

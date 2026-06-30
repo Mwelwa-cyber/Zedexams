@@ -42,10 +42,12 @@ export function discoverBlogSlugs() {
  * Anything we advertise in public/sitemap.xml therefore MUST be listed here
  * (enforced by scripts/test-public-routes.mjs).
  *
- * The homepage ("/") is the one deliberate exception: dist/index.html *is* the
- * SPA fallback for every route without its own file, so baking canonical="/"
- * into it would re-poison every fallback route. It stays the neutral shell;
- * Google already indexes it and renders it fine.
+ * The homepage ("/") is NOT in this list, but it IS prerendered — prerender.mjs
+ * handles it directly (writing dist/index.html) after first copying the neutral
+ * shell to dist/app.html, which Firebase Hosting's `**` fallback now serves. So
+ * "/" gets its own snapshot without re-poisoning fallback routes with
+ * canonical="/". Keeping it out of buildRouteList keeps this module the single
+ * source of truth for the *sitemap* routes that test-public-routes enforces.
  *
  * Data-driven public pages (/papers, /games, /games/leaderboard, /status) read
  * live Firestore at runtime. We still prerender them: the snapshot captures the

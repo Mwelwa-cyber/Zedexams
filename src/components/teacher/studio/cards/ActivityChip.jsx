@@ -6,7 +6,7 @@
  */
 export function ActivityChip({ label }) {
   return (
-    <span className="inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-800">
+    <span className="inline-block rounded-full border border-indigo-200/60 bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
       {label}
     </span>
   )

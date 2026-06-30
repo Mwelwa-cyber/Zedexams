@@ -42,6 +42,28 @@ const DEDUP_WINDOW_MS = 60_000
 const MESSAGE_MAX_LEN = 200
 const DEDUP_KEY_LEN = 80
 
+// Known browser-/extension-generated noise that isn't an app bug. A perf-audit
+// browser extension, for example, fires "(performance/invalid attribute value)"
+// on long Tailwind class strings — not thrown by our code, yet it was the single
+// largest source of client_error volume and buried the real bugs. Dropping these
+// before the rate-limit/dedup counters keeps the signal clean. Matched as
+// case-insensitive substrings of the summarised message. Keep this list tight:
+// only add a pattern once it's confirmed to be noise, never an app failure.
+const IGNORED_MESSAGE_SUBSTRINGS = [
+  '(performance/invalid attribute value)',
+  'resizeobserver loop', // benign layout-loop notifications every browser fires
+]
+
+/**
+ * True when the (already-summarised) message matches a known-noise pattern that
+ * should never be reported. Pure + exported so the test runner can assert the
+ * list directly without going through the window listeners.
+ */
+export function isIgnoredErrorMessage(message) {
+  const m = String(message == null ? '' : message).toLowerCase()
+  return IGNORED_MESSAGE_SUBSTRINGS.some((s) => m.includes(s))
+}
+
 // Module-scoped state. A new SPA navigation does not reset these
 // counters — the page lifetime is the dedup horizon.
 let eventsSent = 0
@@ -120,6 +142,7 @@ function shouldReport(name, message) {
 export function reportClientError(err, context = 'manual') {
   try {
     const { name, message } = summarise(err)
+    if (isIgnoredErrorMessage(message)) return
     if (!shouldReport(name, message)) return
     eventsSent += 1
     _capture('client_error', {

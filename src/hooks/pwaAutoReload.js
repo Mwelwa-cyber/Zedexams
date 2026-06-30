@@ -12,19 +12,30 @@
 // navigate). The "New version available" toast remains as a fallback for users
 // who sit on a single screen.
 //
-// State machine (called once per effect run, on [updateReady, location]):
+// `busy` guards against reloading while a critical operation is in flight (e.g.
+// a teacher lesson-plan generation that streams for up to ~2 minutes and lives
+// only in React state). The original assumption above — "long-running ops don't
+// navigate, so they're safe" — was wrong: a teacher mid-generation can navigate,
+// and the reload wiped the in-progress plan ("it refreshed on its own and
+// started over"). While busy we DISARM and never reload, so a navigation during
+// the op is harmless. Once busy clears we re-arm on the next run, and the update
+// still lands on the following navigation — users always reach the new build.
+//
+// State machine (called once per effect run, on [updateReady, location, busy]):
 //   • no update pending            → disarm,    don't reload
+//   • update pending, busy         → disarm,    don't reload (op in flight)
 //   • update pending, not armed    → ARM here,  don't reload (this is the
 //                                    location where the update became ready)
 //   • update pending, already armed→ stay armed, RELOAD (a navigation happened
 //                                    after arming)
 
 /**
- * @param {{ armed: boolean, updateReady: boolean }} state
+ * @param {{ armed: boolean, updateReady: boolean, busy?: boolean }} state
  * @returns {{ armed: boolean, reload: boolean }}
  */
-export function pwaReloadOnNavigate({ armed, updateReady }) {
+export function pwaReloadOnNavigate({ armed, updateReady, busy = false }) {
   if (!updateReady) return { armed: false, reload: false }
+  if (busy) return { armed: false, reload: false }
   if (!armed) return { armed: true, reload: false }
   return { armed: true, reload: true }
 }

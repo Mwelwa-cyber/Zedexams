@@ -15,6 +15,7 @@
 
 const {
   reportClientError,
+  isIgnoredErrorMessage,
   __resetForTests,
   __setCaptureForTests,
   __TEST_CONFIG,
@@ -176,6 +177,39 @@ test('messages differing past DEDUP_KEY_LEN still dedup (intentional)', () => {
   reportClientError(new Error(prefix + ' alpha'), 'unit')
   reportClientError(new Error(prefix + ' beta'), 'unit')
   assert(calls.length === 1, `expected dedup, got ${calls.length}`)
+})
+
+// ── noise filter ────────────────────────────────────────────────
+
+console.log('\nreportClientError: known-noise filtering')
+
+test('drops the perf-audit extension "(performance/invalid attribute value)" noise', () => {
+  const calls = makeSpy()
+  reportClientError(
+    new Error('Performance: Attribute value button.inline-flex.items-center is invalid. (performance/invalid attribute value).'),
+    'window_error',
+  )
+  assert(calls.length === 0, `expected the noise to be dropped, got ${calls.length}`)
+})
+
+test('drops ResizeObserver loop notifications (case-insensitive)', () => {
+  const calls = makeSpy()
+  reportClientError(new Error('ResizeObserver loop completed with undelivered notifications.'), 'window_error')
+  reportClientError(new Error('ResizeObserver loop limit exceeded'), 'window_error')
+  assert(calls.length === 0, `expected both dropped, got ${calls.length}`)
+})
+
+test('still reports a real error that merely mentions performance', () => {
+  const calls = makeSpy()
+  reportClientError(new Error('Performance budget exceeded while loading the quiz'), 'window_error')
+  assert(calls.length === 1, `expected the real error to report, got ${calls.length}`)
+})
+
+test('isIgnoredErrorMessage is a pure predicate', () => {
+  assert(isIgnoredErrorMessage('x (performance/invalid attribute value).') === true)
+  assert(isIgnoredErrorMessage('ResizeObserver loop limit exceeded') === true)
+  assert(isIgnoredErrorMessage('Cannot read properties of undefined') === false)
+  assert(isIgnoredErrorMessage(null) === false)
 })
 
 // ── Report ──────────────────────────────────────────────────────

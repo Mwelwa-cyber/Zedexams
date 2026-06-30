@@ -1,6 +1,7 @@
 import { ActivityChip } from '../cards/ActivityChip.jsx'
+import { Sparkles } from '../../../ui/icons'
 
-const SECTION_LABEL_CLS = 'block text-[10px] font-bold uppercase tracking-widest text-[#a39d8e] mb-1'
+const SECTION_LABEL_CLS = 'block text-[10px] font-bold uppercase tracking-widest text-[#8a93c4] mb-1'
 const SECTION_VALUE_CLS = 'text-[13px] text-[#3d3529] leading-snug'
 
 /**
@@ -16,11 +17,17 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
   if (!subtopicRow) return null
 
   return (
-    <div className="mx-4 mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+    <div className="mx-4 mb-4 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50/50 p-4 lps-soft-shadow lps-section-enter">
       {/* Card header */}
-      <p className="mb-3 text-[12px] font-semibold text-[#3d3529]">
-        📋 Curriculum Summary
-      </p>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white" aria-hidden="true">
+          <Sparkles size={13} />
+        </span>
+        <p className="text-[12px] font-semibold text-[#3d3529]">Curriculum Summary</p>
+        <span className="ml-auto rounded-md bg-white/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-600">
+          Auto-filled
+        </span>
+      </div>
 
       {curriculumMode === 'cbc' && (
         <div className="space-y-3">

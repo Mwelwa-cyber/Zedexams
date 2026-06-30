@@ -322,8 +322,10 @@ export default function QuizList() {
     const needle = search.trim().toLowerCase()
     if (!needle) return quizzes
     return quizzes.filter(q =>
-      (q.title ?? '').toLowerCase().includes(needle) ||
-      (q.topic ?? '').toLowerCase().includes(needle)
+      q && (
+        (q.title ?? '').toLowerCase().includes(needle) ||
+        (q.topic ?? '').toLowerCase().includes(needle)
+      )
     )
   }, [quizzes, search])
 
@@ -337,6 +339,7 @@ export default function QuizList() {
     for (const subject of SUBJECTS) map.set(subject.id, [])
     const orphans = []
     for (const quiz of filteredQuizzes) {
+      if (!quiz) continue // a nullish entry must never crash the whole library grid
       const list = map.get(quiz.subject)
       if (list) list.push(quiz)
       else orphans.push(quiz)

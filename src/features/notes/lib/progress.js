@@ -55,31 +55,51 @@ export function subscribeNoteProgress(uid, onChange, onError) {
   )
 }
 
-/** Read a single progress record, or null. */
+/** Read a single progress record, or null. Best-effort: a denied/failed read
+ * resolves to null (the reader treats it as a fresh open) rather than rejecting
+ * — its caller in useRecordNoteProgress awaits this without a try/catch, so an
+ * escaping rejection became "Missing or insufficient permissions" noise. */
 export async function getNoteProgress(uid, noteId) {
   if (!uid || !noteId) return null
-  const snap = await getDoc(doc(db, COL, idFor(uid, noteId)))
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+  try {
+    const snap = await getDoc(doc(db, COL, idFor(uid, noteId)))
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null
+  } catch (err) {
+    console.warn('[notes] progress read skipped:', err?.code || err?.message || err)
+    return null
+  }
 }
 
 // ─── writes ──────────────────────────────────────────────────────────
 
-/** Merge a patch onto a learner's progress record, always re-stamping the note metadata. */
+/** Merge a patch onto a learner's progress record, always re-stamping the note metadata.
+ *
+ * Reading progress is best-effort telemetry — the callers in
+ * useRecordNoteProgress fire these writes without awaiting. A failed write
+ * (most often `permission-denied` from a listener firing after sign-out, or
+ * a transient offline/network error) must therefore never escape as an
+ * unhandled promise rejection: that was surfacing as "Missing or insufficient
+ * permissions" client_errors on /notes/:id even though the reading experience
+ * is unaffected. Swallow it here, logged but not thrown. */
 async function writeNoteProgress(uid, note, patch) {
   if (!uid || !note?.id) return
-  await setDoc(
-    doc(db, COL, idFor(uid, note.id)),
-    {
-      uid,
-      noteId: note.id,
-      grade: note.grade != null ? String(note.grade) : null,
-      subject: note.subject || null,
-      title: note.title || null,
-      ...patch,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  )
+  try {
+    await setDoc(
+      doc(db, COL, idFor(uid, note.id)),
+      {
+        uid,
+        noteId: note.id,
+        grade: note.grade != null ? String(note.grade) : null,
+        subject: note.subject || null,
+        title: note.title || null,
+        ...patch,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    )
+  } catch (err) {
+    console.warn('[notes] progress write skipped:', err?.code || err?.message || err)
+  }
 }
 
 /** Record that the learner opened the note. Never downgrades a completed note. */

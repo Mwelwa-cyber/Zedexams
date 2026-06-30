@@ -1,12 +1,14 @@
 /**
- * Regression guard for the Lesson Plan Studio "lesson kit".
+ * Regression guard for the Lesson Plan Studio "Teaching Kit".
  *
- * After a plan is generated, the studio shows a "Create for this lesson" bar
- * that deep-links into the Worksheet / Homework / Notes studios with the
- * lesson's grade/subject/topic pre-filled. The hand-off is: the vanilla studio
+ * After a plan is generated, the studio shows a Teaching Kit panel that
+ * deep-links into the Worksheet / Homework / Notes / Test Paper studios with the
+ * lesson pre-filled AND aligned: Notes is grounded on the saved plan via
+ * `lessonPlanId`, while the others receive the plan's CBC anchors through
+ * `buildAlignmentInstructions`. The hand-off is: the vanilla studio
  * (06-generate.js) converts its raw coords to the CBC vocabulary the React
  * generators expect (classToCbcGrade / subjectToCbcSubject) and calls the
- * window.__studioOnGenerated bridge; LessonPlanStudio.jsx renders the bar and
+ * window.__studioOnGenerated bridge; LessonPlanStudio.jsx renders the panel and
  * navigates with buildGeneratorQueryString — the SAME serialiser the React
  * generators read via useFormDefaultsFromUrl. These are static (text-level)
  * checks that the wiring can't silently regress.
@@ -42,24 +44,31 @@ for (const key of ['grade:', 'subject:', 'topic:', 'subtopic:', 'term:']) {
     `06-generate.js passes ${key.replace(':', '')} to the kit`)
 }
 
-// 2. The React studio imports the serialiser and renders the bar.
+// 2. The React studio imports the serialiser and renders the Teaching Kit.
 // The new studio is a pure-React component — no window bridge needed.
 const studio = read('src/components/teacher/studio/LessonPlanStudio.jsx')
 check(/import \{ buildGeneratorQueryString \} from/.test(studio), 'LessonPlanStudio imports buildGeneratorQueryString (the generators\' deserialiser)')
-check(/Create for this lesson/.test(studio), 'LessonPlanStudio renders the "Create for this lesson" bar')
+check(/Teaching Kit/.test(studio), 'LessonPlanStudio renders the Teaching Kit panel')
+check(/buildGeneratorQueryString\(/.test(studio), 'LessonPlanStudio serialises the kit with buildGeneratorQueryString')
 
-// 3. The bar deep-links into the companion studios with the query string.
+// 3. The kit deep-links into each companion studio with the pre-fill query
+//    string. The route strings are quoted literals in openKitTool().
 for (const route of [
   '/teacher/generate/worksheet',
   '/teacher/generate/homework',
   '/teacher/generate/notes',
   '/teacher/test-papers/new',
 ]) {
-  check(new RegExp(`navigate\\(\`${route}\\$\\{buildGeneratorQueryString\\(kit\\)\\}\``).test(studio),
+  check(studio.includes(`'${route}'`),
     `LessonPlanStudio deep-links to ${route} with the pre-fill query string`)
 }
 
-// 4. The bar only shows once a plan exists (gated on kit state).
+// 3b. The kit ALIGNS each tool to the lesson: Notes via the saved plan's
+//     lessonPlanId, the others via the plan's CBC anchors as instructions.
+check(/lessonPlanId/.test(studio), 'LessonPlanStudio grounds Notes on the saved plan via lessonPlanId')
+check(/buildAlignmentInstructions\(/.test(studio), 'LessonPlanStudio aligns kit tools with the plan\'s CBC anchors')
+
+// 4. The kit only shows once a plan exists (gated on kit state).
 check(/\{kit && \(/.test(studio), 'LessonPlanStudio only shows the kit bar after a plan is generated')
 
 // 5. AssessmentStudio consumes the deep-link params (the others read them via

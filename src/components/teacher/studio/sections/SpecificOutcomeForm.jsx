@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Target } from '../../../ui/icons'
 
 /**
  * SpecificOutcomeForm — collapsible sidebar section for selecting specific
@@ -43,6 +44,7 @@ export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOut
             ].join(' ')}
             aria-hidden="true"
           />
+          <Target size={15} className="text-[#a99e8b]" aria-hidden="true" />
           Specific Outcome
         </span>
 
@@ -85,9 +87,9 @@ export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOut
                       onClick={() => onToggleOutcome(outcome)}
                       aria-pressed={isSelected}
                       className={[
-                        'w-full rounded-lg border px-3 py-2 text-left text-[12px] leading-snug transition-colors',
+                        'lps-lift w-full rounded-xl border px-3 py-2.5 text-left text-[12px] leading-snug transition-all',
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 text-blue-900'
+                          ? 'border-blue-500 bg-blue-50 text-blue-900 lps-card-glow'
                           : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
                       ].join(' ')}
                     >

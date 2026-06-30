@@ -17,6 +17,7 @@ const {
   flattenSectionQuestions,
   buildReaskMessages,
   MAX_REASK_ROUNDS,
+  MAX_REASK_NUMBERS,
 } = require("./scannedQuizImport");
 
 const TINY_PNG =
@@ -60,10 +61,11 @@ const claudeSections = (nums) => ({
     assert.deepEqual(parseGeminiNumbers("junk"), []);
   });
 
-  await test("computeMissingNumbers finds expected-not-extracted and caps at 40", () => {
+  await test("computeMissingNumbers finds expected-not-extracted and caps at MAX_REASK_NUMBERS", () => {
     assert.deepEqual(computeMissingNumbers([1, 2, 3, 4], new Set([1, 3])), [2, 4]);
-    const big = computeMissingNumbers(Array.from({length: 100}, (_, i) => i + 1), new Set());
-    assert.equal(big.length, 40);
+    const big = computeMissingNumbers(
+        Array.from({length: MAX_REASK_NUMBERS + 50}, (_, i) => i + 1), new Set());
+    assert.equal(big.length, MAX_REASK_NUMBERS);
   });
 
   await test("extractedNumberSet + flattenSectionQuestions cover passages", () => {
