@@ -25,6 +25,7 @@ import {
   normaliseDiagramHandling,
   DEFAULT_DIAGRAM_HANDLING,
   findMissingQuestionNumbers,
+  pagesForMissingNumbers,
   formatMissingList,
   isImageImportFile,
   normalizeImportInput,
@@ -656,6 +657,46 @@ test('findMissingQuestionNumbers ignores questions with no printed number', () =
   assert.deepEqual(findMissingQuestionNumbers(sections), [])
 })
 
+// ── pagesForMissingNumbers (cross-batch gap recovery targeting) ─────────────
+
+const rawStandaloneOn = (n, page) => ({ kind: 'standalone', question: { sourceQuestionNumber: n, sourcePage: page } })
+
+test('pagesForMissingNumbers maps a missing block to the pages between its neighbours', () => {
+  // Captured: Q1-3 on page 1, Q4-6 on page 2, then a jump to Q10 on page 4.
+  // Q7,8,9 are missing — they live between page 2 (Q6) and page 4 (Q10).
+  const sections = [
+    rawStandaloneOn(1, 1), rawStandaloneOn(2, 1), rawStandaloneOn(3, 1),
+    rawStandaloneOn(4, 2), rawStandaloneOn(5, 2), rawStandaloneOn(6, 2),
+    rawStandaloneOn(10, 4), rawStandaloneOn(11, 4),
+  ]
+  assert.deepEqual(pagesForMissingNumbers(sections, [7, 8, 9]), [2, 3, 4])
+})
+
+test('pagesForMissingNumbers covers the user-reported contiguous tail block', () => {
+  // 60-question paper, ~6 per page. Q1-42 captured (pages 1-7), Q56-60 captured
+  // (pages 10). Q43-55 (the missing block) sit between page 7 and page 10.
+  const sections = []
+  for (let n = 1; n <= 42; n += 1) sections.push(rawStandaloneOn(n, Math.ceil(n / 6)))
+  for (let n = 56; n <= 60; n += 1) sections.push(rawStandaloneOn(n, 10))
+  const missing = []
+  for (let n = 43; n <= 55; n += 1) missing.push(n)
+  const pages = pagesForMissingNumbers(sections, missing)
+  // The gap spans page 7 (last seen, Q42) through page 10 (first seen, Q56).
+  assert.deepEqual(pages, [7, 8, 9, 10])
+})
+
+test('pagesForMissingNumbers extends to the last page for a missing number above all anchors', () => {
+  const sections = [rawStandaloneOn(1, 1), rawStandaloneOn(2, 1), rawStandaloneOn(3, 2)]
+  // Q5 is above the highest captured number (3 on page 2) → re-scan up to the last page.
+  assert.deepEqual(pagesForMissingNumbers(sections, [5]), [2])
+})
+
+test('pagesForMissingNumbers returns [] with no usable anchors', () => {
+  assert.deepEqual(pagesForMissingNumbers([], [3]), [])
+  // Anchors with no sourcePage can't be located → nothing to re-scan.
+  assert.deepEqual(pagesForMissingNumbers([{ kind: 'standalone', question: { sourceQuestionNumber: 1 } }], [2]), [])
+})
+
 test('formatMissingList truncates a long list with a count', () => {
   assert.equal(formatMissingList([4, 7]), '4, 7')
   assert.equal(formatMissingList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 8), '1, 2, 3, 4, 5, 6, 7, 8 and 2 more')
@@ -737,6 +778,64 @@ await testAsync('runVisionImport reports the source noun when nothing is read', 
   })
   assert.equal(out.sections.length, 0)
   assert.ok(out.warnings.some(w => /No questions could be read from this image/i.test(w)))
+})
+
+await testAsync('runVisionImport recovers a dropped block by re-scanning its pages', async () => {
+  // Simulate the user-reported failure: the FIRST full pass drops the
+  // contiguous block Q3-Q4 (a batch "summarised" a page), leaving 1,2,5,6.
+  // The recovery pass re-scans the pages around the gap and returns Q3, Q4.
+  const page = (pageNumber) => ({ pageNumber, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+
+  let call = 0
+  const seenPages = []
+  const callVision = async ({ pages }) => {
+    call += 1
+    seenPages.push(pages.map(p => p.pageNumber))
+    if (call === 1) {
+      // First pass over all pages — drops Q3 and Q4.
+      return { detectedCount: 6, sections: [q(1, 1), q(2, 1), q(5, 2), q(6, 2)] }
+    }
+    // Recovery pass — re-scans the gap pages and finds the missing block.
+    return { detectedCount: 2, sections: [q(3, 1), q(4, 2)] }
+  }
+
+  const out = await runVisionImport({
+    pageImages: [page(1), page(2)],
+    assetByPage: {},
+    file: { name: 'social.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+
+  assert.ok(call >= 2, 'a recovery pass must run when numbers are missing')
+  const numbers = out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b)
+  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6], 'the dropped block must be recovered')
+  // No "missing questions" warning survives once the gap is closed.
+  assert.ok(!out.warnings.some(w => /appear to be missing/i.test(w)), 'no missing-number warning after recovery')
+})
+
+await testAsync('runVisionImport stops recovering when a pass finds nothing new', async () => {
+  // The gap can't be read no matter how many times we re-scan — the loop must
+  // bound itself rather than burn the AI meter forever.
+  const page = (pageNumber) => ({ pageNumber, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  let call = 0
+  const callVision = async () => {
+    call += 1
+    // Always returns the same incomplete set (Q4 never comes back).
+    return { detectedCount: 5, sections: [q(1, 1), q(2, 1), q(3, 2), q(5, 2)] }
+  }
+  const out = await runVisionImport({
+    pageImages: [page(1), page(2)],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  // 1 first pass + exactly 1 recovery pass (which recovered nothing) → stop.
+  assert.equal(call, 2, 'recovery must stop after a fruitless pass, not loop')
+  assert.ok(out.warnings.some(w => /appear to be missing/i.test(w)), 'still warns about the genuinely unreadable gap')
 })
 
 await testAsync('runVisionImport throws when there are no page images', async () => {
