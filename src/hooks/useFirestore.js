@@ -948,6 +948,11 @@ export function useFirestore() {
       premiumActivatedAt: serverTimestamp(),
       subscriptionPlan: plan,
       subscriptionExpiry: durationDays === 0 ? null : Timestamp.fromDate(expiry),
+      // Explicit lifetime/comp grant marker. hasPremiumAccess() now fails
+      // closed on a missing expiry UNLESS this is true, so durationDays === 0
+      // (no expiry) must record the intent rather than rely on null meaning
+      // "forever".
+      subscriptionLifetime: durationDays === 0,
       subscriptionActivatedBy: adminId,
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_grant',

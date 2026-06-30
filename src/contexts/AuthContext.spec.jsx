@@ -126,7 +126,8 @@ describe('AuthProvider role + access resolution', () => {
   })
 
   it('a premium learner unlocks full content + the learner portal', () => {
-    const f = resolveFlags({ role: 'learner', subscriptionStatus: 'active' })
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    const f = resolveFlags({ role: 'learner', subscriptionStatus: 'active', subscriptionExpiry: future })
     expect(f.isLearner).toBe(true)
     expect(f.isPremium).toBe(true)
     expect(f.canAccessFullContent).toBe(true)
@@ -145,7 +146,8 @@ describe('AuthProvider role + access resolution', () => {
   })
 
   it('a paid teacher gets full content but is STILL barred from the learner portal', () => {
-    const f = resolveFlags({ role: 'teacher', subscriptionStatus: 'active' })
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    const f = resolveFlags({ role: 'teacher', subscriptionStatus: 'active', subscriptionExpiry: future })
     expect(f.isTeacher).toBe(true)
     expect(f.isPremium).toBe(true)
     expect(f.isPaidTeacher).toBe(true)
