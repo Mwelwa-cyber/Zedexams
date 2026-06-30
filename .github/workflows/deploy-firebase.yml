@@ -110,35 +110,55 @@ jobs:
             echo "only=firestore,storage,functions" >> "$GITHUB_OUTPUT"
           fi
 
-      # Deploy with retry on transient per-function failures.
+      # Deploy with a TARGETED retry on transient per-function failures.
       #
-      # Deploying all ~136 functions at once makes Firebase return
-      # "Error: 409, unable to queue the operation" for some of them when too
-      # many update operations are queued concurrently. firebase-tools LOGS
-      # those per-function failures but STILL EXITS 0 — so a green deploy could
-      # silently leave functions running stale code. This is exactly what
-      # happened to the past-paper importer: #1418, #1425 and #1427 all reported
-      # a successful deploy while importPastPaperQuestions never actually
-      # updated (it kept the old 40-question cap in production).
+      # Deploying all ~136 functions in one shot makes Cloud Functions (Gen 2)
+      # return "HTTP Error: 409, unable to queue the operation" for a handful of
+      # them: there is a per-region cap on concurrent create/update operations,
+      # and a full deploy blows past it. firebase-tools LOGS those per-function
+      # failures but STILL EXITS 0 — so a green deploy could silently leave
+      # functions running stale code. That is exactly what bit the past-paper
+      # importer: #1418, #1425 and #1427 all reported a successful deploy while
+      # importPastPaperQuestions never actually updated (it kept the old
+      # 40-question cap in production).
       #
-      # So we don't trust the exit code alone: we scan the output for the
-      # per-function failure markers and RE-RUN the deploy when we see them. A
-      # re-run skips the already-updated functions as unchanged (so far fewer
-      # operations are queued) and re-queues only the ones that failed, which
-      # rides out the transient 409. If failures persist after all attempts we
-      # fail the job loudly so a green check genuinely means "deployed".
+      # So we don't trust the exit code: we scan the output for the per-function
+      # failure markers. On a retry we re-deploy ONLY the functions that failed,
+      # NOT the whole set. Re-running the full deploy just re-saturates the
+      # concurrency cap and fails a *different* 2-3 functions on every pass, so
+      # it never converges (that was the bug in #1433). A handful of targeted
+      # operations stays well under Firebase's recommended batch of 10, so the
+      # transient 409 clears and the failed set shrinks to zero. If functions are
+      # still failing after every attempt we fail the job loudly, so a green
+      # check genuinely means "deployed".
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          # Un-coloured, deterministic output so the failure-line parser below
+          # never has to step around ANSI escape codes.
+          NO_COLOR: "1"
         run: |
+          set -uo pipefail
+
+          # Names of the functions firebase-tools reported as failed. It logs
+          # each as "failed to update/create function .../functions/<name>" and
+          # sometimes STILL exits 0, so we always scan, regardless of exit code.
+          parse_failed() {
+            grep -iE "failed to (update|create) function" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
+          only="${{ steps.target.outputs.only }}"
+          max=6
           attempt=0
-          max=4
           while : ; do
             attempt=$((attempt + 1))
-            echo "::group::Firebase deploy attempt ${attempt}/${max}"
+            echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only})"
             set +e
             out=$(npx firebase-tools@latest deploy \
-              --only "${{ steps.target.outputs.only }}" \
+              --only "${only}" \
               --non-interactive \
               --project examsprepzambia \
               --force 2>&1)
@@ -147,20 +167,29 @@ jobs:
             echo "${out}"
             echo "::endgroup::"
 
-            # Treat BOTH a non-zero exit AND any per-resource failure line as a
-            # failure — the latter is the case firebase-tools hides behind exit 0.
-            if [ "${code}" -eq 0 ] && \
-               ! echo "${out}" | grep -qiE "failed to update function|failed to create function|unable to queue the operation|Error: 409"; then
+            failed=$(printf '%s\n' "${out}" | parse_failed) || true
+
+            # Clean only when the CLI exited 0 AND no per-function failure slipped
+            # through behind that exit 0.
+            if [ "${code}" -eq 0 ] && [ -z "${failed}" ]; then
               echo "Firebase deploy clean on attempt ${attempt}."
               break
             fi
 
             if [ "${attempt}" -ge "${max}" ]; then
-              echo "::error::Firebase deploy still reported function failures after ${attempt} attempts. Some functions may be running stale code."
+              echo "::error::Firebase deploy still reporting failures after ${attempt} attempts. Some functions may be running stale code."
+              [ -n "${failed}" ] && printf '%s\n' "${failed}" | sed 's/^/::error::  unresolved function: /'
               exit 1
             fi
 
-            wait=$((attempt * 20))
-            echo "Deploy reported transient function failure(s); retrying in ${wait}s…"
+            # Narrow the NEXT attempt to ONLY the functions that just failed.
+            # (If the failure wasn't function-specific — e.g. a firestore.rules
+            # error — failed is empty, so we retry the original target as-is.)
+            if [ -n "${failed}" ]; then
+              only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
+            fi
+
+            wait=$((attempt * 15))
+            echo "Deploy reported transient failure(s); retrying [--only ${only}] in ${wait}s…"
             sleep "${wait}"
           done
