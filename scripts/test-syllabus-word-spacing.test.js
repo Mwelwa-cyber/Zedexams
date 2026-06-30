@@ -22,6 +22,8 @@ import {
   CORRECTIONS,
   fixSpacing,
   fixCurriculumData,
+  normaliseNumericPrefix,
+  repairString,
 } from './fix-syllabus-word-spacing.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -152,6 +154,54 @@ check('rewrites string values only; keys/arrays/structure untouched', () => {
   assert.strictEqual(data['A Subject']['Grade 1'].rows[1].label, 'Form a series')
 })
 
+// ── 4b. Numeric code-prefix normalisation ─────────────────────────────────
+console.log('\nnormaliseNumericPrefix (Lesson Plan Studio topic codes)')
+check('inserts missing space after code: "3.2.1Food" -> "3.2.1 Food"', () => {
+  assert.strictEqual(normaliseNumericPrefix('3.2.1Food'), '3.2.1 Food')
+  assert.strictEqual(normaliseNumericPrefix('4.4ENTREPRENEURSHIP'), '4.4 ENTREPRENEURSHIP')
+})
+check('collapses stray spaces inside the code', () => {
+  assert.strictEqual(normaliseNumericPrefix('1. 1.4Sources'), '1.1.4 Sources')
+  assert.strictEqual(normaliseNumericPrefix('3.4 .6Grains'), '3.4.6 Grains')
+  assert.strictEqual(normaliseNumericPrefix('4 .6.10The'), '4.6.10 The')
+})
+check('leaves non-code numeric starts alone ("3D", "21st")', () => {
+  assert.strictEqual(normaliseNumericPrefix('3D shapes'), '3D shapes')
+  assert.strictEqual(normaliseNumericPrefix('21st Century'), '21st Century')
+})
+check('does NOT split the "code.Text" ECE outcome style', () => {
+  // a dot (not a letter) directly follows the code -> untouched
+  assert.strictEqual(normaliseNumericPrefix('0.1.11.9.1.Form a series'),
+    '0.1.11.9.1.Form a series')
+})
+check('idempotent', () => {
+  for (const s of ['3.2.1Food', '1. 1.4Sources', '4 .6.10The']) {
+    const once = normaliseNumericPrefix(s)
+    assert.strictEqual(normaliseNumericPrefix(once), once)
+  }
+})
+
+// ── 4c. The reported bug + its siblings ───────────────────────────────────
+console.log('\nrepairString fixes the reported Lesson Plan Studio labels')
+const LABEL_FIXES = [
+  ['4.2 NUTRITION ANDHEALTH', '4.2 NUTRITION AND HEALTH'],
+  ['4.1 THE HUMA N BODY', '4.1 THE HUMAN BODY'],
+  ['2.6 ORGANISATION ANDM ANAGEMENT OF GAMES AND SPORTS EVENTS.',
+    '2.6 ORGANISATION AND MANAGEMENT OF GAMES AND SPORTS EVENTS.'],
+  ['1. 5.2Tr ust', '1.5.2 Trust'],
+  ['4 .6.10The Middle East Cri ses', '4.6.10 The Middle East Crises'],
+  ['4.3.2Obligationsand Dutiesof Citizen s', '4.3.2 Obligations and Duties of Citizens'],
+  ['4.8.1 Basicso f pSreadsheet', '4.8.1 Basics of Spreadsheet'],
+  ['4.6WEATHERAND CLIMATE', '4.6 WEATHER AND CLIMATE'],
+]
+for (const [broken, fixed] of LABEL_FIXES) {
+  check(`${JSON.stringify(broken)} -> ${JSON.stringify(fixed)}`, () => {
+    const once = repairString(broken)
+    assert.strictEqual(once, fixed)
+    assert.strictEqual(repairString(once), once, 'must be idempotent')
+  })
+}
+
 // ── 5. The committed data files are already clean ─────────────────────────
 console.log('\ncommitted data is clean (migration applied + stays a no-op)')
 const FILES = [
@@ -165,7 +215,8 @@ for (const rel of FILES) {
   if (!fs.existsSync(file)) continue
   check(`${rel}: no remaining repairs`, () => {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'))
-    const remaining = fixCurriculumData(data)
+    const numericPrefix = !rel.includes('2013')
+    const remaining = fixCurriculumData(data, { numericPrefix })
     assert.strictEqual(remaining, 0,
       `${remaining} broken string(s) remain — run: node scripts/fix-syllabus-word-spacing.mjs`)
   })
