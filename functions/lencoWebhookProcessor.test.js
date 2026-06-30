@@ -68,7 +68,7 @@ function fakeDb({docs = {}, byCollectionId = {}} = {}) {
   return {db, updates};
 }
 
-function makeSinks() {
+function makeSinks(activateResult = {ok: true}) {
   const activateCalls = [];
   const markFailedCalls = [];
   return {
@@ -76,7 +76,7 @@ function makeSinks() {
     markFailedCalls,
     activate: async (a) => {
       activateCalls.push(a);
-      return {ok: true};
+      return activateResult;
     },
     markFailed: async (a) => {
       markFailedCalls.push(a);
@@ -91,13 +91,26 @@ async function run() {
     const {db, updates} = fakeDb({docs: {pay_1: {userId: "u1"}}});
     const s = makeSinks();
     const out = await processLencoWebhookEvent({
-      event: {event: "collection.successful", data: {reference: "pay_1", status: "successful"}},
+      event: {event: "collection.successful", data: {reference: "pay_1", status: "successful", amount: 75, currency: "ZMW"}},
       db, activate: s.activate, markFailed: s.markFailed,
     });
-    assert.deepStrictEqual(out, {matched: true, action: "activated", paymentId: "pay_1", status: "successful"});
-    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_1", lencoStatus: "successful"}]);
+    assert.deepStrictEqual(out, {matched: true, action: "activated", paymentId: "pay_1", status: "successful", overCollected: null});
+    // The collected amount + currency flow through to activation for verification.
+    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_1", lencoStatus: "successful", collectedAmount: 75, collectedCurrency: "ZMW"}]);
     assert.strictEqual(s.markFailedCalls.length, 0);
     assert.strictEqual(updates.length, 0, "activation must not also write lencoStatus");
+  });
+
+  // ── successful but under-collected → amount_mismatch, no activation ──
+  await test("an under-collected successful event surfaces amount_mismatch", async () => {
+    const {db} = fakeDb({docs: {pay_1b: {userId: "u1"}}});
+    const s = makeSinks({ok: false, reason: "amount-mismatch", amountMismatch: {paymentId: "pay_1b", reason: "under-collection"}});
+    const out = await processLencoWebhookEvent({
+      event: {event: "collection.successful", data: {reference: "pay_1b", status: "successful", amount: 10, currency: "ZMW"}},
+      db, activate: s.activate, markFailed: s.markFailed,
+    });
+    assert.strictEqual(out.action, "amount_mismatch");
+    assert.strictEqual(out.amountMismatch.reason, "under-collection");
   });
 
   // ── failed → markFailed, with reason passthrough ───────────────────
@@ -120,12 +133,12 @@ async function run() {
     const {db} = fakeDb({docs: {pay_3: {}}});
     const s = makeSinks();
     const out = await processLencoWebhookEvent({
-      event: {type: "payment.successful", data: {reference: "pay_3"}},
+      event: {type: "payment.successful", data: {reference: "pay_3", amount: 10, currency: "ZMW"}},
       db, activate: s.activate, markFailed: s.markFailed,
     });
     assert.strictEqual(out.action, "activated");
     // status was empty → activate is called with the default "successful".
-    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_3", lencoStatus: "successful"}]);
+    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_3", lencoStatus: "successful", collectedAmount: 10, collectedCurrency: "ZMW"}]);
   });
 
   // ── pending / other status → mirror update, no activation ──────────
@@ -150,12 +163,12 @@ async function run() {
     });
     const s = makeSinks();
     const out = await processLencoWebhookEvent({
-      event: {event: "collection.successful", data: {reference: "unknown-ref", id: "col_99", status: "successful"}},
+      event: {event: "collection.successful", data: {reference: "unknown-ref", id: "col_99", status: "successful", amount: 50, currency: "ZMW"}},
       db, activate: s.activate, markFailed: s.markFailed,
     });
     assert.strictEqual(out.matched, true);
     assert.strictEqual(out.paymentId, "pay_5", "paymentId switches to the resolved doc id");
-    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_5", lencoStatus: "successful"}]);
+    assert.deepStrictEqual(s.activateCalls, [{paymentId: "pay_5", lencoStatus: "successful", collectedAmount: 50, collectedCurrency: "ZMW"}]);
   });
 
   // ── no matching payment → ignored, no side effects ─────────────────

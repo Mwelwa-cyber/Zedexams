@@ -91,7 +91,7 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 
-const {activateSubscriptionFromPayment, markPaymentFailed} = require("./subscriptionActivation");
+const {activateSubscriptionFromPayment, markPaymentFailed, checkCollectedAmount} = require("./subscriptionActivation");
 
 // Helpers
 const DAY = 24 * 60 * 60 * 1000;
@@ -114,6 +114,22 @@ async function rejects(promise, re) {
 
 (async () => {
   console.log("subscriptionActivation");
+
+  // ── checkCollectedAmount (pure) ──────────────────────────────────────────
+  ok("no collected amount → skipped (checked:false)",
+      checkCollectedAmount({chargedZMW: 75}).checked === false);
+  ok("collected==charged → ok",
+      checkCollectedAmount({chargedZMW: 75, collectedAmount: 75}).ok === true);
+  ok("within tolerance (74 vs 75) → ok",
+      checkCollectedAmount({chargedZMW: 75, collectedAmount: 74}).ok === true);
+  ok("under-collection (50 vs 75) → blocked",
+      checkCollectedAmount({chargedZMW: 75, collectedAmount: 50}).ok === false);
+  ok("over-collection → ok but flagged over",
+      checkCollectedAmount({chargedZMW: 75, collectedAmount: 100}).over === true);
+  ok("currency mismatch → blocked",
+      checkCollectedAmount({chargedZMW: 75, chargedCurrency: "ZMW", collectedAmount: 75, collectedCurrency: "USD"}).ok === false);
+  ok("garbage collected amount → skipped",
+      checkCollectedAmount({chargedZMW: 75, collectedAmount: "abc"}).checked === false);
 
   // ── Guard rails ─────────────────────────────────────────────────────────
   reset();
@@ -222,8 +238,29 @@ async function rejects(promise, re) {
       daysFromNow(store["users/u5"].teacherPlanExpiresAt._date) === 100);
   ok("upgrade stamps the new subscriptionPlan", store["users/u5"].subscriptionPlan === "max_monthly");
 
-  // An upgrade flag on an EXPIRED sub can't keep a dead date — it falls back to
-  // a fresh period so the buyer isn't left with no access.
+  // Revenue-integrity fix: an upgrade pays only the prorated tier difference,
+  // so it must NEVER mint a fresh full period — even if it lands after the sub
+  // lapsed. With the renewal date captured at quote time (intendedExpiry), the
+  // upgrade is pinned to THAT date regardless of the live (lapsed) expiry.
+  reset();
+  store["payments/pui"] = {
+    planId: "max_monthly", userId: "u6b", isUpgrade: true,
+    intendedExpiry: firestoreFn.Timestamp.fromDate(new Date(Date.now() + 50 * DAY)),
+  };
+  store["users/u6b"] = {
+    subscriptionPlan: "pro_monthly",
+    teacherPlan: "pro",
+    subscriptionExpiry: firestoreFn.Timestamp.fromDate(new Date(Date.now() - 2 * DAY)), // lapsed
+  };
+  await activateSubscriptionFromPayment({paymentId: "pui"});
+  ok("upgrade pins expiry to the captured intendedExpiry (~50), NOT a fresh 30",
+      daysFromNow(store["users/u6b"].subscriptionExpiry._date) === 50);
+  ok("upgrade still flips tier to max even past the live expiry", store["users/u6b"].teacherPlan === "max");
+
+  // Pre-field payment (no intendedExpiry) on an expired sub: honour the captured
+  // renewal date by falling back to the (lapsed) live expiry — still no fresh
+  // full period at the prorated price. The buyer gets little/no time, which is
+  // correct: they let the sub lapse before the upgrade settled.
   reset();
   store["payments/pux"] = {planId: "max_monthly", userId: "u6", isUpgrade: true};
   store["users/u6"] = {
@@ -232,8 +269,55 @@ async function rejects(promise, re) {
     subscriptionExpiry: firestoreFn.Timestamp.fromDate(new Date(Date.now() - 2 * DAY)),
   };
   await activateSubscriptionFromPayment({paymentId: "pux"});
-  ok("upgrade on an expired sub starts a fresh ~30-day period",
-      daysFromNow(store["users/u6"].subscriptionExpiry._date) === 30);
+  ok("legacy upgrade on a lapsed sub does NOT grant a fresh 30-day period",
+      daysFromNow(store["users/u6"].subscriptionExpiry._date) === -2);
+
+  // ── Amount verification: block on under-collection ────────────────────────
+  reset();
+  store["payments/pamt"] = {planId: "grade7_monthly", userId: "ua", amountZMW: 75, currency: "ZMW"};
+  store["users/ua"] = {premium: false};
+  const shortRes = await activateSubscriptionFromPayment({
+    paymentId: "pamt", collectedAmount: 50, collectedCurrency: "ZMW",
+  });
+  ok("under-collection returns {ok:false, amount-mismatch}",
+      shortRes.ok === false && shortRes.reason === "amount-mismatch");
+  ok("under-collection does NOT make the user premium", store["users/ua"].premium === false);
+  ok("under-collection parks the payment as amount_mismatch (not successful)",
+      store["payments/pamt"].status === "amount_mismatch");
+  ok("under-collection records the collected amount", store["payments/pamt"].collectedAmount === 50);
+  ok("under-collection emits no invoice", calls.invoice.length === 0);
+
+  // Exact / within-tolerance collection activates normally.
+  reset();
+  store["payments/pamt2"] = {planId: "grade7_monthly", userId: "ub", amountZMW: 75, currency: "ZMW"};
+  store["users/ub"] = {premium: false};
+  const matchRes = await activateSubscriptionFromPayment({
+    paymentId: "pamt2", collectedAmount: 75, collectedCurrency: "ZMW",
+  });
+  ok("matching amount activates", matchRes.ok === true && matchRes.activated === true);
+  ok("matching amount makes the user premium", store["users/ub"].premium === true);
+
+  // Currency mismatch blocks too.
+  reset();
+  store["payments/pamt3"] = {planId: "grade7_monthly", userId: "uc", amountZMW: 75, currency: "ZMW"};
+  store["users/uc"] = {premium: false};
+  const curRes = await activateSubscriptionFromPayment({
+    paymentId: "pamt3", collectedAmount: 75, collectedCurrency: "USD",
+  });
+  ok("currency mismatch blocks activation",
+      curRes.ok === false && curRes.reason === "amount-mismatch");
+  ok("currency mismatch leaves user non-premium", store["users/uc"].premium === false);
+
+  // Over-collection still activates, but is flagged.
+  reset();
+  store["payments/pamt4"] = {planId: "grade7_monthly", userId: "ud", amountZMW: 75, currency: "ZMW"};
+  store["users/ud"] = {premium: false};
+  const overRes = await activateSubscriptionFromPayment({
+    paymentId: "pamt4", collectedAmount: 100, collectedCurrency: "ZMW",
+  });
+  ok("over-collection still activates", overRes.ok === true && overRes.activated === true);
+  ok("over-collection is flagged on the result",
+      overRes.overCollected && overRes.overCollected.collected === 100);
 
   // ── Pay-per-generation top-up grants a credit, not a subscription ────────
   reset();

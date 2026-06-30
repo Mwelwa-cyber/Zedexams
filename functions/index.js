@@ -2911,6 +2911,10 @@ exports.initiateLencoPayment = onCall({
     upgradeFromPlanId: quote.fromPlanId,
     fullPriceZMW: Number(plan.priceZMW),
     proratedDaysRemaining: quote.daysRemaining,
+    // Capture the renewal date at quote time. Activation pins an upgrade to
+    // THIS date (not a fresh period), so a webhook that lands after the sub has
+    // lapsed can't grant a full month for the prorated price.
+    ...(quote.expiry ? {intendedExpiry: admin.firestore.Timestamp.fromDate(quote.expiry)} : {}),
   } : {};
 
   // Create the pending payment doc first; its id IS the Lenco reference,
@@ -3202,8 +3206,10 @@ exports.lencoWebhook = onRequest({
     const result = await processLencoWebhookEvent({
       event: req.body || {},
       db: admin.firestore(),
-      activate: ({paymentId, lencoStatus}) =>
-        activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets}),
+      activate: ({paymentId, lencoStatus, collectedAmount, collectedCurrency}) =>
+        activateSubscriptionFromPayment({
+          paymentId, lencoStatus, collectedAmount, collectedCurrency, emailSecrets,
+        }),
       markFailed: ({paymentId, lencoStatus, reason}) =>
         markPaymentFailed({paymentId, lencoStatus, reason}),
     });
@@ -3216,6 +3222,51 @@ exports.lencoWebhook = onRequest({
       });
       res.status(200).send("ignored");
       return;
+    }
+
+    // Lenco collected less than we charged (or a different currency): activation
+    // was BLOCKED and the payment parked as 'amount_mismatch'. Page an admin to
+    // resolve — the buyer paid but was not granted access. Throttled.
+    if (result.action === "amount_mismatch") {
+      const mm = result.amountMismatch || {};
+      console.error("[lencoWebhook] amount mismatch — activation blocked", mm);
+      try {
+        if (shouldSendWebhookAlert(Date.now())) {
+          const {sendOpsAlert} = require("./opsAlert");
+          await sendOpsAlert({
+            title: "Lenco payment amount mismatch — activation blocked",
+            severity: "critical",
+            lines: [
+              `Payment: ${mm.paymentId || result.paymentId || "(unknown)"}`,
+              `User: ${mm.userId || "(unknown)"}`,
+              `Reason: ${mm.reason || "amount mismatch"}`,
+              "The buyer was NOT granted access. Verify the collection in Lenco " +
+                "and resolve the payment manually.",
+            ],
+          });
+        }
+      } catch (_alertErr) { /* alerting is best-effort */ }
+      res.status(200).send("amount mismatch recorded");
+      return;
+    }
+
+    // Over-collection still activates (buyer keeps their plan) but is worth a
+    // heads-up. Best-effort + throttled.
+    if (result.overCollected) {
+      console.warn("[lencoWebhook] over-collection", result.overCollected);
+      try {
+        if (shouldSendWebhookAlert(Date.now())) {
+          const {sendOpsAlert} = require("./opsAlert");
+          await sendOpsAlert({
+            title: "Lenco over-collection (activated anyway)",
+            severity: "warning",
+            lines: [
+              `Payment: ${result.overCollected.paymentId || result.paymentId}`,
+              `Charged ${result.overCollected.charged}, collected ${result.overCollected.collected} ZMW.`,
+            ],
+          });
+        }
+      } catch (_alertErr) { /* best-effort */ }
     }
 
     res.status(200).send("ok");

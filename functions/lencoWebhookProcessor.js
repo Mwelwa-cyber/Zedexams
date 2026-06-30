@@ -56,8 +56,21 @@ async function processLencoWebhookEvent({event, db, activate, markFailed}) {
   }
 
   if (status === "successful" || type.endsWith("successful")) {
-    await activate({paymentId, lencoStatus: status || "successful"});
-    return {matched: true, action: "activated", paymentId, status};
+    // Forward the amount Lenco reports collecting so activation can verify it
+    // against the amount we charged before granting access.
+    const r = await activate({
+      paymentId,
+      lencoStatus: status || "successful",
+      collectedAmount: data.amount,
+      collectedCurrency: data.currency,
+    });
+    if (r && r.reason === "amount-mismatch") {
+      return {matched: true, action: "amount_mismatch", paymentId, status, amountMismatch: r.amountMismatch};
+    }
+    return {
+      matched: true, action: "activated", paymentId, status,
+      overCollected: (r && r.overCollected) || null,
+    };
   }
 
   if (status === "failed" || type.endsWith("failed")) {

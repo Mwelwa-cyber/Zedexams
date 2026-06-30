@@ -31,6 +31,46 @@ function toDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+// Tolerance (ZMW) that absorbs rounding between our integer charge and Lenco's
+// reported amount. Both are in ZMW major units — `initiateLencoPayment` sends
+// `amount` = `amountZMW` to Lenco, and the webhook/status reports the same.
+const AMOUNT_TOLERANCE_ZMW = 1;
+
+/**
+ * Verify the amount Lenco actually collected against the amount we charged.
+ * Pure — unit-tested without Firebase.
+ *
+ * Policy (decided with the product owner): block ONLY on under-collection or a
+ * currency mismatch. Over-collection still activates (we never deny a buyer the
+ * plan they paid for) but is flagged. When no collected amount is supplied
+ * (legacy callers / poll), the check is skipped so nothing regresses.
+ *
+ * @returns {{ok:boolean, checked:boolean, reason?:string, over?:boolean,
+ *   collected?:number, charged?:number}}
+ */
+function checkCollectedAmount({chargedZMW, chargedCurrency, collectedAmount, collectedCurrency}) {
+  const collected = Number(collectedAmount);
+  const charged = Number(chargedZMW);
+  if (!Number.isFinite(collected) || collected <= 0) return {ok: true, checked: false};
+  if (!Number.isFinite(charged) || charged <= 0) return {ok: true, checked: false};
+
+  const curCharged = String(chargedCurrency || "ZMW").toUpperCase();
+  const curCollected = String(collectedCurrency || curCharged).toUpperCase();
+  if (curCollected !== curCharged) {
+    return {
+      ok: false, checked: true, collected, charged,
+      reason: `currency mismatch: charged ${curCharged}, collected ${curCollected}`,
+    };
+  }
+  if (collected < charged - AMOUNT_TOLERANCE_ZMW) {
+    return {
+      ok: false, checked: true, collected, charged,
+      reason: `under-collection: charged ${charged} ${curCharged}, collected ${collected} ${curCollected}`,
+    };
+  }
+  return {ok: true, checked: true, over: collected > charged + AMOUNT_TOLERANCE_ZMW, collected, charged};
+}
+
 /**
  * Activate the subscription for a successful payment. Idempotent.
  *
@@ -38,9 +78,19 @@ function toDate(value) {
  * @param {string} args.paymentId           payments/{id} to activate.
  * @param {string} [args.lencoStatus]       Raw Lenco status to record.
  * @param {Object} [args.emailSecrets]      { senderEmail, senderPassword } for the receipt email.
- * @returns {Promise<{ok:boolean, activated?:boolean, alreadyActive?:boolean, reason?:string}>}
+ * @param {number} [args.collectedAmount]   Amount Lenco actually collected (ZMW). When
+ *   supplied, activation is blocked on under-collection / currency mismatch.
+ * @param {string} [args.collectedCurrency] Currency Lenco collected in.
+ * @returns {Promise<{ok:boolean, activated?:boolean, alreadyActive?:boolean,
+ *   reason?:string, amountMismatch?:object, overCollected?:object}>}
  */
-async function activateSubscriptionFromPayment({paymentId, lencoStatus = "successful", emailSecrets = {}}) {
+async function activateSubscriptionFromPayment({
+  paymentId,
+  lencoStatus = "successful",
+  emailSecrets = {},
+  collectedAmount = null,
+  collectedCurrency = null,
+}) {
   if (!paymentId) return {ok: false, reason: "no-payment-id"};
 
   const db = admin.firestore();
@@ -50,6 +100,8 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
   let isTopUp = false;
   let planForInvoice = null;
   let payloadForInvoice = null;
+  let amountMismatch = null;
+  let overCollected = null;
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(payRef);
@@ -62,6 +114,37 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     // immediate-success races safe.
     if (pay.status === "successful" || pay.status === "confirmed") {
       return;
+    }
+
+    // Verify Lenco actually collected what we charged BEFORE granting anything
+    // (subscription or top-up). Blocks only on under-collection / currency
+    // mismatch; the payment is parked as 'amount_mismatch' (not 'successful',
+    // so a retry re-checks and an admin can resolve it) and the caller alerts.
+    const amountCheck = checkCollectedAmount({
+      chargedZMW: pay.amountZMW,
+      chargedCurrency: pay.currency,
+      collectedAmount,
+      collectedCurrency,
+    });
+    if (!amountCheck.ok) {
+      tx.update(payRef, {
+        status: "amount_mismatch",
+        lencoStatus,
+        amountMismatchReason: amountCheck.reason,
+        collectedAmount: amountCheck.collected,
+        amountMismatchAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      amountMismatch = {
+        paymentId,
+        userId: pay.userId || null,
+        reason: amountCheck.reason,
+        collected: amountCheck.collected,
+        charged: amountCheck.charged,
+      };
+      return;
+    }
+    if (amountCheck.over) {
+      overCollected = {paymentId, collected: amountCheck.collected, charged: amountCheck.charged};
     }
 
     const plan = getPlan(pay.planId);
@@ -113,18 +196,33 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     }
 
     // Expiry policy:
-    //  • Tier upgrade (Pro → Max, pay.isUpgrade): keep the SAME renewal date.
-    //    The buyer only paid the prorated difference for the days they had
-    //    left, so we must NOT add a fresh period — just flip the tier.
+    //  • Tier upgrade (Pro → Max, pay.isUpgrade): the buyer paid ONLY the
+    //    prorated tier difference, not a full period, so we pin the renewal
+    //    date to the one captured when they were quoted (pay.intendedExpiry).
+    //    We never add a fresh period — even if the sub has since lapsed by the
+    //    time the webhook lands — so a late-arriving upgrade can't mint a full
+    //    month for a near-zero price. Falls back to the live expiry, then to
+    //    now, when the captured date is absent (pre-field payments).
     //  • Early renewal of an active sub: stack onto the days already paid for.
     //  • Otherwise (new / expired): start a fresh period from today.
     const currentExpiry = toDate(user.subscriptionExpiry) || toDate(user.teacherPlanExpiresAt);
     const hasActiveExpiry = !!currentExpiry && currentExpiry > new Date();
-    const isUpgrade = pay.isUpgrade === true && hasActiveExpiry;
-    const days = isUpgrade ? 0 : Number(plan.durationDays || 30);
-    const baseDate = hasActiveExpiry ? currentExpiry : new Date();
-    const expiry = new Date(baseDate);
-    expiry.setDate(expiry.getDate() + days);
+    const isUpgrade = pay.isUpgrade === true;
+
+    let expiry;
+    let invoiceDays;
+    if (isUpgrade) {
+      const intended = toDate(pay.intendedExpiry) || currentExpiry || new Date();
+      expiry = new Date(intended);
+      // Receipt reads the plan's nominal length, not "0 days".
+      invoiceDays = Number(plan.durationDays || 30);
+    } else {
+      const days = Number(plan.durationDays || 30);
+      const baseDate = hasActiveExpiry ? currentExpiry : new Date();
+      expiry = new Date(baseDate);
+      expiry.setDate(expiry.getDate() + days);
+      invoiceDays = days;
+    }
 
     tx.update(payRef, {
       status: "successful",
@@ -168,9 +266,7 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     tx.update(userRef, userUpdate);
 
     activated = true;
-    // An upgrade adds 0 days, but the receipt should still read the plan's
-    // nominal length rather than "0 days".
-    planForInvoice = {id: pay.planId, name: plan.name, durationDays: isUpgrade ? Number(plan.durationDays || 30) : days};
+    planForInvoice = {id: pay.planId, name: plan.name, durationDays: invoiceDays};
     payloadForInvoice = {
       id: paymentId,
       amount: pay.amountZMW,
@@ -181,6 +277,13 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
       userId: pay.userId,
     };
   });
+
+  // Blocked on a short / wrong-currency collection — the payment is parked as
+  // 'amount_mismatch'. Signal the caller so it can alert an admin (the buyer
+  // was NOT granted access).
+  if (amountMismatch) {
+    return {ok: false, reason: "amount-mismatch", amountMismatch};
+  }
 
   if (!activated) {
     return {ok: true, alreadyActive: true};
@@ -214,7 +317,7 @@ async function activateSubscriptionFromPayment({paymentId, lencoStatus = "succes
     }
   }
 
-  return {ok: true, activated: true, topUp: isTopUp};
+  return {ok: true, activated: true, topUp: isTopUp, overCollected};
 }
 
 /**
@@ -246,4 +349,4 @@ async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""
   }
 }
 
-module.exports = {activateSubscriptionFromPayment, markPaymentFailed};
+module.exports = {activateSubscriptionFromPayment, markPaymentFailed, checkCollectedAmount};
