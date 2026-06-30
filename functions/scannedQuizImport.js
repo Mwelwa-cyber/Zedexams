@@ -59,6 +59,14 @@ const VISION_MODEL =
   process.env.ANTHROPIC_MODEL ||
   "claude-sonnet-4-5";
 
+// Engine version stamp. Returned on every import result and surfaced in the
+// editor so a STALE DEPLOY is observable: if the version the live importer
+// reports doesn't match this string, the Cloud Function did not actually ship
+// the latest code (the silent firebase-tools "exit 0 but stale" failure that
+// repeatedly made importer fixes look broken in production while passing every
+// test). Bump this whenever the server extraction logic changes.
+const SCANNED_IMPORT_ENGINE_VERSION = "2026.06.30-numrecovery";
+
 // Caps. A batch is a handful of pages so each model call stays inside the
 // output-token budget and the function timeout. The client paginates a long
 // paper into several batches and merges the results.
@@ -1078,6 +1086,7 @@ async function runScannedQuizImport(
     detectedCount: geminiCount,
     extractedCount,
     recovered,
+    engineVersion: SCANNED_IMPORT_ENGINE_VERSION,
     model: result?.model || VISION_MODEL,
     usage: result?.usage || null,
     fileName: clampString(fileName, 180),
@@ -1112,4 +1121,5 @@ module.exports = {
   SCANNED_TOOL_SCHEMA,
   MAX_PAGES_PER_CALL,
   VISION_MODEL,
+  SCANNED_IMPORT_ENGINE_VERSION,
 };

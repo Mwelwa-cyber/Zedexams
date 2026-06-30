@@ -838,6 +838,43 @@ await testAsync('runVisionImport stops recovering when a pass finds nothing new'
   assert.ok(out.warnings.some(w => /appear to be missing/i.test(w)), 'still warns about the genuinely unreadable gap')
 })
 
+await testAsync('runVisionImport surfaces the server engine version (deploy is observable)', async () => {
+  const callVision = async () => ({
+    detectedCount: 1,
+    engineVersion: '2026.06.30-numrecovery',
+    sections: [{ kind: 'standalone', question: mcq({ text: 'Q1', sourceQuestionNumber: 1 }) }],
+  })
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'p.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.equal(out.engineVersion, '2026.06.30-numrecovery')
+  assert.equal(out.summary.engineVersion, '2026.06.30-numrecovery')
+  // The client importer always stamps its own version too.
+  assert.ok(out.summary.importerVersion, 'importer version is always present')
+})
+
+await testAsync('runVisionImport reports an EMPTY engine version when the function is stale', async () => {
+  // A deployed function running OLD code returns no engineVersion field — the
+  // editor must surface that as "stale", never silently treat it as current.
+  const callVision = async () => ({
+    detectedCount: 1,
+    sections: [{ kind: 'standalone', question: mcq({ text: 'Q1', sourceQuestionNumber: 1 }) }],
+  })
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'p.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.equal(out.engineVersion, '', 'no version from an old function → empty, surfaced as stale')
+  assert.equal(out.summary.engineVersion, '')
+})
+
 await testAsync('runVisionImport throws when there are no page images', async () => {
   await assert.rejects(
     () => runVisionImport({ pageImages: [], callVision: async () => ({ sections: [] }), sourceNoun: 'image' }),
