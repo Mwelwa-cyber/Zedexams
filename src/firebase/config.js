@@ -197,9 +197,31 @@ async function initAppCheck() {
   }
 }
 
-// Fire-and-forget. Failures inside initAppCheck never reject because
-// we catch every path internally.
-initAppCheck()
+// Defer App Check off the cold-start critical path. On web, initAppCheck()
+// downloads + runs Google's reCAPTCHA v3 script (recaptcha/api.js), whose
+// main-thread work was competing with React's first mount and inflating real-
+// user FCP/LCP on cold mobile loads (p75 LCP ~10s on /login). Scheduling it for
+// the first idle slot after paint frees the main thread for the app to render
+// first, then attestation initialises a beat later.
+//
+// Why this is safe: enforcement is soft today — the server LOGS unattested
+// calls rather than rejecting them (see the App Check note above) — and even
+// with eager init the earliest boot requests already raced ahead of the async
+// token mint, so the security posture is unchanged. The hard `timeout` cap
+// guarantees init still runs within a couple of seconds even on a busy thread,
+// so tokens are ready well before any user-driven AI call. NOTE: if hard
+// enforcement is ever turned on, revisit this deferral so the first protected
+// requests aren't issued before the first token mints. Failures inside
+// initAppCheck never reject (every path is caught internally).
+function scheduleAppCheckInit() {
+  if (typeof window === 'undefined') { initAppCheck(); return }
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => initAppCheck(), { timeout: 2500 })
+  } else {
+    setTimeout(() => initAppCheck(), 1000)
+  }
+}
+scheduleAppCheckInit()
 
 // Firebase Cloud Messaging — initialised only when the browser actually
 // supports web push (Service Worker + PushManager APIs) and we're not
