@@ -186,6 +186,8 @@ const SYSTEM_PROMPT = `You are digitising a Zambian ECZ examination paper. The u
 
 COMPLETENESS IS THE TOP PRIORITY. Capture every question on every page, in the order they appear. Do not stop early, do not summarise, do not skip a question because it has a diagram or is hard to read — transcribe what you can. A paper may have 20, 50, or 100+ questions; return all of them.
 
+SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of an exam paper carries only the heading — the exam title, candidate-information boxes (name, examination number, school), the time allowed, the total marks, and general directions such as "Answer ALL questions", "Do not open this paper until told", or "Write your answers in the spaces provided". These are NOT questions. Never turn an instruction, a heading, or a candidate-info field into a question. Begin extracting at the FIRST printed, numbered question, and number each question with the number printed beside it on the paper.
+
 READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
 
 For each question:
@@ -492,7 +494,7 @@ function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
  * ones, until a round adds nothing (or the round cap is hit). This is what
  * makes a single truncated call unable to lose questions.
  */
-async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
+async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, accum}) {
   const segmentQuestions = [];
   let rounds = 0;
   let truncationHit = false;
@@ -539,7 +541,7 @@ async function extractSegment({apiKey, paper, segment, seenKeys, accum}) {
     const normalised = rawQuestions
       .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
       .filter(Boolean);
-    const {fresh} = selectNewQuestions(seenKeys, normalised);
+    const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
     fresh.forEach((q) => {
       segmentQuestions.push(q);
       accum.push(q);
@@ -580,7 +582,7 @@ function buildGapRecoveryPrompt({paper, segment, missingNumbers}) {
  * the same number-driven recovery the scanned-paper importer uses. Bounded by
  * round + count caps so a number that truly isn't on the paper can't loop.
  */
-async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys}) {
+async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers}) {
   let rounds = 0;
   const usage = {inputTokens: 0, outputTokens: 0};
   for (let r = 0; r < MAX_GAP_RECOVERY_ROUNDS; r++) {
@@ -615,7 +617,7 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys}) {
       const normalised = raw
         .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
         .filter(Boolean);
-      const {fresh} = selectNewQuestions(seenKeys, normalised);
+      const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
       fresh.forEach((q) => accum.push(q));
       if (fresh.length) recoveredAny = true;
     }
@@ -749,6 +751,10 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // dedupes across segments AND rounds; `accum` is the running question list.
   const accum = [];
   const seenKeys = new Set();
+  // Printed question numbers captured so far — a re-read of an already-seen
+  // number (OCR drift across continuation rounds) is dropped rather than
+  // inflating the count. Shared across segments + the gap-recovery pass.
+  const seenNumbers = new Set();
   let pagesProcessed = 0;
   let extractionRounds = 0;
   let truncationHit = false;
@@ -756,7 +762,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
 
   for (const segment of segments) {
     const segResult = await extractSegment({
-      apiKey, paper, segment, seenKeys, accum,
+      apiKey, paper, segment, seenKeys, seenNumbers, accum,
     });
     extractionRounds += segResult.rounds;
     if (segResult.truncationHit) truncationHit = true;
@@ -768,7 +774,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // Targeted recovery for holes in the printed numbering (e.g. the model
   // skipped Q21/Q22 while reporting "nothing new"). No-op when the numbering is
   // already complete or too sparse to trust.
-  const gapRecovery = await recoverNumberGaps({apiKey, paper, segments, accum, seenKeys});
+  const gapRecovery = await recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers});
   extractionRounds += gapRecovery.rounds;
   usage.inputTokens += gapRecovery.usage.inputTokens;
   usage.outputTokens += gapRecovery.usage.outputTokens;

@@ -275,21 +275,59 @@ function planPageBatches(items, size) {
 
 /**
  * From a fresh batch of extracted questions, return only the ones not already
- * seen (by questionKey), and the updated set of keys. Drives the loop-until-dry
- * coverage loop: each round we ask the model for anything it has NOT yet
- * returned, accept only the genuinely new questions, and stop when a round adds
- * nothing. `seenKeys` is mutated in place (and also returned for convenience).
+ * seen, and the updated seen-sets. Drives the loop-until-dry coverage loop: each
+ * round we ask the model for anything it has NOT yet returned, accept only the
+ * genuinely new questions, and stop when a round adds nothing.
+ *
+ * Two de-dupe keys, because a SCANNED paper is re-OCR'd from the top on every
+ * continuation round and the same question comes back with slightly different
+ * text each time (e.g. "Mufulira" vs "Mufülira"), which slips past a stem match
+ * and inflates the count (a 60-question paper imported as 105). So a question is
+ * a re-read — NOT new — when EITHER its stem+options match a seen one OR its
+ * PRINTED question number is one already captured. `seenNumbers` (optional, a
+ * Set of positive ints) enables the number guard; when omitted the behaviour is
+ * the original stem-only de-dupe. Both sets are mutated in place + returned.
  */
-function selectNewQuestions(seenKeys, incoming) {
+function selectNewQuestions(seenKeys, incoming, seenNumbers) {
   const keys = seenKeys instanceof Set ? seenKeys : new Set();
+  const nums = seenNumbers instanceof Set ? seenNumbers : null;
   const fresh = [];
   for (const q of (Array.isArray(incoming) ? incoming : [])) {
+    const num = parseSourceNumber(q && q.sourceNumber);
+    // A re-read of an already-captured printed number is the same question.
+    if (nums && num != null && nums.has(num)) continue;
     const key = questionKey(q);
     if (keys.has(key)) continue;
     keys.add(key);
+    if (nums && num != null) nums.add(num);
     fresh.push(q);
   }
-  return {fresh, seenKeys: keys};
+  return {fresh, seenKeys: keys, seenNumbers: nums};
+}
+
+/**
+ * Collapse questions that share the same PRINTED question number — they are the
+ * same item re-read with OCR drift across continuation rounds. The first
+ * occurrence of each number wins (round 0's read is the cleanest). Questions
+ * with no printed number are left untouched (they can't be number-matched and
+ * are handled by the stem de-dupe instead). Returns {questions, removed}.
+ */
+function dedupeBySourceNumber(questions) {
+  const seen = new Set();
+  const out = [];
+  let removed = 0;
+  for (const q of (Array.isArray(questions) ? questions : [])) {
+    const num = parseSourceNumber(q && q.sourceNumber);
+    if (num != null) {
+      if (seen.has(num)) {
+        removed += 1;
+        continue;
+      }
+      seen.add(num);
+    }
+    out.push(q);
+  }
+  return {questions: out, removed};
 }
 
 /**
@@ -556,8 +594,12 @@ function findSourceNumberGaps(questions) {
  */
 function mergeAndRenumber(questions) {
   const list = Array.isArray(questions) ? questions : [];
+  // Collapse OCR-drift re-reads (same printed number) FIRST, then exact
+  // stem/option duplicates — a final backstop in case any path accumulated
+  // without the number-aware selectNewQuestions guard.
+  const byNumber = dedupeBySourceNumber(list);
   const deduped = dedupeExtractedQuestions(
-    list.map((q, i) => (q.order === i ? q : {...q, order: i})),
+    byNumber.questions.map((q, i) => (q.order === i ? q : {...q, order: i})),
   );
   return {
     questions: deduped,
@@ -711,6 +753,7 @@ module.exports = {
   questionKey,
   planPageBatches,
   selectNewQuestions,
+  dedupeBySourceNumber,
   extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
