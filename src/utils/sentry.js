@@ -74,6 +74,12 @@ export async function initSentry() {
         /Loading chunk .* failed/i,
         /Importing a module script failed/i,
         /ResizeObserver loop limit exceeded/i,
+        // Benign Google reCAPTCHA SDK noise from App Check: a redundant
+        // reCAPTCHA render (bfcache restore / a second init attempt) throws
+        // this asynchronously. App Check still works from the first init, so
+        // it's third-party noise — the one-shot guard in firebase/config.js
+        // prevents our own double-init; this filters the residual.
+        /reCAPTCHA placeholder element must be empty/i,
       ],
     })
     sentryModule = Sentry

@@ -136,9 +136,19 @@ const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_
 // set by hand. Null until initAppCheck() runs (or when App Check is unconfigured).
 let webAppCheck = null
 let nativeAppCheck = null
+// One-shot guard. A second initializeAppCheck() (or a second reCAPTCHA render)
+// makes Google's reCAPTCHA SDK throw "reCAPTCHA placeholder element must be
+// empty" ASYNCHRONOUSLY — outside the try/catch below — which surfaces as an
+// unhandled error in Sentry. The try/catch only catches the synchronous
+// "already initialized" throw, so we also hard-gate re-entry here: App Check is
+// initialised exactly once per page, even if initAppCheck() is ever reached
+// twice (bfcache restore, a stray re-import, future callers).
+let appCheckInitStarted = false
 
 async function initAppCheck() {
   if (typeof window === 'undefined') return
+  if (appCheckInitStarted) return
+  appCheckInitStarted = true
 
   // Native (Capacitor) path — Play Integrity via the Capacitor plugin.
   //
