@@ -42,7 +42,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Generous timeout: a full-fleet deploy that trips the per-region Gen2
+    # operations quota needs several minutes of cooldown between retries for
+    # the region to drain (see the "Deploy to Firebase" step). On a clean
+    # deploy the job still finishes in well under 10 minutes.
+    timeout-minutes: 35
 
     # Explicit minimum permissions — some org settings restrict actions
     # unless this is stated explicitly.
@@ -127,10 +131,21 @@ jobs:
       # NOT the whole set. Re-running the full deploy just re-saturates the
       # concurrency cap and fails a *different* 2-3 functions on every pass, so
       # it never converges (that was the bug in #1433). A handful of targeted
-      # operations stays well under Firebase's recommended batch of 10, so the
-      # transient 409 clears and the failed set shrinks to zero. If functions are
-      # still failing after every attempt we fail the job loudly, so a green
-      # check genuinely means "deployed".
+      # operations stays well under Firebase's recommended batch of 10.
+      #
+      # But narrowing the retry set is not enough on its own. The first full
+      # deploy fires update operations on ~130 functions; firebase-tools reports
+      # a random handful as "unable to queue the operation" (HTTP 409) and exits,
+      # yet the ~130 it *did* queue are still running asynchronously on Google's
+      # side. If the retry fires a few seconds later it collides with that same
+      # in-flight backlog and the small targeted set ALSO 409s — which is why a
+      # 15-75s backoff never converged (#1439: a *different* handful failed every
+      # short pass until the 6-attempt ceiling). The region simply hadn't drained
+      # yet. So the retry backoff has to be measured in minutes, not seconds: we
+      # wait long enough for the first batch's operations to settle before
+      # re-queuing the stragglers. Then the 409 clears and the failed set shrinks
+      # to zero. If functions are still failing after every attempt we fail the
+      # job loudly, so a green check genuinely means "deployed".
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -189,7 +204,13 @@ jobs:
               only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             fi
 
-            wait=$((attempt * 15))
-            echo "Deploy reported transient failure(s); retrying [--only ${only}] in ${wait}s…"
+            # Wait for the region to drain the previous batch's in-flight Gen2
+            # operations before re-queuing. Seconds-scale backoff collides with
+            # that backlog and never clears the 409; minutes-scale does. Start at
+            # ~2min (the first retry follows the full-fleet deploy, when the
+            # region is most saturated) and grow, capped at 4min.
+            wait=$(( 120 + (attempt - 1) * 30 ))
+            [ "${wait}" -gt 240 ] && wait=240
+            echo "Deploy reported transient failure(s); retrying [--only ${only}] in ${wait}s (letting the region drain)…"
             sleep "${wait}"
           done
