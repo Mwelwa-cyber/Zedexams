@@ -595,32 +595,28 @@ function progressFor(resource) {
 
 /* ── Compact plan card ────────────────────────────────────────────────────
    Slim replacement for the old large promotional SubscriptionReminderCard
-   banner. Shows only the teacher's current subscription on the left and a
-   quick upgrade action on the right (hidden once they're on the top tier). */
+   banner. Renders only for Free-plan teachers — it self-hides once they're on
+   a paid plan, the same way the old banner did. Shows the current plan on the
+   left and a quick Upgrade to Pro action on the right. */
 function PlanQuickCard({ plan }) {
   const navigate = useNavigate()
-  const label = `${PLAN_LABELS[plan] || 'Free'} Plan`
-  // Free/expired teachers upgrade to Pro; Pro teachers upgrade to Max; Max has
-  // nothing higher, so the action is hidden.
-  const upgradeLabel = plan === 'pro' ? 'Upgrade to Max' : 'Upgrade to Pro'
-  const showUpgrade = plan !== 'max'
+  // Self-hide for paying teachers (Pro/Max) — only Free sees the upgrade card.
+  if (plan !== 'free') return null
 
   return (
     <section className="zx-card flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
       <span className="inline-flex items-center gap-2 text-sm font-black text-slate-900">
         <span aria-hidden="true">⭐</span>
-        {label}
+        {`${PLAN_LABELS.free} Plan`}
       </span>
-      {showUpgrade && (
-        <button
-          type="button"
-          onClick={() => navigate('/my-subscription')}
-          className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
-        >
-          {upgradeLabel}
-          <Icon as={ArrowRight} size="xs" />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => navigate('/my-subscription')}
+        className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
+      >
+        Upgrade to Pro
+        <Icon as={ArrowRight} size="xs" />
+      </button>
     </section>
   )
 }
