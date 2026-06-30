@@ -20,7 +20,7 @@ This Capacitor-based hybrid Android app ships a web app via WebView with minimal
 | Build release | Set 4 env vars (`ZED_RELEASE_*`) + `./gradlew assembleRelease` |
 | Add Capacitor plugin | Install via npm, run `npx capacitor sync android` |
 | Fix build error | Check `gradle.properties` JVM args or run `./gradlew clean` |
-| StatusBar colors wrong | Edit `res/values/styles.xml` color values, theme overrides JS |
+| StatusBar icon color wrong | Icons adapt to content brightness in JS (`src/utils/statusBarManager.js`). Force a colour under the bar with `data-statusbar="light"`/`"dark"` on the element; tune thresholds in `statusBarBrightness.js` |
 | Android 15+ edge-case | Include `android:windowOptOutEdgeToEdgeEnforcement` in theme |
 
 ## Architecture Overview
