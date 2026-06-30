@@ -573,6 +573,9 @@ export async function structureScannedQuiz(payload) {
       warnings: Array.isArray(data.warnings) ? data.warnings : [],
       detectedCount: Number(data.detectedCount) || 0,
       extractedCount: Number(data.extractedCount) || 0,
+      // The deployed function's engine-version stamp. Surfaced in the editor
+      // so a stale Cloud Function deploy is observable rather than silent.
+      engineVersion: typeof data.engineVersion === 'string' ? data.engineVersion : '',
     }
   } catch (error) {
     throw new Error(messageFromError(error))

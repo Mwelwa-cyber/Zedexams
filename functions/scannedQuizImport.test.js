@@ -25,6 +25,7 @@ const {
   CLAUDE_SYSTEM_PROMPT,
   SCANNED_TOOL_SCHEMA,
   MAX_PAGES_PER_CALL,
+  SCANNED_IMPORT_ENGINE_VERSION,
 } = require("./scannedQuizImport");
 
 // A 1x1 px PNG, base64. Tiny but a real data URL so validatePages accepts it.
@@ -362,6 +363,10 @@ test("runScannedQuizImport runs both models and returns blank-answer sections", 
   assert.equal(result.extractedCount, 3);
   assert.equal(result.detectedCount, 3);
   assert.equal(result.warnings.length, 0);
+  // Engine version stamp is always returned so a stale deploy is observable
+  // in the editor (the client compares it against its own importer version).
+  assert.equal(result.engineVersion, SCANNED_IMPORT_ENGINE_VERSION);
+  assert.ok(result.engineVersion, "engine version must be a non-empty stamp");
 });
 
 test("runScannedQuizImport surfaces a count-mismatch warning", async () => {

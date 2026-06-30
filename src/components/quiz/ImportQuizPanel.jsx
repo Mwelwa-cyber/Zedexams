@@ -248,6 +248,22 @@ export default function ImportQuizPanel({
             {importSummary.passages ? `${importSummary.passages} passage${importSummary.passages === 1 ? '' : 's'} detected · ` : ''}
             {importSummary.images} image-based question{importSummary.images === 1 ? '' : 's'} · {importSummary.needsReview} need review · Status: {importSummary.importStatus}
           </p>
+          {/* Version stamps — make a stale Cloud Function deploy observable.
+              The client (importer) ships via Hosting; the engine ships via the
+              Functions deploy. If the engine version is missing or doesn't match
+              the importer, the live function is running OLD code — which is the
+              silent failure that made past importer fixes look broken in prod. */}
+          {importSummary.importerVersion ? (
+            <p className="mt-1 font-mono text-[11px] font-bold leading-relaxed opacity-80">
+              importer {importSummary.importerVersion}
+              {' · engine '}
+              {importSummary.engineVersion
+                ? importSummary.engineVersion === importSummary.importerVersion
+                  ? `${importSummary.engineVersion} ✓`
+                  : `${importSummary.engineVersion} ⚠ differs from importer — server may be mid-deploy`
+                : '⚠ none reported — the Cloud Function is running OLD code (stale deploy)'}
+            </p>
+          ) : null}
           {importSummary.warnings?.length ? (
             <ul className="mt-2 space-y-0.5">
               {importSummary.warnings.slice(0, 3).map((warning, index) => (

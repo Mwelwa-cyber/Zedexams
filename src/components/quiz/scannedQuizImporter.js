@@ -37,6 +37,14 @@ import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagram
 export const DIAGRAM_HANDLING_MODES = ['keep', 'clean', 'text', 'ask']
 export const DEFAULT_DIAGRAM_HANDLING = 'keep'
 
+// Client importer version stamp. Surfaced in the editor's import summary
+// alongside the server's engineVersion so "is the latest code actually
+// running?" is observable rather than a guess. The client ships via Hosting
+// and the server (engineVersion) ships via the Functions deploy — showing both
+// makes a half-deployed state (new UI, stale function, or vice-versa) obvious.
+// Bump on a meaningful change to this file's extraction/merge/recovery logic.
+export const SCANNED_IMPORTER_VERSION = '2026.06.30-numrecovery'
+
 export function normaliseDiagramHandling(mode) {
   return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
 }
@@ -588,7 +596,7 @@ export function formatMissingList(numbers = [], limit = 8) {
 /**
  * Build the importer summary object shown in the editor's import panel.
  */
-export function buildScannedSummary({ sections = [], fileName = '', pageCount = 0, warnings = [] } = {}) {
+export function buildScannedSummary({ sections = [], fileName = '', pageCount = 0, warnings = [], engineVersion = '' } = {}) {
   const questions = countLocalQuestions(sections)
   const passages = sections.filter(s => s?.kind === 'passage').length
   const questionImages = (q) =>
@@ -611,6 +619,12 @@ export function buildScannedSummary({ sections = [], fileName = '', pageCount = 
     importStatus: 'needs_review',
     warnings,
     scanned: true,
+    // Version stamps so a stale deploy is visible in the editor: the client
+    // importer's own version, and the engine version the deployed Cloud
+    // Function reported back (empty if it returned none — i.e. running code
+    // older than this stamp).
+    importerVersion: SCANNED_IMPORTER_VERSION,
+    engineVersion: engineVersion || '',
   }
 }
 
@@ -1162,6 +1176,13 @@ export async function runVisionImport({
   // part groups so the paper rebuilds with its original section structure.
   const { parts } = groupSectionsIntoParts(sections)
 
+  // The engine version the DEPLOYED function reported (first non-empty across
+  // batches). Empty means the live function is older than version stamping —
+  // a stale deploy — which the editor surfaces so it's visible, not silent.
+  const engineVersion = batchResults
+    .map(r => (r && typeof r.engineVersion === 'string' ? r.engineVersion : ''))
+    .find(Boolean) || ''
+
   return {
     sections,
     parts,
@@ -1172,11 +1193,13 @@ export async function runVisionImport({
     pageImageUrls: buildReviewPageImages(assetByPage),
     warnings,
     pageCount: pageImages.length,
+    engineVersion,
     summary: buildScannedSummary({
       sections,
       fileName: file?.name || '',
       pageCount: pageImages.length,
       warnings,
+      engineVersion,
     }),
   }
 }
