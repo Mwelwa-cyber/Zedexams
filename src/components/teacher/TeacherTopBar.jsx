@@ -92,7 +92,11 @@ export default function TeacherTopBar() {
   useEffect(() => {
     function onKey(e) {
       const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key.toLowerCase() === 'k') {
+      // e.key is undefined for some IME / Android soft-keyboard (Gboard)
+      // keydown events — guard before calling .toLowerCase() so this global
+      // listener can't throw on every affected keypress (cf. #1438).
+      const key = (e.key || '').toLowerCase()
+      if (meta && key === 'k') {
         e.preventDefault()
         setSearchOpen(true)
       }

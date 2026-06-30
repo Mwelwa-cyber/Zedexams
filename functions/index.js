@@ -2491,8 +2491,10 @@ exports.recordTemplateInteraction = createRecordTemplateInteraction();
 // AI agents — runs the Content pipeline whenever a queued agentJobs doc
 // lands (Aria → Cala → Reva → awaiting_approval), and runs Pubo when an
 // admin flips status to "approved".
-exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
-exports.agentJobsOnApproved = createAgentJobsOnApproved();
+exports.agentJobsOnCreate = createAgentJobsOnCreate(
+    anthropicApiKey, [emailSmtpUser, emailSmtpPassword]);
+exports.agentJobsOnApproved = createAgentJobsOnApproved(
+    [emailSmtpUser, emailSmtpPassword]);
 
 // Central Question Bank — Qix reviews each captured question (questionBank/{id})
 // in the background and writes a verdict back onto the doc (africa-south1).
@@ -3148,6 +3150,17 @@ exports.recoverMyPendingPayments = onCall({
   };
 });
 
+// Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a
+// failing event repeatedly) can't flood the admin inbox. Per-instance — a cold
+// start resets it, which is acceptable for a "something is broken" page.
+const WEBHOOK_ALERT_THROTTLE_MS = 15 * 60 * 1000;
+let lastWebhookAlertAt = 0;
+function shouldSendWebhookAlert(now) {
+  if (now - lastWebhookAlertAt < WEBHOOK_ALERT_THROTTLE_MS) return false;
+  lastWebhookAlertAt = now;
+  return true;
+}
+
 // Server-to-server webhook. No CORS / App Check — security is the
 // x-lenco-signature HMAC over the raw body. We process fully (the
 // activation transaction is fast and the receipt is best-effort) and
@@ -3208,6 +3221,26 @@ exports.lencoWebhook = onRequest({
     res.status(200).send("ok");
   } catch (err) {
     console.error("[lencoWebhook] processing error", err);
+    // A processing exception means the payment integration itself is broken
+    // (key rotation, schema change making every event unprocessable) — the
+    // money path is down and nobody is watching Cloud Logging. Page an admin.
+    // Best-effort + throttled so a Lenco retry storm doesn't spam the inbox.
+    try {
+      if (shouldSendWebhookAlert(Date.now())) {
+        const {sendOpsAlert} = require("./opsAlert");
+        await sendOpsAlert({
+          title: "Lenco webhook processing error — payment activation may be down",
+          severity: "critical",
+          lines: [
+            `Error: ${String((err && err.message) || err).slice(0, 300)}`,
+            `Event: ${req.body?.event || req.body?.type || "(unknown)"}`,
+            "Lenco will retry (activation is idempotent), but if this repeats " +
+              "the integration is broken — check the LENCO secrets and the " +
+              "webhook payload schema.",
+          ],
+        });
+      }
+    } catch (_alertErr) { /* never let alerting mask the original error */ }
     // 500 → Lenco retries; activation is idempotent so this is safe.
     res.status(500).send("processing error");
   }
@@ -3248,9 +3281,13 @@ exports.apiWhatsAppWebhook = onRequest({
     return;
   }
 
-  // Authenticate the payload. Fail-closed when the app secret is configured;
-  // during staged rollout (secret unset) accept-but-warn so the wiring can be
-  // proven first, matching metaWhatsApp's soft-fail posture.
+  // Authenticate the payload. Fail-closed in both directions:
+  //   • secret set + bad signature → 403
+  //   • secret unset → 403, UNLESS WHATSAPP_ALLOW_UNVERIFIED=1 is explicitly
+  //     set for a staged rollout before the secret is bound.
+  // Without this, an unset META_WHATSAPP_APP_SECRET would let any caller forge
+  // a payload that triggers Anthropic spend, auto-replies, and Firestore
+  // writes — the public webhook must not default to accepting unverified data.
   const auth = meta.verifyInboundSignature({
     rawBody: req.rawBody,
     signature: req.get("x-hub-signature-256") || req.get("X-Hub-Signature-256"),
@@ -3261,7 +3298,13 @@ exports.apiWhatsAppWebhook = onRequest({
     return;
   }
   if (!auth.configured) {
-    console.warn("[whatsappWebhook] app secret unset — accepting unverified payload (staged rollout)");
+    if (process.env.WHATSAPP_ALLOW_UNVERIFIED === "1") {
+      console.warn("[whatsappWebhook] app secret unset — accepting unverified payload (WHATSAPP_ALLOW_UNVERIFIED=1, staged rollout)");
+    } else {
+      console.error("[whatsappWebhook] rejected: META_WHATSAPP_APP_SECRET unset and WHATSAPP_ALLOW_UNVERIFIED!=1 — refusing unverified payload");
+      res.status(403).send("signature verification not configured");
+      return;
+    }
   }
 
   // Always ack Meta with 200 at the end so it doesn't retry a payload we've

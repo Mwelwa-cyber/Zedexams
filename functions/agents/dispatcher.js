@@ -14,7 +14,12 @@
  *      side effects beyond the status change.
  *
  * Guardrails:
- *   - Per-agent circuit breaker via agentControl/{agentId}.paused.
+ *   - Per-agent circuit breaker via agentControl/{agentId}.paused. A manual
+ *     admin pause and an AUTOMATIC trip both set this flag: each runner
+ *     failure is recorded against agentControl/{agentId}, and at >=3 failures
+ *     within ~1h (see circuitBreaker.js) the agent is paused automatically and
+ *     ADMIN_EMAILS is emailed — so a runaway failing agent stops re-billing
+ *     model calls and pages a human instead of failing silently forever.
  *   - Status transitions are guarded: each runner refuses to run twice.
  *   - Errors land in agentJobs.error with status='failed'; the UI
  *     surfaces a Retry path (Phase 3).
@@ -29,6 +34,35 @@ const {runCala} = require("./runners/cala");
 const {runReva} = require("./runners/reva");
 const {runPubo} = require("./runners/pubo");
 const {getUserRole, assertDailyLimit} = require("../aiService");
+const {recordAgentFailure} = require("./circuitBreaker");
+const {sendOpsAlert} = require("../opsAlert");
+
+/**
+ * Record a runner failure against the circuit breaker. On the trip transition
+ * the breaker pauses the agent and we email ADMIN_EMAILS. Best-effort — never
+ * throws, so the caller's own status='failed' handling is unaffected.
+ */
+async function noteAgentFailure(agentId, err) {
+  const errorMessage = String((err && err.message) || err || "");
+  await recordAgentFailure({
+    db: admin.firestore(),
+    agentId,
+    errorMessage,
+    fieldValue: admin.firestore.FieldValue,
+    alert: async ({failuresInWindow}) => {
+      await sendOpsAlert({
+        title: `Agent "${agentId}" auto-paused by circuit breaker`,
+        severity: "critical",
+        lines: [
+          `${agentId} hit ${failuresInWindow} failures within the breaker ` +
+            "window and was paused automatically to stop re-billing model calls.",
+          `Last error: ${errorMessage.slice(0, 300)}`,
+          `Investigate, then clear agentControl/${agentId}.paused to resume.`,
+        ],
+      });
+    },
+  });
+}
 
 // Firestore-triggered functions must be collocated with the database to
 // avoid a cross-region Eventarc hop on every event. The project's
@@ -145,6 +179,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
       status: "failed",
       error: `Aria: ${String(err && err.message || err).slice(0, 500)}`,
     });
+    await noteAgentFailure("aria", err);
     return;
   }
   await setJobFields(jobRef, {
@@ -172,6 +207,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
       status: "failed",
       error: `Cala: ${String(err && err.message || err).slice(0, 500)}`,
     });
+    await noteAgentFailure("cala", err);
     return;
   }
   await setJobFields(jobRef, {"output.cala": calaOut});
@@ -194,6 +230,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
       status: "failed",
       error: `Reva: ${String(err && err.message || err).slice(0, 500)}`,
     });
+    await noteAgentFailure("reva", err);
     return;
   }
   await setJobFields(jobRef, {
@@ -239,6 +276,7 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
       status: "failed",
       error: `Cala: ${String(err && err.message || err).slice(0, 500)}`,
     });
+    await noteAgentFailure("cala", err);
     return;
   }
   await setJobFields(jobRef, {"output.cala": calaOut});
@@ -261,6 +299,7 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
       status: "failed",
       error: `Reva: ${String(err && err.message || err).slice(0, 500)}`,
     });
+    await noteAgentFailure("reva", err);
     return;
   }
   await setJobFields(jobRef, {
@@ -274,9 +313,9 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
  * Factory for the onCreate trigger. The secret is passed in by index.js
  * (mirrors the createGenerateLessonPlan factory pattern).
  */
-function createAgentJobsOnCreate(anthropicApiKeySecret) {
+function createAgentJobsOnCreate(anthropicApiKeySecret, opsAlertSecrets = []) {
   return onDocumentCreated(
-    {...TRIGGER_OPTS, secrets: [anthropicApiKeySecret]},
+    {...TRIGGER_OPTS, secrets: [anthropicApiKeySecret, ...opsAlertSecrets]},
     async (event) => {
       const snap = event.data;
       if (!snap) return;
@@ -300,9 +339,9 @@ function createAgentJobsOnCreate(anthropicApiKeySecret) {
 /**
  * Factory for the onUpdate trigger that runs Pubo on approval.
  */
-function createAgentJobsOnApproved() {
+function createAgentJobsOnApproved(opsAlertSecrets = []) {
   return onDocumentUpdated(
-    TRIGGER_OPTS,
+    {...TRIGGER_OPTS, secrets: opsAlertSecrets},
     async (event) => {
       const before = event.data && event.data.before && event.data.before.data();
       const after = event.data && event.data.after && event.data.after.data();
@@ -369,6 +408,7 @@ function createAgentJobsOnApproved() {
           status: "failed",
           error: `Pubo: ${String(err && err.message || err).slice(0, 500)}`,
         });
+        await noteAgentFailure("pubo", err);
       }
     },
   );

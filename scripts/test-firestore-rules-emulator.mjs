@@ -470,11 +470,25 @@ async function main() {
   })
 
   await test('another teacher CANNOT create a roster entry in a class they do not own', async () => {
-    // teacherUid is spoofed to TEACHER_B (their own uid) but the parent
-    // register belongs to TEACHER_A — create stays scoped to own uid, but the
-    // entry would be orphaned/invisible; the read guard plus recount denial
-    // make this useless, and we still assert the read isolation above.
-    await assertFails(getDocs(collection(teacherB, 'classRegisters', 'reg_teacher_a', 'roster')))
+    // The create rule now gates on _registerOwner(classId) == auth.uid, so a
+    // teacher who knows another teacher's classId can no longer inject phantom
+    // roster rows (stamped with their own teacherUid) into someone else's
+    // register. Assert the WRITE itself is denied, not just the read.
+    await assertFails(addDoc(collection(teacherB, 'classRegisters', 'reg_teacher_a', 'roster'), {
+      classId: 'reg_teacher_a',
+      teacherUid: TEACHER_B,
+      learnerNumber: '99',
+      fullName: 'Injected Phantom',
+      createdAt: serverTimestamp(),
+    }))
+  })
+
+  await test('another teacher CANNOT create a records entry in a class they do not own', async () => {
+    await assertFails(addDoc(collection(teacherB, 'classRegisters', 'reg_teacher_a', 'records'), {
+      classId: 'reg_teacher_a',
+      teacherUid: TEACHER_B,
+      createdAt: serverTimestamp(),
+    }))
   })
 
   await test('admin can list any roster', async () => {
