@@ -4194,14 +4194,27 @@ body.theme-midnight .learner-game-theme {
   --surface-tint-top: var(--learner-shell-tint-top);
 }
 
+/* Floating glass header (learner dashboard).
+ * Premium frosted bar the page content scrolls *behind*: a light ~18% tint
+ * does the readability work together with a strong backdrop blur, so the bar
+ * stays see-through (you can make out content moving under it) while the time/
+ * network/battery icons + the header controls stay legible. The hard bottom
+ * border is dropped in favour of a hairline + soft drop shadow and rounded
+ * bottom corners, which reads as a detached, floating card. Combined with
+ * `.safe-top` on the element the controls sit clear of the Android status-bar
+ * icons. Per-theme tints below are kept in the same 16–20% light range (Midnight
+ * is the dark-mode exception — a dark glass needs a touch more body to stay
+ * readable over light content). */
 .learner-dashboard-header {
-  background: rgba(255, 255, 255, 0.42);
-  border-bottom-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  border-bottom-left-radius: 22px;
+  border-bottom-right-radius: 22px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 14px 32px -28px rgba(15, 23, 42, 0.35);
-  backdrop-filter: blur(22px) saturate(1.25);
-  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 16px 34px -26px rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 /* Heavy slate shadow + translucent subtle bg only in Midnight; light
@@ -4410,6 +4423,36 @@ body.theme-vivid .learner-dashboard-header,
 body.theme-vivid .learner-game-theme .learner-bottom-nav {
   background: rgba(253, 242, 248, 0.54);
   border-color: rgba(251, 207, 232, 0.8);
+}
+
+/* Header-only floating-glass tints. The rules above set the *same* background
+ * on the header and the bottom nav; these later, equal-specificity overrides
+ * drop only the header into the see-through 18–20% range (Midnight a little
+ * higher for dark-glass legibility) so the bottom nav is left exactly as it
+ * was. Page content stays visible behind the header while scrolling. */
+body.theme-sky .learner-dashboard-header {
+  background: rgba(240, 249, 255, 0.2);
+  border-bottom-color: rgba(186, 230, 253, 0.5);
+}
+body.theme-lavender .learner-dashboard-header {
+  background: rgba(245, 243, 255, 0.2);
+  border-bottom-color: rgba(221, 214, 254, 0.5);
+}
+body.theme-midnight .learner-dashboard-header {
+  background: rgba(10, 16, 31, 0.34);
+  border-bottom-color: rgba(71, 85, 105, 0.4);
+}
+body.theme-oatmeal .learner-dashboard-header {
+  background: rgba(255, 247, 237, 0.2);
+  border-bottom-color: rgba(253, 230, 138, 0.5);
+}
+body.theme-solar .learner-dashboard-header {
+  background: rgba(255, 251, 235, 0.2);
+  border-bottom-color: rgba(253, 230, 138, 0.5);
+}
+body.theme-vivid .learner-dashboard-header {
+  background: rgba(253, 242, 248, 0.2);
+  border-bottom-color: rgba(251, 207, 232, 0.5);
 }
 
 body.theme-sky .learner-game-theme .learner-bottom-nav,

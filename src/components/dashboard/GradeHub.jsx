@@ -1045,7 +1045,7 @@ export default function GradeHub() {
       <GameStickerStyles />
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
-      <header className={`learner-dashboard-header sticky top-0 z-30 border-b zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
+      <header className={`learner-dashboard-header safe-top sticky top-0 z-30 zx-nav-autohide ${headerHidden ? 'zx-nav-hidden-top' : ''}`}>
         <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3">
           <div className="min-w-0 shrink">
             <Logo variant="full" size="sm" />
