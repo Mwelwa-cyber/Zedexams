@@ -48,6 +48,18 @@ export function normaliseDiagramHandling(mode) {
 // while still capturing a passage/map that crosses a boundary whole.
 export const SCANNED_BATCH_SIZE = 4
 export const SCANNED_BATCH_OVERLAP = 1
+// Cross-batch gap recovery. A single batch can badly under-extract its pages
+// (the vision model "summarises" a long run and silently skips a block), which
+// the per-batch server recovery never sees — leaving a contiguous range of
+// printed numbers missing from the merged paper (the classic "imported 47 of
+// 60, questions 43-55 missing" report). After the first merge we find those
+// missing numbers, re-scan ONLY the pages they sit on, and merge what comes
+// back. Bounded rounds; a round that recovers nothing new stops the loop.
+export const SCANNED_RECOVERY_ROUNDS = 2
+// Cap on how many distinct pages one recovery round re-scans, so a wildly
+// sparse numbering (or a hallucinated number) can't trigger a re-scan of the
+// whole paper. Comfortably covers a real multi-page gap.
+export const SCANNED_RECOVERY_MAX_PAGES = 24
 // Ceiling on pages we OCR in one import. This bounds browser memory (each page
 // is rasterised to a ~1500px canvas) and the daily AI meter — it is NOT a
 // question cap: pages are processed in small batches and merged, so a 100+
@@ -504,6 +516,50 @@ export function findMissingQuestionNumbers(rawSections = []) {
     if (!seen.has(n)) missing.push(n)
   }
   return missing
+}
+
+/**
+ * Map a list of missing printed question numbers to the rendered page numbers
+ * they most likely sit on, so a recovery pass can re-scan just those pages.
+ *
+ * Uses the captured questions as anchors: each carries its printed
+ * `sourceQuestionNumber` and the `sourcePage` it was read from. For a missing
+ * number N we take the page of the nearest captured number below it and the
+ * nearest above it, and include every page in that (inclusive) range — the
+ * missing question has to live somewhere between its neighbours. Numbers below
+ * the first / above the last captured anchor extend to the first / last known
+ * page. Returns a sorted, de-duplicated, capped page list. Pure + node-testable.
+ */
+export function pagesForMissingNumbers(rawSections = [], missingNumbers = [], { maxPages = SCANNED_RECOVERY_MAX_PAGES } = {}) {
+  const anchors = []
+  const collect = (q) => {
+    const n = Number(q?.sourceQuestionNumber)
+    const p = Number(q?.sourcePage)
+    if (Number.isInteger(n) && n > 0 && Number.isInteger(p) && p > 0) anchors.push({ n, p })
+  }
+  ;(Array.isArray(rawSections) ? rawSections : []).forEach(section => {
+    if (section?.kind === 'passage') (section.questions || []).forEach(collect)
+    else collect(section?.question || section)
+  })
+  if (!anchors.length) return []
+  anchors.sort((a, b) => a.n - b.n)
+  const minPage = anchors.reduce((m, a) => Math.min(m, a.p), anchors[0].p)
+  const maxPage = anchors.reduce((m, a) => Math.max(m, a.p), anchors[0].p)
+  const pages = new Set()
+  ;(Array.isArray(missingNumbers) ? missingNumbers : []).forEach(raw => {
+    const N = Number(raw)
+    if (!Number.isInteger(N) || N <= 0) return
+    let low = null
+    let high = null
+    for (const a of anchors) {
+      if (a.n < N) low = a
+      else if (a.n > N) { high = a; break }
+    }
+    const lo = Math.min(low ? low.p : minPage, high ? high.p : maxPage)
+    const hi = Math.max(low ? low.p : minPage, high ? high.p : maxPage)
+    for (let p = lo; p <= hi; p += 1) pages.add(p)
+  })
+  return [...pages].sort((a, b) => a - b).slice(0, maxPages)
 }
 
 /**
@@ -991,22 +1047,60 @@ export async function runVisionImport({
   }
   const handling = normaliseDiagramHandling(diagramHandling)
 
-  const batches = chunkPages(pageImages)
-  const batchResults = []
-  for (let i = 0; i < batches.length; i += 1) {
-    onProgress?.({ phase: 'reading', current: i + 1, total: batches.length })
+  const runBatch = async (pages, phase, current, total) => {
+    onProgress?.({ phase, current, total })
     // Sequential: keeps us under the per-call daily AI meter and avoids
     // hammering the vision API with concurrent large requests.
-    const result = await callVision({
+    return callVision({
       fileName: file?.name || '',
-      pages: batches[i],
+      pages,
       subjectHint,
       gradeHint,
     })
-    batchResults.push(result)
   }
 
-  const merged = mergeSectionBatches(batchResults)
+  const batches = chunkPages(pageImages)
+  const batchResults = []
+  for (let i = 0; i < batches.length; i += 1) {
+    batchResults.push(await runBatch(batches[i], 'reading', i + 1, batches.length))
+  }
+
+  let merged = mergeSectionBatches(batchResults)
+
+  // ── Cross-batch gap recovery ───────────────────────────────────────────────
+  // The merge only WARNS about printed numbers that never came back. Here we
+  // close the loop: re-scan just the pages a missing block sits on (smaller,
+  // focused batches make the vision model enumerate far more reliably) and
+  // merge the recovered questions in. Bounded rounds; a round that recovers
+  // nothing new stops the loop, so a genuinely complete paper costs nothing.
+  if (typeof callVision === 'function') {
+    const pageImageByNumber = new Map(pageImages.map(p => [p.pageNumber, p]))
+    for (let round = 0; round < SCANNED_RECOVERY_ROUNDS; round += 1) {
+      const missing = findMissingQuestionNumbers(merged.sections)
+      if (!missing.length) break
+      const targetPages = pagesForMissingNumbers(merged.sections, missing)
+      const retryImages = targetPages
+        .map(n => pageImageByNumber.get(n))
+        .filter(Boolean)
+      if (!retryImages.length) break
+      const before = missing.length
+      const retryBatches = chunkPages(retryImages)
+      for (let i = 0; i < retryBatches.length; i += 1) {
+        try {
+          batchResults.push(
+            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length),
+          )
+        } catch {
+          // A failed recovery batch just means we keep the missing-number
+          // warning — never sink the whole import for it.
+        }
+      }
+      merged = mergeSectionBatches(batchResults)
+      // Stop as soon as a round recovers nothing new (the model genuinely
+      // can't read those pages — re-running would only burn the AI meter).
+      if (findMissingQuestionNumbers(merged.sections).length >= before) break
+    }
+  }
   const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
     pageAssetByNumber: assetByPage,
     diagramHandling: handling,

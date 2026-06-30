@@ -36,6 +36,9 @@ function progressLabel(progress) {
   if (progress.phase === 'reading') {
     return `Reading questions — batch ${progress.current} of ${progress.total}…`
   }
+  if (progress.phase === 'recovering') {
+    return `Re-checking for missed questions — pass ${progress.current} of ${progress.total}…`
+  }
   return ''
 }
 
