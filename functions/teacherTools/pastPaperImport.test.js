@@ -18,6 +18,7 @@ const {
   questionKey,
   planPageBatches,
   selectNewQuestions,
+  dedupeBySourceNumber,
   extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
@@ -149,6 +150,65 @@ test('coverage loop converges: a fully-repeated round yields nothing fresh', () 
   selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   const again = selectNewQuestions(seen, [q('A?', ['1', '2'], 0)]);
   assert.equal(again.fresh.length, 0); // → caller stops the loop
+});
+
+// ── number-aware de-dup: the scanned-paper over-extraction fix ──────────────
+test('selectNewQuestions drops an OCR-drift re-read of an already-seen number', () => {
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  // Round 0 captures Q30.
+  const r0 = selectNewQuestions(seenKeys, [
+    {prompt: 'On the coat of arms, the ... stands for farming.', options: ['a', 'b', 'c', 'd'], sourceNumber: 30, order: 0},
+  ], seenNumbers);
+  assert.equal(r0.fresh.length, 1);
+  // Round 1 re-reads the SAME question with OCR drift (different stem text) but
+  // the same printed number — must NOT be treated as new.
+  const r1 = selectNewQuestions(seenKeys, [
+    {prompt: 'On the coat of arms the . stands for farmlng.', options: ['a', 'b', 'c', 'd'], sourceNumber: 30, order: 1},
+    {prompt: 'Which is an element of weather?', options: ['a', 'b', 'c', 'd'], sourceNumber: 31, order: 2},
+  ], seenNumbers);
+  assert.equal(r1.fresh.length, 1); // only the genuinely-new Q31
+  assert.equal(r1.fresh[0].sourceNumber, 31);
+});
+
+test('selectNewQuestions without seenNumbers keeps the original stem-only behaviour', () => {
+  const seenKeys = new Set();
+  // No seenNumbers passed → OCR-drifted re-reads (different stems) are NOT
+  // collapsed (legacy behaviour preserved for callers that opt out).
+  selectNewQuestions(seenKeys, [{prompt: 'Q30a', options: ['a', 'b'], sourceNumber: 30}]);
+  const again = selectNewQuestions(seenKeys, [{prompt: 'Q30b', options: ['a', 'b'], sourceNumber: 30}]);
+  assert.equal(again.fresh.length, 1);
+});
+
+test('dedupeBySourceNumber collapses same-number re-reads, keeps the first, leaves unnumbered alone', () => {
+  const out = dedupeBySourceNumber([
+    {prompt: 'Q1 read A', sourceNumber: 1},
+    {prompt: 'Q2', sourceNumber: 2},
+    {prompt: 'Q1 read B (ocr drift)', sourceNumber: 1}, // dup number → dropped
+    {prompt: 'unnumbered one', sourceNumber: null},
+    {prompt: 'unnumbered two', sourceNumber: null}, // both kept (no number)
+  ]);
+  assert.equal(out.removed, 1);
+  assert.equal(out.questions.length, 4);
+  assert.equal(out.questions[0].prompt, 'Q1 read A'); // first occurrence wins
+  assert.ok(out.questions.every((x) => x.prompt !== 'Q1 read B (ocr drift)'));
+});
+
+test('mergeAndRenumber collapses a doubled scanned paper back to its real count', () => {
+  // Simulates the production bug: a 4-question paper re-read twice with OCR
+  // drift → 8 entries, none of them exact-stem duplicates, all with the right
+  // printed numbers. Number-dedup must bring it back to 4.
+  const doubled = [];
+  for (const pass of ['', ' ']) { // second pass adds a stray space = OCR drift
+    for (let n = 1; n <= 4; n++) {
+      doubled.push({prompt: `Question ${n}${pass}`, options: ['a', 'b', 'c', 'd'], sourceNumber: n, order: doubled.length});
+    }
+  }
+  assert.equal(doubled.length, 8);
+  const {questions, duplicatesRemoved} = mergeAndRenumber(doubled);
+  assert.equal(questions.length, 4); // ← the fix: 8 → 4, not 8
+  assert.equal(duplicatesRemoved, 4);
+  assert.deepEqual(questions.map((x) => x.sourceNumber), [1, 2, 3, 4]);
 });
 
 // ── extractionProgress — resume marker for the continuation loop ────────────
