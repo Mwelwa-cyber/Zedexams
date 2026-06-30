@@ -17,6 +17,7 @@ import {
   rotateInsights,
   buildActivityStats,
   buildCelebrations,
+  formatTrend,
 } from '../../utils/teacherDashboardIntel'
 import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -895,19 +896,19 @@ export default function TeacherDashboard() {
           <div className="teacher-activity__grid">
             {activityStats.filter((s) => s.key !== 'library').map((s) => {
               const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
+              // 'new' shares the positive (green) styling with 'up'.
+              const toneDir = s.trend.dir === 'new' ? 'up' : s.trend.dir
               return (
                 <div key={s.key} className="teacher-activity-card">
                   <div className="teacher-activity-card__top">
                     <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
                       <Icon as={am.icon} size="sm" />
                     </span>
-                    <p className="teacher-activity-card__value">{s.total}</p>
+                    <p className="teacher-activity-card__value">{s.period}</p>
                   </div>
                   <p className="teacher-activity-card__label">{s.label}</p>
-                  <span className={`teacher-activity-card__trend teacher-activity-card__trend--${s.trend.dir}`}>
-                    {s.trend.dir === 'flat'
-                      ? '— No change'
-                      : `${s.trend.dir === 'up' ? '↑' : '↓'} ${s.trend.pct}% ${s.trend.basis}`}
+                  <span className={`teacher-activity-card__trend teacher-activity-card__trend--${toneDir}`}>
+                    {formatTrend(s.trend, s.basis)}
                   </span>
                 </div>
               )
