@@ -45,6 +45,13 @@ import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
+import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
+import { downloadRubricPdf } from '../../../utils/rubricToPdf'
+import { downloadNotesPdf } from '../../../utils/notesToPdf'
+import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
+import { downloadFullLessonPdf } from '../../../utils/fullLessonToPdf'
+import { downloadSchemeOfWorkPdf } from '../../../utils/schemeOfWorkToPdf'
+import { downloadSbaTaskPdf } from '../../../utils/sbaTaskToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { downloadLessonActivitiesDocx } from '../../../utils/activityToDocx'
@@ -76,6 +83,7 @@ const TOOL_DOC_TYPES = {
   assessment: 'Test Paper',
   exam_paper: 'Exam Paper',
 }
+
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
 import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
@@ -84,6 +92,18 @@ import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
 import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
+
+// Tools whose library detail offers a direct HTML→PDF download (beyond the
+// lesson-plan / class-timetable specials handled separately in onExportPdf).
+const PDF_EXPORT_TOOLS = [
+  'flashcards',
+  'rubric',
+  'notes',
+  'homework',
+  'full_lesson',
+  'scheme_of_work',
+  'sba_task',
+]
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
@@ -368,20 +388,64 @@ export default function LibraryItemDetail() {
       return
     }
 
-    if (item?.tool !== 'class_timetable' || !item.output) return
+    if (!item?.output) return
+
+    if (item.tool === 'class_timetable') {
+      try {
+        const name = buildDownloadName({
+          docType: TOOL_DOC_TYPES[item.tool] || 'Class Timetable',
+          grade: item.inputs?.grade || item.output?.header?.grade,
+          term: item.inputs?.term ?? item.output?.header?.term,
+          year: item.inputs?.year ?? item.output?.header?.year,
+          extra: item.output?.header?.className,
+          ext: 'pdf',
+        })
+        await downloadClassTimetablePdf(item.output, { filename: name })
+        recordExport(item.id, 'pdf')
+      } catch (err) {
+        console.error('[LibraryItemDetail] timetable pdf failed', err)
+      }
+      return
+    }
+
+    if (!PDF_EXPORT_TOOLS.includes(item.tool)) return
+    const name = (ext = 'pdf') => buildDownloadName({
+      docType: TOOL_DOC_TYPES[item.tool] || TOOL_META[item.tool]?.label || 'Document',
+      grade: item.inputs?.grade || item.output?.header?.grade,
+      subject: item.inputs?.subject || item.output?.header?.subject,
+      topic: item.inputs?.topic || item.output?.header?.topic,
+      term: item.inputs?.term ?? item.output?.header?.term,
+      year: item.inputs?.year ?? item.output?.header?.year,
+      week: item.inputs?.weekNumber ?? item.output?.header?.weekNumber,
+      extra: item.output?.header?.className,
+      ext,
+    })
+    // Library downloads are paid-only (permissions gate above), so no
+    // free-plan attribution watermark — matches the DOCX branches.
     try {
-      const name = buildDownloadName({
-        docType: TOOL_DOC_TYPES[item.tool] || 'Class Timetable',
-        grade: item.inputs?.grade || item.output?.header?.grade,
-        term: item.inputs?.term ?? item.output?.header?.term,
-        year: item.inputs?.year ?? item.output?.header?.year,
-        extra: item.output?.header?.className,
-        ext: 'pdf',
-      })
-      await downloadClassTimetablePdf(item.output, { filename: name })
+      if (item.tool === 'flashcards') {
+        await downloadFlashcardsPdf(item.output, name('pdf'))
+      } else if (item.tool === 'rubric') {
+        await downloadRubricPdf(item.output, name('pdf'))
+      } else if (item.tool === 'notes') {
+        await downloadNotesPdf(item.output, name('pdf'))
+      } else if (item.tool === 'homework') {
+        await downloadHomeworkPdf(item.output, name('pdf'), { includeAnswers: showAnswers })
+      } else if (item.tool === 'full_lesson') {
+        await downloadFullLessonPdf(item.output, name('pdf'))
+      } else if (item.tool === 'scheme_of_work') {
+        await downloadSchemeOfWorkPdf(item.output, name('pdf'))
+      } else if (item.tool === 'sba_task') {
+        // Teacher copy with the marking scheme — parity with the DOCX branch
+        // (the library's SbaTaskView always shows the marking scheme too).
+        await downloadSbaTaskPdf(item.output, name('pdf'), {
+          includeAnswers: true,
+          schoolName: item.output?.header?.schoolName || userProfile?.school || userProfile?.schoolName || '',
+        })
+      }
       recordExport(item.id, 'pdf')
     } catch (err) {
-      console.error('[LibraryItemDetail] timetable pdf failed', err)
+      console.error('[LibraryItemDetail] pdf export failed', err)
     }
   }
 
@@ -580,6 +644,18 @@ export default function LibraryItemDetail() {
                 className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
                 title={permissions.canDownload
                   ? 'Open a print view to save as PDF'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🖨️ Export PDF
+              </button>
+            )}
+            {PDF_EXPORT_TOOLS.includes(item.tool) && item.output && (
+              <button
+                onClick={onExportPdf}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download a PDF copy'
                   : 'Premium only — upgrade to download library documents'}
               >
                 🖨️ Export PDF

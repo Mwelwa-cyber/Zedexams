@@ -10,6 +10,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
+import { downloadRubricPdf } from '../../../utils/rubricToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
@@ -111,6 +112,18 @@ export default function RubricGenerator() {
       topic: form.taskType,
     })
     downloadRubricDocx(rubric, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
+  function onExportPdf() {
+    if (!rubric) return
+    const name = buildDownloadName({
+      docType: 'Rubric',
+      grade: form.grade,
+      subject: form.subject,
+      topic: form.taskType,
+      ext: 'pdf',
+    })
+    downloadRubricPdf(rubric, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (
@@ -225,6 +238,9 @@ export default function RubricGenerator() {
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={onExport} className="studio-btn-ghost">
                       📄 Download .docx (landscape)
+                    </button>
+                    <button onClick={onExportPdf} className="studio-btn-ghost">
+                      📄 Download .pdf
                     </button>
                     <button onClick={() => setStatus('idle')} className="studio-btn-primary">
                       ▶ Generate Another

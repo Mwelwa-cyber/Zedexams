@@ -18,6 +18,13 @@ const assert = require("node:assert");
 let lastCallClaudeOpts = null;
 let callClaudeReturn = null;
 let resolveTeacherPlanImpl = async () => "<teacher_plans>BLOCK</teacher_plans>";
+let resolveCbcContextImpl = async () => ({
+  contextBlock: "<cbc_context>KB</cbc_context>",
+  kbMatch: {topic: "Matter"},
+  kbWarning: null,
+  kbVersion: "v9",
+});
+let lastCbcContextArgs = null;
 let assertAndIncrementCalls = 0;
 let loggedDocs = [];
 
@@ -67,6 +74,12 @@ Module._load = function(id, parent, isMain) {
   if (id === "./teacherPlanContext") {
     return {resolveTeacherPlanContext: (...a) => resolveTeacherPlanImpl(...a)};
   }
+  if (id === "./cbcKnowledge") {
+    return {resolveCbcContext: (args) => {
+      lastCbcContextArgs = args;
+      return resolveCbcContextImpl(args);
+    }};
+  }
   return originalLoad(id, parent, isMain);
 };
 
@@ -89,6 +102,13 @@ function resetMocks() {
     model: "claude-sonnet-4-6",
   };
   resolveTeacherPlanImpl = async () => "<teacher_plans>BLOCK</teacher_plans>";
+  resolveCbcContextImpl = async () => ({
+    contextBlock: "<cbc_context>KB</cbc_context>",
+    kbMatch: {topic: "Matter"},
+    kbWarning: null,
+    kbVersion: "v9",
+  });
+  lastCbcContextArgs = null;
   assertAndIncrementCalls = 0;
   loggedDocs = [];
 }
@@ -126,26 +146,54 @@ const baseArgs = (overrides = {}) => ({
   ok("logs an aiGenerations row", loggedDocs.length === 1 &&
     loggedDocs[0].tool === "lesson_plan_studio");
 
-  // 3. Teacher-plan grounding is passed through as the context block.
+  // 3. Grounding: the KB block and the teacher-plan block are BOTH passed,
+  //    composed KB-first (shareable prompt-cache prefix) + teacher-plans last.
   resetMocks();
   await runStudioLessonPlan(baseArgs());
-  ok("passes teacher-plan block to Claude",
-    lastCallClaudeOpts.cbcContextBlock === "<teacher_plans>BLOCK</teacher_plans>");
+  ok("composes KB + teacher-plan blocks, KB first",
+    lastCallClaudeOpts.cbcContextBlock ===
+      "<cbc_context>KB</cbc_context>\n\n<teacher_plans>BLOCK</teacher_plans>");
+  ok("drives the KB resolver with the lesson coordinates",
+    lastCbcContextArgs && lastCbcContextArgs.ownerUid === "teacher-1" &&
+    lastCbcContextArgs.subject === "integrated_science" &&
+    lastCbcContextArgs.subtopic === "States" && lastCbcContextArgs.term === "1");
+  ok("stamps kbVersion + kbGrounded on the log row",
+    loggedDocs[0].kbVersion === "v9" && loggedDocs[0].kbGrounded === true);
 
-  // 4. Fail-open: a grounding lookup error must NOT block generation.
+  // 4. Fail-open: grounding lookup errors must NOT block generation.
   resetMocks();
   resolveTeacherPlanImpl = async () => { throw new Error("firestore down"); };
+  resolveCbcContextImpl = async () => { throw new Error("kb down"); };
   const res4 = await runStudioLessonPlan(baseArgs());
-  ok("still generates when grounding lookup throws", JSON.parse(res4.text).stages.length === 1);
+  ok("still generates when both grounding lookups throw", JSON.parse(res4.text).stages.length === 1);
   ok("sends null context block on grounding failure",
     lastCallClaudeOpts.cbcContextBlock === null);
 
-  // 5. No teacher plan found → null context block, still generates.
+  // 4b. One source failing still delivers the other.
+  resetMocks();
+  resolveCbcContextImpl = async () => { throw new Error("kb down"); };
+  await runStudioLessonPlan(baseArgs());
+  ok("teacher-plan block survives a KB failure",
+    lastCallClaudeOpts.cbcContextBlock === "<teacher_plans>BLOCK</teacher_plans>");
+
+  // 5. No grounding found anywhere → null context block, still generates.
   resetMocks();
   resolveTeacherPlanImpl = async () => "";
+  resolveCbcContextImpl = async () => null;
   const res5 = await runStudioLessonPlan(baseArgs());
-  ok("generates with no teacher plan", Boolean(JSON.parse(res5.text).lessonGoal));
-  ok("null context block when no plan matches", lastCallClaudeOpts.cbcContextBlock === null);
+  ok("generates with no grounding at all", Boolean(JSON.parse(res5.text).lessonGoal));
+  ok("null context block when nothing matches", lastCallClaudeOpts.cbcContextBlock === null);
+
+  // 5b. kbWarning is surfaced (additive) so the studio can show the same
+  //     "used general CBC knowledge" notice the schema generator shows.
+  resetMocks();
+  resolveCbcContextImpl = async () => ({
+    contextBlock: "<general_cbc/>", kbMatch: null,
+    kbWarning: "Used general CBC knowledge.", kbVersion: "v9",
+  });
+  const res5b = await runStudioLessonPlan(baseArgs());
+  ok("returns kbWarning when the KB fell back", res5b.kbWarning === "Used general CBC knowledge.");
+  ok("kbGrounded false on fallback", loggedDocs[0].kbGrounded === false);
 
   // 6. Tool schema must NOT contradict the studio system prompt's stage-key
   //    contract. The prompt (src/.../studioSystemPrompt.js) instructs the model

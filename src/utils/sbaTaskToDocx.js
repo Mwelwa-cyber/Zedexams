@@ -67,7 +67,12 @@ function sectionHeading(str) {
 }
 
 function cell(content, { width, shading, bold, size = 18 } = {}) {
-  const paras = Array.isArray(content) ? content : [para(text(content, { size, bold }))]
+  // Accepts an array of Paragraphs, a single Paragraph, or a plain string.
+  // The single-Paragraph case matters: `cell(para(text(...)))` used to fall
+  // through to the string branch and render the cell as "[object Object]".
+  const paras = Array.isArray(content) ? content
+    : content instanceof Paragraph ? [content]
+    : [para(text(content, { size, bold }))]
   return new TableCell({
     children: paras,
     width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,

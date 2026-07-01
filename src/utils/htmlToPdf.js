@@ -111,6 +111,11 @@ function rewriteImagesToProxy(doc) {
 // Don't start rasterising until fonts + images have settled, otherwise the
 // PDF comes out with fallback fonts or blank pictures (the same bug the print
 // path hit with remote Firebase Storage images).
+//
+// Returns the number of images that FAILED to load (error event, or settled
+// with no pixel data). Callers thread this out so the studio can warn the
+// teacher that figures are missing — previously a failed image and a loaded
+// one were indistinguishable and the loss was silent.
 async function waitForAssets(doc, timeout = 6000) {
   try {
     if (doc.fonts && doc.fonts.ready) {
@@ -134,6 +139,11 @@ async function waitForAssets(doc, timeout = 6000) {
       delay(timeout),
     ])
   }
+  // A broken image is `complete` with zero natural size — covers both the
+  // error-event case above and images that were already broken before we
+  // started waiting. Still-loading images (timeout hit) also report 0 and
+  // count as failed: they'd rasterise blank.
+  return Array.from(doc.images || []).filter((img) => !(img.naturalWidth > 0)).length
 }
 
 /**
@@ -169,7 +179,7 @@ export function chooseSliceBottom({ sliceTop, limit, canvasHeight, atomic = [], 
  * Render an HTML document string to a PDF Blob. Throws on any failure so the
  * caller can fall back to printing.
  */
-export async function htmlToPdfBlob(html, { scale = 2 } = {}) {
+export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('PDF generation requires a browser environment.')
   }
@@ -191,7 +201,14 @@ export async function htmlToPdfBlob(html, { scale = 2 } = {}) {
     idoc.close()
 
     rewriteImagesToProxy(idoc)
-    await waitForAssets(idoc)
+    const failedImages = await waitForAssets(idoc)
+    if (failedImages > 0 && typeof onImageFailures === 'function') {
+      try {
+        onImageFailures(failedImages)
+      } catch {
+        // caller's warning UI must never abort the export
+      }
+    }
 
     const target = idoc.body
     const fullHeight = Math.max(
@@ -279,11 +296,15 @@ export async function htmlToPdfBlob(html, { scale = 2 } = {}) {
  * rendering, tainted canvas) runs `onFallback` — typically the studio's
  * window.print() path — so the export degrades instead of dying.
  *
+ * `onImageFailures(count)` fires (best-effort) when `count` images in the
+ * document failed to load before rasterising — the PDF still saves, but with
+ * blank figure areas, so callers should surface a warning.
+ *
  * @returns {Promise<boolean>} true if a real PDF file was saved.
  */
-export async function downloadHtmlAsPdf(html, filename, { onFallback } = {}) {
+export async function downloadHtmlAsPdf(html, filename, { onFallback, onImageFailures } = {}) {
   try {
-    const blob = await htmlToPdfBlob(html)
+    const blob = await htmlToPdfBlob(html, { onImageFailures })
     await saveBlob(blob, filename)
     return true
   } catch (e) {

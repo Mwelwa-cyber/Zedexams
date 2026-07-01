@@ -2064,8 +2064,16 @@ export default function AssessmentStudio({ variant = 'test' }) {
         return
       }
       if (kind === 'docx') {
-        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
-        showToast('Word download started.')
+        const result = await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+        // A figure that couldn't be embedded renders as a dashed-red
+        // placeholder in the paper — downloading still succeeds, but the
+        // teacher must hear about it BEFORE printing 40 copies.
+        const failed = Number(result?.failedImages || 0)
+        if (failed > 0) {
+          showToast(`Download started, but ${failed} figure${failed === 1 ? '' : 's'} could not be embedded — marked in the paper.`, true)
+        } else {
+          showToast('Word download started.')
+        }
       }
     } catch (error) {
       console.error(error)

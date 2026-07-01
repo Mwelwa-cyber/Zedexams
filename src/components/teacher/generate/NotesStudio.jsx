@@ -12,6 +12,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
+import { downloadNotesPdf } from '../../../utils/notesToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -248,6 +249,18 @@ export default function NotesStudio() {
     downloadNotesDocx(notes, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
+  function onExportPdf() {
+    if (!notes) return
+    const name = buildDownloadName({
+      docType: 'Notes',
+      grade: notes.header?.grade || form.grade,
+      subject: notes.header?.subject || form.subject,
+      topic: notes.header?.topic || form.topic,
+      ext: 'pdf',
+    })
+    downloadNotesPdf(notes, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
   return (
     <div className="studio-page">
       <SeoHelmet title="Teaching Notes Studio" noIndex />
@@ -416,6 +429,9 @@ export default function NotesStudio() {
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={onExportDocx} className="studio-btn-ghost">
                       📄 Download .docx
+                    </button>
+                    <button onClick={onExportPdf} className="studio-btn-ghost">
+                      📄 Download .pdf
                     </button>
                     <button onClick={() => setStatus('idle')} className="studio-btn-primary">
                       ▶ Generate Another

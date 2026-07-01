@@ -12,6 +12,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
+import { downloadFullLessonPdf } from '../../../utils/fullLessonToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
@@ -77,6 +78,18 @@ export default function FullLessonStudio() {
       topic: lesson.header?.topic || form.topic,
     })
     downloadFullLessonDocx(lesson, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
+  function onExportPdf() {
+    if (!lesson) return
+    const filename = buildDownloadName({
+      docType: 'Full Lesson',
+      grade: lesson.header?.grade || form.grade,
+      subject: lesson.header?.subject || form.subject,
+      topic: lesson.header?.topic || form.topic,
+      ext: 'pdf',
+    })
+    downloadFullLessonPdf(lesson, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   async function onGenerate(e) {
@@ -281,6 +294,9 @@ export default function FullLessonStudio() {
                       </label>
                       <button onClick={onExportDocx} className="studio-btn-ghost">
                         📄 Download .docx
+                      </button>
+                      <button onClick={onExportPdf} className="studio-btn-ghost">
+                        📄 Download .pdf
                       </button>
                       <button onClick={() => setStatus('idle')} className="studio-btn-primary">
                         ▶ Generate Another
