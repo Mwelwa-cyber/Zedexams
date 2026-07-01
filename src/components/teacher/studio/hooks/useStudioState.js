@@ -117,7 +117,14 @@ export function useStudioState() {
       setTopicData((prev) => ({ ...prev, topic: value, subtopic: '', subtopicRow: null }))
       setSelectedOutcomes([])
     } else {
-      setTopicData((prev) => ({ ...prev, [field]: value }))
+      // Bail out when the value is unchanged so repeat calls return the SAME
+      // state object and React skips the re-render. TopicSubtopicForm calls
+      // onSubtopicRowLoaded (an inline arrow — fresh identity every sidebar
+      // render) from an effect that lists it as a dependency; without this
+      // bail each call minted a new topicData object, re-rendered the sidebar,
+      // refired the effect, and looped forever ("Maximum update depth
+      // exceeded").
+      setTopicData((prev) => (Object.is(prev[field], value) ? prev : { ...prev, [field]: value }))
     }
   }, [])
 

@@ -33,17 +33,17 @@ export function DuplicateLessonModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+      className="lps-game fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="dup-lesson-title"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-sm rounded-2xl border-2 border-[#0F1B2D] bg-white p-5 shadow-[0_3px_0_#0F1B2D,0_18px_34px_-22px_rgba(15,27,45,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="dup-lesson-title" className="text-[15px] font-bold text-[#2d2519]">
+        <h2 id="dup-lesson-title" className="font-display text-[16px] font-extrabold tracking-tight text-[#0F1B2D]">
           Lesson {lessonNumber} already exists
         </h2>
         <p className="mt-1.5 text-[12.5px] text-[#6b6452]">

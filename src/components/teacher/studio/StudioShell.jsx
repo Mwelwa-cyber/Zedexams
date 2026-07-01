@@ -15,7 +15,7 @@
  */
 export function StudioShell({ sidebar, canvas }) {
   return (
-    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#faf7f2]">
+    <div className="lps-game flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#F5EFE1]">
       {sidebar}
       {canvas}
     </div>

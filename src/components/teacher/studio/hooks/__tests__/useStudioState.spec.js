@@ -424,3 +424,31 @@ describe('useStudioState — curriculumMode propagation', () => {
     expect(result.current.topicData.topic).toBe('TOPIC A')
   })
 })
+
+// ── useStudioState — setTopicField unchanged-value bailout ────────────────────
+// TopicSubtopicForm calls onSubtopicRowLoaded (a fresh inline arrow every
+// sidebar render) from an effect that lists it as a dependency. If repeat
+// calls with the SAME value minted a new topicData object each time, every
+// call re-rendered the sidebar, refired the effect, and looped forever
+// ("Maximum update depth exceeded"). The bailout keeps the state object
+// identity stable so React skips the re-render and the loop damps.
+
+describe('useStudioState — setTopicField unchanged-value bailout', () => {
+  it('returns the SAME topicData object when the value is unchanged', () => {
+    const { result } = renderHook(() => useStudioState())
+    act(() => result.current.setTopicField('subtopicRow', null))
+    const first = result.current.topicData
+    act(() => result.current.setTopicField('subtopicRow', null))
+    expect(result.current.topicData).toBe(first)
+  })
+
+  it('still updates topicData when the value actually changes', () => {
+    const { result } = renderHook(() => useStudioState())
+    const row = { specificCompetence: 'Count to 100' }
+    act(() => result.current.setTopicField('subtopicRow', row))
+    expect(result.current.topicData.subtopicRow).toBe(row)
+    const afterSet = result.current.topicData
+    act(() => result.current.setTopicField('subtopicRow', row))
+    expect(result.current.topicData).toBe(afterSet)
+  })
+})
