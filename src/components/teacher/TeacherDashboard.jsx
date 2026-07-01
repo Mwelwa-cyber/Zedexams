@@ -523,7 +523,13 @@ function CompactUsage() {
   const [expanded, setExpanded] = useState(false)
 
   if (loading || !data) {
-    return <div className="teacher-usage-card teacher-usage-card--skeleton" aria-hidden="true" />
+    // role="status" (a polite live region) + visually-hidden text tell screen
+    // readers a load is pending; the skeleton shimmer stays decorative.
+    return (
+      <div className="teacher-usage-card teacher-usage-card--skeleton" role="status">
+        <span className="sr-only">Loading your usage summary…</span>
+      </div>
+    )
   }
 
   const isMax = data.plan === 'max'
@@ -575,7 +581,13 @@ function CompactUsage() {
         </div>
       </div>
       {expanded && (
-        <Suspense fallback={<div className="teacher-usage-card teacher-usage-card--skeleton" aria-hidden="true" />}>
+        <Suspense
+          fallback={
+            <div className="teacher-usage-card teacher-usage-card--skeleton" role="status">
+              <span className="sr-only">Loading usage details…</span>
+            </div>
+          }
+        >
           <UsageMeter />
         </Suspense>
       )}

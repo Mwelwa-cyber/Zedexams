@@ -55,6 +55,40 @@ function firebaseMessagingSwConfig(env) {
   }
 }
 
+/**
+ * Per-chunk size budgets. Vite's chunkSizeWarningLimit is one global
+ * threshold, but the chunk profile here has a deliberate outlier: `pdfjs`
+ * bundles the legacy PDF.js core AND its worker module into one lazy chunk
+ * (~1.74 MB minified) so old Android WebViews never have to spawn a module
+ * Worker — see src/utils/pdfjsLoader.js for why that's load-bearing. One
+ * global limit must therefore either nag on every build (limit below pdfjs)
+ * or go blind to regressions in every other chunk (limit above it). Instead:
+ * pdfjs gets its own cap with modest headroom, everything else keeps the
+ * tight one. A warning from this plugin is a real signal — a heavy dep fell
+ * into the wrong chunk (check rollupOptions.output.manualChunks below) or a
+ * dependency upgrade ballooned a chunk.
+ */
+function chunkSizeBudgets({ defaultBudget, budgets }) {
+  return {
+    name: 'chunk-size-budgets',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      for (const [fileName, output] of Object.entries(bundle)) {
+        if (output.type !== 'chunk') continue
+        // Minified size (esbuild minify runs in renderChunk, before this
+        // hook), pre-gzip — the same number Vite prints in its size report.
+        const size = Buffer.byteLength(output.code, 'utf8')
+        const budget = budgets[output.name] ?? defaultBudget
+        if (size > budget) {
+          this.warn(
+            `${fileName} is ${Math.round(size / 1000)} kB — over the ${Math.round(budget / 1000)} kB budget for '${output.name}'.`
+          )
+        }
+      }
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
@@ -111,9 +145,12 @@ export default defineConfig(({ mode }) => {
           // the same-origin app-assets rule in runtimeCaching below — that keeps
           // them working offline after the first online load, without taxing the
           // install for everyone).
-          //   • pdf.worker* (2.3 MB) + pdfjs-* (~409 kB) — past-paper viewer only
-          //   • docx-vendor-* (~430 kB) — teacher Word export only
-          //   • pdf-vendor-*  (~400 kB) — jsPDF/html2canvas, teacher PDF export only
+          //   • pdfjs-* (~1.74 MB — legacy PDF.js core + its worker in one
+          //     lazy chunk, see src/utils/pdfjsLoader.js) — PDF viewers only.
+          //     No separate pdf.worker asset ships anymore; its pattern stays
+          //     as a guard in case a workerSrc path ever comes back.
+          //   • docx-vendor-* (~369 kB) — teacher Word export only
+          //   • pdf-vendor-*  (~540 kB) — jsPDF/html2canvas, teacher PDF export only
           //   • notes/*.png — study-note diagrams, runtime-cached on first view
           //   • studio/vendor/** — vendored html-docx converter, fetched on demand
           globIgnores: [
@@ -225,22 +262,28 @@ export default defineConfig(({ mode }) => {
         },
       }),
       firebaseMessagingSwConfig(env),
+      chunkSizeBudgets({
+        // Everything except pdfjs must stay under the classic 900 kB bar.
+        // Current profile (minified, 2026-07): pdfjs 1734 kB, buildExtensions
+        // 727 kB, pdf-vendor 540 kB, vendor 441 kB, docx-vendor 369 kB,
+        // firebase-firestore 328 kB, index (the SPA entry) 204 kB.
+        defaultBudget: 900_000,
+        // pdfjs = legacy PDF.js core + its worker, deliberately one lazy
+        // chunk (src/utils/pdfjsLoader.js). Headroom is modest on purpose so
+        // a pdfjs-dist upgrade that grows it still trips the warning.
+        budgets: { pdfjs: 1_800_000 },
+      }),
     ],
     build: {
       outDir: 'dist',
-      // The original warning fired on a 1.48 MB catch-all `vendor` chunk —
-      // the whole @firebase/* SDK had fallen into it. The manualChunks split
-      // below routes the heavy deps into capped, independently-cached chunks
-      // (largest now: sentry-vendor ~479 kB lazy, firebase-firestore ~411 kB,
-      // pdfjs ~409 kB on-demand). The one chunk still over the limit is
-      // `index` — the SPA entry: the app shell plus shared code reachable from
-      // the static graph (contexts, nav, banners, shared UI/hooks/utils).
-      // Every route in App.jsx is already React.lazy, so this is genuine
-      // common code, not un-split routes; it's 842 kB raw but 252 kB gzipped,
-      // which is reasonable for an entry chunk. The limit is set to 900 so the
-      // warning still fires on a real regression (a heavy dep slipping into a
-      // chunk) without nagging about the known shell.
-      chunkSizeWarningLimit: 900,
+      // Chunk-size policing lives in the chunkSizeBudgets plugin above: the
+      // known ~1.74 MB pdfjs chunk (legacy core + bundled worker, lazy,
+      // precache-excluded) gets its own cap, every other chunk keeps the
+      // tight 900 kB one. Vite's single global threshold can't express that,
+      // so it's parked just above pdfjs as a backstop — a healthy build emits
+      // no size warnings at all, and any warning that does appear (from
+      // either mechanism) is a real regression, not known-outlier noise.
+      chunkSizeWarningLimit: 1800,
       rollupOptions: {
         output: {
           manualChunks(id) {

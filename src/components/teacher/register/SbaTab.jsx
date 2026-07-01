@@ -14,7 +14,8 @@
  */
 
 import { useState } from 'react'
-import { createRecordFromRoster } from '../../../utils/classRecords'
+import { createRecordFromRoster, listRecords } from '../../../utils/classRecords'
+import { listTeacherRegisters } from '../../../utils/classRegister'
 import { maxTotalOf } from '../../../utils/classRecordMath'
 import { gatherCrossYearSbaMarks } from '../../../utils/sbaCrossYear'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -132,10 +133,12 @@ function FinalForm({ register, roster, onCreated, onCancel }) {
     try {
       // Pull each learner's G5/G6/G7 /10 from this teacher's own registers
       // (matched by linked account, then by name) for the chosen subject.
+      // The Firestore services are injected — sbaCrossYear stays free of
+      // Firestore imports so its node test can load it directly.
       let marks = {}
       if (autoFill) {
         const active = roster.filter((r) => r.status === 'active')
-        marks = await gatherCrossYearSbaMarks(currentUser.uid, subject, active)
+        marks = await gatherCrossYearSbaMarks(currentUser.uid, subject, active, { listTeacherRegisters, listRecords })
       }
       const subjLabel = SBA_SUBJECTS.find((s) => s.value === subject)?.label || subject
       const id = await createRecordFromRoster({
