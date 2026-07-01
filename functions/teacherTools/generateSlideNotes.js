@@ -4,10 +4,10 @@
  * Produces a LEARNER-facing illustrated slide deck ("Chalkie-style" visual
  * notes) for a Zambian CBC topic, in two passes inside one call:
  *
- *   Pass 1 (text)   — Claude (Sonnet) emits the deck structure + a Recraft-ready
+ *   Pass 1 (text)   — Claude (Sonnet) emits the deck structure + an
  *                     `imagePrompt` for every visual slide. No image URLs yet.
  *   Pass 2 (images) — for each imagePrompt, call the diagram generator
- *                     (Recraft line-art) and write the resulting Storage URL
+ *                     (gpt-image-1 line-art) and write the resulting Storage URL
  *                     back into the slide. Sequential + quota-gated so one
  *                     failed/over-quota image degrades to text-only rather than
  *                     failing the whole deck.
@@ -17,8 +17,8 @@
  * `lessons` collection separately (direct admin flow — see the publish helper
  * in the Notes Studio).
  *
- * Cost note: ~10 images per deck × ~$0.04 (Recraft) ≈ $0.40/deck, paid once at
- * generation time, gated to admins.
+ * Cost note: ~10 images per deck × ~$0.06 (gpt-image-1 medium) ≈ $0.60/deck,
+ * paid once at generation time, gated to admins.
  */
 
 const admin = require("firebase-admin");
@@ -40,10 +40,11 @@ const {runGenerateDiagram} = require("./generateDiagram");
 
 const SLIDE_NOTES_MODEL = process.env.SLIDE_NOTES_MODEL || "claude-sonnet-4-6";
 
-// Recraft charges ~$0.04 per image; mirror that for the per-deck cost estimate.
-const IMAGE_COST_CENTS = 4;
+// gpt-image-1 medium costs ~$0.06 per image; mirror that for the per-deck
+// cost estimate.
+const IMAGE_COST_CENTS = 6;
 
-// Image generation tuning. Recraft round-trips (generate + download to
+// Image generation tuning. Image round-trips (generate + download to
 // Storage) can take 20-40s each, so generating ~10 sequentially blew past the
 // 300s function timeout and the instance was killed (surfacing to the client
 // as a bare "internal"). We instead generate with bounded concurrency and a
@@ -52,8 +53,8 @@ const IMAGE_COST_CENTS = 4;
 // learner reader already renders cleanly.
 const IMAGE_CONCURRENCY = 4;
 // Stop launching new images after this. Budget + a worst-case ~40s in-flight
-// Recraft tail + the upfront Claude call must all fit under the 300s function
-// timeout, so keep this comfortably below it.
+// image-generation tail + the upfront Claude call must all fit under the 300s
+// function timeout, so keep this comfortably below it.
 const IMAGE_PHASE_BUDGET_MS = 180_000;
 
 // Permissive top-level shape — validateSlideNotes() does the strict checking.

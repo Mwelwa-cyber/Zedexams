@@ -102,7 +102,7 @@ const {
 const {
   createGenerateExamPaper,
 } = require("./teacherTools/generateExamPaper");
-// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
+// Teacher Tools — Diagram Generator (gpt-image-1, B&W line art for assessments).
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
@@ -286,8 +286,8 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // Optional. When set, generateDiagram exposes a "colour illustration" style
 // that routes through the Kie.ai image API (Nano Banana et al.) for bright,
-// friendly worksheet illustrations. When unset, the toggle is hidden and the
-// other providers (Recraft line-art / OpenAI photoreal) handle everything.
+// friendly worksheet illustrations. Kie is currently disabled — every style
+// (line-art / photoreal / colour) is served by OpenAI gpt-image-1.
 const kieApiKey = defineSecret("KIE_API_KEY");
 // Lenco (lenco.co) automated payments — ZMW mobile money + card
 // collections. The webhook signing key is derived from this token

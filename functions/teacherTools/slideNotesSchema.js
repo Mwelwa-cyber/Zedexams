@@ -5,7 +5,7 @@
  * LEARNER-facing illustrated slide deck — the "Chalkie-style" visual notes.
  *
  * The critical difference from the other teacherTools validators: this one
- * PRESERVES the per-slide `imagePrompt` (a Recraft-ready description) and an
+ * PRESERVES the per-slide `imagePrompt` (an image-generator description) and an
  * `imageUrl` field that starts empty. The notes/full-lesson validators have no
  * image fields and silently strip them; here the image prompt is load-bearing
  * because a second generation pass (generateSlideNotes' enrichment step) reads
@@ -41,7 +41,7 @@ const MAX_PROCESS_STEPS = 6;
 const MAX_LABELS = 8;
 const MAX_BULLETS = 8;
 
-// Recraft prompts get truncated to 800 chars downstream anyway; clamp early so
+// Image prompts get truncated to 800 chars downstream anyway; clamp early so
 // the deck doc doesn't bloat with runaway prompt strings.
 const MAX_IMAGE_PROMPT = 800;
 

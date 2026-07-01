@@ -305,7 +305,7 @@ export async function nameStagedPictures(pictureIds) {
 
 /**
  * Admin: generate a picture with AI (existing generateDiagram callable —
- * Recraft line art by default) and save it into the bank as active.
+ * gpt-image-1 line art by default) and save it into the bank as active.
  */
 export async function generateBankPicture({ prompt, name, keywords, subject, gradeBand, uid, provider }) {
   const cleanPrompt = String(prompt || '').trim()

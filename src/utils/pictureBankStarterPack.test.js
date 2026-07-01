@@ -18,7 +18,7 @@ console.log('pictureBankStarterPack')
 
   const names = new Set()
   const subjects = new Set(STARTER_SUBJECTS)
-  const providers = new Set(['recraft', 'kie', 'openai'])
+  const providers = new Set(['line_art', 'kie', 'openai'])
   for (const item of STARTER_PACK) {
     assert.ok(item.name && item.name.length <= 120, `bad name: ${item.name}`)
     const lower = item.name.toLowerCase()

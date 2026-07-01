@@ -32,14 +32,14 @@ assert.ok(composeVisualPrompt({}).length > 0, 'empty input yields a fallback')
 
 // resolveGenerationParams maps teacher choices → generateDiagram params.
 const g = resolveGenerationParams({ styleId: 'bw_test_diagram', orientation: 'landscape', sizeId: 'medium' })
-assert.equal(g.provider, 'recraft', 'B&W → recraft')
-assert.equal(g.style, 'line_art', 'B&W → line_art')
+assert.equal(g.provider, 'line_art', 'B&W → line_art provider')
+assert.equal(g.style, 'line_art', 'B&W → line_art style')
 assert.equal(g.size, '1365x1024', 'landscape medium pixel size')
 assert.equal(g.blackAndWhite, true)
 
 const gc = resolveGenerationParams({ styleId: 'colour_illustration', orientation: 'portrait', sizeId: 'large' })
 assert.equal(gc.provider, 'kie', 'colour → kie')
-assert.equal(gc.style, undefined, 'colour has no recraft substyle')
+assert.equal(gc.style, undefined, 'colour has no line-art substyle')
 assert.equal(gc.size, '1024x1707', 'portrait large pixel size')
 assert.equal(gc.blackAndWhite, false)
 
@@ -49,7 +49,7 @@ assert.equal(gr.size, '1024x1024', 'square pixel size')
 
 // Unknown style falls back to the B&W default.
 const gd = resolveGenerationParams({ styleId: 'nope' })
-assert.equal(gd.provider, 'recraft')
+assert.equal(gd.provider, 'line_art')
 
 // clampImageCount stays within the batch range.
 assert.equal(clampImageCount(0), 1)

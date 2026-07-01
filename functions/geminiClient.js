@@ -3,7 +3,7 @@
  *
  * We use the REST endpoint directly (rather than the @google/generative-ai
  * SDK) to keep the deploy bundle small and avoid pulling another SDK with
- * its own auth quirks. Same approach as the Recraft integration.
+ * its own auth quirks. Same approach as the OpenAI image integration.
  *
  * Currently used by the document-import pipeline: Gemini 2.5 Flash's
  * 1M-token context lets it ingest entire textbook chapters without

@@ -26,7 +26,7 @@ export function collectNotesDiagramJobs(notes) {
 
 /**
  * Build a diagram prompt for a single key concept.
- * Keeps the prompt specific enough for Recraft to produce a labelled B&W
+ * Keeps the prompt specific enough for gpt-image-1 to produce a labelled B&W
  * line-art illustration that matches the lesson context.
  */
 export function buildConceptDiagramPrompt(concept, header) {
@@ -50,7 +50,7 @@ export function buildConceptDiagramPrompt(concept, header) {
  * @param {{ onAttach: (conceptIndex, url) => void, provider?: string }} opts
  * @returns {Promise<{ error: string|null }>}
  */
-export async function autoGenerateNotesDiagrams(notes, { onAttach, provider = 'recraft' } = {}) {
+export async function autoGenerateNotesDiagrams(notes, { onAttach, provider = 'line_art' } = {}) {
   const jobs = collectNotesDiagramJobs(notes)
   let error = null
 

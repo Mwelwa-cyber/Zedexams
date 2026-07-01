@@ -17,7 +17,7 @@ import { searchActivePictures, resolvePictureUrl } from '../../utils/pictureBank
 import { generateDiagram } from '../../utils/generateDiagram'
 
 const AI_STYLES = [
-  { provider: 'recraft', label: '🖋 Line art', hint: 'B&W diagrams, prints crisply' },
+  { provider: 'line_art', label: '🖋 Line art', hint: 'B&W diagrams, prints crisply' },
   { provider: 'kie', label: '🎨 Colour illustration', hint: 'Friendly full-colour drawings' },
   { provider: 'openai', label: '📷 Photoreal', hint: 'Photographs of real things' },
 ]
@@ -38,7 +38,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
 
   // AI tab state
   const [prompt, setPrompt] = useState('')
-  const [provider, setProvider] = useState('recraft')
+  const [provider, setProvider] = useState('line_art')
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState('')
   const [aiUrl, setAiUrl] = useState('')

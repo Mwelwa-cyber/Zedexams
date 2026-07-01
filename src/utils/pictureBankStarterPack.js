@@ -1,7 +1,7 @@
 // Picture-bank starter pack — a curated set of core Zambian-curriculum
 // figures an admin can batch-generate so teacher searches hit from day
 // one. Each entry feeds generateBankPicture (existing AI pipeline) with a
-// print-friendly style: 'recraft' = B&W line art (default — photocopies
+// print-friendly style: 'line_art' = B&W line art (default — photocopies
 // crisply; all styles now render via ChatGPT gpt-image-1, the style value
 // only selects the prompt guard), 'kie' = colour illustration for the few
 // items where colour IS the content. Names are what teachers will search;
@@ -12,9 +12,9 @@ export const STARTER_SUBJECTS = Object.freeze([
   'english', 'home_economics', 'technology_studies',
 ])
 
-const sci = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'integrated_science', provider: 'recraft' })
-const math = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'mathematics', provider: 'recraft' })
-const ss = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'social_studies', provider: 'recraft' })
+const sci = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'integrated_science', provider: 'line_art' })
+const math = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'mathematics', provider: 'line_art' })
+const ss = (name, prompt, keywords) => ({ name, prompt, keywords, subject: 'social_studies', provider: 'line_art' })
 
 export const STARTER_PACK = [
   // ── Integrated Science ─────────────────────────────────────────────────
@@ -60,12 +60,12 @@ export const STARTER_PACK = [
   { name: 'Market day scene', prompt: 'Friendly full-colour illustration of a busy Zambian open-air market with stalls of vegetables and fruit, traders and shoppers', keywords: ['market', 'trading', 'community', 'composition'], subject: 'english', provider: 'kie' },
   { name: 'Classroom scene', prompt: 'Friendly full-colour illustration of a Zambian primary school classroom with pupils at desks and a teacher at the chalkboard', keywords: ['classroom', 'school', 'pupils', 'composition'], subject: 'english', provider: 'kie' },
   { name: 'Village homestead scene', prompt: 'Friendly full-colour illustration of a Zambian village homestead with a round thatched house, a maize field and a family doing chores', keywords: ['village', 'home', 'rural', 'composition'], subject: 'english', provider: 'kie' },
-  { name: 'Domestic animals', prompt: 'Clean line-art sheet of common domestic animals: cow, goat, chicken, dog, cat and pig, evenly spaced', keywords: ['domestic animals', 'farm animals', 'cow', 'goat'], subject: '_generic', provider: 'recraft' },
-  { name: 'Wild animals of Zambia', prompt: 'Clean line-art sheet of Zambian wild animals: elephant, lion, zebra, hippo, giraffe and impala, evenly spaced', keywords: ['wild animals', 'wildlife', 'elephant', 'lion'], subject: '_generic', provider: 'recraft' },
-  { name: 'Fruits and vegetables', prompt: 'Clean line-art sheet of common fruits and vegetables: mango, banana, orange, tomato, cabbage and maize cob, evenly spaced', keywords: ['fruits', 'vegetables', 'food', 'healthy eating'], subject: '_generic', provider: 'recraft' },
+  { name: 'Domestic animals', prompt: 'Clean line-art sheet of common domestic animals: cow, goat, chicken, dog, cat and pig, evenly spaced', keywords: ['domestic animals', 'farm animals', 'cow', 'goat'], subject: '_generic', provider: 'line_art' },
+  { name: 'Wild animals of Zambia', prompt: 'Clean line-art sheet of Zambian wild animals: elephant, lion, zebra, hippo, giraffe and impala, evenly spaced', keywords: ['wild animals', 'wildlife', 'elephant', 'lion'], subject: '_generic', provider: 'line_art' },
+  { name: 'Fruits and vegetables', prompt: 'Clean line-art sheet of common fruits and vegetables: mango, banana, orange, tomato, cabbage and maize cob, evenly spaced', keywords: ['fruits', 'vegetables', 'food', 'healthy eating'], subject: '_generic', provider: 'line_art' },
 
   // ── Home Economics / Technology Studies ────────────────────────────────
-  { name: 'Balanced meal plate', prompt: 'Educational line-art plate divided into food groups: energy foods, body-building foods and protective foods, with simple food drawings in each part', keywords: ['food groups', 'balanced diet', 'nutrition'], subject: 'home_economics', provider: 'recraft' },
-  { name: 'Hand-washing steps', prompt: 'Educational line-art sequence of four panels showing hand-washing steps: wetting, soaping, scrubbing, rinsing', keywords: ['hygiene', 'hand washing', 'health'], subject: 'home_economics', provider: 'recraft' },
-  { name: 'Common hand tools', prompt: 'Clean line-art sheet of common hand tools: hammer, saw, screwdriver, pliers, spanner and tape measure, evenly spaced', keywords: ['tools', 'hand tools', 'workshop'], subject: 'technology_studies', provider: 'recraft' },
+  { name: 'Balanced meal plate', prompt: 'Educational line-art plate divided into food groups: energy foods, body-building foods and protective foods, with simple food drawings in each part', keywords: ['food groups', 'balanced diet', 'nutrition'], subject: 'home_economics', provider: 'line_art' },
+  { name: 'Hand-washing steps', prompt: 'Educational line-art sequence of four panels showing hand-washing steps: wetting, soaping, scrubbing, rinsing', keywords: ['hygiene', 'hand washing', 'health'], subject: 'home_economics', provider: 'line_art' },
+  { name: 'Common hand tools', prompt: 'Clean line-art sheet of common hand tools: hammer, saw, screwdriver, pliers, spanner and tape measure, evenly spaced', keywords: ['tools', 'hand tools', 'workshop'], subject: 'technology_studies', provider: 'line_art' },
 ]

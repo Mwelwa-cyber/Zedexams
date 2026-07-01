@@ -6,7 +6,7 @@
 //   1. Admin fills grade / subject / topic.
 //   2. "Generate" calls the `generateVisualNotes` Cloud Function, which writes
 //      a PRIVATE draft to aiGenerations and returns the finished deck (text +
-//      Recraft line-art illustrations). This can take ~30-60s.
+//      gpt-image-1 line-art illustrations). This can take ~30-60s.
 //   3. The deck previews inline using the same SlideNotesReader the learner sees.
 //   4. "Save as draft note" writes it into the lessons collection
 //      (noteFormat='visual_slides') and hands off to the note editor, where the
@@ -29,7 +29,7 @@ import SeoHelmet from '../../../components/seo/SeoHelmet'
 import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
 import '../styles/notes.css'
 
-// Visual-notes generation runs Claude + up to ~10 sequential Recraft calls, so
+// Visual-notes generation runs Claude + up to ~10 sequential image calls, so
 // give the callable plenty of headroom (the function itself caps at 300s).
 const functions = getFunctions(app, 'us-central1')
 const generateVisualNotesCallable = httpsCallable(functions, 'generateVisualNotes', {

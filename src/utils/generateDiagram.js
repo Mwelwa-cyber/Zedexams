@@ -102,7 +102,7 @@ export async function generateDiagram({ prompt, style, size, provider } = {}) {
       prompt: data.prompt || cleanPrompt,
       style: data.style || style || 'line_art',
       size: data.size || size || '1365x1024',
-      provider: data.provider || provider || 'recraft',
+      provider: data.provider || provider || 'line_art',
       sizeBytes: data.sizeBytes || 0,
     }
   } catch (error) {

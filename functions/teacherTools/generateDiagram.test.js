@@ -2,10 +2,10 @@
  * Provider-routing tests for runGenerateDiagram.
  *
  * Recraft was decommissioned (2026-06) and its API key removed: every B&W
- * line-art ("recraft") request is now served directly by gpt-image-1 with the
- * line-art prompt. Explicit `openai` (photoreal) and `kie` (colour) requests
- * are served by gpt-image-1 too (Kie disabled), each keeping its own prompt
- * guard.
+ * line-art ("line_art") request is now served directly by gpt-image-1 with the
+ * line-art prompt. The legacy provider value "recraft" is accepted as an alias
+ * for "line_art". Explicit `openai` (photoreal) and `kie` (colour) requests are
+ * served by gpt-image-1 too (Kie disabled), each keeping its own prompt guard.
  *
  * Plain `node` script (repo convention — no test runner). CI runs these
  * with a root-only `npm ci`, where functions/node_modules does NOT exist,
@@ -238,6 +238,30 @@ async function main() {
   ok("kie + no OpenAI key → failed-precondition config error",
     Boolean(threw) && threw.code === "failed-precondition" &&
     /Image generation is not configured/.test(threw.message));
+
+  // ── 11. Legacy 'recraft' provider value is aliased to 'line_art' ───────────
+  calls.length = 0;
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
+  out = await runGenerateDiagram({
+    uid: "t11", rawInputs: {prompt: "A labelled human ear", provider: "recraft"},
+    openaiKey: "ok", kieKey: "",
+  });
+  ok("legacy recraft → served by openai", out.provider === "openai");
+  const legacyCall = calls.find((c) => c.provider === "openai");
+  ok("legacy recraft → keeps the B&W line-art guard",
+    /black-and-white line art/i.test(legacyCall.body.prompt));
+
+  // ── 12. Explicit 'line_art' provider value keeps the B&W guard ─────────────
+  calls.length = 0;
+  openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
+  out = await runGenerateDiagram({
+    uid: "t12", rawInputs: {prompt: "A labelled human ear", provider: "line_art"},
+    openaiKey: "ok", kieKey: "",
+  });
+  ok("line_art → served by openai", out.provider === "openai");
+  const lineArtProviderCall = calls.find((c) => c.provider === "openai");
+  ok("line_art → keeps the B&W line-art guard",
+    /black-and-white line art/i.test(lineArtProviderCall.body.prompt));
 
   console.log(`\ngenerateDiagram provider routing: ${passed} checks passed`);
 }

@@ -2,7 +2,7 @@
  * Visual Slide-Notes prompt — v1.
  *
  * Produces a LEARNER-facing illustrated slide deck (not teacher delivery
- * notes). The model returns deck structure + a Recraft-ready `imagePrompt` for
+ * notes). The model returns deck structure + an `imagePrompt` for
  * every visual slide; it never returns image URLs. A second pass
  * (generateSlideNotes' enrichment step) turns those prompts into illustrations.
  *

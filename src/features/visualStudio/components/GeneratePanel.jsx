@@ -1,6 +1,6 @@
 /* AI picture generator (brief item 2). Curriculum-aware selectors compose an
    improved prompt, which is sent to the existing `generateDiagram` callable
-   (Recraft B&W line art by default, with OpenAI/Kie for colour/photoreal).
+   (B&W line art by default; all styles render via OpenAI gpt-image-1).
    Results can be opened in the label editor or quick-saved to My Visuals. */
 
 import { useEffect, useMemo, useState } from 'react'

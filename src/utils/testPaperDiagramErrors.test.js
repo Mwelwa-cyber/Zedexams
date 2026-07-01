@@ -49,9 +49,9 @@ assert.match(
 // diagnosable. This is the whole point of the 2026-06 rework.
 const credits = messageFromError({
   code: 'internal',
-  message: 'Diagram redraw failed: Recraft request failed (402): insufficient credits',
+  message: 'Diagram redraw failed: OpenAI image request failed (400): content policy violation',
 })
-assert.match(credits, /Recraft request failed \(402\): insufficient credits/, 'real reason is surfaced')
+assert.match(credits, /OpenAI image request failed \(400\): content policy violation/, 'real reason is surfaced')
 assert.doesNotMatch(credits, /^The diagram service took too long or hit an error/, 'not hidden behind the generic line')
 assert.doesNotMatch(credits, /Diagram redraw failed:/, 'internal prefix is stripped')
 assert.match(credits, /keep \/ clean the original image instead/, 'still points at the no-cost fallback')

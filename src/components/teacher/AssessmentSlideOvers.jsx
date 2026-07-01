@@ -545,17 +545,17 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
  * DIAGRAM GENERATOR (inline mini-form inside AiSlide)
  *
  * Takes a free-form description ("Cross-section of human skin labelled
- * epidermis, dermis, hypodermis"), calls the Recraft-backed callable,
+ * epidermis, dermis, hypodermis"), calls the gpt-image-1-backed callable,
  * and the resulting Storage URL is added as the question image of a
  * fresh "structured" question via the parent's onGenerate handler.
  * ================================================================== */
 function DiagramGeneratorAction({ disabled, onGenerate }) {
   const [prompt, setPrompt] = useState('')
   const [open, setOpen] = useState(false)
-  // 'recraft' = B&W line art (default, cheap, clean on photocopiers).
+  // 'line_art' = B&W line art (default, cheap, clean on photocopiers).
   // 'openai'  = photoreal photograph via gpt-image-1 — better for real-
   //             world subjects (maps, biology specimens, lab apparatus).
-  const [provider, setProvider] = useState('recraft')
+  const [provider, setProvider] = useState('line_art')
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -586,8 +586,8 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => setProvider('recraft')}
-                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+                onClick={() => setProvider('line_art')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'line_art' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'line_art' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 <Icon name="scratch" size={13} /> Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
               </button>

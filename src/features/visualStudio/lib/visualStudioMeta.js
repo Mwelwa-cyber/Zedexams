@@ -11,7 +11,7 @@
  * The image generator (`generateDiagram`) already speaks a fixed vocabulary
  * of providers / styles / pixel sizes (see functions/teacherTools/generateDiagram.js).
  * Visual Studio exposes a friendlier, teacher-facing set of choices and maps
- * them down here — so the UI never has to know Recraft style slugs.
+ * them down here — so the UI never has to know the raw generator style slugs.
  */
 
 // Teacher-facing visual styles. `id` is stored on the asset; `provider` +
@@ -22,7 +22,7 @@ export const VISUAL_STYLES = [
     id: 'bw_test_diagram',
     label: 'Black-and-white test diagram',
     hint: 'Clean line art that photocopies sharply onto a printed test.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'line_art',
     blackAndWhite: true,
   },
@@ -30,7 +30,7 @@ export const VISUAL_STYLES = [
     id: 'labelled_diagram',
     label: 'Labelled diagram',
     hint: 'Line diagram you then label with P, Q, R or full words.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'line_art',
     blackAndWhite: true,
   },
@@ -38,7 +38,7 @@ export const VISUAL_STYLES = [
     id: 'unlabelled_diagram',
     label: 'Unlabelled diagram',
     hint: 'Plain diagram with no labels — add blanks for learners.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'line_art',
     blackAndWhite: true,
   },
@@ -46,7 +46,7 @@ export const VISUAL_STYLES = [
     id: 'line_drawing',
     label: 'Simple line drawing',
     hint: 'Hand-drawn outline feel, light on detail.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'hand_drawn_outline',
     blackAndWhite: true,
   },
@@ -54,7 +54,7 @@ export const VISUAL_STYLES = [
     id: 'photocopy_friendly',
     label: 'Photocopy-friendly picture',
     hint: 'Bolder engraved line work that survives a faint photocopier.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'engraving',
     blackAndWhite: true,
   },
@@ -62,7 +62,7 @@ export const VISUAL_STYLES = [
     id: 'colouring_page',
     label: 'Colouring-page style',
     hint: 'Big bold outlines learners can colour in.',
-    provider: 'recraft',
+    provider: 'line_art',
     genStyle: 'line_art',
     blackAndWhite: true,
   },

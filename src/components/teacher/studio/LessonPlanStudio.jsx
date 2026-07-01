@@ -647,7 +647,7 @@ export default function LessonPlanStudio() {
         : ''
       if (diagramPrompt) {
         setIllustrationStatus('generating')
-        generateDiagram({ prompt: diagramPrompt, provider: 'recraft' })
+        generateDiagram({ prompt: diagramPrompt, provider: 'line_art' })
           .then(({ url }) => {
             const next = [
               {
@@ -765,7 +765,7 @@ export default function LessonPlanStudio() {
     setIllustrationError(null)
     setIllustrationStatus('generating')
     try {
-      const { url } = await generateDiagram({ prompt: text, provider: 'recraft' })
+      const { url } = await generateDiagram({ prompt: text, provider: 'line_art' })
       const next = [
         ...diagrams,
         { stage: pickIllustrationStage(lastPlanJson, mode), url, caption: text },

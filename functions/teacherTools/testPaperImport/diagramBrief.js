@@ -7,8 +7,8 @@
  * detected figure as structured JSON (kind, caption, the parts to label, chart
  * data, maths object groups, …), this module turns that description into:
  *
- *   1. a strict black-and-white, photocopy-safe DIAGRAM PROMPT that OpenAI /
- *      Recraft can redraw from (buildDiagramPrompt), and
+ *   1. a strict black-and-white, photocopy-safe DIAGRAM PROMPT that
+ *      OpenAI gpt-image-1 can redraw from (buildDiagramPrompt), and
  *   2. a LIBRARY QUERY + match scorer so we reuse an existing ZedExams Diagram
  *      Library picture before paying to generate a new one (buildLibraryQuery /
  *      pickReusableDiagram), and

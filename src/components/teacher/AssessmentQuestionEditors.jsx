@@ -639,7 +639,7 @@ function newLabelId() {
 //   - Cap of 20 labels per image (matches the schema cap).
 //
 // Labels render as small white-background pills with a thin border so
-// they remain readable over the B&W line art Recraft produces.
+// they remain readable over the B&W line art gpt-image-1 produces.
 export function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels, onChangeMode, onRemoveImage }) {
   const isIdentify = mode === 'identify'
   const wrapperRef = useRef(null)

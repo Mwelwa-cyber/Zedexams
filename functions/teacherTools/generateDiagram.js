@@ -23,9 +23,10 @@
  *
  * Provider history (2026-06): Recraft (B&W line art) and Kie (colour) were
  * both decommissioned and all image spend consolidated onto OpenAI. The
- * `provider` value on a request now only selects the prompt guard — 'recraft'
- * → B&W line art, 'openai' → realistic photo, 'kie' → colour illustration —
- * and every request is served by gpt-image-1.
+ * `provider` value on a request now only selects the prompt guard —
+ * 'line_art' → B&W line art, 'openai' → realistic photo, 'kie' → colour
+ * illustration — and every request is served by gpt-image-1. The legacy
+ * value 'recraft' is accepted as an alias for 'line_art'.
  */
 
 const crypto = require("crypto");
@@ -39,9 +40,9 @@ const {generateKieImage, KieError} = require("../kieClient");
 
 // Image style presets the callable knows how to route to. All three are now
 // served by OpenAI gpt-image-1 — the value only selects the prompt guard:
-// 'recraft' → B&W line art (the default), 'openai' → realistic photo, 'kie'
-// → full-colour illustration.
-const ALLOWED_PROVIDERS = new Set(["recraft", "openai", "kie"]);
+// 'line_art' → B&W line art (the default), 'openai' → realistic photo, 'kie'
+// → full-colour illustration. Legacy 'recraft' is aliased to 'line_art'.
+const ALLOWED_PROVIDERS = new Set(["line_art", "openai", "kie"]);
 
 // Kie (full-colour illustration) is disabled (2026-06): the owner consolidated
 // all image generation onto OpenAI. Every "kie" request is now served by
@@ -253,12 +254,14 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, kieKey, storageSub
     throw new HttpsError("invalid-argument", "Please describe the diagram you want to generate.");
   }
 
-  // Provider routing selects the prompt guard only: default 'recraft' (B&W
+  // Provider routing selects the prompt guard only: default 'line_art' (B&W
   // line-art), 'openai' (photoreal), 'kie' (colour). All are served by
   // gpt-image-1, so every path needs the OpenAI key. If Kie is ever
   // re-enabled it needs its own key again.
-  const requestedProvider = String((rawInputs && rawInputs.provider) || "recraft").toLowerCase();
-  const provider = ALLOWED_PROVIDERS.has(requestedProvider) ? requestedProvider : "recraft";
+  const requestedProviderRaw = String((rawInputs && rawInputs.provider) || "line_art").toLowerCase();
+  // Legacy alias: older clients/data used 'recraft' for the B&W line-art look.
+  const requestedProvider = requestedProviderRaw === "recraft" ? "line_art" : requestedProviderRaw;
+  const provider = ALLOWED_PROVIDERS.has(requestedProvider) ? requestedProvider : "line_art";
   if (provider === "kie" && KIE_ENABLED && !kieKey) {
     throw new HttpsError(
       "failed-precondition",
@@ -286,7 +289,7 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, kieKey, storageSub
   let modelId;
   let openaiSizeUsed = null;
   // The provider that actually produced the image — differs from the
-  // requested provider when a request routes to gpt-image-1 (recraft/kie).
+  // requested provider when a request routes to gpt-image-1 (line_art/kie).
   let providerUsed = provider;
   if (provider === "kie" && KIE_ENABLED) {
     // Kie is asynchronous (create task → poll). generateKieImage handles
@@ -330,10 +333,10 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, kieKey, storageSub
     storageSource = {bytes: Buffer.from(b64, "base64")};
     modelId = usedModel || "gpt-image-1";
   } else {
-    // The remaining providers — recraft (B&W line art) and a disabled kie
-    // (full colour) — are served by gpt-image-1 using the prompt already built
-    // for the requested provider, so each keeps its own look (line-art vs
-    // colour) while billing to OpenAI.
+    // The remaining providers — line_art (B&W) and a disabled kie (full
+    // colour) — are served by gpt-image-1 using the prompt already built for
+    // the requested provider, so each keeps its own look (line-art vs colour)
+    // while billing to OpenAI.
     providerUsed = "openai";
     openaiSizeUsed = OPENAI_SIZE_BY_CANONICAL_SIZE[size] || "1536x1024";
     const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
@@ -355,7 +358,7 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, kieKey, storageSub
       tool: "diagram",
       generator: providerUsed,
       // Cost reconciliation: mark images whose requested provider was routed to
-      // gpt-image-1 (recraft/kie) so spend reconciles against OpenAI.
+      // gpt-image-1 (line_art/kie) so spend reconciles against OpenAI.
       ...(providerUsed !== provider ? {fallbackFrom: provider} : {}),
       prompt: userPrompt,
       style,
