@@ -299,6 +299,31 @@ export async function enhanceImageFile(fileOrBlob, { blackAndWhite = false } = {
   return { blob, blurScore, width: canvas.width, height: canvas.height }
 }
 
+/**
+ * Enhance a canvas IN PLACE (shadow removal → auto levels → sharpen), reusing
+ * pixels already rasterised — no re-decode. Used by the scanned-paper importer
+ * to clean each rendered page before it's sent to vision OCR, while the caller
+ * keeps the untouched original for the review-screen preview. Returns the blur
+ * score/flag of the ORIGINAL so the caller can warn on a soft page. Never
+ * throws — on any failure it leaves the canvas untouched and reports the score
+ * it managed to read (or Infinity).
+ */
+export function enhanceCanvasInPlace(canvas, { blackAndWhite = false } = {}) {
+  try {
+    const ctx = canvas.getContext('2d')
+    const src = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    let blurScore = Infinity
+    try {
+      blurScore = varianceOfLaplacian(src)
+    } catch { /* blur metric is best-effort */ }
+    const result = enhanceImageData(src, { blackAndWhite })
+    ctx.putImageData(new ImageData(result.data, result.width, result.height), 0, 0)
+    return { blurScore, blurry: isBlurry(blurScore), enhanced: true }
+  } catch {
+    return { blurScore: Infinity, blurry: false, enhanced: false }
+  }
+}
+
 /** Wrap a Blob as a named File so it flows through the existing upload path. */
 export function blobToFile(blob, name = `capture-${Date.now()}.jpg`) {
   try {

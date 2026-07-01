@@ -152,6 +152,18 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
   "  never guess. The teacher sets answers afterwards.",
   "- explanation: ''.",
+  "- confidence: 0-1, how sure you are you read THIS question correctly (wording,",
+  "  options, marks). Use > 0.95 only for crisp, unambiguous PRINTED text; use",
+  "  < 0.8 for anything handwritten, smudged, cut off at a page edge, or",
+  "  ambiguous, so the teacher is asked to check it. Be honest — a low score is a",
+  "  helpful flag, not a failure.",
+  "- source: 'printed' or 'handwritten' — how the item appeared on the paper.",
+  "  HANDWRITING RULE: when a question is handwritten, TRANSCRIBE it to clean,",
+  "  correctly-typed text (fix only obvious spelling/spacing so it reads",
+  "  professionally); NEVER keep it as an image and NEVER describe the",
+  "  handwriting in prose. Set source='handwritten' so the teacher double-checks.",
+  "  Do NOT reword, rephrase, expand or 'improve' the question's meaning — only",
+  "  the teacher may do that later with an explicit Improve/Rewrite action.",
   "- hasDiagram: true when THIS question has its own figure/shape/picture/graph",
   "  printed with it (e.g. a single geometry shape, a Venn diagram, a number",
   "  line). Use the map/diagram passage instead when a figure is shared.",
@@ -351,6 +363,22 @@ const SCANNED_TOOL_SCHEMA = {
         },
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
+        confidence: {
+          type: "number",
+          description:
+            "How confident you are (0-1) that you read THIS question's wording, " +
+            "options and marks correctly. Use < 0.8 for handwritten, smudged, " +
+            "cut-off or ambiguous items so the teacher is asked to check them; " +
+            "use > 0.95 only for crisp, unambiguous printed text.",
+        },
+        source: {
+          type: "string",
+          enum: ["printed", "handwritten"],
+          description:
+            "Whether this question was PRINTED (typeset) or HANDWRITTEN on the " +
+            "original paper. Handwriting must still be transcribed to clean " +
+            "typed text — this flag only tells the teacher to double-check it.",
+        },
         hasDiagram: {type: "boolean"},
         optionsAreImages: {
           type: "boolean",
@@ -693,6 +721,23 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
   const answerLines = WRITTEN_TYPES.has(type) && Number.isFinite(rawAnswerLines) && rawAnswerLines > 0 ?
     Math.min(30, rawAnswerLines) : null;
 
+  // Whether the item was handwritten on the paper. Handwriting is transcribed to
+  // clean typed text regardless (never kept as an image); the flag only routes
+  // the item toward the review band so the teacher double-checks the reading.
+  const source = clampString(raw?.source, 20).toLowerCase() === "handwritten" ?
+    "handwritten" : "printed";
+
+  // Per-question OCR confidence (0-1). Trust the model's own number when it gave
+  // one; otherwise leave it null (the review model treats null as "review", never
+  // auto-approve). Handwritten items are capped below the auto-approve bar so a
+  // confident-looking handwriting read still gets a human glance.
+  let ocrConfidence = Number(raw?.confidence);
+  ocrConfidence = Number.isFinite(ocrConfidence) ?
+    Math.min(1, Math.max(0, ocrConfidence)) : null;
+  if (source === "handwritten" && (ocrConfidence == null || ocrConfidence > 0.9)) {
+    ocrConfidence = 0.9;
+  }
+
   return {
     sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
     text: prompt,
@@ -716,6 +761,8 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
     sharedInstruction: clampString(raw?.instruction, 1200).trim(),
     sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
+    source,
+    ocrConfidence,
     requiresReview: true,
   };
 }
@@ -785,6 +832,57 @@ function reconcileCounts(claudeCount, geminiCount) {
     "extracted — some questions on these pages may be missing. Please check " +
     "against the original."
   );
+}
+
+/**
+ * A 0-1 confidence penalty for a batch where the assist (Gemini) recall count
+ * disagrees with the primary (Claude) extraction count. Model self-reported
+ * confidence is not calibrated, so when the two models disagree about how many
+ * questions are on the page we DON'T trust a high per-question score — we scale
+ * every question's confidence down proportionally to the shortfall, which drops
+ * an over-confident batch out of the auto-approve band and onto the review desk.
+ *
+ * Pure. Returns 0 (no penalty) when the counts agree closely or Gemini gave no
+ * usable number. Capped at 0.5 so a wild Gemini miscount can't zero everything.
+ */
+function countDisagreementPenalty(claudeCount, geminiCount) {
+  if (!Number.isFinite(geminiCount) || geminiCount <= 0) return 0;
+  if (!Number.isFinite(claudeCount) || claudeCount < 0) return 0;
+  // Same 1-question slack reconcileCounts allows for header/example over-counts.
+  const shortfall = geminiCount - 1 - claudeCount;
+  if (shortfall <= 0) return 0;
+  return Math.min(0.5, shortfall / geminiCount);
+}
+
+/**
+ * Apply a batch-level confidence penalty to every question in a section list,
+ * in place-safe fashion (returns the same list). Used to fold the cross-model
+ * disagreement into per-question `ocrConfidence`. Pure aside from the number it
+ * writes back onto each question.
+ */
+function penaliseSectionConfidence(sections, penalty) {
+  if (!(penalty > 0) || !Array.isArray(sections)) return sections;
+  const apply = (q) => {
+    if (!q) return;
+    // Treat null/undefined as "no score" — Number(null) is 0, which would wrongly
+    // read as a known-zero confidence.
+    const c = q.ocrConfidence == null ? NaN : Number(q.ocrConfidence);
+    if (Number.isFinite(c)) {
+      q.ocrConfidence = Math.max(0, Math.min(1, c * (1 - penalty)));
+    } else {
+      // No score to scale — an unread batch is uncertain by definition, so mark
+      // it low enough to require approval rather than leaving it "review".
+      q.ocrConfidence = 0.7;
+    }
+  };
+  for (const section of sections) {
+    if (section?.kind === "passage") {
+      (Array.isArray(section.questions) ? section.questions : []).forEach(apply);
+    } else if (section?.question) {
+      apply(section.question);
+    }
+  }
+  return sections;
 }
 
 // Parse the printed question numbers Gemini reports for a batch. Returns a
@@ -1079,6 +1177,12 @@ async function runScannedQuizImport(
   const countWarning = reconcileCounts(extractedCount, geminiCount);
   if (countWarning) warnings.push(countWarning);
 
+  // Calibration guard: when the assist model saw more questions than we
+  // extracted, don't trust a high per-question confidence — scale it down so the
+  // batch lands on the review desk instead of being silently auto-approved.
+  const disagreement = countDisagreementPenalty(extractedCount, geminiCount);
+  if (disagreement > 0) penaliseSectionConfidence(sections, disagreement);
+
   return {
     sections,
     warnings,
@@ -1106,6 +1210,8 @@ module.exports = {
   sanitiseDiagram,
   sanitiseDiagrams,
   reconcileCounts,
+  countDisagreementPenalty,
+  penaliseSectionConfidence,
   parseGeminiCount,
   parseGeminiNumbers,
   flattenSectionQuestions,

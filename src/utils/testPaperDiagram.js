@@ -24,6 +24,7 @@ import { messageFromError, messageFromTableError } from './testPaperDiagramError
 const functions = getFunctions(app, 'us-central1')
 const redrawCallable = httpsCallable(functions, 'redrawTestPaperDiagram')
 const rebuildTableCallable = httpsCallable(functions, 'rebuildTableFromImage')
+const analyzeLayoutCallable = httpsCallable(functions, 'analyzePaperLayout')
 
 // The product handling options, mirrored client-side so the review UI can render
 // them without a round-trip. Kept in sync with diagramBrief.js. `rebuildsTable`
@@ -32,6 +33,7 @@ const rebuildTableCallable = httpsCallable(functions, 'rebuildTableFromImage')
 export const DIAGRAM_HANDLING_OPTIONS = [
   { id: 'keep_original', label: 'Keep original image', generates: false },
   { id: 'clean_original', label: 'Clean original drawing', generates: false },
+  { id: 'convert_svg', label: 'Convert to editable SVG', generates: false, convertsSvg: true },
   { id: 'redraw', label: 'Redraw using AI', generates: true },
   { id: 'rebuild_as_table', label: 'Rebuild as table', generates: true, rebuildsTable: true },
   { id: 'replace', label: 'Replace with a better educational diagram', generates: true },
@@ -79,6 +81,24 @@ export async function redrawTestPaperDiagram({
     return result?.data || {}
   } catch (error) {
     throw new Error(messageFromError(error))
+  }
+}
+
+/**
+ * Cheap layout-first pass over ONE page image (data URL). Returns the page's
+ * object inventory ({ objects:[{type,box,confidence,route}], summary }). This is
+ * ADVISORY — on any failure it resolves to an empty inventory so the caller can
+ * carry on with the main extraction rather than sinking the whole import.
+ */
+export async function analyzePaperLayout(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') {
+    return { objects: [], summary: { total: 0 }, degraded: true }
+  }
+  try {
+    const result = await withTimeout(analyzeLayoutCallable({ dataUrl }), 65000)
+    return result?.data || { objects: [], summary: { total: 0 }, degraded: true }
+  } catch {
+    return { objects: [], summary: { total: 0 }, degraded: true }
   }
 }
 

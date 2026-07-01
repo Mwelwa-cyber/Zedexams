@@ -42,17 +42,38 @@ test("squares off ragged rows to the header column count", () => {
   ]);
 });
 
-test("caps columns at 6 and rows at 12, trims long cells", () => {
-  const wide = Array.from({length: 9}, (_, i) => `h${i}`);
+test("caps columns at 10 and rows at 16, trims long cells", () => {
+  const wide = Array.from({length: 14}, (_, i) => `h${i}`);
   const longCell = "x".repeat(80);
   const t = normaliseTableData({
     headers: wide,
-    rows: Array.from({length: 20}, () => [longCell, ...wide]),
+    rows: Array.from({length: 24}, () => [longCell, ...wide]),
   });
-  assert.strictEqual(t.headers.length, 6);
-  assert.strictEqual(t.rows.length, 12);
+  assert.strictEqual(t.headers.length, 10);
+  assert.strictEqual(t.rows.length, 16);
   assert.ok(t.rows[0].every((c) => c.length <= 60));
-  assert.ok(t.rows.every((r) => r.length === 6));
+  assert.ok(t.rows.every((r) => r.length === 10));
+});
+
+test("keeps a wide 7-column timetable (no longer truncated at 6)", () => {
+  const headers = ["Time", "Mon", "Tue", "Wed", "Thu", "Fri", "Total"];
+  const t = normaliseTableData({
+    headers,
+    rows: [["08:00", "Eng", "Sci", "Eng", "Maths", "PE", "5"]],
+  });
+  assert.strictEqual(t.headers.length, 7);
+  assert.deepStrictEqual(t.rows[0], ["08:00", "Eng", "Sci", "Eng", "Maths", "PE", "5"]);
+});
+
+test("squares a row shortened by a merged cell up to the column count", () => {
+  // A merged cell the model under-filled leaves a short row; it's padded so the
+  // grid stays rectangular (the prompt asks the model to repeat merged text,
+  // but the normaliser is the safety net).
+  const t = normaliseTableData({
+    headers: ["Term", "Subject", "Mark"],
+    rows: [["Term 1", "English", "72"], ["Term 1", "Science"]],
+  });
+  assert.deepStrictEqual(t.rows[1], ["Term 1", "Science", ""]);
 });
 
 test("synthesises blank headers (so it renders) when there is no header row", () => {
@@ -97,6 +118,17 @@ await asyncTest("rebuilds a pictograph into normalised tableData", async () => {
   assert.strictEqual(res.caption, "Fruit and People");
   assert.deepStrictEqual(res.tableData.headers, ["Fruit", "People"]);
   assert.strictEqual(res.tableData.rows.length, 3);
+});
+
+await asyncTest("preserves a pictograph key in the caption", async () => {
+  const fetchImage = async () => ({ data: "B", mediaType: "image/png" });
+  const readTable = async () => ({
+    headers: ["Fruit", "Learners"],
+    rows: [["Orange", "6"], ["Mango", "10"]],
+    caption: "Each ☺ = 2 learners",
+  });
+  const res = await runRebuildTable({ detected: { kind: "pictograph" } }, { fetchImage, readTable });
+  assert.strictEqual(res.caption, "Each ☺ = 2 learners");
 });
 
 await asyncTest("throws a clear failed-precondition when the image cannot be fetched", async () => {

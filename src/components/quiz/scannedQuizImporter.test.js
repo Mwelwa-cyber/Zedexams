@@ -32,6 +32,8 @@ import {
   runVisionImport,
   buildReviewPageImages,
   groupSectionsIntoParts,
+  reconcileLayoutCoverage,
+  mapWithConcurrency,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -880,6 +882,69 @@ await testAsync('runVisionImport throws when there are no page images', async ()
     () => runVisionImport({ pageImages: [], callVision: async () => ({ sections: [] }), sourceNoun: 'image' }),
     /image pages could be read/i,
   )
+})
+
+// ── layout-first pass (Phase 1) ──────────────────────────────────────────────
+test('reconcileLayoutCoverage warns when the layout saw more tables than captured', () => {
+  const sections = [{ kind: 'standalone', question: { diagrams: [] } }]
+  const warning = reconcileLayoutCoverage(sections, { tables: 3, diagrams: 0 })
+  assert.ok(warning && /may have been missed/i.test(warning))
+})
+
+test('reconcileLayoutCoverage is silent within the slack', () => {
+  const sections = [{ kind: 'standalone', question: { diagrams: [{ box: {} }] } }]
+  // Saw 2, captured 1 → within the 1-object slack.
+  assert.equal(reconcileLayoutCoverage(sections, { tables: 2 }), null)
+})
+
+test('reconcileLayoutCoverage returns null with no layout summary', () => {
+  assert.equal(reconcileLayoutCoverage([], null), null)
+})
+
+await testAsync('mapWithConcurrency preserves order and caps in-flight work', async () => {
+  const out = await mapWithConcurrency([1, 2, 3, 4, 5], 2, async (n) => n * 10)
+  assert.deepEqual(out, [10, 20, 30, 40, 50])
+})
+
+await testAsync('runVisionImport runs the optional layout pass and reconciles coverage', async () => {
+  const layoutCalls = []
+  const callVision = async () => ({
+    detectedCount: 1,
+    sections: [{ kind: 'standalone', question: mcq({ text: 'Q1', sourceQuestionNumber: 1 }) }],
+  })
+  const callLayout = async (dataUrl) => {
+    layoutCalls.push(dataUrl)
+    return { summary: { tables: 3, diagrams: 0, questions: 1 } }
+  }
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'p.jpg' },
+    callVision,
+    callLayout,
+    sourceNoun: 'image',
+  })
+  assert.equal(layoutCalls.length, 1) // layout ran once per page
+  assert.ok(out.warnings.some(w => /may have been missed/i.test(w)))
+})
+
+await testAsync('runVisionImport ignores a failing layout pass (advisory)', async () => {
+  const callVision = async () => ({
+    detectedCount: 1,
+    sections: [{ kind: 'standalone', question: mcq({ text: 'Q1', sourceQuestionNumber: 1 }) }],
+  })
+  const callLayout = async () => { throw new Error('layout down') }
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'p.jpg' },
+    callVision,
+    callLayout,
+    sourceNoun: 'image',
+  })
+  // Import still succeeds; no layout reconciliation warning.
+  assert.equal(out.sections.length, 1)
+  assert.ok(!out.warnings.some(w => /may have been missed/i.test(w)))
 })
 
 console.log(`\nscannedQuizImporter: ${passed} passed`)

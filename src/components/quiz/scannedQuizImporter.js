@@ -24,8 +24,9 @@
 import { createStandaloneSection, createPassageSection, createPartGroup } from '../../utils/quizSections.js'
 import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
-import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
+import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
 
 // How detected diagrams are handled when converting a scanned paper. The
 // DEFAULT is 'keep' — many Zambian assessment questions depend on their figure,
@@ -320,6 +321,20 @@ function mapVisionQuestion(q, order, options, deps) {
     reviewNotes,
     sourceQuestionNumber: Number.isFinite(q?.sourceQuestionNumber) ? q.sourceQuestionNumber : order + 1,
     sourcePage: q?.sourcePage ?? null,
+    // Per-question OCR confidence (0-1) drives the review screen's auto-approve
+    // band. null when the backend gave no score (treated as "review", never
+    // auto-approved). Handwritten items arrive capped below the auto bar.
+    ocrConfidence: Number.isFinite(q?.ocrConfidence) ? q.ocrConfidence : null,
+    source: q?.source === 'handwritten' ? 'handwritten' : 'printed',
+    // Whether the stem carried maths markup (\frac, $…$, [[vmath]]). Maths OCR
+    // is the least reliable read, so the review screen asks the teacher to
+    // confirm it renders correctly before publishing.
+    hasMath: hasImportMarkup(rawStem),
+  }
+  // A handwritten stem is worth a visible note so the teacher checks the typed
+  // transcription — the wording was inferred from handwriting, not printed text.
+  if (q?.source === 'handwritten') {
+    reviewNotes.push('Transcribed from handwriting — check the typed wording matches the original.')
   }
 
   // Structured extras the OCR read off the paper, pre-populating the right
@@ -584,6 +599,51 @@ export function countDetectedDiagrams(rawSections = []) {
     }
     return total + ofItem(section?.question || section)
   }, 0)
+}
+
+/**
+ * Run `fn` over `items` with at most `limit` in flight at once. Preserves input
+ * order in the result. Small, dependency-free — used to parallelise the cheap
+ * per-page layout pass without hammering the callable.
+ */
+export async function mapWithConcurrency(items = [], limit = 4, fn) {
+  const list = Array.isArray(items) ? items : []
+  const results = new Array(list.length)
+  let cursor = 0
+  const workers = new Array(Math.max(1, Math.min(limit, list.length))).fill(0).map(async () => {
+    while (cursor < list.length) {
+      const i = cursor
+      cursor += 1
+      results[i] = await fn(list[i], i)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+/**
+ * Compare what the cheap layout pass SAW on the pages against what the
+ * extraction actually captured, and return a warning when the layout detected
+ * notably more structured objects (tables/pictographs/diagrams) than were
+ * reconstructed — the "a table went missing" signal. Advisory + pure: given an
+ * aggregate layout summary ({ tables, diagrams }) and the merged sections,
+ * returns a warning string or null. Never throws; a missing/empty layout
+ * summary yields null so the importer degrades to no layout reconciliation.
+ */
+export function reconcileLayoutCoverage(rawSections = [], layoutSummary = null) {
+  if (!layoutSummary || typeof layoutSummary !== 'object') return null
+  const sawTables = Number(layoutSummary.tables) || 0
+  const capturedFigures = countDetectedDiagrams(rawSections)
+  // Only warn on a meaningful shortfall (layout saw ≥2 more structured objects
+  // than were captured) — a 1-object slack absorbs the usual detector noise.
+  if (sawTables > 0 && capturedFigures + 1 < sawTables) {
+    return (
+      `The page scan spotted about ${sawTables} table/figure${sawTables === 1 ? '' : 's'} ` +
+      `but ${capturedFigures} were reconstructed — check the pages for a table or ` +
+      'diagram that may have been missed.'
+    )
+  }
+  return null
 }
 
 /** Human-readable "21, 22, 47 and 3 more" for a list of missing numbers. */
@@ -907,7 +967,7 @@ async function attachQuestionDiagrams(localSections, assetByPage, usedAssetIds, 
  * diagram/map questions). `onProgress({ phase, current, total })` reports
  * rendering progress for the UI.
  */
-export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGES, onProgress, targetWidth = 1500 } = {}) {
+export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGES, onProgress, targetWidth = 1500, enhance = true } = {}) {
   const total = Math.min(pdf.numPages, maxPages)
   const pageImages = []
   const assetByPage = {}
@@ -928,10 +988,22 @@ export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGE
       canvas.height = Math.ceil(viewport.height)
       const context = canvas.getContext('2d', { alpha: false })
       await page.render({ canvasContext: context, viewport }).promise
-      const dataUrl = canvasToDataUrl(canvas)
-      pageImages.push({ pageNumber, dataUrl })
-      const blob = dataUrlToBlob(dataUrl)
+      // Keep the ORIGINAL render for the review-screen preview + any figure the
+      // teacher keeps; send an ENHANCED copy (de-shadowed, levelled, sharpened)
+      // to vision for a cleaner OCR read. Enhance for the machine, preserve the
+      // original for the human.
+      const originalDataUrl = canvasToDataUrl(canvas)
+      const blob = dataUrlToBlob(originalDataUrl)
       if (blob) assetByPage[pageNumber] = makePageAsset(blob, pageNumber)
+      let visionDataUrl = originalDataUrl
+      if (enhance) {
+        const { blurry } = enhanceCanvasInPlace(canvas, { blackAndWhite: false })
+        visionDataUrl = canvasToDataUrl(canvas)
+        if (blurry) {
+          warnings.push(`Page ${pageNumber} looks blurry — a sharper scan reads more accurately.`)
+        }
+      }
+      pageImages.push({ pageNumber, dataUrl: visionDataUrl })
     } catch {
       warnings.push(`Could not render page ${pageNumber} for reading.`)
     }
@@ -947,7 +1019,7 @@ export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGE
  * scaled down to the target width; small screenshots are scaled up to at most 2×
  * so text stays legible — mirroring the scanned-PDF page heuristic.
  */
-async function rasterizeImageFile(file, targetWidth = 1500) {
+async function rasterizeImageFile(file, targetWidth = 1500, { enhance = true } = {}) {
   const url = URL.createObjectURL(file)
   try {
     const img = await loadImage(url)
@@ -960,8 +1032,17 @@ async function rasterizeImageFile(file, targetWidth = 1500) {
     canvas.height = Math.max(1, Math.round(H * scale))
     const ctx = canvas.getContext('2d', { alpha: false })
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    const dataUrl = canvasToDataUrl(canvas)
-    return { dataUrl, blob: dataUrlToBlob(dataUrl) }
+    // Original for the preview/asset; enhanced copy for vision (see the PDF path).
+    const originalDataUrl = canvasToDataUrl(canvas)
+    const blob = dataUrlToBlob(originalDataUrl)
+    let visionDataUrl = originalDataUrl
+    let blurry = false
+    if (enhance) {
+      const res = enhanceCanvasInPlace(canvas, { blackAndWhite: false })
+      visionDataUrl = canvasToDataUrl(canvas)
+      blurry = res.blurry
+    }
+    return { dataUrl: visionDataUrl, blob, blurry }
   } finally {
     if (canRevokeObjectUrl()) URL.revokeObjectURL(url)
   }
@@ -973,7 +1054,7 @@ async function rasterizeImageFile(file, targetWidth = 1500) {
  * image becomes one page (in selection order). `onProgress({ phase, current,
  * total })` reports rasterising progress for the UI.
  */
-export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX_IMAGES, onProgress, targetWidth = 1500 } = {}) {
+export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX_IMAGES, onProgress, targetWidth = 1500, enhance = true } = {}) {
   const list = normalizeImportInput(files)
   const total = Math.min(list.length, maxImages)
   const pageImages = []
@@ -986,9 +1067,12 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
   for (let i = 0; i < total; i += 1) {
     const pageNumber = i + 1
     try {
-      const { dataUrl, blob } = await rasterizeImageFile(list[i], targetWidth)
+      const { dataUrl, blob, blurry } = await rasterizeImageFile(list[i], targetWidth, { enhance })
       pageImages.push({ pageNumber, dataUrl })
       if (blob) assetByPage[pageNumber] = makePageAsset(blob, pageNumber)
+      if (blurry) {
+        warnings.push(`"${list[i]?.name || `Image ${pageNumber}`}" looks blurry — a sharper photo reads more accurately.`)
+      }
     } catch {
       warnings.push(`Could not read "${list[i]?.name || `image ${pageNumber}`}" for import.`)
     }
@@ -1011,7 +1095,15 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
 export function groupSectionsIntoParts(sections = [], deps = {}) {
   const makePart = deps.createPart || createPartGroup
   const labelOf = (section) => {
-    if (section?.kind === 'passage') return String(section.passage?.sectionTitle || '').trim()
+    if (section?.kind === 'passage') {
+      // A passage rarely carries its own section heading — the "Section A" label
+      // usually sits on its questions. Fall back to the first question's title so
+      // the passage is grouped with the questions it belongs to, not orphaned.
+      const own = String(section.passage?.sectionTitle || '').trim()
+      if (own) return own
+      const firstQ = Array.isArray(section.passage?.questions) ? section.passage.questions[0] : null
+      return String(firstQ?.sectionTitle || '').trim()
+    }
     return String(section?.question?.sectionTitle || '').trim()
   }
   const parts = []
@@ -1052,6 +1144,7 @@ export async function runVisionImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   sourceNoun = 'scanned paper',
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
@@ -1060,6 +1153,31 @@ export async function runVisionImport({
     throw new Error(`None of the ${sourceNoun} pages could be read for import.`)
   }
   const handling = normaliseDiagramHandling(diagramHandling)
+
+  // ── Optional layout-first pass ─────────────────────────────────────────────
+  // When a cheap layout classifier is wired, inventory each page's objects
+  // (in bounded parallel) BEFORE extraction so we can reconcile coverage. This
+  // is advisory: any failure yields an empty inventory and we carry on. Runs
+  // once per page (no duplicate pages within an import → nothing to cache
+  // beyond this single pass).
+  let layoutSummary = null
+  if (typeof callLayout === 'function') {
+    try {
+      const perPage = await mapWithConcurrency(pageImages, 4, (p) =>
+        callLayout(p.dataUrl).catch(() => null),
+      )
+      layoutSummary = perPage.reduce((acc, res) => {
+        const s = res && res.summary
+        if (!s) return acc
+        acc.tables += Number(s.tables) || 0
+        acc.diagrams += Number(s.diagrams) || 0
+        acc.questions += Number(s.questions) || 0
+        return acc
+      }, { tables: 0, diagrams: 0, questions: 0 })
+    } catch {
+      layoutSummary = null
+    }
+  }
 
   const runBatch = async (pages, phase, current, total) => {
     onProgress?.({ phase, current, total })
@@ -1143,6 +1261,11 @@ export async function runVisionImport({
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
+  // Layout-vs-extraction reconciliation: if the cheap layout pass saw more
+  // tables/figures than we reconstructed, surface it so a missed table is
+  // visible rather than silently dropped.
+  const layoutWarning = reconcileLayoutCoverage(merged.sections, layoutSummary)
+  if (layoutWarning && !warnings.includes(layoutWarning)) warnings.push(layoutWarning)
   // Diagram handling notices: never silently drop figures.
   const detectedDiagramCount = countDetectedDiagrams(merged.sections)
   if (handling === 'text' && detectedDiagramCount > 0) {
@@ -1215,6 +1338,7 @@ export async function runScannedImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
@@ -1233,6 +1357,7 @@ export async function runScannedImport({
     subjectHint,
     gradeHint,
     callVision,
+    callLayout,
     onProgress,
     sourceNoun: 'scanned paper',
     diagramHandling,
@@ -1250,6 +1375,7 @@ export async function runImageImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
@@ -1269,6 +1395,7 @@ export async function runImageImport({
     subjectHint,
     gradeHint,
     callVision,
+    callLayout,
     onProgress,
     sourceNoun: list.length > 1 ? 'images' : 'image',
     diagramHandling,

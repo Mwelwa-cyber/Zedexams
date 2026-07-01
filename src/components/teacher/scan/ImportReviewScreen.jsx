@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Button from '../../ui/Button'
 import ImageCropModal from '../../quiz/ImageCropModal'
@@ -7,7 +7,9 @@ import {
   buildReviewModel,
   pageKey,
   isReviewComplete,
+  autoApprovedPageKeys,
 } from './importReviewModel'
+import { CONFIDENCE_BANDS } from '../../../utils/objectConfidence'
 
 /**
  * ImportReviewScreen — the photo-import review step for the Test Paper Studio.
@@ -60,10 +62,31 @@ export default function ImportReviewScreen({
     [sections, pageImageUrls],
   )
 
+  // Seed the approved set once with pages the confidence system judged safe to
+  // auto-approve (>95% on every question, no outstanding issue). The teacher can
+  // still uncheck any of them; we only ever pre-check, never lock.
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (!open) {
+      seededRef.current = false
+      return
+    }
+    if (seededRef.current) return
+    const auto = autoApprovedPageKeys(model)
+    if (auto.size) setApproved((prev) => new Set([...prev, ...auto]))
+    seededRef.current = true
+  }, [open, model])
+
   if (!open) return null
 
   const { summary } = model
   const complete = isReviewComplete(model, approved)
+
+  // Approve every page the confidence system flagged auto-approvable in one tap.
+  function approveAllHighConfidence() {
+    const auto = autoApprovedPageKeys(model)
+    if (auto.size) setApproved((prev) => new Set([...prev, ...auto]))
+  }
 
   function toggleApproved(page) {
     const key = pageKey(page)
@@ -84,12 +107,36 @@ export default function ImportReviewScreen({
     if (result?.action === 'rebuilt_table' && result.tableData) {
       // The figure becomes an editable typed table — drop the image (and any
       // stacked extras) so the question renders the table, not the photo.
-      onPatchItem(item, {
+      const patch = {
         tableData: result.tableData,
         imageUrl: '',
         imageAssetId: '',
         images: [],
         diagramText: '',
+      }
+      // Preserve a pictograph KEY/legend (e.g. "Each ☺ = 2 learners") so its
+      // meaning isn't lost when the drawings become counts. It's reading context
+      // for the table, so it belongs in the shared instruction — never the stem.
+      const caption = String(result.caption || '').trim()
+      if (caption && /=/.test(caption)) {
+        const existing = String(item.ref?.sharedInstruction || '').trim()
+        patch.sharedInstruction = existing && !existing.includes(caption)
+          ? `${existing} (${caption})`
+          : caption
+      }
+      onPatchItem(item, patch)
+      return
+    }
+    if (result?.action === 'converted_svg' && result.imageDiagram) {
+      // The figure becomes a true editable vector shape ({libraryKey, params})
+      // rendered by DiagramSvg — drop the photo (and any stacked extras).
+      onPatchItem(item, {
+        imageDiagram: result.imageDiagram,
+        imageUrl: '',
+        imageAssetId: '',
+        images: [],
+        diagramText: '',
+        tableData: null,
       })
       return
     }
@@ -122,6 +169,7 @@ export default function ImportReviewScreen({
           <p className="text-xs theme-text-muted">
             {summary.totalItems} question{summary.totalItems === 1 ? '' : 's'} on{' '}
             {summary.pageCount} page{summary.pageCount === 1 ? '' : 's'}
+            {summary.autoApprovable ? ` · ${summary.autoApprovable} auto-approved` : ''}
             {summary.needsReview ? ` · ${summary.needsReview} to check` : ''}
             {summary.noAnswer ? ` · ${summary.noAnswer} need an answer` : ''}
             {summary.missingDiagrams ? ` · ${summary.missingDiagrams} missing figure` : ''}
@@ -129,6 +177,11 @@ export default function ImportReviewScreen({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {summary.autoApprovable > 0 ? (
+            <Button variant="ghost" size="sm" onClick={approveAllHighConfidence}>
+              Approve all high-confidence
+            </Button>
+          ) : null}
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>
@@ -258,6 +311,26 @@ function StatusChip({ status }) {
   )
 }
 
+// Confidence readout coloured by band: green when auto-approvable, amber for
+// review, red when the teacher must confirm. The percentage is the model's own
+// read/detection confidence for this object.
+function ConfidenceChip({ pct, band }) {
+  const cls =
+    band === CONFIDENCE_BANDS.AUTO
+      ? 'bg-green-600 text-white'
+      : band === CONFIDENCE_BANDS.APPROVE
+        ? 'bg-[color:var(--danger)] text-white'
+        : 'theme-bg-subtle theme-text-muted'
+  return (
+    <span
+      className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${cls}`}
+      title="How confident the AI is it read this object correctly"
+    >
+      {pct}% confidence
+    </span>
+  )
+}
+
 function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, onClean }) {
   const ref = item.ref || {}
   const { signals } = item
@@ -282,9 +355,7 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
         <div className="flex flex-wrap items-center gap-1 justify-end">
           <StatusChip status={status} />
           {confidencePct != null ? (
-            <span className="text-[11px] font-bold theme-text-muted" title="Figure detection confidence">
-              {confidencePct}% match
-            </span>
+            <ConfidenceChip pct={confidencePct} band={signals.band} />
           ) : null}
           {signals.issues.map((issue) => (
             <Badge key={issue} tone={issue === 'No answer' || issue === 'Missing diagram' ? 'danger' : 'warn'}>

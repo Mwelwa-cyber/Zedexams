@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import {
   boxBlurChannel, autoLevels, binarize, removeShadows,
   adjustBrightnessContrast, varianceOfLaplacian, isBlurry,
-  enhanceImageData, BLUR_SCORE_THRESHOLD,
+  enhanceImageData, enhanceCanvasInPlace, BLUR_SCORE_THRESHOLD,
 } from '../src/utils/imageEnhance.js'
 import {
   resolveImageWidthPercent, normaliseImageWidth, IMAGE_WIDTH_OPTIONS, DEFAULT_IMAGE_WIDTH,
@@ -153,6 +153,46 @@ test('varianceOfLaplacian separates sharp from flat images', () => {
   assert.ok(flat < BLUR_SCORE_THRESHOLD)
   assert.ok(isBlurry(flat))
   assert.ok(!isBlurry(sharp))
+})
+
+// ── enhanceCanvasInPlace (browser wrapper, exercised with a fake canvas) ──────
+// Polyfill the ImageData the wrapper constructs when writing pixels back.
+if (typeof globalThis.ImageData === 'undefined') {
+  globalThis.ImageData = class {
+    constructor(data, width, height) { this.data = data; this.width = width; this.height = height }
+  }
+}
+
+function fakeCanvas(w, h, { failContext = false } = {}) {
+  const src = flatImage(w, h, 128)
+  let put = null
+  return {
+    width: w,
+    height: h,
+    _put: () => put,
+    getContext() {
+      if (failContext) throw new Error('no 2d context')
+      return {
+        getImageData: () => src,
+        putImageData: (imgData) => { put = imgData },
+      }
+    },
+  }
+}
+
+test('enhanceCanvasInPlace enhances and writes pixels back', () => {
+  const canvas = fakeCanvas(16, 16)
+  const res = enhanceCanvasInPlace(canvas, { blackAndWhite: false })
+  assert.equal(res.enhanced, true)
+  assert.ok(canvas._put(), 'putImageData should have been called')
+  assert.equal(canvas._put().width, 16)
+})
+
+test('enhanceCanvasInPlace never throws on a bad canvas', () => {
+  const canvas = fakeCanvas(16, 16, { failContext: true })
+  const res = enhanceCanvasInPlace(canvas)
+  assert.equal(res.enhanced, false)
+  assert.equal(res.blurry, false)
 })
 
 console.log(`\nAll ${passed} image-enhance tests passed.`)

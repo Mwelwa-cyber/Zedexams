@@ -19,6 +19,8 @@ const {
   sanitiseDiagram,
   sanitiseDiagrams,
   reconcileCounts,
+  countDisagreementPenalty,
+  penaliseSectionConfidence,
   parseGeminiCount,
   buildClaudeMessages,
   buildGeminiImages,
@@ -801,6 +803,64 @@ test("carries the printed section heading", () => {
     [1],
   );
   assert.equal(q.sectionTitle, "Section B");
+});
+
+// ── per-question confidence + source ─────────────────────────────────────────
+test("captures a model confidence score, clamped to 0..1", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Pick one", options: ["a", "b"], confidence: 0.97},
+    [1],
+  );
+  assert.equal(q.ocrConfidence, 0.97);
+  assert.equal(q.source, "printed");
+});
+
+test("clamps an out-of-range confidence", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Pick one", options: ["a", "b"], confidence: 5},
+    [1],
+  );
+  assert.equal(q.ocrConfidence, 1);
+});
+
+test("leaves confidence null when the model gave none", () => {
+  const q = normaliseScannedQuestion({prompt: "Pick one", options: ["a", "b"]}, [1]);
+  assert.equal(q.ocrConfidence, null);
+});
+
+test("caps a handwritten item below the auto-approve bar", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Explain photosynthesis", options: [], questionType: "short_answer", source: "handwritten", confidence: 0.99},
+    [1],
+  );
+  assert.equal(q.source, "handwritten");
+  assert.ok(q.ocrConfidence <= 0.9, "handwriting is never auto-approved on the model's word");
+});
+
+// ── cross-model disagreement penalty ─────────────────────────────────────────
+test("no penalty when Claude matched or beat Gemini's count", () => {
+  assert.equal(countDisagreementPenalty(10, 10), 0);
+  assert.equal(countDisagreementPenalty(10, 9), 0);
+  assert.equal(countDisagreementPenalty(10, 0), 0); // no usable gemini count
+});
+
+test("penalty grows with the shortfall, capped at 0.5", () => {
+  // Gemini saw 20, we extracted 10 → shortfall 9 → 9/20 = 0.45.
+  assert.ok(Math.abs(countDisagreementPenalty(10, 20) - 0.45) < 1e-9);
+  // Huge shortfall is capped so a wild miscount can't zero everything.
+  assert.equal(countDisagreementPenalty(1, 100), 0.5);
+});
+
+test("penaliseSectionConfidence scales every question's confidence down", () => {
+  const sections = [
+    {kind: "standalone", question: {ocrConfidence: 0.98}},
+    {kind: "passage", questions: [{ocrConfidence: 0.9}, {ocrConfidence: null}]},
+  ];
+  penaliseSectionConfidence(sections, 0.5);
+  assert.ok(Math.abs(sections[0].question.ocrConfidence - 0.49) < 1e-9);
+  assert.ok(Math.abs(sections[1].questions[0].ocrConfidence - 0.45) < 1e-9);
+  // An unread (null) question is marked low enough to require approval.
+  assert.equal(sections[1].questions[1].ocrConfidence, 0.7);
 });
 
 console.log(`\nscannedQuizImport: ${passed} passed`);

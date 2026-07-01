@@ -15,8 +15,12 @@
  * rows so the editor never receives a jagged grid.
  */
 
-const TABLE_MAX_COLS = 6;
-const TABLE_MAX_ROWS = 12;
+// Wide enough for real timetables and mark schedules (days-of-week + total),
+// which the old 6-column cap silently truncated. The editor + Word/PDF exporters
+// render whatever column count they're given, so the ceiling is only a guard
+// against a runaway model response.
+const TABLE_MAX_COLS = 10;
+const TABLE_MAX_ROWS = 16;
 const TABLE_CELL_MAX = 60;
 
 function httpsError(code, message) {
@@ -97,7 +101,13 @@ const TABLE_SYSTEM_PROMPT = [
   "- PICTOGRAPHS / TALLIES: when a cell holds repeated drawings or marks (smiley",
   "  faces, circles, tally strokes, fruit icons, stars), COUNT them and write the",
   "  COUNT as the cell text (e.g. \"3\"). If a key states each symbol's value,",
-  "  multiply. Never describe the drawing in prose — just the number.",
+  "  multiply. Never describe the drawing in prose — just the number. Preserve",
+  "  the KEY/LEGEND (e.g. \"Each ☺ = 2 learners\") in `caption` so the meaning is",
+  "  not lost when the drawings become numbers.",
+  "- MERGED CELLS: when one cell visibly spans several columns or rows, REPEAT",
+  "  its text in every column/row position it covers so every row still has the",
+  "  same number of cells and the grid stays rectangular. Never leave a row",
+  "  shorter than the others because of a merge.",
   "- Keep every cell SHORT typed text. Transcribe words as written; do not invent",
   "  rows, columns, headings or data that is not visibly in the table.",
   "- Do not include the question text, instructions, or anything outside the table.",

@@ -25,6 +25,8 @@
  *   - missingAlt     — pictorial options without alt text
  */
 
+import { bandFor, CONFIDENCE_BANDS } from '../../../utils/objectConfidence.js'
+
 export function stripTags(value) {
   return String(value == null ? '' : value)
     .replace(/<[^>]*>/g, ' ')
@@ -87,26 +89,45 @@ export function getItemSignals(item = {}) {
     isIdentifyDiagram &&
     !(Array.isArray(item.diagramLabels) && item.diagramLabels.length > 0)
 
+  // Maths OCR is imperfect, so a stem carrying maths markup is always worth a
+  // human glance to confirm fractions / vertical arithmetic rendered correctly.
+  const checkMath = Boolean(item.hasMath)
+
   const issues = []
   if (noAnswer) issues.push('No answer')
   if (lowConfidence) issues.push('Low confidence')
   if (missingDiagram) issues.push('Missing diagram')
   if (missingLabels) issues.push('Missing labels')
   if (missingAlt) issues.push('Missing alt text')
+  if (checkMath) issues.push('Check maths')
   if (item.requiresReview && !issues.length) issues.push('Check wording')
 
-  // Coarse readiness for the review UI's status chip. A runtime figure failure
-  // (a clean/redraw/rebuild that errored) is tracked in the component and shown
-  // as 'failed' on top of this — the model only knows 'review' vs 'ready'.
-  const status = issues.length > 0 ? 'review' : 'ready'
-
-  // Detection confidence (0..1) for an attached / just-detected figure, when the
-  // importer recorded one. Null for text-only items — we never fabricate one.
-  const confidence = Number.isFinite(item.diagramMeta?.confidence)
+  // Per-object confidence. For a question we prefer the model's OCR read
+  // confidence; for a figure-only item we fall back to the detection confidence.
+  // Null when nothing recorded one — we never fabricate a score.
+  const ocr = Number.isFinite(item.ocrConfidence) ? item.ocrConfidence : null
+  const figureConfidence = Number.isFinite(item.diagramMeta?.confidence)
     ? item.diagramMeta.confidence
     : Number.isFinite(detected[0]?.confidence)
       ? detected[0].confidence
       : null
+  const confidence = ocr != null ? ocr : figureConfidence
+
+  // Three-tier band from the shared policy (>0.95 auto / 0.80-0.95 review /
+  // <0.80 approve; unknown → review). Only a KNOWN score below the auto bar
+  // forces the review chip — an item with no score keeps the legacy
+  // issues-only readiness so older imports don't all flip to "review".
+  const band = confidence == null ? null : bandFor(confidence)
+  const knownBelowAuto = band != null && band !== CONFIDENCE_BANDS.AUTO
+
+  // Coarse readiness for the review UI's status chip. A runtime figure failure
+  // (a clean/redraw/rebuild that errored) is tracked in the component and shown
+  // as 'failed' on top of this — the model only knows 'review' vs 'ready'.
+  const status = issues.length > 0 || knownBelowAuto ? 'review' : 'ready'
+
+  // Strict auto-approve: only a high-confidence item with no outstanding issues
+  // may pre-check its page. Unknown confidence is never auto-approved.
+  const autoApprove = band === CONFIDENCE_BANDS.AUTO && issues.length === 0
 
   return {
     needsReview: Boolean(item.requiresReview),
@@ -117,9 +138,12 @@ export function getItemSignals(item = {}) {
     extraDiagrams,
     missingLabels,
     missingAlt,
+    checkMath,
     issues,
     status,
     confidence,
+    band,
+    autoApprove,
   }
 }
 
@@ -234,6 +258,7 @@ export function summarizeReviewModel(model = {}) {
   let missingDiagrams = 0
   let missingLabels = 0
   let noAnswer = 0
+  let autoApprovable = 0
   pages.forEach((p) => {
     p.items.forEach((item) => {
       if (item.kind === 'passage') {
@@ -248,6 +273,7 @@ export function summarizeReviewModel(model = {}) {
       if (item.signals.missingDiagram) missingDiagrams += 1
       if (item.signals.missingLabels) missingLabels += 1
       if (item.signals.noAnswer) noAnswer += 1
+      if (item.signals.autoApprove) autoApprovable += 1
     })
   })
   return {
@@ -259,7 +285,31 @@ export function summarizeReviewModel(model = {}) {
     missingDiagrams,
     missingLabels,
     noAnswer,
+    autoApprovable,
   }
+}
+
+/**
+ * The set of page keys safe to pre-approve: pages that have at least one
+ * question and whose EVERY question item is high-confidence with no outstanding
+ * issue (`signals.autoApprove`). Passage-only rows (a shared figure) don't block
+ * approval on their own. Unknown-confidence items keep a page out of this set —
+ * the system never silently auto-approves what it isn't sure about.
+ *
+ * @param {object} model the built review model ({ pages })
+ * @returns {Set<string>} page keys (via pageKey) to seed the approved set with
+ */
+export function autoApprovedPageKeys(model = {}) {
+  const pages = Array.isArray(model.pages) ? model.pages : []
+  const keys = new Set()
+  pages.forEach((p) => {
+    const questionItems = p.items.filter((item) => item.kind !== 'passage')
+    if (!questionItems.length) return
+    if (questionItems.every((item) => item.signals?.autoApprove)) {
+      keys.add(pageKey(p.page))
+    }
+  })
+  return keys
 }
 
 /**
