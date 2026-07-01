@@ -324,8 +324,8 @@ function dailyExamCheckWindow(now = new Date()) {
  * error anywhere. So: if the day is empty after the grace window, re-run the
  * picker directly (runAutoPick is idempotent — an existing pick returns
  * already_pinned) and report a warning so the missed cron is investigated.
- * Only a re-run that promotes nothing (empty library, all-long quizzes) is
- * critical — that needs a human to publish content.
+ * Only a re-run that promotes nothing (no published exam papers to pick
+ * from) is critical — that needs a human to publish content.
  *
  * `runPick` is injectable for plain-node tests; the default lazy-requires
  * dailyExamPicker because that module pulls in firebase-functions, which is
