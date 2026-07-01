@@ -9,8 +9,8 @@
  *
  * Design note (2026-06): the redraw used to collapse EVERY `internal` error
  * into one vague "took too long or hit an error" line, hiding the descriptive
- * reason the server attaches ("Diagram redraw failed: Recraft request failed
- * (402)…"). Every distinct failure then looked identical, so a recurring
+ * reason the server attaches ("Diagram redraw failed: OpenAI rejected the image
+ * request…"). Every distinct failure then looked identical, so a recurring
  * redraw failure gave the teacher (and us) nothing to act on. We now surface
  * the server's reason when it has one, and reserve the generic line for the
  * genuine no-message cases: a platform-killed instance ("internal" with no

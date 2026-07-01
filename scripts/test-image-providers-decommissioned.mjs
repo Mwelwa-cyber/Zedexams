@@ -15,11 +15,11 @@
  *   RECRAFT_API_KEY
  *
  * That blocked the entire Deploy Firebase job — and therefore every functions
- * change (including the Smart Notification System backend) — from shipping. This
- * test fails the build if either dead binding is reintroduced, if the RECRAFT
- * consumers stop guarding `.value()` behind a truthiness check (what lets the
- * factories accept a `null` secret without throwing), or if the removed Kie
- * client / imports creep back.
+ * change (including the Smart Notification System backend) — from shipping. Both
+ * providers have since been fully removed (their secrets, HTTP clients, and
+ * provider branches). This test fails the build if either dead binding is
+ * reintroduced, or if the Recraft HTTP integration or the Kie client / imports
+ * creep back.
  *
  * Plain `node`, so it runs inside `npm run test:all` (the required CI check).
  */
@@ -61,44 +61,43 @@ const slideNotesJs = read('functions/teacherTools/generateSlideNotes.js')
 // ── RECRAFT ───────────────────────────────────────────────────────────────
 console.log('\nRECRAFT is decommissioned and must not block deploys')
 
-test('generateDiagram.js keeps RECRAFT_ENABLED = false', () => {
-  assert(
-    /const\s+RECRAFT_ENABLED\s*=\s*false/.test(diagramJs),
-    'RECRAFT_ENABLED is no longer false — if Recraft was genuinely re-enabled, ' +
-      're-declare + re-fund the RECRAFT_API_KEY secret and update this guard.',
-  )
-})
-
 test('functions/index.js does not defineSecret("RECRAFT_API_KEY")', () => {
   assert(
     !/defineSecret\(\s*["']RECRAFT_API_KEY["']\s*\)/.test(indexJs),
     'functions/index.js declares defineSecret("RECRAFT_API_KEY"). The secret was ' +
       'removed from Secret Manager when Recraft was decommissioned, so binding it ' +
       'makes `firebase deploy` hard-fail ("no value for the secret: RECRAFT_API_KEY"). ' +
-      'Pass `null` for the recraft secret to the diagram/redraw/visual-notes factories instead.',
+      'Recraft was removed — every image request renders via gpt-image-1.',
   )
 })
 
-// The RECRAFT consumers must guard `.value()` behind a truthiness check so a
-// `null` recraft secret resolves to "" rather than throwing on .value().
+test('the Recraft HTTP integration was removed from generateDiagram.js', () => {
+  assert(
+    !/external\.api\.recraft\.ai/.test(diagramJs) &&
+      !/RECRAFT_ENDPOINT/.test(diagramJs) &&
+      !/fetchRecraftImage/.test(diagramJs),
+    'generateDiagram.js still references the Recraft HTTP endpoint/client — Recraft ' +
+      'was decommissioned and every "recraft" style now renders via gpt-image-1. If you ' +
+      'are genuinely re-enabling Recraft, re-fund the RECRAFT_API_KEY secret and update this guard.',
+  )
+})
+
+// The image consumers must not carry a Recraft secret parameter or read the key
+// any more — a re-introduced `recraftApiKeySecret` binding or a
+// `process.env.RECRAFT_API_KEY` read is how a bound-but-unset secret would sneak
+// back and break the deploy again. (A bare mention in a "how to re-enable"
+// comment is harmless, so this deliberately does not match plain RECRAFT_API_KEY.)
 for (const [label, src] of [
   ['generateDiagram.js', diagramJs],
   ['redrawTestPaperDiagram.js', redrawJs],
   ['generateSlideNotes.js', slideNotesJs],
 ]) {
-  test(`${label} guards recraftApiKeySecret.value() behind a truthiness check`, () => {
-    // An UNguarded `recraftApiKeySecret.value()` is one not immediately preceded
-    // by the `recraftApiKeySecret ?` ternary test. Strip the guarded form first;
-    // any remaining `.value()` on the secret is the unsafe pattern.
-    const withoutGuarded = src.replace(
-      /recraftApiKeySecret\s*\?\s*\n?\s*\(recraftApiKeySecret\.value\(\)/g,
-      '',
-    )
+  test(`${label} no longer binds or reads a Recraft secret`, () => {
     assert(
-      !/recraftApiKeySecret\.value\(\)/.test(withoutGuarded),
-      `${label} calls recraftApiKeySecret.value() without a preceding ` +
-        '`recraftApiKeySecret ? ...` guard — a null secret (Recraft is disabled) ' +
-        'would throw at runtime. Guard it like the other decommissioned providers.',
+      !/recraftApiKeySecret/.test(src) && !/process\.env\.RECRAFT_API_KEY/.test(src),
+      `${label} still binds/reads a Recraft secret (recraftApiKeySecret or ` +
+        'process.env.RECRAFT_API_KEY) — the Recraft provider was removed. Route ' +
+        'line-art through gpt-image-1 instead.',
     )
   })
 }

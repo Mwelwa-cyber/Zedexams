@@ -1,12 +1,12 @@
 /**
  * Provider-routing tests for runGenerateDiagram.
  *
- * Recraft and Kie were both decommissioned (RECRAFT_ENABLED = false; the Kie
- * provider + KIE_API_KEY secret + kieClient were removed in 2026-07). Every
- * request — whether the caller asks for "recraft" (B&W line art) or "kie"
- * (colour illustration) — is now served by gpt-image-1 with a style-appropriate
- * prompt, so neither the Recraft HTTP endpoint nor any Kie client is ever
- * called. Explicit `openai` (photoreal) is unchanged.
+ * Recraft and Kie were both decommissioned (2026-06/07): their provider
+ * branches, HTTP clients, and API-key secrets were removed. Every request —
+ * whether the caller asks for "recraft" (B&W line art) or "kie" (colour
+ * illustration) — is now served by gpt-image-1 with a style-appropriate prompt,
+ * so neither the Recraft HTTP endpoint nor any Kie client is ever called.
+ * Explicit `openai` (photoreal) is unchanged.
  *
  * Plain `node` script (repo convention — no test runner). CI runs these
  * with a root-only `npm ci`, where functions/node_modules does NOT exist,
@@ -114,7 +114,7 @@ async function main() {
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   let out = await runGenerateDiagram({
     uid: "t1", rawInputs: {prompt: "A labelled human ear"},
-    recraftKey: "rk", openaiKey: "ok",
+    openaiKey: "ok",
   });
   ok("line-art request → provider openai", out.provider === "openai");
   ok("line-art request → model gpt-image-1", out.model === "gpt-image-1");
@@ -127,7 +127,7 @@ async function main() {
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t2", rawInputs: {prompt: "A labelled human ear"},
-    recraftKey: "rk", openaiKey: "ok",
+    openaiKey: "ok",
   });
   const lineArtCall = calls.find((c) => c.provider === "openai");
   ok("line-art keeps the B&W line-art guard",
@@ -139,14 +139,14 @@ async function main() {
   ok("line-art stores the decoded PNG bytes", out.sizeBytes === FAKE_PNG.length);
 
   // ── 3. Line-art request with no OpenAI key → clear config error ────────────
-  // Recraft is disabled, so the OpenAI key is what this path needs; a recraftKey
-  // alone no longer satisfies it.
+  // Recraft is gone, so the OpenAI key is the only thing that satisfies this
+  // path.
   calls.length = 0;
   let threw = null;
   try {
     await runGenerateDiagram({
       uid: "t3", rawInputs: {prompt: "A labelled human ear"},
-      recraftKey: "rk", openaiKey: "",
+      openaiKey: "",
     });
   } catch (err) {
     threw = err;
@@ -155,18 +155,18 @@ async function main() {
     Boolean(threw) && threw.code === "failed-precondition" &&
     /Image generation is not configured/.test(threw.message));
 
-  // ── 4. Recraft key missing entirely → straight to gpt-image-1 ──────────
+  // ── 4. A default (line-art) request is served straight by gpt-image-1 ──────
   calls.length = 0;
   recraftResponse = () => {
-    throw new Error("Recraft must not be called without a key");
+    throw new Error("Recraft must not be called — it is decommissioned");
   };
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t4", rawInputs: {prompt: "A labelled human ear"},
-    recraftKey: "", openaiKey: "ok",
+    openaiKey: "ok",
   });
-  ok("missing Recraft key → served by openai", out.provider === "openai");
-  ok("missing Recraft key → no Recraft HTTP call",
+  ok("line-art → served by openai", out.provider === "openai");
+  ok("line-art → no Recraft HTTP call",
     calls.every((c) => c.provider !== "recraft"));
 
   // ── 5. Explicit photoreal provider still gets the photo guard ──────────
@@ -174,7 +174,7 @@ async function main() {
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t5", rawInputs: {prompt: "A maize plant", provider: "openai"},
-    recraftKey: "rk", openaiKey: "ok",
+    openaiKey: "ok",
   });
   const photoCall = calls.find((c) => c.provider === "openai");
   ok("explicit openai → photoreal guard kept",
@@ -187,7 +187,7 @@ async function main() {
   try {
     await runGenerateDiagram({
       uid: "t6", rawInputs: {prompt: "A labelled human ear"},
-      recraftKey: "", openaiKey: "",
+      openaiKey: "",
     });
   } catch (err) {
     threw = err;
@@ -205,7 +205,7 @@ async function main() {
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t7", rawInputs: {prompt: "A labelled human ear"},
-    recraftKey: "rk", openaiKey: "ok",
+    openaiKey: "ok",
   });
   ok("line-art → provider openai", out.provider === "openai");
   ok("line-art → OpenAI produced the PNG", out.sizeBytes === FAKE_PNG.length);
@@ -228,7 +228,7 @@ async function main() {
   try {
     await runGenerateDiagram({
       uid: "t8", rawInputs: {prompt: "A labelled human ear"},
-      recraftKey: "rk", openaiKey: "ok",
+      openaiKey: "ok",
     });
   } catch (err) {
     threw = err;
@@ -242,7 +242,7 @@ async function main() {
   openaiResponse = () => ok200({data: [{b64_json: FAKE_PNG_B64}]});
   out = await runGenerateDiagram({
     uid: "t9", rawInputs: {prompt: "A market scene", provider: "kie"},
-    recraftKey: "rk", openaiKey: "ok",
+    openaiKey: "ok",
   });
   ok("kie request → provider openai", out.provider === "openai");
   const colourCall = calls.find((c) => c.provider === "openai");
@@ -258,7 +258,7 @@ async function main() {
   try {
     await runGenerateDiagram({
       uid: "t10", rawInputs: {prompt: "A market scene", provider: "kie"},
-      recraftKey: "rk", openaiKey: "",
+      openaiKey: "",
     });
   } catch (err) {
     threw = err;
