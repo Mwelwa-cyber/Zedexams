@@ -42,9 +42,6 @@ const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson'
 const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
-const generateLessonActivitiesCallable = httpsCallable(functions, 'generateLessonActivities', {
-  timeout: 185_000, // server: 180s — can produce a class exercise AND homework
-})
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
@@ -53,9 +50,6 @@ const generateSbaTaskCallable = httpsCallable(functions, 'generateSbaTask', {
 })
 const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
-})
-const generateExamPaperCallable = httpsCallable(functions, 'generateExamPaper', {
-  timeout: 185_000, // server: 180s — up to 60 questions
 })
 const getTermModuleOutlineCallable = httpsCallable(functions, 'getTermModuleOutline', {
   timeout: 35_000, // server: 30s — a couple of small Firestore reads
@@ -753,44 +747,6 @@ export async function generateHomework(inputs) {
 }
 
 /**
- * Generate follow-up assessment activities (a class exercise and/or homework)
- * straight from a lesson in the Lesson Plan Studio. Grounded on the same
- * curriculum module the lesson plan used (grade + subject + topic + sub-topic).
- *
- * `inputs.activities` is 'exercise' | 'homework' | 'both'. Returns
- * { ok, data: { generationId, activities: { exercise, homework }, usage, warning } }.
- */
-export async function generateLessonActivities(inputs) {
-  console.info('[zedexams] generateLessonActivities →', {
-    grade: inputs?.grade, subject: inputs?.subject,
-    topic: inputs?.topic, activities: inputs?.activities,
-  })
-  const startedAt = Date.now()
-  try {
-    const result = await withTimeout(
-      generateLessonActivitiesCallable(inputs),
-      185_000,
-      'generateLessonActivities',
-    )
-    console.info('[zedexams] generateLessonActivities ← ok in',
-      Date.now() - startedAt, 'ms',
-      { generationId: result?.data?.generationId, warning: result?.data?.warning })
-    return { ok: true, data: result.data }
-  } catch (error) {
-    console.error('[zedexams] generateLessonActivities ← FAILED after',
-      Date.now() - startedAt, 'ms',
-      { code: error?.code, message: error?.message },
-    )
-    return {
-      ok: false,
-      error: messageFromError(error),
-      code: error?.code || 'unknown',
-      rawMessage: error?.message || '',
-    }
-  }
-}
-
-/**
  * Generate a formal graded assessment. Grounded on the stored curriculum
  * module when grade+subject+topic+sub-topic+term resolve one. (Distinct
  * from the quiz-editor Assessment Studio — this is a saved, exportable
@@ -901,43 +857,3 @@ export async function generateQuiz(inputs) {
   }
 }
 
-// Exam papers can run to ~60 items, so allow longer than the shared 130s cap.
-const EXAM_PAPER_CLIENT_TIMEOUT_MS = 190_000
-
-/**
- * Generate fresh ECZ Grade 7 PSLE-style practice questions ("Exam Studio").
- * Grounded on the stored curriculum module when grade+subject(+topic) resolve
- * one. Returns { ok, data: { generationId, examPaper, usage, warning } }.
- */
-export async function generateExamPaper(inputs) {
-  console.info('[zedexams] generateExamPaper →', {
-    grade: inputs?.grade, subject: inputs?.subject,
-    topic: inputs?.topic, count: inputs?.count,
-  })
-  const startedAt = Date.now()
-  try {
-    const result = await withTimeout(
-      generateExamPaperCallable(inputs),
-      EXAM_PAPER_CLIENT_TIMEOUT_MS,
-      'generateExamPaper',
-    )
-    console.info('[zedexams] generateExamPaper ← ok in',
-      Date.now() - startedAt, 'ms',
-      { generationId: result?.data?.generationId, warning: result?.data?.warning })
-    return { ok: true, data: result.data }
-  } catch (error) {
-    console.error('[zedexams] generateExamPaper ← FAILED after',
-      Date.now() - startedAt, 'ms',
-      { code: error?.code, message: error?.message },
-    )
-    return {
-      ok: false,
-      error: messageFromError(error),
-      code: error?.code || 'unknown',
-      rawMessage: error?.message || '',
-      // Structured quota context (e.g. { reason: 'max-only' }) so studios can
-      // route the right paywall — see functions/teacherTools/usageMeter.js.
-      details: error?.details || null,
-    }
-  }
-}
