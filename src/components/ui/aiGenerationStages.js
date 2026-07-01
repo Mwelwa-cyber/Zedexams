@@ -202,6 +202,58 @@ export function computeStageStates({
   return { items, activeIndex, percent }
 }
 
+/* ── connection health notices ─────────────────────────────────── */
+
+/**
+ * How long a run may go before we tell the teacher their connection looks
+ * slow. A normal generation lands in ~20–40s (see the per-stage estMs), so a
+ * run still going past this has genuinely stalled on the network rather than
+ * on the model. Kept generous so we never cry wolf on a normal-but-large paper.
+ */
+export const SLOW_CONNECTION_AFTER_MS = 45000
+
+/**
+ * The exact, teacher-friendly copy shown inside the progress panel. No jargon,
+ * no error codes — just what's happening and what (not) to do about it.
+ */
+export const CONNECTION_NOTICES = {
+  offline: 'You are offline. Your request has been saved and will continue when internet returns.',
+  slow: 'Your connection is slow, but we are still working. Please do not close the page.',
+}
+
+/**
+ * Decide which connection notice (if any) belongs in the panel right now.
+ * Pure so it's unit-testable and can be shared with the vanilla-JS lesson-plan
+ * port.
+ *
+ *   • Only speaks while a run is actually in flight and hasn't errored — once
+ *     the work fails, the retry UI takes over and a stale "slow…" line would
+ *     just confuse.
+ *   • Offline outranks slow: it's the more actionable of the two.
+ *   • Slow fires purely on elapsed wall-clock, so it works for both the
+ *     simulated timeline AND the real-SSE (activeStageId) callers.
+ *
+ * @param {object} args
+ * @param {boolean} [args.online=true]     — navigator.onLine (via useNetworkStatus).
+ * @param {number}  [args.elapsedMs=0]     — wall-clock since the run began.
+ * @param {boolean} [args.running=true]    — is a generation currently in flight.
+ * @param {boolean} [args.errored=false]   — has the run failed.
+ * @param {number}  [args.slowAfterMs]     — override the slow threshold.
+ * @returns {'offline'|'slow'|null} a CONNECTION_NOTICES key, or null.
+ */
+export function connectionNoticeFor({
+  online = true,
+  elapsedMs = 0,
+  running = true,
+  errored = false,
+  slowAfterMs = SLOW_CONNECTION_AFTER_MS,
+} = {}) {
+  if (!running || errored) return null
+  if (!online) return 'offline'
+  if (elapsedMs >= slowAfterMs) return 'slow'
+  return null
+}
+
 /* ── internals ─────────────────────────────────────────────────── */
 
 function activeIndexFromElapsed(list, elapsedMs) {

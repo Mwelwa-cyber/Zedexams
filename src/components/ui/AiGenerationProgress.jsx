@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { useGenerationStages } from '../../hooks/useGenerationStages'
+import { useNetworkStatus } from '../../hooks/useNetworkStatus'
+import { connectionNoticeFor, CONNECTION_NOTICES } from './aiGenerationStages'
 
 /**
  * AiGenerationProgress — the reusable animated tracker shown while an AI tool
@@ -30,8 +33,17 @@ import { useGenerationStages } from '../../hooks/useGenerationStages'
  *   title         — headline (default "Generating…").
  *   subtitle      — optional secondary line (e.g. Worksheet's token count).
  *   activeStageId — optional real driver; overrides the simulated timeline.
- *   error         — truthy when the run failed; freezes on the active stage.
+ *   error         — truthy when the run failed; freezes on the active stage and
+ *                   surfaces the friendly retry copy below the stages.
  *   onCancel      — optional; renders a Cancel link when provided.
+ *   onRetry       — optional; renders a "Try again" button in the failed state.
+ *
+ * Connection reassurance — automatic, no caller wiring needed:
+ *   • Offline mid-run → a calm "your request is saved, it'll continue when you
+ *     reconnect" line (Firestore queues the write; the studio keeps the form).
+ *   • Still online but the run has dragged on → a "your connection is slow, we
+ *     are still working, don't close the page" line. Fires on wall-clock so it
+ *     works for both the simulated timeline and the real-SSE callers.
  */
 export default function AiGenerationProgress({
   running = true,
@@ -42,12 +54,35 @@ export default function AiGenerationProgress({
   activeStageId,
   error,
   onCancel,
+  onRetry,
 }) {
   const { items, percent, reducedMotion } = useGenerationStages({
     running,
     preset,
     activeStageId,
     error,
+  })
+
+  // Wall-clock since the current run began, tracked independently of the stage
+  // timeline so the "slow connection" notice works even for SSE-driven callers
+  // that pass activeStageId (where the stage ticker stays put).
+  const online = useNetworkStatus()
+  const [runMs, setRunMs] = useState(0)
+  useEffect(() => {
+    if (!running) {
+      setRunMs(0)
+      return undefined
+    }
+    const start = Date.now()
+    const id = setInterval(() => setRunMs(Date.now() - start), 1000)
+    return () => clearInterval(id)
+  }, [running])
+
+  const notice = connectionNoticeFor({
+    online,
+    elapsedMs: runMs,
+    running,
+    errored: Boolean(error),
   })
 
   const body = (
@@ -91,6 +126,38 @@ export default function AiGenerationProgress({
           <StageRow key={stage.id} stage={stage} reducedMotion={reducedMotion} />
         ))}
       </ol>
+
+      {/* Connection reassurance — offline / slow, while the run is in flight */}
+      {notice && !error && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-5 flex items-start gap-2.5 rounded-xl theme-bg-subtle px-3.5 py-2.5 text-body-sm theme-text-muted"
+        >
+          <span className="mt-0.5 flex-shrink-0 text-base leading-none" aria-hidden="true">
+            {notice === 'offline' ? '📡' : '⏳'}
+          </span>
+          <span className="text-left">{CONNECTION_NOTICES[notice]}</span>
+        </div>
+      )}
+
+      {/* Failed state — reassure that nothing was lost, offer a clean retry */}
+      {error && (
+        <div className="mt-5 text-center">
+          <p className="text-body-sm theme-text-muted">
+            Your request is saved — nothing was lost. You can try again.
+          </p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="theme-accent-fill theme-on-accent mt-3 rounded-xl px-5 py-2.5 text-body-sm font-bold shadow-elev-sm transition-opacity hover:opacity-90"
+            >
+              ↻ Try again
+            </button>
+          )}
+        </div>
+      )}
 
       {onCancel && (
         <div className="text-center mt-5">
