@@ -158,13 +158,20 @@ function toDateValue(value) {
  * their profile — the same entitlement the server's usageMeter.getUserPlanContext
  * gates on. Super admins always resolve to the top tier; an expired
  * teacherPlanExpiresAt falls back to free.
+ *
+ * `now` is injectable so callers with their own clock (e.g. the
+ * subscription-status resolver's test harness) get deterministic results
+ * instead of racing the real calendar — without it, a fixture expiry that the
+ * test treats as "in the future" silently becomes past once the wall clock
+ * crosses it (the 2026-07-01 time-bomb that reddened every PR). Defaults to the
+ * real clock, so existing single-arg callers are unaffected.
  */
-export function resolveTeacherPlan(userProfile) {
+export function resolveTeacherPlan(userProfile, now = new Date()) {
   if (isSuperAdmin(userProfile)) return 'max'
   const plan = normalizeTeacherPlan(userProfile?.teacherPlan)
   if (plan === 'pro' || plan === 'max') {
     const exp = toDateValue(userProfile?.teacherPlanExpiresAt)
-    if (exp && exp < new Date()) return 'free'
+    if (exp && exp < now) return 'free'
     return plan
   }
   return 'free'

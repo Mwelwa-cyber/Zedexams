@@ -118,7 +118,7 @@ function resolveLearnerState(profile, now) {
 function resolveTeacherState(profile, now) {
   // resolveTeacherPlan already returns 'max' for super-admins and falls back
   // to 'free' for an expired teacherPlanExpiresAt.
-  const livePlan = resolveTeacherPlan(profile) // 'free' | 'pro' | 'max'
+  const livePlan = resolveTeacherPlan(profile, now) // 'free' | 'pro' | 'max'
   const teacherExpiry = toDateValue(profile?.teacherPlanExpiresAt)
 
   const trialExpiry = toDateValue(profile?.teacherTrialEndsAt ?? profile?.trialEndsAt)
