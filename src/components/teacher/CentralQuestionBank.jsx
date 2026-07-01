@@ -4,7 +4,7 @@ import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 import { GRADES, SUBJECTS } from '../../config/curriculum'
-import { richTextToPlainText } from '../../utils/quizRichText.js'
+import { extractRichTextPlain } from '../../utils/quizRichText.js'
 import { QUESTION_SOURCES } from '../../utils/questionBankCore.js'
 import {
   searchQuestionBank, parseBankQuestion, duplicateBankQuestion,
@@ -14,8 +14,10 @@ import {
 const TYPES = ['mcq', 'short_answer', 'tf', 'fill_blanks', 'numeric', 'matching', 'essay', 'diagram']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 
-function plain(html) {
-  try { return richTextToPlainText(String(html || '')) } catch { return String(html || '') }
+// extractRichTextPlain (not richTextToPlainText) so a stem stored as a
+// stringified Tiptap doc decodes to readable text instead of leaking raw JSON.
+function plain(value) {
+  try { return extractRichTextPlain(value) } catch { return String(value || '') }
 }
 
 function answerText(q) {
@@ -34,7 +36,7 @@ function QuestionCard({ row, mine, fav, busy, onPreview, onUse, onDuplicate, onE
         {q?.imageUrl
           ? <img src={q.imageUrl} alt="" className="w-14 h-14 rounded-lg object-cover border flex-shrink-0" />
           : <div className="w-14 h-14 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-xl flex-shrink-0">📝</div>}
-        <p className="flex-1 min-w-0 text-sm font-bold text-gray-800 leading-snug line-clamp-3">{row.preview || plain(q?.text) || '(no text)'}</p>
+        <p className="flex-1 min-w-0 text-sm font-bold text-gray-800 leading-snug line-clamp-3">{plain(q?.text) || row.preview || '(no text)'}</p>
         <button onClick={() => onFav(row, !fav)} title="Favourite" className="text-lg flex-shrink-0" aria-label="Favourite">
           {fav ? '⭐' : '☆'}
         </button>
