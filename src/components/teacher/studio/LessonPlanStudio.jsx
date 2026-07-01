@@ -526,11 +526,11 @@ export default function LessonPlanStudio() {
       const result = await generateCallable({
         systemPrompt,
         userPrompt,
-        // Lesson coordinates so the server can ground the plan on the teacher's
-        // OWN saved Scheme of Work / Weekly Forecast (resolveTeacherPlanContext).
-        // Previously this was null, so that grounding never ran — the studio
-        // ignored the teacher's pacing entirely. The resolver is vocabulary-
-        // tolerant, so the studio's "Grade 4" / "Form 1" labels work as-is.
+        // Lesson coordinates so the server can ground the plan on the CBC
+        // knowledge base (resolveCbcContext: stored curriculum modules, topic
+        // KB, prior-coverage dedup) AND on the teacher's OWN saved Scheme of
+        // Work / Weekly Forecast (resolveTeacherPlanContext). framework tells
+        // the KB which syllabus family the studio is planning against.
         context: {
           grade: lessonDetails.grade || '',
           subject: subjectName || '',
@@ -538,6 +538,9 @@ export default function LessonPlanStudio() {
           week: lessonDetails.week || '',
           topic: topicData.topic || '',
           subtopic: topicData.subtopic || '',
+          lessonNumber,
+          totalLessons,
+          framework: curriculumMode === 'previous' ? '2013' : '2023',
         },
       })
 

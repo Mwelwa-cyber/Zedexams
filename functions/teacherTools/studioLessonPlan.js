@@ -35,6 +35,7 @@ const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 const {assertAndIncrement} = require("./usageMeter");
 const {resolveTeacherPlanContext} = require("./teacherPlanContext");
+const {resolveCbcContext} = require("./cbcKnowledge");
 
 // Pinned reasoning controls — see the file header. Mirrors generateLessonPlan.
 const STUDIO_THINKING = {type: "disabled"};
@@ -113,22 +114,47 @@ function sanitize(v, max) {
  * @returns {Promise<{text: string, usage: object}>}
  */
 async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiKey}) {
-  // Ground the studio plan on the teacher's OWN saved Scheme of Work / Weekly
-  // Forecast for this grade+subject+term+week. Fail-open: an empty string when
-  // nothing matches or on any lookup error, so this never blocks a generation.
-  // The resolver is vocabulary-tolerant (matches on grade digits + normalised
-  // subject + topic overlap), so the studio's "Grade 4" / "Form 1" labels work
-  // without translation.
+  // Ground the studio plan on two complementary sources, both fail-open so a
+  // lookup error never blocks a generation:
+  //   1. The server-side CBC knowledge base (resolveCbcContext) — stored
+  //      sub-topic curriculum modules, private RAG, editable topic KB, plus
+  //      prior-coverage dedup against the teacher's earlier plans. This is the
+  //      same authoritative grounding the schema-based generateLessonPlan has
+  //      always had; the studio previously relied only on its client-side
+  //      syllabus block and missed all of it.
+  //   2. The teacher's OWN saved Scheme of Work / Weekly Forecast
+  //      (resolveTeacherPlanContext) for this grade+subject+term+week. The
+  //      resolver is vocabulary-tolerant (matches on grade digits + normalised
+  //      subject + topic overlap), so the studio's "Grade 4" / "Form 1" labels
+  //      work without translation.
   const ctx = context || {};
-  const [teacherPlansBlock, usage] = await Promise.all([
+  const grade = typeof ctx.grade === "string" ? ctx.grade.slice(0, 40) : ctx.grade;
+  const subject = typeof ctx.subject === "string" ? ctx.subject.slice(0, 80) : ctx.subject;
+  const topic = typeof ctx.topic === "string" ? ctx.topic.slice(0, 200) : "";
+  const subtopic = typeof ctx.subtopic === "string" ? ctx.subtopic.slice(0, 200) : "";
+  const [cbcResult, teacherPlansBlock, usage] = await Promise.all([
+    resolveCbcContext({
+      ownerUid: uid,
+      grade,
+      subject,
+      topic,
+      subtopic,
+      term: ctx.term,
+      lessonNumber: ctx.lessonNumber,
+      totalLessons: ctx.totalLessons,
+      framework: ctx.framework,
+    }).catch((err) => {
+      console.warn("[studioLessonPlan] CBC KB context lookup failed", err);
+      return null;
+    }),
     resolveTeacherPlanContext({
       ownerUid: uid,
-      grade: typeof ctx.grade === "string" ? ctx.grade.slice(0, 40) : ctx.grade,
-      subject: typeof ctx.subject === "string" ? ctx.subject.slice(0, 80) : ctx.subject,
+      grade,
+      subject,
       term: ctx.term,
       week: ctx.week,
-      topic: typeof ctx.topic === "string" ? ctx.topic.slice(0, 200) : "",
-      subtopic: typeof ctx.subtopic === "string" ? ctx.subtopic.slice(0, 200) : "",
+      topic,
+      subtopic,
     }).catch((err) => {
       console.warn("[studioLessonPlan] teacher-plan context lookup failed", err);
       return "";
@@ -137,9 +163,16 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
     assertAndIncrement(uid, "lesson_plan"),
   ]);
 
+  // KB block first (shareable across teachers of the same grade/subject/topic,
+  // so the prompt-cache prefix stays stable), the per-teacher pacing block last.
+  const contextBlock = [
+    cbcResult && cbcResult.contextBlock,
+    teacherPlansBlock,
+  ].filter(Boolean).join("\n\n");
+
   const response = await callClaude(apiKey, {
     systemPrompt,
-    cbcContextBlock: teacherPlansBlock || null,
+    cbcContextBlock: contextBlock || null,
     messages: [{role: "user", content: userPrompt}],
     maxTokens: STUDIO_MAX_TOKENS,
     temperature: 0.3,
@@ -169,10 +202,18 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
     modelUsed: (response && response.model) || DEFAULT_MODEL,
     tokensIn: Number(response && response.usage && response.usage.inputTokens || 0),
     tokensOut: Number(response && response.usage && response.usage.outputTokens || 0),
+    kbVersion: (cbcResult && cbcResult.kbVersion) || null,
+    kbGrounded: Boolean(cbcResult && cbcResult.kbMatch),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   }).catch(() => {/* non-fatal */});
 
-  return {text, usage: response.usage || usage};
+  return {
+    text,
+    usage: response.usage || usage,
+    // Additive: surfaced so the studio can show the same "used general CBC
+    // knowledge" notice the schema-based generator shows. Null when grounded.
+    kbWarning: (cbcResult && cbcResult.kbWarning) || null,
+  };
 }
 
 function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
