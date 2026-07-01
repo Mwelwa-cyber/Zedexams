@@ -6,6 +6,9 @@
 const assert = require("node:assert");
 const {
   dayKeyFor,
+  SHARD_COUNT,
+  pickShardId,
+  sumShards,
   sanitizeText,
   sanitizePath,
   referrerHost,
@@ -94,5 +97,42 @@ ok("rejects short/garbage ids",
 ok("missing ids are allowed (anonymous pageview)",
     normalizeBeacon({path: "/pricing"}).path === "/pricing");
 ok("no body → null", normalizeBeacon(null) === null && normalizeBeacon("x") === null);
+
+// ── pickShardId: always an in-range integer, distribution follows rand ────
+ok("rand 0 → shard 0", pickShardId(() => 0) === 0);
+ok("rand just under 1 → last shard", pickShardId(() => 0.999) === SHARD_COUNT - 1);
+ok("rand 0.5 → middle shard", pickShardId(() => 0.5) === Math.floor(0.5 * SHARD_COUNT));
+ok("accepts a raw number too", pickShardId(0) === 0);
+ok("degenerate rand (NaN) clamps to 0", pickShardId(() => NaN) === 0);
+ok("degenerate rand (>=1) clamps to last", pickShardId(() => 1.5) === SHARD_COUNT - 1);
+ok("degenerate rand (negative) clamps to 0", pickShardId(() => -0.3) === 0);
+{
+  // Every default draw must land in [0, SHARD_COUNT) as an integer.
+  let allInRange = true;
+  for (let i = 0; i < 200; i += 1) {
+    const id = pickShardId();
+    if (!Number.isInteger(id) || id < 0 || id >= SHARD_COUNT) allInRange = false;
+  }
+  ok("default draws stay in [0, SHARD_COUNT)", allInRange);
+}
+
+// ── sumShards: folds shard docs into day totals, tolerant of sparse docs ──
+{
+  const totals = sumShards([
+    {pageviews: 3, uniqueVisitors: 2, sessions: 2, botPageviews: 1},
+    {pageviews: 5, uniqueVisitors: 1, sessions: 3},
+    {pageviews: 2},
+  ]);
+  ok("sums pageviews across shards", totals.pageviews === 10);
+  ok("sums uniqueVisitors across shards", totals.uniqueVisitors === 3);
+  ok("sums sessions across shards", totals.sessions === 5);
+  ok("sums botPageviews, missing counts as 0", totals.botPageviews === 1);
+}
+ok("empty shard list → all zeros",
+    JSON.stringify(sumShards([])) ===
+      JSON.stringify({pageviews: 0, botPageviews: 0, uniqueVisitors: 0, sessions: 0}));
+ok("non-array → all zeros", sumShards(null).pageviews === 0);
+ok("ignores junk/non-numeric fields",
+    sumShards([{pageviews: "12"}, null, {pageviews: 4}]).pageviews === 4);
 
 console.log(`\n${passed} assertions passed.`);

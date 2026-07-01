@@ -21,6 +21,51 @@ const LUSAKA_OFFSET_MINUTES = 120;
 // Control characters to strip from any free-text field before storing.
 const CONTROL_CHARS = /[\x00-\x1F\x7F]/g;
 
+// Sharded-counter fan-out. The daily rollup used to increment ONE doc
+// (visitorStats/{day}) on every pageview — a Firestore write hotspot (~1
+// sustained write/sec/doc). Instead each pageview increments one of
+// SHARD_COUNT shard docs (visitorStats/{day}/shards/{0..N-1}), lifting the
+// ceiling to ~N writes/sec, and a scheduled aggregator sums the shards back
+// into the day doc the admin dashboard reads. 10 shards is the common
+// starting point (raise it only if sustained traffic ever approaches
+// ~10 pageviews/sec on a single day bucket).
+const SHARD_COUNT = 10;
+
+// Counter fields carried on each shard doc and summed into the day doc.
+const SHARD_COUNTER_FIELDS = ["pageviews", "botPageviews", "uniqueVisitors", "sessions"];
+
+/**
+ * Pick a shard id in [0, SHARD_COUNT) for this write. `rand` is injectable
+ * (a function or a raw number) so the distribution is deterministically
+ * testable; defaults to Math.random. Always returns a valid in-range integer
+ * even for degenerate inputs (NaN, negatives, >=1).
+ */
+function pickShardId(rand = Math.random) {
+  const raw = typeof rand === "function" ? rand() : rand;
+  const r = Number.isFinite(raw) ? raw : 0;
+  const n = Math.floor(r * SHARD_COUNT);
+  return Math.min(SHARD_COUNT - 1, Math.max(0, n));
+}
+
+/**
+ * Sum an array of shard docs' data into day totals. Missing / non-numeric
+ * counter fields count as 0, so a half-populated shard (e.g. one that only
+ * ever saw pageviews, never a unique visitor) never NaNs the total. Returns
+ * a fresh object with all four counters present.
+ */
+function sumShards(shardDatas) {
+  const totals = {pageviews: 0, botPageviews: 0, uniqueVisitors: 0, sessions: 0};
+  if (!Array.isArray(shardDatas)) return totals;
+  for (const data of shardDatas) {
+    if (!data || typeof data !== "object") continue;
+    for (const field of SHARD_COUNTER_FIELDS) {
+      const v = data[field];
+      if (typeof v === "number" && Number.isFinite(v)) totals[field] += v;
+    }
+  }
+  return totals;
+}
+
 /**
  * Day bucket key (YYYY-MM-DD) for a Date, shifted into Lusaka local time.
  * @param {Date|number} date
@@ -144,7 +189,11 @@ function normalizeBeacon(body) {
 
 module.exports = {
   LUSAKA_OFFSET_MINUTES,
+  SHARD_COUNT,
+  SHARD_COUNTER_FIELDS,
   dayKeyFor,
+  pickShardId,
+  sumShards,
   sanitizeText,
   sanitizePath,
   referrerHost,
