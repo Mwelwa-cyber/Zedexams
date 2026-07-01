@@ -160,7 +160,8 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
   const {assertAndIncrement} = require("../usageMeter");
   const {runGenerateDiagram} = require("../generateDiagram");
 
-  const secrets = [recraftApiKeySecret];
+  const secrets = [];
+  if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   if (kieApiKeySecret) secrets.push(kieApiKeySecret);
 
@@ -220,7 +221,9 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
           generateImage: async (brief) => {
             // Read the image-provider secrets lazily, only when we actually
             // generate, so the keep/clean/remove paths never touch .value().
-            const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
+            const recraftKey = recraftApiKeySecret ?
+              (recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "") :
+              (process.env.RECRAFT_API_KEY || "");
             const openaiKey = openaiApiKeySecret ?
               (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
               (process.env.OPENAI_API_KEY || "");
