@@ -15,24 +15,10 @@
 // will actually allow.
 
 import { useAuth } from '../contexts/AuthContext'
-import { useTeacherUsage, TOOL_TO_FEATURE } from './useTeacherUsage'
+import { useTeacherUsage, TOOL_TO_FEATURE, FEATURE_LABELS } from './useTeacherUsage'
 import { paywall } from '../utils/paywall'
 import { MAX_ONLY_TOOLS } from '../utils/teacherPlans'
 import { isSuperAdmin } from '../utils/permissions'
-
-// Feature key → human label for paywall copy. Mirrors UsageMeter.jsx.
-const FEATURE_LABEL = {
-  plans: 'lesson plans',
-  worksheets: 'worksheets',
-  flashcards: 'flashcards',
-  notes: 'teacher notes',
-  homework: 'homework',
-  rubric: 'rubrics',
-  assessments: 'test papers',
-  exams: 'exam papers',
-  schemes: 'schemes of work',
-  sba: 'SBA tasks',
-}
 
 const MAX_ONLY_FEATURES = new Set(
   MAX_ONLY_TOOLS.map((tool) => TOOL_TO_FEATURE[tool]).filter(Boolean)
@@ -69,7 +55,7 @@ export function useGenerationGate(uid) {
     if (Number(data.credits || 0) > 0) return true
 
     // Out of quota and no credit → open the matching paywall and stop.
-    const label = FEATURE_LABEL[feature] || feature
+    const label = FEATURE_LABELS[feature] || feature
     if (monthlyBlocked && MAX_ONLY_FEATURES.has(feature) && data.plan !== 'max') {
       paywall.show('max-feature', { feature: capitalize(label), tool: toolKey })
     } else if (monthlyBlocked && cap === 0) {

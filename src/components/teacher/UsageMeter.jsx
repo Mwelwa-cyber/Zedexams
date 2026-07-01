@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTeacherUsage, TOOL_TO_FEATURE } from '../../hooks/useTeacherUsage'
+import { useTeacherUsage, TOOL_TO_FEATURE, FEATURE_LABELS } from '../../hooks/useTeacherUsage'
 import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { recoverMyPendingPayments } from '../../utils/lenco'
@@ -11,30 +11,18 @@ import { useEffect, useState } from 'react'
 // One row per metered studio the teacher can reach. Keys map 1:1 to
 // TOOL_TO_FEATURE in useTeacherUsage.js so each bar reads the right counter.
 const FEATURES = [
-  { key: 'plans',       label: 'Lesson plans',    icon: '🦊' },
-  { key: 'worksheets',  label: 'Worksheets',      icon: '🐢' },
-  { key: 'flashcards',  label: 'Flashcards',      icon: '🦒' },
-  { key: 'notes',       label: 'Teacher notes',   icon: '🦉' },
-  { key: 'homework',    label: 'Homework',        icon: '🦝' },
-  { key: 'rubric',      label: 'Rubrics',         icon: '🦔' },
-  { key: 'assessments', label: 'Test papers',     icon: '🦅' },
-  { key: 'exams',       label: 'Exam papers',     icon: '🦬' },
-  { key: 'schemes',     label: 'Schemes of work', icon: '🦁' },
-  { key: 'sba',         label: 'SBA tasks',       icon: '🦓' },
+  { key: 'plans',        label: 'Lesson plans',    icon: '🦊' },
+  { key: 'worksheets',   label: 'Worksheets',      icon: '🐢' },
+  { key: 'flashcards',   label: 'Flashcards',      icon: '🦒' },
+  { key: 'notes',        label: 'Teacher notes',   icon: '🦉' },
+  { key: 'homework',     label: 'Homework',        icon: '🦝' },
+  { key: 'full_lessons', label: 'Full lessons',    icon: '🐘' },
+  { key: 'rubric',       label: 'Rubrics',         icon: '🦔' },
+  { key: 'assessments',  label: 'Test papers',     icon: '🦅' },
+  { key: 'exams',        label: 'Exam papers',     icon: '🦬' },
+  { key: 'schemes',      label: 'Schemes of work', icon: '🦁' },
+  { key: 'sba',          label: 'SBA tasks',       icon: '🦓' },
 ]
-
-const FEATURE_LABEL = {
-  plans: 'lesson plans',
-  worksheets: 'worksheets',
-  flashcards: 'flashcards',
-  notes: 'teacher notes',
-  homework: 'homework',
-  rubric: 'rubrics',
-  assessments: 'test papers',
-  exams: 'exam papers',
-  schemes: 'schemes of work',
-  sba: 'SBA tasks',
-}
 
 // Feature key → the studio route where the credit is actually spent. Lets the
 // "credit ready" banner deep-link straight to Generate instead of leaving a
@@ -46,6 +34,7 @@ const FEATURE_ROUTE = {
   flashcards: '/teacher/generate/flashcards',
   notes: '/teacher/generate/notes',
   homework: '/teacher/generate/homework',
+  full_lessons: '/teacher/generate/full-lesson',
   rubric: '/teacher/generate/rubric',
   assessments: '/teacher/test-papers/new',
   exams: '/teacher/exam-papers',
@@ -160,18 +149,18 @@ export default function UsageMeter() {
     // Max-only studios (test papers, exam papers) can't be unlocked by Pro —
     // their monthly-taster ceiling routes to the "Upgrade to Max" paywall.
     if (MAX_ONLY_FEATURE_KEYS.has(featureKey) && data.plan !== 'max') {
-      paywall.show('max-feature', { feature: FEATURE_LABEL[featureKey] })
+      paywall.show('max-feature', { feature: FEATURE_LABELS[featureKey] })
       return
     }
     paywall.show('monthly-limit', {
-      feature: FEATURE_LABEL[featureKey],
+      feature: FEATURE_LABELS[featureKey],
       resetDays: data.resetDays,
     })
   }
 
   function openLockedFeature(featureKey) {
     paywall.show('feature-locked', {
-      feature: FEATURE_LABEL[featureKey].replace(/^./, (c) => c.toUpperCase()),
+      feature: FEATURE_LABELS[featureKey].replace(/^./, (c) => c.toUpperCase()),
     })
   }
 
@@ -236,13 +225,13 @@ export default function UsageMeter() {
               <div className="zum-limit-msg">
                 <strong>You have {data.credits} extra generation{data.credits === 1 ? '' : 's'} ready.</strong><br />
                 {cappedFeature
-                  ? <>Open the {FEATURE_LABEL[cappedFeature.key]} studio and press <strong>Generate</strong> — your K25 credit is applied automatically.</>
+                  ? <>Open the {FEATURE_LABELS[cappedFeature.key]} studio and press <strong>Generate</strong> — your K25 credit is applied automatically.</>
                   : <>Open any studio and press <strong>Generate</strong> — your K25 credit is applied automatically, on any tool.</>}
               </div>
               {cappedFeature && FEATURE_ROUTE[cappedFeature.key] && (
                 <button type="button" className="zum-credit-go"
                   onClick={() => navigate(FEATURE_ROUTE[cappedFeature.key])}>
-                  Open {FEATURE_LABEL[cappedFeature.key]} →
+                  Open {FEATURE_LABELS[cappedFeature.key]} →
                 </button>
               )}
             </div>
@@ -252,12 +241,12 @@ export default function UsageMeter() {
         {cappedFeature && data.credits === 0 && (
           <div className="zum-limit-banner">
             <div className="zum-limit-msg">
-              <strong>You've hit your {FEATURE_LABEL[cappedFeature.key]} limit for this month.</strong><br />
+              <strong>You've hit your {FEATURE_LABELS[cappedFeature.key]} limit for this month.</strong><br />
               Upgrade to keep working, or pay K25 for one extra now.
             </div>
             <div className="zum-limit-actions">
               <button type="button" className="zum-limit-pay"
-                onClick={() => topup.show({ feature: FEATURE_LABEL[cappedFeature.key] })}>
+                onClick={() => topup.show({ feature: FEATURE_LABELS[cappedFeature.key] })}>
                 Pay K25
               </button>
               <button type="button" onClick={() => openMonthlyLimit(cappedFeature.key)}>

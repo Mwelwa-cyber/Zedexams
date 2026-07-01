@@ -9,7 +9,7 @@ const usageState = { loading: false, data: null }
 
 // Fully mock the hook (no importActual — that would pull in firebase/config,
 // which needs env the jsdom run doesn't have). The component also imports the
-// static TOOL_TO_FEATURE map from here, so re-export it.
+// static TOOL_TO_FEATURE + FEATURE_LABELS maps from here, so re-export them.
 vi.mock('../../hooks/useTeacherUsage', () => ({
   useTeacherUsage: () => usageState,
   TOOL_TO_FEATURE: {
@@ -18,11 +18,25 @@ vi.mock('../../hooks/useTeacherUsage', () => ({
     flashcards: 'flashcards',
     notes: 'notes',
     homework: 'homework',
+    full_lesson: 'full_lessons',
     rubric: 'rubric',
     scheme_of_work: 'schemes',
     assessment: 'assessments',
     exam_paper: 'exams',
     sba_task: 'sba',
+  },
+  FEATURE_LABELS: {
+    plans: 'lesson plans',
+    worksheets: 'worksheets',
+    flashcards: 'flashcards',
+    notes: 'teacher notes',
+    homework: 'homework',
+    full_lessons: 'full lessons',
+    rubric: 'rubrics',
+    assessments: 'test papers',
+    exams: 'exam papers',
+    schemes: 'schemes of work',
+    sba: 'SBA tasks',
   },
 }))
 

@@ -470,12 +470,10 @@ export async function getLibrarySummary(uid) {
 /* ── UI constants ─────────────────────────────────────────── */
 
 export const TOOL_META = {
-  // The Full Lesson generator was retired; the route is intentionally omitted
-  // so the library still renders legacy full_lesson items but cannot regenerate
-  // them (onRegenerate guards on meta.route).
   full_lesson: {
     label: 'Full Lesson',
     icon: '✨',
+    route: '/teacher/generate/full-lesson',
     colour: 'cyan',
   },
   lesson_plan: {
