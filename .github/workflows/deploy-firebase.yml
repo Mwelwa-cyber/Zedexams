@@ -286,7 +286,11 @@ jobs:
           bare=""
           if [ -n "${race}" ]; then
             detailed=$(printf '%s\n' "${out}" | parse_detailed) || true
-            bare=$(comm -23 <(printf '%s\n' "${failed}") <(printf '%s\n' "${detailed}" | grep -v '^$' | sort -u) || true)
+            # Both inputs must be sorted for comm. parse_failed / parse_detailed
+            # already end in `sort -u`, but sort at the call site too so the
+            # invariant is local and obvious (a mis-sorted first input would let
+            # comm silently misclassify a genuine failure as a bare/cosmetic one).
+            bare=$(comm -23 <(printf '%s\n' "${failed}" | grep -v '^$' | sort -u) <(printf '%s\n' "${detailed}" | grep -v '^$' | sort -u) || true)
           fi
 
           cosmetic=$(printf '%s\n' "${cosmetic}" "${existing}" "${bare}" | grep -v '^$' | sort -u) || true
