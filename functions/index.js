@@ -272,7 +272,13 @@ const {createGenerateStudyPlan} = require("./studentAgents");
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
-const recraftApiKey = defineSecret("RECRAFT_API_KEY");
+// RECRAFT_API_KEY is intentionally NOT declared or bound. Recraft was
+// decommissioned (2026-06, see generateDiagram.js RECRAFT_ENABLED=false) and its
+// secret was removed from the project. A bound-but-unset secret hard-fails
+// `firebase deploy` in non-interactive mode ("no value for the secret") — which
+// is exactly what broke every Firebase deploy once the unfunded key was pruned.
+// The diagram / slide-notes functions no longer bind it; they fall back to the
+// (disabled) empty-key path at runtime.
 // Optional. When set, structureImportedQuiz uses a Gemini → Claude pipeline:
 // Gemini 2.5 Flash ingests the full document (1M-context strength) and emits
 // rough question candidates; Claude refines them into CBC-aligned output.
@@ -287,11 +293,11 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // prompt. When unset, there is no fallback and the photoreal toggle is
 // hidden.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
-// Optional. When set, generateDiagram exposes a "colour illustration" style
-// that routes through the Kie.ai image API (Nano Banana et al.) for bright,
-// friendly worksheet illustrations. When unset, the toggle is hidden and the
-// other providers (Recraft line-art / OpenAI photoreal) handle everything.
-const kieApiKey = defineSecret("KIE_API_KEY");
+// KIE_API_KEY is intentionally NOT declared or bound, for the same reason as
+// RECRAFT_API_KEY above: the Kie.ai provider was decommissioned (2026-06, see
+// generateDiagram.js KIE_ENABLED=false). Binding a secret for a disabled
+// provider only risks the same deploy-blocking failure if that key is ever
+// pruned from the project, so we don't bind it.
 // Lenco (lenco.co) automated payments — ZMW mobile money + card
 // collections. The webhook signing key is derived from this token
 // (SHA256) per Lenco's spec, so no separate webhook secret is needed
@@ -2204,7 +2210,7 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 // per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
 // falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
 exports.generateVisualNotes =
-  createGenerateSlideNotes(anthropicApiKey, recraftApiKey, openaiApiKey);
+  createGenerateSlideNotes(anthropicApiKey, null, openaiApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
@@ -2235,11 +2241,11 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 // to gpt-image-1 automatically when Recraft can't serve (out of credits,
 // bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.generateDiagram = createGenerateDiagram(null, openaiApiKey, null);
 
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
 // generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
-exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(null, openaiApiKey, null);
 
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.

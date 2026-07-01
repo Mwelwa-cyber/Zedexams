@@ -489,7 +489,12 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
 }
 
 function createGenerateDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKeySecret) {
-  const secrets = [recraftApiKeySecret];
+  // Only bind secrets that were actually provided. Recraft and Kie are
+  // decommissioned (RECRAFT_ENABLED / KIE_ENABLED false) and are passed as null,
+  // so they must NOT be bound — a bound-but-unset secret hard-fails a
+  // non-interactive `firebase deploy`.
+  const secrets = [];
+  if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   if (kieApiKeySecret) secrets.push(kieApiKeySecret);
   return onCall(
@@ -512,7 +517,9 @@ function createGenerateDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKe
       // bucket — teachers shouldn't get double quota for picking photoreal.
       await assertAndIncrement(uid, "diagram");
 
-      const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
+      const recraftKey = recraftApiKeySecret ?
+        (recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "") :
+        (process.env.RECRAFT_API_KEY || "");
       const openaiKey = openaiApiKeySecret
         ? (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "")
         : (process.env.OPENAI_API_KEY || "");

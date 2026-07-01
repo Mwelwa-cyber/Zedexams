@@ -171,6 +171,7 @@
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
     "test:cors": "node functions/cors.test.js",
+    "test:dead-provider-secrets": "node functions/deadProviderSecrets.test.js",
     "test:image-proxy": "node functions/imageProxy.test.js",
     "test:visitor-tracking": "node functions/visitorTrackingCore.test.js",
     "test:visual-safety": "node functions/visualSafety.test.js",
