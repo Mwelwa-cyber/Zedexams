@@ -2,13 +2,19 @@
  * Vigil — hourly site monitoring agent.
  *
  * Every hour a scheduled Cloud Function (functions/agents/cron.js
- * `hourlyMonitor`) calls runMonitorChecks() to sweep four surfaces:
+ * `hourlyMonitor`) calls runMonitorChecks() to sweep five surfaces:
  *
- *   - pages     : the public hosting origin + key routes respond (not 5xx)
- *   - firebase  : Firestore reads + the Storage bucket are reachable
- *   - images    : a sample of content image URLs resolve (no 404s)
- *   - quizzes   : a sample of published quizzes pass the same structural
- *                 checks Vex enforces (options, duplicates, valid answer)
+ *   - pages      : the public hosting origin + key routes respond (not 5xx)
+ *   - firebase   : Firestore reads + the Storage bucket are reachable
+ *   - images     : a sample of content image URLs resolve (no 404s)
+ *   - quizzes    : a sample of published quizzes pass the same structural
+ *                  checks Vex enforces (options, duplicates, valid answer)
+ *   - dailyExams : today's (Lusaka) daily-exam picks exist once the 05:00
+ *                  autoPickDailyExams cron should have run. SELF-HEALING:
+ *                  when the day is empty it re-runs the idempotent picker,
+ *                  then still reports a failure so the missed cron (failed
+ *                  deploy, scheduler outage) gets investigated rather than
+ *                  silently papered over every morning.
  *
  * On failure the cron asks Anthropic (Haiku) for likely causes + fixes
  * (suggestFixes), then notifyFailures() reports them — de-duplicated so an
@@ -22,6 +28,7 @@
  */
 
 const admin = require("firebase-admin");
+const {lusakaDayString, lusakaNowParts} = require("../../lusakaTime");
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const ORIGIN = "https://zedexams.com";
@@ -289,19 +296,116 @@ async function checkQuizzes(db) {
   return {ok: failures.length === 0, checked, failures};
 }
 
+// autoPickDailyExams fires at 05:00 Lusaka. Give it a grace window before
+// treating an empty day as a failure, so a slow-but-successful run is never
+// raced by the monitor.
+const DAILY_EXAM_GRACE_MIN = 5 * 60 + 15; // 05:15 Lusaka
+
+/**
+ * Whether the daily-exam check should enforce yet (past 05:15 Lusaka), and
+ * which Lusaka calendar day counts as "today". Pure — unit tested directly.
+ */
+function dailyExamCheckWindow(now = new Date()) {
+  const p = lusakaNowParts(now);
+  return {
+    active: p.hour * 60 + p.minute >= DAILY_EXAM_GRACE_MIN,
+    today: lusakaDayString(now),
+  };
+}
+
+/**
+ * Verify today's daily-exam picks exist — and self-heal when they don't.
+ *
+ * The learner hub (/exams) shows "No exam scheduled today" on every subject
+ * card unless a quiz carries quizType=="daily_exam" + dailyExamDate==today,
+ * and the ONLY thing that stamps those fields each morning is the
+ * autoPickDailyExams cron. A missed firing (failed functions deploy,
+ * scheduler outage) therefore blanks the whole surface for the day with no
+ * error anywhere. So: if the day is empty after the grace window, re-run the
+ * picker directly (runAutoPick is idempotent — an existing pick returns
+ * already_pinned) and report a warning so the missed cron is investigated.
+ * Only a re-run that promotes nothing (empty library, all-long quizzes) is
+ * critical — that needs a human to publish content.
+ *
+ * `runPick` is injectable for plain-node tests; the default lazy-requires
+ * dailyExamPicker because that module pulls in firebase-functions, which is
+ * a functions/ dep the root test runner doesn't install.
+ */
+async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
+  const {active, today} = dailyExamCheckWindow(now);
+  if (!active) {
+    return {ok: true, skipped: true, today, scheduled: 0, failures: []};
+  }
+  try {
+    const snap = await db.collection("quizzes")
+        .where("quizType", "==", "daily_exam")
+        .where("isDailyExam", "==", true)
+        .where("dailyExamDate", "==", today)
+        .limit(5)
+        .get();
+    if (!snap.empty) {
+      return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
+    }
+
+    // Pass `today` explicitly: the picker's own default is also the Lusaka
+    // day, but the heal must pin the same date this check just queried.
+    const pick = runPick || require("../../dailyExamPicker").runAutoPick;
+    const summary = await pick({today});
+    const grades = Array.isArray(summary?.grades) ? summary.grades : [];
+    const healed = grades.filter((g) => g.status === "promoted" || g.status === "already_pinned");
+
+    if (healed.length > 0) {
+      return {
+        ok: false, skipped: false, today, scheduled: 0, healed: healed.length,
+        failures: [{
+          check: "dailyExams",
+          id: today,
+          severity: "warning",
+          message: `No daily exams were scheduled for ${today} after 05:15 — the autoPickDailyExams ` +
+            `cron did not run. Vigil re-ran the picker and restored ${healed.length} grade(s) ` +
+            `(${healed.map((g) => g.grade).join(", ")}). Check the autoPickDailyExams scheduler ` +
+            `job and the last functions deploy.`,
+        }],
+      };
+    }
+    return {
+      ok: false, skipped: false, today, scheduled: 0, healed: 0,
+      failures: [{
+        check: "dailyExams",
+        id: today,
+        severity: "critical",
+        message: `No daily exams are scheduled for ${today} and the picker re-run could not promote ` +
+          `any quiz (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}). ` +
+          `Every /exams subject card reads "No exam scheduled today" until an admin pins one.`,
+      }],
+    };
+  } catch (err) {
+    return {
+      ok: false, skipped: false, today, scheduled: 0,
+      failures: [{
+        check: "dailyExams",
+        id: today,
+        severity: "critical",
+        message: `Daily-exam check failed: ${String(err?.message || err)}.`,
+      }],
+    };
+  }
+}
+
 // ── orchestration ────────────────────────────────────────────────────
 
-/** Run all four checks. Pure of secrets/Anthropic — safe to unit test. */
+/** Run all five checks. Pure of secrets/Anthropic — safe to unit test. */
 async function runMonitorChecks(db) {
   const ranAt = new Date().toISOString();
-  const [pages, firebase, images, quizzes] = await Promise.all([
+  const [pages, firebase, images, quizzes, dailyExams] = await Promise.all([
     checkPages(),
     checkFirebase(db),
     checkImages(db),
     checkQuizzes(db),
+    checkDailyExams(db),
   ]);
 
-  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures];
+  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures, ...dailyExams.failures];
   const critical = failures.filter((f) => f.severity === "critical");
 
   return {
@@ -318,6 +422,7 @@ async function runMonitorChecks(db) {
       firebase: {ok: firebase.ok, results: firebase.results},
       images: {ok: images.ok, checked: images.checked},
       quizzes: {ok: quizzes.ok, checked: quizzes.checked},
+      dailyExams: {ok: dailyExams.ok, skipped: dailyExams.skipped, scheduled: dailyExams.scheduled, healed: dailyExams.healed ?? 0},
     },
     failures,
   };
@@ -329,8 +434,8 @@ async function suggestFixes(apiKey, report) {
   const failures = report.failures.slice(0, 30);
   const systemPrompt =
     "You are Vigil, ZedExams' site reliability engineer. You are handed a JSON " +
-    "list of failures from an hourly health check across four surfaces: pages, " +
-    "firebase, images, quizzes. Group your answer by surface. For each distinct " +
+    "list of failures from an hourly health check across five surfaces: pages, " +
+    "firebase, images, quizzes, dailyExams. Group your answer by surface. For each distinct " +
     "problem give a one-line likely root cause and a concrete, minimal fix an " +
     "engineer can act on. Flag anything that looks transient (e.g. a single 5xx " +
     "or one slow image) as 'likely transient — re-check next run'. Be terse and " +
@@ -542,6 +647,8 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
 
 module.exports = {
   runMonitorChecks,
+  checkDailyExams,
+  dailyExamCheckWindow,
   runStructuralChecks,
   extractPlainText,
   failureKey,

@@ -25,17 +25,15 @@
 
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
+// "Today" is the LUSAKA calendar day, computed explicitly. The container
+// runs in UTC, so local-getter date maths would pin yesterday's date when
+// invoked between 00:00 and 01:59 Lusaka (e.g. Vigil's self-heal re-run, a
+// late scheduler retry). At the scheduled 05:00 Lusaka firing the two agree,
+// so this changes nothing for the normal morning run.
+const {lusakaDayString} = require("./lusakaTime");
 
 const GRADES = ["4", "5", "6", "7"];
 const EXAM_QUESTION_THRESHOLD = 50;
-
-function todayString(date = new Date()) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
 
 function compareForRotation(a, b) {
   const lastA = a.data().lastDailyExamDate || "";
@@ -122,7 +120,7 @@ async function promotePickForGrade(db, grade, today) {
   return {grade, status: "promoted", quizId: pick.id, title: pick.data().title};
 }
 
-async function runAutoPick({today = todayString()} = {}) {
+async function runAutoPick({today = lusakaDayString()} = {}) {
   const db = admin.firestore();
   const summary = {date: today, grades: []};
 
