@@ -20,7 +20,8 @@
  *     tucked inside it on the right.
  *   - Filters are hidden by default — the Filters button opens a bottom
  *     sheet with pill chips (Grade / Subject / Year + sort).
- *   - "Recommended" is a single slim horizontal card (≤100px tall).
+ *   - "Recommended" is a single compact card (badges + title, actions
+ *     on their own row so nothing collides on narrow phones).
  *   - Papers render as compact one-row list cards so several fit on a
  *     phone screen at once.
  *   - "Browse by year" is a single-open accordion — tapping a year
@@ -221,41 +222,46 @@ function BottomSheet({ open, onClose, title, children, footer }) {
   )
 }
 
-// ── Recommended (compact horizontal card, ≤100px tall) ──────────────
+// ── Recommended (compact card: badges + full title, actions below) ──
+// Stacked on purpose: on a 360px phone a single row can't fit the badge
+// pair, the title, AND two buttons — the title truncated to a few words
+// and the chips collided with the buttons. Two short rows read cleanly.
 function RecommendedCard({ paper, onOpen }) {
   const { label, Icon, tile } = subjectMeta(paper.subject)
   const hasQuiz = Boolean(paper.quizId)
   const viewTo = paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
 
   return (
-    <div className="theme-card rounded-radius-lg shadow-elev-md p-3 flex items-center gap-3 ring-1 ring-orange-200">
-      <div className={`flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center ${tile}`}>
-        <Icon size={26} strokeWidth={2.2} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          {hasQuiz && <QuizBadge available />}
-          <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">{label}</span>
+    <div className="theme-card rounded-radius-lg shadow-elev-md p-3.5 ring-1 ring-orange-200">
+      <div className="flex items-start gap-3">
+        <div className={`flex-shrink-0 w-12 h-12 rounded-2xl grid place-items-center ${tile}`}>
+          <Icon size={24} strokeWidth={2.2} />
         </div>
-        <h3 className="theme-text font-black text-sm leading-snug truncate mt-0.5">{paper.title}</h3>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {hasQuiz && <QuizBadge available />}
+            <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide truncate">{label}</span>
+          </div>
+          <h3 className="theme-text font-black text-sm leading-snug line-clamp-2 mt-1">{paper.title}</h3>
+        </div>
       </div>
-      <div className="flex-shrink-0 flex items-center gap-1.5">
+      <div className="mt-3 flex items-center gap-2">
         {hasQuiz && (
           <Link
             to={`/papers/${paper.id}/quiz`}
             onClick={() => onOpen(paper.id)}
-            className="inline-flex items-center gap-1 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-3 py-2 active:scale-95 transition"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-4 py-2.5 active:scale-95 transition"
           >
             <PencilLine size={14} strokeWidth={2.4} />
-            Quiz
+            Take quiz
           </Link>
         )}
         <Link
           to={viewTo}
           onClick={() => onOpen(paper.id)}
-          className="inline-flex items-center gap-1 rounded-full theme-bg-subtle theme-text text-xs font-bold px-3 py-2 active:scale-95 transition"
+          className="flex-1 inline-flex items-center justify-center rounded-full theme-bg-subtle theme-text text-xs font-bold px-4 py-2.5 active:scale-95 transition"
         >
-          View
+          View paper
         </Link>
       </div>
     </div>
@@ -270,7 +276,11 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
   const viewTo = paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
 
   return (
-    <div className="group theme-card rounded-radius-md shadow-elev-sm hover:shadow-elev-md transition-shadow flex items-center gap-3 p-2.5 pr-3">
+    // min-w-0 matters: as a grid item, without it the nowrap (truncate)
+    // title sets a min-content wider than a phone screen, the track
+    // overflows, and the accordion's overflow-hidden clips the quiz +
+    // bookmark buttons off the right edge.
+    <div className="group min-w-0 theme-card rounded-radius-md shadow-elev-sm hover:shadow-elev-md transition-shadow flex items-center gap-3 p-2.5 pr-3">
       <Link
         to={viewTo}
         onClick={() => onOpen(paper.id)}
@@ -281,8 +291,8 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="theme-text font-bold text-sm leading-snug truncate">{paper.title}</h3>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-[11px] font-bold theme-text-muted">Grade {paper.grade}</span>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
+            <span className="text-[11px] font-bold theme-text-muted whitespace-nowrap">Grade {paper.grade}</span>
             <span className="text-[11px] theme-text-muted" aria-hidden="true">·</span>
             <span className="text-[11px] font-bold theme-text-muted">{paper.year}</span>
             {specimen && <StarIcon size={12} strokeWidth={2.6} className="theme-accent-text" />}
@@ -345,7 +355,7 @@ function YearAccordion({ year, papers, open, onToggle, savedIds, onToggleSave, o
         />
       </button>
       {open && (
-        <div className="px-2.5 pb-2.5 grid gap-2 sm:grid-cols-2">
+        <div className="px-2.5 pb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {papers.map((paper) => (
             <PaperRow
               key={paper.id}
