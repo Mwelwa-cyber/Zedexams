@@ -153,7 +153,7 @@ async function runRedrawTestPaperDiagram(args, deps = {}) {
  * reuses runGenerateDiagram for the actual image generation so the B&W guard,
  * Recraft→OpenAI fallback and Storage upload all behave identically.
  */
-function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKeySecret) {
+function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret) {
   const {onCall, HttpsError} = require("firebase-functions/v2/https");
   const admin = require("firebase-admin");
   const {getUserRole, isStaffRole} = require("../../aiService");
@@ -163,10 +163,9 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
   const secrets = [];
   if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
-  if (kieApiKeySecret) secrets.push(kieApiKeySecret);
 
-  // Image generation (Recraft/OpenAI/Kie) — especially the Kie async
-  // submit-then-poll path — can run well past a minute. At the old 120s ceiling
+  // Image generation (via gpt-image-1) can run well past a minute. At the old
+  // 120s ceiling
   // a slow generation was KILLED by the platform mid-await, which returns a raw
   // 500 the Firebase SDK surfaces to the client as the bare code name
   // "internal" (the try/catch below never runs because the process is aborted).
@@ -227,15 +226,11 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
             const openaiKey = openaiApiKeySecret ?
               (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
               (process.env.OPENAI_API_KEY || "");
-            const kieKey = kieApiKeySecret ?
-              (kieApiKeySecret.value() || process.env.KIE_API_KEY || "") :
-              (process.env.KIE_API_KEY || "");
             return runGenerateDiagram({
               uid,
               rawInputs: {prompt: brief.prompt, style: brief.style, size: brief.size},
               recraftKey,
               openaiKey,
-              kieKey,
             });
           },
           saveToLibrary: async (metadata) => {

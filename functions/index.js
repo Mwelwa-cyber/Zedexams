@@ -295,11 +295,13 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // prompt. When unset, there is no fallback and the photoreal toggle is
 // hidden.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
-// Optional. When set, generateDiagram exposes a "colour illustration" style
-// that routes through the Kie.ai image API (Nano Banana et al.) for bright,
-// friendly worksheet illustrations. When unset, the toggle is hidden and the
-// other providers (Recraft line-art / OpenAI photoreal) handle everything.
-const kieApiKey = defineSecret("KIE_API_KEY");
+// KIE_API_KEY intentionally NOT declared/bound. Kie was fully decommissioned
+// (2026-07) — the owner consolidated all image generation onto OpenAI, so the
+// "colour illustration" style now renders via gpt-image-1 and the KIE_API_KEY
+// secret + functions/kieClient.js were removed. As with RECRAFT_API_KEY, a
+// defineSecret() bound to a function whose value no longer exists hard-fails
+// `firebase deploy` in CI. Re-declare + re-fund the secret and restore the Kie
+// provider branch in generateDiagram.js to bring it back.
 // Lenco (lenco.co) automated payments — ZMW mobile money + card
 // collections. The webhook signing key is derived from this token
 // (SHA256) per Lenco's spec, so no separate webhook secret is needed
@@ -2237,17 +2239,15 @@ exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 // Teacher Tools — Exam Studio (ECZ Grade 7 PSLE-style practice questions).
 exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 
-// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
-// When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
-// toggle that routes through gpt-image-1, and line-art requests fall back
-// to gpt-image-1 automatically when Recraft can't serve (out of credits,
-// bad key). The factory takes all three secrets so the handler can route
-// per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(null, openaiApiKey, kieApiKey);
+// Teacher Tools — Diagram Generator. All three styles (line-art, photoreal,
+// colour illustration) render via gpt-image-1: Recraft and Kie were both
+// decommissioned, so only the OpenAI key is bound. Recraft is passed `null`
+// (see the RECRAFT_API_KEY note above) and Kie no longer exists.
+exports.generateDiagram = createGenerateDiagram(null, openaiApiKey);
 
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
-// generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
-exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(null, openaiApiKey, kieApiKey);
+// generation via the same gpt-image-1 pipeline as generateDiagram.
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(null, openaiApiKey);
 
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.
