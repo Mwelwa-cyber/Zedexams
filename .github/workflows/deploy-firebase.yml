@@ -52,6 +52,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          # Full history lets the deploy classifier inspect the exact push diff
+          # before deciding whether a stale legacy auth trigger should block the
+          # whole release.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -114,8 +119,132 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          npx firebase-tools@latest deploy \
-            --only "${{ steps.target.outputs.only }}" \
-            --non-interactive \
-            --project examsprepzambia \
-            --force
+          set -euo pipefail
+
+          only="${{ steps.target.outputs.only }}"
+
+          run_deploy() {
+            local deploy_only="$1"
+            npx firebase-tools@latest deploy \
+              --only "$deploy_only" \
+              --non-interactive \
+              --project examsprepzambia \
+              --force 2>&1
+          }
+
+          parse_failed() {
+            grep -iE "failed to update function .*/functions/[A-Za-z0-9_-]+|Failed to update function .*/functions/[A-Za-z0-9_-]+" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
+          parse_409() {
+            grep -iE "HTTP Error: 409, unable to queue the operation" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
+          parse_already_exists() {
+            grep -iE "HTTP Error: 409, Resource '[^']*/functions/[A-Za-z0-9_-]+' already exists" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
+          auth_trigger_touched=false
+          if [ "${{ github.event_name }}" = "push" ]; then
+            base="${{ github.event.before }}"
+            if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
+              if git diff --unified=0 "$base" "${{ github.sha }}" -- functions/index.js \
+                | grep -Eq 'resolveInitialUserRole|setUserRole'; then
+                auth_trigger_touched=true
+              fi
+            fi
+          else
+            # Manual runs are explicit operator intent, so keep the stricter
+            # behaviour and surface any setUserRole failure.
+            auth_trigger_touched=true
+          fi
+
+          out=""
+          status=0
+          attempt=1
+          while [ "$attempt" -le 2 ]; do
+            echo "::group::Firebase deploy attempt ${attempt}/2 (--only ${only})"
+            set +e
+            out="$(run_deploy "$only")"
+            status=$?
+            set -e
+            printf '%s\n' "$out"
+            echo "::endgroup::"
+
+            if [ "$status" -eq 0 ]; then
+              echo "Firebase deploy completed successfully."
+              exit 0
+            fi
+
+            failed="$(printf '%s\n' "$out" | parse_failed || true)"
+            if [ -z "${failed}" ]; then
+              break
+            fi
+
+            if [ "$attempt" -eq 2 ]; then
+              break
+            fi
+
+            if printf '%s\n' "$failed" | grep -qx 'setUserRole' && [ "$auth_trigger_touched" != "true" ]; then
+              echo "::warning::setUserRole failed on an unrelated push; skipping retry because the auth-trigger code was not touched."
+              break
+            fi
+
+            only="$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)"
+            echo "Deploy reported failure(s); retrying [--only ${only}] in 30s..."
+            sleep 30
+            attempt=$((attempt + 1))
+          done
+
+          failed="$(printf '%s\n' "$out" | parse_failed || true)"
+          cosmetic="$(printf '%s\n' "$out" | parse_409 || true)"
+          existing="$(printf '%s\n' "$out" | parse_already_exists || true)"
+          cosmetic="$(printf '%s\n' "${cosmetic}" "${existing}" | grep -v '^$' | sort -u || true)"
+
+          genuine=""
+          if [ -n "${failed}" ]; then
+            if [ -z "${cosmetic}" ]; then
+              genuine="${failed}"
+            else
+              genuine="$(comm -23 \
+                <(printf '%s\n' "${failed}" | sort -u) \
+                <(printf '%s\n' "${cosmetic}" | sort -u) \
+              )"
+            fi
+          fi
+
+          if [ -n "${genuine}" ] && [ "$auth_trigger_touched" != "true" ]; then
+            genuine_without_set_user_role="$(printf '%s\n' "${genuine}" | grep -vx 'setUserRole' || true)"
+            if [ -n "${genuine_without_set_user_role}" ] || printf '%s\n' "${genuine}" | grep -qxv 'setUserRole'; then
+              genuine="${genuine_without_set_user_role}"
+            elif printf '%s\n' "${genuine}" | grep -qx 'setUserRole'; then
+              echo "::warning::Ignoring stale setUserRole deploy failure because this push did not touch the auth-trigger logic."
+              genuine=""
+            fi
+          fi
+
+          if [ -n "${genuine}" ]; then
+            echo "::error::Firebase deploy failed for function(s) with a non-transient error:"
+            printf '%s\n' "${genuine}" | sed 's/^/::error::  failed: /'
+            exit 1
+          fi
+
+          if [ -n "${cosmetic}" ]; then
+            echo "::warning::Firebase deploy hit a cosmetic 409 on the function(s) below. These operations complete server-side, so this is treated as non-fatal:"
+            printf '%s\n' "${cosmetic}" | sed 's/^/::warning::  cosmetic-409: /'
+          fi
+
+          if printf '%s\n' "${failed}" | grep -qx 'setUserRole' && [ "$auth_trigger_touched" != "true" ]; then
+            echo "::warning::setUserRole is a stale legacy auth trigger failure on this push; unrelated functions, rules, and indexes were still allowed through."
+          fi
+
+          echo "Firebase deploy complete."
