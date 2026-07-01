@@ -103,25 +103,49 @@ async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
   });
 }
 
+// Cap the Firestore work well under the 15s function timeout. The daily-rollup
+// writes to a single hot counter doc (visitorStats/{day}) on every pageview, so
+// a slow or contended Firestore can make the transaction crawl. If we let that
+// ride the full timeout, the platform kills the instance and returns a 500 to
+// the browser (the catch below never runs) — the exact thing this best-effort
+// beacon must never do. Past this budget we abandon the write and still 204.
+const WRITE_BUDGET_MS = 9000;
+
+// Resolve after `ms`, so a hung/slow write can't outlast the budget. Clears its
+// own timer when the work settles first so we don't leak a handle per request.
+function withBudget(promise, ms) {
+  let timer;
+  const budget = new Promise((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    budget,
+  ]);
+}
+
 exports.apiTrackVisit = onRequest(
     {region: "us-central1", timeoutSeconds: 15, memory: "128MiB"},
     async (req, res) => {
-      // Same shared origin allow-list as the other /api/* endpoints. This
-      // is an unauthenticated beacon, so CORS is the main browser guard.
-      applyCors(req, res);
-
-      if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-      }
-      if (req.method !== "POST") {
-        res.status(405).json({error: "Use POST."});
-        return;
-      }
-
-      // Never let a tracking failure surface to the visitor or retry —
-      // analytics is strictly best-effort. We always answer 204.
+      // Best-effort beacon: it must NEVER surface an error — or a 500 — to the
+      // visitor (analytics is not worth a console error or a client retry). So
+      // the WHOLE handler, including CORS + method handling, lives inside one
+      // try/catch, and the Firestore work is time-boxed under the function
+      // timeout so a slow backend returns 204 rather than a platform 500.
       try {
+        // Same shared origin allow-list as the other /api/* endpoints. This
+        // is an unauthenticated beacon, so CORS is the main browser guard.
+        applyCors(req, res);
+
+        if (req.method === "OPTIONS") {
+          res.status(204).send("");
+          return;
+        }
+        if (req.method !== "POST") {
+          res.status(405).json({error: "Use POST."});
+          return;
+        }
+
         const beacon = normalizeBeacon(req.body || {});
         if (!beacon) {
           res.status(204).send("");
@@ -148,19 +172,31 @@ exports.apiTrackVisit = onRequest(
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        await db.collection("visits").add(visitDoc);
-        await updateDailyRollup(db, {
-          dayKey,
-          visitorId: beacon.visitorId,
-          sessionId: beacon.sessionId,
-          isBot: ua.bot,
+        // `.catch` on the work itself so that, if the budget wins the race and
+        // we move on, a later write rejection can't become an unhandled
+        // rejection that crashes the instance.
+        const work = Promise.all([
+          db.collection("visits").add(visitDoc),
+          updateDailyRollup(db, {
+            dayKey,
+            visitorId: beacon.visitorId,
+            sessionId: beacon.sessionId,
+            isBot: ua.bot,
+          }),
+        ]).catch((err) => {
+          console.error("[apiTrackVisit] write failed", err);
         });
+
+        await withBudget(work, WRITE_BUDGET_MS);
 
         res.status(204).send("");
       } catch (err) {
         console.error("[apiTrackVisit] failed", err);
         // Still 204 — the client doesn't retry and shouldn't see an error.
-        res.status(204).send("");
+        // Guard against a double-send if a response already went out.
+        try {
+          if (!res.headersSent) res.status(204).send("");
+        } catch (_e) { /* response already closed — nothing to do */ }
       }
     },
 );
