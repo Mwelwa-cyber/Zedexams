@@ -176,6 +176,30 @@ function canonicalPassageKind(raw) {
 }
 
 /**
+ * Clamp a model-reported figure bounding box ({x,y,w,h} as fractions 0-1 of the
+ * page) into a usable crop region, or null when degenerate. Overflow past the
+ * right/bottom edge is clamped rather than rejected. Unlike the scanned-quiz
+ * sanitiser this KEEPS a near-full-page box — a full-page map is a real figure
+ * and cropping ~the whole page is still the correct image.
+ */
+function sanitiseFigureBox(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const clamp = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : NaN;
+  };
+  const x = clamp(raw.x);
+  const y = clamp(raw.y);
+  let w = clamp(raw.w);
+  let h = clamp(raw.h);
+  if ([x, y, w, h].some((n) => !Number.isFinite(n))) return null;
+  if (x + w > 1) w = 1 - x;
+  if (y + h > 1) h = 1 - y;
+  if (w < 0.03 || h < 0.03) return null; // too small to be a real figure
+  return {x, y, w, h};
+}
+
+/**
  * Normalise the optional passage descriptor the model attaches to a
  * comprehension/map question into {ref,title,text,kind}, or null when there's
  * nothing usable. `ref` is the stable group key shared by every question about
@@ -188,15 +212,21 @@ function normalisePassageRef(raw) {
   const title = str(raw.title).trim();
   const text = str(raw.text).trim();
   const table = normaliseTable(raw.table);
-  if (!ref && !title && !text && !table) return null;
+  // Where the figure is PRINTED — lets the studio attach the actual image.
+  const sourcePage = parseSourceNumber(raw.sourcePage);
+  const figureBox = sanitiseFigureBox(raw.figureBox);
+  if (!ref && !title && !text && !table && !sourcePage) return null;
   const key = ref ||
     (title ? "title:" + title.toLowerCase() :
       (text ? "text:" + text.slice(0, 48).toLowerCase() :
-        "table:" + JSON.stringify((table.rows[0] || [])).slice(0, 48).toLowerCase()));
+        (table ? "table:" + JSON.stringify((table.rows[0] || [])).slice(0, 48).toLowerCase() :
+          "page:" + sourcePage)));
   if (!key) return null;
   return {
     ref: key, title, text, kind: canonicalPassageKind(raw.kind),
     ...(table ? {table} : {}),
+    ...(sourcePage ? {sourcePage} : {}),
+    ...(figureBox ? {figureBox} : {}),
   };
 }
 
@@ -221,20 +251,53 @@ function questionKey(q) {
   return stem + "␟" + opts;
 }
 
+function normaliseSectionLabel(v) {
+  return str(v).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Identity of a question's PRINTED number, scoped by its printed section
+ * heading — e.g. "section b#3". ECZ papers legitimately RESTART numbering at 1
+ * in each section, so treating the bare number as globally unique made Section
+ * B's Q1..Q20 collide with Section A's and silently drop them (questions then
+ * shift so the content at a position no longer matches the paper). Scoping by
+ * the section label keeps restarted numbers distinct while still collapsing a
+ * true re-read (same section, same number). Returns null when the question has
+ * no parseable printed number.
+ */
+function numberKey(q) {
+  const num = parseSourceNumber(q && q.sourceNumber);
+  if (num == null) return null;
+  return normaliseSectionLabel(q && q.sectionLabel) + "#" + num;
+}
+
 /**
  * Drop questions the model returned twice. LLM extraction occasionally emits
  * the same MCQ more than once (especially on long papers), which lands as a
  * duplicate card in the editor. Two questions are the same when their stem and
  * option set are identical after normalisation — order/position is ignored.
  * Survivors are re-sequenced so `order` stays 0..N.
+ *
+ * Number-aware exception: two DISTINCT printed questions can legitimately share
+ * an identical stem — options-less items like "Give a reason for your answer."
+ * repeat verbatim on real ECZ papers. A stem-duplicate that carries a printed
+ * number the earlier occurrence(s) did NOT is therefore kept, not collapsed;
+ * an unnumbered repeat (or a repeat of the same printed number) is a true
+ * duplicate and is still dropped.
  */
 function dedupeExtractedQuestions(questions) {
-  const seen = new Set();
+  const seenByStem = new Map(); // questionKey → Set of numberKeys seen for it
   const out = [];
   for (const q of questions) {
     const key = questionKey(q);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const nkey = numberKey(q);
+    const prior = seenByStem.get(key);
+    if (prior) {
+      if (nkey == null || prior.has(nkey)) continue; // true duplicate
+      prior.add(nkey); // distinct printed question sharing a stem — keep
+    } else {
+      seenByStem.set(key, new Set(nkey == null ? [] : [nkey]));
+    }
     out.push(out.length === q.order ? q : {...q, order: out.length});
   }
   return out;
@@ -284,46 +347,81 @@ function planPageBatches(items, size) {
  * text each time (e.g. "Mufulira" vs "Mufülira"), which slips past a stem match
  * and inflates the count (a 60-question paper imported as 105). So a question is
  * a re-read — NOT new — when EITHER its stem+options match a seen one OR its
- * PRINTED question number is one already captured. `seenNumbers` (optional, a
- * Set of positive ints) enables the number guard; when omitted the behaviour is
- * the original stem-only de-dupe. Both sets are mutated in place + returned.
+ * PRINTED question number (section-scoped, see numberKey) is one already
+ * captured. `seenNumbers` (optional, a Set of numberKey strings) enables the
+ * number guard; when omitted the behaviour is the original stem-only de-dupe.
+ * Both sets are mutated in place + returned.
+ *
+ * Same-stem exception: a question whose stem matches a seen one but that
+ * carries a genuinely NEW printed number is a DISTINCT question, not a re-read
+ * ("Give a reason for your answer." repeats verbatim on real papers) — it is
+ * kept. Without a printed number the stem match wins (conservative, original
+ * behaviour).
  */
 function selectNewQuestions(seenKeys, incoming, seenNumbers) {
   const keys = seenKeys instanceof Set ? seenKeys : new Set();
   const nums = seenNumbers instanceof Set ? seenNumbers : null;
   const fresh = [];
   for (const q of (Array.isArray(incoming) ? incoming : [])) {
-    const num = parseSourceNumber(q && q.sourceNumber);
+    const nkey = numberKey(q);
     // A re-read of an already-captured printed number is the same question.
-    if (nums && num != null && nums.has(num)) continue;
+    if (nums && nkey != null && nums.has(nkey)) continue;
     const key = questionKey(q);
-    if (keys.has(key)) continue;
+    // A repeated stem is a duplicate UNLESS this question carries a new
+    // printed number (checked above) — then it's a distinct same-stem item.
+    if (keys.has(key) && !(nums && nkey != null)) continue;
     keys.add(key);
-    if (nums && num != null) nums.add(num);
+    if (nums && nkey != null) nums.add(nkey);
     fresh.push(q);
   }
   return {fresh, seenKeys: keys, seenNumbers: nums};
 }
 
 /**
+ * ANTI-INVENTION GUARD for gap recovery. Under "find the missing numbers"
+ * pressure the model sometimes fabricates a hit: it re-words a question it
+ * already returned, or re-numbers a nearby one, to satisfy a listed number —
+ * which imported questions that DON'T EXIST on the paper (the "questions
+ * replaced with other questions" bug). Keep only questions whose parsed
+ * printed number is one of the numbers explicitly asked for; a recovered item
+ * with no number, or an un-requested number, is discarded. An unfilled gap is
+ * honest (it stays in the report's missing list); an invented question is
+ * silent corruption.
+ */
+function filterRecoveredToWanted(questions, wantedNumbers) {
+  const wanted = new Set(
+    (Array.isArray(wantedNumbers) ? wantedNumbers : [])
+      .map((n) => parseSourceNumber(n))
+      .filter((n) => n != null),
+  );
+  return (Array.isArray(questions) ? questions : [])
+    .filter((q) => {
+      const num = parseSourceNumber(q && q.sourceNumber);
+      return num != null && wanted.has(num);
+    });
+}
+
+/**
  * Collapse questions that share the same PRINTED question number — they are the
  * same item re-read with OCR drift across continuation rounds. The first
- * occurrence of each number wins (round 0's read is the cleanest). Questions
- * with no printed number are left untouched (they can't be number-matched and
- * are handled by the stem de-dupe instead). Returns {questions, removed}.
+ * occurrence of each number wins (round 0's read is the cleanest). Numbers are
+ * section-scoped (numberKey), so a paper that restarts numbering per section
+ * does not collide Section B's Q1 with Section A's. Questions with no printed
+ * number are left untouched (they can't be number-matched and are handled by
+ * the stem de-dupe instead). Returns {questions, removed}.
  */
 function dedupeBySourceNumber(questions) {
   const seen = new Set();
   const out = [];
   let removed = 0;
   for (const q of (Array.isArray(questions) ? questions : [])) {
-    const num = parseSourceNumber(q && q.sourceNumber);
-    if (num != null) {
-      if (seen.has(num)) {
+    const nkey = numberKey(q);
+    if (nkey != null) {
+      if (seen.has(nkey)) {
         removed += 1;
         continue;
       }
-      seen.add(num);
+      seen.add(nkey);
     }
     out.push(q);
   }
@@ -460,6 +558,10 @@ function normaliseImportedQuestion(raw, idx) {
   const passage = normalisePassageRef(raw && raw.passage);
   const table = normaliseTable(raw && raw.table);
 
+  // The printed section heading ("SECTION B") — scopes the printed number so
+  // restart-numbering papers dedupe correctly (see numberKey).
+  const sectionLabel = str(raw && raw.sectionLabel).trim().slice(0, 80);
+
   return {
     type,
     prompt,
@@ -467,6 +569,7 @@ function normaliseImportedQuestion(raw, idx) {
     correctAnswer,
     explanation,
     sourceNumber,
+    ...(sectionLabel ? {sectionLabel} : {}),
     answerKnown,
     order: Number.isInteger(idx) ? idx : 0,
     requiresReview: true,
@@ -489,13 +592,14 @@ function normaliseImportedQuestion(raw, idx) {
 function collectPassages(questions) {
   const list = Array.isArray(questions) ? questions : [];
   const groups = new Map();
+  const boxArea = (b) => (b ? b.w * b.h : 0);
   list.forEach((q, i) => {
     const p = q && q.passage;
     if (!p || !p.ref) return;
     const ord = Number.isInteger(q.order) ? q.order : i;
     let g = groups.get(p.ref);
     if (!g) {
-      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null};
+      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null, sourcePage: null, figureBox: null};
       groups.set(p.ref, g);
     }
     g.count += 1;
@@ -503,6 +607,10 @@ function collectPassages(questions) {
     if (p.text && p.text.length > g.passageText.length) g.passageText = p.text;
     if (p.table && tableCellCount(p.table) > tableCellCount(g.table)) g.table = p.table;
     if (p.kind === "map") g.passageKind = "map";
+    // Figure location: first reported page wins; the LARGEST reported box wins
+    // (re-reads of the same figure jitter — the generous crop keeps it whole).
+    if (p.sourcePage && !g.sourcePage) g.sourcePage = p.sourcePage;
+    if (p.figureBox && boxArea(p.figureBox) > boxArea(g.figureBox)) g.figureBox = p.figureBox;
     if (ord < g.order) g.order = ord;
   });
 
@@ -510,8 +618,13 @@ function collectPassages(questions) {
   const passages = [];
   let idx = 0;
   for (const g of groups.values()) {
-    // A lone block with no text AND no table is a mislabelled standalone.
-    if (!g.passageText && !g.table && g.count < 2) continue;
+    // A lone block with no text AND no table is a mislabelled standalone —
+    // EXCEPT a map/figure block that carries a printed location (page/box):
+    // a pure visual map has no OCR-able text but is real shared content the
+    // studio attaches an image to. Dropping it was why imported Social
+    // Studies maps vanished entirely.
+    if (!g.passageText && !g.table && g.count < 2 &&
+        !(g.passageKind === "map" && (g.sourcePage || g.figureBox))) continue;
     idx += 1;
     const id = `p${String(idx).padStart(3, "0")}`;
     refToId.set(g.ref, id);
@@ -522,6 +635,8 @@ function collectPassages(questions) {
       passageKind: g.table && !g.passageText ? "map" : g.passageKind || "comprehension",
       order: g.order,
       ...(g.table ? {table: g.table} : {}),
+      ...(g.sourcePage ? {sourcePage: g.sourcePage} : {}),
+      ...(g.figureBox ? {figureBox: g.figureBox} : {}),
     });
   }
 
@@ -694,6 +809,8 @@ function buildImportReport({
   tablesCaptured = 0,
   questions = [],
   extraNotes = [],
+  figures = [],
+  engineVersion = "",
 } = {}) {
   const {issues, gaps} = validateImport(questions, {truncationHit});
   const corrections = [];
@@ -719,6 +836,13 @@ function buildImportReport({
       `Rebuilt ${tablesCaptured} printed table(s) as a formatted grid.`,
     );
   }
+  const figureList = Array.isArray(figures) ? figures : [];
+  if (figureList.length > 0) {
+    corrections.push(
+      `Located ${figureList.length} printed figure/map(s) — attaching the ` +
+      "image(s) from the uploaded paper.",
+    );
+  }
   const withAnswer = questions.filter((q) => q.answerKnown).length;
   return {
     pagesProcessed,
@@ -739,6 +863,14 @@ function buildImportReport({
     issues,
     corrections,
     notes: Array.isArray(extraNotes) ? extraNotes.filter(Boolean) : [],
+    // Printed figures/maps located on the paper — {passageId, title,
+    // sourcePage, box}. The studio uses these to crop + attach each figure's
+    // image from the uploaded source so the map is visible, not lost.
+    figures: figureList,
+    // Deploy observability: the version of the import engine that actually
+    // ran. Surfaced in the studio's report so a stale Cloud Function deploy
+    // (the silent firebase-tools "exit 0 but stale" failure) is visible.
+    engineVersion: str(engineVersion),
   };
 }
 
@@ -751,8 +883,11 @@ module.exports = {
   MAX_OPTIONS,
   canonicalType,
   questionKey,
+  numberKey,
+  sanitiseFigureBox,
   planPageBatches,
   selectNewQuestions,
+  filterRecoveredToWanted,
   dedupeBySourceNumber,
   extractionProgress,
   summariseSeenStems,

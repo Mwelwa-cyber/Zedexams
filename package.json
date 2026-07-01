@@ -79,6 +79,7 @@
     "test:game-feel": "node scripts/test-game-feel.mjs",
     "test:game-progress": "node scripts/test-game-progress.mjs",
     "test:csv-import": "node scripts/test-csv-import.mjs",
+    "test:paper-figure-attach": "node src/utils/paperFigureAttachCore.test.js",
     "test:roster-import": "node scripts/test-roster-import.mjs",
     "test:class-record": "node scripts/test-class-record.mjs",
     "test:class-record-export": "node scripts/test-class-record-export.mjs",

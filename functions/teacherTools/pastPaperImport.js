@@ -42,6 +42,7 @@ const {
   canWriteQuiz,
   planPageBatches,
   selectNewQuestions,
+  filterRecoveredToWanted,
   extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
@@ -110,6 +111,14 @@ const EXTRACTION_MAX_TOKENS = 16000;
 const MAX_GAP_RECOVERY_ROUNDS = 2;
 const MAX_GAP_NUMBERS_PER_ASK = 40;
 
+// Engine version stamp, returned on every import report and shown in the
+// studio's Import Report card. If the version shown after a live import
+// doesn't match this string, the deployed Cloud Function is running OLD code
+// (the silent firebase-tools "exit 0 but stale" deploy failure that made
+// importer fixes look broken in production while passing every test). Bump on
+// any change to the extraction/dedup/recovery logic in this pipeline.
+const PAST_PAPER_ENGINE_VERSION = "2026.07.02-faithful1";
+
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const DOC_MIME = "application/msword";
@@ -131,6 +140,14 @@ const QUESTIONS_TOOL_SCHEMA = {
             description:
               "The question number printed on the paper (e.g. 12). Used to " +
               "detect skipped questions. Null if the paper shows none.",
+          },
+          sectionLabel: {
+            type: ["string", "null"],
+            description:
+              "The printed section heading this question sits under (e.g. " +
+              "'SECTION B'), copied verbatim. Null when the paper prints " +
+              "none. CRITICAL on papers that restart question numbering in " +
+              "each section — the label keeps restarted numbers distinct.",
           },
           type: {
             type: "string",
@@ -178,6 +195,26 @@ const QUESTIONS_TOOL_SCHEMA = {
                 description: "'comprehension' for a reading text, or 'map' for a shared map/figure/table.",
               },
               table: TABLE_SCHEMA,
+              sourcePage: {
+                type: ["integer", "null"],
+                description:
+                  "The 1-based page of the paper where this passage/figure " +
+                  "is PRINTED. Required for kind:'map' so the figure image " +
+                  "can be attached automatically.",
+              },
+              figureBox: {
+                type: ["object", "null"],
+                description:
+                  "For kind:'map': a TIGHT bounding box around JUST the " +
+                  "printed figure/map on sourcePage, as fractions 0-1 of the " +
+                  "page ({x,y,w,h}). Exclude the questions and their options.",
+                properties: {
+                  x: {type: "number"},
+                  y: {type: "number"},
+                  w: {type: "number"},
+                  h: {type: "number"},
+                },
+              },
             },
           },
           table: TABLE_SCHEMA,
@@ -198,6 +235,10 @@ SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of 
 
 READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
 
+SHARED MAPS & PRINTED FIGURES — REPORT WHERE THEY ARE. For a shared map, diagram, picture or figure (kind:"map"), ALSO report passage.sourcePage (the 1-based page where the figure is printed) and passage.figureBox (a tight {x,y,w,h} bounding box around JUST the figure, as fractions 0-1 of that page, excluding the questions and options). The figure image is attached automatically from your location report — without it the map is lost. Never skip a map-based question because the map is a picture; transcribe the question and report the figure's location.
+
+FAITHFUL TRANSCRIPTION — NEVER INVENT. Transcribe questions EXACTLY as printed. Never re-word, paraphrase, reconstruct, complete or invent a question, an option, or a number. If part of a question is unreadable, transcribe what you can read and mark the unreadable part [UNCLEAR]. Returning a question that is not printed on the paper is the worst possible error — far worse than omitting one.
+
 For each question:
 - type: choose the closest of mcq, tf (true/false), short_answer, fill_blanks, essay, numeric. For matching, ordering, structured (a/b/c parts), table, or diagram-label questions that don't fit those, use short_answer and put the full question (including its parts) in the prompt. NEVER discard a question.
 - prompt: the full question text. Preserve maths, fractions, powers/superscripts, subscripts, units, chemical formulae, currency, percentages, scientific notation, and labels exactly. Keep multi-part questions (a), (b), (c) together in one prompt with their parts.
@@ -206,6 +247,7 @@ For each question:
 - table: whenever a question (or a shared passage) includes a printed TABLE, TIMETABLE or data grid, capture it in the table field — headers as the column headings and rows as arrays of cell strings, transcribing EVERY row and column. Put a table that several questions share on the passage.table; put a table belonging to one question on that question's table. Capture the table data even when the cells also appear in the text.
 - correctAnswer: only if the paper actually marks it (answer key, asterisk, shading) — the 0-based option index for mcq/tf, or the answer text for short_answer/fill_blanks/numeric. If the answer is NOT printed, return null. NEVER guess an answer.
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
+- sectionLabel: the printed section heading the question sits under ("SECTION A", "SECTION B: STRUCTURED QUESTIONS"), copied verbatim — null when the paper has no section headings. Papers often RESTART numbering at 1 in each section; the label is what keeps a restarted Q1 distinct from Section A's Q1, so never omit it when headings are printed.
 - explanation: one short sentence on the concept tested, or empty if unsure.
 
 Transcribe faithfully. It is far better to return a complete paper with a few questions flagged for review than a tidy subset.`;
@@ -577,6 +619,11 @@ function buildGapRecoveryPrompt({paper, segment, missingNumbers}) {
     "can find there — full prompt text, options, type and sourceNumber, using " +
     "the tool schema. If a listed number is genuinely not printed on this part " +
     "of the paper, simply omit it. Do not return any other questions.",
+    "Set each returned question's sourceNumber to its PRINTED number exactly — " +
+    "it must be one of the listed numbers. NEVER re-word, reconstruct or " +
+    "re-number a question to make it fit a listed number; if you cannot " +
+    "actually see a question printed with that number, omit it. Returning an " +
+    "invented or re-numbered question is the worst possible error.",
     "",
     buildContextLines(paper),
   ].join("\n");
@@ -622,9 +669,17 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seen
       usage.inputTokens += Number(result?.usage?.inputTokens || 0);
       usage.outputTokens += Number(result?.usage?.outputTokens || 0);
       const raw = Array.isArray(result?.parsed?.questions) ? result.parsed.questions : [];
-      const normalised = raw
-        .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
-        .filter(Boolean);
+      // ANTI-INVENTION GUARD (see filterRecoveredToWanted). Under gap-recovery
+      // pressure the model sometimes "finds" a listed number by re-wording a
+      // question it already returned, or by re-numbering a nearby one — which
+      // imported WRONG questions that don't exist on the paper. Accept ONLY
+      // questions whose printed number is one we explicitly asked for.
+      const normalised = filterRecoveredToWanted(
+        raw
+          .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
+          .filter(Boolean),
+        gaps,
+      );
       const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
       fresh.forEach((q) => accum.push(q));
       if (fresh.length) recoveredAny = true;
@@ -808,12 +863,33 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     // A shared table renders as a real grid under the passage prose.
     passageText: textToParagraphHtml(p.passageText) +
       (p.table ? tableToHtml(p.table) : ""),
+    // The image itself is attached by the studio's figure-attach pass (the
+    // server has no rasteriser); figureMeta below tells it where to crop.
     imageUrl: "",
     imageAlt: "",
     passageKind: p.passageKind || "comprehension",
     manualMarks: null,
     order: p.order,
+    // Where the printed figure lives on the uploaded source: 1-based page +
+    // an optional {x,y,w,h} fractional crop box. Persisted so the map can be
+    // (re)attached — and so a failed attach is visible, not silent.
+    ...(p.sourcePage || p.figureBox ? {
+      figureMeta: {
+        sourcePage: p.sourcePage || null,
+        box: p.figureBox || null,
+      },
+    } : {}),
   }));
+  // Printed figures/maps the model located — the studio crops each one out of
+  // the uploaded paper and writes it onto the passage's imageUrl.
+  const figuresDetected = passagesForQuiz
+    .filter((p) => p.figureMeta)
+    .map((p) => ({
+      passageId: p.id,
+      title: p.title || "",
+      sourcePage: p.figureMeta.sourcePage,
+      box: p.figureMeta.box,
+    }));
   const tablesCaptured =
     questions.filter((q) => q.table).length +
     passages.filter((p) => p.table).length;
@@ -864,6 +940,8 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       tablesCaptured,
       questions,
       extraNotes: [extraNote],
+      figures: figuresDetected,
+      engineVersion: PAST_PAPER_ENGINE_VERSION,
     }),
     // Engine gate result — the studio surfaces blockers ("Missing questions:
     // 24, 47") prominently and warnings below them.
@@ -973,4 +1051,6 @@ module.exports = {
   // Re-exported from pastPaperImportHelpers for callers that already import it
   // from here; the test imports the helper module directly.
   dedupeExtractedQuestions,
+  // Deploy-observability stamp (see the constant's comment).
+  PAST_PAPER_ENGINE_VERSION,
 };

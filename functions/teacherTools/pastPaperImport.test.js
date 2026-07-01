@@ -16,8 +16,11 @@ const {
   canWriteQuiz,
   canonicalType,
   questionKey,
+  numberKey,
+  sanitiseFigureBox,
   planPageBatches,
   selectNewQuestions,
+  filterRecoveredToWanted,
   dedupeBySourceNumber,
   extractionProgress,
   summariseSeenStems,
@@ -616,6 +619,193 @@ test('buildImportReport reports tablesCaptured + a correction line', () => {
   });
   assert.equal(report.tablesCaptured, 2);
   assert.ok(report.corrections.some(c => /table/.test(c)));
+});
+
+// ── Faithful-transcription fixes: section-scoped numbers, same-stem keeps,
+// ── gap-recovery invention guard, figure/map capture ────────────────────────
+
+test('numberKey scopes the printed number by section label', () => {
+  assert.equal(numberKey({sourceNumber: 3, sectionLabel: 'SECTION B'}), 'section b#3');
+  assert.equal(numberKey({sourceNumber: 3}), '#3');
+  assert.equal(numberKey({sourceNumber: '  Q12. ', sectionLabel: ' Section  A '}), 'section a#12');
+  assert.equal(numberKey({sourceNumber: null}), null);
+  assert.equal(numberKey({}), null);
+});
+
+test('restart-numbering paper: Section B questions are NOT dropped as duplicates', () => {
+  // ECZ Social Studies: Section A runs 1..3, Section B restarts at 1. The old
+  // global number-dedup collided B's 1..3 with A's and silently dropped them —
+  // then renumbering shifted content so positions no longer matched the paper.
+  const paper = [
+    {prompt: 'A1?', options: [], sourceNumber: 1, sectionLabel: 'SECTION A', order: 0},
+    {prompt: 'A2?', options: [], sourceNumber: 2, sectionLabel: 'SECTION A', order: 1},
+    {prompt: 'A3?', options: [], sourceNumber: 3, sectionLabel: 'SECTION A', order: 2},
+    {prompt: 'B1?', options: [], sourceNumber: 1, sectionLabel: 'SECTION B', order: 3},
+    {prompt: 'B2?', options: [], sourceNumber: 2, sectionLabel: 'SECTION B', order: 4},
+    {prompt: 'B3?', options: [], sourceNumber: 3, sectionLabel: 'SECTION B', order: 5},
+  ];
+  const {questions, removed} = dedupeBySourceNumber(paper);
+  assert.equal(questions.length, 6, 'all six questions must survive');
+  assert.equal(removed, 0);
+  // The whole merge keeps them too.
+  const merged = mergeAndRenumber(paper);
+  assert.equal(merged.questions.length, 6);
+  assert.deepEqual(merged.questions.map(x => x.prompt), ['A1?', 'A2?', 'A3?', 'B1?', 'B2?', 'B3?']);
+});
+
+test('restart-numbering: selectNewQuestions keeps Section B Q1 when Section A Q1 is seen', () => {
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  selectNewQuestions(seenKeys, [
+    {prompt: 'A1?', options: [], sourceNumber: 1, sectionLabel: 'SECTION A'},
+  ], seenNumbers);
+  const {fresh} = selectNewQuestions(seenKeys, [
+    {prompt: 'B1?', options: [], sourceNumber: 1, sectionLabel: 'SECTION B'},
+  ], seenNumbers);
+  assert.equal(fresh.length, 1, 'restarted Q1 in a new section is a new question');
+});
+
+test('OCR-drift re-read (same section+number, drifted stem) still collapses', () => {
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  selectNewQuestions(seenKeys, [
+    {prompt: 'Name the town of Mufulira.', options: [], sourceNumber: 7, sectionLabel: 'SECTION A'},
+  ], seenNumbers);
+  const {fresh} = selectNewQuestions(seenKeys, [
+    // Re-OCR of the same printed question with drifting text.
+    {prompt: 'Name the town of Mufülira.', options: [], sourceNumber: 7, sectionLabel: 'SECTION A'},
+  ], seenNumbers);
+  assert.equal(fresh.length, 0, 'same printed number in the same section is a re-read');
+});
+
+test('two DISTINCT questions sharing a verbatim stem are both kept when numbered', () => {
+  // Real papers repeat options-less stems verbatim ("Give a reason for your
+  // answer."). The old stem-only dedup collapsed them, dropping questions and
+  // shifting everything after — part of the "wrong questions" report.
+  const paper = [
+    {prompt: 'Give a reason for your answer.', options: [], sourceNumber: 9, order: 0},
+    {prompt: 'Give a reason for your answer.', options: [], sourceNumber: 14, order: 1},
+  ];
+  const deduped = dedupeExtractedQuestions(paper);
+  assert.equal(deduped.length, 2, 'distinct printed numbers ⇒ distinct questions');
+
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  selectNewQuestions(seenKeys, [paper[0]], seenNumbers);
+  const {fresh} = selectNewQuestions(seenKeys, [paper[1]], seenNumbers);
+  assert.equal(fresh.length, 1, 'same stem + NEW printed number is kept');
+});
+
+test('unnumbered identical stems still collapse (conservative default)', () => {
+  const paper = [
+    {prompt: 'Give a reason for your answer.', options: [], order: 0},
+    {prompt: 'Give a reason for your answer.', options: [], order: 1},
+  ];
+  assert.equal(dedupeExtractedQuestions(paper).length, 1);
+  const seenKeys = new Set();
+  const {fresh} = selectNewQuestions(seenKeys, paper, new Set());
+  assert.equal(fresh.length, 1);
+});
+
+test('gap-recovery invention guard: only the explicitly requested numbers survive', () => {
+  // The model was asked for gaps [4, 7] but returned: a legit Q4, a re-worded
+  // question re-numbered to 12 (NOT requested — an invention), and an
+  // unnumbered fragment. Only Q4 may enter the paper.
+  const recovered = [
+    {prompt: 'What is the capital of Zambia?', sourceNumber: 4},
+    {prompt: 'A re-worded question that is not printed on the paper.', sourceNumber: 12},
+    {prompt: 'An unnumbered fragment.', sourceNumber: null},
+  ];
+  const kept = filterRecoveredToWanted(recovered, [4, 7]);
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0].sourceNumber, 4);
+  // Robust to empty/garbage inputs.
+  assert.deepEqual(filterRecoveredToWanted(recovered, []), []);
+  assert.deepEqual(filterRecoveredToWanted(null, [4]), []);
+});
+
+test('normaliseImportedQuestion carries the printed section label', () => {
+  const n = normaliseImportedQuestion({prompt: 'Q?', type: 'short_answer', sectionLabel: ' SECTION B '}, 0);
+  assert.equal(n.sectionLabel, 'SECTION B');
+  const bare = normaliseImportedQuestion({prompt: 'Q?', type: 'short_answer'}, 0);
+  assert.equal('sectionLabel' in bare, false, 'no label ⇒ field omitted (no Firestore undefined)');
+});
+
+// ── Figure/map capture ───────────────────────────────────────────────────────
+
+test('sanitiseFigureBox clamps, rejects degenerate, keeps a full-page map', () => {
+  assert.deepEqual(sanitiseFigureBox({x: 0.1, y: 0.2, w: 0.5, h: 0.4}), {x: 0.1, y: 0.2, w: 0.5, h: 0.4});
+  // Overflow past the page edge is clamped, not rejected.
+  assert.deepEqual(sanitiseFigureBox({x: 0.8, y: 0.8, w: 0.5, h: 0.5}), {x: 0.8, y: 0.8, w: 0.19999999999999996, h: 0.19999999999999996});
+  // A full-page map is a REAL figure (unlike the scanned-quiz sanitiser).
+  assert.ok(sanitiseFigureBox({x: 0, y: 0, w: 1, h: 1}));
+  // Degenerate slivers and junk are rejected.
+  assert.equal(sanitiseFigureBox({x: 0.1, y: 0.1, w: 0.001, h: 0.5}), null);
+  assert.equal(sanitiseFigureBox({x: 'a', y: 0, w: 0.5, h: 0.5}), null);
+  assert.equal(sanitiseFigureBox(null), null);
+});
+
+test('normalisePassageRef carries sourcePage + figureBox; a page-only map survives', () => {
+  const p = normalisePassageRef({ref: 'P1', kind: 'map', sourcePage: 3, figureBox: {x: 0.1, y: 0.1, w: 0.8, h: 0.5}});
+  assert.equal(p.sourcePage, 3);
+  assert.deepEqual(p.figureBox, {x: 0.1, y: 0.1, w: 0.8, h: 0.5});
+  // No ref/title/text/table but a printed page: still a usable map descriptor.
+  const pageOnly = normalisePassageRef({kind: 'map', sourcePage: 4});
+  assert.ok(pageOnly, 'page-located figure must not be discarded');
+  assert.equal(pageOnly.ref, 'page:4');
+  assert.equal(pageOnly.kind, 'map');
+});
+
+test('collectPassages KEEPS a text-less map that carries a printed location', () => {
+  // The vanishing-map regression: a pure visual map (no OCR-able text, one
+  // grouped question captured) was dropped as a "mislabelled standalone",
+  // erasing the map block entirely.
+  const qs = [
+    {prompt: 'Which town is marked X?', order: 0, passage: {ref: 'M1', kind: 'map', text: '', sourcePage: 2, figureBox: {x: 0.1, y: 0.1, w: 0.8, h: 0.6}}},
+  ];
+  const {passages, questions} = collectPassages(qs);
+  assert.equal(passages.length, 1, 'map block with a location must be kept');
+  assert.equal(passages[0].passageKind, 'map');
+  assert.equal(passages[0].sourcePage, 2);
+  assert.deepEqual(passages[0].figureBox, {x: 0.1, y: 0.1, w: 0.8, h: 0.6});
+  assert.equal(questions[0].passageId, 'p001');
+});
+
+test('collectPassages: first sourcePage wins, LARGEST figureBox wins across re-reads', () => {
+  const qs = [
+    {prompt: 'Q1', order: 0, passage: {ref: 'M1', kind: 'map', text: 'Study the map.', sourcePage: 2, figureBox: {x: 0.2, y: 0.2, w: 0.3, h: 0.3}}},
+    {prompt: 'Q2', order: 1, passage: {ref: 'M1', kind: 'map', text: 'Study the map.', sourcePage: 5, figureBox: {x: 0.1, y: 0.1, w: 0.8, h: 0.6}}},
+  ];
+  const {passages} = collectPassages(qs);
+  assert.equal(passages.length, 1);
+  assert.equal(passages[0].sourcePage, 2, 'first reported page wins');
+  assert.deepEqual(passages[0].figureBox, {x: 0.1, y: 0.1, w: 0.8, h: 0.6}, 'largest box wins');
+});
+
+test('collectPassages still drops a text-less LONE block with no location (misfire guard)', () => {
+  const qs = [
+    {prompt: 'Q1', order: 0, passage: {ref: 'X1', kind: 'comprehension', text: ''}},
+  ];
+  const {passages, questions} = collectPassages(qs);
+  assert.equal(passages.length, 0);
+  assert.equal(questions[0].passageId, null);
+});
+
+test('buildImportReport carries figures + engineVersion for the studio', () => {
+  const report = buildImportReport({
+    questionsImported: 2,
+    questions: [{type: 'mcq', options: ['a', 'b'], answerKnown: true}],
+    figures: [{passageId: 'p001', title: 'Map of Zambia', sourcePage: 2, box: {x: 0, y: 0, w: 1, h: 0.5}}],
+    engineVersion: '2026.07.02-faithful1',
+  });
+  assert.equal(report.figures.length, 1);
+  assert.equal(report.figures[0].passageId, 'p001');
+  assert.equal(report.engineVersion, '2026.07.02-faithful1');
+  assert.ok(report.corrections.some(c => /figure|map/i.test(c)));
+  // Absent inputs degrade to safe defaults.
+  const bare = buildImportReport({questions: []});
+  assert.deepEqual(bare.figures, []);
+  assert.equal(bare.engineVersion, '');
 });
 
 // ── Report ──────────────────────────────────────────────────────────────────
