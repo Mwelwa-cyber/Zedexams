@@ -31,11 +31,24 @@ export async function getNote(id) {
 }
 
 /**
- * Subscribe to the admin's full list (drafts + published) with optional filters.
+ * Subscribe to a teacher's own notes (drafts + published) with optional filters.
+ * `uid` is required — the Firestore security rule on the `lessons` collection
+ * only allows non-admin teachers to list documents they own (createdBy) or that
+ * are published. Omitting this filter would cause every query for a regular
+ * teacher to fail with "Missing or insufficient permissions."
  * Returns an unsubscribe function. Pass an `onChange` callback that gets the array.
  */
-export function subscribeAdminNotes({ subject, grade, status } = {}, onChange, onError) {
-  const constraints = []
+export function subscribeAdminNotes({ uid, subject, grade, status } = {}, onChange, onError) {
+  if (!uid) {
+    console.error('[notes] subscribeAdminNotes: uid is required')
+    onError?.(new Error('subscribeAdminNotes: uid is required'))
+    return () => {}
+  }
+  const constraints = [
+    // Always scope to the caller's own notes so the query satisfies the
+    // Firestore security rule (`createdBy == request.auth.uid`).
+    where('createdBy', '==', uid),
+  ]
   if (subject) constraints.push(where('subject', '==', subject))
   if (grade)   constraints.push(where('grade', '==', String(grade)))
   if (status)  constraints.push(where('status', '==', status))
