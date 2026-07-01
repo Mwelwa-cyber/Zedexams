@@ -25,7 +25,13 @@ vi.mock('./libraryClassification', () => ({
   classifyForLibrary: vi.fn(() => ({ libraryType: 'lesson_plans', gradeForm: 'Grade 4', subject: 'Mathematics' })),
 }))
 
-import { saveLessonPlanGeneration, summarizeGenerations } from './teacherLibraryService'
+import {
+  saveLessonPlanGeneration,
+  summarizeGenerations,
+  titleForGeneration,
+  TOOL_META,
+  TOOL_FILTER_OPTIONS,
+} from './teacherLibraryService'
 
 // The exact top-level keys the firestore.rules `lesson_plan` create rule
 // permits (keys().hasOnly([...])). Keep in sync with firestore.rules.
@@ -130,5 +136,21 @@ describe('summarizeGenerations', () => {
   it('handles empty and missing input', () => {
     expect(summarizeGenerations([])).toEqual({ total: 0, byTool: {} })
     expect(summarizeGenerations()).toEqual({ total: 0, byTool: {} })
+  })
+})
+
+describe('homework library metadata', () => {
+  it('has TOOL_META and a filter option (homework used to fall through to generic)', () => {
+    expect(TOOL_META.homework?.label).toBe('Homework')
+    expect(TOOL_META.homework?.route).toBe('/teacher/generate/homework')
+    expect(TOOL_FILTER_OPTIONS.some((o) => o.value === 'homework')).toBe(true)
+  })
+
+  it('titles a homework generation from header.title, then topic, never "Generation"', () => {
+    expect(titleForGeneration({ tool: 'homework', output: { header: { title: 'Fractions homework' } } }))
+      .toBe('Fractions homework')
+    expect(titleForGeneration({ tool: 'homework', inputs: { topic: 'Fractions', grade: 'G5' } }))
+      .toBe('Homework — Fractions · G5')
+    expect(titleForGeneration({ tool: 'homework' })).toBe('Homework')
   })
 })

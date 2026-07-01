@@ -196,6 +196,8 @@ export const TOOL_TO_LIBRARY_TYPE = {
   notes:             LIBRARY_TYPES.NOTES,
   worksheet:         LIBRARY_TYPES.ASSESSMENTS, // worksheets read as assessments
   rubric:            LIBRARY_TYPES.ASSESSMENTS,
+  homework:          LIBRARY_TYPES.ASSESSMENTS, // matches HomeworkStudio's attach
+  full_lesson:       LIBRARY_TYPES.LESSON_PLANS, // matches FullLessonStudio's attach
   sba_task:          LIBRARY_TYPES.SBA_TASKS,
   sba_mark_sheet:    LIBRARY_TYPES.SBA_MARK_SHEETS,
   sba_plan:          LIBRARY_TYPES.SBA_PLANS,

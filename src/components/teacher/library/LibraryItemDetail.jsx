@@ -23,6 +23,7 @@ import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SbaTaskView from '../views/SbaTaskView'
 import LessonActivitiesView from '../views/LessonActivitiesView'
+import HomeworkView from '../views/HomeworkView'
 import SbaTrackerView from '../views/SbaTrackerView'
 import SbaPlanView from '../views/SbaPlanView'
 import AssessmentPaperView from '../views/AssessmentPaperView'
@@ -47,6 +48,7 @@ import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { downloadLessonActivitiesDocx } from '../../../utils/activityToDocx'
+import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
 import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
 import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
@@ -69,6 +71,7 @@ const TOOL_DOC_TYPES = {
   sba_task: 'SBA Task',
   sba_mark_sheet: 'SBA Mark Schedule',
   sba_plan: 'SBA Year Plan',
+  homework: 'Homework',
   lesson_activities: 'Exercise & Homework',
   assessment: 'Test Paper',
   exam_paper: 'Exam Paper',
@@ -277,6 +280,9 @@ export default function LibraryItemDetail() {
         includeAnswers: true,
         includeModelAnswers: true,
       })
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'homework') {
+      await downloadHomeworkDocx(item.output, name(), { includeAnswers: showAnswers })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'mark_schedule') {
       await downloadMarkScheduleDocx(item.output, name(), { mode: showPercents ? 'percent' : 'marks' })
@@ -502,6 +508,7 @@ export default function LibraryItemDetail() {
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
             {(item.tool === 'worksheet' || item.tool === 'lesson_activities' ||
+              item.tool === 'homework' ||
               item.tool === 'assessment' || item.tool === 'exam_paper') && (
               <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
                 <input
@@ -778,6 +785,9 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'lesson_activities' && item.output && (
             <LessonActivitiesView activities={item.output} showAnswers={showAnswers} />
+          )}
+          {item.tool === 'homework' && item.output && (
+            <HomeworkView hw={item.output} showAnswers={showAnswers} />
           )}
           {item.tool === 'sba_mark_sheet' && item.output && <SbaTrackerView sheet={item.output} />}
           {item.tool === 'sba_plan' && item.output && <SbaPlanView plan={item.output} />}
