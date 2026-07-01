@@ -204,9 +204,10 @@ const {runNoteInsights} = require("./noteInsights");
 const {runGenerateNoteSmart} = require("./noteSmart");
 // Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
 const {runNoteImport, runNoteOcr} = require("./noteImport");
-// Daily Exam auto-picker — promotes one short-quiz per grade into the
-// day's Daily Exam slot every morning so the admin no longer has to
-// click "Daily Exam" by hand for routine rotation.
+// Daily Exam auto-picker — promotes one exam paper (questionCount >= 50
+// or examOnly=true) per grade into the day's Daily Exam slot every
+// morning so the admin no longer has to click "Daily Exam" by hand for
+// routine rotation.
 const {autoPickDailyExams} = require("./dailyExamPicker");
 const {
   getExamQuestions: getExamQuestionsFn,

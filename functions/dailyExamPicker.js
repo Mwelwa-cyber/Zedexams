@@ -1,26 +1,31 @@
 /**
- * autoPickDailyExams — scheduled job that promotes one short-quiz per grade
- * into the day's Daily Exam slot, and demotes yesterday's pick back to
- * Practice. Long quizzes (questionCount >= 50) are exam-only and are never
- * auto-picked here; admins still pin those manually from Manage Content.
+ * autoPickDailyExams — scheduled job that promotes one EXAM PAPER per grade
+ * into the day's Daily Exam slot, and demotes yesterday's pick back to the
+ * exam-only pool. Only real exam papers — questionCount >= 50, or an
+ * explicit examOnly=true — are eligible; short practice quizzes belong to
+ * the practice library and are never promoted (the eligibility rules live
+ * in dailyExamPickerCore.js, mirroring src/utils/quizClassification.js).
  *
  * Daily flow (per grade in [4, 5, 6, 7]):
  *   1. Demote: any quiz with quizType == "daily_exam" whose
- *      dailyExamDate < today is moved back to quizType "practice"
- *      (isDailyExam=false, dailyExamDate=null). lastDailyExamDate is kept
- *      so the rotation stays fair.
+ *      dailyExamDate < today is returned to its resting classification —
+ *      exam papers to quizType null (the exam-only pool), a hand-pinned
+ *      short quiz back to "practice" (isDailyExam=false,
+ *      dailyExamDate=null). lastDailyExamDate is kept so the rotation
+ *      stays fair.
  *   2. Skip if a daily exam for today already exists in this grade — the
  *      admin's manual pick wins.
- *   3. Pool: published quizzes for this grade with questionCount < 50 and
- *      quizType in ("practice", null). Long quizzes are never picked.
+ *   3. Pool: published exam papers for this grade (examOnly, or
+ *      questionCount >= 50 when the flag is missing on legacy docs).
  *   4. Pick the candidate with the oldest lastDailyExamDate (or never used),
  *      tie-break by createdAt asc, then by id. Promote it: quizType
  *      "daily_exam", isDailyExam=true, dailyExamDate=today,
  *      lastDailyExamDate=today.
  *
  * The function never deletes anything; it only flips fields. If there are
- * no eligible quizzes for a grade (all of them are long, or the library
- * is empty), the grade is skipped silently.
+ * no eligible exam papers for a grade (the library only has short quizzes,
+ * or is empty), the grade is skipped silently — Vigil's hourly dailyExams
+ * check escalates that as critical.
  */
 
 const {onSchedule} = require("firebase-functions/v2/scheduler");
@@ -31,9 +36,13 @@ const admin = require("firebase-admin");
 // late scheduler retry). At the scheduled 05:00 Lusaka firing the two agree,
 // so this changes nothing for the normal morning run.
 const {lusakaDayString} = require("./lusakaTime");
+const {
+  EXAM_QUESTION_THRESHOLD,
+  isEligibleDailyExamCandidate,
+  demotionPatch,
+} = require("./dailyExamPickerCore");
 
 const GRADES = ["4", "5", "6", "7"];
-const EXAM_QUESTION_THRESHOLD = 50;
 
 function compareForRotation(a, b) {
   const lastA = a.data().lastDailyExamDate || "";
@@ -60,11 +69,7 @@ async function demoteYesterdayPicks(db, grade, today) {
 
   const batch = db.batch();
   stale.forEach((doc) => {
-    batch.update(doc.ref, {
-      quizType: "practice",
-      isDailyExam: false,
-      dailyExamDate: null,
-    });
+    batch.update(doc.ref, demotionPatch(doc.data()));
   });
   await batch.commit();
   return stale.length;
@@ -86,14 +91,7 @@ async function findCandidatePool(db, grade) {
     .where("isPublished", "==", true)
     .get();
 
-  return snap.docs.filter((doc) => {
-    const data = doc.data();
-    const count = Number(data.questionCount) || 0;
-    if (count <= 0 || count >= EXAM_QUESTION_THRESHOLD) return false;
-    if (data.quizType === "daily_exam") return false; // skip already-pinned
-    if (data.examOnly === true) return false;
-    return true;
-  });
+  return snap.docs.filter((doc) => isEligibleDailyExamCandidate(doc.data()));
 }
 
 async function promotePickForGrade(db, grade, today) {
