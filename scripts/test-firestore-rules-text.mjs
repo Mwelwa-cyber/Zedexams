@@ -388,6 +388,32 @@ test('feedback box is owner-create / admin-read', () => {
   )
 })
 
+test('notifications items are server-create-only and mark-read-only for clients', () => {
+  // The Smart Notification System store. Every notification is written by the
+  // createNotification Cloud Function after gating on the user's prefs. If a
+  // client CREATE rule ever appears, a tampered client could forge
+  // "payment successful" or spam its own centre — so create must stay denied,
+  // and the only client mutation allowed is flipping read/readAt.
+  const block = rules.match(/match \/feed\/\{[^}]+\}\s*\{([\s\S]*?)\n {6}\}/)
+  assert(block, 'notifications feed match block not found')
+  assert(
+    /allow create:\s*if false/.test(block[1]),
+    'notifications items create is no longer server-only (if false) — clients could forge notifications',
+  )
+  assert(
+    block[1].includes("changedKeys().hasOnly(['read', 'readAt'])"),
+    'notifications items update must be restricted to read/readAt (mark-as-read only)',
+  )
+  assert(
+    /allow delete:\s*if isAuthed\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
+    'notifications items delete must be owner-or-admin only',
+  )
+  assert(
+    /allow read:\s*if isAuthed\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
+    'notifications items read must be owner-or-admin only',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

@@ -16,6 +16,7 @@ import CharacterAvatar, {
 import SeoHelmet from '../seo/SeoHelmet';
 import LanguageToggle from '../ui/LanguageToggle';
 import ParentShareManager from '../parent/ParentShareManager';
+import { isPushSupported, pushPermission, requestPushPermission } from '../../utils/fcm';
 import {
   loadAccessibilityPrefs,
   saveAccessibilityPrefs,
@@ -58,11 +59,13 @@ const TABS = {
   // profile. Site-wide admin controls and user management live on /admin/*.
   admin: [
     { id: 'security',      label: 'Password & Security' },
+    { id: 'notifications', label: 'Notifications' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
   ],
   teacher: [
     { id: 'school',        label: 'School Details' },
+    { id: 'notifications', label: 'Notifications' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
   ],
@@ -715,12 +718,19 @@ function TabSidebar({ tabs, active, onChange, isMobile }) {
 
 const GRADE_NUMBERS = [4, 5, 6, 7];
 
-const DEFAULT_LEARNER_NOTIFICATION_PREFS = Object.freeze({
-  examReminders: true,
-  resultsReleased: true,
-  dailyStreak: true,
-  announcements: true,
-});
+// Notification categories. Order + labels mirror notificationPrefsCore.js
+// (server) and components/notifications/notificationIcons.js (client).
+// `critical: true` categories are always delivered in-app (a learner cannot
+// hide "payment failed" / "password changed"); their toggle gates PUSH only.
+const NOTIFICATION_CATEGORY_META = [
+  { key: 'learning',      label: 'Learning',      hint: 'Quizzes, results, streaks, daily practice.' },
+  { key: 'lessonPlans',   label: 'Lesson Plans',  hint: 'Teacher tools and generation updates.' },
+  { key: 'assessments',   label: 'Assessments',   hint: 'Assigned work and graded results.' },
+  { key: 'payments',      label: 'Payments',      hint: 'Receipts, renewals and failures.', critical: true },
+  { key: 'account',       label: 'Account',       hint: 'Sign-ins, password and security.', critical: true },
+  { key: 'system',        label: 'System',        hint: 'Maintenance and important service notices.', critical: true },
+  { key: 'announcements', label: 'Announcements', hint: 'New features and platform news.' },
+];
 
 const DEFAULT_LEARNER_LEARNING_PREFS = Object.freeze({
   soundEffects: true,
@@ -728,12 +738,44 @@ const DEFAULT_LEARNER_LEARNING_PREFS = Object.freeze({
   autoplayLessons: false,
 });
 
+// Coerce a stored (possibly legacy / partial) notificationPrefs into the full
+// structured client shape. Mirrors functions/notifications/notificationPrefsCore
+// normalizeServerPrefs so what we save round-trips through the server gate
+// unchanged. Legacy flat booleans are honoured where they map to a category.
 function normalizeNotificationPrefs(input) {
+  const p = input && typeof input === 'object' ? input : {};
+  const cats = p.categories && typeof p.categories === 'object' ? p.categories : {};
+  const ch = p.channels && typeof p.channels === 'object' ? p.channels : {};
+  const qh = p.quietHours && typeof p.quietHours === 'object' ? p.quietHours : {};
+
+  const legacyLearning =
+    p.dailyStreak === false && p.examReminders === false ? false : undefined;
+  const legacyAssessments = p.resultsReleased === false ? false : undefined;
+  const legacyAnnouncements = p.announcements === false ? false : undefined;
+  const pick = (val, legacy) =>
+    typeof val === 'boolean' ? val : typeof legacy === 'boolean' ? legacy : true;
+
   return {
-    examReminders:   input?.examReminders   ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.examReminders,
-    resultsReleased: input?.resultsReleased ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.resultsReleased,
-    dailyStreak:     input?.dailyStreak     ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.dailyStreak,
-    announcements:   input?.announcements   ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.announcements,
+    master: typeof p.master === 'boolean' ? p.master : true,
+    categories: {
+      learning:      pick(cats.learning, legacyLearning),
+      lessonPlans:   pick(cats.lessonPlans),
+      assessments:   pick(cats.assessments, legacyAssessments),
+      payments:      pick(cats.payments),
+      account:       pick(cats.account),
+      system:        pick(cats.system),
+      announcements: pick(cats.announcements, legacyAnnouncements),
+    },
+    channels: {
+      push:  typeof ch.push === 'boolean' ? ch.push : true,
+      inApp: typeof ch.inApp === 'boolean' ? ch.inApp : true,
+    },
+    quietHours: {
+      enabled: qh.enabled === true,
+      start: typeof qh.start === 'string' ? qh.start : '22:00',
+      end: typeof qh.end === 'string' ? qh.end : '06:00',
+    },
+    muteUntil: Number.isFinite(Number(p.muteUntil)) ? Number(p.muteUntil) : null,
   };
 }
 
@@ -874,61 +916,174 @@ function LearnerSecurityPanel({ pushToast }) {
   );
 }
 
-function LearnerNotificationsPanel({ pushToast }) {
-  const { userProfile, updateProfileFields } = useAuth();
+const MUTE_PRESETS = [
+  { label: 'Mute 1 hour', ms: 60 * 60 * 1000 },
+  { label: 'Mute 8 hours', ms: 8 * 60 * 60 * 1000 },
+  { label: 'Mute 24 hours', ms: 24 * 60 * 60 * 1000 },
+];
+
+function NotificationsPanel({ pushToast }) {
+  const { currentUser, userProfile, updateProfileFields } = useAuth();
   const [prefs, setPrefs] = useState(() => normalizeNotificationPrefs(userProfile?.notificationPrefs));
   const [saving, setSaving] = useState(false);
+  const [pushState, setPushState] = useState(() => pushPermission());
 
   useEffect(() => {
     setPrefs(normalizeNotificationPrefs(userProfile?.notificationPrefs));
   }, [userProfile?.notificationPrefs]);
 
   const set = (k, v) => setPrefs((p) => ({ ...p, [k]: v }));
+  const setCategory = (key, v) =>
+    setPrefs((p) => ({ ...p, categories: { ...p.categories, [key]: v } }));
+  const setChannel = (key, v) =>
+    setPrefs((p) => ({ ...p, channels: { ...p.channels, [key]: v } }));
+  const setQuiet = (key, v) =>
+    setPrefs((p) => ({ ...p, quietHours: { ...p.quietHours, [key]: v } }));
 
-  const handleSave = async () => {
+  const persist = async (next, successMsg) => {
     setSaving(true);
     try {
-      await updateProfileFields({ notificationPrefs: prefs });
-      pushToast('success', 'Notification preferences saved.');
+      await updateProfileFields({ notificationPrefs: next });
+      if (successMsg) pushToast('success', successMsg);
     } catch (err) {
-      console.error('LearnerNotificationsPanel save failed', err);
+      console.error('NotificationsPanel save failed', err);
       pushToast('error', 'Could not save preferences. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleSave = () => persist(prefs, 'Notification preferences saved.');
+
+  const applyMute = (ms) => {
+    const next = { ...prefs, muteUntil: Date.now() + ms };
+    setPrefs(next);
+    persist(next, 'Notifications muted.');
+  };
+  const clearMute = () => {
+    const next = { ...prefs, muteUntil: null };
+    setPrefs(next);
+    persist(next, 'Notifications unmuted.');
+  };
+
+  const enablePush = async () => {
+    if (!currentUser?.uid) return;
+    const result = await requestPushPermission(currentUser.uid);
+    setPushState(result);
+    if (result === 'granted') pushToast('success', 'Push notifications enabled on this device.');
+    else if (result === 'denied') pushToast('error', 'Push is blocked. Allow notifications in your browser settings.');
+  };
+
+  const muteActive = prefs.muteUntil && prefs.muteUntil > Date.now();
+  const pushNeedsEnable =
+    isPushSupported() && prefs.channels.push && pushState !== 'granted';
+
   return (
-    <SectionCard
-      title="Notifications"
-      description="Choose which reminders ZedExams sends you."
-      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
-    >
-      <Toggle
-        label="Daily exam reminders"
-        description="A nudge when today's exam is ready."
-        checked={prefs.examReminders}
-        onChange={(v) => set('examReminders', v)}
-      />
-      <Toggle
-        label="Results released"
-        description="Tell me when my quiz or exam score is in."
-        checked={prefs.resultsReleased}
-        onChange={(v) => set('resultsReleased', v)}
-      />
-      <Toggle
-        label="Daily streak reminders"
-        description="Help me keep my learning streak alive."
-        checked={prefs.dailyStreak}
-        onChange={(v) => set('dailyStreak', v)}
-      />
-      <Toggle
-        label="Announcements"
-        description="School-wide updates and new feature highlights."
-        checked={prefs.announcements}
-        onChange={(v) => set('announcements', v)}
-      />
-    </SectionCard>
+    <>
+      <SectionCard
+        title="Notifications"
+        description="Control how and when ZedExams reaches you. These settings sync across your devices."
+      >
+        <Toggle
+          label="All notifications"
+          description="Master switch. Turn this off to pause everything except critical account and payment alerts."
+          checked={prefs.master}
+          onChange={(v) => set('master', v)}
+        />
+        <Toggle
+          label="In-app notifications"
+          description="Show updates in your notification centre (the bell)."
+          checked={prefs.channels.inApp}
+          onChange={(v) => setChannel('inApp', v)}
+        />
+        <Toggle
+          label="Push notifications"
+          description="Send alerts to this device even when ZedExams is closed."
+          checked={prefs.channels.push}
+          onChange={(v) => setChannel('push', v)}
+        />
+        {pushNeedsEnable && (
+          <div style={{ marginTop: 8 }}>
+            <Button variant="ghost" onClick={enablePush}>
+              {pushState === 'denied' ? 'Push blocked in browser' : 'Enable push on this device'}
+            </Button>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="Categories"
+        description="Choose what you hear about. Payments, Account and System always appear in your notification centre for your safety — turning them off here only stops their push alerts."
+      >
+        {NOTIFICATION_CATEGORY_META.map((c) => (
+          <Toggle
+            key={c.key}
+            label={c.critical ? `${c.label} (push only)` : c.label}
+            description={c.hint}
+            checked={prefs.categories[c.key] !== false}
+            onChange={(v) => setCategory(c.key, v)}
+            disabled={!prefs.master && !c.critical}
+          />
+        ))}
+      </SectionCard>
+
+      <SectionCard
+        title="Quiet hours"
+        description="Pause push notifications overnight. In-app notifications still arrive quietly so nothing is lost."
+        footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
+      >
+        <Toggle
+          label="Enable quiet hours"
+          description="No push alerts between the times below (Africa/Lusaka)."
+          checked={prefs.quietHours.enabled}
+          onChange={(v) => setQuiet('enabled', v)}
+        />
+        {prefs.quietHours.enabled && (
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 13, color: T.muted }}>
+              From{' '}
+              <input
+                type="time"
+                value={prefs.quietHours.start}
+                onChange={(e) => setQuiet('start', e.target.value)}
+                style={{ marginLeft: 6, padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.surface, color: T.text }}
+              />
+            </label>
+            <label style={{ fontSize: 13, color: T.muted }}>
+              To{' '}
+              <input
+                type="time"
+                value={prefs.quietHours.end}
+                onChange={(e) => setQuiet('end', e.target.value)}
+                style={{ marginLeft: 6, padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.surface, color: T.text }}
+              />
+            </label>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="Mute temporarily"
+        description="Silence all notifications for a short while without changing your settings."
+      >
+        {muteActive ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, color: T.text }}>
+              Muted until {new Date(prefs.muteUntil).toLocaleString()}.
+            </span>
+            <Button variant="ghost" onClick={clearMute} loading={saving}>Unmute now</Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {MUTE_PRESETS.map((m) => (
+              <Button key={m.label} variant="ghost" onClick={() => applyMute(m.ms)} loading={saving}>
+                {m.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </>
   );
 }
 
@@ -1250,7 +1405,7 @@ export default function ZedExamsSettings({ role = 'admin' }) {
       case 'school':        return <TeacherSchoolProfilePanel pushToast={pushToast} />;
       case 'profile':       return <LearnerProfilePanel pushToast={pushToast} />;
       case 'security':      return <LearnerSecurityPanel pushToast={pushToast} />;
-      case 'notifications': return <LearnerNotificationsPanel pushToast={pushToast} />;
+      case 'notifications': return <NotificationsPanel pushToast={pushToast} />;
       case 'learning':      return <LearnerLearningPanel pushToast={pushToast} />;
       case 'accessibility': return <LearnerAccessibilityPanel pushToast={pushToast} />;
       case 'parent':        return <LearnerParentPanel />;

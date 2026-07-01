@@ -2168,5 +2168,28 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── notifications (Smart Notification System) ─────────────────────
+    //
+    // Owner-scoped notification store: notifications/{uid}/feed/{notifId}.
+    // (The `feed` subcollection name is deliberately unique so its TTL policy
+    // + composite indexes target only notifications, never the unrelated
+    // `items` subcollections used elsewhere.) The owner reads + deletes their
+    // own notifications; the only mutation a client may make is flipping
+    // read/readAt (mark-as-read). CREATE is server-only — every notification
+    // is written by the createNotification Cloud Function (which gates on the
+    // user's prefs/quiet-hours). Allowing client creates would let a tampered
+    // client forge "payment successful" or spam its own centre, so it is
+    // hard-denied here and pinned by the test:rules-text guard.
+    match /notifications/{uid} {
+      allow read: if isAuthed() && (isOwner(uid) || isAdmin());
+      match /feed/{notifId} {
+        allow read:   if isAuthed() && (isOwner(uid) || isAdmin());
+        allow create: if false;
+        allow update: if isAuthed() && isOwner(uid)
+          && changedKeys().hasOnly(['read', 'readAt']);
+        allow delete: if isAuthed() && (isOwner(uid) || isAdmin());
+      }
+    }
+
   }
 }

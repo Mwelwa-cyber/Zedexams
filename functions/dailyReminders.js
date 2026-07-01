@@ -21,6 +21,7 @@
 
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {isPrunableToken, pruneDeadTokensByUid} = require("./notifications/sendPushToUser");
 
 const REMINDER_OPTS = {
   schedule: "every day 16:00",
@@ -142,11 +143,7 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
       if (res.success) return;
       const code = res.error && res.error.code;
       // The "user uninstalled / revoked" codes — safe to prune.
-      if (
-        code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token" ||
-        code === "messaging/invalid-argument"
-      ) {
+      if (isPrunableToken(code)) {
         const {uid, token} = slice[idx];
         if (!tokensToRemoveByUid.has(uid)) tokensToRemoveByUid.set(uid, []);
         tokensToRemoveByUid.get(uid).push(token);
@@ -158,19 +155,10 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
     });
   }
 
-  // Prune dead tokens — best-effort; one updateDoc per user. arrayRemove
-  // is idempotent so a race with a fresh registerToken on the client
-  // can't corrupt anything.
-  for (const [uid, deadTokens] of tokensToRemoveByUid.entries()) {
-    try {
-      await db.collection("users").doc(uid).update({
-        fcmTokens: admin.firestore.FieldValue.arrayRemove(...deadTokens),
-      });
-      summary.pruned += deadTokens.length;
-    } catch (err) {
-      console.warn(`[dailyStreakReminders] prune for ${uid} failed`, err);
-    }
-  }
+  // Prune dead tokens — best-effort; one updateDoc per user via the shared
+  // helper. arrayRemove is idempotent so a race with a fresh registerToken on
+  // the client can't corrupt anything.
+  summary.pruned += await pruneDeadTokensByUid(db, tokensToRemoveByUid);
 
   // Truncate the errors array so the agentJobs doc stays small.
   summary.errors = summary.errors.slice(0, 20);

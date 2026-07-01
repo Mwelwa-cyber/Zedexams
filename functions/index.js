@@ -2758,6 +2758,29 @@ exports.dailyFxRefresh = dailyFxRefreshCron;
 // Reads users.fcmTokens populated by A5.1's client-side registerToken.
 exports.dailyStreakReminders = dailyStreakRemindersCron;
 
+// ── Smart Notification System ──────────────────────────────────────────────
+// Streak-milestone notifications (7/30/100 days). Firestore trigger on
+// learnerStats/{uid}, pinned to africa-south1 (server-authored so a tampered
+// client can't forge a milestone into its own feed).
+const {onLearnerStatsWritten} = require("./notifications/onLearnerStatsWritten");
+exports.onLearnerStatsWritten = onLearnerStatsWritten;
+
+// Announcement fan-out — when an admin publishes an active announcement, deliver
+// it into each targeted user's notification feed (africa-south1, idempotent).
+const {onAnnouncementWritten} = require("./notifications/onAnnouncementWritten");
+exports.onAnnouncementWritten = onAnnouncementWritten;
+
+// Reminder + housekeeping crons (us-central1, Africa/Lusaka): in-app daily
+// practice nudge, subscription-expiry reminder, and the 90-day archival sweep.
+const {
+  dailyPracticeReminders,
+  subscriptionExpiryReminders,
+  archiveOldNotifications,
+} = require("./notifications/reminderCrons");
+exports.dailyPracticeReminders = dailyPracticeReminders;
+exports.subscriptionExpiryReminders = subscriptionExpiryReminders;
+exports.archiveOldNotifications = archiveOldNotifications;
+
 // Audit C4 — refresh publicStats/global every 30 minutes so the
 // marketing page can render real numbers (learners, quizzes taken,
 // games played this week) to anonymous visitors. Aggregate counts via

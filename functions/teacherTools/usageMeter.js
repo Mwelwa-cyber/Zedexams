@@ -192,6 +192,33 @@ async function assertAndIncrement(uid, tool) {
     return {used: used + 1, limit, plan, period};
   });
 
+  // Nudge the teacher once when they cross 80% of a tool's monthly quota
+  // (finite limits only; super admins are uncapped). Best-effort — never let a
+  // notification failure affect the metered generation.
+  try {
+    if (!isSuperAdmin && Number.isFinite(limit) && limit > 0 && result.usedCredit !== true) {
+      const threshold = Math.ceil(limit * 0.8);
+      if (result.used >= threshold && result.used - 1 < threshold && result.used < limit) {
+        const {createNotification} = require("../notifications/createNotification");
+        const toolLabel = tool.replace(/_/g, " ");
+        await createNotification({
+          uid,
+          category: "account",
+          type: "ai_limit_warning",
+          title: "You're close to your monthly limit",
+          body: `You've used ${result.used} of ${limit} ${toolLabel} generations this month on the ${PLAN_LABELS[plan] || plan} plan.`,
+          priority: "medium",
+          icon: "user-circle",
+          action: {label: "Upgrade plan", url: "/pricing"},
+          dedupeKey: `ai-limit-${tool}-${period}`,
+          source: "usage-meter",
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[usageMeter] AI-limit notification failed", (err && err.message) || err);
+  }
+
   return result;
 }
 

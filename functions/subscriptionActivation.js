@@ -317,6 +317,27 @@ async function activateSubscriptionFromPayment({
     }
   }
 
+  // Notify the buyer in-app + push (best-effort).
+  try {
+    const {createNotification} = require("./notifications/createNotification");
+    await createNotification({
+      uid: payloadForInvoice.userId,
+      category: "payments",
+      type: "payment_success",
+      title: isTopUp ? "Top-up successful" : "Payment successful",
+      body: isTopUp
+        ? "Your generation credits have been added. Happy creating!"
+        : "Your subscription is now active. Enjoy full access to ZedExams.",
+      priority: "medium",
+      icon: "credit-card",
+      action: {label: "View account", url: "/subscription"},
+      dedupeKey: `payment-success-${paymentId}`,
+      source: "subscription-activation",
+    });
+  } catch (err) {
+    console.error("[subscriptionActivation] success notification failed", err);
+  }
+
   return {ok: true, activated: true, topUp: isTopUp, overCollected};
 }
 
@@ -330,11 +351,13 @@ async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""
   const db = admin.firestore();
   const payRef = db.collection("payments").doc(paymentId);
   try {
+    let notifyUserId = null;
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(payRef);
       if (!snap.exists) return;
       const pay = snap.data() || {};
       if (pay.status === "successful" || pay.status === "confirmed") return;
+      notifyUserId = pay.userId || null;
       tx.update(payRef, {
         status: "failed",
         lencoStatus,
@@ -342,6 +365,26 @@ async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""
         failedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
+    // Notify the buyer their payment didn't go through (best-effort).
+    if (notifyUserId) {
+      try {
+        const {createNotification} = require("./notifications/createNotification");
+        await createNotification({
+          uid: notifyUserId,
+          category: "payments",
+          type: "payment_failed",
+          title: "Payment didn't go through",
+          body: "We couldn't confirm your payment. Please try again to activate your plan.",
+          priority: "high",
+          icon: "credit-card",
+          action: {label: "Try again", url: "/pricing"},
+          dedupeKey: `payment-failed-${paymentId}`,
+          source: "subscription-activation",
+        });
+      } catch (err) {
+        console.error("[subscriptionActivation] failure notification failed", err);
+      }
+    }
     return {ok: true};
   } catch (err) {
     console.error("[subscriptionActivation] markPaymentFailed error", err);

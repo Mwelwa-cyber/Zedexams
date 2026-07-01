@@ -7,6 +7,7 @@ import { DataSaverProvider } from './contexts/DataSaverContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { ToastProvider } from './components/ui/Toast'
+import { NotificationProvider } from './contexts/NotificationContext'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
 import { initAnalytics, capture as captureAnalytics } from './utils/analytics'
@@ -66,7 +67,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <DataSaverProvider>
             <AuthProvider>
               <ToastProvider>
-                <App />
+                <NotificationProvider>
+                  <App />
+                </NotificationProvider>
               </ToastProvider>
             </AuthProvider>
           </DataSaverProvider>
