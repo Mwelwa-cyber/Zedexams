@@ -26,7 +26,16 @@ vi.mock('firebase/app', () => ({
 }))
 vi.mock('firebase/app-check', () => ({
   initializeAppCheck: (...args) => initializeAppCheck(...args),
-  ReCaptchaV3Provider: class ReCaptchaV3Provider {},
+  ReCaptchaV3Provider: class ReCaptchaV3Provider {
+    initialize() {}
+    async getToken() { return { token: 'tok', expireTimeMillis: 0 } }
+  },
+  // config.js now wraps the reCAPTCHA provider in a CustomProvider so a stuck
+  // reCAPTCHA can't block Auth/Firestore (see appCheckResilient.js). The mock
+  // just needs to be constructable — the guard test never mints a token.
+  CustomProvider: class CustomProvider {
+    constructor(opts) { this._opts = opts }
+  },
   getToken: vi.fn(async () => ({ token: 'tok' })),
 }))
 vi.mock('firebase/auth', () => ({

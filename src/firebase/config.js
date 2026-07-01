@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { initializeAppCheck, ReCaptchaV3Provider, getToken } from 'firebase/app-check'
+import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider, getToken } from 'firebase/app-check'
+import { resilientGetToken } from './appCheckResilient'
 import {
   getAuth,
   setPersistence,
@@ -203,9 +204,35 @@ async function initAppCheck() {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
   }
   try {
+    // Fail-open reCAPTCHA (fixes the 2026-07-01 sign-in outage). The SDK
+    // attaches an App Check token to EVERY Auth + Firestore request even in
+    // Monitoring mode, so when reCAPTCHA crashes ("placeholder element must be
+    // empty") or hangs ("reCAPTCHA Timeout") the token never resolves and the
+    // request stalls — surfacing as auth/network-request-failed and Firestore
+    // "backend didn't respond within 10s" for many users at once. We wrap the
+    // reCAPTCHA v3 provider in a CustomProvider whose getToken races the real
+    // fetch against a short timeout and NEVER rejects (see appCheckResilient.js):
+    // a stuck reCAPTCHA yields a short-lived placeholder so sign-in proceeds,
+    // while a healthy reCAPTCHA passes its real token through untouched.
+    //
+    // CustomProvider does not forward initialize() to the wrapped provider, so
+    // we initialize the ReCaptchaV3Provider ourselves, lazily on first token
+    // request and guarded against a synchronous throw.
+    const recaptcha = new ReCaptchaV3Provider(APPCHECK_RECAPTCHA_KEY)
+    let recaptchaInitialized = false
+    const provider = new CustomProvider({
+      getToken: () => {
+        if (!recaptchaInitialized) {
+          recaptchaInitialized = true
+          try { recaptcha.initialize(app) } catch { /* redundant init is harmless */ }
+        }
+        return resilientGetToken(() => recaptcha.getToken())
+      },
+    })
     webAppCheck = initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(APPCHECK_RECAPTCHA_KEY),
-      // Auto-refresh tokens behind the scenes; the SDK handles it.
+      provider,
+      // Auto-refresh tokens behind the scenes; the SDK handles it. This also
+      // re-requests a real token soon after reCAPTCHA recovers from a placeholder.
       isTokenAutoRefreshEnabled: true,
     })
   } catch (err) {
