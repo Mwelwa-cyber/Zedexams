@@ -176,6 +176,26 @@ jobs:
               | sort -u
           }
 
+          # Subset of failures whose error was the idempotent "409, Resource
+          # '<...>/functions/<name>' already exists" that fires when firebase-tools
+          # tries to CREATE a function that is already present. firebase-tools
+          # only takes the create path for a function it does not yet see in the
+          # deployed set, so "already exists" means its own create raced (the
+          # resource landed server-side with the code we just uploaded) or the
+          # function was created by a prior attempt of this same deploy. Either
+          # way the deployed code is current — the very next deploy takes the
+          # update path and the 409 disappears. So this is cosmetic, exactly like
+          # the "unable to queue" race above, and must not fail the job. (It first
+          # bit the brand-new notification crons — dailyPracticeReminders — on
+          # their first-ever deploy, blocking every Hosting deploy behind them.)
+          parse_already_exists() {
+            grep -iE "HTTP Error: 409, Resource '[^']*/functions/[A-Za-z0-9_-]+' already exists" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+' already exists" \
+              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
+              | sed 's#/functions/##' \
+              | sort -u
+          }
+
           max=2            # one full deploy + one quick retry of the failed set
           attempt=0
           code=0
@@ -222,8 +242,14 @@ jobs:
             exit 1
           fi
 
-          # Split the remaining failures: cosmetic 409 race vs. everything else.
+          # Split the remaining failures: cosmetic 409 races vs. everything else.
+          # Cosmetic = the "unable to queue the operation" race + the idempotent
+          # "Resource already exists" create race. Both complete server-side, so
+          # they must not fail the job (or they permanently block Hosting behind
+          # a false-red Firebase deploy).
           cosmetic=$(printf '%s\n' "${out}" | parse_409) || true
+          existing=$(printf '%s\n' "${out}" | parse_already_exists) || true
+          cosmetic=$(printf '%s\n' "${cosmetic}" "${existing}" | grep -v '^$' | sort -u) || true
           if [ -z "${cosmetic}" ]; then
             genuine="${failed}"
           else
@@ -236,11 +262,12 @@ jobs:
             exit 1
           fi
 
-          # Everything left is the transient 409 "unable to queue the operation"
-          # race, which completes server-side. Downgrade to a warning so a green
-          # check is not blocked by a cosmetic race. (Follow-up: a verify-by-state
-          # step gated on a read-only cloudfunctions.viewer service-account key
-          # will confirm each of these is ACTIVE with a fresh updateTime.)
-          echo "::warning::Firebase deploy hit the transient 409 'unable to queue the operation' race on the function(s) below. These operations complete server-side (verified 2026-06-30), so this is treated as non-fatal:"
-          printf '%s\n' "${cosmetic}" | sed 's/^/::warning::  transient-409: /'
+          # Everything left is a cosmetic 409 — either the "unable to queue the
+          # operation" race or the idempotent "Resource already exists" create
+          # race. Both complete server-side, so downgrade to a warning rather
+          # than block a green check. (Follow-up: a verify-by-state step gated on
+          # a read-only cloudfunctions.viewer service-account key will confirm
+          # each of these is ACTIVE with a fresh updateTime.)
+          echo "::warning::Firebase deploy hit a cosmetic 409 (transient 'unable to queue the operation' and/or idempotent 'already exists') on the function(s) below. These operations complete server-side, so this is treated as non-fatal:"
+          printf '%s\n' "${cosmetic}" | sed 's/^/::warning::  cosmetic-409: /'
           echo "Firebase deploy complete (some functions finished via the async 409 path)."
