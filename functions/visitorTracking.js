@@ -21,17 +21,28 @@
  *     never persisted.
  *
  * Writes:
- *   visits/{autoId}             — one doc per pageview (the live feed)
- *   visitorStats/{YYYY-MM-DD}   — daily rollup: pageviews + uniqueVisitors
- *                                 + sessions (accurate uniques via per-day
- *                                 marker subcollections, updated in a txn)
+ *   visits/{autoId}                    — one doc per pageview (the live feed)
+ *   visitorStats/{day}/shards/{0..N}   — sharded daily counters. Each pageview
+ *                                        increments a RANDOM shard rather than a
+ *                                        single hot doc, so the write ceiling is
+ *                                        ~N/sec instead of ~1/sec. Uniques /
+ *                                        sessions stay accurate via per-day
+ *                                        marker subcollections, updated in a txn.
+ *   visitorStats/{YYYY-MM-DD}          — the day rollup the admin dashboard
+ *                                        reads. NOT written on the pageview path
+ *                                        (that would reinstate the hot doc); the
+ *                                        aggregateVisitorStats cron sums the
+ *                                        shards into it every few minutes.
  */
 
 const {onRequest} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const {applyCors} = require("./cors");
 const {
   dayKeyFor,
+  pickShardId,
+  sumShards,
   parseUserAgent,
   normalizeBeacon,
 } = require("./visitorTrackingCore");
@@ -57,13 +68,19 @@ function countryFrom(req) {
 }
 
 /**
- * Update the daily rollup. Pageviews always increment; uniqueVisitors /
- * sessions only increment the first time we see a given id on that Lusaka
- * day, tracked with tiny marker docs under the day's subcollections. Runs
- * in a transaction so concurrent pageviews can't double-count or clobber.
+ * Update the daily rollup by incrementing ONE of N shard docs
+ * (visitorStats/{day}/shards/{id}) rather than the single day doc — that
+ * spreads write load so concurrent pageviews don't serialise on one hot
+ * document. Pageviews always increment the chosen shard; uniqueVisitors /
+ * sessions only increment it the first time we see a given id on that Lusaka
+ * day, tracked with tiny marker docs under the day's subcollections. The
+ * marker read + shard write run in a transaction so concurrent pageviews for
+ * the same visitor can't double-count. The day doc itself is written only by
+ * aggregateVisitorStats (below), never here.
  */
 async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
   const statRef = db.collection("visitorStats").doc(dayKey);
+  const shardRef = statRef.collection("shards").doc(String(pickShardId()));
   const visitorMarker = visitorId ?
     statRef.collection("visitors").doc(visitorId) : null;
   const sessionMarker = sessionId ?
@@ -76,20 +93,16 @@ async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
     ]);
 
     const inc = admin.firestore.FieldValue.increment(1);
-    const update = {
-      date: dayKey,
-      pageviews: inc,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    if (isBot) update.botPageviews = inc;
+    const shardUpdate = {pageviews: inc};
+    if (isBot) shardUpdate.botPageviews = inc;
     if (visitorMarker && (!visitorSnap || !visitorSnap.exists)) {
-      update.uniqueVisitors = inc;
+      shardUpdate.uniqueVisitors = inc;
     }
     if (sessionMarker && (!sessionSnap || !sessionSnap.exists)) {
-      update.sessions = inc;
+      shardUpdate.sessions = inc;
     }
 
-    tx.set(statRef, update, {merge: true});
+    tx.set(shardRef, shardUpdate, {merge: true});
     if (visitorMarker && (!visitorSnap || !visitorSnap.exists)) {
       tx.set(visitorMarker, {
         at: admin.firestore.FieldValue.serverTimestamp(),
@@ -103,12 +116,34 @@ async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
   });
 }
 
-// Cap the Firestore work well under the 15s function timeout. The daily-rollup
-// writes to a single hot counter doc (visitorStats/{day}) on every pageview, so
-// a slow or contended Firestore can make the transaction crawl. If we let that
-// ride the full timeout, the platform kills the instance and returns a 500 to
-// the browser (the catch below never runs) — the exact thing this best-effort
-// beacon must never do. Past this budget we abandon the write and still 204.
+/**
+ * Sum a day's shards into visitorStats/{day} — the doc the /admin/visitors
+ * dashboard reads. Writes ABSOLUTE totals (not increments), so it's idempotent
+ * and self-healing: a missed run just leaves slightly stale numbers that the
+ * next run corrects. Skips a day with no shards so we never create an empty
+ * rollup doc.
+ */
+async function rollUpDay(db, dayKey) {
+  const statRef = db.collection("visitorStats").doc(dayKey);
+  const shardSnap = await statRef.collection("shards").get();
+  if (shardSnap.empty) return;
+  const totals = sumShards(shardSnap.docs.map((d) => d.data()));
+  await statRef.set({
+    date: dayKey,
+    pageviews: totals.pageviews,
+    botPageviews: totals.botPageviews,
+    uniqueVisitors: totals.uniqueVisitors,
+    sessions: totals.sessions,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+}
+
+// Cap the Firestore work well under the 15s function timeout. Even with the
+// sharded counter, a slow or contended Firestore (or a transaction retrying on
+// shard contention) can make the write crawl. If we let that ride the full
+// timeout, the platform kills the instance and returns a 500 to the browser
+// (the catch below never runs) — the exact thing this best-effort beacon must
+// never do. Past this budget we abandon the write and still 204.
 const WRITE_BUDGET_MS = 9000;
 
 // Resolve after `ms`, so a hung/slow write can't outlast the budget. Clears its
@@ -197,6 +232,35 @@ exports.apiTrackVisit = onRequest(
         try {
           if (!res.headersSent) res.status(204).send("");
         } catch (_e) { /* response already closed — nothing to do */ }
+      }
+    },
+);
+
+// Fold the sharded per-pageview counters into the day doc the dashboard reads.
+// Runs every few minutes over TODAY and YESTERDAY (Lusaka) so late writes near
+// midnight still land and the previous day is finalised once traffic stops.
+// Absolute-total writes keep it idempotent, so a missed tick self-heals on the
+// next one — the dashboard is at worst a few minutes stale, never wrong. Stays
+// in us-central1: it's a scheduler (not a Firestore trigger), so it doesn't
+// need the africa-south1 pinning that Eventarc triggers do.
+exports.aggregateVisitorStats = onSchedule(
+    {
+      schedule: "every 5 minutes",
+      timeZone: "Africa/Lusaka",
+      region: "us-central1",
+      timeoutSeconds: 120,
+      memory: "256MiB",
+    },
+    async () => {
+      const db = admin.firestore();
+      const now = Date.now();
+      const days = [dayKeyFor(now), dayKeyFor(now - 86400000)];
+      for (const dayKey of days) {
+        try {
+          await rollUpDay(db, dayKey);
+        } catch (err) {
+          console.error("[aggregateVisitorStats] failed for", dayKey, err);
+        }
       }
     },
 );

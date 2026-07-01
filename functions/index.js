@@ -3498,6 +3498,9 @@ exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 // route change. Records page-view docs + daily rollups for /admin/visitors.
 // See functions/visitorTracking.js (privacy posture + Firestore shape).
 exports.apiTrackVisit = require('./visitorTracking').apiTrackVisit;
+// Scheduled rollup: sums the sharded per-pageview counters into the day doc the
+// /admin/visitors dashboard reads (every 5 min, Lusaka today + yesterday).
+exports.aggregateVisitorStats = require('./visitorTracking').aggregateVisitorStats;
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no
