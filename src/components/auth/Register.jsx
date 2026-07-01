@@ -3,26 +3,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { captureReferralFromUrl } from '../../utils/referrals'
+import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
 
-const FRIENDLY = {
-  'auth/email-already-in-use': 'This email is already registered. Try logging in.',
-  'auth/weak-password':        'Password must be at least 6 characters.',
-  'auth/invalid-email':        'Please enter a valid email address.',
-  'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
-  'auth/popup-blocked':        'Your browser blocked the Google sign-in popup. Please allow popups and try again.',
-  'auth/account-exists-with-different-credential':
-                               'An account already exists with this email. Sign in with the original method.',
-  // Native (Android app) Google sign-in failure modes — see signInWithGoogleNative
-  // in AuthContext. Surfaced rather than masked as the generic failure copy.
-  'auth/operation-not-supported-in-this-environment':
-                               'Google sign-up isn’t available in this app build. Please update the app from the Play Store, or sign up with your email and password.',
-  'auth/google-no-id-token':   'Google sign-up could not be completed. Please update the app, or sign up with your email and password.',
-  'auth/google-developer-error': 'Google sign-up isn’t set up for this app version yet. Please sign up with your email and password for now.',
-}
+// Auth-error copy is centralised in src/utils/friendlyErrors.js
+// (friendlyAuthMessage with flow: 'signup') so Login + Register share one
+// source of truth. The sign-up phrasing of the native Google failures lives
+// there too.
 
 const ZAMBIAN_PROVINCES = [
   'Central',
@@ -147,7 +137,7 @@ export default function Register() {
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
       console.error('[Google sign-up]', err?.code, err?.message)
-      setError(FRIENDLY[err.code] ?? 'Google sign-in failed. Please try again.')
+      setError(friendlyAuthMessage(err.code, { flow: 'signup', fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
   }
 
@@ -177,8 +167,9 @@ export default function Register() {
       const profile = await ensureUserProfile(cred.user)
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
-      const friendly = FRIENDLY[err.code] ?? err.message ?? 'Registration failed. Please try again.'
-      setError(friendly)
+      // Never echo a raw Firebase message to the learner — map the code, and
+      // fall back to calm generic copy when it's unmapped.
+      setError(friendlyAuthMessage(err.code, { flow: 'signup' }))
     } finally { setLoading(false) }
   }
 

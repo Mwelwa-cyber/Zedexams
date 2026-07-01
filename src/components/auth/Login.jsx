@@ -5,32 +5,17 @@ import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth, SESSION_EXPIRED_KEY } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
+import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
 
-const FRIENDLY = {
-  'auth/invalid-credential':     'Wrong email or password. Please try again.',
-  'auth/user-not-found':         'No account found with this email.',
-  'auth/wrong-password':         'Wrong password. Please try again.',
-  'auth/too-many-requests':      'Too many attempts — please wait a few minutes.',
-  'auth/invalid-email':          'Please enter a valid email address.',
-  'auth/network-request-failed': 'Network error. Please check your connection.',
-  'auth/operation-not-allowed':  'Email and password sign-in is not available right now.',
-  'auth/popup-closed-by-user':   'Google sign-in was cancelled.',
-  'auth/popup-blocked':          'Your browser blocked the Google sign-in popup. Please allow popups and try again.',
-  'auth/account-exists-with-different-credential':
-                                 'An account already exists with this email. Sign in with the original method.',
-  // Native (Android app) Google sign-in failure modes — see signInWithGoogleNative
-  // in AuthContext. These are surfaced instead of being masked as the generic
-  // "Google sign-in failed" so users get an actionable message.
-  'auth/operation-not-supported-in-this-environment':
-                                 'Google sign-in isn’t available in this app build. Please update the app from the Play Store, or sign in with your email and password.',
-  'auth/google-no-id-token':     'Google sign-in could not be completed. Please update the app, or sign in with your email and password.',
-  'auth/google-developer-error': 'Google sign-in isn’t set up for this app version yet. Please sign in with your email and password for now.',
-}
+// Auth-error copy now lives centrally in src/utils/friendlyErrors.js
+// (friendlyAuthMessage) so Login + Register share one source of truth — see
+// that module for the full per-code map, including the native Google
+// sign-in failure modes surfaced from AuthContext.signInWithGoogleNative.
 
 // Firebase silently replaces an email/password account's password provider
 // with Google's when the email was unverified and the same Google email is
@@ -114,7 +99,7 @@ export default function Login() {
       // itself threw (caught below).
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
-      let message = FRIENDLY[err.code] ?? 'Login failed. Please try again.'
+      let message = friendlyAuthMessage(err.code)
       if (PASSWORD_FAILURE_CODES.has(err.code)) {
         const hint = await diagnosePasswordFailure(email)
         if (hint) message = hint
@@ -140,7 +125,7 @@ export default function Login() {
       // Play Services error) is diagnosable from the device console / Sentry
       // rather than hidden behind the generic fallback copy.
       console.error('[Google sign-in]', err?.code, err?.message)
-      setError(FRIENDLY[err.code] ?? 'Google sign-in failed. Please try again.')
+      setError(friendlyAuthMessage(err.code, { fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
   }
 
