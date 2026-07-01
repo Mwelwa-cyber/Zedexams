@@ -89,12 +89,17 @@ export function getItemSignals(item = {}) {
     isIdentifyDiagram &&
     !(Array.isArray(item.diagramLabels) && item.diagramLabels.length > 0)
 
+  // Maths OCR is imperfect, so a stem carrying maths markup is always worth a
+  // human glance to confirm fractions / vertical arithmetic rendered correctly.
+  const checkMath = Boolean(item.hasMath)
+
   const issues = []
   if (noAnswer) issues.push('No answer')
   if (lowConfidence) issues.push('Low confidence')
   if (missingDiagram) issues.push('Missing diagram')
   if (missingLabels) issues.push('Missing labels')
   if (missingAlt) issues.push('Missing alt text')
+  if (checkMath) issues.push('Check maths')
   if (item.requiresReview && !issues.length) issues.push('Check wording')
 
   // Per-object confidence. For a question we prefer the model's OCR read
@@ -133,6 +138,7 @@ export function getItemSignals(item = {}) {
     extraDiagrams,
     missingLabels,
     missingAlt,
+    checkMath,
     issues,
     status,
     confidence,

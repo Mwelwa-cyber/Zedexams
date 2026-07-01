@@ -194,6 +194,18 @@ test('stripTags removes markup and collapses whitespace', () => {
 })
 
 // ─── confidence bands + auto-approve ─────────────────────────────────────────
+test('flags a maths question for a render check and blocks auto-approve', () => {
+  const s = getItemSignals({
+    type: 'short_answer',
+    hasMath: true,
+    ocrConfidence: 0.99,
+    requiresReview: false,
+  })
+  assert.strictEqual(s.checkMath, true)
+  assert.ok(s.issues.includes('Check maths'))
+  assert.strictEqual(s.autoApprove, false) // maths always gets a human glance
+})
+
 test('high OCR confidence with no issues is auto-approvable (band auto)', () => {
   const s = getItemSignals({
     type: 'short_answer',

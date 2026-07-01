@@ -24,7 +24,7 @@
 import { createStandaloneSection, createPassageSection, createPartGroup } from '../../utils/quizSections.js'
 import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
-import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
 
@@ -326,6 +326,10 @@ function mapVisionQuestion(q, order, options, deps) {
     // auto-approved). Handwritten items arrive capped below the auto bar.
     ocrConfidence: Number.isFinite(q?.ocrConfidence) ? q.ocrConfidence : null,
     source: q?.source === 'handwritten' ? 'handwritten' : 'printed',
+    // Whether the stem carried maths markup (\frac, $…$, [[vmath]]). Maths OCR
+    // is the least reliable read, so the review screen asks the teacher to
+    // confirm it renders correctly before publishing.
+    hasMath: hasImportMarkup(rawStem),
   }
   // A handwritten stem is worth a visible note so the teacher checks the typed
   // transcription — the wording was inferred from handwriting, not printed text.
