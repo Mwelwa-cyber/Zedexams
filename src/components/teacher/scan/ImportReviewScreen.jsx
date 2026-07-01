@@ -107,13 +107,24 @@ export default function ImportReviewScreen({
     if (result?.action === 'rebuilt_table' && result.tableData) {
       // The figure becomes an editable typed table — drop the image (and any
       // stacked extras) so the question renders the table, not the photo.
-      onPatchItem(item, {
+      const patch = {
         tableData: result.tableData,
         imageUrl: '',
         imageAssetId: '',
         images: [],
         diagramText: '',
-      })
+      }
+      // Preserve a pictograph KEY/legend (e.g. "Each ☺ = 2 learners") so its
+      // meaning isn't lost when the drawings become counts. It's reading context
+      // for the table, so it belongs in the shared instruction — never the stem.
+      const caption = String(result.caption || '').trim()
+      if (caption && /=/.test(caption)) {
+        const existing = String(item.ref?.sharedInstruction || '').trim()
+        patch.sharedInstruction = existing && !existing.includes(caption)
+          ? `${existing} (${caption})`
+          : caption
+      }
+      onPatchItem(item, patch)
       return
     }
     if (result?.url) {

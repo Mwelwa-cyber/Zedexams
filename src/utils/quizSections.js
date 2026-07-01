@@ -832,12 +832,12 @@ function hydrateStandaloneQuestion(question = {}) {
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
     tableData: question.tableData && Array.isArray(question.tableData.headers)
       ? {
-        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 10),
         rows: Array.isArray(question.tableData.rows)
           ? question.tableData.rows
-            .slice(0, 12)
+            .slice(0, 16)
             .map(row => Array.isArray(row)
-              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6)
+              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 10)
               : [])
           : [],
       }
@@ -937,12 +937,12 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
     tableData: question.tableData && Array.isArray(question.tableData.headers)
       ? {
-        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 10),
         rows: Array.isArray(question.tableData.rows)
           ? question.tableData.rows
-            .slice(0, 12)
+            .slice(0, 16)
             .map(row => Array.isArray(row)
-              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6)
+              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 10)
               : [])
           : [],
       }
