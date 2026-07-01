@@ -155,13 +155,16 @@ function toDateValue(value) {
  * their profile — the same entitlement the server's usageMeter.getUserPlanContext
  * gates on. Super admins always resolve to the top tier; an expired
  * teacherPlanExpiresAt falls back to free.
+ *
+ * `refNow` is injectable so higher-level status resolvers and plain-node tests
+ * can evaluate plan state against a shared reference clock.
  */
-export function resolveTeacherPlan(userProfile) {
+export function resolveTeacherPlan(userProfile, refNow = new Date()) {
   if (isSuperAdmin(userProfile)) return 'max'
   const plan = normalizeTeacherPlan(userProfile?.teacherPlan)
   if (plan === 'pro' || plan === 'max') {
     const exp = toDateValue(userProfile?.teacherPlanExpiresAt)
-    if (exp && exp < new Date()) return 'free'
+    if (exp && exp < refNow) return 'free'
     return plan
   }
   return 'free'
