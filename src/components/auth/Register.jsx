@@ -137,7 +137,7 @@ export default function Register() {
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
       console.error('[Google sign-up]', err?.code, err?.message)
-      setError(friendlyAuthMessage(err.code, { flow: 'signup', fallback: 'Google sign-in failed. Please try again.' }))
+      setError(friendlyAuthMessage(err.code, { flow: 'signup', online: navigator.onLine, fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
   }
 
@@ -169,7 +169,7 @@ export default function Register() {
     } catch (err) {
       // Never echo a raw Firebase message to the learner — map the code, and
       // fall back to calm generic copy when it's unmapped.
-      setError(friendlyAuthMessage(err.code, { flow: 'signup' }))
+      setError(friendlyAuthMessage(err.code, { flow: 'signup', online: navigator.onLine }))
     } finally { setLoading(false) }
   }
 

@@ -17,6 +17,7 @@ import {
   toFriendlyError,
   friendlyTemplate,
   friendlyMessage,
+  friendlyAuthMessage,
   normalizeError,
   looksOffline,
   technicalDetails,
@@ -143,6 +144,31 @@ console.log('\nfriendlyErrors — friendlyMessage')
 eq('maps code to message', friendlyMessage({ code: 'auth/wrong-password' }), 'The password you entered is incorrect. Please try again.')
 eq('uses fallback only for unknown', friendlyMessage(new Error('weird'), 'Custom fallback.'), 'Custom fallback.')
 eq('known error ignores fallback', friendlyMessage({ status: 500 }, 'Custom fallback.'), TEMPLATES.server.message)
+
+console.log('\nfriendlyErrors — friendlyAuthMessage')
+{
+  // Known codes map to calm inline copy.
+  eq('wrong-password inline', friendlyAuthMessage('auth/wrong-password'), 'Wrong password. Please try again.')
+  eq('unmapped falls back (signin)', friendlyAuthMessage('auth/whatever'), 'Login failed. Please try again.')
+  eq('unmapped falls back (signup)', friendlyAuthMessage('auth/whatever', { flow: 'signup' }), 'Registration failed. Please try again.')
+  eq('custom fallback honoured', friendlyAuthMessage('auth/whatever', { fallback: 'Nope.' }), 'Nope.')
+
+  // The core fix: a network failure while the device is ONLINE must NOT tell
+  // the user to check a connection that plainly works — it points at the real
+  // culprit (a VPN / ad-blocker / extension / network blocking Google's
+  // sign-in server) instead. Both auth methods surface this same code.
+  const offlineCopy = friendlyAuthMessage('auth/network-request-failed')
+  const onlineCopy = friendlyAuthMessage('auth/network-request-failed', { online: true })
+  ok('online network copy differs from offline copy', onlineCopy !== offlineCopy)
+  ok('online copy does NOT blame the user connection', !/check your connection/i.test(onlineCopy))
+  ok('online copy names a real culprit', /(vpn|ad-?block|extension|browser|network)/i.test(onlineCopy))
+  ok('online copy keeps the sign-in verb', /sign in/i.test(onlineCopy))
+  ok('offline (online omitted) keeps connection guidance', /connection/i.test(offlineCopy))
+  ok('offline (online=false) keeps connection guidance', /connection/i.test(friendlyAuthMessage('auth/network-request-failed', { online: false })))
+  ok('online copy uses sign-up verb under signup flow', /sign up/i.test(friendlyAuthMessage('auth/network-request-failed', { online: true, flow: 'signup' })))
+  // A non-network code must ignore the online hint entirely.
+  eq('online hint ignored for non-network code', friendlyAuthMessage('auth/wrong-password', { online: true }), 'Wrong password. Please try again.')
+}
 
 console.log('\nfriendlyErrors — technicalDetails keeps the raw signal for admins')
 {

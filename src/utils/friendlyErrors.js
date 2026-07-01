@@ -353,6 +353,14 @@ const AUTH_MESSAGES_SHARED = {
  * @param {string} code  Firebase auth code, e.g. 'auth/wrong-password'.
  * @param {object} opts
  *   flow     — 'signin' (default) | 'signup'; picks the Google verb.
+ *   online   — pass navigator.onLine. When the device is demonstrably online
+ *              but Firebase Auth still reports `auth/network-request-failed`,
+ *              the problem is NOT the user's connection — the SDK's request to
+ *              Google's sign-in servers (identitytoolkit / reCAPTCHA) is being
+ *              blocked (VPN, ad-blocker, privacy/browser extension, corporate
+ *              firewall, or a network that filters Google). The default
+ *              "check your connection" copy actively misdirects those users, so
+ *              when online===true we point them at the real culprits instead.
  *   fallback — copy when the code is unmapped (default per flow).
  */
 export function friendlyAuthMessage(code, opts = {}) {
@@ -360,6 +368,11 @@ export function friendlyAuthMessage(code, opts = {}) {
   // "sign-in" / "sign-up" (noun) and "sign in" / "sign up" (verb).
   const noun = flow === 'signup' ? 'sign-up' : 'sign-in'
   const verb = flow === 'signup' ? 'sign up' : 'sign in'
+  // A network failure on a device that IS online means Google's auth server is
+  // being blocked locally, not that the user is offline — give actionable copy.
+  if (code === 'auth/network-request-failed' && opts.online === true) {
+    return `We reached the internet but couldn’t contact the ${noun} server. This is usually a VPN, ad-blocker, or a privacy/browser extension blocking Google — turn those off (or try a different browser or network) and ${verb} again.`
+  }
   const googleMessages = {
     'auth/operation-not-supported-in-this-environment': `Google ${noun} isn’t available in this app build. Please update the app from the Play Store, or ${verb} with your email and password.`,
     'auth/google-no-id-token': `Google ${noun} could not be completed. Please update the app, or ${verb} with your email and password.`,
