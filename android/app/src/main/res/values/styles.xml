@@ -18,11 +18,21 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Paint the window brand-cream (not the default white) so the frame
+             shown between the splash dismissing and the WebView's first paint
+             matches the boot skeleton instead of flashing white. -->
+        <item name="android:windowBackground">@color/zed_splash_bg</item>
     </style>
 
 
+    <!-- Launch theme. MainActivity calls SplashScreen.installSplashScreen(),
+         so this uses the AndroidX SplashScreen API attributes
+         (windowSplashScreenBackground / windowSplashScreenAnimatedIcon).
+         The old android:background=@drawable/splash is ignored on Android 12+
+         (it fell back to a WHITE splash) — the launch white-screen bug. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/zed_splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <!-- Hand off to the regular activity theme once the splash dismisses. -->
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>

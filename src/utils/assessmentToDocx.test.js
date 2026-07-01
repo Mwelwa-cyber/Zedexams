@@ -18,6 +18,12 @@ import { Document, ImageRun, Packer, Paragraph } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
 import { buildAssessmentDocument, buildDiagramIdentifySvg, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
 import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { clearImageBytesCache } from './fetchImageBytes.js'
+
+// fetchImageBytes caches successful byte results per URL for the session.
+// These scenarios deliberately reuse the same imageUrl with different fetch
+// stubs (success in one case, failure in another), so each clears the cache
+// first — otherwise a prior success leaks in and masks the case under test.
 
 let failures = 0
 function assert(cond, msg) {
@@ -78,6 +84,7 @@ console.log('\nWEBP picture is never embedded as a broken media part')
 // harness) the exporter must skip the WEBP image rather than ship raw WEBP
 // bytes under a .png/.undefined name that Word would render broken.
 const realFetch = globalThis.fetch
+clearImageBytesCache()
 globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => WEBP_HEADER.buffer.slice(0) })
 try {
   const webpDoc = await buildAssessmentDocument(
@@ -101,6 +108,7 @@ console.log('\nCORS-poisoned cache → exporter retries and still embeds the ima
 // though it showed in the preview.
 {
   let calls = 0
+  clearImageBytesCache()
   globalThis.fetch = async (_url, opts) => {
     calls += 1
     // First attempt mimics the poisoned-cache CORS rejection; the reload
@@ -130,6 +138,7 @@ console.log('\nBucket CORS missing → exporter falls back to the same-origin im
 // /api/image-proxy and still embed the figure, instead of dropping a placeholder.
 {
   let proxyHit = false
+  clearImageBytesCache()
   globalThis.fetch = async (url, _opts) => {
     if (String(url).includes('/api/image-proxy')) {
       proxyHit = true
@@ -159,6 +168,7 @@ console.log('\nProxy returns the SPA fallback (rewrite not live) → fail closed
 // those HTML bytes as a PNG (a fresh broken-image bug) — it must reject the
 // non-image response and drop the visible placeholder instead.
 {
+  clearImageBytesCache()
   globalThis.fetch = async (url) => {
     if (String(url).includes('/api/image-proxy')) {
       return {
@@ -188,6 +198,7 @@ console.log('\nUnreadable image → visible fallback placeholder (not a silent g
 // dead URL), fetchImageBytes returns null. The exporter must drop a visible
 // dashed placeholder into the paper so the diagram gap is obvious — this is
 // the belt to the cors.json braces.
+clearImageBytesCache()
 globalThis.fetch = async () => ({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) })
 try {
   const failDoc = await buildAssessmentDocument(
