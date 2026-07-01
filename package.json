@@ -312,7 +312,8 @@
     "android:apk:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "android:apk:release": "npm run android:sync && cd android && ./gradlew assembleRelease",
     "test:mark-schedule-xlsx": "node scripts/test-mark-schedule-xlsx.mjs",
-    "test:paste-parser": "node scripts/test-paste-question-parser.mjs"
+    "test:paste-parser": "node scripts/test-paste-question-parser.mjs",
+    "test:appcheck-resilient": "node src/firebase/appCheckResilient.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
