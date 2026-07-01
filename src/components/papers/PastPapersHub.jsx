@@ -417,7 +417,12 @@ export default function PastPapersHub() {
     const g = searchParams.get('grade')
     return g && PAPER_GRADES.includes(g) ? g : ANY
   })
-  const [subject, setSubject] = useState(ANY)
+  // ?subject= mirrors the ?grade= seeding above — deep links from the exam
+  // timetable's quick actions land pre-filtered on the right subject.
+  const [subject, setSubject] = useState(() => {
+    const s = searchParams.get('subject')
+    return s && PAPER_SUBJECTS.some((p) => p.id === s) ? s : ANY
+  })
   const [year, setYear] = useState(ANY)
   const [sort, setSort] = useState('newest')
   const [filtersOpen, setFiltersOpen] = useState(false)

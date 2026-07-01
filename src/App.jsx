@@ -64,10 +64,11 @@ const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashbo
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
 const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
-// TEMPORARY (2026 exams): inline PDF viewer for the Grade-7 PSLE timetable.
-// Replaces the <a href target="_blank"> approach in ExamTimetableCard, which
-// does not work on Android/Capacitor because WebViews silently drop external
-// PDF links. Remove with ExamTimetableCard once the 2026 exams are over.
+// Exam timetable hub: /timetable is the interactive per-grade exam schedule
+// (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
+// viewer for the official ECZ PDF because Android/Capacitor WebViews silently
+// drop external PDF links.
+const ExamTimetablePage = lazy(() => import('./components/timetable/ExamTimetablePage'))
 const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
@@ -502,9 +503,10 @@ export default function App() {
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* TEMPORARY (2026 exams): inline PDF viewer — replaced <a target="_blank"> which
-              does not open on Android/Capacitor. Remove with ExamTimetableCard after exams. */}
-          <Route path="/timetable"         element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Interactive exam timetable hub; the official ECZ PDF stays readable
+              in-app at /timetable/pdf (Android WebViews drop external PDF links). */}
+          <Route path="/timetable"         element={<ProtectedRoute><LearnerOnlyRoute><ExamTimetablePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/timetable/pdf"     element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />

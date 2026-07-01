@@ -270,6 +270,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── examTimetables (official ECZ exam schedules, per grade+year) ──
+    // Public read: the data is published, non-sensitive ECZ information
+    // and /timetable must render before sign-in state resolves. Seeded by
+    // scripts/seed-exam-timetables.mjs (admin SDK); admin-only writes so a
+    // typo fix is possible from the console without a deploy.
+    match /examTimetables/{timetableId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ── adminAuditLogs (sensitive admin action ledger) ────────────
     // Admin-readable, client writes blocked entirely. Cloud Functions
     // (admin SDK) bypass these rules so the audit log is the single
