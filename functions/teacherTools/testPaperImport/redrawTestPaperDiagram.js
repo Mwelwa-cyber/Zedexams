@@ -151,9 +151,9 @@ async function runRedrawTestPaperDiagram(args, deps = {}) {
 /**
  * Callable factory. Mirrors createGenerateDiagram's auth + secrets wiring and
  * reuses runGenerateDiagram for the actual image generation so the B&W guard,
- * Recraft→OpenAI fallback and Storage upload all behave identically.
+ * gpt-image-1 rendering and Storage upload all behave identically.
  */
-function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret) {
+function createRedrawTestPaperDiagram(openaiApiKeySecret) {
   const {onCall, HttpsError} = require("firebase-functions/v2/https");
   const admin = require("firebase-admin");
   const {getUserRole, isStaffRole} = require("../../aiService");
@@ -161,7 +161,6 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret) {
   const {runGenerateDiagram} = require("../generateDiagram");
 
   const secrets = [];
-  if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
 
   // Image generation (via gpt-image-1) can run well past a minute. At the old
@@ -218,18 +217,14 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret) {
             return snap.docs.map((doc) => ({id: doc.id, ...doc.data()}));
           },
           generateImage: async (brief) => {
-            // Read the image-provider secrets lazily, only when we actually
-            // generate, so the keep/clean/remove paths never touch .value().
-            const recraftKey = recraftApiKeySecret ?
-              (recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "") :
-              (process.env.RECRAFT_API_KEY || "");
+            // Read the OpenAI secret lazily, only when we actually generate, so
+            // the keep/clean/remove paths never touch .value().
             const openaiKey = openaiApiKeySecret ?
               (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
               (process.env.OPENAI_API_KEY || "");
             return runGenerateDiagram({
               uid,
               rawInputs: {prompt: brief.prompt, style: brief.style, size: brief.size},
-              recraftKey,
               openaiKey,
             });
           },

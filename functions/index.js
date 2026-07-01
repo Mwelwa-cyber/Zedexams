@@ -102,7 +102,7 @@ const {
 const {
   createGenerateExamPaper,
 } = require("./teacherTools/generateExamPaper");
-// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
+// Teacher Tools — Diagram Generator (gpt-image-1, B&W line art for assessments).
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
@@ -273,27 +273,23 @@ const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
 // RECRAFT_API_KEY intentionally NOT declared/bound. Recraft was decommissioned
-// (2026-06: RECRAFT_ENABLED=false in generateDiagram.js — every "recraft"
-// request is now served by gpt-image-1), and the secret was later removed from
-// Secret Manager. A defineSecret() bound to a function whose value no longer
-// exists makes `firebase deploy` hard-fail in CI ("no value for the secret:
-// RECRAFT_API_KEY"), blocking every functions deploy. The consumers below are
-// passed `null` for the recraft secret and guard on it, so the key resolves to
-// "" — behaviour-preserving while Recraft stays disabled. Re-declare + re-fund
-// the secret here if RECRAFT_ENABLED is ever flipped back on.
+// (2026-06) — every "recraft" request is now served by gpt-image-1, and the
+// secret + the direct HTTP integration in generateDiagram.js were removed. A
+// defineSecret() bound to a function whose value no longer exists makes
+// `firebase deploy` hard-fail in CI ("no value for the secret: RECRAFT_API_KEY"),
+// blocking every functions deploy. The image consumers below take only the
+// OpenAI key now. Re-declare + re-fund the secret and restore a Recraft provider
+// branch in generateDiagram.js to bring it back.
 // Optional. When set, structureImportedQuiz uses a Gemini → Claude pipeline:
 // Gemini 2.5 Flash ingests the full document (1M-context strength) and emits
 // rough question candidates; Claude refines them into CBC-aligned output.
 // When unset, the callable falls back to the original Claude-only path so
 // the feature keeps working without forcing a secret rotation.
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
-// Optional. When set, generateDiagram exposes a "photoreal" style toggle
-// that routes through OpenAI gpt-image-1 instead of Recraft. Recraft is
-// still the default for B&W line art (cleaner on photocopiers), but when
-// the Recraft account can't serve (out of credits, bad key) line-art
-// requests automatically fall back to gpt-image-1 with the same B&W
-// prompt. When unset, there is no fallback and the photoreal toggle is
-// hidden.
+// Required for image generation. Every generateDiagram style selector
+// (recraft = B&W line art, openai = photoreal, kie = full colour) renders
+// through OpenAI gpt-image-1 now that Recraft and Kie are decommissioned, so
+// this is the only image-provider key that stays bound.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // KIE_API_KEY intentionally NOT declared/bound. Kie was fully decommissioned
 // (2026-07) — the owner consolidated all image generation onto OpenAI, so the
@@ -2211,10 +2207,9 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Visual Slide-Notes (learner-facing illustrated deck).
 // Two-pass: Claude emits the deck + image prompts, then images are drawn one
-// per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
-// falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
+// per prompt via OpenAI gpt-image-1. Needs the Anthropic + OpenAI keys.
 exports.generateVisualNotes =
-  createGenerateSlideNotes(anthropicApiKey, null, openaiApiKey);
+  createGenerateSlideNotes(anthropicApiKey, openaiApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
@@ -2241,13 +2236,12 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator. All three styles (line-art, photoreal,
 // colour illustration) render via gpt-image-1: Recraft and Kie were both
-// decommissioned, so only the OpenAI key is bound. Recraft is passed `null`
-// (see the RECRAFT_API_KEY note above) and Kie no longer exists.
-exports.generateDiagram = createGenerateDiagram(null, openaiApiKey);
+// decommissioned, so only the OpenAI key is bound.
+exports.generateDiagram = createGenerateDiagram(openaiApiKey);
 
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
 // generation via the same gpt-image-1 pipeline as generateDiagram.
-exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(null, openaiApiKey);
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(openaiApiKey);
 
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.

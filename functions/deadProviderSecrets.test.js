@@ -12,11 +12,12 @@
  * Firebase deploy once the (unfunded, decommissioned) RECRAFT_API_KEY was pruned
  * from the project while three functions still bound it.
  *
- * The invariant this test locks in: a provider that is DISABLED or removed in
- * code (RECRAFT_ENABLED === false; Kie fully decommissioned) must NOT have its
- * secret declared/bound. If you re-enable a provider, set its secret in the
- * project first, flip the *_ENABLED flag to true (or re-add the provider), and
- * only then re-introduce the binding — this test will remind you.
+ * The invariant this test locks in: a provider that has been decommissioned in
+ * code (Recraft 2026-06, Kie 2026-07 — both fully removed, every image request
+ * now served by gpt-image-1) must NOT have its secret declared/bound. If you
+ * re-enable a provider, set its secret in the project first, restore the
+ * provider branch, and only then re-introduce the binding — this test will
+ * remind you.
  *
  * Run: node functions/deadProviderSecrets.test.js
  */
@@ -37,15 +38,6 @@ console.log("dead-provider secrets");
 const read = (rel) => fs.readFileSync(path.join(__dirname, rel), "utf8");
 
 const indexSrc = read("index.js");
-const diagramSrc = read("teacherTools/generateDiagram.js");
-
-// Read the Recraft enable flag straight from the source of truth.
-function flag(name) {
-  const m = diagramSrc.match(new RegExp(`${name}\\s*=\\s*(true|false)`));
-  assert.ok(m, `${name} flag found in generateDiagram.js`);
-  return m[1] === "true";
-}
-const recraftEnabled = flag("RECRAFT_ENABLED");
 
 // A secret is "bound" only if it is declared with defineSecret(...). Without a
 // defineSecret it cannot be added to any function's `secrets: [...]`, so the
@@ -54,25 +46,31 @@ function isDeclared(secretName) {
   return new RegExp(`defineSecret\\(["']${secretName}["']\\)`).test(indexSrc);
 }
 
-// Recraft (decommissioned 2026-06) must not be bound while disabled.
-ok("RECRAFT_ENABLED is false (still decommissioned)", recraftEnabled === false);
-ok("RECRAFT_API_KEY is not declared/bound while Recraft is disabled",
+// Recraft (decommissioned 2026-06) must not be declared/bound.
+ok("RECRAFT_API_KEY is not declared/bound (Recraft decommissioned)",
   !isDeclared("RECRAFT_API_KEY"));
 
-// Kie was fully decommissioned (2026-06): the provider, its client, and the
-// KIE_ENABLED flag were removed. The secret must stay unbound.
-ok("KIE_API_KEY is not declared/bound while Kie is decommissioned",
+// Kie (decommissioned 2026-07) must not be declared/bound.
+ok("KIE_API_KEY is not declared/bound (Kie decommissioned)",
   !isDeclared("KIE_API_KEY"));
 
-// The two factories that previously bound the Recraft secret unconditionally
-// must build their `secrets` list conditionally, so passing null skips it.
+// The image factories must not accept or bind a Recraft/Kie secret at all — the
+// dead providers were removed, so re-introducing a `*ApiKeySecret` parameter is
+// how a bound-but-unset secret would sneak back and break the deploy again.
+const diagramSrc = read("teacherTools/generateDiagram.js");
 const redrawSrc = read("teacherTools/testPaperImport/redrawTestPaperDiagram.js");
+const slideNotesSrc = read("teacherTools/generateSlideNotes.js");
 for (const [label, src] of [
   ["generateDiagram.js", diagramSrc],
   ["redrawTestPaperDiagram.js", redrawSrc],
+  ["generateSlideNotes.js", slideNotesSrc],
 ]) {
-  ok(`${label} does not unconditionally bind the recraft secret`,
-    !/const\s+secrets\s*=\s*\[\s*recraftApiKeySecret\s*\]/.test(src));
+  // A bare RECRAFT_API_KEY mention in a "how to re-enable" comment is harmless;
+  // the deploy-breaking patterns are a bound secret parameter or a runtime read.
+  ok(`${label} does not bind or read a recraft secret`,
+    !/recraftApiKeySecret/.test(src) && !/process\.env\.RECRAFT_API_KEY/.test(src));
+  ok(`${label} does not bind or read a kie secret`,
+    !/kieApiKeySecret/.test(src) && !/process\.env\.KIE_API_KEY/.test(src));
 }
 
 console.log(`\n${passed} assertions passed`);
