@@ -16,6 +16,7 @@
 
 export const STATUS = {
   UPCOMING: 'upcoming',
+  NEXT: 'next',
   TODAY: 'today',
   IN_PROGRESS: 'in-progress',
   COMPLETED: 'completed',
@@ -36,14 +37,18 @@ export function lusakaDateString(nowMs) {
 }
 
 // Status of one session at one instant. `archived` marks every session of a
-// non-active-year timetable regardless of its times.
-export function getSessionStatus(session, nowMs, { archived = false } = {}) {
+// non-active-year timetable regardless of its times. Pass `nextKey` (the key
+// of the next paper session, from getNextPaperSession) to have that one
+// session read NEXT instead of UPCOMING — TODAY still wins, so an exam later
+// today never demotes to a plain "Next".
+export function getSessionStatus(session, nowMs, { archived = false, nextKey = null } = {}) {
   if (archived) return STATUS.ARCHIVED
   const start = Date.parse(session.start)
   const end = Date.parse(session.end)
   if (nowMs >= end) return STATUS.COMPLETED
   if (nowMs >= start) return STATUS.IN_PROGRESS
   if (session.start.slice(0, 10) === lusakaDateString(nowMs)) return STATUS.TODAY
+  if (nextKey && session.key === nextKey) return STATUS.NEXT
   return STATUS.UPCOMING
 }
 
@@ -73,6 +78,28 @@ export function getCurrentSession(timetable, nowMs) {
 // The earliest session that has not started yet, or null once all have.
 export function getNextSession(timetable, nowMs) {
   return listSessions(timetable).find((s) => Date.parse(s.start) > nowMs) || null
+}
+
+// The earliest PAPER session that has not started yet (the briefing day is
+// shown in the list but is never "the next exam"), or null once all have.
+export function getNextPaperSession(timetable, nowMs) {
+  return (
+    listSessions(timetable).find(
+      (s) => (s.papers || []).length > 0 && Date.parse(s.start) > nowMs,
+    ) || null
+  )
+}
+
+// Which day groups start expanded: today's exam day (if any) plus the day of
+// the next upcoming paper. Every other day collapses to one tappable row —
+// during the season a learner sees at most two open days instead of five.
+export function getDefaultExpandedDates(timetable, nowMs) {
+  const dates = new Set()
+  const today = lusakaDateString(nowMs)
+  if ((timetable?.days || []).some((d) => d.date === today)) dates.add(today)
+  const next = getNextPaperSession(timetable, nowMs)
+  if (next) dates.add(next.start.slice(0, 10))
+  return dates
 }
 
 // Paper-writing progress. The briefing day carries no papers, so it counts
@@ -194,16 +221,26 @@ export function reminderStorageKey(uid, timetableId) {
   return `zx_exam_reminders_${uid || 'anon'}_${timetableId}`
 }
 
+// Master switch. Prefs stored before the switch existed have no `enabled`
+// field — for those, having any offset selected means reminders were in use.
+export function remindersEnabled(prefs) {
+  if (!prefs) return false
+  if (prefs.enabled === undefined) return (prefs.offsets || []).length > 0
+  return prefs.enabled === true
+}
+
 /**
  * Reminders that should be showing right now.
  *
- * prefs: { offsets: ['1d', '1h', ...], dismissed: { '<key>': true } }
- * A reminder for (session, offset) is due when its fire moment has passed but
- * the session hasn't started, the offset is selected, and the learner hasn't
- * dismissed that exact reminder. Keys are stable ("g7-2026:eng-p1@1d") so a
- * dismissal in localStorage silences exactly one banner forever.
+ * prefs: { enabled: true, offsets: ['1d', '1h', ...], dismissed: { '<key>': true } }
+ * A reminder for (session, offset) is due when reminders are enabled, its
+ * fire moment has passed but the session hasn't started, the offset is
+ * selected, and the learner hasn't dismissed that exact reminder. Keys are
+ * stable ("g7-2026:eng-p1@1d") so a dismissal in localStorage silences
+ * exactly one banner forever.
  */
 export function getDueReminders(timetable, prefs, nowMs) {
+  if (!remindersEnabled(prefs)) return []
   const offsets = new Set(prefs?.offsets || [])
   if (!timetable || offsets.size === 0) return []
   const dismissed = prefs?.dismissed || {}

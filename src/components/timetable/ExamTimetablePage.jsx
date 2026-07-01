@@ -7,22 +7,36 @@
  *
  * The page adapts to the season, all computed from a ticking clock + the
  * pure helpers in utils/examTimetableLogic.js:
- *   BEFORE the exams  → big countdown, progress "0 of N papers", next exam
+ *   BEFORE the exams  → big countdown, exam progress, next exam
  *   DURING the season → "Today's Examination" with live time remaining,
- *                       then the next session; evenings show the next day
+ *                       then the next session; evenings show the next day;
+ *                       a floating banner keeps today's exam visible once
+ *                       the hero scrolls away
  *   AFTER the season  → congratulations + revision resource links
+ *
+ * Two clocks drive the rendering: `nowMs` ticks every second for the hero
+ * and banner (they display seconds), while the day list, statuses, and
+ * reminders take the minute-floored `nowMinuteMs` — session boundaries sit
+ * on whole minutes, so the (memoized) card list re-renders once a minute
+ * instead of every second.
+ *
+ * Days are collapsible: today + the next exam day start open (see
+ * getDefaultExpandedDates), everything else collapses to a header row and
+ * mounts its cards only when tapped. A subject search temporarily expands
+ * whatever matches.
  *
  * Data comes from Firestore (examTimetables, per grade+year) through
  * useExamTimetables, with the bundled 2026 PSLE timetable as fallback, so
  * future years are a seed-script run — no app release. Older years render
  * under "Past Exam Timetables" with every session marked Archived.
  *
- * Reminders are v1 in-app only: offset preferences + dismissals live in
- * localStorage (per uid + timetable) and surface as banners here — no
- * Cloud Functions, no FCM (candidates for a later iteration).
+ * Reminders are v1 in-app only: a master switch + offset preferences and
+ * dismissals live in localStorage (per uid + timetable) and surface as
+ * banners here — no Cloud Functions, no FCM (candidates for a later
+ * iteration).
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import useExamTimetables from '../../hooks/useExamTimetables'
@@ -38,6 +52,8 @@ import {
   getSessionStatus,
   getCurrentSession,
   getNextSession,
+  getNextPaperSession,
+  getDefaultExpandedDates,
   listSessions,
   computeProgress,
   filterTimetable,
@@ -47,6 +63,7 @@ import {
   hms,
   sessionLabel,
   REMINDER_OFFSETS,
+  remindersEnabled,
   reminderStorageKey,
   getDueReminders,
 } from '../../utils/examTimetableLogic'
@@ -85,11 +102,11 @@ function CountdownUnit({ value, label }) {
 function ProgressBar({ progress }) {
   return (
     <div>
-      <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-        <span>
-          {progress.completed} of {progress.total} papers written
+      <div className="flex items-center justify-between">
+        <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+          Exam Progress
         </span>
-        <span>{progress.pct}%</span>
+        <span className="text-[11px] font-bold tabular-nums text-slate-600">{progress.pct}%</span>
       </div>
       <div className="mt-1 h-2.5 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
         <div
@@ -97,6 +114,9 @@ function ProgressBar({ progress }) {
           style={{ width: `${progress.pct}%` }}
         />
       </div>
+      <p className="mt-1 text-[11px] font-bold text-slate-600">
+        {progress.completed} / {progress.total} Papers Completed
+      </p>
     </div>
   )
 }
@@ -159,9 +179,7 @@ function TimetableHero({ timetable, nowMs }) {
 
   // First paper session that hasn't started — the briefing day is shown in
   // the card list but is not "the next exam".
-  const nextExam = listSessions(timetable).find(
-    (s) => (s.papers || []).length > 0 && Date.parse(s.start) > nowMs,
-  )
+  const nextExam = getNextPaperSession(timetable, nowMs)
 
   if (phase === PHASE.BEFORE) {
     const parts = countdownParts(Date.parse(timetable.startsAt), nowMs)
@@ -176,7 +194,7 @@ function TimetableHero({ timetable, nowMs }) {
         <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-slate-500">
           Starts in
         </p>
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <CountdownUnit value={parts.days} label="Days" />
           <CountdownUnit value={parts.hours} label="Hours" />
           <CountdownUnit value={parts.minutes} label="Min" />
@@ -254,6 +272,47 @@ function TimetableHero({ timetable, nowMs }) {
   )
 }
 
+/**
+ * Floating banner that keeps today's exam in view once the hero scrolls
+ * away: the session running now, or the next one starting today. Derived
+ * from the ticking clock, so it vanishes on its own when the last session
+ * of the day ends. Fixed below the navbar; pointer events pass through the
+ * gutter so only the pill itself is tappable.
+ */
+function TodayExamBanner({ timetable, nowMs, onView }) {
+  const current = getCurrentSession(timetable, nowMs)
+  const next = getNextSession(timetable, nowMs)
+  const featured =
+    current || (next && getSessionStatus(next, nowMs) === STATUS.TODAY ? next : null)
+  if (!featured) return null
+  const running = Boolean(current)
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-16 z-30 px-4">
+      <div className="animate-slide-in-soft pointer-events-auto mx-auto flex max-w-3xl items-center gap-2.5 rounded-[16px] border-2 border-slate-900 bg-emerald-50 px-3 py-2 shadow-[0_2px_0_#0F1B2D]">
+        <span aria-hidden="true" className="text-lg leading-none">
+          {featured.briefing ? '📋' : '✏️'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[9.5px] font-black uppercase tracking-widest text-emerald-700">
+            {running ? 'In progress' : "Today's Exam"}
+          </p>
+          <p className="truncate text-[13px] font-extrabold leading-tight text-slate-900">
+            {sessionLabel(featured)}
+            <span className="ml-1.5 font-bold text-slate-600">{formatSessionTime(featured)}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onView}
+          className="zx-sb zx-sb-primary shrink-0 px-3 py-1.5 text-[11px]"
+        >
+          View →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ReminderBar({ reminders, onDismiss }) {
   if (reminders.length === 0) return null
   return (
@@ -284,32 +343,62 @@ function ReminderBar({ reminders, onDismiss }) {
   )
 }
 
-function ReminderSettings({ prefs, onToggle }) {
+/**
+ * One master switch; the offset pills only exist while it's on. Turning it
+ * off hides the choices but keeps them stored, so toggling back restores
+ * the learner's picks.
+ */
+function ReminderSettings({ prefs, onToggleEnabled, onToggleOffset }) {
+  const enabled = remindersEnabled(prefs)
   const selected = new Set(prefs?.offsets || [])
   return (
     <div className="zx-card-shared p-3">
-      <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
-        🔔 Remind me before each exam
-      </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {REMINDER_OFFSETS.map((o) => {
-          const on = selected.has(o.id)
-          return (
-            <button
-              key={o.id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onToggle(o.id)}
-              className={`zx-pill-dark ${on ? 'zx-pill-orange' : 'zx-pill-light'}`}
-            >
-              {o.label}
-            </button>
-          )
-        })}
-      </div>
-      <p className="mt-2 text-[10.5px] font-semibold text-slate-500">
-        Reminders show here in the app when you open it within the window.
-      </p>
+      <button
+        type="button"
+        onClick={onToggleEnabled}
+        role="switch"
+        aria-checked={enabled}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <span className="min-w-0 flex-1 text-[12.5px] font-extrabold text-slate-900">
+          🔔 Enable Exam Reminders
+        </span>
+        <span
+          aria-hidden="true"
+          className={`relative h-6 w-11 shrink-0 rounded-full border-2 border-slate-900 transition-colors ${
+            enabled ? 'bg-emerald-500' : 'bg-white'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-4 w-4 rounded-full border-2 border-slate-900 bg-white transition-transform ${
+              enabled ? 'translate-x-[1.4rem]' : 'translate-x-0.5'
+            }`}
+          />
+        </span>
+      </button>
+      {enabled && (
+        <div className="animate-fade-in">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {REMINDER_OFFSETS.map((o) => {
+              const on = selected.has(o.id)
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onToggleOffset(o.id)}
+                  className={`zx-pill-dark transition-colors ${on ? 'zx-pill-orange' : 'zx-pill-light'}`}
+                >
+                  {o.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-[10.5px] font-semibold text-slate-500">
+            Reminders show here in the app when you open it within the window.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -359,7 +448,7 @@ function PastTimetablesSection({ archived, nowMs }) {
                 </span>
               </button>
               {open && (
-                <div className="mt-3 space-y-4 pl-1">
+                <div className="animate-slide-in-soft mt-3 space-y-3 pl-1">
                   {t.days.map((day, i) => (
                     <ExamDayGroup
                       key={day.date}
@@ -399,30 +488,75 @@ export default function ExamTimetablePage() {
   const grade = parseInt(userProfile?.grade, 10) || 7
   const { active, archived, loading } = useExamTimetables(grade)
 
-  // One ticking clock drives every status, countdown, and reminder. 1 s
-  // matches the dashboard card — the hero displays seconds, so a slower
-  // tick would visibly freeze it.
+  // The 1 s clock drives the hero + floating banner (they display seconds).
+  // Everything below the hero — statuses, day groups, reminders — takes the
+  // minute-floored clock instead: session boundaries sit on whole minutes,
+  // so the card list only re-renders when something can actually change.
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
+  const nowMinuteMs = nowMs - (nowMs % 60000)
 
   const [search, setSearch] = useState('')
+  const isSearching = search.trim().length > 0
+
+  // Collapsible days: today + the next exam day start open, the rest start
+  // collapsed. A learner's taps override the defaults until the page reloads
+  // or the timetable changes; an active search expands every match.
+  const defaultOpenDates = useMemo(
+    () => (active ? getDefaultExpandedDates(active, nowMinuteMs) : new Set()),
+    [active, nowMinuteMs],
+  )
+  const [dayOverrides, setDayOverrides] = useState({})
+  useEffect(() => setDayOverrides({}), [active?.id])
+  const toggleDay = useCallback(
+    (date) =>
+      setDayOverrides((prev) => ({
+        ...prev,
+        [date]: !(prev[date] ?? defaultOpenDates.has(date)),
+      })),
+    [defaultOpenDates],
+  )
+
+  // Floating today-banner: only while the hero (which carries the same
+  // information, bigger) is scrolled out of view during the exam season.
+  const heroRef = useRef(null)
+  const [heroVisible, setHeroVisible] = useState(true)
+  useEffect(() => {
+    const el = heroRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    const observer = new IntersectionObserver(([entry]) => setHeroVisible(entry.isIntersecting))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loading, active?.id])
+  const scrollToHero = useCallback(
+    () => heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    [],
+  )
 
   // Reminder prefs live in localStorage per learner + timetable.
   const prefsKey = active ? reminderStorageKey(currentUser?.uid, active.id) : null
   const [prefs, setPrefs] = useState(null)
   useEffect(() => {
-    if (prefsKey) setPrefs(readStored(prefsKey) || { offsets: [], dismissed: {} })
+    if (prefsKey) setPrefs(readStored(prefsKey) || { enabled: false, offsets: [], dismissed: {} })
   }, [prefsKey])
   const updatePrefs = (updater) => {
     setPrefs((prev) => {
-      const next = updater(prev || { offsets: [], dismissed: {} })
+      const next = updater(prev || { enabled: false, offsets: [], dismissed: {} })
       if (prefsKey) writeStored(prefsKey, next)
       return next
     })
   }
+  // First enable pre-selects "1 day before" so the switch does something
+  // useful immediately; the learner can still untick it.
+  const toggleEnabled = () =>
+    updatePrefs((p) => {
+      const enabled = !remindersEnabled(p)
+      const offsets = enabled && (p.offsets || []).length === 0 ? ['1d'] : p.offsets
+      return { ...p, enabled, offsets }
+    })
   const toggleOffset = (id) =>
     updatePrefs((p) => ({
       ...p,
@@ -432,8 +566,8 @@ export default function ExamTimetablePage() {
     updatePrefs((p) => ({ ...p, dismissed: { ...p.dismissed, [key]: true } }))
 
   const dueReminders = useMemo(
-    () => (active && prefs ? getDueReminders(active, prefs, nowMs) : []),
-    [active, prefs, nowMs],
+    () => (active && prefs ? getDueReminders(active, prefs, nowMinuteMs) : []),
+    [active, prefs, nowMinuteMs],
   )
 
   const filtered = useMemo(() => (active ? filterTimetable(active, search) : null), [active, search])
@@ -443,23 +577,33 @@ export default function ExamTimetablePage() {
     () => new Map((active?.days || []).map((d, i) => [d.date, i + 1])),
     [active],
   )
+  const nextPaperKey = useMemo(
+    () => (active ? getNextPaperSession(active, nowMinuteMs)?.key || null : null),
+    [active, nowMinuteMs],
+  )
+
+  const phase = active ? getSeasonPhase(active, nowMs) : null
 
   return (
     <div className="theme-bg theme-text min-h-screen">
       <SeoHelmet title="Exam Timetable" path="/timetable" noIndex />
       <Navbar />
 
-      <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
-        <div className="zx-card-shared mb-4 p-4">
+      {active && phase === PHASE.DURING && !heroVisible && (
+        <TodayExamBanner timetable={active} nowMs={nowMs} onView={scrollToHero} />
+      )}
+
+      <div className="mx-auto max-w-3xl px-4 pb-24 pt-5">
+        <div className="zx-card-shared mb-3 p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <span className="zx-eyebrow-shared">Exam Timetable</span>
-              <h1 className="font-display mt-1 flex items-center gap-2 text-[22px] font-extrabold tracking-tight text-slate-900">
+              <h1 className="font-display mt-0.5 flex items-center gap-2 text-[21px] font-extrabold tracking-tight text-slate-900">
                 <span aria-hidden="true">🗓️</span>
                 {active ? `${active.shortName} Exam Timetable` : 'Exam Timetable'}
               </h1>
               {active && (
-                <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
+                <p className="text-[12px] font-semibold text-slate-500">
                   Grade {active.grade} · {active.board} {active.year}
                 </p>
               )}
@@ -488,12 +632,18 @@ export default function ExamTimetablePage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            <TimetableHero timetable={active} nowMs={nowMs} />
+          <div className="space-y-3">
+            <div ref={heroRef}>
+              <TimetableHero timetable={active} nowMs={nowMs} />
+            </div>
 
             <ReminderBar reminders={dueReminders} onDismiss={dismissReminder} />
-            {getSeasonPhase(active, nowMs) !== PHASE.AFTER && (
-              <ReminderSettings prefs={prefs} onToggle={toggleOffset} />
+            {phase !== PHASE.AFTER && (
+              <ReminderSettings
+                prefs={prefs}
+                onToggleEnabled={toggleEnabled}
+                onToggleOffset={toggleOffset}
+              />
             )}
 
             <PdfButtons pdfUrl={active.pdfUrl} />
@@ -508,7 +658,7 @@ export default function ExamTimetablePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="🔍 Search subjects — English, Science, Mathematics…"
-                className="w-full rounded-[16px] border-2 border-slate-900 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full rounded-[16px] border-2 border-slate-900 bg-white px-4 py-2 text-[13px] font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
               />
             </div>
 
@@ -519,20 +669,23 @@ export default function ExamTimetablePage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {filtered.days.map((day) => (
                   <ExamDayGroup
                     key={day.date}
                     day={day}
                     dayNumber={dayNumbers.get(day.date) || 0}
                     grade={active.grade}
-                    nowMs={nowMs}
+                    nowMs={nowMinuteMs}
+                    nextKey={nextPaperKey}
+                    open={isSearching ? true : (dayOverrides[day.date] ?? defaultOpenDates.has(day.date))}
+                    onToggle={toggleDay}
                   />
                 ))}
               </div>
             )}
 
-            <PastTimetablesSection archived={archived} nowMs={nowMs} />
+            <PastTimetablesSection archived={archived} nowMs={nowMinuteMs} />
           </div>
         )}
       </div>

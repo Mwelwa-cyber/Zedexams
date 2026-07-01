@@ -20,6 +20,8 @@ import {
   listSessions,
   getCurrentSession,
   getNextSession,
+  getNextPaperSession,
+  getDefaultExpandedDates,
   computeProgress,
   filterTimetable,
   formatSessionTime,
@@ -29,6 +31,7 @@ import {
   sessionLabel,
   validateTimetable,
   REMINDER_OFFSETS,
+  remindersEnabled,
   reminderStorageKey,
   getDueReminders,
 } from '../src/utils/examTimetableLogic.js'
@@ -181,6 +184,38 @@ test('getNextSession is the earliest unstarted session', () => {
   assert(getNextSession(PSLE_2026, T(PSLE_2026.endsAt)) === null, 'expected null after last start')
 })
 
+test('getNextPaperSession skips the briefing day', () => {
+  assert(getNextPaperSession(PSLE_2026, T(PSLE_2026.startsAt) - 1)?.key === 'eng-p1', 'expected eng-p1')
+  assert(getNextPaperSession(PSLE_2026, T('2026-10-30T09:00:00+02:00'))?.key === 'zl', 'expected zl')
+  assert(getNextPaperSession(PSLE_2026, T(PSLE_2026.endsAt)) === null, 'expected null at season end')
+})
+
+test('status: the next paper session reads NEXT, but TODAY still wins', () => {
+  const nextKey = 'eng-p1'
+  // Day before: eng-p1 is NEXT, later sessions stay UPCOMING.
+  const eve = T('2026-10-26T20:00:00+02:00')
+  assert(getSessionStatus(ENG, eve, { nextKey }) === STATUS.NEXT, 'expected NEXT')
+  assert(getSessionStatus(PSLE_2026.days[2].sessions[0], eve, { nextKey }) === STATUS.UPCOMING, 'expected UPCOMING')
+  // Exam morning: the same session is TODAY, not NEXT.
+  assert(getSessionStatus(ENG, T('2026-10-27T06:00:00+02:00'), { nextKey }) === STATUS.TODAY, 'TODAY should win')
+  // No nextKey → identical to the old behaviour.
+  assert(getSessionStatus(ENG, eve) === STATUS.UPCOMING, 'expected UPCOMING without nextKey')
+})
+
+test('getDefaultExpandedDates: today + the next exam day, nothing else', () => {
+  // Before the season: only the first paper day (the briefing day stays shut).
+  const before = getDefaultExpandedDates(PSLE_2026, T('2026-09-01T10:00:00+02:00'))
+  assert(before.size === 1 && before.has('2026-10-27'), `before: ${[...before]}`)
+  // Tuesday morning mid-season: today and the next paper share the date.
+  const tue = getDefaultExpandedDates(PSLE_2026, T('2026-10-27T08:30:00+02:00'))
+  assert(tue.size === 1 && tue.has('2026-10-27'), `tuesday: ${[...tue]}`)
+  // Tuesday evening: today stays open and Wednesday (next paper) joins it.
+  const eve = getDefaultExpandedDates(PSLE_2026, T('2026-10-27T18:00:00+02:00'))
+  assert(eve.size === 2 && eve.has('2026-10-27') && eve.has('2026-10-28'), `evening: ${[...eve]}`)
+  // After the season: nothing is expanded by default.
+  assert(getDefaultExpandedDates(PSLE_2026, T('2026-11-05T10:00:00+02:00')).size === 0, 'after: expected none')
+})
+
 test('computeProgress counts only paper sessions (briefing excluded)', () => {
   assert(computeProgress(PSLE_2026, T(PSLE_2026.startsAt) - 1).total === 8, 'expected 8 paper sessions')
   assert(computeProgress(PSLE_2026, T(PSLE_2026.startsAt) - 1).completed === 0, 'expected 0 before')
@@ -254,6 +289,23 @@ test('reminder offsets are the four product options', () => {
 test('reminderStorageKey is uid + timetable scoped', () => {
   assert(reminderStorageKey('u1', 'g7-2026') === 'zx_exam_reminders_u1_g7-2026', 'key shape')
   assert(reminderStorageKey(null, 'g7-2026') === 'zx_exam_reminders_anon_g7-2026', 'anon fallback')
+})
+
+test('remindersEnabled: master switch + legacy prefs without the flag', () => {
+  assert(remindersEnabled({ enabled: true, offsets: [] }) === true, 'explicit on')
+  assert(remindersEnabled({ enabled: false, offsets: ['1d'] }) === false, 'explicit off wins')
+  // Prefs stored before the switch existed: offsets in use ⇒ enabled.
+  assert(remindersEnabled({ offsets: ['1d'] }) === true, 'legacy with offsets')
+  assert(remindersEnabled({ offsets: [] }) === false, 'legacy without offsets')
+  assert(remindersEnabled(null) === false, 'null prefs')
+})
+
+test('getDueReminders honours the disabled master switch', () => {
+  const now = T('2026-10-26T20:00:00+02:00')
+  const off = getDueReminders(PSLE_2026, { enabled: false, offsets: ['1d'] }, now)
+  assert(off.length === 0, 'disabled prefs should silence every reminder')
+  const legacy = getDueReminders(PSLE_2026, { offsets: ['1d'] }, now)
+  assert(legacy.length === 2, 'legacy prefs (no flag) should still fire')
 })
 
 test('getDueReminders: due window, urgency order, dismissal, unselected offsets', () => {
