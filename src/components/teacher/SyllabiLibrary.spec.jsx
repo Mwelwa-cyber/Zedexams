@@ -12,6 +12,7 @@ vi.mock('../../utils/syllabusKbService', () => ({
       'Form 1': {
         columns: ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
         rows: [
+          { type: 'section', label: 'MECHANICS' },
           {
             type: 'data',
             cells: {
@@ -109,6 +110,37 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Full screen/ }))
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(container.querySelector('.ss-root').classList.contains('is-reading')).toBe(false)
+  })
+
+  it('wraps section and topic banner labels for the pinned-label scroll trick', async () => {
+    const { container } = await openPhysics()
+    // The spans stick horizontally on phones (CSS-driven) so banner text
+    // stays readable while the table h-scrolls under the pinned column.
+    expect(container.querySelector('.ss-section-row .ss-rowlabel')).toHaveTextContent('MECHANICS')
+    expect(container.querySelector('.ss-topic-header-row .ss-rowlabel')).toHaveTextContent('Measurements')
+  })
+
+  it('defers Escape to a stacked modal dialog instead of exiting reading mode beneath it', async () => {
+    const { container } = await openPhysics()
+    fireEvent.click(screen.getByRole('button', { name: /Full screen/ }))
+    const root = container.querySelector('.ss-root')
+    expect(root.classList.contains('is-reading')).toBe(true)
+
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    document.body.appendChild(dialog)
+    try {
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(root.classList.contains('is-reading')).toBe(true)
+      expect(document.body.style.overflow).toBe('hidden')
+    } finally {
+      dialog.remove()
+    }
+
+    // With the modal gone, Escape exits as normal.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(root.classList.contains('is-reading')).toBe(false)
   })
 
   it('opens the subject panel from the hamburger and closes it on selection', async () => {
