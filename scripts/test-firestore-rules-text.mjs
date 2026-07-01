@@ -431,6 +431,22 @@ test('notifications items are server-create-only and mark-read-only for clients'
   )
 })
 
+test('examTimetables are public-read, admin-write', () => {
+  // The /timetable page reads the ECZ exam schedule before auth resolves
+  // (and the data is published public information), so read must stay open;
+  // writes go through the seed script (admin SDK) or an admin console fix.
+  const block = rules.match(/match \/examTimetables\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'examTimetables match block not found')
+  assert(
+    /allow read:\s*if true/.test(block[1]),
+    'examTimetables read is no longer public — /timetable would break for signed-out/fresh sessions',
+  )
+  assert(
+    /allow write:\s*if isAdmin\(\)/.test(block[1]),
+    'examTimetables write must stay admin-only',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
