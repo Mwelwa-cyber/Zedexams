@@ -222,6 +222,41 @@ function runDiagramFieldsRoundTripTest() {
   console.log('runDiagramFieldsRoundTripTest passed (labels/table/canvas, standalone + passage)')
 }
 
+// A reconstructed paper can carry a wide timetable (7 cols) and a converted
+// library-SVG shape ({libraryKey, params}). Both must survive save → reload so
+// the professional export matches what the review screen showed.
+function runReconstructionShapesRoundTripTest() {
+  const sections = [
+    createStandaloneSection({
+      type: 'short_answer', text: 'Study the timetable', options: [], correctAnswer: '',
+      tableData: {
+        headers: ['Time', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Total'],
+        rows: [['08:00', 'Eng', 'Sci', 'Eng', 'Maths', 'PE', '5']],
+      },
+    }),
+    createStandaloneSection({
+      type: 'diagram', text: 'Name the shape', options: [], correctAnswer: '',
+      imageDiagram: { libraryKey: 'cylinder', params: { r: 'r', h: 'h' } },
+    }),
+  ]
+  const serialized = serializeQuizSections(sections, [])
+  const { sections: reopened } = hydrateQuizSections(serialized.questions, [], [], [])
+
+  const wide = reopened.find(s => s.question?.tableData)?.question
+  assert(wide, 'wide-table question reopens')
+  assert.equal(wide.tableData.headers.length, 7, 'all 7 columns survive save (no 6-col truncation)')
+  assert.equal(wide.tableData.rows[0].length, 7, 'row keeps all 7 cells')
+  assert.equal(wide.tableData.headers[6], 'Total', 'the 7th column is preserved')
+
+  const svgQ = reopened.find(s => s.question?.imageDiagram)?.question
+  assert(svgQ, 'converted-SVG question reopens')
+  assert.equal(svgQ.imageDiagram.libraryKey, 'cylinder', 'library shape key round-trips')
+  assert.equal(svgQ.imageDiagram.params.h, 'h', 'shape params round-trip')
+
+  console.log('runReconstructionShapesRoundTripTest passed (wide table + library SVG)')
+}
+runReconstructionShapesRoundTripTest()
+
 runDiagramFieldsRoundTripTest()
 
 // ── Short-answer SUB-PARTS round-trip + auto-summed marks ──
