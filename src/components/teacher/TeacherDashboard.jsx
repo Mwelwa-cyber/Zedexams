@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useTeacherUsage } from '../../hooks/useTeacherUsage'
 import {
   listMyGenerations,
+  summarizeGenerations,
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
@@ -256,7 +257,7 @@ const STUDIO_GROUPS = [
         img: iconSbaStudio,
         tone: 'sky',
         badge: null,
-        libraryKey: 'sba',
+        libraryKey: 'sba-task',
         title: 'SBA Studio',
         tagline: 'ECZ School Based Assessment — create tasks, record marks, track coverage.',
         to: '/teacher/sba',
@@ -660,15 +661,9 @@ export default function TeacherDashboard() {
     return () => { cancelled = true }
   }, [currentUser, getMyAssessments])
 
-  const librarySummary = useMemo(() => {
-    const byTool = generations.reduce((acc, g) => {
-      const key = (g.tool || '').replace(/_/g, '-')
-      if (!key) return acc
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {})
-    return { total: generations.length, byTool }
-  }, [generations])
+  // byTool keys stay snake_cased (the Firestore tool ids) — StudioCard
+  // normalizes its dash-cased libraryKey before looking up.
+  const librarySummary = useMemo(() => summarizeGenerations(generations), [generations])
 
   // One normalised list of everything the teacher has made — the single input
   // the intelligence helpers (greeting message, insights, stats, celebrations,

@@ -445,16 +445,26 @@ export async function recordExport(id, format) {
 }
 
 /**
+ * Summary stats for a list of generation rows — used by the dashboard.
+ * byTool is keyed by the snake_cased Firestore tool id ('lesson_plan'),
+ * which is what StudioCard's `libraryKey.replace(/-/g, '_')` lookup expects.
+ */
+export function summarizeGenerations(rows = []) {
+  const byTool = rows.reduce((acc, r) => {
+    if (!r?.tool) return acc
+    acc[r.tool] = (acc[r.tool] || 0) + 1
+    return acc
+  }, {})
+  return {total: rows.length, byTool}
+}
+
+/**
  * Summary stats for the current user's library — used by the dashboard.
  */
 export async function getLibrarySummary(uid) {
   if (!uid) return {total: 0, byTool: {}}
   const rows = await listMyGenerations({uid})
-  const byTool = rows.reduce((acc, r) => {
-    acc[r.tool] = (acc[r.tool] || 0) + 1
-    return acc
-  }, {})
-  return {total: rows.length, byTool}
+  return summarizeGenerations(rows)
 }
 
 /* ── UI constants ─────────────────────────────────────────── */

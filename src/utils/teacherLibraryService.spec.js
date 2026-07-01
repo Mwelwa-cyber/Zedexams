@@ -25,7 +25,7 @@ vi.mock('./libraryClassification', () => ({
   classifyForLibrary: vi.fn(() => ({ libraryType: 'lesson_plans', gradeForm: 'Grade 4', subject: 'Mathematics' })),
 }))
 
-import { saveLessonPlanGeneration } from './teacherLibraryService'
+import { saveLessonPlanGeneration, summarizeGenerations } from './teacherLibraryService'
 
 // The exact top-level keys the firestore.rules `lesson_plan` create rule
 // permits (keys().hasOnly([...])). Keep in sync with firestore.rules.
@@ -87,5 +87,48 @@ describe('saveLessonPlanGeneration', () => {
   it('rejects when there is no plan', async () => {
     await expect(saveLessonPlanGeneration({ uid: 'u1', planJson: null })).rejects.toThrow(/generate a plan/i)
     expect(addDocMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('summarizeGenerations', () => {
+  it('counts rows per snake_cased tool id and skips rows without a tool', () => {
+    const rows = [
+      { tool: 'lesson_plan' },
+      { tool: 'lesson_plan' },
+      { tool: 'scheme_of_work' },
+      { tool: 'full_lesson' },
+      { tool: null },
+      {},
+    ]
+    const summary = summarizeGenerations(rows)
+    expect(summary.total).toBe(6)
+    expect(summary.byTool.lesson_plan).toBe(2)
+    expect(summary.byTool.scheme_of_work).toBe(1)
+    expect(summary.byTool.full_lesson).toBe(1)
+    // byTool must be keyed by the raw Firestore tool ids — never dash-cased.
+    for (const key of Object.keys(summary.byTool)) {
+      expect(key).not.toContain('-')
+    }
+  })
+
+  it('resolves counts via the exact lookup StudioCard performs for every dashboard libraryKey', () => {
+    // The dash-cased libraryKeys used by TeacherDashboard STUDIO_GROUPS tiles.
+    // StudioCard reads byTool[libraryKey.replace(/-/g, '_')]; if byTool were
+    // ever re-keyed (the "0 saved" bug), this fails for every multi-word key.
+    const LIBRARY_KEYS = [
+      'scheme-of-work', 'weekly-forecast', 'lesson-plan', 'record-of-work',
+      'class-timetable', 'notes', 'worksheet', 'flashcards', 'exam-paper',
+      'rubric', 'sba-task', 'mark-schedule', 'homework', 'full-lesson',
+    ]
+    const rows = LIBRARY_KEYS.map((key) => ({ tool: key.replace(/-/g, '_') }))
+    const { byTool } = summarizeGenerations(rows)
+    for (const key of LIBRARY_KEYS) {
+      expect(byTool[key.replace(/-/g, '_')]).toBe(1)
+    }
+  })
+
+  it('handles empty and missing input', () => {
+    expect(summarizeGenerations([])).toEqual({ total: 0, byTool: {} })
+    expect(summarizeGenerations()).toEqual({ total: 0, byTool: {} })
   })
 })
