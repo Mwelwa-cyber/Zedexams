@@ -231,6 +231,8 @@
     "test:object-confidence": "node src/utils/objectConfidence.test.js",
     "test:question-typing": "node functions/teacherTools/testPaperImport/questionTyping.test.js",
     "test:layout-pass": "node functions/teacherTools/testPaperImport/layoutPass.test.js",
+    "test:match-library-shape": "node src/components/diagrams/matchLibraryShape.test.js",
+    "test:grouping-integrity": "node scripts/test-grouping-integrity.mjs",
     "test:grade7-ss-covers": "node scripts/test-grade7-ss-covers.mjs",
     "test:grade7-sci-covers": "node scripts/test-grade7-sci-covers.mjs",
     "test:quiz-editor-delete-helpers": "node scripts/test-quiz-editor-delete-helpers.mjs",

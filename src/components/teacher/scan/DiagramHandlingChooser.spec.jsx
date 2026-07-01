@@ -11,6 +11,7 @@ vi.mock('../../../utils/testPaperDiagram', () => ({
   DIAGRAM_HANDLING_OPTIONS: [
     { id: 'keep_original', label: 'Keep original image', generates: false },
     { id: 'clean_original', label: 'Clean original drawing', generates: false },
+    { id: 'convert_svg', label: 'Convert to editable SVG', generates: false, convertsSvg: true },
     { id: 'redraw', label: 'Redraw using AI', generates: true },
     { id: 'rebuild_as_table', label: 'Rebuild as table', generates: true, rebuildsTable: true },
     { id: 'replace', label: 'Replace with a better educational diagram', generates: true },
@@ -87,6 +88,45 @@ describe('DiagramHandlingChooser', () => {
     expect(await screen.findByText('Rebuilt as table')).toBeInTheDocument()
     expect(screen.getByText('orange')).toBeInTheDocument()
     expect(screen.getByText('People')).toBeInTheDocument()
+  })
+
+  it('converts a shape figure to an editable SVG without any AI call', async () => {
+    const onResolved = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={{ kind: 'shape', caption: 'Triangle ABC' }}
+        context={context}
+        onResolved={onResolved}
+      />,
+    )
+    fireEvent.click(screen.getByText('Convert to editable SVG'))
+    await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+    expect(onResolved).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'converted_svg',
+        source: 'library',
+        imageDiagram: expect.objectContaining({ libraryKey: 'triangle' }),
+      }),
+    )
+    expect(mockRedraw).not.toHaveBeenCalled()
+    expect(await screen.findByText('Converted to SVG')).toBeInTheDocument()
+  })
+
+  it('refuses to fake an SVG for a figure that is not a library shape', async () => {
+    const onError = vi.fn()
+    render(
+      <DiagramHandlingChooser
+        detected={{ kind: 'plant', caption: 'A flowering plant' }}
+        context={context}
+        onResolved={() => {}}
+        onError={onError}
+      />,
+    )
+    fireEvent.click(screen.getByText('Convert to editable SVG'))
+    await waitFor(() =>
+      expect(screen.getByText(/doesn't match an editable library shape/i)).toBeInTheDocument(),
+    )
+    expect(mockRedraw).not.toHaveBeenCalled()
   })
 
   it('hides the image-generation options for a table figure and recommends Rebuild as table', () => {

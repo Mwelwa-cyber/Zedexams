@@ -1095,7 +1095,15 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
 export function groupSectionsIntoParts(sections = [], deps = {}) {
   const makePart = deps.createPart || createPartGroup
   const labelOf = (section) => {
-    if (section?.kind === 'passage') return String(section.passage?.sectionTitle || '').trim()
+    if (section?.kind === 'passage') {
+      // A passage rarely carries its own section heading — the "Section A" label
+      // usually sits on its questions. Fall back to the first question's title so
+      // the passage is grouped with the questions it belongs to, not orphaned.
+      const own = String(section.passage?.sectionTitle || '').trim()
+      if (own) return own
+      const firstQ = Array.isArray(section.passage?.questions) ? section.passage.questions[0] : null
+      return String(firstQ?.sectionTitle || '').trim()
+    }
     return String(section?.question?.sectionTitle || '').trim()
   }
   const parts = []

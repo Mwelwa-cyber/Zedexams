@@ -33,6 +33,7 @@ const analyzeLayoutCallable = httpsCallable(functions, 'analyzePaperLayout')
 export const DIAGRAM_HANDLING_OPTIONS = [
   { id: 'keep_original', label: 'Keep original image', generates: false },
   { id: 'clean_original', label: 'Clean original drawing', generates: false },
+  { id: 'convert_svg', label: 'Convert to editable SVG', generates: false, convertsSvg: true },
   { id: 'redraw', label: 'Redraw using AI', generates: true },
   { id: 'rebuild_as_table', label: 'Rebuild as table', generates: true, rebuildsTable: true },
   { id: 'replace', label: 'Replace with a better educational diagram', generates: true },

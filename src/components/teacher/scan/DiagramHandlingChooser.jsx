@@ -11,6 +11,8 @@ import {
   isDiagramCleanSupported,
   sourceToBlob,
 } from '../../../utils/diagramClean.js'
+import { matchLibraryShape } from '../../diagrams/matchLibraryShape.js'
+import DiagramSvg from '../../diagrams/DiagramSvg.jsx'
 
 // A photographed TABLE / pictograph is never improved by the AI image
 // generator — redrawing it as line art just produces a wrong picture, and that
@@ -169,6 +171,17 @@ export default function DiagramHandlingChooser({
         res = await cleanOriginal()
       } else if (option.id === 'rebuild_as_table' && haveOriginal) {
         res = await rebuildAsTable()
+      } else if (option.id === 'convert_svg') {
+        // Library-first, zero-cost: only convert when the figure clearly names a
+        // catalogue shape. Otherwise keep the teacher honest — don't fake a
+        // vector shape that misrepresents the paper.
+        const match = matchLibraryShape(detected)
+        if (!match) {
+          throw new Error(
+            "This figure doesn't match an editable library shape. Keep the original, or redraw it with AI.",
+          )
+        }
+        res = { action: 'converted_svg', imageDiagram: match, source: 'library' }
       } else {
         res = await redrawTestPaperDiagram({
           detected,
@@ -215,7 +228,9 @@ export default function DiagramHandlingChooser({
     ? [
         ...DIAGRAM_HANDLING_OPTIONS.filter((o) => o.id === 'rebuild_as_table'),
         ...DIAGRAM_HANDLING_OPTIONS.filter(
-          (o) => o.id !== 'rebuild_as_table' && !IMAGE_GEN_OPTION_IDS.has(o.id),
+          // A table doesn't map to a vector shape, so hide "Convert to SVG"
+          // (and the image-gen options) alongside the primary rebuild.
+          (o) => o.id !== 'rebuild_as_table' && o.id !== 'convert_svg' && !IMAGE_GEN_OPTION_IDS.has(o.id),
         ),
       ]
     : DIAGRAM_HANDLING_OPTIONS
@@ -224,8 +239,9 @@ export default function DiagramHandlingChooser({
   const isRemoved = result?.action === 'removed'
   const isCleaned = result?.action === 'cleaned'
   const isRebuiltTable = result?.action === 'rebuilt_table'
+  const isConvertedSvg = result?.action === 'converted_svg'
   const resolvedTable = isRebuiltTable ? result?.tableData : null
-  const reused = result?.source === 'library'
+  const reused = result?.source === 'library' && !isConvertedSvg
 
   return (
     <div className="theme-card border theme-border rounded-2xl p-4 space-y-3">
@@ -244,13 +260,15 @@ export default function DiagramHandlingChooser({
               ? 'Removed'
               : isRebuiltTable
                 ? 'Rebuilt as table'
-                : isCleaned
-                  ? 'Cleaned'
-                  : reused
-                    ? 'Reused from library'
-                    : result.source === 'generated'
-                      ? 'Redrawn'
-                      : 'Kept original'}
+                : isConvertedSvg
+                  ? 'Converted to SVG'
+                  : isCleaned
+                    ? 'Cleaned'
+                    : reused
+                      ? 'Reused from library'
+                      : result.source === 'generated'
+                        ? 'Redrawn'
+                        : 'Kept original'}
           </span>
         ) : null}
       </div>
@@ -280,6 +298,15 @@ export default function DiagramHandlingChooser({
           {isRemoved ? (
             <div className="w-full h-24 rounded-lg border border-dashed theme-border grid place-items-center text-xs theme-text-muted">
               Blank space
+            </div>
+          ) : isConvertedSvg && result?.imageDiagram ? (
+            <div className="w-full max-h-40 overflow-hidden rounded-lg border theme-border bg-white p-2 grid place-items-center">
+              <DiagramSvg
+                libraryKey={result.imageDiagram.libraryKey}
+                params={result.imageDiagram.params}
+                className="max-h-36"
+                alt="Editable vector shape"
+              />
             </div>
           ) : resolvedTable ? (
             <div className="w-full max-h-40 overflow-auto rounded-lg border theme-border bg-white p-1">

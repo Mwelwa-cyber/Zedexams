@@ -127,6 +127,19 @@ export default function ImportReviewScreen({
       onPatchItem(item, patch)
       return
     }
+    if (result?.action === 'converted_svg' && result.imageDiagram) {
+      // The figure becomes a true editable vector shape ({libraryKey, params})
+      // rendered by DiagramSvg — drop the photo (and any stacked extras).
+      onPatchItem(item, {
+        imageDiagram: result.imageDiagram,
+        imageUrl: '',
+        imageAssetId: '',
+        images: [],
+        diagramText: '',
+        tableData: null,
+      })
+      return
+    }
     if (result?.url) {
       // The new figure is a remote/library URL, so drop the in-memory crop id.
       onPatchItem(item, { imageUrl: result.url, imageAssetId: '' })
