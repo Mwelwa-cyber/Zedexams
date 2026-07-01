@@ -23,9 +23,35 @@
 import { toProxyImageUrl, hasImageSignature } from './imageProxy.js'
 
 // Per-attempt network budget. A healthy Storage read returns in well under a
-// second; this only ever trips on a genuinely stuck request, so it can be
-// generous without slowing the happy path.
-export const DEFAULT_IMAGE_FETCH_TIMEOUT_MS = 12000
+// second, so this only trips on a genuinely stuck request. Kept modest (was
+// 12s) because the exporter tries up to THREE strategies per image in series —
+// an over-generous per-attempt budget stacks into a multi-minute stall on a
+// flaky connection before the visible placeholder appears.
+export const DEFAULT_IMAGE_FETCH_TIMEOUT_MS = 7000
+
+// Session cache of successfully-fetched image bytes, keyed by URL. The same
+// diagram is embedded more than once per export (question paper + answer key)
+// and again on every re-download, so without this each copy pays the full
+// network round-trip — and, when Storage CORS isn't applied, the slow
+// direct→reload→proxy fallback chain — all over again. Only SUCCESSES are
+// cached: a null result must stay retryable so a later fix (e.g. applying
+// bucket CORS) takes effect without a reload. Bounded (oldest-first eviction)
+// so a long authoring session can't grow it without limit.
+const _byteCache = new Map()
+const MAX_CACHE_ENTRIES = 64
+
+function cacheSet(url, bytes) {
+  if (_byteCache.has(url)) _byteCache.delete(url)
+  _byteCache.set(url, bytes)
+  while (_byteCache.size > MAX_CACHE_ENTRIES) {
+    _byteCache.delete(_byteCache.keys().next().value)
+  }
+}
+
+// Exposed for tests / callers that want to force a re-fetch.
+export function clearImageBytesCache() {
+  _byteCache.clear()
+}
 
 // fetch() wrapped with an abort-based timeout. AbortController is available in
 // every browser we target and in Node 18+; if it's somehow missing we fall back
@@ -57,12 +83,18 @@ export async function fetchImageBytes(url, { timeoutMs = DEFAULT_IMAGE_FETCH_TIM
   if (!url || typeof url !== 'string') return null
   if (typeof globalThis.fetch !== 'function') return null
 
+  const cached = _byteCache.get(url)
+  if (cached) return cached
+
   for (const cache of ['default', 'reload']) {
     try {
       const res = await timedFetch(url, { mode: 'cors', cache }, timeoutMs)
       if (!res.ok) continue
       const bytes = new Uint8Array(await res.arrayBuffer())
-      if (bytes.length) return bytes
+      if (bytes.length) {
+        cacheSet(url, bytes)
+        return bytes
+      }
     } catch {
       // CORS rejection, network error, or timeout abort — try the next strategy.
     }
@@ -81,6 +113,7 @@ export async function fetchImageBytes(url, { timeoutMs = DEFAULT_IMAGE_FETCH_TIM
         // proxy path resolves to the SPA index.html (200/text/html); embedding
         // that would be a fresh broken-image bug, so fail closed.
         if (bytes.length && (/^image\//i.test(contentType) || hasImageSignature(bytes))) {
+          cacheSet(url, bytes)
           return bytes
         }
       }

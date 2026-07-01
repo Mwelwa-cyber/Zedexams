@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Brand cream. Matches the inline boot skeleton background in index.html
+      (#FDF6EC) so the Android launch sequence is seamless:
+        system splash (cream) → post-splash window (cream) → WebView boot
+        skeleton (cream) → app.
+      Before this, the Android 12+ SplashScreen API ignored the old
+      android:background=@drawable/splash and fell back to a WHITE
+      windowSplashScreenBackground, and the post-splash window was
+      transparent/white until the WebView painted — the "white screen for a
+      bit on launch" report.
+    -->
+    <color name="zed_splash_bg">#FDF6EC</color>
+</resources>
