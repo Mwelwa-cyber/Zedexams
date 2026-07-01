@@ -22,6 +22,34 @@ console.log('bankPreview')
   assert(bankPreview({ text: '  What is   photosynthesis? ' }) === 'What is photosynthesis?', 'collapses whitespace + trims')
   assert(bankPreview({ text: 'x'.repeat(300) }).length === 160, 'caps the snippet length')
   assert(bankPreview({}) === '', 'no text → empty preview')
+  assert(bankPreview({ text: 'What is <b>photosynthesis</b>?' }) === 'What is photosynthesis ?', 'strips HTML stems')
+
+  // Stringified Tiptap doc — the shape the quiz editor saves (serializeRichField
+  // in quizSections.js). Regression for the Question Bank "weird signs" bug where
+  // the raw `{"type":"doc",...}` JSON was dumped into the card title / preview.
+  const tiptapStem = JSON.stringify({
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      attrs: { textAlign: null },
+      content: [{ type: 'text', text: 'The spread of HIV and AIDS can be prevented by using condoms.' }],
+    }],
+  })
+  assert(
+    bankPreview({ text: tiptapStem }) === 'The spread of HIV and AIDS can be prevented by using condoms.',
+    'decodes a stringified Tiptap doc into readable text (not raw JSON)',
+  )
+  assert(!bankPreview({ text: tiptapStem }).includes('"type"'), 'preview never contains raw Tiptap JSON')
+  const tiptapKw = extractKeywords({ text: tiptapStem })
+  assert(!tiptapKw.includes('textalign') && !tiptapKw.includes('paragraph'), 'keywords exclude Tiptap JSON noise')
+  assert(tiptapKw.includes('spread') && tiptapKw.includes('prevented'), 'keywords include the real stem words')
+  // A stem banked as Tiptap and as HTML must fingerprint identically.
+  assert(
+    questionFingerprint({ text: tiptapStem }) ===
+    questionFingerprint({ text: '<p>The spread of HIV and AIDS can be prevented by using condoms.</p>' }),
+    'Tiptap and HTML forms of the same stem share a fingerprint',
+  )
+  assert(!questionTokens({ text: tiptapStem }).includes('paragraph'), 'tokens exclude Tiptap JSON noise')
 }
 
 console.log('\nsanitizeQuestionForBank — drops paper links + runtime state')

@@ -8,7 +8,7 @@
  * under plain `node`.
  */
 
-import { richTextToPlainText } from './quizRichText.js'
+import { extractRichTextPlain } from './quizRichText.js'
 
 // Fields that are specific to a question's place in *one* paper, or are
 // transient UI/runtime state. They must NOT travel with a saved question —
@@ -20,14 +20,20 @@ const RUNTIME_FIELDS = [
   'requiresReview', 'reviewNotes', 'importWarnings', 'sourcePage',
 ]
 
-/** A short, plain-text snippet of the question stem for list rows. */
+/**
+ * A short, plain-text snippet of the question stem for list rows.
+ *
+ * Uses extractRichTextPlain (not richTextToPlainText) so a stem stored as a
+ * stringified Tiptap doc — the shape the quiz editor saves, see
+ * serializeRichField in quizSections.js — is decoded to its readable text
+ * rather than dumped verbatim as `{"type":"doc",...}` into the card title.
+ */
 export function bankPreview(question) {
-  const raw = String(question?.text ?? '')
   let text = ''
   try {
-    text = richTextToPlainText(raw)
+    text = extractRichTextPlain(question?.text)
   } catch {
-    text = raw
+    text = String(question?.text ?? '')
   }
   return text.replace(/\s+/g, ' ').trim().slice(0, 160)
 }
@@ -190,9 +196,22 @@ const STOPWORDS = new Set([
   'not', 'no', 'yes', 'all', 'any', 'some', 'one', 'two', 'these', 'those',
 ])
 
-/** Strip HTML tags + entities to a plain lowercased string. Pure (no DOM). */
+/**
+ * Decode any rich-text shape (stringified Tiptap doc, HTML, or plain) to a
+ * plain lowercased string. Decoding via extractRichTextPlain first means a
+ * quiz-editor stem stored as `{"type":"doc",...}` contributes its real words to
+ * the fingerprint/tokens/keywords instead of JSON noise like `paragraph` or
+ * `textAlign` — so an identical question banked as Tiptap and as HTML now
+ * fingerprints the same.
+ */
 function plainify(value) {
-  return String(value ?? '')
+  let text
+  try {
+    text = extractRichTextPlain(value)
+  } catch {
+    text = String(value ?? '')
+  }
+  return text
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
