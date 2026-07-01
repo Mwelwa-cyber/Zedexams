@@ -1824,12 +1824,11 @@ function SyllabiStudioStyles() {
 @media (max-width: 700px) {
   .ss-root .ss-era-switcher { display: none; }
   .ss-root[data-view="subject"]:not(.is-reading) .ss-main { padding: 14px 10px; }
-  /* Phone: auto layout + the reading-column widths in the phone block at the
-     bottom of this sheet — SUB-TOPIC (~35%) and SPECIFIC COMPETENCES (~58%)
-     fill the first screen; the remaining columns are reached by horizontal
-     scroll with the first column pinned. The colgroup percentage hints are
-     neutralised here (inline styles need the !important) so they don't
-     fight the vw widths. */
+  /* Phone: auto layout + the phone reading-column widths below — SUB-TOPIC
+     (~35%) and SPECIFIC COMPETENCES (~58%) fill the first screen; the
+     remaining columns are reached by horizontal scroll with the first
+     column pinned. The colgroup percentage hints are neutralised here
+     (inline styles need the !important) so they don't fight the vw widths. */
   .ss-root .ss-table { table-layout: auto; font-size: 13.5px; }
   .ss-root .ss-table col { width: auto !important; }
   .ss-root .ss-table thead th { white-space: normal; padding: 10px 10px; }

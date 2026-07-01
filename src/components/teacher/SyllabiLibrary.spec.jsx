@@ -116,8 +116,10 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
     const { container } = await openPhysics()
     // The spans stick horizontally on phones (CSS-driven) so banner text
     // stays readable while the table h-scrolls under the pinned column.
-    expect(container.querySelector('.ss-section-row .ss-rowlabel')).toHaveTextContent('MECHANICS')
-    expect(container.querySelector('.ss-topic-header-row .ss-rowlabel')).toHaveTextContent('Measurements')
+    // Direct-child selectors guard against wrapper elements sneaking in
+    // between td and span, which would break the sticky trick.
+    expect(container.querySelector('.ss-section-row td > .ss-rowlabel')).toHaveTextContent('MECHANICS')
+    expect(container.querySelector('.ss-topic-header-row td > .ss-rowlabel')).toHaveTextContent('Measurements')
   })
 
   it('defers Escape to a stacked modal dialog instead of exiting reading mode beneath it', async () => {
