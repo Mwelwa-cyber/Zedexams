@@ -89,6 +89,8 @@
     "test:download-guard": "node src/utils/downloadGuard.test.js",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",
+    "test:friendly-errors": "node src/utils/friendlyErrors.test.js",
+    "test:form-validation": "node src/utils/formValidation.test.js",
     "test:statusbar": "node scripts/test-statusbar-brightness.mjs",
     "test:lesson-memory": "node scripts/test-lesson-memory.mjs",
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",

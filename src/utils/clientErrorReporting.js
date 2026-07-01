@@ -139,6 +139,42 @@ function shouldReport(name, message) {
  * 'quiz_submit', 'pdf_export'. Helps bucket the analytics event without
  * dragging along stack traces or PII.
  */
+/**
+ * Gather the lightweight admin/developer context the spec asks us to log
+ * alongside every error: which screen it happened on, the app version, and
+ * the live network status. PostHog already stamps user id, browser/device,
+ * and timestamp automatically, so we don't duplicate those. Everything here
+ * is guarded so the module still runs under plain `node` (no window /
+ * navigator / import.meta.env) without throwing.
+ */
+function adminContext(err) {
+  const ctx = {}
+  try {
+    const loc = typeof window !== 'undefined' ? window.location : undefined
+    if (loc && typeof loc.pathname === 'string') ctx.screen = loc.pathname
+  } catch {
+    /* no window */
+  }
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+      ctx.network_status = navigator.onLine ? 'online' : 'offline'
+    }
+  } catch {
+    /* no navigator */
+  }
+  try {
+    const version = import.meta.env?.VITE_APP_VERSION
+    if (version) ctx.app_version = String(version)
+  } catch {
+    /* no import.meta.env (node/tests) */
+  }
+  // The technical code behind the friendly card — the single most useful
+  // field for an admin triaging in PostHog / Sentry.
+  const code = err && typeof err === 'object' ? err.code : undefined
+  if (typeof code === 'string' && code) ctx.error_code = code.slice(0, 60)
+  return ctx
+}
+
 export function reportClientError(err, context = 'manual') {
   try {
     const { name, message } = summarise(err)
@@ -149,6 +185,7 @@ export function reportClientError(err, context = 'manual') {
       error_name: name,
       error_message: message,
       context: typeof context === 'string' ? context.slice(0, 40) : 'manual',
+      ...adminContext(err),
     })
   } catch {
     // The reporter must never throw — that would be a recursion into itself.

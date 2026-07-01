@@ -42,7 +42,7 @@ const RELOAD_COOLDOWN_MS = 30_000
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false, error: null, reported: false }
   }
 
   static getDerivedStateFromError(error) {
@@ -97,6 +97,18 @@ export default class ErrorBoundary extends Component {
 
   handleHome = () => {
     window.location.assign('/')
+  }
+
+  handleSupport = () => {
+    const subject = encodeURIComponent('I hit a problem on ZedExams')
+    window.location.href = `mailto:support@zedexams.com?subject=${subject}`
+  }
+
+  handleReport = () => {
+    // Re-forward the caught error to the admin sink on explicit request and
+    // acknowledge so the learner knows it went somewhere.
+    reportClientError(this.state.error, 'error_boundary_user_report')
+    this.setState({ reported: true })
   }
 
   render() {
@@ -167,6 +179,28 @@ export default class ErrorBoundary extends Component {
               </button>
             )}
           </div>
+
+          {/* Quiet escape hatches: reach a human, or flag the problem to us.
+              Kept secondary so they never compete with the primary recovery. */}
+          {!isOffline && (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+              <button
+                type="button"
+                onClick={this.handleSupport}
+                className="theme-text-muted font-bold underline-offset-2 hover:underline"
+              >
+                Contact support
+              </button>
+              <button
+                type="button"
+                onClick={this.handleReport}
+                disabled={this.state.reported}
+                className="theme-text-muted font-bold underline-offset-2 hover:underline disabled:no-underline disabled:opacity-70"
+              >
+                {this.state.reported ? '✓ Thanks — reported' : 'Report this problem'}
+              </button>
+            </div>
+          )}
 
           {import.meta.env.DEV && (
             <details className="mt-6 text-left">
