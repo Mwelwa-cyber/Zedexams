@@ -20,3 +20,13 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
+
+# The Facebook provider stays disabled (capacitor.config.json only lists
+# google.com), so @capacitor-firebase/authentication keeps facebook-login
+# compileOnly — absent from the APK. R8 still traces
+# FacebookAuthProviderHandler from the provider-init branch that never
+# runs and, since AGP 7, errors the build on its unresolvable
+# com.facebook.* references without this. Runtime-safe: the branch is
+# never taken. (The Google provider's classes are real dependencies via
+# rgcfaIncludeGoogle in ../variables.gradle, not -dontwarn'd away.)
+-dontwarn com.facebook.**
