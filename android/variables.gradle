@@ -13,4 +13,15 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // @capacitor-firebase/authentication: ship the native Google sign-in
+    // dependencies (play-services-auth, androidx.credentials, googleid) as
+    // implementation instead of compileOnly. capacitor.config.json enables
+    // the google.com provider and AuthContext's signInWithGoogleNative()
+    // calls it, but without this flag the classes never reach the APK — the
+    // plugin dies loading GoogleAuthProviderHandler and JS surfaces "Google
+    // sign-in is not available in this app build". R8 (minified release)
+    // also refuses to build at all while they're missing. The disabled
+    // Facebook provider stays compileOnly; see the -dontwarn in
+    // app/proguard-rules.pro.
+    rgcfaIncludeGoogle = true
 }

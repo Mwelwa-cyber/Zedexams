@@ -1,21 +1,32 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# App-level R8/ProGuard rules for the release build (minifyEnabled in
+# app/build.gradle). Library keep rules arrive automatically: AGP merges
+# the consumer rules shipped inside each dependency's AAR —
+# @capacitor/android's cover the reflective plugin surface
+# (@CapacitorPlugin-annotated classes, Plugin subclasses, Cordova plugin
+# classes), and the AndroidX/Firebase artifacts ship their own. Only
+# rules specific to this app belong here.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep file/line info so Play Console / crash-report stack traces from
+# the minified build stay mappable via the R8 mapping file, while hiding
+# the original source paths behind a constant tag.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# The WebView JS bridge: an @JavascriptInterface method that gets
+# stripped or renamed silently severs the Capacitor bridge. The AGP
+# default file (proguard-android-optimize.txt) already keeps these;
+# restated here so the guarantee doesn't ride on a default that could
+# change between AGP versions.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# The Facebook provider stays disabled (capacitor.config.json only lists
+# google.com), so @capacitor-firebase/authentication keeps facebook-login
+# compileOnly — absent from the APK. R8 still traces
+# FacebookAuthProviderHandler from the provider-init branch that never
+# runs and, since AGP 7, errors the build on its unresolvable
+# com.facebook.* references without this. Runtime-safe: the branch is
+# never taken. (The Google provider's classes are real dependencies via
+# rgcfaIncludeGoogle in ../variables.gradle, not -dontwarn'd away.)
+-dontwarn com.facebook.**

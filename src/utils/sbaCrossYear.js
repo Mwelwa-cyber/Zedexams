@@ -83,10 +83,17 @@ export function matchLearnerMarks(index, rosterEntries) {
  * Async: gather the cross-year G5/G6/G7 marks for the given active roster
  * entries and subject, across all of the teacher's registers. Returns marks
  * keyed by roster entry id, ready to seed a Final SBA record.
+ *
+ * `deps` ({ listTeacherRegisters, listRecords }) is required: the browser
+ * caller (SbaTab) passes the real Firestore services, the node test passes
+ * fakes. Injecting them keeps this module import-free of Firestore — it has
+ * to load under plain `node` for scripts/test-sba-cross-year.mjs — without
+ * the old dynamic-import fallback, which Rollup warned about (the services
+ * are statically imported across the register tab, so a lazy import() here
+ * could never split them into another chunk anyway).
  */
 export async function gatherCrossYearSbaMarks(teacherUid, subject, rosterEntries, deps) {
-  // deps injected for testability; default to the real services.
-  const { listTeacherRegisters, listRecords } = deps || await loadServices()
+  const { listTeacherRegisters, listRecords } = deps
   const registers = await listTeacherRegisters(teacherUid, { status: null, limit: 200 })
   const withRecords = []
   for (const reg of registers) {
@@ -96,12 +103,4 @@ export async function gatherCrossYearSbaMarks(teacherUid, subject, rosterEntries
   }
   const index = buildCrossYearIndex(withRecords, subject)
   return matchLearnerMarks(index, rosterEntries)
-}
-
-async function loadServices() {
-  const [{ listTeacherRegisters }, { listRecords }] = await Promise.all([
-    import('./classRegister.js'),
-    import('./classRecords.js'),
-  ])
-  return { listTeacherRegisters, listRecords }
 }

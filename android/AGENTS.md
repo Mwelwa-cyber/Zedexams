@@ -89,7 +89,7 @@ Required to prevent WebView from drawing over system bars; otherwise time, signa
 **Web Assets**:
 - Generated assets (`app/src/main/assets/public/*`, `capacitor.config.json`, `capacitor.plugins.json`) are git-ignored and built by the web layer
 - `capacitor update` copies them after web build
-- ProGuard minification disabled (`minifyEnabled = false`); relies on web bundle minification
+- Release builds run R8 (`minifyEnabled = true` + `shrinkResources`) over the native class graph; the web bundle is minified separately by Vite. Keep rules: consumer rules merged from dependency AARs (Capacitor ships the plugin-reflection keeps) plus `app/proguard-rules.pro`
 
 **Asset Configuration** (`AndroidManifest.xml` + `aaptOptions`):
 ```xml
@@ -159,7 +159,7 @@ Syncs web assets and regenerates Capacitor glue code.
 - **StatusBar color flash on cold start**: Theme presets `colorPrimary` in `styles.xml`; JS `setBackgroundColor()` reasserts it.
 - **Capacitor plugins not found after `capacitor.config.json` edit**: Run `capacitor sync android` to regenerate `capacitor.build.gradle` and `capacitor.settings.gradle`.
 - **"google-services.json not found" warning**: Normal if Firebase not enabled; plugin only applied if file exists and has content.
-- **ProGuard won't minify**: Disabled by design (`minifyEnabled = false`). Web bundle handles JS minification. Only enable if native libraries need protection.
+- **Release crash traces look garbled**: R8 minifies release builds (`minifyEnabled = true`). Retrace with the mapping file from `app/build/outputs/mapping/release/mapping.txt` (upload it to Play Console with each release). A plugin breaking only in release builds usually means a missing keep rule — add it to `app/proguard-rules.pro`.
 
 ## Capacitor Plugin Integration Pattern
 

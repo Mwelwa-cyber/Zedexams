@@ -84,8 +84,17 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 shrinking + optimization. The APK is mostly web assets, but
+            // the native side still packages the full Capacitor + AndroidX +
+            // Firebase class graph — R8 strips the unused majority of it, and
+            // shrinkResources drops res/ entries nothing references. Keep
+            // rules come from two places AGP merges automatically: the
+            // consumer rules shipped inside each dependency's AAR (Capacitor's
+            // cover the @CapacitorPlugin/Cordova reflection surface), and the
+            // app-level rules in proguard-rules.pro.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (releaseSigningReady) {
                 signingConfig signingConfigs.release
             }
