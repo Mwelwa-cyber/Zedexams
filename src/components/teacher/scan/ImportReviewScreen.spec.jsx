@@ -63,7 +63,7 @@ describe('ImportReviewScreen', () => {
       { kind: 'standalone', question: { text: 'Figure Q', type: 'mcq', options: ['a', 'b'], correctAnswer: 0, sourceQuestionNumber: 1, sourcePage: 1, imageUrl: 'blob:f', diagramMeta: { confidence: 0.82 } } },
     ]
     render(<ImportReviewScreen open sections={withConfidence} onPatchItem={() => {}} onClose={() => {}} onDone={() => {}} />)
-    expect(screen.getByText('82% match')).toBeInTheDocument()
+    expect(screen.getByText('82% confidence')).toBeInTheDocument()
   })
 
   it('flips the item to a Failed status when a figure action errors', () => {

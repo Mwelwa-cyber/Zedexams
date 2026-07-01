@@ -15,6 +15,7 @@ import {
   isReviewComplete,
   pageKey,
   stripTags,
+  autoApprovedPageKeys,
 } from './importReviewModel.js'
 
 let passed = 0
@@ -190,6 +191,76 @@ test('isReviewComplete only true once every page is approved', () => {
 
 test('stripTags removes markup and collapses whitespace', () => {
   assert.strictEqual(stripTags('<p>Hello&nbsp; <b>world</b></p>'), 'Hello world')
+})
+
+// ─── confidence bands + auto-approve ─────────────────────────────────────────
+test('high OCR confidence with no issues is auto-approvable (band auto)', () => {
+  const s = getItemSignals({
+    type: 'short_answer',
+    ocrConfidence: 0.98,
+    requiresReview: false,
+  })
+  assert.strictEqual(s.band, 'auto')
+  assert.strictEqual(s.autoApprove, true)
+  assert.strictEqual(s.status, 'ready')
+})
+
+test('mid confidence lands in the review band and forces review status', () => {
+  const s = getItemSignals({
+    type: 'short_answer',
+    ocrConfidence: 0.85,
+    requiresReview: false,
+  })
+  assert.strictEqual(s.band, 'review')
+  assert.strictEqual(s.autoApprove, false)
+  assert.strictEqual(s.status, 'review')
+})
+
+test('low confidence requires approval and is never auto-approved', () => {
+  const s = getItemSignals({
+    type: 'short_answer',
+    ocrConfidence: 0.5,
+    requiresReview: false,
+  })
+  assert.strictEqual(s.band, 'approve')
+  assert.strictEqual(s.autoApprove, false)
+  assert.strictEqual(s.status, 'review')
+})
+
+test('unknown confidence is never auto-approved but keeps legacy readiness', () => {
+  const s = getItemSignals({ type: 'short_answer', requiresReview: false })
+  assert.strictEqual(s.band, null)
+  assert.strictEqual(s.autoApprove, false)
+  assert.strictEqual(s.status, 'ready') // no known low score, no issues
+})
+
+test('an MCQ without an answer is never auto-approved even at high confidence', () => {
+  const s = getItemSignals({
+    type: 'mcq',
+    options: ['a', 'b'],
+    correctAnswer: '',
+    ocrConfidence: 0.99,
+  })
+  assert.strictEqual(s.autoApprove, false) // "No answer" issue blocks it
+})
+
+test('autoApprovedPageKeys seeds only fully-confident pages', () => {
+  const model = buildReviewModel([
+    { kind: 'standalone', question: { type: 'short_answer', text: 'a', ocrConfidence: 0.98, requiresReview: false, sourcePage: 1 } },
+    { kind: 'standalone', question: { type: 'short_answer', text: 'b', ocrConfidence: 0.99, requiresReview: false, sourcePage: 1 } },
+    { kind: 'standalone', question: { type: 'short_answer', text: 'c', ocrConfidence: 0.6, requiresReview: false, sourcePage: 2 } },
+  ])
+  const keys = autoApprovedPageKeys(model)
+  assert.strictEqual(keys.has(pageKey(1)), true) // both items high-confidence
+  assert.strictEqual(keys.has(pageKey(2)), false) // a low-confidence item blocks it
+})
+
+test('summary counts auto-approvable questions', () => {
+  const model = buildReviewModel([
+    { kind: 'standalone', question: { type: 'short_answer', text: 'a', ocrConfidence: 0.98, requiresReview: false, sourcePage: 1 } },
+    { kind: 'standalone', question: { type: 'short_answer', text: 'b', ocrConfidence: 0.5, requiresReview: false, sourcePage: 1 } },
+  ])
+  assert.strictEqual(model.summary.autoApprovable, 1)
 })
 
 console.log(`\nimportReviewModel: ${passed} passed\n`)

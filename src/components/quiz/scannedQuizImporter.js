@@ -320,6 +320,16 @@ function mapVisionQuestion(q, order, options, deps) {
     reviewNotes,
     sourceQuestionNumber: Number.isFinite(q?.sourceQuestionNumber) ? q.sourceQuestionNumber : order + 1,
     sourcePage: q?.sourcePage ?? null,
+    // Per-question OCR confidence (0-1) drives the review screen's auto-approve
+    // band. null when the backend gave no score (treated as "review", never
+    // auto-approved). Handwritten items arrive capped below the auto bar.
+    ocrConfidence: Number.isFinite(q?.ocrConfidence) ? q.ocrConfidence : null,
+    source: q?.source === 'handwritten' ? 'handwritten' : 'printed',
+  }
+  // A handwritten stem is worth a visible note so the teacher checks the typed
+  // transcription — the wording was inferred from handwriting, not printed text.
+  if (q?.source === 'handwritten') {
+    reviewNotes.push('Transcribed from handwriting — check the typed wording matches the original.')
   }
 
   // Structured extras the OCR read off the paper, pre-populating the right
