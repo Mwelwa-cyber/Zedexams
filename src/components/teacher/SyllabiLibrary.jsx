@@ -372,6 +372,11 @@ export default function SyllabiLibrary() {
     if (!reading && !subjectPanelOpen) return undefined
     function onKey(e) {
       if (e.key !== 'Escape') return
+      // A stacked modal (e.g. SubscriptionReminderPopup, fixed z-[9998] with
+      // its own Escape handler + body-overflow lock) may sit above reading
+      // mode; let Escape close it alone, or one keypress kills both and the
+      // interleaved overflow restores can leave the page scroll stuck.
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
       if (subjectPanelOpen) setSubjectPanelOpen(false)
       else setReading(false)
     }
@@ -895,14 +900,20 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
                 if (row.kind === 'section') {
                   return (
                     <tr key={row.key} className="ss-section-row">
-                      <td colSpan={showTopicCell ? columnCount : columnCount - 1}>{row.label}</td>
+                      <td colSpan={showTopicCell ? columnCount : columnCount - 1}>
+                        {/* Span sticks horizontally on phones so the banner
+                            text stays readable while the table h-scrolls */}
+                        <span className="ss-rowlabel">{row.label}</span>
+                      </td>
                     </tr>
                   )
                 }
                 if (row.kind === 'topic') {
                   return (
                     <tr key={row.key} className="ss-topic-header-row">
-                      <td colSpan={showTopicCell ? columnCount : columnCount - 1}>{row.label}</td>
+                      <td colSpan={showTopicCell ? columnCount : columnCount - 1}>
+                        <span className="ss-rowlabel">{row.label}</span>
+                      </td>
                     </tr>
                   )
                 }
@@ -1813,9 +1824,14 @@ function SyllabiStudioStyles() {
 @media (max-width: 700px) {
   .ss-root .ss-era-switcher { display: none; }
   .ss-root[data-view="subject"]:not(.is-reading) .ss-main { padding: 14px 10px; }
-  /* Phone: fixed layout + colgroup percentages = the table spans the full
-     display width and wraps instead of scrolling sideways. */
-  .ss-root .ss-table { table-layout: fixed; font-size: 13.5px; }
+  /* Phone: auto layout + the reading-column widths in the phone block at the
+     bottom of this sheet — SUB-TOPIC (~35%) and SPECIFIC COMPETENCES (~58%)
+     fill the first screen; the remaining columns are reached by horizontal
+     scroll with the first column pinned. The colgroup percentage hints are
+     neutralised here (inline styles need the !important) so they don't
+     fight the vw widths. */
+  .ss-root .ss-table { table-layout: auto; font-size: 13.5px; }
+  .ss-root .ss-table col { width: auto !important; }
   .ss-root .ss-table thead th { white-space: normal; padding: 10px 10px; }
   .ss-root .ss-table td { padding: 9px 10px; }
   .ss-root .ss-tabs-scroll {
@@ -1837,6 +1853,82 @@ function SyllabiStudioStyles() {
   .ss-root .ss-search-box { width: 130px; padding-left: 32px; }
   .ss-root .ss-logo-sub { display: none; }
 }
+
+/* ── PHONE READING COLUMNS + PINNED SUB-TOPIC ────────────────────────── */
+/* Kept after the blocks above so these win the cascade at equal
+   specificity. SUB-TOPIC gets ~35% of the screen and SPECIFIC COMPETENCES
+   ~58%; LEARNING ACTIVITIES / EXPECTED STANDARD overflow into a horizontal
+   scroll with the first visible column pinned, so the teacher never loses
+   the current sub-topic. */
+@media (max-width: 700px) {
+  .ss-root .ss-subtopic-cell    { width: 35vw; min-width: 35vw; max-width: 35vw; }
+  .ss-root .ss-competences-cell { min-width: 58vw; }
+  .ss-root .ss-activities-cell  { min-width: 240px; max-width: 300px; }
+  .ss-root .ss-standard-cell    { min-width: 180px; }
+  /* When the row filter shows TOPIC it becomes the pinned column — it can't
+     keep element opacity while sticky (its bg would go translucent), so
+     emulate the dimming with a muted text colour instead. */
+  .ss-root .ss-table td.ss-topic-cell-dim {
+    width: 30vw; min-width: 30vw;
+    opacity: 1; color: rgba(26,26,26,0.55);
+  }
+
+  /* Pinned first visible column (hidden TOPIC cells aren't rendered, so
+     :first-child is always the first visible one). Banner rows are excluded
+     — their full-width colSpan cells keep their own backgrounds and stick
+     their label text instead (below). Opaque per-row-state backgrounds stop
+     scrolled content bleeding through; the tints mirror the tr backgrounds
+     above, which are era-independent. */
+  .ss-root .ss-table thead th:first-child,
+  .ss-root .ss-data-row td:first-child { position: sticky; left: 0; }
+  /* Above the sticky thead (z-10) at the corner; keeps top:0 from the base rule */
+  .ss-root .ss-table thead th:first-child { z-index: 12; }
+  .ss-root .ss-data-row td:first-child {
+    z-index: 5; background: var(--ss-white);
+    /* border-collapse tables paint tr borders in the table layer, which
+       doesn't travel with sticky cells (and sits under their opaque bg) —
+       redraw the row separator with an inset shadow that moves with the cell */
+    box-shadow: inset 0 -1px 0 #E8E0D4;
+  }
+  /* same for the group-start accent that normally comes from border-left */
+  .ss-root .ss-data-row td.ss-subtopic-cell.ss-first-in-group:first-child {
+    box-shadow: inset 3px 0 0 #9BBECE, inset 0 -1px 0 #E8E0D4;
+  }
+  .ss-root .ss-data-row.ss-odd-row td:first-child { background: #FAFAF8; }
+  .ss-root .ss-data-row:hover td:first-child { background: #FBF8F3; }
+  .ss-root .ss-data-row.ss-odd-row:hover td:first-child { background: #F5F2EC; }
+  /* seam shadow at the pinned edge */
+  .ss-root .ss-table thead th:first-child::after,
+  .ss-root .ss-data-row td:first-child::after {
+    content: ''; position: absolute; top: 0; right: -6px; bottom: 0; width: 6px;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(15,23,42,0.10), transparent);
+  }
+
+  /* Section/topic banner labels stay readable during horizontal scroll: the
+     colSpan td scrolls, the label inside sticks. */
+  .ss-root .ss-section-row td .ss-rowlabel,
+  .ss-root .ss-topic-header-row td .ss-rowlabel {
+    display: inline-block; position: sticky; left: 10px;
+    max-width: calc(100vw - 56px);
+  }
+
+  /* Compact subject card (~100px → ~68px ≈ 30% shorter) so more of the
+     syllabus is visible without scrolling. */
+  .ss-root .ss-detail-hero { padding: 12px 14px; gap: 12px; margin-bottom: 12px; border-radius: 12px; }
+  .ss-root .ss-dh-icon { width: 40px; height: 40px; font-size: 22px; border-radius: 10px; }
+  .ss-root .ss-dh-text h1 { font-size: 17px; margin-bottom: 2px; }
+  .ss-root .ss-dh-text p { font-size: 11.5px; line-height: 1.4; }
+  .ss-root .ss-back-btn { margin-bottom: 12px; }
+
+  /* Toolbar: the filter input flexes instead of a fixed 260px */
+  .ss-root .ss-table-toolbar { padding: 10px; gap: 8px; }
+  .ss-root .ss-tbl-search { width: auto; flex: 1 1 120px; min-width: 0; }
+}
+
+/* Reading mode owns the viewport; body overflow:hidden alone doesn't stop
+   iOS touch scroll-chaining, so contain edge swipes at the scroller. */
+.ss-root.is-reading .ss-tbl-container { overscroll-behavior: contain; }
 `}</style>
   )
 }
