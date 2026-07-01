@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -8,6 +8,7 @@ import {
   getBrandingFromRecentPapers,
 } from '../../utils/schoolProfileService';
 import { isEmptySchoolProfile } from '../../utils/schoolProfile';
+import { deleteMyAccount } from '../../utils/accountService';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
@@ -62,12 +63,14 @@ const TABS = {
     { id: 'notifications', label: 'Notifications' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
+    { id: 'account',       label: 'Account' },
   ],
   teacher: [
     { id: 'school',        label: 'School Details' },
     { id: 'notifications', label: 'Notifications' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
+    { id: 'account',       label: 'Account' },
   ],
   // Theme/appearance is removed for learners — the dashboard already
   // hosts a global ThemeSelector, so duplicating it here just confuses
@@ -82,6 +85,7 @@ const TABS = {
     { id: 'learning',      label: 'Learning Preferences' },
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'parent',        label: 'Parent / Guardian' },
+    { id: 'account',       label: 'Account' },
   ],
 };
 
@@ -916,6 +920,98 @@ function LearnerSecurityPanel({ pushToast }) {
   );
 }
 
+function DeleteAccountPanel({ pushToast }) {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const canDelete = confirmText.trim().toUpperCase() === 'DELETE';
+
+  const handleDelete = async () => {
+    if (!canDelete || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteMyAccount();
+      // Auth user is gone; the session is signed out. Drop to the public
+      // home page (ProtectedRoute would otherwise bounce to /login).
+      pushToast('success', 'Your account and data have been permanently deleted.');
+      navigate('/', { replace: true });
+    } catch (err) {
+      console.error('deleteMyAccount failed', err);
+      pushToast('error', 'We could not delete your account. Please try again or contact support.');
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Delete account"
+      description="Permanently delete your ZedExams account and personal data. This cannot be undone."
+    >
+      <div style={{
+        padding: 14,
+        background: T.surface,
+        border: `1px solid ${T.danger}`,
+        borderRadius: 10,
+        fontSize: 14,
+        color: T.textSoft,
+        lineHeight: 1.55,
+      }}>
+        <div style={{ fontWeight: 700, color: T.danger, marginBottom: 6 }}>
+          This is permanent
+        </div>
+        Deleting your account removes your profile, results and quiz history,
+        saved content, class memberships, subscription records and everything
+        else tied to{' '}
+        <strong style={{ color: T.text }}>{currentUser?.email || 'your account'}</strong>.
+        You will be signed out immediately and will not be able to sign back in.
+        <div style={{ marginTop: 8, fontSize: 13, color: T.muted }}>
+          If you only want to stop paying, you can cancel your subscription
+          instead and keep your account.
+        </div>
+      </div>
+
+      {!confirming ? (
+        <div style={{ marginTop: 16 }}>
+          <Button danger onClick={() => setConfirming(true)}>
+            Delete my account
+          </Button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 16 }}>
+          <TextField
+            label={'Type DELETE to confirm'}
+            value={confirmText}
+            onChange={setConfirmText}
+            placeholder="DELETE"
+            autoComplete="off"
+            disabled={deleting}
+          />
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Button
+              danger
+              onClick={handleDelete}
+              disabled={!canDelete}
+              loading={deleting}
+            >
+              Permanently delete
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => { setConfirming(false); setConfirmText(''); }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 const MUTE_PRESETS = [
   { label: 'Mute 1 hour', ms: 60 * 60 * 1000 },
   { label: 'Mute 8 hours', ms: 8 * 60 * 60 * 1000 },
@@ -1410,6 +1506,7 @@ export default function ZedExamsSettings({ role = 'admin' }) {
       case 'accessibility': return <LearnerAccessibilityPanel pushToast={pushToast} />;
       case 'parent':        return <LearnerParentPanel />;
       case 'appearance':    return <AppearancePanel />;
+      case 'account':       return <DeleteAccountPanel pushToast={pushToast} />;
       default:              return null;
     }
   };

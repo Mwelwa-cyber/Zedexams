@@ -8,6 +8,8 @@ const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
+const {purgeUserData} = require("./accountDeletion");
+
 const {
   LIMITS,
   assertDailyLimit,
@@ -652,6 +654,56 @@ exports.bootstrapUserProfile = onCall(
         "We could not restore your profile right now. Please try again.",
       );
     }
+  },
+);
+
+// ── Self-service account deletion (Google Play data-deletion policy) ──
+// A signed-in user can permanently delete their own account and personal
+// data. This is the in-app half of the Play requirement; the Privacy
+// Policy hosts the web-facing deletion instructions Play's Data Safety
+// form links to. Uses the Admin SDK (no re-auth round-trip needed — the
+// callable already proves identity via request.auth), purges Firestore
+// first (functions/accountDeletion.js), then removes the Auth user so the
+// session can no longer sign in.
+exports.deleteMyAccount = onCall(
+  {region: "us-central1", timeoutSeconds: 300},
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    const uid = request.auth.uid;
+
+    let summary;
+    try {
+      summary = await purgeUserData(admin.firestore(), uid, {
+        FieldValue: admin.firestore.FieldValue,
+      });
+    } catch (error) {
+      console.error("deleteMyAccount purge failed:", error);
+      throw new HttpsError(
+        "internal",
+        "We could not delete your data right now. Please try again, or contact support.",
+      );
+    }
+
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (error) {
+      // Already gone is fine (idempotent). Anything else: the data is gone
+      // but the login isn't — surface it so support can finish the job.
+      if (error?.code !== "auth/user-not-found") {
+        console.error("deleteMyAccount auth deletion failed:", error);
+        throw new HttpsError(
+          "internal",
+          "Your data was removed but your sign-in could not be deleted. Please contact support.",
+        );
+      }
+    }
+
+    console.log(
+      `deleteMyAccount uid=${uid} summary=${JSON.stringify(summary)}`,
+    );
+    return {success: true, summary};
   },
 );
 

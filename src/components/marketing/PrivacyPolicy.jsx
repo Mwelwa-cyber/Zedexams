@@ -17,9 +17,9 @@ const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
 const CONTACT_EMAIL = 'support@zedexams.com'
 const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
 
-function H2({ children }) {
+function H2({ children, id }) {
   return (
-    <h2 className="font-display font-black text-xl sm:text-2xl mt-10 mb-3">{children}</h2>
+    <h2 id={id} className="font-display font-black text-xl sm:text-2xl mt-10 mb-3 scroll-mt-24">{children}</h2>
   )
 }
 
@@ -158,7 +158,35 @@ export default function PrivacyPolicy() {
         <li>If you delete your account, we delete or anonymise your personal data within a reasonable period, unless we are required to keep something for legal or accounting reasons.</li>
       </UL>
 
-      <H2>7. Your rights</H2>
+      <H2 id="delete-account">7. Deleting your account and data</H2>
+      <P>
+        You can permanently delete your ZedExams account and personal data at any time.
+        There are two ways to do this:
+      </P>
+      <UL>
+        <li>
+          <strong>In the app or on the web</strong> — sign in, go to{' '}
+          <strong>Settings → Account → Delete account</strong>, type <strong>DELETE</strong> to
+          confirm, and choose <strong>Permanently delete</strong>. Your account and data are
+          removed immediately and you are signed out.
+        </li>
+        <li>
+          <strong>By request</strong> — if you can't sign in, email us at{' '}
+          <a className="underline theme-accent-text" href={CONTACT_EMAIL_HREF}>{CONTACT_EMAIL}</a>{' '}
+          or message us on WhatsApp and we will delete your account for you after verifying
+          your identity.
+        </li>
+      </UL>
+      <P>
+        Deleting your account removes your profile (name, email, phone), quiz and exam results
+        and history, saved and generated content, class memberships, notifications, referral
+        records, and subscription records. We may retain a limited amount of data where the law
+        or our accounting obligations require it (for example, payment/invoice records kept for
+        the statutory period); any such data is no longer linked to your profile. This action
+        cannot be undone.
+      </P>
+
+      <H2>8. Your rights</H2>
       <P>You can:</P>
       <UL>
         <li>Access and update most of your information from your profile page.</li>
@@ -179,7 +207,7 @@ export default function PrivacyPolicy() {
         , or via the contact form. We may need to verify your identity before we act on a request.
       </P>
 
-      <H2>8. Security</H2>
+      <H2>9. Security</H2>
       <P>
         We use industry-standard security measures: TLS in transit, Firebase security
         rules to enforce access controls, hashed passwords (handled by Firebase), and
@@ -187,7 +215,7 @@ export default function PrivacyPolicy() {
         — please choose a strong password and don't share it.
       </P>
 
-      <H2>9. Cookies & local storage</H2>
+      <H2>10. Cookies & local storage</H2>
       <P>
         We use cookies and your browser's local storage for essentials — keeping you
         signed in, remembering your theme preference, and storing draft work so you don't
@@ -202,7 +230,7 @@ export default function PrivacyPolicy() {
         page.
       </P>
 
-      <H2>10. Changes to this policy</H2>
+      <H2>11. Changes to this policy</H2>
       <P>
         If we make a meaningful change to this policy, we'll update the "Last updated" date
         at the top and, where appropriate, notify you in the app or by email.
