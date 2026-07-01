@@ -12,6 +12,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
+import { downloadSchemeOfWorkPdf } from '../../../utils/schemeOfWorkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
@@ -164,6 +165,18 @@ export default function SchemeOfWorkGenerator() {
     downloadSchemeOfWorkDocx(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
+  function onExportPdf() {
+    if (!scheme) return
+    const name = buildDownloadName({
+      docType: 'Scheme of Work',
+      grade: form.grade,
+      subject: form.subject,
+      term: form.term,
+      ext: 'pdf',
+    })
+    downloadSchemeOfWorkPdf(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
   return (
     <div className="studio-page">
       <SeoHelmet title="Scheme of work" noIndex />
@@ -286,6 +299,9 @@ export default function SchemeOfWorkGenerator() {
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={onExportDocx} className="studio-btn-ghost">
                       📄 Download .docx (landscape)
+                    </button>
+                    <button onClick={onExportPdf} className="studio-btn-ghost">
+                      📄 Download .pdf
                     </button>
                     <button onClick={() => setStatus('idle')} className="studio-btn-primary">
                       ▶ Generate Another

@@ -11,6 +11,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
+import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
@@ -140,6 +141,21 @@ export default function HomeworkStudio() {
     })
   }
 
+  function onExportPdf(includeAnswers) {
+    if (!homework) return
+    const name = buildDownloadName({
+      docType: includeAnswers ? 'Homework' : 'Homework (pupil)',
+      grade: form.grade,
+      subject: form.subject,
+      topic: homework.header?.topic || form.topic,
+      ext: 'pdf',
+    })
+    downloadHomeworkPdf(homework, name, {
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      includeAnswers,
+    })
+  }
+
   return (
     <div className="studio-page">
       <SeoHelmet title="Homework studio" noIndex />
@@ -248,8 +264,14 @@ export default function HomeworkStudio() {
                     <button onClick={() => onExport(false)} className="studio-btn-ghost">
                       📄 Pupil sheet .docx
                     </button>
+                    <button onClick={() => onExportPdf(false)} className="studio-btn-ghost">
+                      📄 Pupil sheet .pdf
+                    </button>
                     <button onClick={() => onExport(true)} className="studio-btn-primary">
                       🔑 With answer key .docx
+                    </button>
+                    <button onClick={() => onExportPdf(true)} className="studio-btn-ghost">
+                      🔑 With answer key .pdf
                     </button>
                   </div>
                 </div>

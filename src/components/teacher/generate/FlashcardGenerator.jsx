@@ -9,6 +9,7 @@ import {
 } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
+import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
@@ -157,6 +158,18 @@ export default function FlashcardGenerator() {
     downloadFlashcardsDocx(flashcards, buildFilename(), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
+  function onExportPdf() {
+    if (!flashcards) return
+    const filename = buildDownloadName({
+      docType: 'Flashcards',
+      grade: form.grade,
+      subject: form.subject,
+      topic: flashcards?.header?.topic || form.topic,
+      ext: 'pdf',
+    })
+    downloadFlashcardsPdf(flashcards, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+  }
+
   return (
     <div className="studio-page">
       <SeoHelmet title="Flashcard generator" noIndex />
@@ -271,6 +284,9 @@ export default function FlashcardGenerator() {
                     </button>
                     <button onClick={onExport} className="studio-btn-ghost">
                       📄 Download .docx
+                    </button>
+                    <button onClick={onExportPdf} className="studio-btn-ghost">
+                      📄 Download .pdf
                     </button>
                   </div>
                 </div>

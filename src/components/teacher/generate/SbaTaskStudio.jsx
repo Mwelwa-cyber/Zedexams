@@ -24,6 +24,7 @@ import {
   getSbaTaskType,
 } from '../../../config/sba'
 import { downloadSbaTaskDocx } from '../../../utils/sbaTaskToDocx'
+import { downloadSbaTaskPdf } from '../../../utils/sbaTaskToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { checkDownload } from '../../../utils/downloadGuard'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -170,6 +171,22 @@ export default function SbaTaskStudio() {
     })
     if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
     downloadSbaTaskDocx(task, name, {
+      includeAnswers,
+      schoolName,
+      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+    })
+  }
+
+  function onExportPdf(includeAnswers) {
+    if (!task) return
+    const name = buildDownloadName({
+      docType: includeAnswers ? 'SBA Task' : 'SBA Task (learner)',
+      grade: form.grade,
+      subject: form.subject,
+      topic: task.header?.taskType || currentTaskType?.label || 'task',
+      ext: 'pdf',
+    })
+    downloadSbaTaskPdf(task, name, {
       includeAnswers,
       schoolName,
       attribution: isFreePlanTeacher({ userProfile, isAdmin }),
@@ -348,8 +365,14 @@ export default function SbaTaskStudio() {
                     <button type="button" onClick={() => onExport(false)} className="studio-btn-ghost">
                       📄 Learner copy
                     </button>
+                    <button type="button" onClick={() => onExportPdf(false)} className="studio-btn-ghost">
+                      📄 Learner copy (.pdf)
+                    </button>
                     <button type="button" onClick={() => onExport(true)} className="studio-btn-primary">
                       📄 Teacher copy (.docx)
+                    </button>
+                    <button type="button" onClick={() => onExportPdf(true)} className="studio-btn-ghost">
+                      🔑 Teacher copy (.pdf)
                     </button>
                   </div>
                 </div>
