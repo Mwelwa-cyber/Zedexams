@@ -272,7 +272,15 @@ const {createGenerateStudyPlan} = require("./studentAgents");
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
-const recraftApiKey = defineSecret("RECRAFT_API_KEY");
+// RECRAFT_API_KEY intentionally NOT declared/bound. Recraft was decommissioned
+// (2026-06: RECRAFT_ENABLED=false in generateDiagram.js — every "recraft"
+// request is now served by gpt-image-1), and the secret was later removed from
+// Secret Manager. A defineSecret() bound to a function whose value no longer
+// exists makes `firebase deploy` hard-fail in CI ("no value for the secret:
+// RECRAFT_API_KEY"), blocking every functions deploy. The consumers below are
+// passed `null` for the recraft secret and guard on it, so the key resolves to
+// "" — behaviour-preserving while Recraft stays disabled. Re-declare + re-fund
+// the secret here if RECRAFT_ENABLED is ever flipped back on.
 // Optional. When set, structureImportedQuiz uses a Gemini → Claude pipeline:
 // Gemini 2.5 Flash ingests the full document (1M-context strength) and emits
 // rough question candidates; Claude refines them into CBC-aligned output.
@@ -2204,7 +2212,7 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 // per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
 // falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
 exports.generateVisualNotes =
-  createGenerateSlideNotes(anthropicApiKey, recraftApiKey, openaiApiKey);
+  createGenerateSlideNotes(anthropicApiKey, null, openaiApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
@@ -2235,11 +2243,11 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 // to gpt-image-1 automatically when Recraft can't serve (out of credits,
 // bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.generateDiagram = createGenerateDiagram(null, openaiApiKey, kieApiKey);
 
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
 // generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
-exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(null, openaiApiKey, kieApiKey);
 
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.
