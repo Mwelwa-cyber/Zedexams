@@ -5,17 +5,25 @@
 // `search` is applied client-side after the snapshot arrives.
 
 import { useEffect, useState, useMemo } from 'react'
+import { useAuth } from '../../../contexts/AuthContext'
 import { subscribeAdminNotes } from '../lib/firestore'
 
 export function useAdminNotes({ subject = 'all', grade = 'all', status = 'all', search = '' } = {}) {
+  const { currentUser } = useAuth()
   const [notes, setNotes]     = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
 
   useEffect(() => {
+    if (!currentUser?.uid) {
+      setNotes([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const unsub = subscribeAdminNotes(
       {
+        uid:     currentUser.uid,
         subject: subject === 'all' ? undefined : subject,
         grade:   grade   === 'all' ? undefined : grade,
         status:  status  === 'all' ? undefined : status,
@@ -24,7 +32,7 @@ export function useAdminNotes({ subject = 'all', grade = 'all', status = 'all', 
       (err)  => { setError(err);  setLoading(false) },
     )
     return unsub
-  }, [subject, grade, status])
+  }, [currentUser?.uid, subject, grade, status])
 
   // Client-side title search — Firestore doesn't do substring queries cheaply.
   const filtered = useMemo(() => {

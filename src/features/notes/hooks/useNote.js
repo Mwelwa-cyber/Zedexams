@@ -19,7 +19,17 @@ export function useNote(id) {
       setNote(data)
       setError(null)
     } catch (err) {
-      setError(err)
+      // Treat Firestore permission-denied the same as "not found": the note
+      // exists but this user isn't allowed to read it (e.g. it's a draft
+      // owned by another teacher). Setting note to null lets LearnerNoteRead
+      // render its "Note not found / may have been unpublished" message without
+      // surfacing an unhandled FirebaseError to Sentry.
+      if (err?.code === 'permission-denied' || err?.code === 'firestore/permission-denied') {
+        setNote(null)
+        setError(null)
+      } else {
+        setError(err)
+      }
     } finally {
       setLoading(false)
     }
