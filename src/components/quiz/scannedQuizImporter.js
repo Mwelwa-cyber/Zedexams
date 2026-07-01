@@ -26,6 +26,7 @@ import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
+import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
 
 // How detected diagrams are handled when converting a scanned paper. The
 // DEFAULT is 'keep' — many Zambian assessment questions depend on their figure,
@@ -962,7 +963,7 @@ async function attachQuestionDiagrams(localSections, assetByPage, usedAssetIds, 
  * diagram/map questions). `onProgress({ phase, current, total })` reports
  * rendering progress for the UI.
  */
-export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGES, onProgress, targetWidth = 1500 } = {}) {
+export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGES, onProgress, targetWidth = 1500, enhance = true } = {}) {
   const total = Math.min(pdf.numPages, maxPages)
   const pageImages = []
   const assetByPage = {}
@@ -983,10 +984,22 @@ export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGE
       canvas.height = Math.ceil(viewport.height)
       const context = canvas.getContext('2d', { alpha: false })
       await page.render({ canvasContext: context, viewport }).promise
-      const dataUrl = canvasToDataUrl(canvas)
-      pageImages.push({ pageNumber, dataUrl })
-      const blob = dataUrlToBlob(dataUrl)
+      // Keep the ORIGINAL render for the review-screen preview + any figure the
+      // teacher keeps; send an ENHANCED copy (de-shadowed, levelled, sharpened)
+      // to vision for a cleaner OCR read. Enhance for the machine, preserve the
+      // original for the human.
+      const originalDataUrl = canvasToDataUrl(canvas)
+      const blob = dataUrlToBlob(originalDataUrl)
       if (blob) assetByPage[pageNumber] = makePageAsset(blob, pageNumber)
+      let visionDataUrl = originalDataUrl
+      if (enhance) {
+        const { blurry } = enhanceCanvasInPlace(canvas, { blackAndWhite: false })
+        visionDataUrl = canvasToDataUrl(canvas)
+        if (blurry) {
+          warnings.push(`Page ${pageNumber} looks blurry — a sharper scan reads more accurately.`)
+        }
+      }
+      pageImages.push({ pageNumber, dataUrl: visionDataUrl })
     } catch {
       warnings.push(`Could not render page ${pageNumber} for reading.`)
     }
@@ -1002,7 +1015,7 @@ export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGE
  * scaled down to the target width; small screenshots are scaled up to at most 2×
  * so text stays legible — mirroring the scanned-PDF page heuristic.
  */
-async function rasterizeImageFile(file, targetWidth = 1500) {
+async function rasterizeImageFile(file, targetWidth = 1500, { enhance = true } = {}) {
   const url = URL.createObjectURL(file)
   try {
     const img = await loadImage(url)
@@ -1015,8 +1028,17 @@ async function rasterizeImageFile(file, targetWidth = 1500) {
     canvas.height = Math.max(1, Math.round(H * scale))
     const ctx = canvas.getContext('2d', { alpha: false })
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    const dataUrl = canvasToDataUrl(canvas)
-    return { dataUrl, blob: dataUrlToBlob(dataUrl) }
+    // Original for the preview/asset; enhanced copy for vision (see the PDF path).
+    const originalDataUrl = canvasToDataUrl(canvas)
+    const blob = dataUrlToBlob(originalDataUrl)
+    let visionDataUrl = originalDataUrl
+    let blurry = false
+    if (enhance) {
+      const res = enhanceCanvasInPlace(canvas, { blackAndWhite: false })
+      visionDataUrl = canvasToDataUrl(canvas)
+      blurry = res.blurry
+    }
+    return { dataUrl: visionDataUrl, blob, blurry }
   } finally {
     if (canRevokeObjectUrl()) URL.revokeObjectURL(url)
   }
@@ -1028,7 +1050,7 @@ async function rasterizeImageFile(file, targetWidth = 1500) {
  * image becomes one page (in selection order). `onProgress({ phase, current,
  * total })` reports rasterising progress for the UI.
  */
-export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX_IMAGES, onProgress, targetWidth = 1500 } = {}) {
+export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX_IMAGES, onProgress, targetWidth = 1500, enhance = true } = {}) {
   const list = normalizeImportInput(files)
   const total = Math.min(list.length, maxImages)
   const pageImages = []
@@ -1041,9 +1063,12 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
   for (let i = 0; i < total; i += 1) {
     const pageNumber = i + 1
     try {
-      const { dataUrl, blob } = await rasterizeImageFile(list[i], targetWidth)
+      const { dataUrl, blob, blurry } = await rasterizeImageFile(list[i], targetWidth, { enhance })
       pageImages.push({ pageNumber, dataUrl })
       if (blob) assetByPage[pageNumber] = makePageAsset(blob, pageNumber)
+      if (blurry) {
+        warnings.push(`"${list[i]?.name || `Image ${pageNumber}`}" looks blurry — a sharper photo reads more accurately.`)
+      }
     } catch {
       warnings.push(`Could not read "${list[i]?.name || `image ${pageNumber}`}" for import.`)
     }
