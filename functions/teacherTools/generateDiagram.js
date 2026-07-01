@@ -1,9 +1,9 @@
 /**
  * generateDiagram — HTTPS callable Cloud Function.
  *
- * Wraps the Recraft API to produce a black-and-white line-art diagram from
- * a teacher's text prompt, downloads it into Firebase Storage so the URL
- * is stable and CORS-safe, and returns the storage URL to the caller.
+ * Produces a black-and-white line-art diagram from a teacher's text prompt via
+ * OpenAI gpt-image-1, downloads it into Firebase Storage so the URL is stable
+ * and CORS-safe, and returns the storage URL to the caller.
  *
  * Usage from client:
  *   const fn = httpsCallable(functions, 'generateDiagram');
@@ -18,15 +18,14 @@
  * same auth gate (isStaffRole), the same usageMeter, and the same
  * Firebase Storage path layout as the Assessment Studio image upload.
  *
- * Cost note: Recraft charges ~$0.04 per 1024x1024 image; gpt-image-1
- * medium is ~$0.06. The usageMeter caps diagram generation per month per
- * plan (see PLAN_LIMITS below).
+ * Cost note: gpt-image-1 medium is ~$0.06 per image. The usageMeter caps
+ * diagram generation per month per plan (see PLAN_LIMITS below).
  *
- * Fallback (2026-06): when Recraft can't serve — balance ran dry mid
- * starter-pack, key revoked, outage — line-art requests automatically
- * fall back to OpenAI gpt-image-1 with the SAME B&W line-art prompt, so
- * teachers get a printable figure instead of an error. See the recraft
- * branch in runGenerateDiagram.
+ * Provider history (2026-06): Recraft (B&W line art) and Kie (colour) were
+ * both decommissioned and all image spend consolidated onto OpenAI. The
+ * `provider` value on a request now only selects the prompt guard — 'recraft'
+ * → B&W line art, 'openai' → realistic photo, 'kie' → colour illustration —
+ * and every request is served by gpt-image-1.
  */
 
 const crypto = require("crypto");
@@ -38,37 +37,25 @@ const {assertAndIncrement} = require("./usageMeter");
 const {callOpenAIImage} = require("../openaiClient");
 const {generateKieImage, KieError} = require("../kieClient");
 
-// Image providers the callable knows how to route to. Recraft is the
-// default (B&W line art); OpenAI ('photoreal') is the realistic-photo
-// upgrade; Kie ('kie') is the full-colour illustration upgrade.
+// Image style presets the callable knows how to route to. All three are now
+// served by OpenAI gpt-image-1 — the value only selects the prompt guard:
+// 'recraft' → B&W line art (the default), 'openai' → realistic photo, 'kie'
+// → full-colour illustration.
 const ALLOWED_PROVIDERS = new Set(["recraft", "openai", "kie"]);
 
-// Recraft was decommissioned for this project (2026-06): the account is no
-// longer funded, so calling it just burned a slow request that failed and fell
-// back anyway. Every "recraft" (B&W line-art) request is now served directly by
-// gpt-image-1 using the SAME line-art prompt — diagrams keep their clean
-// printable look while all image spend moves to OpenAI, and the redraw skips
-// the dead Recraft round-trip entirely. Set back to true (and re-fund
-// RECRAFT_API_KEY) to re-enable Recraft.
-const RECRAFT_ENABLED = false;
-
-// Kie (full-colour illustration) is likewise disabled (2026-06): the owner
-// consolidated all image generation onto OpenAI. Every "kie" request is now
-// served by gpt-image-1 using the SAME colour-illustration prompt, so colour
-// figures keep their bright flat look while all spend moves to OpenAI. Set back
-// to true (and re-fund KIE_API_KEY) to re-enable the Kie provider.
+// Kie (full-colour illustration) is disabled (2026-06): the owner consolidated
+// all image generation onto OpenAI. Every "kie" request is now served by
+// gpt-image-1 using the SAME colour-illustration prompt, so colour figures keep
+// their bright flat look while all spend moves to OpenAI. Set back to true (and
+// re-fund KIE_API_KEY) to re-enable the Kie provider.
 const KIE_ENABLED = false;
 
-// Per-request network deadlines. Without these a hung provider (Recraft, the
-// OpenAI image API, or a stalled CDN download) blocks the await until the 300s
-// FUNCTION timeout, at which point the platform KILLS the instance mid-await
-// and returns a raw 500 — which the Firebase SDK surfaces to the client as the
-// bare code name "internal" (the callable's own try/catch never runs). Bounding
-// each call means a hang throws a clean error well inside the window: a slow
-// Recraft falls over to OpenAI instead of taking the whole call down, and an
-// exhausted chain surfaces a descriptive "took too long" instead of "internal".
-// Worst-case fallback chain (Recraft→OpenAI→download) stays comfortably < 300s.
-const RECRAFT_TIMEOUT_MS = 70000;
+// Per-request network deadline for streaming a generated image into Storage.
+// Without it a stalled CDN download blocks the await until the 300s FUNCTION
+// timeout, at which point the platform KILLS the instance mid-await and returns
+// a raw 500 — which the Firebase SDK surfaces to the client as the bare code
+// name "internal" (the callable's own try/catch never runs). Bounding the
+// download means a hang throws a clean "took too long" well inside the window.
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 45000;
 
 // fetch() with an AbortController deadline. Rejects with a tagged Error on
@@ -91,8 +78,6 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 60000, label = "r
   }
 }
 
-const RECRAFT_ENDPOINT = "https://external.api.recraft.ai/v1/images/generations";
-
 const ALLOWED_STYLES = new Set([
   "line_art",            // vector_illustration / line_art — primary B&W
   "engraving",           // vector_illustration / engraving — denser line work
@@ -101,7 +86,7 @@ const ALLOWED_STYLES = new Set([
   "vector_illustration", // bare style, no substyle
 ]);
 
-// Recraft size whitelist. Stuck to portrait/landscape sizes that match A4
+// Canonical size whitelist. Stuck to portrait/landscape sizes that match A4
 // paper proportions (the rest of the studio renders at ~720pt width).
 const ALLOWED_SIZES = new Set([
   "1024x1024",
@@ -111,7 +96,7 @@ const ALLOWED_SIZES = new Set([
   "1024x1707", // 3:5 tall
 ]);
 
-// Kie models take an aspect_ratio rather than a pixel size. Map our Recraft
+// Kie models take an aspect_ratio rather than a pixel size. Map our canonical
 // size whitelist onto the closest ratio the Kie image models support.
 const KIE_ASPECT_BY_SIZE = {
   "1024x1024": "1:1",
@@ -121,10 +106,10 @@ const KIE_ASPECT_BY_SIZE = {
   "1024x1707": "9:16", // 3:5 → nearest supported tall ratio
 };
 
-// gpt-image-1 has its own size whitelist; map our Recraft sizes onto the
-// closest equivalents. Used by both the explicit 'openai' provider and the
-// Recraft→OpenAI fallback.
-const OPENAI_SIZE_BY_RECRAFT_SIZE = {
+// gpt-image-1 has its own size whitelist; map our canonical sizes onto the
+// closest equivalents. Used by every provider since all image generation now
+// routes through gpt-image-1.
+const OPENAI_SIZE_BY_CANONICAL_SIZE = {
   "1024x1024": "1024x1024",
   "1365x1024": "1536x1024",
   "1024x1365": "1024x1536",
@@ -165,7 +150,7 @@ function buildFinalPrompt(userPrompt, provider) {
     ].join(" ");
     return `${guard}\n\n${userPrompt}`;
   }
-  // Recraft / default — B&W line art
+  // recraft / default — B&W line art
   const guard = [
     "Clean black-and-white line art on a white background.",
     "No shading, no colour, no gradients, no photorealism.",
@@ -177,58 +162,7 @@ function buildFinalPrompt(userPrompt, provider) {
   return `${guard}\n\n${userPrompt}`;
 }
 
-function recraftStyleConfig(style) {
-  // Recraft API accepts a top-level `style` and optional `substyle`. We
-  // hard-pin to the vector_illustration family because raster styles look
-  // bad printed in B&W on a school photocopier.
-  switch (style) {
-    case "engraving":
-      return {style: "vector_illustration", substyle: "engraving"};
-    case "hand_drawn_outline":
-      return {style: "vector_illustration", substyle: "hand_drawn_outline"};
-    case "isometric":
-      return {style: "vector_illustration", substyle: "isometric"};
-    case "vector_illustration":
-      return {style: "vector_illustration"};
-    case "line_art":
-    default:
-      return {style: "vector_illustration", substyle: "line_art"};
-  }
-}
-
-async function fetchRecraftImage(apiKey, {finalPrompt, style, size}) {
-  const styleConfig = recraftStyleConfig(style);
-  const body = {
-    prompt: finalPrompt,
-    size,
-    n: 1,
-    response_format: "url",
-    ...styleConfig,
-  };
-  const response = await fetchWithTimeout(RECRAFT_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  }, RECRAFT_TIMEOUT_MS, "Recraft image");
-  if (!response.ok) {
-    const errBody = await response.text().catch(() => "");
-    throw new HttpsError(
-      "internal",
-      `Recraft request failed (${response.status}): ${errBody.slice(0, 200)}`,
-    );
-  }
-  const json = await response.json();
-  const url = json && json.data && json.data[0] && json.data[0].url;
-  if (!url) {
-    throw new HttpsError("internal", "Recraft returned no image URL.");
-  }
-  return url;
-}
-
-// Recraft's CDN URLs expire and have CORS restrictions. We stream the PNG
+// Kie's CDN URLs expire and have CORS restrictions. We stream the PNG
 // into Firebase Storage immediately so the studio gets a stable token URL
 // that the preview + PDF + DOCX exporters can all read. Same flow for
 // OpenAI — we accept the bytes directly there since the API returns
@@ -313,43 +247,27 @@ async function downloadToStorage(uid, source, promptForMeta, generator, subdir) 
   return {url: downloadUrl, sizeBytes: buffer.length};
 }
 
-async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey, storageSubdir}) {
+async function runGenerateDiagram({uid, rawInputs, openaiKey, kieKey, storageSubdir}) {
   const userPrompt = sanitizePrompt((rawInputs && rawInputs.prompt) || "");
   if (!userPrompt) {
     throw new HttpsError("invalid-argument", "Please describe the diagram you want to generate.");
   }
 
-  // Provider routing. Default is recraft (B&W line-art); openai is the
-  // photoreal upgrade. If 'openai' is requested but the key isn't
-  // configured we fail fast — the studio should hide the toggle when
-  // the key is missing, so reaching this branch means a bad request.
+  // Provider routing selects the prompt guard only: default 'recraft' (B&W
+  // line-art), 'openai' (photoreal), 'kie' (colour). All are served by
+  // gpt-image-1, so every path needs the OpenAI key. If Kie is ever
+  // re-enabled it needs its own key again.
   const requestedProvider = String((rawInputs && rawInputs.provider) || "recraft").toLowerCase();
   const provider = ALLOWED_PROVIDERS.has(requestedProvider) ? requestedProvider : "recraft";
-  if (provider === "openai" && !openaiKey) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Photoreal images are not available — admin needs to configure the OpenAI key.",
-    );
-  }
-  // Kie (full-colour) is served by gpt-image-1 (Kie itself is disabled), so the
-  // OpenAI key is what this path needs. If Kie is ever re-enabled it needs its
-  // own key again.
   if (provider === "kie" && KIE_ENABLED && !kieKey) {
     throw new HttpsError(
       "failed-precondition",
       "Colour illustrations are not available — admin needs to configure the Kie API key.",
     );
   }
-  if (provider === "kie" && !KIE_ENABLED && !openaiKey) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Image generation is not configured — admin needs to set the OpenAI key.",
-    );
-  }
-  // Recraft (B&W line-art) is served by gpt-image-1 (Recraft itself is
-  // disabled), so the OpenAI key is what this path actually needs. Only a
-  // missing-everything config is fatal.
-  if (provider === "recraft" && !openaiKey && !(RECRAFT_ENABLED && recraftKey)) {
+  // Every non-Kie-enabled path is served by gpt-image-1, so a missing OpenAI
+  // key is the only fatal config error.
+  if (!(provider === "kie" && KIE_ENABLED) && !openaiKey) {
     throw new HttpsError(
       "failed-precondition",
       "Image generation is not configured — admin needs to set the OpenAI key.",
@@ -368,12 +286,12 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
   let modelId;
   let openaiSizeUsed = null;
   // The provider that actually produced the image — differs from the
-  // requested provider when the Recraft→OpenAI fallback kicks in.
+  // requested provider when a request routes to gpt-image-1 (recraft/kie).
   let providerUsed = provider;
   if (provider === "kie" && KIE_ENABLED) {
     // Kie is asynchronous (create task → poll). generateKieImage handles
-    // the polling and returns a CDN URL we then stream into Storage like
-    // Recraft. Map our pixel size onto Kie's aspect_ratio + ask for 2K.
+    // the polling and returns a CDN URL we then stream into Storage. Map our
+    // pixel size onto Kie's aspect_ratio + ask for 2K.
     const aspectRatio = KIE_ASPECT_BY_SIZE[size] || "4:3";
     try {
       const kieResult = await generateKieImage(kieKey, {
@@ -403,7 +321,7 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
       throw err;
     }
   } else if (provider === "openai") {
-    openaiSizeUsed = OPENAI_SIZE_BY_RECRAFT_SIZE[size] || "1536x1024";
+    openaiSizeUsed = OPENAI_SIZE_BY_CANONICAL_SIZE[size] || "1536x1024";
     const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
       prompt: finalPrompt,
       size: openaiSizeUsed,
@@ -413,45 +331,18 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
     modelId = usedModel || "gpt-image-1";
   } else {
     // The remaining providers — recraft (B&W line art) and a disabled kie
-    // (full colour) — are both served by gpt-image-1 using the prompt already
-    // built for the requested provider, so each keeps its own look (line-art vs
-    // colour) while billing to OpenAI. Recraft is tried first only if it has
-    // been re-enabled; otherwise we go straight to gpt-image-1.
-    let recraftFailure = null;
-    if (provider === "recraft" && RECRAFT_ENABLED && recraftKey) {
-      try {
-        const recraftUrl = await fetchRecraftImage(recraftKey, {finalPrompt, style, size});
-        storageSource = {url: recraftUrl};
-        modelId = "recraft-v3";
-      } catch (err) {
-        recraftFailure = err;
-      }
-    }
-    if (!storageSource) {
-      // The key-presence gate above guarantees the OpenAI key is present here,
-      // but guard anyway — `throw null` would reach clients as a bare INTERNAL
-      // toast if that gate ever moves.
-      if (!openaiKey) {
-        throw recraftFailure ||
-          new HttpsError("failed-precondition", "Image generation is not configured — admin needs to set the OpenAI key.");
-      }
-      console.warn("generateDiagram: serving via gpt-image-1", {
-        uid,
-        requested: provider,
-        reason: recraftFailure ?
-          String(recraftFailure.message || recraftFailure).slice(0, 300) :
-          `${provider} routed to OpenAI`,
-      });
-      providerUsed = "openai";
-      openaiSizeUsed = OPENAI_SIZE_BY_RECRAFT_SIZE[size] || "1536x1024";
-      const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
-        prompt: finalPrompt, // keeps the B&W line-art guard
-        size: openaiSizeUsed,
-        quality: "medium",
-      });
-      storageSource = {bytes: Buffer.from(b64, "base64")};
-      modelId = usedModel || "gpt-image-1";
-    }
+    // (full colour) — are served by gpt-image-1 using the prompt already built
+    // for the requested provider, so each keeps its own look (line-art vs
+    // colour) while billing to OpenAI.
+    providerUsed = "openai";
+    openaiSizeUsed = OPENAI_SIZE_BY_CANONICAL_SIZE[size] || "1536x1024";
+    const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
+      prompt: finalPrompt, // keeps the requested provider's prompt guard
+      size: openaiSizeUsed,
+      quality: "medium",
+    });
+    storageSource = {bytes: Buffer.from(b64, "base64")};
+    modelId = usedModel || "gpt-image-1";
   }
 
   const {url, sizeBytes} = await downloadToStorage(uid, storageSource, userPrompt, providerUsed, storageSubdir);
@@ -463,8 +354,8 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
       uid,
       tool: "diagram",
       generator: providerUsed,
-      // Cost reconciliation: mark images billed to OpenAI because Recraft
-      // couldn't serve the original request.
+      // Cost reconciliation: mark images whose requested provider was routed to
+      // gpt-image-1 (recraft/kie) so spend reconciles against OpenAI.
       ...(providerUsed !== provider ? {fallbackFrom: provider} : {}),
       prompt: userPrompt,
       style,
@@ -488,8 +379,8 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, kieKey
   };
 }
 
-function createGenerateDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKeySecret) {
-  const secrets = [recraftApiKeySecret];
+function createGenerateDiagram(openaiApiKeySecret, kieApiKeySecret) {
+  const secrets = [];
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   if (kieApiKeySecret) secrets.push(kieApiKeySecret);
   return onCall(
@@ -512,7 +403,6 @@ function createGenerateDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKe
       // bucket — teachers shouldn't get double quota for picking photoreal.
       await assertAndIncrement(uid, "diagram");
 
-      const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
       const openaiKey = openaiApiKeySecret
         ? (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "")
         : (process.env.OPENAI_API_KEY || "");
@@ -520,7 +410,7 @@ function createGenerateDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKe
         ? (kieApiKeySecret.value() || process.env.KIE_API_KEY || "")
         : (process.env.KIE_API_KEY || "");
       try {
-        return await runGenerateDiagram({uid, rawInputs: request.data, recraftKey, openaiKey, kieKey});
+        return await runGenerateDiagram({uid, rawInputs: request.data, openaiKey, kieKey});
       } catch (err) {
         // Re-throw HttpsError so the client gets the structured code/message.
         // Any other thrown value would otherwise be coerced by the Functions

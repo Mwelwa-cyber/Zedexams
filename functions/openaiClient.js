@@ -1,12 +1,11 @@
 /**
  * Thin REST client for OpenAI's image-generation API (gpt-image-1).
  *
- * Used as a photoreal style toggle on generateDiagram. Recraft remains
- * the default for B&W line-art (cleaner on photocopiers, smaller files);
- * gpt-image-1 is preferred when teachers want a realistic photo — maps,
- * real-world objects, biology specimens, lab apparatus, etc.
+ * gpt-image-1 is the single image backend for generateDiagram — it serves the
+ * B&W line-art (default), photoreal and colour-illustration prompt guards
+ * alike. The prompt guard the caller builds decides the look.
  *
- * No SDK dep — same approach as the Recraft and Gemini integrations.
+ * No SDK dep — same approach as the Gemini integration.
  *
  * Public API: callOpenAIImage(apiKey, opts)
  *   - opts.prompt     — image prompt (already-sanitized by caller)
@@ -15,8 +14,7 @@
  *   - opts.model      — defaults to 'gpt-image-1'
  *   Returns a base64-encoded PNG so the caller can stream it into
  *   Firebase Storage with the same downloadToStorage helper. We use b64
- *   rather than the URL response because gpt-image-1 URL is short-lived
- *   and the byte-pipeline matches the Recraft flow.
+ *   rather than the URL response because the gpt-image-1 URL is short-lived.
  */
 
 const {HttpsError} = require("firebase-functions/v2/https");
@@ -26,7 +24,7 @@ const DEFAULT_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
 
 const ALLOWED_OPENAI_SIZES = new Set([
   "1024x1024",
-  "1536x1024", // landscape — closest match for our 1365x1024 Recraft default
+  "1536x1024", // landscape — closest match for our 1365x1024 default
   "1024x1536", // portrait
 ]);
 const ALLOWED_OPENAI_QUALITIES = new Set(["low", "medium", "high"]);

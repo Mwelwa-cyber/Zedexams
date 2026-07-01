@@ -130,14 +130,14 @@ function validateInputs(inputs) {
  * Mutates `deck` in place. Never throws — image trouble degrades the deck to
  * (partial) text rather than failing generation.
  */
-async function enrichDeckImages({uid, deckId, deck, recraftKey, openaiKey}) {
+async function enrichDeckImages({uid, deckId, deck, openaiKey}) {
   const targets = [];
   forEachImageTarget(deck, (t) => targets.push(t));
 
-  // Prefer ChatGPT / gpt-image-1 (full-colour, closer to the reference decks)
-  // when the OpenAI key is configured; fall back to Recraft line-art otherwise.
-  const provider = openaiKey ? "openai" : "recraft";
-  const haveKey = Boolean(openaiKey) || Boolean(recraftKey);
+  // All images generate through gpt-image-1 (full-colour, closer to the
+  // reference decks). Without the OpenAI key we skip images entirely.
+  const provider = "openai";
+  const haveKey = Boolean(openaiKey);
 
   // No image key at all → skip fast and return a clean text-only deck rather
   // than firing N doomed calls.
@@ -192,7 +192,6 @@ async function enrichDeckImages({uid, deckId, deck, recraftKey, openaiKey}) {
             size: "1365x1024",
             provider,
           },
-          recraftKey,
           openaiKey,
           storageSubdir: subdir,
         });
@@ -219,7 +218,7 @@ async function enrichDeckImages({uid, deckId, deck, recraftKey, openaiKey}) {
   return {requested: targets.length, generated, failed, quotaReached, timedOut};
 }
 
-async function runSlideNotes({uid, rawInputs, apiKey, recraftKey, openaiKey}) {
+async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
 
   const inputErrors = validateInputs(inputs);
@@ -335,7 +334,6 @@ async function runSlideNotes({uid, rawInputs, apiKey, recraftKey, openaiKey}) {
       uid,
       deckId: genRef.id,
       deck,
-      recraftKey,
       openaiKey,
     });
   } catch (err) {
@@ -390,9 +388,8 @@ async function runSlideNotes({uid, rawInputs, apiKey, recraftKey, openaiKey}) {
 }
 
 function createGenerateSlideNotes(
-    anthropicApiKeySecret, recraftApiKeySecret, openaiApiKeySecret) {
+    anthropicApiKeySecret, openaiApiKeySecret) {
   const secrets = [anthropicApiKeySecret];
-  if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   return onCall(
     // Images generate with bounded concurrency under a wall-clock budget, but
@@ -409,15 +406,12 @@ function createGenerateSlideNotes(
         );
       }
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      const recraftKey = recraftApiKeySecret ?
-        (recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "") :
-        (process.env.RECRAFT_API_KEY || "");
       const openaiKey = openaiApiKeySecret ?
         (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
         (process.env.OPENAI_API_KEY || "");
       try {
         return await runSlideNotes({
-          uid, rawInputs: request.data, apiKey, recraftKey, openaiKey,
+          uid, rawInputs: request.data, apiKey, openaiKey,
         });
       } catch (err) {
         if (err instanceof HttpsError) throw err;

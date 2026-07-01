@@ -272,20 +272,17 @@ const {createGenerateStudyPlan} = require("./studentAgents");
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
-const recraftApiKey = defineSecret("RECRAFT_API_KEY");
 // Optional. When set, structureImportedQuiz uses a Gemini → Claude pipeline:
 // Gemini 2.5 Flash ingests the full document (1M-context strength) and emits
 // rough question candidates; Claude refines them into CBC-aligned output.
 // When unset, the callable falls back to the original Claude-only path so
 // the feature keeps working without forcing a secret rotation.
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
-// Optional. When set, generateDiagram exposes a "photoreal" style toggle
-// that routes through OpenAI gpt-image-1 instead of Recraft. Recraft is
-// still the default for B&W line art (cleaner on photocopiers), but when
-// the Recraft account can't serve (out of credits, bad key) line-art
-// requests automatically fall back to gpt-image-1 with the same B&W
-// prompt. When unset, there is no fallback and the photoreal toggle is
-// hidden.
+// generateDiagram's image backend. All diagram styles (B&W line art,
+// photoreal, colour illustration) are served by OpenAI gpt-image-1 — the
+// requested style only selects the prompt guard. Recraft and Kie were
+// decommissioned (2026-06); when this key is unset, image generation is
+// disabled and the callable returns a clear "not configured" error.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // Optional. When set, generateDiagram exposes a "colour illustration" style
 // that routes through the Kie.ai image API (Nano Banana et al.) for bright,
@@ -2201,10 +2198,9 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Visual Slide-Notes (learner-facing illustrated deck).
 // Two-pass: Claude emits the deck + image prompts, then images are drawn one
-// per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
-// falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
+// per prompt via ChatGPT/gpt-image-1. Needs the Anthropic + OpenAI keys.
 exports.generateVisualNotes =
-  createGenerateSlideNotes(anthropicApiKey, recraftApiKey, openaiApiKey);
+  createGenerateSlideNotes(anthropicApiKey, openaiApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
@@ -2229,17 +2225,15 @@ exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 // Teacher Tools — Exam Studio (ECZ Grade 7 PSLE-style practice questions).
 exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 
-// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
-// When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
-// toggle that routes through gpt-image-1, and line-art requests fall back
-// to gpt-image-1 automatically when Recraft can't serve (out of credits,
-// bad key). The factory takes all three secrets so the handler can route
-// per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+// Teacher Tools — Diagram Generator. All styles (B&W line art, photoreal,
+// colour illustration) render via OpenAI gpt-image-1; the requested style only
+// selects the prompt guard. Needs OPENAI_API_KEY. The kie secret is still
+// wired for a future re-enable but is unused while Kie is disabled.
+exports.generateDiagram = createGenerateDiagram(openaiApiKey, kieApiKey);
 
 // Test Paper Studio — photo-import diagram redrawing. Library-first reuse, then
-// generation via the same Recraft/OpenAI/Kie pipeline as generateDiagram.
-exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+// generation via the same gpt-image-1 pipeline as generateDiagram.
+exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(openaiApiKey, kieApiKey);
 
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.

@@ -1,7 +1,7 @@
 /**
  * Client wrapper for the `generateDiagram` Cloud Function.
  *
- * Calls the Recraft-backed callable which returns a stable Firebase
+ * Calls the gpt-image-1-backed callable which returns a stable Firebase
  * Storage URL for a freshly-generated B&W line-art diagram.
  *
  * Usage:
@@ -29,7 +29,7 @@ function messageFromError(error) {
     return msg
   }
   if (code.includes('failed-precondition') && /not configured/i.test(msg)) {
-    return 'Diagram generation is not available — admin needs to configure the Recraft key.'
+    return 'Diagram generation is not available — admin needs to configure the OpenAI key.'
   }
   if (code.includes('failed-precondition') && /openai key looks invalid/i.test(msg)) {
     // Pass the diagnostic through verbatim — it tells the admin exactly which
@@ -64,31 +64,6 @@ function messageFromError(error) {
   }
   if (code.includes('unauthenticated')) {
     return 'Please sign in to generate diagrams.'
-  }
-  // Recraft errors only reach the client when the server's ChatGPT
-  // (gpt-image-1) fallback was unavailable too — line-art requests fall
-  // back automatically when the Recraft account can't serve.
-  if (/not_enough_credits/i.test(msg)) {
-    // Recraft's 400 body for an empty balance — no prompt will ever work,
-    // so don't send the admin off to "simplify" anything.
-    return 'The Recraft account is out of image credits and the ChatGPT fallback is not configured — top up at recraft.ai or set OPENAI_API_KEY.'
-  }
-  if (/recraft request failed/i.test(msg)) {
-    // The server includes Recraft's HTTP status: "Recraft request failed
-    // (401): …". Surface the account-level causes so an admin sees "rotate
-    // the key" instead of a misleading "simplify your prompt" when every
-    // single generation is failing.
-    const status = Number((/recraft request failed \((\d{3})\)/i.exec(msg) || [])[1])
-    if (status === 401 || status === 403) {
-      return 'The Recraft API key was rejected (HTTP ' + status + ') — admin needs to rotate RECRAFT_API_KEY.'
-    }
-    if (status === 402) {
-      return 'The Recraft account is out of credits and the ChatGPT fallback is not configured — top it up, or switch to the Colour/Photoreal styles.'
-    }
-    if (status === 429) {
-      return 'Recraft is rate-limiting us — wait a minute and try again.'
-    }
-    return `Recraft could not generate that diagram${status ? ` (HTTP ${status})` : ''} — try a simpler prompt.`
   }
   return msg || 'Diagram generation failed. Please try again.'
 }

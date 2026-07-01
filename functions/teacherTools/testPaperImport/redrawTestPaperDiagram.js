@@ -150,22 +150,22 @@ async function runRedrawTestPaperDiagram(args, deps = {}) {
 
 /**
  * Callable factory. Mirrors createGenerateDiagram's auth + secrets wiring and
- * reuses runGenerateDiagram for the actual image generation so the B&W guard,
- * Recraft→OpenAI fallback and Storage upload all behave identically.
+ * reuses runGenerateDiagram for the actual image generation so the B&W guard
+ * and Storage upload all behave identically.
  */
-function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, kieApiKeySecret) {
+function createRedrawTestPaperDiagram(openaiApiKeySecret, kieApiKeySecret) {
   const {onCall, HttpsError} = require("firebase-functions/v2/https");
   const admin = require("firebase-admin");
   const {getUserRole, isStaffRole} = require("../../aiService");
   const {assertAndIncrement} = require("../usageMeter");
   const {runGenerateDiagram} = require("../generateDiagram");
 
-  const secrets = [recraftApiKeySecret];
+  const secrets = [];
   if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   if (kieApiKeySecret) secrets.push(kieApiKeySecret);
 
-  // Image generation (Recraft/OpenAI/Kie) — especially the Kie async
-  // submit-then-poll path — can run well past a minute. At the old 120s ceiling
+  // Image generation via gpt-image-1 — especially a disabled-Kie request that
+  // still routes through OpenAI — can run well past a minute. At the old 120s ceiling
   // a slow generation was KILLED by the platform mid-await, which returns a raw
   // 500 the Firebase SDK surfaces to the client as the bare code name
   // "internal" (the try/catch below never runs because the process is aborted).
@@ -220,7 +220,6 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
           generateImage: async (brief) => {
             // Read the image-provider secrets lazily, only when we actually
             // generate, so the keep/clean/remove paths never touch .value().
-            const recraftKey = recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "";
             const openaiKey = openaiApiKeySecret ?
               (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
               (process.env.OPENAI_API_KEY || "");
@@ -230,7 +229,6 @@ function createRedrawTestPaperDiagram(recraftApiKeySecret, openaiApiKeySecret, k
             return runGenerateDiagram({
               uid,
               rawInputs: {prompt: brief.prompt, style: brief.style, size: brief.size},
-              recraftKey,
               openaiKey,
               kieKey,
             });
