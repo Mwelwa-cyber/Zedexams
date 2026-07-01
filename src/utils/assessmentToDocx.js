@@ -648,18 +648,29 @@ function imageFallbackBlock(alt = '') {
  * that emits the same shapes, e.g. buildSbaPaperBlocks) into a flat array of
  * docx children. Shared so the SBA Word export renders the exam paper through
  * the exact same block renderer as the Assessment Studio download.
+ *
+ * `stats` (optional) is a mutable accumulator: every figure that could not be
+ * embedded (and rendered as the dashed-red placeholder instead) pushes its
+ * label onto `stats.failedImages`, so callers can warn the teacher instead of
+ * shipping a silently-degraded paper.
  */
-export async function renderPaperBlocksToDocx(blocks = []) {
+export async function renderPaperBlocksToDocx(blocks = [], stats = null) {
   const children = []
   for (const block of blocks) {
-    const rendered = await renderBlock(block)
+    const rendered = await renderBlock(block, stats)
     if (Array.isArray(rendered)) children.push(...rendered)
     else if (rendered) children.push(rendered)
   }
   return children
 }
 
-async function renderBlock(block) {
+function recordImageFailure(stats, label) {
+  if (stats && Array.isArray(stats.failedImages)) {
+    stats.failedImages.push(String(label || '').trim() || 'figure')
+  }
+}
+
+async function renderBlock(block, stats = null) {
   switch (block.kind) {
     // The paper banner (school / title / subject / paper) is NOT body content —
     // it is rendered as a real Word page header by paperSectionShell(), so it
@@ -669,8 +680,8 @@ async function renderBlock(block) {
     case 'learnerFields': return renderLearnerFields(block)
     case 'instructions': return renderInstructions(block)
     case 'sectionHeader': return renderSectionHeader(block)
-    case 'passage': return renderPassage(block)
-    case 'question': return renderQuestion(block)
+    case 'passage': return renderPassage(block, stats)
+    case 'question': return renderQuestion(block, stats)
     case 'passageTotal': return [new Paragraph({
       children: [runText(`Total: ${block.totalMarks} mark${block.totalMarks === 1 ? '' : 's'}`, { bold: true, size: 22 })],
       alignment: AlignmentType.RIGHT,
@@ -827,7 +838,7 @@ function renderSectionHeader(b) {
   return out
 }
 
-async function renderPassage(b) {
+async function renderPassage(b, stats = null) {
   const out = []
   if (b.title) {
     out.push(para(runText(b.title.toUpperCase(), { bold: true, size: 22 })))
@@ -839,6 +850,7 @@ async function renderPassage(b) {
   }
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
+    if (!img) recordImageFailure(stats, b.imageAlt || b.title)
     out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
   }
   if (b.imageDiagram?.libraryKey) {
@@ -919,7 +931,7 @@ function subPartParas(subParts) {
   return out
 }
 
-async function renderQuestion(b) {
+async function renderQuestion(b, stats = null) {
   const out = []
   const marks = b.marks ?? 1
   const marksTag = marks >= 1 ? `  (${marks} mark${marks === 1 ? '' : 's'})` : ''
@@ -968,6 +980,7 @@ async function renderQuestion(b) {
       composited = Boolean(img)
     }
     if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
+    if (!img) recordImageFailure(stats, b.imageAlt || (b.number != null ? `question ${b.number}` : ''))
     out.push(img || imageFallbackBlock(b.imageAlt || ''))
     if (labels.length) {
       if (isIdentify && b.type !== 'mcq') {
@@ -1003,6 +1016,7 @@ async function renderQuestion(b) {
     for (const extra of b.images) {
       if (extra && extra.url) {
         const run = await imageParagraph(extra.url, { alt: extra.alt || '', widthPreset: extra.width })
+        if (!run) recordImageFailure(stats, extra.alt || (b.number != null ? `question ${b.number}` : ''))
         out.push(run || imageFallbackBlock(extra.alt || ''))
       }
     }
@@ -1328,9 +1342,9 @@ async function renderQuestion(b) {
   return out
 }
 
-export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false } = {}) {
+export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
-  const children = await renderPaperBlocksToDocx(blocks)
+  const children = await renderPaperBlocksToDocx(blocks, stats)
 
   const title = sanitizeXmlText(mode === 'scheme'
     ? `${assessment.title || 'Assessment'} — Marking Key`
@@ -1418,7 +1432,12 @@ export async function downloadAnswerSheetDocx(assessment, questions, filename = 
 }
 
 export async function downloadAssessmentDocx(assessment, questions, filename = 'assessment.docx', opts = {}) {
-  const doc = await buildAssessmentDocument(assessment, questions, opts)
+  // Collect figure-embed failures during the build so the studio can warn the
+  // teacher — the paper still downloads (placeholders mark the gaps), but the
+  // loss must not be silent.
+  const stats = { failedImages: [] }
+  const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
   const blob = await Packer.toBlob(doc)
   await saveBlob(blob, filename)
+  return { failedImages: stats.failedImages.length }
 }

@@ -201,15 +201,21 @@ console.log('\nUnreadable image → visible fallback placeholder (not a silent g
 clearImageBytesCache()
 globalThis.fetch = async () => ({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) })
 try {
+  const stats = { failedImages: [] }
   const failDoc = await buildAssessmentDocument(
     { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
-    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', marks: 1 }],
-    { mode: 'paper' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', imageAlt: 'water cycle', marks: 1 }],
+    { mode: 'paper', stats },
   )
   const buf = await Packer.toBuffer(failDoc)
   const docXml = strFromU8(unzipSync(new Uint8Array(buf))['word/document.xml'])
   assert(docXml.includes('could not be embedded'), 'unreadable image → fallback placeholder text in the paper')
   assert(!docXml.includes('media/'), 'unreadable image → no broken media part')
+  // The failure must also be REPORTED, not just marked in the document —
+  // downloadAssessmentDocx counts these so the studio can toast a warning
+  // instead of shipping a silently-degraded paper.
+  assert(stats.failedImages.length === 1, 'unreadable image → counted in stats.failedImages')
+  assert(stats.failedImages[0] === 'water cycle', 'failure records the figure label')
 } finally {
   globalThis.fetch = realFetch
 }
