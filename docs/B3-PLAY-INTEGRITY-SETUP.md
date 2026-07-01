@@ -1,5 +1,15 @@
 # B3 follow-up — Play Integrity for the Capacitor Android wrapper
 
+> **Status (2026-07):** Step 1 is **done** — `@capacitor-firebase/app-check`
+> is now a project dependency (`package.json`), so `npx cap sync android`
+> (run automatically by the release workflows) registers the native
+> `FirebaseAppCheck` plugin and `src/firebase/config.js` activates Play
+> Integrity on the Android build. **The remaining work is Console-only:**
+> register the release keystore's SHA-256 in Firebase (Step 2–3) and enable
+> the Play Integrity provider + App Check enforcement (Step 4+). Until those
+> Console steps are done, native traffic still reaches the backend
+> unattested — the plugin initialises but has no provider to enforce.
+
 The web App Check shipped via PR #317 protects browser traffic with reCAPTCHA v3.
 The Capacitor Android wrapper currently bypasses that — every Firestore /
 Storage / Cloud Function callable from the WebView lands at the server
@@ -15,16 +25,17 @@ required after that point.
 
 ---
 
-## Step 1 — Install the Capacitor plugin
+## Step 1 — Install the Capacitor plugin ✅ done
 
 ```bash
-npm install @capacitor-firebase/app-check
-npx cap sync android
+npm install @capacitor-firebase/app-check   # already in package.json (^8.3.0)
+npx cap sync android                          # run by the release workflows
 ```
 
 `@capacitor-firebase/app-check` brings in the `firebase-appcheck` and
 `firebase-appcheck-playintegrity` Android SDKs as transitive deps; no
-manual `android/app/build.gradle` edits are needed.
+manual `android/app/build.gradle` edits are needed. The version is pinned
+to `^8.3.0` to match `@capacitor-firebase/authentication`.
 
 ## Step 2 — Get the Android app's SHA-256 fingerprint
 
