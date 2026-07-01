@@ -596,6 +596,51 @@ export function countDetectedDiagrams(rawSections = []) {
   }, 0)
 }
 
+/**
+ * Run `fn` over `items` with at most `limit` in flight at once. Preserves input
+ * order in the result. Small, dependency-free — used to parallelise the cheap
+ * per-page layout pass without hammering the callable.
+ */
+export async function mapWithConcurrency(items = [], limit = 4, fn) {
+  const list = Array.isArray(items) ? items : []
+  const results = new Array(list.length)
+  let cursor = 0
+  const workers = new Array(Math.max(1, Math.min(limit, list.length))).fill(0).map(async () => {
+    while (cursor < list.length) {
+      const i = cursor
+      cursor += 1
+      results[i] = await fn(list[i], i)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+/**
+ * Compare what the cheap layout pass SAW on the pages against what the
+ * extraction actually captured, and return a warning when the layout detected
+ * notably more structured objects (tables/pictographs/diagrams) than were
+ * reconstructed — the "a table went missing" signal. Advisory + pure: given an
+ * aggregate layout summary ({ tables, diagrams }) and the merged sections,
+ * returns a warning string or null. Never throws; a missing/empty layout
+ * summary yields null so the importer degrades to no layout reconciliation.
+ */
+export function reconcileLayoutCoverage(rawSections = [], layoutSummary = null) {
+  if (!layoutSummary || typeof layoutSummary !== 'object') return null
+  const sawTables = Number(layoutSummary.tables) || 0
+  const capturedFigures = countDetectedDiagrams(rawSections)
+  // Only warn on a meaningful shortfall (layout saw ≥2 more structured objects
+  // than were captured) — a 1-object slack absorbs the usual detector noise.
+  if (sawTables > 0 && capturedFigures + 1 < sawTables) {
+    return (
+      `The page scan spotted about ${sawTables} table/figure${sawTables === 1 ? '' : 's'} ` +
+      `but ${capturedFigures} were reconstructed — check the pages for a table or ` +
+      'diagram that may have been missed.'
+    )
+  }
+  return null
+}
+
 /** Human-readable "21, 22, 47 and 3 more" for a list of missing numbers. */
 export function formatMissingList(numbers = [], limit = 8) {
   if (!numbers.length) return ''
@@ -1062,6 +1107,7 @@ export async function runVisionImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   sourceNoun = 'scanned paper',
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
@@ -1070,6 +1116,31 @@ export async function runVisionImport({
     throw new Error(`None of the ${sourceNoun} pages could be read for import.`)
   }
   const handling = normaliseDiagramHandling(diagramHandling)
+
+  // ── Optional layout-first pass ─────────────────────────────────────────────
+  // When a cheap layout classifier is wired, inventory each page's objects
+  // (in bounded parallel) BEFORE extraction so we can reconcile coverage. This
+  // is advisory: any failure yields an empty inventory and we carry on. Runs
+  // once per page (no duplicate pages within an import → nothing to cache
+  // beyond this single pass).
+  let layoutSummary = null
+  if (typeof callLayout === 'function') {
+    try {
+      const perPage = await mapWithConcurrency(pageImages, 4, (p) =>
+        callLayout(p.dataUrl).catch(() => null),
+      )
+      layoutSummary = perPage.reduce((acc, res) => {
+        const s = res && res.summary
+        if (!s) return acc
+        acc.tables += Number(s.tables) || 0
+        acc.diagrams += Number(s.diagrams) || 0
+        acc.questions += Number(s.questions) || 0
+        return acc
+      }, { tables: 0, diagrams: 0, questions: 0 })
+    } catch {
+      layoutSummary = null
+    }
+  }
 
   const runBatch = async (pages, phase, current, total) => {
     onProgress?.({ phase, current, total })
@@ -1153,6 +1224,11 @@ export async function runVisionImport({
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
+  // Layout-vs-extraction reconciliation: if the cheap layout pass saw more
+  // tables/figures than we reconstructed, surface it so a missed table is
+  // visible rather than silently dropped.
+  const layoutWarning = reconcileLayoutCoverage(merged.sections, layoutSummary)
+  if (layoutWarning && !warnings.includes(layoutWarning)) warnings.push(layoutWarning)
   // Diagram handling notices: never silently drop figures.
   const detectedDiagramCount = countDetectedDiagrams(merged.sections)
   if (handling === 'text' && detectedDiagramCount > 0) {
@@ -1225,6 +1301,7 @@ export async function runScannedImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
@@ -1243,6 +1320,7 @@ export async function runScannedImport({
     subjectHint,
     gradeHint,
     callVision,
+    callLayout,
     onProgress,
     sourceNoun: 'scanned paper',
     diagramHandling,
@@ -1260,6 +1338,7 @@ export async function runImageImport({
   subjectHint = '',
   gradeHint = '',
   callVision,
+  callLayout,
   onProgress,
   diagramHandling = DEFAULT_DIAGRAM_HANDLING,
 } = {}) {
@@ -1279,6 +1358,7 @@ export async function runImageImport({
     subjectHint,
     gradeHint,
     callVision,
+    callLayout,
     onProgress,
     sourceNoun: list.length > 1 ? 'images' : 'image',
     diagramHandling,

@@ -13,6 +13,7 @@ import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichTe
 import { subPartsFromText } from '../../utils/stimulusQuestion.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'
 import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
+import { analyzePaperLayout } from '../../utils/testPaperDiagram'
 import {
   isLikelyScannedPdf,
   runScannedImport,
@@ -1001,6 +1002,9 @@ async function importScannedPdfQuiz({ pdf, file, importOptions }) {
     subjectHint: metadata.subject || '',
     gradeHint: metadata.grade || '',
     callVision: structureScannedQuiz,
+    // Layout-first: a cheap per-page classifier runs before extraction so a
+    // missed table/figure is reconciled. Advisory; opt out with layout:false.
+    callLayout: importOptions.layout === false ? undefined : analyzePaperLayout,
     onProgress,
     diagramHandling: importOptions.diagramHandling,
   })
@@ -1046,6 +1050,9 @@ async function importImageQuiz({ files, importOptions }) {
     subjectHint: metadata.subject || '',
     gradeHint: metadata.grade || '',
     callVision: structureScannedQuiz,
+    // Layout-first: a cheap per-page classifier runs before extraction so a
+    // missed table/figure is reconciled. Advisory; opt out with layout:false.
+    callLayout: importOptions.layout === false ? undefined : analyzePaperLayout,
     onProgress,
     diagramHandling: importOptions.diagramHandling,
   })

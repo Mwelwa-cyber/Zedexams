@@ -230,6 +230,7 @@
     "test:import-review-model": "node src/components/teacher/scan/importReviewModel.test.js",
     "test:object-confidence": "node src/utils/objectConfidence.test.js",
     "test:question-typing": "node functions/teacherTools/testPaperImport/questionTyping.test.js",
+    "test:layout-pass": "node functions/teacherTools/testPaperImport/layoutPass.test.js",
     "test:grade7-ss-covers": "node scripts/test-grade7-ss-covers.mjs",
     "test:grade7-sci-covers": "node scripts/test-grade7-sci-covers.mjs",
     "test:quiz-editor-delete-helpers": "node scripts/test-quiz-editor-delete-helpers.mjs",

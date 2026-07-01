@@ -119,6 +119,12 @@ const {
 const {
   createRebuildTableFromImage,
 } = require("./teacherTools/testPaperImport/rebuildTable");
+// Test Paper Studio — layout-first pass: a cheap (Haiku) classifier that
+// inventories every object on a page (question/table/pictograph/diagram/…)
+// before the expensive structured extraction, driving two-tier routing.
+const {
+  createAnalyzePaperLayout,
+} = require("./teacherTools/testPaperImport/layoutPass");
 // Visual Studio — on-demand AI safety/accuracy check for generated images.
 const {createCheckVisualSafety} = require("./visualSafety");
 // Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
@@ -2298,6 +2304,11 @@ exports.redrawTestPaperDiagram = createRedrawTestPaperDiagram(openaiApiKey);
 // Test Paper Studio — reconstruct a photographed table/pictograph as an editable
 // typed table (Claude vision → tableData), the "Rebuild as table" option.
 exports.rebuildTableFromImage = createRebuildTableFromImage(anthropicApiKey);
+
+// Test Paper Studio — cheap layout-first classifier (Haiku). Advisory pass that
+// inventories a page's objects before extraction so the client can route
+// complex objects to reconstruction and reconcile against what was extracted.
+exports.analyzePaperLayout = createAnalyzePaperLayout(anthropicApiKey);
 
 exports.checkVisualSafety = createCheckVisualSafety(anthropicApiKey);
 
