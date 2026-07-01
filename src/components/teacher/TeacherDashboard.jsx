@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useTeacherUsage } from '../../hooks/useTeacherUsage'
 import {
   listMyGenerations,
+  summarizeGenerations,
   titleForGeneration,
   formatDate,
 } from '../../utils/teacherLibraryService'
@@ -202,6 +203,24 @@ const STUDIO_GROUPS = [
         to: '/teacher/generate/flashcards',
       },
       {
+        img: iconLessonPlan,
+        tone: 'cyan',
+        badge: null,
+        libraryKey: 'full-lesson',
+        title: 'Full Lesson Studio',
+        tagline: 'One complete, ready-to-deliver lesson — content, examples, practice and homework.',
+        to: '/teacher/generate/full-lesson',
+      },
+      {
+        img: iconWorksheet,
+        tone: 'sky',
+        badge: null,
+        libraryKey: 'homework',
+        title: 'Homework Studio',
+        tagline: 'Short take-home practice with an answer key and a parent note.',
+        to: '/teacher/generate/homework',
+      },
+      {
         img: iconVisualStudio,
         tone: 'orange',
         badge: 'NEW',
@@ -256,7 +275,7 @@ const STUDIO_GROUPS = [
         img: iconSbaStudio,
         tone: 'sky',
         badge: null,
-        libraryKey: 'sba',
+        libraryKey: 'sba-task',
         title: 'SBA Studio',
         tagline: 'ECZ School Based Assessment — create tasks, record marks, track coverage.',
         to: '/teacher/sba',
@@ -327,6 +346,8 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/notes',
   '/teacher/generate/worksheet',
   '/teacher/generate/flashcards',
+  '/teacher/generate/full-lesson',
+  '/teacher/generate/homework',
   '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
   '/teacher/test-papers',
@@ -660,15 +681,9 @@ export default function TeacherDashboard() {
     return () => { cancelled = true }
   }, [currentUser, getMyAssessments])
 
-  const librarySummary = useMemo(() => {
-    const byTool = generations.reduce((acc, g) => {
-      const key = (g.tool || '').replace(/_/g, '-')
-      if (!key) return acc
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {})
-    return { total: generations.length, byTool }
-  }, [generations])
+  // byTool keys stay snake_cased (the Firestore tool ids) — StudioCard
+  // normalizes its dash-cased libraryKey before looking up.
+  const librarySummary = useMemo(() => summarizeGenerations(generations), [generations])
 
   // One normalised list of everything the teacher has made — the single input
   // the intelligence helpers (greeting message, insights, stats, celebrations,

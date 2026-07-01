@@ -445,27 +445,35 @@ export async function recordExport(id, format) {
 }
 
 /**
- * Summary stats for the current user's library — used by the dashboard.
+ * Summary stats for a list of generation rows — used by the dashboard.
+ * byTool is keyed by the snake_cased Firestore tool id ('lesson_plan'),
+ * which is what StudioCard's `libraryKey.replace(/-/g, '_')` lookup expects.
  */
-export async function getLibrarySummary(uid) {
-  if (!uid) return {total: 0, byTool: {}}
-  const rows = await listMyGenerations({uid})
+export function summarizeGenerations(rows = []) {
   const byTool = rows.reduce((acc, r) => {
+    if (!r?.tool) return acc
     acc[r.tool] = (acc[r.tool] || 0) + 1
     return acc
   }, {})
   return {total: rows.length, byTool}
 }
 
+/**
+ * Summary stats for the current user's library — used by the dashboard.
+ */
+export async function getLibrarySummary(uid) {
+  if (!uid) return {total: 0, byTool: {}}
+  const rows = await listMyGenerations({uid})
+  return summarizeGenerations(rows)
+}
+
 /* ── UI constants ─────────────────────────────────────────── */
 
 export const TOOL_META = {
-  // The Full Lesson generator was retired; the route is intentionally omitted
-  // so the library still renders legacy full_lesson items but cannot regenerate
-  // them (onRegenerate guards on meta.route).
   full_lesson: {
     label: 'Full Lesson',
     icon: '✨',
+    route: '/teacher/generate/full-lesson',
     colour: 'cyan',
   },
   lesson_plan: {
@@ -528,6 +536,12 @@ export const TOOL_META = {
     route: '/teacher/generate/notes',
     colour: 'sky',
   },
+  homework: {
+    label: 'Homework',
+    icon: '🏠',
+    route: '/teacher/generate/homework',
+    colour: 'sky',
+  },
   lesson_activities: {
     label: 'Exercise & Homework',
     icon: '🧩',
@@ -566,6 +580,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
   {value: 'notes', label: 'Teacher notes'},
+  {value: 'homework', label: 'Homework'},
   {value: 'lesson_activities', label: 'Exercises & homework'},
 ]
 
@@ -645,6 +660,12 @@ export function titleForGeneration(gen) {
     const sub = out?.header?.subtopic || gen.inputs?.subtopic || ''
     const head = [topic, sub].filter(Boolean).join(' — ')
     return head ? `Lesson: ${head}` : 'Full lesson'
+  }
+  if (gen.tool === 'homework') {
+    if (out?.header?.title) return out.header.title
+    const topic = out?.header?.topic || gen.inputs?.topic || ''
+    const grade = out?.header?.grade || gen.inputs?.grade || ''
+    return [topic ? `Homework — ${topic}` : 'Homework', grade].filter(Boolean).join(' · ')
   }
   if (gen.tool === 'lesson_activities') {
     // Output is { exercise, homework }; no top-level header — derive from inputs

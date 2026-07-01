@@ -30,7 +30,9 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { LIBRARY_TYPES } from '../../../config/library'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
+import { useIsMounted } from '../../../hooks/useIsMounted'
 import StudioPageHeader from '../StudioPageHeader'
+import StudioOutputBoundary from '../StudioOutputBoundary'
 import SeoHelmet from '../../seo/SeoHelmet'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import SbaTaskView from '../views/SbaTaskView'
@@ -61,8 +63,11 @@ export default function SbaTaskStudio() {
   })
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [errorDetail, setErrorDetail] = useState('')
+  const isMounted = useIsMounted()
   const [task, setTask] = useState(null)
   const [generationId, setGenerationId] = useState(null)
+  const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(true)
   // School name on the task banner — pre-filled from the teacher's registration
@@ -116,17 +121,24 @@ export default function SbaTaskStudio() {
     if (!ensureCanGenerate('sba_task')) return
     setStatus('generating')
     setErrorMessage('')
+    setErrorDetail('')
     setWarning('')
     setTask(null)
     setGenerationId(null)
     const res = await generateSbaTask(form)
+    if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
+      setErrorDetail(
+        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
+          .filter(Boolean).join(' · '),
+      )
       return
     }
     setTask(res.data.task)
     setGenerationId(res.data.generationId)
+    setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
     if (res.data.generationId) {
@@ -286,18 +298,26 @@ export default function SbaTaskStudio() {
               className="studio-btn-primary w-full disabled:opacity-50">
               {status === 'generating' ? 'Generating…' : '✨ Generate SBA task'}
             </button>
-            {status === 'error' && (
-              <p className="text-sm text-rose-700 font-bold">{errorMessage}</p>
+            {usage && (
+              <div className="text-xs theme-text-secondary text-center">
+                {usage.used}/{usage.limit} SBA tasks used on the{' '}
+                <span className="font-bold capitalize">{usage.plan}</span> plan this month
+              </div>
             )}
           </form>
 
           {/* ── Result ── */}
+          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           <div className="lg:col-span-3 studio-card p-5">
             {status === 'generating' && (
               <AiGenerationProgress variant="card" preset="assessment" running title="Setting your SBA task and its marking scheme…" />
             )}
 
-            {status !== 'generating' && !task && (
+            {status === 'error' && (
+              <ErrorState message={errorMessage} detail={errorDetail} onDismiss={() => setStatus('idle')} />
+            )}
+
+            {status !== 'generating' && status !== 'error' && !task && (
               <div className="rounded-xl border border-dashed theme-border bg-white/60 py-16 text-center text-sm" style={{ color: '#566f76' }}>
                 Choose a subject and task type, then generate. Your ECZ-compliant SBA task appears here.
               </div>
@@ -347,8 +367,27 @@ export default function SbaTaskStudio() {
               </div>
             )}
           </div>
+          </StudioOutputBoundary>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ErrorState({ message, detail, onDismiss }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+      <div className="text-5xl mb-3">⚠️</div>
+      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
+      <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
+      {detail && (
+        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
+          {detail}
+        </p>
+      )}
+      <button onClick={onDismiss} className="studio-btn-ghost">
+        Try again
+      </button>
     </div>
   )
 }

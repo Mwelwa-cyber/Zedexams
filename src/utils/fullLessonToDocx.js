@@ -5,6 +5,7 @@
 
 import { saveBlob } from './saveBlob.js'
 import { sanitizeXmlText } from './xmlText.js'
+import { attributionSection } from './docxAttribution.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -116,7 +117,7 @@ function metadataTable(header) {
   })
 }
 
-export function buildFullLessonDocument(lesson) {
+export function buildFullLessonDocument(lesson, opts = {}) {
   const children = []
   const header = lesson.header || {}
 
@@ -228,12 +229,12 @@ export function buildFullLessonDocument(lesson) {
     styles: {
       default: { document: { run: { font: 'Calibri', size: 20 } } },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection(opts), children }],
   })
 }
 
-export async function downloadFullLessonDocx(lesson, filename = 'lesson.docx') {
-  const doc = buildFullLessonDocument(lesson)
+export async function downloadFullLessonDocx(lesson, filename = 'lesson.docx', opts = {}) {
+  const doc = buildFullLessonDocument(lesson, opts)
   const blob = await Packer.toBlob(doc)
   await saveBlob(blob, filename)
 }

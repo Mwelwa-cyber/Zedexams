@@ -395,8 +395,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     })
     if (!res.ok) {
       // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
-      // paywall rather than dumping the raw quota error (the server marks this
-      // with details.reason === 'max-only'), matching ExamPaperGenerator.
+      // paywall rather than dumping the raw quota error (the server marks
+      // this with details.reason === 'max-only').
       if (res.details?.reason === 'max-only') {
         paywall.show('max-feature', { feature: 'Test papers' })
         setStatus('idle')
