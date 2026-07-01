@@ -533,6 +533,13 @@ export default function PastPaperStudio() {
       const res = await importPastPaperQuestionsCallable({ paperId, quizId })
       const written = Number(res?.data?.questionsWritten || 0)
       setImportReport(res?.data?.report || null)
+      // The engine gate blocked the write (missing questions / answer key / no
+      // questions). Nothing was saved and the existing quiz is untouched — do
+      // NOT advance as if the import succeeded; surface the blockers instead.
+      if (res?.data?.gated) {
+        setError(res?.data?.warning || 'Import paused — fix the problems in the report and re-run.')
+        return
+      }
       if (!written) {
         setError(res?.data?.warning || 'The AI could not extract any questions from this paper.')
         return
@@ -1164,12 +1171,33 @@ function ImportReportCard({ report }) {
   )
   const byType = report.byType && typeof report.byType === 'object' ? report.byType : {}
   const typeEntries = Object.entries(byType).filter(([, n]) => n > 0)
+  const blockers = Array.isArray(report.blockers) ? report.blockers : []
+  const validationWarnings = Array.isArray(report.validationWarnings) ? report.validationWarnings : []
+  const missing = report.numbering && Array.isArray(report.numbering.missing) ? report.numbering.missing : []
   return (
     <section className="theme-card border theme-border rounded-radius-md p-5 space-y-4">
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <p className="theme-accent-text font-black text-xs uppercase tracking-widest">Import report</p>
         <p className={`text-sm font-black ${confTone}`}>Confidence {pct}%</p>
       </div>
+
+      {report.gated && (
+        <div className="border-l-4 border-rose-600 bg-rose-50 text-rose-900 text-sm rounded-r-lg p-3">
+          <p className="font-black mb-1">⛔ Import paused — nothing was saved</p>
+          <p className="text-xs mb-2">
+            The paper has structural problems that must be fixed before it can
+            reach the Quiz Editor. Your existing quiz was left untouched.
+          </p>
+          <ul className="list-disc ml-4 space-y-0.5 font-bold">
+            {blockers.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+          {missing.length > 0 && (
+            <p className="mt-2 text-xs font-black">
+              Missing questions: {missing.slice(0, 30).join(', ')}{missing.length > 30 ? ', …' : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {stat('Pages processed', report.pagesProcessed ?? '—')}
@@ -1204,14 +1232,23 @@ function ImportReportCard({ report }) {
         </div>
       )}
 
-      {Array.isArray(report.issues) && report.issues.length > 0 && (
-        <div className="border-l-4 border-amber-500 bg-amber-50 text-amber-900 text-xs rounded-r-lg p-3">
-          <p className="font-black mb-1">Review before publishing</p>
-          <ul className="list-disc ml-4 space-y-0.5">
-            {report.issues.map((c, i) => <li key={i}>{c}</li>)}
-          </ul>
-        </div>
-      )}
+      {(() => {
+        // Merge the deterministic report issues with the engine's non-blocking
+        // validation warnings (dedup so a shared message isn't shown twice).
+        const items = Array.from(new Set([
+          ...(Array.isArray(report.issues) ? report.issues : []),
+          ...validationWarnings,
+        ]))
+        if (!items.length) return null
+        return (
+          <div className="border-l-4 border-amber-500 bg-amber-50 text-amber-900 text-xs rounded-r-lg p-3">
+            <p className="font-black mb-1">Review before publishing</p>
+            <ul className="list-disc ml-4 space-y-0.5">
+              {items.map((c, i) => <li key={i}>{c}</li>)}
+            </ul>
+          </div>
+        )
+      })()}
     </section>
   )
 }

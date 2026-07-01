@@ -111,6 +111,19 @@ service cloud.firestore {
         && (!('requiresReview' in incoming()) || incoming().requiresReview is bool)
         && (!('reviewNotes' in incoming()) || (incoming().reviewNotes is list && incoming().reviewNotes.size() <= 50))
         && (!('importWarnings' in incoming()) || (incoming().importWarnings is list && incoming().importWarnings.size() <= 50))
+        // CBC curriculum tagging + import provenance (mirrors the 6 new fields
+        // in src/editor/schema/question.js). Bounds match the Zod caps so a
+        // draft that saved fine can never fail on publish with an opaque
+        // "Missing or insufficient permissions" (the failure mode the marks-cap
+        // lift documented). Strings may be absent on legacy/hand-authored docs.
+        && (!('subtopic' in incoming()) || (incoming().subtopic is string && incoming().subtopic.size() <= 200))
+        && (!('competency' in incoming()) || (incoming().competency is string && incoming().competency.size() <= 200))
+        && (!('specificOutcome' in incoming()) || (incoming().specificOutcome is string && incoming().specificOutcome.size() <= 500))
+        && (!('curriculum' in incoming()) || (incoming().curriculum is string && incoming().curriculum.size() <= 100))
+        // 0..1 importer confidence, or null when not set (hand-authored).
+        && (!('aiConfidence' in incoming()) || incoming().aiConfidence == null || (incoming().aiConfidence is number && incoming().aiConfidence >= 0 && incoming().aiConfidence <= 1))
+        // Per-question validation rollup — ok | warning | error.
+        && (!('validationStatus' in incoming()) || (incoming().validationStatus is string && incoming().validationStatus in ['ok', 'warning', 'error']))
         // PRISCA mock-paper format: optional MCQ subtype + Part membership.
         && (!('subtype' in incoming()) || _validQuestionSubtype(incoming().subtype))
         && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64))

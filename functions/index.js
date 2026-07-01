@@ -1775,8 +1775,9 @@ exports.structureImportedQuiz = onCall(
             "[[vmath op=- lines=954751,362948 answer=]] (op = + - * /, lines are",
             "the operands top-to-bottom); and any table as a GitHub-style",
             "Markdown table (header row, |---| separator, then data rows).",
-            "Do NOT invent questions or answers. Return only the JSON object",
-            "described below — no markdown fences, no preamble.",
+            "Do NOT invent questions or answers. If any text is unreadable,",
+            "put the literal token [UNCLEAR] in its place — never guess. Return",
+            "only the JSON object described below — no markdown fences, no preamble.",
           ].join(" "),
           userPrompt: [
             fileName ? `File name: ${fileName}` : "",

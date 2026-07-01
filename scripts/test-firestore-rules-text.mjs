@@ -90,6 +90,23 @@ test('hotspot correctRegion is shape + bounds checked', () => {
   assertContains('incoming().correctRegion.radius <= 0.5', 'correctRegion.radius upper bound missing')
 })
 
+test('CBC tagging + import provenance fields are gated (mirrors question.js)', () => {
+  // These 6 fields were added to the .strict() Zod schema; the rule must
+  // mirror them or a draft saves but publish fails with an opaque
+  // permission error (the marks-cap failure mode).
+  assertContains("'subtopic' in incoming()", 'subtopic not gated in validQuestionFields')
+  assertContains('incoming().subtopic.size() <= 200', 'subtopic size cap missing')
+  assertContains("'competency' in incoming()", 'competency not gated in validQuestionFields')
+  assertContains("'specificOutcome' in incoming()", 'specificOutcome not gated in validQuestionFields')
+  assertContains('incoming().specificOutcome.size() <= 500', 'specificOutcome size cap missing')
+  assertContains("'curriculum' in incoming()", 'curriculum not gated in validQuestionFields')
+  assertContains("'aiConfidence' in incoming()", 'aiConfidence not gated in validQuestionFields')
+  assertContains('incoming().aiConfidence >= 0', 'aiConfidence lower bound missing')
+  assertContains('incoming().aiConfidence <= 1', 'aiConfidence upper bound missing')
+  assertContains("'validationStatus' in incoming()", 'validationStatus not gated in validQuestionFields')
+  assertContains("incoming().validationStatus in ['ok', 'warning', 'error']", 'validationStatus enum missing')
+})
+
 // ── A few defensive invariants worth pinning ────────────────────
 
 console.log('\nstructural invariants')
