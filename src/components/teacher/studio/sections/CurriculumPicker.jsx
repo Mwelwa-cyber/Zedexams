@@ -60,7 +60,7 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
             {title}
           </span>
           {recommended && (
-            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+            <span className="inline-flex items-center rounded-full border border-[#0F1B2D] bg-[#FF7A1A] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white">
               Recommended
             </span>
           )}
@@ -78,8 +78,8 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
 export function CurriculumPicker({ curriculumMode, onSelect }) {
   return (
     <div className="sticky top-0 z-10 border-b border-[#e5ddd0] bg-[#f5efe1]/95 px-4 pb-3.5 pt-3.5 backdrop-blur">
-      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-[#a39d8e]">
-        Curriculum
+      <p className="mb-2.5">
+        <span className="lps-eyebrow">Curriculum</span>
       </p>
 
       <div role="radiogroup" aria-label="Curriculum" className="flex flex-col gap-2.5">

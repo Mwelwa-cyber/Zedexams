@@ -47,20 +47,21 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
 
   return (
     <div
-      className="w-full md:w-[400px] md:min-w-[340px] md:max-w-[440px] flex flex-col md:overflow-y-auto bg-[#faf7f2] border-b border-[#e5ddd0] md:border-b-0"
+      className="w-full md:w-[400px] md:min-w-[340px] md:max-w-[440px] flex flex-col md:overflow-y-auto bg-[#F5EFE1] border-b border-[#e5ddd0] md:border-b-0"
     >
       {/* ── Compact studio header ── */}
       <div className="px-4 pt-4 pb-3">
+        <span className="lps-eyebrow mb-1.5">Teacher Studio</span>
         <div className="flex items-center gap-2.5">
           <span
-            className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-2xl text-white lps-brand-gradient lps-soft-shadow"
+            className="lps-tile h-10 w-10 flex-shrink-0 rounded-[12px] text-white lps-brand-gradient"
             aria-hidden="true"
           >
             <Sparkles size={18} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-[15px] font-bold leading-tight text-[#2d2519]">Lesson Plan Studio</h1>
-            <p className="text-[11.5px] leading-tight text-[#8a7d6b]">
+            <h1 className="font-display text-[17px] font-extrabold leading-tight tracking-tight text-[#0F1B2D]">Lesson Plan Studio</h1>
+            <p className="text-[11.5px] font-semibold leading-tight text-[#4A5A6E]">
               Create smart lesson plans in minutes.
             </p>
           </div>
@@ -69,7 +70,7 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
 
       {/* ── "This week's lesson" auto-fill banner ── */}
       {planContext && (planContext.topic || planContext.subjectLabel) && (
-        <div className="mx-4 mb-2 flex items-start gap-2 rounded-xl border border-indigo-100 bg-gradient-to-br from-blue-50 to-indigo-50/60 px-3 py-2 lps-soft-shadow lps-section-enter">
+        <div className="mx-4 mb-2 flex items-start gap-2 rounded-[14px] bg-[#FFF4E8] px-3 py-2 lps-soft-shadow lps-section-enter">
           <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
           <div className="min-w-0 flex-1">
             <p className="text-[11.5px] font-semibold text-[#3d3529]">This week&rsquo;s lesson — filled in for you</p>
@@ -207,21 +208,19 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
       </div>
 
       {/* ── Generate Button — sticky at bottom ── */}
-      <div className="sticky bottom-0 z-20 border-t border-[#e5ddd0] bg-[#faf7f2]/95 p-4 backdrop-blur">
+      <div className="sticky bottom-0 z-20 border-t border-[#e5ddd0] bg-[#F5EFE1]/95 p-4 backdrop-blur">
         <button
           type="button"
           onClick={onGenerate}
           disabled={!isValid || isGenerating}
           className={[
-            'lps-lift w-full rounded-2xl py-3.5 text-[14px] font-semibold text-white transition-all',
-            !isValid || isGenerating
-              ? 'cursor-not-allowed bg-[#b9c2e8]'
-              : 'lps-brand-gradient lps-btn-ready hover:brightness-105 active:brightness-95',
+            'lps-btn-primary w-full rounded-2xl py-3.5 text-[14px]',
+            !isValid || isGenerating ? '' : 'lps-btn-ready',
           ].join(' ')}
         >
           {isGenerating ? (
             <span className="inline-flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80" />
               Generating…
             </span>
           ) : (

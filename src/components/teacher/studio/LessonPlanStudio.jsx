@@ -1106,13 +1106,13 @@ export default function LessonPlanStudio() {
         }
       />
       {kit && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e8e0d5] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(60,53,41,0.25)] backdrop-blur sm:px-5">
+        <div className="lps-game fixed inset-x-0 bottom-0 z-50 border-t-2 border-[#0F1B2D] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(15,27,45,0.35)] backdrop-blur sm:px-5">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="hidden shrink-0 sm:block">
-              <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#3d3529]">
+              <p className="flex items-center gap-1.5 text-[12px] font-extrabold text-[#0F1B2D]">
                 <span aria-hidden="true">✨</span> Teaching Kit
               </p>
-              <p className="text-[11px] text-[#8a7d6b]">Aligned to this lesson</p>
+              <p className="text-[11px] font-semibold text-[#4A5A6E]">Aligned to this lesson</p>
             </div>
             <div className="flex flex-1 gap-2 overflow-x-auto">
               {KIT_TOOLS.map(({ id, label, icon }) => {
@@ -1123,7 +1123,7 @@ export default function LessonPlanStudio() {
                     type="button"
                     onClick={() => openKitTool(id)}
                     disabled={busy}
-                    className="lps-lift inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#e0d7c8] bg-white px-3 py-2 text-[12px] font-semibold text-[#3d3529] transition-colors hover:border-[#cfc3ae] hover:bg-[#f9f5ef] disabled:opacity-60"
+                    className="lps-btn-ghost shrink-0 px-3 py-2 text-[12px]"
                   >
                     <span aria-hidden="true">{icon}</span>
                     {busy ? 'Saving…' : label}

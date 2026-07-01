@@ -1,34 +1,57 @@
 /*
- * lessonStudio.css — premium polish layer for the Lesson Plan Studio.
+ * lessonStudio.css — the /games "sticker" theme for the Lesson Plan Studio.
  *
- * Purely presentational: soft shadows, selected-card glow, gentle section
- * enter motion, and a "ready" pulse on the Generate button. Imported once from
- * studio/LessonPlanStudio.jsx. Class names are `lps-` prefixed so they never
- * collide with the rest of the app, and every animation is disabled under
- * `prefers-reduced-motion` so the studio stays calm for motion-sensitive users.
+ * The studio wears the same look as the games hub ("Pick your quest"): cream
+ * parchment background, white cards with a 2px navy border and a hard offset
+ * shadow, orange (#FF7A1A) primary actions, uppercase eyebrows with an orange
+ * dash, and Outfit display headings. Imported once from
+ * studio/LessonPlanStudio.jsx.
  *
- * No layout, structure, or behaviour lives here — it only makes the existing
- * studio look better.
+ * Two layers live here:
+ *   1. The `lps-*` helper classes the studio JSX already shares
+ *      (lps-soft-shadow, lps-brand-gradient, lps-card-glow, …) — reskinned to
+ *      the sticker look so every call site repaints without editing each
+ *      section file.
+ *   2. `.lps-game`-scoped remaps of the blue/indigo accent utilities the
+ *      section components still carry (border-blue-500, bg-blue-50,
+ *      bg-indigo-100, …). Several Vitest specs assert on those CLASS NAMES as
+ *      the selected-state contract, so the names stay in the JSX and the skin
+ *      repaints them to orange/navy here. If you redesign a section, prefer
+ *      updating the JSX + spec together and deleting its remap.
+ *
+ * Purely presentational — no layout or behaviour. Every animation is disabled
+ * under prefers-reduced-motion.
  */
 
-/* Layered soft shadow used on cards and the document frame. */
+/* ── Sticker card surfaces ─────────────────────────────────────────────────
+ * lps-soft-shadow marks every card-like surface in the studio (section
+ * bodies, banners, the empty/error states). Sticker skin: white, 2px navy
+ * border, hard 2px offset shadow — mirrors .zx-card from /games. */
 .lps-soft-shadow {
-  box-shadow:
-    0 1px 2px rgba(60, 53, 41, 0.04),
-    0 6px 16px -8px rgba(60, 53, 41, 0.12);
+  border: 2px solid #0f1b2d;
+  box-shadow: 0 2px 0 #0f1b2d;
+}
+/* The frosted card fills read muddy on parchment — go solid white. */
+.lps-game .bg-white\/60,
+.lps-game .bg-white\/70 {
+  background-color: #ffffff;
 }
 
+/* The generated-document frame gets a slightly deeper drop. */
 .lps-soft-shadow-lg {
+  background-color: #ffffff;
+  border: 2px solid #0f1b2d;
   box-shadow:
-    0 1px 3px rgba(60, 53, 41, 0.05),
-    0 12px 32px -12px rgba(60, 53, 41, 0.18);
+    0 3px 0 #0f1b2d,
+    0 18px 34px -22px rgba(15, 27, 45, 0.4);
 }
 
-/* Soft brand glow on a selected card (blue → indigo). */
+/* Selected card — navy border plus a soft orange halo. */
 .lps-card-glow {
+  border-color: #0f1b2d;
   box-shadow:
-    0 0 0 1px rgba(79, 70, 229, 0.45),
-    0 8px 22px -10px rgba(79, 70, 229, 0.45);
+    0 0 0 3px rgba(255, 122, 26, 0.28),
+    0 2px 0 #0f1b2d;
 }
 
 /* Gentle fade + rise when a collapsible section body appears. */
@@ -47,19 +70,31 @@
   animation: lpsSectionEnter 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Brand gradient used by the primary Generate button + accents. */
+/* ── Primary accent ────────────────────────────────────────────────────────
+ * Historically a blue→violet gradient; now the flat games orange with the
+ * navy sticker border. Used on the Generate + Save buttons, icon tiles and
+ * the duplicate-modal CTA. Declared AFTER lps-soft-shadow so an element
+ * carrying both (e.g. the modal CTA) stays orange. */
 .lps-brand-gradient {
-  background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%);
+  background-image: none;
+  background-color: #ff7a1a;
+  border: 2px solid #0f1b2d;
+  box-shadow: 0 2px 0 #0f1b2d;
 }
 
-/* Soft, slow pulse on the Generate button once the plan is ready to create. */
+/* Soft, slow pulse on the Generate button once the plan is ready to create —
+ * keeps the hard sticker shadow and breathes an orange glow around it. */
 @keyframes lpsReadyPulse {
   0%,
   100% {
-    box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.55);
+    box-shadow:
+      0 3px 0 #0f1b2d,
+      0 0 0 0 rgba(255, 122, 26, 0);
   }
   50% {
-    box-shadow: 0 10px 28px -6px rgba(124, 58, 237, 0.75);
+    box-shadow:
+      0 3px 0 #0f1b2d,
+      0 0 20px 2px rgba(255, 122, 26, 0.45);
   }
 }
 
@@ -67,26 +102,221 @@
   animation: lpsReadyPulse 2.6s ease-in-out infinite;
 }
 
-/* Subtle lift on hover for interactive cards / primary buttons. */
+/* Sticker press on interactive cards / buttons — press DOWN like /games. */
 .lps-lift {
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
+    transform 120ms ease,
+    box-shadow 120ms ease;
   will-change: transform;
 }
 
 .lps-lift:hover {
-  transform: translateY(-1px);
+  transform: translateY(1px);
+}
+
+.lps-lift:active {
+  transform: translateY(2px);
+}
+
+/* ── Sticker vocabulary (new helpers) ─────────────────────────────────────── */
+
+/* Uppercase eyebrow with the orange dash — mirrors .zx-eyebrow. */
+.lps-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #053541;
+}
+.lps-eyebrow::before {
+  content: '';
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ff7a1a;
+}
+
+/* Orange sticker pill button (primary). */
+.lps-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ff7a1a;
+  color: #ffffff;
+  border: 2px solid #0f1b2d;
+  border-radius: 14px;
+  font-weight: 800;
+  box-shadow: 0 3px 0 #0f1b2d;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease,
+    background 0.15s ease;
+  will-change: transform;
+}
+.lps-btn-primary:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 #0f1b2d;
+  background: #f26f0d;
+}
+.lps-btn-primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 #0f1b2d;
+}
+.lps-btn-primary:disabled {
+  background: #efe9db;
+  color: #8b8271;
+  border-color: #c9bfa9;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* White sticker button (secondary / toolbar). */
+.lps-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #0f1b2d;
+  border: 2px solid #0f1b2d;
+  border-radius: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 0 #0f1b2d;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease,
+    background 0.15s ease;
+  will-change: transform;
+}
+.lps-btn-ghost:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #0f1b2d;
+  background: #fffaf0;
+}
+.lps-btn-ghost:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #0f1b2d;
+}
+.lps-btn-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Pastel icon tile with the navy border — mirrors the hub's subject tiles. */
+.lps-tile {
+  display: grid;
+  place-items: center;
+  background: #ffedd5;
+  color: #c2410c;
+  border: 2px solid #0f1b2d;
+  border-radius: 14px;
+  box-shadow: 0 2px 0 #0f1b2d;
+}
+
+/* ── .lps-game scope — parchment shell + accent remaps ───────────────────── */
+
+/* .lps-game itself sets no background — each surface (shell, kit bar, modal
+ * overlay) declares its own so fixed overlays don't inherit parchment. */
+
+/* Form controls: chunky navy sticker inputs across every section. Element
+ * selectors so the ~10 section forms repaint without touching each file.
+ * Checkboxes/radios/ranges keep their native/utility styling. */
+.lps-game select,
+.lps-game textarea,
+.lps-game input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']) {
+  border: 2px solid #0f1b2d;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+.lps-game select:focus,
+.lps-game textarea:focus,
+.lps-game input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus {
+  outline: none;
+  border-color: #0f1b2d;
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.28);
+}
+
+/* Blue/indigo accent → games orange/navy. The class names are load-bearing
+ * (spec-asserted selected-state contracts) so they are repainted, not renamed. */
+.lps-game .border-blue-200,
+.lps-game .border-blue-300,
+.lps-game .border-blue-400,
+.lps-game .border-blue-500,
+.lps-game .border-indigo-100 {
+  border-color: #0f1b2d;
+  border-width: 2px;
+}
+.lps-game .bg-blue-50,
+.lps-game .bg-indigo-50 {
+  background-color: #fff4e8;
+}
+.lps-game .bg-blue-50\/60 {
+  background-color: rgba(255, 244, 232, 0.75);
+}
+.lps-game .bg-blue-100,
+.lps-game .bg-indigo-100 {
+  background-color: #ffedd5;
+}
+.lps-game .bg-blue-500,
+.lps-game .bg-blue-600,
+.lps-game .bg-indigo-600 {
+  background-color: #ff7a1a;
+}
+.lps-game .bg-blue-700,
+.lps-game .bg-indigo-700,
+.lps-game .hover\:bg-blue-700:hover,
+.lps-game .hover\:bg-indigo-700:hover {
+  background-color: #e86a0f;
+}
+.lps-game .text-blue-500,
+.lps-game .text-blue-600,
+.lps-game .text-blue-700,
+.lps-game .text-indigo-600,
+.lps-game .text-indigo-700 {
+  color: #c2410c;
+}
+.lps-game .text-blue-900,
+.lps-game .text-indigo-800 {
+  color: #7c2d12;
+}
+/* Focus rings (any ring-blue-* variant) glow orange. */
+.lps-game [class*='ring-blue'] {
+  --tw-ring-color: rgba(255, 122, 26, 0.4);
+}
+
+/* Warm-beige card/button borders → the navy sticker border. The parchment
+ * SEPARATOR tone (#e5ddd0, used on section dividers + the topbar) stays a
+ * hairline and just deepens slightly to match the new background. */
+.lps-game .border-\[\#e0d7c8\],
+.lps-game .border-\[\#d9cfbe\],
+.lps-game .border-\[\#d9cfc3\],
+.lps-game .border-\[\#ece4d6\] {
+  border-color: #0f1b2d;
+  border-width: 2px;
+}
+.lps-game .border-\[\#e5ddd0\] {
+  border-color: #ddd3be;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lps-section-enter,
   .lps-btn-ready,
-  .lps-lift {
+  .lps-lift,
+  .lps-btn-primary,
+  .lps-btn-ghost {
     animation: none !important;
     transition: none !important;
   }
-  .lps-lift:hover {
+  .lps-lift:hover,
+  .lps-lift:active,
+  .lps-btn-primary:hover:not(:disabled),
+  .lps-btn-primary:active:not(:disabled),
+  .lps-btn-ghost:hover:not(:disabled),
+  .lps-btn-ghost:active:not(:disabled) {
     transform: none !important;
   }
 }

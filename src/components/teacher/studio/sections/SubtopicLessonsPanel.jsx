@@ -132,7 +132,7 @@ export function SubtopicLessonsPanel({
 
           {/* Smart recommendation (requirement #5) */}
           {recommendation.text && (
-            <div className="flex items-start gap-2 rounded-xl border border-indigo-100 bg-gradient-to-br from-blue-50 to-indigo-50/60 px-3 py-2">
+            <div className="flex items-start gap-2 rounded-xl border-2 border-[#0F1B2D] bg-[#FFF4E8] px-3 py-2">
               <span className="mt-0.5 text-[13px] leading-none" aria-hidden="true">💡</span>
               <p className="text-[11.5px] font-medium text-[#3d3529]">{recommendation.text}</p>
             </div>
