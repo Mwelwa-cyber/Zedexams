@@ -239,6 +239,13 @@ export default function SyllabiLibrary() {
   const [currentSubject, setCurrentSubject] = useState(null)
   const [currentSheet, setCurrentSheet] = useState(null)
   const [rowFilter, setRowFilter] = useState('')
+  // Reading-first chrome. `subjectPanelOpen` is the slide-out subject list —
+  // opened from the phone hamburger or the tablet/desktop icon rail (in
+  // subject view the sidebar auto-collapses to a rail so the table gets the
+  // width). `reading` is Full Screen Reading Mode: the studio takes over the
+  // viewport and every non-essential control is hidden.
+  const [subjectPanelOpen, setSubjectPanelOpen] = useState(false)
+  const [reading, setReading] = useState(false)
 
   const rawData = era === 'legacy' ? legacyData : currentData
   const loading = era === 'legacy' ? loadingLegacy : loadingCurrent
@@ -332,6 +339,7 @@ export default function SyllabiLibrary() {
     setCurrentSheet(null)
     setQuery('')
     setRowFilter('')
+    setReading(false)
   }
 
   function showSubject(subj) {
@@ -340,6 +348,7 @@ export default function SyllabiLibrary() {
     setCurrentSheet(sheetNames[0] || null)
     setRowFilter('')
     setQuery('')
+    setSubjectPanelOpen(false)
   }
 
   // Switching eras invalidates the current selection — the subject key for
@@ -354,7 +363,30 @@ export default function SyllabiLibrary() {
     setDebouncedQuery('')
     setRowFilter('')
     setError('')
+    setReading(false)
+    setSubjectPanelOpen(false)
   }
+
+  // Escape backs out of the subject panel first, then reading mode.
+  useEffect(() => {
+    if (!reading && !subjectPanelOpen) return undefined
+    function onKey(e) {
+      if (e.key !== 'Escape') return
+      if (subjectPanelOpen) setSubjectPanelOpen(false)
+      else setReading(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [reading, subjectPanelOpen])
+
+  // Reading mode owns the viewport (position: fixed), so freeze the page
+  // scroll behind it while it's up.
+  useEffect(() => {
+    if (!reading) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [reading])
 
   // ── Home + sidebar derived state ────────────────────────────────────────
   const grouped = useMemo(() => (rawData ? groupByCategory(rawData) : {}), [rawData])
@@ -396,7 +428,7 @@ export default function SyllabiLibrary() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const isLegacy = era === 'legacy'
-  const rootClass = `ss-root${isLegacy ? ' is-legacy' : ''}`
+  const rootClass = `ss-root${isLegacy ? ' is-legacy' : ''}${reading ? ' is-reading' : ''}`
 
   return (
     <section className={rootClass} data-view={view} data-era={era}>
@@ -404,6 +436,15 @@ export default function SyllabiLibrary() {
       <SyllabiStudioStyles />
 
       <div className="ss-header">
+        <button
+          type="button"
+          className="ss-menu-btn"
+          aria-label="Browse subjects"
+          onClick={() => setSubjectPanelOpen(true)}
+          disabled={!rawData}
+        >
+          ☰
+        </button>
         <div className="ss-logo-mark" aria-hidden>{isLegacy ? '📜' : '📘'}</div>
         <div className="ss-logo-text-wrap">
           <div className="ss-logo-text">Syllabi Studio</div>
@@ -448,12 +489,22 @@ export default function SyllabiLibrary() {
       </div>
 
       <div className="ss-layout">
+        {subjectPanelOpen && (
+          <div
+            className="ss-backdrop"
+            aria-hidden
+            onClick={() => setSubjectPanelOpen(false)}
+          />
+        )}
         <Sidebar
           data={rawData}
           grouped={grouped}
           currentSubject={currentSubject}
           onSelectSubject={showSubject}
           era={era}
+          panelOpen={subjectPanelOpen}
+          onOpenPanel={() => setSubjectPanelOpen(true)}
+          onClosePanel={() => setSubjectPanelOpen(false)}
         />
 
         <main className="ss-main">
@@ -489,6 +540,8 @@ export default function SyllabiLibrary() {
               onRowFilter={setRowFilter}
               onBack={showHome}
               era={era}
+              reading={reading}
+              onToggleReading={() => setReading(r => !r)}
             />
           )}
 
@@ -513,7 +566,12 @@ export default function SyllabiLibrary() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Sidebar({ data, grouped, currentSubject, onSelectSubject, era }) {
+// The sidebar renders in three modes, all CSS-driven off the root's
+// data-view + the is-open class:
+//   • full column (home/search on wide screens)
+//   • icon rail   (subject view ≥701px — auto-collapses so the table wins)
+//   • slide-out panel (phones via the ☰ button, or expanding the rail)
+function Sidebar({ data, grouped, currentSubject, onSelectSubject, era, panelOpen, onOpenPanel, onClosePanel }) {
   if (!data) {
     return (
       <nav className="ss-sidebar" aria-label="Subjects">
@@ -522,7 +580,27 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject, era }) {
     )
   }
   return (
-    <nav className="ss-sidebar" aria-label="Subjects">
+    <nav className={`ss-sidebar${panelOpen ? ' is-open' : ''}`} aria-label="Subjects">
+      <div className="ss-panel-head">
+        <span>Subjects</span>
+        <button
+          type="button"
+          className="ss-panel-close"
+          aria-label="Close subject list"
+          onClick={onClosePanel}
+        >
+          ✕
+        </button>
+      </div>
+      <button
+        type="button"
+        className="ss-rail-toggle"
+        aria-label="Show subject names"
+        title="Show subject names"
+        onClick={onOpenPanel}
+      >
+        »
+      </button>
       {catOrderForEra(era).map(cat => {
         const list = grouped[cat]
         if (!list || list.length === 0) return null
@@ -534,6 +612,7 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject, era }) {
                 key={subj}
                 type="button"
                 className={`ss-nav-item ${currentSubject === subj ? 'is-active' : ''}`}
+                title={meta.short}
                 onClick={() => onSelectSubject(subj)}
               >
                 <span className="ss-nav-icon" aria-hidden>{meta.icon}</span>
@@ -636,7 +715,30 @@ function StatCard({ value, label }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilter, onBack, era }) {
+// Width hints (percent) for the content columns after the always-grouped
+// first column (TOPIC) is hidden. Tuned to the reading priorities: sub-topic
+// ~25%, specific competences/outcomes ~45%, the rest (activities / expected
+// standard / skills / values) share the remaining ~30%. Applied via
+// <colgroup> with table-layout auto, so long content can still stretch a
+// column beyond its hint — the numbers steer, they don't clamp.
+const COLUMN_WIDTHS = {
+  1: [100],
+  2: [40, 60],
+  3: [25, 45, 30],
+  4: [22, 40, 23, 15],
+  5: [20, 34, 18, 14, 14],
+  6: [18, 30, 15, 13, 12, 12],
+}
+
+function columnWidths(totalColumns, showTopicCell) {
+  const n = Math.max(totalColumns - 1, 1)
+  const base = COLUMN_WIDTHS[n] || Array(n).fill(Math.round(100 / n))
+  // When a row filter is active the TOPIC column comes back — give it a
+  // slim 10% and scale the rest down proportionally.
+  return showTopicCell ? [10, ...base.map(w => w * 0.9)] : base
+}
+
+function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilter, onBack, era, reading, onToggleReading }) {
   const sheetNames = useMemo(() => Object.keys(meta.sheets), [meta])
   const activeSheetName = sheetNames.includes(currentSheet) ? currentSheet : sheetNames[0]
   const sheet = activeSheetName ? meta.sheets[activeSheetName] : null
@@ -690,6 +792,7 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
 
   const showTopicCell = Boolean(rowFilter.trim())
   const columnCount = sheet.columns.length
+  const widths = columnWidths(columnCount, showTopicCell)
 
   return (
     <div className="ss-detail">
@@ -710,19 +813,53 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
         </div>
       </section>
 
-      <div className="ss-tabs-bar" role="tablist" aria-label="Levels">
-        {sheetNames.map(name => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={name === activeSheetName}
-            className={`ss-tab-btn ${name === activeSheetName ? 'is-active' : ''}`}
-            onClick={() => onSelectSheet(name)}
-          >
-            {name}
+      {reading && (
+        <div className="ss-reading-bar">
+          <span className="ss-rb-icon" aria-hidden>{meta.icon}</span>
+          <div className="ss-rb-title">
+            <strong>{meta.short}</strong>
+            <span>{activeSheetName}{era === 'legacy' ? ' · 2013 Curriculum' : ''}</span>
+          </div>
+          <input
+            type="text"
+            className="ss-rb-filter"
+            placeholder="Filter rows…"
+            value={rowFilter}
+            onChange={e => onRowFilter(e.target.value)}
+          />
+          <span className="ss-rb-count">
+            {renderedRows.shown} row{renderedRows.shown !== 1 ? 's' : ''}
+          </span>
+          <button type="button" className="ss-rb-exit" onClick={onToggleReading}>
+            ✕ Exit full screen
           </button>
-        ))}
+        </div>
+      )}
+
+      <div className="ss-tabs-bar">
+        <div className="ss-tabs-scroll" role="tablist" aria-label="Levels">
+          {sheetNames.map(name => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={name === activeSheetName}
+              className={`ss-tab-btn ${name === activeSheetName ? 'is-active' : ''}`}
+              onClick={() => onSelectSheet(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="ss-fullscreen-btn"
+          onClick={onToggleReading}
+          title="Full screen reading mode"
+        >
+          <span aria-hidden>⛶</span>
+          <span className="ss-fs-label">Full screen</span>
+        </button>
       </div>
 
       <div className="ss-table-wrap">
@@ -740,13 +877,17 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
         </div>
         <div className="ss-tbl-container">
           <table className="ss-table">
+            <colgroup>
+              {widths.map((w, i) => (
+                <col key={i} style={{ width: `${w}%` }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
-                {sheet.columns.map((col, i) => (
-                  <th key={col} style={i === 0 && !showTopicCell ? { display: 'none' } : undefined}>
-                    {col}
-                  </th>
-                ))}
+                {sheet.columns.map((col, i) => {
+                  if (i === 0 && !showTopicCell) return null
+                  return <th key={col}>{col}</th>
+                })}
               </tr>
             </thead>
             <tbody>
@@ -917,6 +1058,21 @@ function SyllabiStudioStyles() {
 .ss-root .ss-search-box:focus { background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.5); }
 .ss-root .ss-search-box:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* Hamburger — opens the subject panel on screens where the sidebar column
+   is hidden. Shown via the responsive rules at the bottom. */
+.ss-root .ss-menu-btn {
+  display: none;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: white; font-size: 16px;
+  cursor: pointer; flex-shrink: 0;
+  font-family: inherit;
+}
+.ss-root .ss-menu-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
 /* ── LAYOUT (sidebar + main) ───────────────────────────────────────────── */
 .ss-root .ss-layout {
   display: flex;
@@ -976,6 +1132,88 @@ function SyllabiStudioStyles() {
   color: var(--ss-teal);
 }
 .ss-root .ss-nav-icon { font-size: 15px; flex-shrink: 0; }
+
+/* ── SIDEBAR MODES: icon rail + slide-out panel ───────────────────────── */
+/* Reading comes first: once a subject is open the sidebar auto-collapses
+   to a slim icon rail (≥701px) so the syllabus table takes ~85–90% of the
+   width. The » toggle or any hamburger opens the full panel as an overlay
+   — it never squeezes the table again. */
+.ss-root .ss-panel-head {
+  display: none;
+  align-items: center; justify-content: space-between;
+  padding: 14px 20px 8px;
+  font-size: 14px; font-weight: 800;
+  color: var(--ss-teal);
+}
+.ss-root .ss-panel-close {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ss-cream);
+  border: 1.5px solid var(--ss-cream2);
+  border-radius: 8px;
+  color: var(--ss-teal); font-size: 13px;
+  cursor: pointer; font-family: inherit;
+}
+.ss-root .ss-rail-toggle {
+  display: none;
+  width: 34px; height: 34px;
+  margin: 0 auto 6px;
+  align-items: center; justify-content: center;
+  background: var(--ss-white);
+  border: 1.5px solid var(--ss-cream2);
+  border-radius: 8px;
+  color: var(--ss-teal); font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.ss-root .ss-rail-toggle:hover { background: var(--ss-cream); }
+
+@media (min-width: 701px) {
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) {
+    display: flex;
+    width: 64px;
+    padding: 10px 0 18px;
+  }
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) .ss-rail-toggle { display: inline-flex; }
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) .ss-sb-label {
+    /* Category names collapse to their orange dash — a quiet group divider. */
+    font-size: 0;
+    justify-content: center;
+    padding: 10px 0 4px;
+  }
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) .ss-nav-item {
+    justify-content: center;
+    padding: 10px 4px;
+  }
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) .ss-nav-text { display: none; }
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) .ss-nav-icon { font-size: 18px; }
+  /* Tighter main padding in subject view — the table is the page. */
+  .ss-root[data-view="subject"] .ss-main { padding: 22px 24px; }
+}
+
+/* Slide-out panel — shared by the phone drawer and the expanded rail. */
+.ss-root .ss-sidebar.is-open {
+  display: flex;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: min(320px, 86vw);
+  max-height: none;
+  z-index: 80;
+  border-right: none;
+  box-shadow: 12px 0 40px rgba(15,23,42,0.28);
+  animation: ssSlideIn 0.22s ease;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
+}
+.ss-root .ss-sidebar.is-open .ss-panel-head { display: flex; }
+@keyframes ssSlideIn {
+  from { transform: translateX(-48px); opacity: 0.4; }
+  to   { transform: none; opacity: 1; }
+}
+.ss-root .ss-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.45);
+  z-index: 79;
+}
 
 /* ── MAIN ─────────────────────────────────────────────────────────────── */
 .ss-root .ss-main {
@@ -1166,11 +1404,34 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-dh-text p { font-size: 13px; opacity: 0.75; margin: 0; }
 
+/* Grade tabs stay pinned while the teacher scrolls the syllabus. The bar is
+   sticky against ss-main's scrollport on wide screens; on narrow screens the
+   page body scrolls instead, so the offset clears the fixed glass header. */
 .ss-root .ss-tabs-bar {
-  display: flex; gap: 6px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 15;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ss-cream);
+  padding: 10px 0;
+  margin-bottom: 12px;
 }
+.ss-root .ss-tabs-scroll {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  flex: 1; min-width: 0;
+}
+.ss-root .ss-fullscreen-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: auto; flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--ss-teal);
+  background: var(--ss-white);
+  color: var(--ss-teal);
+  font-weight: 700; font-size: 12.5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.ss-root .ss-fullscreen-btn:hover { background: var(--ss-cream); }
 .ss-root .ss-tab-btn {
   padding: 8px 18px;
   font-size: 13px; font-weight: 600;
@@ -1224,7 +1485,8 @@ function SyllabiStudioStyles() {
 
 .ss-root .ss-tbl-container {
   overflow-x: auto;
-  max-height: calc(100vh - 380px);
+  max-height: calc(100dvh - 340px);
+  min-height: 280px;
 }
 .ss-root .ss-table {
   width: 100%;
@@ -1279,20 +1541,21 @@ function SyllabiStudioStyles() {
   vertical-align: top;
   line-height: 1.55;
   border-right: 1px solid #EDE7DB;
+  overflow-wrap: break-word;
 }
 .ss-root .ss-table td:last-child { border-right: none; }
 
+/* Column proportions come from the <colgroup> width hints (≈25% sub-topic /
+   45% competences / 30% for the rest) — no hard min-widths, so the table
+   always fits the available width and text wraps instead of forcing a
+   horizontal scroll. */
 .ss-root .ss-topic-cell-dim { opacity: 0.45; font-size: 12px; }
 .ss-root .ss-subtopic-cell {
   font-weight: 600; color: var(--ss-teal);
-  min-width: 180px;
   border-left: 3px solid transparent;
 }
 .ss-root .ss-subtopic-cell.ss-first-in-group { border-left-color: #9BBECE; }
-.ss-root .ss-competences-cell { min-width: 180px; }
-.ss-root .ss-activities-cell { min-width: 260px; max-width: 380px; }
 .ss-root .ss-standard-cell {
-  min-width: 160px;
   color: #555;
   font-style: italic;
   font-size: 14px;
@@ -1409,13 +1672,127 @@ function SyllabiStudioStyles() {
 .ss-root.is-legacy .ss-hero-blurb,
 .ss-root.is-legacy .ss-dh-text p { opacity: 0.85; }
 
+/* ── FULL SCREEN READING MODE ────────────────────────────────────────── */
+/* The studio takes over the whole viewport: no app shell, no studio header
+   or search bar, no sidebar — just the reading bar, sticky grade tabs and
+   the syllabus table. z-index clears the teacher glass header (z-40) and
+   its dropdowns (z-50). */
+.ss-root.is-reading {
+  position: fixed; inset: 0;
+  z-index: 90;
+  margin: 0;
+  height: 100dvh;
+  min-height: 0;
+  border: none; border-radius: 0;
+}
+.ss-root.is-reading .ss-header,
+.ss-root.is-reading .ss-sidebar,
+.ss-root.is-reading .ss-backdrop,
+.ss-root.is-reading .ss-back-btn,
+.ss-root.is-reading .ss-detail-hero,
+.ss-root.is-reading .ss-table-toolbar,
+.ss-root.is-reading .ss-fullscreen-btn { display: none; }
+.ss-root.is-reading .ss-layout { height: 100%; min-height: 0; }
+.ss-root.is-reading .ss-main {
+  max-height: none; height: 100%;
+  padding: 0;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.ss-root.is-reading .ss-detail {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.ss-root.is-reading .ss-tabs-bar {
+  position: static;
+  margin: 0; padding: 8px 16px;
+  border-bottom: 1.5px solid var(--ss-cream2);
+  flex-shrink: 0;
+}
+.ss-root.is-reading .ss-tabs-scroll {
+  flex-wrap: nowrap; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.ss-root.is-reading .ss-table-wrap {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  border: none; border-radius: 0;
+  border-top: 2px solid var(--ss-teal);
+}
+.ss-root.is-reading .ss-tbl-container {
+  flex: 1;
+  max-height: none; min-height: 0;
+}
+
+.ss-root .ss-reading-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: var(--ss-teal);
+  color: white;
+  flex-shrink: 0;
+}
+.ss-root .ss-rb-icon {
+  width: 32px; height: 32px;
+  background: var(--ss-orange);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.ss-root .ss-rb-title { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.ss-root .ss-rb-title strong {
+  font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
+  font-size: 15px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ss-root .ss-rb-title span { font-size: 11px; opacity: 0.65; white-space: nowrap; }
+.ss-root .ss-rb-filter {
+  margin-left: auto;
+  width: 200px;
+  padding: 7px 12px;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: white; font-size: 13px;
+  outline: none; font-family: inherit;
+}
+.ss-root .ss-rb-filter::placeholder { color: rgba(255,255,255,0.5); }
+.ss-root .ss-rb-filter:focus { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.5); }
+.ss-root .ss-rb-count { font-size: 11px; opacity: 0.7; white-space: nowrap; }
+.ss-root .ss-rb-exit {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.4);
+  border-radius: 8px;
+  color: white; font-weight: 700; font-size: 12px;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.ss-root .ss-rb-exit:hover { background: rgba(255,255,255,0.22); }
+
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .ss-root .ss-era-btn { padding: 6px 12px; font-size: 11px; }
 }
+/* Below the desktop shell the studio goes full-bleed — counter the
+   app-container gutters and drop the card chrome so it reads as a page,
+   not a card inside the dashboard. */
+@media (max-width: 1023px) {
+  .ss-root {
+    margin-left: -1.5rem; margin-right: -1.5rem;
+    border-left: none; border-right: none;
+    border-radius: 0;
+  }
+}
 @media (max-width: 900px) {
   .ss-root .ss-sidebar { display: none; }
+  .ss-root .ss-menu-btn { display: inline-flex; }
   .ss-root .ss-main { padding: 20px 18px; max-height: none; }
+  /* Body scrolls here — keep the grade tabs pinned below the fixed glass
+     header (5rem tall on mobile/tablet). */
+  .ss-root:not(.is-reading) .ss-tabs-bar { top: calc(5rem + env(safe-area-inset-top, 0px)); }
+  .ss-root .ss-tbl-container { max-height: calc(100dvh - 15rem); }
   .ss-root .ss-stats-row { grid-template-columns: repeat(2, 1fr); }
   .ss-root .ss-hero { padding: 20px 22px; }
   .ss-root .ss-hero-title { font-size: 24px; }
@@ -1423,13 +1800,41 @@ function SyllabiStudioStyles() {
   .ss-root .ss-search-box { width: 160px; }
   .ss-root .ss-era-btn { padding: 5px 10px; font-size: 10.5px; }
 }
+/* 701–900px in subject view: the icon rail is on screen, so the hamburger
+   would be redundant. */
+@media (min-width: 701px) and (max-width: 900px) {
+  .ss-root[data-view="subject"] .ss-menu-btn { display: none; }
+  /* The rail rides below the fixed glass header while the body scrolls. */
+  .ss-root[data-view="subject"] .ss-sidebar:not(.is-open) {
+    top: calc(5rem + env(safe-area-inset-top, 0px));
+    max-height: calc(100dvh - 6rem);
+  }
+}
 @media (max-width: 700px) {
   .ss-root .ss-era-switcher { display: none; }
+  .ss-root[data-view="subject"]:not(.is-reading) .ss-main { padding: 14px 10px; }
+  /* Phone: fixed layout + colgroup percentages = the table spans the full
+     display width and wraps instead of scrolling sideways. */
+  .ss-root .ss-table { table-layout: fixed; font-size: 13.5px; }
+  .ss-root .ss-table thead th { white-space: normal; padding: 10px 10px; }
+  .ss-root .ss-table td { padding: 9px 10px; }
+  .ss-root .ss-tabs-scroll {
+    flex-wrap: nowrap; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ss-root .ss-tabs-scroll::-webkit-scrollbar { display: none; }
+  .ss-root .ss-fs-label { display: none; }
+  .ss-root .ss-fullscreen-btn { padding: 8px 10px; }
+  .ss-root .ss-rb-filter, .ss-root .ss-rb-count { display: none; }
+}
+@media (max-width: 639px) {
+  .ss-root { margin-left: -1rem; margin-right: -1rem; }
 }
 @media (max-width: 560px) {
   .ss-root .ss-stats-row { grid-template-columns: 1fr 1fr; }
-  .ss-root .ss-header { padding: 0 14px; }
-  .ss-root .ss-search-box { width: 140px; padding-left: 32px; }
+  .ss-root .ss-header { padding: 0 12px; gap: 10px; }
+  .ss-root .ss-search-box { width: 130px; padding-left: 32px; }
   .ss-root .ss-logo-sub { display: none; }
 }
 `}</style>
