@@ -99,7 +99,7 @@ export default function Login() {
       // itself threw (caught below).
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
-      let message = friendlyAuthMessage(err.code)
+      let message = friendlyAuthMessage(err.code, { online: navigator.onLine })
       if (PASSWORD_FAILURE_CODES.has(err.code)) {
         const hint = await diagnosePasswordFailure(email)
         if (hint) message = hint
@@ -125,7 +125,7 @@ export default function Login() {
       // Play Services error) is diagnosable from the device console / Sentry
       // rather than hidden behind the generic fallback copy.
       console.error('[Google sign-in]', err?.code, err?.message)
-      setError(friendlyAuthMessage(err.code, { fallback: 'Google sign-in failed. Please try again.' }))
+      setError(friendlyAuthMessage(err.code, { online: navigator.onLine, fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
   }
 
