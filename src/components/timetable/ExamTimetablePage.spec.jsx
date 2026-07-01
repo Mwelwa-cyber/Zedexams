@@ -178,6 +178,9 @@ describe('ExamTimetablePage', () => {
       '/papers?grade=7&subject=cinyanja',
     )
     expect(screen.getByRole('link', { name: 'Revision Notes' })).toBeInTheDocument()
+    // The pick persists per device, scoped by timetable id (keys like 'zl'
+    // repeat across years).
+    expect(localStorage.getItem('zx_exam_paper_choice_g7-2026_zl')).toBe('5/1')
     // Selecting another language moves the expansion, it does not stack.
     fireEvent.click(screen.getByRole('button', { name: /Icibemba/i }))
     expect(screen.queryByRole('link', { name: 'Practice Quiz' })).not.toBeInTheDocument()

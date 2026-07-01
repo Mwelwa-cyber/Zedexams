@@ -455,6 +455,7 @@ function PastTimetablesSection({ archived, nowMs }) {
                       day={day}
                       dayNumber={i + 1}
                       grade={t.grade}
+                      timetableId={t.id}
                       nowMs={nowMs}
                       archived
                     />
@@ -505,19 +506,31 @@ export default function ExamTimetablePage() {
   // Collapsible days: today + the next exam day start open, the rest start
   // collapsed. A learner's taps override the defaults until the page reloads
   // or the timetable changes; an active search expands every match.
+  // The Set is memoized on its CONTENTS (the joined key), not on nowMinuteMs
+  // — the dates only actually change once or twice a day, so its identity
+  // (and toggleDay's, and therefore the memoized day groups) stays stable
+  // across the minute ticks in between.
+  const defaultOpenKey = active
+    ? [...getDefaultExpandedDates(active, nowMinuteMs)].sort().join(',')
+    : ''
   const defaultOpenDates = useMemo(
-    () => (active ? getDefaultExpandedDates(active, nowMinuteMs) : new Set()),
-    [active, nowMinuteMs],
+    () => new Set(defaultOpenKey ? defaultOpenKey.split(',') : []),
+    [defaultOpenKey],
   )
   const [dayOverrides, setDayOverrides] = useState({})
   useEffect(() => setDayOverrides({}), [active?.id])
+  // No-op while a search forces every match open — a toggle stored then
+  // would only take effect after the search cleared, which reads as a day
+  // randomly collapsing on its own.
   const toggleDay = useCallback(
-    (date) =>
+    (date) => {
+      if (isSearching) return
       setDayOverrides((prev) => ({
         ...prev,
         [date]: !(prev[date] ?? defaultOpenDates.has(date)),
-      })),
-    [defaultOpenDates],
+      }))
+    },
+    [defaultOpenDates, isSearching],
   )
 
   // Floating today-banner: only while the hero (which carries the same
@@ -676,6 +689,7 @@ export default function ExamTimetablePage() {
                     day={day}
                     dayNumber={dayNumbers.get(day.date) || 0}
                     grade={active.grade}
+                    timetableId={active.id}
                     nowMs={nowMinuteMs}
                     nextKey={nextPaperKey}
                     open={isSearching ? true : (dayOverrides[day.date] ?? defaultOpenDates.has(day.date))}

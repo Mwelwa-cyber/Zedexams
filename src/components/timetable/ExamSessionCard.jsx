@@ -189,36 +189,45 @@ function QuickActions({ session, paper, grade, completed }) {
 }
 
 // One alternative paper inside a multi-paper session. The whole row is a
-// tap target; only the selected paper expands its resource actions.
+// tap target; only the selected paper expands its resource actions. Archived
+// rows are read-only — no selection, no actions, and (crucially) no write to
+// the stored choice the active year's card reads.
 function AlternativePaperRow({ paper, grade, selected, onSelect, completed, archived }) {
   const practise = practiseLink(paper, grade)
   const pastPaper = pastPaperLink(paper, grade)
-  return (
-    <div
-      className={`rounded-[14px] border-2 transition-colors ${
-        selected ? 'border-slate-900 bg-amber-50' : 'border-slate-200 bg-white'
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={selected}
-        className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-left"
-      >
-        <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-900">
-          {SUBJECT_MAP[paper.subjectId]?.icon || '📝'} {paper.name}
-        </span>
-        <span className="zx-pill-dark zx-pill-light">Paper {paper.code}</span>
-        <span className="hidden sm:inline-flex zx-pill-dark zx-pill-light">
-          {paper.durationMinutes} min
-        </span>
+  const rowContent = (
+    <>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-900">
+        {SUBJECT_MAP[paper.subjectId]?.icon || '📝'} {paper.name}
+      </span>
+      <span className="zx-pill-dark zx-pill-light">Paper {paper.code}</span>
+      <span className="hidden sm:inline-flex zx-pill-dark zx-pill-light">
+        {paper.durationMinutes} min
+      </span>
+      {!archived && (
         <span
           aria-hidden="true"
           className={`text-[11px] text-slate-500 transition-transform ${selected ? 'rotate-90' : ''}`}
         >
           ▸
         </span>
-      </button>
+      )}
+    </>
+  )
+  const rowClass = 'flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-left'
+  return (
+    <div
+      className={`rounded-[14px] border-2 transition-colors ${
+        selected ? 'border-slate-900 bg-amber-50' : 'border-slate-200 bg-white'
+      }`}
+    >
+      {archived ? (
+        <div className={rowClass}>{rowContent}</div>
+      ) : (
+        <button type="button" onClick={onSelect} aria-pressed={selected} className={rowClass}>
+          {rowContent}
+        </button>
+      )}
       {selected && !archived && (
         <div className="animate-fade-in flex flex-wrap gap-1.5 px-3 pb-2.5">
           {practise && (
@@ -241,27 +250,37 @@ function AlternativePaperRow({ paper, grade, selected, onSelect, completed, arch
 }
 
 // The learner's pick within a choose-ONE session, remembered per device so a
-// Silozi learner never re-taps their language. localStorage guards match
-// ExamTimetablePage (Safari private mode must not break the card).
-function choiceStorageKey(grade, sessionKey) {
-  return `zx_exam_paper_choice_${grade}_${sessionKey}`
+// Silozi learner never re-taps their language. Scoped by timetable id (like
+// reminderStorageKey) — session keys such as 'zl' repeat across years, so a
+// grade-only key would bleed one year's choice into another. localStorage
+// guards match ExamTimetablePage (Safari private mode must not break the
+// card).
+function choiceStorageKey(timetableId, sessionKey) {
+  return `zx_exam_paper_choice_${timetableId}_${sessionKey}`
 }
-function readChoice(grade, sessionKey) {
+function readChoice(timetableId, sessionKey) {
   try {
-    return localStorage.getItem(choiceStorageKey(grade, sessionKey)) || null
+    return localStorage.getItem(choiceStorageKey(timetableId, sessionKey)) || null
   } catch {
     return null
   }
 }
-function writeChoice(grade, sessionKey, code) {
+function writeChoice(timetableId, sessionKey, code) {
   try {
-    localStorage.setItem(choiceStorageKey(grade, sessionKey), code)
+    localStorage.setItem(choiceStorageKey(timetableId, sessionKey), code)
   } catch {
     /* best-effort */
   }
 }
 
-export function ExamSessionCard({ session, grade, nowMs, archived = false, nextKey = null }) {
+export function ExamSessionCard({
+  session,
+  grade,
+  timetableId,
+  nowMs,
+  archived = false,
+  nextKey = null,
+}) {
   const status = getSessionStatus(session, nowMs, { archived, nextKey })
   const completed = status === STATUS.COMPLETED
   const tile = tileFor(session)
@@ -270,12 +289,13 @@ export function ExamSessionCard({ session, grade, nowMs, archived = false, nextK
   const isLanguageChoice = (session.sessionNote || '').toLowerCase().includes('language')
 
   const [selectedCode, setSelectedCode] = useState(() =>
-    papers.length > 1 ? readChoice(grade, session.key) : null,
+    papers.length > 1 && !archived ? readChoice(timetableId, session.key) : null,
   )
   const selectPaper = (code) => {
+    if (archived) return
     const next = selectedCode === code ? null : code
     setSelectedCode(next)
-    if (next) writeChoice(grade, session.key, next)
+    if (next) writeChoice(timetableId, session.key, next)
   }
 
   return (
@@ -364,6 +384,7 @@ export const ExamDayGroup = memo(function ExamDayGroup({
   day,
   dayNumber,
   grade,
+  timetableId,
   nowMs,
   archived = false,
   nextKey = null,
@@ -414,6 +435,7 @@ export const ExamDayGroup = memo(function ExamDayGroup({
               key={session.key}
               session={session}
               grade={grade}
+              timetableId={timetableId}
               nowMs={nowMs}
               archived={archived}
               nextKey={nextKey}
