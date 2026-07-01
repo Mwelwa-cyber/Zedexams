@@ -547,6 +547,30 @@ export default function PastPaperStudio() {
       setQuizCount(written)
       const parts = [`Imported ${written} question${written === 1 ? '' : 's'} into the quiz.`]
       if (res?.data?.warning) parts.push(res.data.warning)
+
+      // Figure-attach pass: the importer LOCATES printed maps/figures
+      // ({passageId, sourcePage, box}); the browser crops each one out of the
+      // uploaded paper and writes it onto its passage so the map is actually
+      // visible — the old flow dropped figures entirely ("I can't see the
+      // map"). Best-effort: a failed crop is reported, never fatal, and the
+      // figureMeta persisted on the passage lets a re-run try again.
+      const figures = Array.isArray(res?.data?.report?.figures) ? res.data.report.figures : []
+      if (figures.length) {
+        try {
+          const { attachPaperFigures } = await import('../../utils/paperFigureAttach.js')
+          const fig = await attachPaperFigures({
+            uid: currentUser.uid, paperId, quizId, figures, assets, localFiles,
+          })
+          if (fig.attached) parts.push(`Attached ${fig.attached} figure/map image${fig.attached === 1 ? '' : 's'} under the right questions.`)
+          if (fig.failed || fig.skipped) {
+            parts.push(`${fig.failed + fig.skipped} figure${fig.failed + fig.skipped === 1 ? '' : 's'} could not be attached automatically — add them in the Quiz Editor.`)
+          }
+        } catch (err) {
+          console.warn('[PastPaperStudio] figure attach failed', err)
+          parts.push('The paper\'s figures could not be attached automatically — add them in the Quiz Editor.')
+        }
+      }
+
       parts.push('Open the Quiz Editor to review answers and add images before publishing.')
       setInfo(parts.join(' '))
     } catch (err) {
@@ -1213,6 +1237,12 @@ function ImportReportCard({ report }) {
         {stat('Tables rebuilt', report.tablesCaptured ?? 0)}
       </div>
 
+      {Array.isArray(report.figures) && report.figures.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {stat('Figures / maps located', report.figures.length)}
+        </div>
+      )}
+
       {typeEntries.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {typeEntries.map(([type, n]) => (
@@ -1249,6 +1279,16 @@ function ImportReportCard({ report }) {
           </div>
         )
       })()}
+
+      {/* Deploy observability: which import-engine version actually ran. An
+          empty value means the deployed Cloud Function is running code older
+          than version stamping — i.e. a stale deploy, the exact failure that
+          made past importer fixes look broken while every test passed. */}
+      <p className="font-mono text-[11px] font-bold theme-text-muted">
+        {report.engineVersion
+          ? `engine ${report.engineVersion}`
+          : '⚠ engine version not reported — the import function is running OLD code (stale deploy)'}
+      </p>
     </section>
   )
 }
