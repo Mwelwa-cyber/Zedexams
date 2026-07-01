@@ -16,7 +16,7 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
@@ -32,7 +32,7 @@ import StudioOutputBoundary from '../StudioOutputBoundary'
  * independent practice, formative checks, summary, and homework.
  */
 export default function FullLessonStudio() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
@@ -76,7 +76,7 @@ export default function FullLessonStudio() {
       subject: lesson.header?.subject || form.subject,
       topic: lesson.header?.topic || form.topic,
     })
-    downloadFullLessonDocx(lesson, filename)
+    downloadFullLessonDocx(lesson, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   async function onGenerate(e) {
