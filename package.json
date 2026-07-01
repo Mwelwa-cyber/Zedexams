@@ -161,6 +161,7 @@
     "test:rich-formatting": "node src/utils/richTextFormatting.test.js",
     "test:exam-paper-library": "node functions/teacherTools/examPaperLibraryHelpers.test.js",
     "test:anthropic-client": "node functions/teacherTools/anthropicClient.test.js",
+    "test:lesson-count": "node functions/teacherTools/lessonCount.test.js",
     "test:notes-plan-source": "node functions/teacherTools/notesPlanSource.test.js",
     "test:ai-prompt-policy": "node functions/aiPromptPolicy.test.js",
     "test:ops-alert": "node functions/opsAlert.test.js",

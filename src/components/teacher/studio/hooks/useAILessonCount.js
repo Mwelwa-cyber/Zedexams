@@ -1,26 +1,30 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { fetchAiLessonCount } from '../../../../utils/aiLessonCount'
 
 /**
- * Suggests how many lessons a CBC sub-topic should be taught over.
+ * Recommends how many lessons a CBC sub-topic should be taught over.
  *
- * This used to call an `aiLessonCount` Cloud Function — but that function was
- * never created on the backend, so the call always failed, the recommendation
- * stayed null, and (because the only way to set a lesson count lived inside the
- * recommendation panel) Lesson Series mode could never build a breakdown and
- * the Generate button stayed disabled. The suggestion is now computed
- * deterministically on the client from the syllabus learning activities — no
- * backend round-trip, no failing call, instant, and free. Teachers can always
- * override the count in the Lesson Progression panel.
+ * The recommendation now comes from the `aiLessonCount` Cloud Function
+ * (Claude Haiku): count + reason + a per-lesson breakdown (title/focus) that
+ * seeds the Lesson Series builder. Historically the backend didn't exist and
+ * the hook computed a deterministic "one lesson per syllabus activity"
+ * heuristic client-side — which read as canned ("doesn't feel like AI"),
+ * especially on "Get New Suggestion" where it just cycled adjacent counts.
+ *
+ * The heuristic survives below as the OFFLINE FALLBACK: any backend failure
+ * (offline, quota, cold start timeout) falls back to it silently so Lesson
+ * Series mode never blocks — the regression the old backendless design was
+ * patched for. `recommendation.source` says which path produced the value
+ * ('ai' | 'heuristic') so the panel can badge genuine AI suggestions.
+ *
+ * "Get New Suggestion" passes the counts already shown (`avoidCounts`) to the
+ * backend so each press genuinely re-plans the pacing rather than re-rolling
+ * the same number.
  *
  * Heuristic: roughly one lesson per syllabus learning activity, clamped to a
  * sensible 1–6, defaulting to a short 2-lesson series when the row lists none.
- *
- * "Get New Suggestion": the base heuristic is deterministic, so naively
- * recomputing it returned the identical count + reason every press and the
- * button looked dead. The `variant` argument fixes that — it cycles the
- * suggestion through the other plausible lesson counts (fanning out around the
- * base, nearest first, full 1–6 span) so each press offers a genuinely
- * different alternative pace. `variant === 0` is always the base suggestion.
+ * The `variant` argument cycles it through alternative counts (nearest the
+ * base first) so repeated fallback presses still move the suggestion.
  *
  * @param {string[]} learningActivities
  * @param {number} [variant=0] which alternative to surface (0 = base heuristic)
@@ -55,43 +59,105 @@ export function suggestLessonCount(learningActivities, variant = 0) {
   return { count, reason }
 }
 
-export function useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode) {
-  const [recommendation, setRecommendation] = useState(null)
-  // Bumped by fetchRecommendation to surface the next alternative suggestion
-  // (e.g. "Get New Suggestion"). Fed to suggestLessonCount as the variant.
-  const [variant, setVariant] = useState(0)
+/**
+ * @param {string} topic
+ * @param {string} subtopic
+ * @param {string[]} learningActivities
+ * @param {string} expectedStandard
+ * @param {'cbc'|'previous'|null} curriculumMode
+ * @param {{ grade?: string, subject?: string, enabled?: boolean }} [context]
+ *   grade/subject sharpen the AI pacing; `enabled` gates the backend call so
+ *   the studio only spends a request when the teacher is actually in Lesson
+ *   Series mode (the only surface that renders the recommendation).
+ */
+export function useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode, context = {}) {
+  const { grade = '', subject = '', enabled = true } = context
 
+  const [recommendation, setRecommendation] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const activities = Array.isArray(learningActivities) ? learningActivities : []
   // learningActivities serialised as a joined string to avoid new-array-
   // reference churn from parent re-renders producing a fresh array each time.
-  const activitiesKey = (Array.isArray(learningActivities) ? learningActivities : []).join('||')
+  const activitiesKey = activities.join('||')
 
   // A suggestion is meaningful once we're in CBC mode with a chosen sub-topic.
-  // (We no longer gate on learningActivities/expectedStandard so the suggestion
-  // shows even for sparse syllabus rows; the count heuristic still uses the
-  // activities when present.)
   const isReady = curriculumMode === 'cbc' && Boolean(topic) && Boolean(subtopic)
+  const contextKey = [curriculumMode, topic, subtopic, activitiesKey, grade, subject].join('§')
 
-  const fetchRecommendation = useCallback(() => {
-    if (isReady) setVariant((c) => c + 1)
-  }, [isReady])
+  // Latest inputs in a ref so load() stays referentially stable.
+  const inputsRef = useRef({})
+  inputsRef.current = { topic, subtopic, activities, expectedStandard, grade, subject }
 
-  // Reset to the base suggestion whenever the sub-topic context changes, so a
-  // freshly selected sub-topic starts from the base — not wherever the last
-  // "Get New Suggestion" cycle happened to leave off.
-  useEffect(() => {
-    setVariant(0)
-  }, [topic, subtopic, activitiesKey, curriculumMode])
+  const seqRef = useRef(0) // stale-response guard across context changes
+  const shownCountsRef = useRef([]) // counts already surfaced for this contextKey
+  const variantRef = useRef(0) // heuristic fallback cycling
+  const loadedKeyRef = useRef(null) // contextKey the current recommendation is for
+
+  const load = useCallback(async (avoidCounts) => {
+    const seq = ++seqRef.current
+    setLoading(true)
+    const inputs = inputsRef.current
+    try {
+      const rec = await fetchAiLessonCount({
+        grade: inputs.grade,
+        subject: inputs.subject,
+        topic: inputs.topic,
+        subtopic: inputs.subtopic,
+        learningActivities: inputs.activities,
+        expectedStandard: inputs.expectedStandard,
+        avoidCounts,
+      })
+      if (seq !== seqRef.current) return
+      shownCountsRef.current = [...shownCountsRef.current, rec.count].slice(-6)
+      setRecommendation({ ...rec, source: 'ai' })
+    } catch {
+      if (seq !== seqRef.current) return
+      // Backend unavailable (offline, quota, timeout) — fall back to the
+      // deterministic heuristic so series mode never blocks. Repeated
+      // presses still cycle counts via the variant.
+      const fallback = suggestLessonCount(inputsRef.current.activities, variantRef.current)
+      variantRef.current += 1
+      shownCountsRef.current = [...shownCountsRef.current, fallback.count].slice(-6)
+      setRecommendation({ ...fallback, breakdown: [], source: 'heuristic' })
+    } finally {
+      if (seq === seqRef.current) setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isReady) {
+      seqRef.current += 1
+      loadedKeyRef.current = null
+      shownCountsRef.current = []
+      variantRef.current = 0
       setRecommendation(null)
+      setLoading(false)
       return
     }
-    setRecommendation(suggestLessonCount(learningActivities, variant))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, subtopic, activitiesKey, curriculumMode, variant])
+    if (loadedKeyRef.current === contextKey) return
+    // Fresh sub-topic context: drop anything from the previous one so a
+    // toggled-off panel never shows a stale suggestion.
+    seqRef.current += 1
+    loadedKeyRef.current = null
+    shownCountsRef.current = []
+    variantRef.current = 0
+    setRecommendation(null)
+    setLoading(false)
+    if (!enabled) return
+    loadedKeyRef.current = contextKey
+    load([])
+  }, [isReady, enabled, contextKey, load])
 
-  // loading/error are kept in the return shape for API compatibility with the
-  // Lesson Progression panel, but the deterministic path never produces them.
-  return { recommendation, loading: false, error: null, fetchRecommendation }
+  // "Get New Suggestion" / Retry — re-plan, avoiding the counts already shown.
+  const fetchRecommendation = useCallback(() => {
+    if (!isReady) return
+    loadedKeyRef.current = contextKey
+    load([...shownCountsRef.current])
+  }, [isReady, contextKey, load])
+
+  // `error` is kept in the return shape for API compatibility with the Lesson
+  // Progression panel, but failures degrade to the heuristic instead of
+  // surfacing an error state — the panel must never block series mode.
+  return { recommendation, loading, error: null, fetchRecommendation }
 }

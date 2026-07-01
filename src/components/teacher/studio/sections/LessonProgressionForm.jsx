@@ -111,9 +111,24 @@ function RecommendationPanel({ recommendation, loading, error, onFetchRecommenda
       {!loading && recommendation && (
         <div className="space-y-2 rounded-lg bg-indigo-50 px-3 py-2.5">
           <p className="text-[13px] font-semibold text-indigo-800">
-            AI recommends {recommendation.count} lesson{recommendation.count !== 1 ? 's' : ''} for this topic
+            {recommendation.source === 'heuristic'
+              ? `Suggested pacing: ${recommendation.count} lesson${recommendation.count !== 1 ? 's' : ''} (offline estimate)`
+              : `AI recommends ${recommendation.count} lesson${recommendation.count !== 1 ? 's' : ''} for this topic`}
           </p>
           <p className="text-[12px] text-[#7a6d5d]">{recommendation.reason}</p>
+
+          {/* AI lesson-by-lesson plan preview — Accept seeds the builder with
+              exactly these titles/focus, already editable below. */}
+          {Array.isArray(recommendation.breakdown) && recommendation.breakdown.length > 0 && (
+            <ol className="space-y-0.5 text-[12px] text-[#5b5142]">
+              {recommendation.breakdown.map((item) => (
+                <li key={item.lessonNumber} className="flex gap-1.5">
+                  <span className="font-semibold text-indigo-700">{item.lessonNumber}.</span>
+                  <span>{item.title}</span>
+                </li>
+              ))}
+            </ol>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-1">
             <button
@@ -219,10 +234,23 @@ export function LessonProgressionForm({
   }
 
   function handleAccept(count) {
-    const topic = subtopicRow?.topic ?? ''
-    const breakdown = buildDefaultBreakdown(count, topic, subtopicRow)
+    // Prefer the AI's per-lesson plan when it matches the accepted count —
+    // real titles + focus instead of "Lesson N: <subtopic>" stubs. The manual
+    // builder path (a typed count ≠ the suggestion) still gets the stubs.
+    const aiBreakdown = Array.isArray(recommendation?.breakdown) ? recommendation.breakdown : []
+    const breakdown = aiBreakdown.length === count
+      ? aiBreakdown.map((item, i) => ({
+          lessonNumber: i + 1,
+          title: item.title || `Lesson ${i + 1}: ${subtopicRow?.subtopic ?? subtopicRow?.topic ?? ''}`,
+          focus: item.focus || '',
+          status: 'pending',
+        }))
+      : buildDefaultBreakdown(count, subtopicRow?.topic ?? '', subtopicRow)
     onUpdateBreakdown(breakdown)
     onUpdateSeries('totalLessons', count)
+    if (aiBreakdown.length === count && recommendation?.reason) {
+      onUpdateSeries('aiSuggestedReason', recommendation.reason)
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────

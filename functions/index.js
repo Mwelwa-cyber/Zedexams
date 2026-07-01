@@ -141,6 +141,10 @@ const {
 const {
   createReviseQuestion,
 } = require("./teacherTools/reviseQuestion");
+// Teacher Tools — AI Lesson Count (lesson-series pacing for the studio).
+const {
+  createAiLessonCount,
+} = require("./teacherTools/lessonCount");
 // Teacher Tools — Revise Lesson Section (AI-edit one part of a lesson plan).
 const {
   createReviseLessonSection,
@@ -2442,6 +2446,11 @@ exports.suggestAnswer = createSuggestAnswer(anthropicApiKey, geminiApiKey);
 
 // Teacher Tools — Revise Question (rewrite for grade level / tone, Haiku).
 exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
+
+// Teacher Tools — AI Lesson Count: recommends how many lessons a CBC
+// sub-topic needs plus a per-lesson breakdown, for the Lesson Plan Studio's
+// Lesson Series builder (Haiku micro-tool, daily-cap gated).
+exports.aiLessonCount = createAiLessonCount(anthropicApiKey);
 
 // Teacher Tools — Revise Lesson Section: AI-edit one part of a generated
 // lesson plan in the Lesson Plan Studio (Haiku micro-tool).
