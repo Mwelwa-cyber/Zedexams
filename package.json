@@ -96,6 +96,7 @@
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",
     "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:auth-recovery": "node scripts/test-auth-recovery.mjs",
+    "test:auth-retry": "node scripts/test-auth-retry.mjs",
     "test:sw-recovery": "node scripts/test-sw-recovery.mjs",
     "test:pwa-reload": "node scripts/test-pwa-reload-cooperative.mjs",
     "test:pwa-auto-reload": "node scripts/test-pwa-auto-reload.mjs",
