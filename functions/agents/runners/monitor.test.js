@@ -10,7 +10,8 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, resolveGithubToken} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, resolveGithubToken, checkDailyExams, dailyExamCheckWindow} = require("./monitor");
+const {lusakaDayString} = require("../../lusakaTime");
 
 let passed = 0;
 function test(name, fn) {
@@ -276,6 +277,110 @@ test("resolveGithubToken falls back to the PAT when no App creds", async () => {
 test("resolveGithubToken returns null when nothing is configured", async () => {
   const token = await resolveGithubToken({repo: "o/r"});
   assert.strictEqual(token, null);
+});
+
+// ── daily-exam self-heal check ───────────────────────────────────────
+
+// Minimal Firestore query stub: every builder method chains, get() returns a
+// snapshot whose emptiness is fixed up-front.
+function stubDb(scheduledCount) {
+  const chain = {
+    where() { return chain; },
+    limit() { return chain; },
+    async get() { return {empty: scheduledCount === 0, size: scheduledCount}; },
+  };
+  return {collection: () => chain};
+}
+
+test("lusakaDayString stays on the UTC date until 22:00 UTC, then rolls", () => {
+  // 21:59 UTC = 23:59 Lusaka (same calendar day)…
+  assert.strictEqual(lusakaDayString(new Date("2026-06-30T21:59:00Z")), "2026-06-30");
+  // …22:00 UTC = 00:00 Lusaka NEXT day. Local-getter date maths in a UTC
+  // container gets this wrong — the regression this helper exists to stop.
+  assert.strictEqual(lusakaDayString(new Date("2026-06-30T22:00:00Z")), "2026-07-01");
+});
+
+test("dailyExamCheckWindow enforces only from 05:15 Lusaka", () => {
+  // 03:10 UTC = 05:10 Lusaka → still inside the picker's grace window.
+  assert.strictEqual(dailyExamCheckWindow(new Date("2026-07-01T03:10:00Z")).active, false);
+  // 03:15 UTC = 05:15 Lusaka → enforcing, keyed to the Lusaka day.
+  const w = dailyExamCheckWindow(new Date("2026-07-01T03:15:00Z"));
+  assert.strictEqual(w.active, true);
+  assert.strictEqual(w.today, "2026-07-01");
+});
+
+test("checkDailyExams passes when today's picks exist (picker NOT re-run)", async () => {
+  let pickerRan = false;
+  const res = await checkDailyExams(stubDb(4), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async () => { pickerRan = true; },
+  });
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(res.scheduled, 4);
+  assert.strictEqual(res.failures.length, 0);
+  assert.strictEqual(pickerRan, false);
+});
+
+test("checkDailyExams skips inside the grace window (no query verdict, no heal)", async () => {
+  let pickerRan = false;
+  const res = await checkDailyExams(stubDb(0), {
+    now: new Date("2026-07-01T03:00:00Z"), // exactly 05:00 Lusaka — cron may still be running
+    runPick: async () => { pickerRan = true; },
+  });
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(res.skipped, true);
+  assert.strictEqual(pickerRan, false);
+});
+
+test("checkDailyExams self-heals an empty day and reports a warning", async () => {
+  let pickedFor = null;
+  const res = await checkDailyExams(stubDb(0), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async ({today}) => {
+      pickedFor = today;
+      return {date: today, grades: [
+        {grade: "4", status: "promoted", quizId: "q4"},
+        {grade: "5", status: "no_candidates"},
+        {grade: "6", status: "promoted", quizId: "q6"},
+        {grade: "7", status: "promoted", quizId: "q7"},
+      ]};
+    },
+  });
+  // Healed — but still a failure, so the missed 05:00 cron gets escalated.
+  assert.strictEqual(pickedFor, "2026-07-01"); // heal pins the checked Lusaka day
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 3);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.strictEqual(res.failures[0].check, "dailyExams");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01");
+  assert.ok(res.failures[0].message.includes("autoPickDailyExams"));
+});
+
+test("checkDailyExams is critical when the re-run promotes nothing", async () => {
+  const res = await checkDailyExams(stubDb(0), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async ({today}) => ({date: today, grades: [
+      {grade: "4", status: "no_candidates"},
+      {grade: "5", status: "error", message: "boom"},
+    ]}),
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 0);
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.ok(res.failures[0].message.includes("no_candidates"));
+});
+
+test("checkDailyExams never throws — a query error becomes a critical failure", async () => {
+  const db = {collection: () => { throw new Error("firestore down"); }};
+  const res = await checkDailyExams(db, {now: new Date("2026-07-01T08:00:00Z")});
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.ok(res.failures[0].message.includes("firestore down"));
+});
+
+test("dailyExams failures are NOT routed to Mendi (ops/data, not code)", () => {
+  assert.strictEqual(isMendiEligible({check: "dailyExams"}), false);
 });
 
 console.log(`\n✓ monitor.test.js — ${passed} checks passed`);

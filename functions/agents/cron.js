@@ -10,8 +10,10 @@
  *     on each, and writes a summary `agentJobs` doc with aggregate
  *     alignment results. Catches drift if the KB or prompts change.
  *   - hourlyMonitor (Vigil) — every hour. Checks pages, Firebase, images,
- *     and quizzes; on failure asks Haiku for fixes and escalates (email +
- *     GitHub bug issue → Mendi), de-duplicated to once per failure per 24h.
+ *     quizzes, and today's daily-exam picks (re-running the idempotent
+ *     autoPickDailyExams picker when the 05:00 cron missed); on failure asks
+ *     Haiku for fixes and escalates (email + GitHub bug issue → Mendi),
+ *     de-duplicated to once per failure per 24h.
  *   - hourlyRevenueReconcile (Till) — every hour. Re-queries Lenco for
  *     stale "pending" payments and finishes what a dropped webhook missed:
  *     activates paid-but-stuck buyers, closes failed ones. All writes go
