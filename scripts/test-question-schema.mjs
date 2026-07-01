@@ -686,6 +686,92 @@ test('plain mcq still passes without the new fields', () => {
   assert(result.data.tableData === undefined, 'no empty tableData on a plain mcq')
 })
 
+// ── CBC tagging + import provenance fields ────────────────────────
+console.log('\nschema (CBC tagging + import provenance)')
+
+test('accepts the full CBC tagging + provenance set', () => {
+  const d = validDoc()
+  d.subtopic = 'Equivalent fractions'
+  d.competency = 'Number operations'
+  d.specificOutcome = '5.1.1 Compare fractions with unlike denominators'
+  d.curriculum = 'CBC 2023'
+  d.aiConfidence = 0.82
+  d.validationStatus = 'warning'
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.subtopic === 'Equivalent fractions', 'subtopic survives')
+  assert(result.data.aiConfidence === 0.82, 'aiConfidence survives')
+  assert(result.data.validationStatus === 'warning', 'validationStatus survives')
+})
+
+test('the new fields default to neutral values on a plain mcq', () => {
+  const result = questionWriteSchema.safeParse(validDoc())
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.subtopic === '', 'subtopic defaults to empty string')
+  assert(result.data.competency === '', 'competency defaults to empty string')
+  assert(result.data.specificOutcome === '', 'specificOutcome defaults to empty string')
+  assert(result.data.curriculum === '', 'curriculum defaults to empty string')
+  assert(result.data.aiConfidence === null, 'aiConfidence defaults to null')
+  assert(result.data.validationStatus === 'ok', 'validationStatus defaults to ok')
+})
+
+test('accepts null aiConfidence (not yet set / hand-authored)', () => {
+  const d = validDoc()
+  d.aiConfidence = null
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('rejects aiConfidence above 1', () => {
+  const d = validDoc()
+  d.aiConfidence = 1.5
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'aiConfidence is capped at 1')
+})
+
+test('rejects aiConfidence below 0', () => {
+  const d = validDoc()
+  d.aiConfidence = -0.1
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'aiConfidence has min 0')
+})
+
+test('rejects an unknown validationStatus', () => {
+  const d = validDoc()
+  d.validationStatus = 'exploded'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'validationStatus must be ok|warning|error')
+})
+
+test('rejects an over-long specificOutcome', () => {
+  const d = validDoc()
+  d.specificOutcome = 'x'.repeat(501)
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'specificOutcome capped at 500')
+})
+
+test('coerceQuestion normalises the new fields defensively', () => {
+  // Legacy/broken docs: bad types must not blank the editor.
+  const out = coerceQuestion({
+    marks: 1,
+    subtopic: 42,               // non-string → stringified
+    competency: null,           // null → ''
+    aiConfidence: '0.9',        // numeric string → 0.9
+    validationStatus: 'nonsense', // unknown → 'ok'
+  })
+  assert(out.subtopic === '42', 'subtopic stringified')
+  assert(out.competency === '', 'null competency → empty string')
+  assert(out.aiConfidence === 0.9, 'numeric-string aiConfidence coerced')
+  assert(out.validationStatus === 'ok', 'unknown validationStatus → ok')
+})
+
+test('coerceQuestion clamps aiConfidence into [0,1] and defaults to null', () => {
+  assert(coerceQuestion({ marks: 1, aiConfidence: 5 }).aiConfidence === 1, 'clamped to 1')
+  assert(coerceQuestion({ marks: 1, aiConfidence: -3 }).aiConfidence === 0, 'clamped to 0')
+  assert(coerceQuestion({ marks: 1 }).aiConfidence === null, 'absent → null')
+  assert(coerceQuestion({ marks: 1, aiConfidence: 'x' }).aiConfidence === null, 'unparseable → null')
+})
+
 // ── canonicalizeQuestionType (alias folding) ──────────────────────
 console.log('\ncanonicalizeQuestionType')
 

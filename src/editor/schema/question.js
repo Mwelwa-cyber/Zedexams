@@ -120,6 +120,12 @@ const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 
 // MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
 // PURE display/preset hint — the underlying answer model is still 4-option MCQ.
 const SUBTYPES = ['vocab', 'spelling', 'punctuation', 'sentence_ordering']
+// Per-question rollup of the shared Document Understanding Engine's structural
+// verdict. 'ok' = passed; 'warning' = imported but has a soft issue (e.g. an
+// [UNCLEAR] span, no answer key); 'error' = a hard problem (e.g. an MCQ missing
+// an option). Kept in sync with functions/documentEngine/validationEngineCore.js
+// via scripts/test-document-engine-parity.mjs.
+const VALIDATION_STATUSES = ['ok', 'warning', 'error']
 
 /**
  * The question record AFTER normalisation, ready to persist.
@@ -153,6 +159,24 @@ export const questionSchema = z
     // Optional Bloom's cognitive level the teacher tags (no inference — a
     // question is only counted as a level once explicitly set).
     bloom: z.enum(BLOOM_LEVELS).optional(),
+    // ── CBC curriculum tagging + import provenance ──
+    // These sit alongside `topic` (already above) so an imported past-paper
+    // question can carry its full CBC placement, and the shared Document
+    // Understanding Engine can stamp how confident it was and whether the
+    // question passed structural validation. All default to a neutral value so
+    // legacy docs + hand-authored questions never carry surprising data and the
+    // auto-save loop can't fail mid-edit on a missing field.
+    subtopic: z.string().max(200).default(''),
+    competency: z.string().max(200).default(''),
+    specificOutcome: z.string().max(500).default(''),
+    curriculum: z.string().max(100).default(''),
+    // 0..1 confidence the importer/OCR attaches to this question (null = not
+    // set, e.g. hand-authored). Nullable so the editor can clear it back to
+    // "unknown" rather than implying a false 0.
+    aiConfidence: z.number().min(0).max(1).nullable().default(null),
+    // Rollup of the validation engine's verdict for this card, surfaced as a
+    // status chip in the editor. 'ok' on legacy/hand-authored questions.
+    validationStatus: z.enum(VALIDATION_STATUSES).default('ok'),
     order: z.number().int().min(0).max(10000),
 
     // ── Rich-text: HTML (legacy, kept for read-path compat) ──
@@ -585,6 +609,22 @@ export function coerceQuestion(raw) {
     }
   }
 
+  // CBC tagging + import provenance — coerce to safe shapes so a legacy or
+  // partially-broken doc never blanks the editor. Strings fall back to '';
+  // aiConfidence clamps to [0,1] or null; validationStatus falls back to 'ok'.
+  const str = (v, max) => {
+    if (v == null) return ''
+    const s = typeof v === 'string' ? v : String(v)
+    return s.length > max ? s.slice(0, max) : s
+  }
+  const rawConfidence = Number(raw.aiConfidence)
+  const aiConfidence = raw.aiConfidence == null || !Number.isFinite(rawConfidence)
+    ? null
+    : Math.max(0, Math.min(1, rawConfidence))
+  const validationStatus = VALIDATION_STATUSES.includes(raw.validationStatus)
+    ? raw.validationStatus
+    : 'ok'
+
   return {
     ...raw,
     type,
@@ -594,6 +634,12 @@ export function coerceQuestion(raw) {
     marks,
     tolerance,
     correctRegion,
+    subtopic: str(raw.subtopic, 200),
+    competency: str(raw.competency, 200),
+    specificOutcome: str(raw.specificOutcome, 500),
+    curriculum: str(raw.curriculum, 100),
+    aiConfidence,
+    validationStatus,
   }
 }
 
@@ -601,3 +647,4 @@ export const QUESTION_TYPES_LIST = QUESTION_TYPES
 export const DIFFICULTIES_LIST = DIFFICULTIES
 export const BLOOM_LEVELS_LIST = BLOOM_LEVELS
 export const SUBTYPES_LIST = SUBTYPES
+export const VALIDATION_STATUSES_LIST = VALIDATION_STATUSES

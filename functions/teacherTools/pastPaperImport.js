@@ -53,6 +53,14 @@ const {
   buildImportReport,
   dedupeExtractedQuestions,
 } = require("./pastPaperImportHelpers");
+// Shared Document Understanding Engine — the single validation stage every
+// import surface runs. `gateImport` fails the import gracefully (with a report)
+// on a structural blocker BEFORE anything is written; `computeValidationStatus`
+// stamps each card's ok|warning|error chip for the editor.
+const {
+  gateImport,
+  computeValidationStatus,
+} = require("../documentEngine/validationEngineCore");
 
 // A reusable JSON-schema fragment describing a printed table/timetable, shared
 // by the per-question and per-passage table slots.
@@ -668,10 +676,17 @@ function toQuestionDoc(q, order) {
     // null for standalone questions.
     passageId: q.passageId || null,
     requiresReview: true,
+    // Per-card structural verdict from the shared engine, shown as a status
+    // chip in the Quiz Editor (ok | warning | error).
+    validationStatus: computeValidationStatus(q),
     importedAt: admin.firestore.FieldValue.serverTimestamp(),
     importSource: "past_paper_ai",
   };
   if (q.sourceNumber != null) base.sourcePage = String(q.sourceNumber);
+  // Carry an importer confidence onto the card when the extractor provided one.
+  if (q.confidence != null && Number.isFinite(Number(q.confidence))) {
+    base.aiConfidence = Math.max(0, Math.min(1, Number(q.confidence)));
+  }
 
   if (q.type === "mcq" || q.type === "tf") {
     return {
@@ -803,10 +818,20 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     questions.filter((q) => q.table).length +
     passages.filter((p) => p.table).length;
 
-  // Persist + keep the parent quiz count + passages in sync.
+  // ── Validation gate ──────────────────────────────────────────────
+  // Run the shared engine's structural gate BEFORE the destructive write. A
+  // blocker (missing printed numbers, an answer key imported as a question, or
+  // nothing extracted) fails the import gracefully: we return the report so the
+  // admin sees exactly what's wrong and DO NOT clear/overwrite the existing
+  // quiz. Non-blocking problems (duplicates, [UNCLEAR], thin MCQs, no-answer)
+  // ride through as warnings so a good-enough paper still imports.
+  const gate = gateImport({questions});
+
+  // Persist + keep the parent quiz count + passages in sync — only when the
+  // gate passes. When gated, nothing is cleared or written (non-destructive).
   let cleared = 0;
   let written = 0;
-  if (quizId && questions.length) {
+  if (quizId && questions.length && gate.ok) {
     cleared = await clearQuizQuestions(quizId);
     written = await writeQuestionsToQuiz(quizId, questions);
     try {
@@ -824,20 +849,29 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     }
   }
 
-  const report = buildImportReport({
-    pagesProcessed,
-    segments: segments.length,
-    questionsFound,
-    questionsImported: written || questions.length,
-    duplicatesRemoved,
-    extractionRounds,
-    truncationHit,
-    droppedForSize,
-    passagesCaptured: passagesForQuiz.length,
-    tablesCaptured,
-    questions,
-    extraNotes: [extraNote],
-  });
+  const report = {
+    ...buildImportReport({
+      pagesProcessed,
+      segments: segments.length,
+      questionsFound,
+      // Nothing is written when the gate blocks or there's no target quiz.
+      questionsImported: quizId ? written : questions.length,
+      duplicatesRemoved,
+      extractionRounds,
+      truncationHit,
+      droppedForSize,
+      passagesCaptured: passagesForQuiz.length,
+      tablesCaptured,
+      questions,
+      extraNotes: [extraNote],
+    }),
+    // Engine gate result — the studio surfaces blockers ("Missing questions:
+    // 24, 47") prominently and warnings below them.
+    gated: !gate.ok,
+    blockers: gate.blockers,
+    validationWarnings: gate.warnings,
+    numbering: gate.numbering,
+  };
 
   // Log to aiGenerations for cost tracking + audit trail.
   try {
@@ -859,6 +893,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       passagesCaptured: passagesForQuiz.length,
       tablesCaptured,
       confidence: report.confidence,
+      gated: !gate.ok,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (err) {
@@ -866,6 +901,12 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   }
 
   const warnings = [];
+  // Lead with the hard blockers so the studio's warning line names them even
+  // before the admin opens the structured report.
+  if (!gate.ok) {
+    warnings.push(
+      "Import paused before saving — " + gate.blockers.join(" "));
+  }
   if (droppedForSize > 0) {
     warnings.push(`${droppedForSize} page${droppedForSize === 1 ? "" : "s"} ` +
       "skipped because they were over 5MB each.");
@@ -883,6 +924,9 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     questions,
     questionsWritten: written,
     questionsCleared: cleared,
+    // True when the gate blocked the write — the caller must NOT advance to the
+    // editor as if the import succeeded.
+    gated: !gate.ok,
     report,
     usage,
     warning: warnings.length ? warnings.join(" ") : null,
