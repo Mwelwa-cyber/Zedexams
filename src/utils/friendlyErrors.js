@@ -335,7 +335,7 @@ const AUTH_MESSAGES_SHARED = {
   'auth/wrong-password': 'Wrong password. Please try again.',
   'auth/too-many-requests': 'Too many attempts — please wait a few minutes.',
   'auth/invalid-email': 'Please enter a valid email address.',
-  'auth/network-request-failed': 'Network error. Please check your connection.',
+  'auth/network-request-failed': 'Couldn’t reach the sign-in server. Check your connection and tap Sign In again.',
   'auth/operation-not-allowed': 'Email and password sign-in is not available right now.',
   'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
   'auth/popup-blocked':

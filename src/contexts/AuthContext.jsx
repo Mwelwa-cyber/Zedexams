@@ -14,6 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db, googleProvider } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
+import { retryOnNetworkError } from '../utils/authRetry'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
@@ -266,7 +267,11 @@ export function AuthProvider({ children }) {
   }
 
   async function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password)
+    // Auto-retry a transient `auth/network-request-failed` (a dropped/timed-out
+    // fetch to Google's auth server — common on flaky Zambian mobile links)
+    // before surfacing the error. Wrong-password / rate-limit / etc. are not
+    // retried (see utils/authRetry.js).
+    return retryOnNetworkError(() => signInWithEmailAndPassword(auth, email, password))
   }
 
   // Google sign-in. Web uses an OAuth popup; the native Android shell can't
