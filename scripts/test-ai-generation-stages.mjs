@@ -15,6 +15,9 @@ const {
   resolveStages,
   computeStageStates,
   mapWorksheetPhaseToStage,
+  connectionNoticeFor,
+  CONNECTION_NOTICES,
+  SLOW_CONNECTION_AFTER_MS,
 } = await import('../src/components/ui/aiGenerationStages.js')
 
 let pass = 0
@@ -214,6 +217,44 @@ test('every preset references only known stage ids', () => {
       assert(AI_STAGES[id], `preset ${name} references unknown stage "${id}"`)
     }
   }
+})
+
+// ── connectionNoticeFor ────────────────────────────────────────────
+console.log('\nconnectionNoticeFor (offline / slow reassurance)')
+
+test('nothing to say on a healthy, fresh run', () => {
+  assert(connectionNoticeFor({ online: true, elapsedMs: 0, running: true }) === null)
+})
+
+test('offline mid-run surfaces the offline notice', () => {
+  assert(connectionNoticeFor({ online: false, elapsedMs: 0, running: true }) === 'offline')
+})
+
+test('a long-running but online run surfaces the slow notice', () => {
+  const r = connectionNoticeFor({ online: true, elapsedMs: SLOW_CONNECTION_AFTER_MS + 1, running: true })
+  assert(r === 'slow', `expected slow, got ${r}`)
+})
+
+test('offline outranks slow when both would apply', () => {
+  const r = connectionNoticeFor({ online: false, elapsedMs: SLOW_CONNECTION_AFTER_MS + 1, running: true })
+  assert(r === 'offline', 'offline should take precedence')
+})
+
+test('says nothing once the run is finished or not running', () => {
+  assert(connectionNoticeFor({ online: false, running: false }) === null)
+})
+
+test('says nothing once the run has errored (retry UI takes over)', () => {
+  assert(connectionNoticeFor({ online: false, running: true, errored: true }) === null)
+})
+
+test('every notice key maps to non-empty, jargon-free copy', () => {
+  for (const key of ['offline', 'slow']) {
+    const copy = CONNECTION_NOTICES[key]
+    assert(typeof copy === 'string' && copy.length > 0, `missing copy for ${key}`)
+  }
+  assert(/saved/i.test(CONNECTION_NOTICES.offline), 'offline copy should reassure the request is saved')
+  assert(/do not close/i.test(CONNECTION_NOTICES.slow), 'slow copy should ask not to close the page')
 })
 
 // ── Report ─────────────────────────────────────────────────────────
