@@ -5,12 +5,12 @@ const SIZE = {
   md: {
     button: 'h-11 w-11 rounded-2xl',
     icon: 'md',
-    label: 'mt-1 text-[10px]',
+    label: 'mt-1.5 text-[10px]',
   },
   sm: {
     button: 'h-9 w-9 rounded-xl',
     icon: 'sm',
-    label: 'mt-0.5 text-[9px]',
+    label: 'mt-1 text-[9px]',
   },
 }
 
@@ -21,7 +21,7 @@ export function HeaderIconLink({ to, label, icon: ActionIcon, size = 'md' }) {
       <span className={`zx-card theme-card theme-border learner-chrome-icon flex items-center justify-center border shadow-elev-sm transition-all group-hover/tt:theme-accent-bg group-hover/tt:theme-accent-text ${s.button}`}>
         <Icon as={ActionIcon} size={s.icon} strokeWidth={2.1} />
       </span>
-      <span className={`learner-chrome-label font-black leading-none ${s.label}`}>{label}</span>
+      <span className={`learner-chrome-label font-semibold tracking-tight leading-none ${s.label}`}>{label}</span>
     </Link>
   )
 }
@@ -51,7 +51,7 @@ export function HeaderIconButton({ label, icon: ActionIcon, active = false, impo
           </span>
         ) : null}
       </button>
-      <span className={`learner-chrome-label font-black leading-none ${s.label}`}>{label}</span>
+      <span className={`learner-chrome-label font-semibold tracking-tight leading-none ${s.label}`}>{label}</span>
       {children}
     </div>
   )
