@@ -50,6 +50,7 @@ import ReviewPanel from './ReviewPanel'
 import { collectReviewItems } from './reviewUtils'
 import StructuralValidationPanel from './StructuralValidationPanel'
 import { runQuizValidation } from '../../utils/quizEngineAdapter.js'
+import { mergeStandaloneSections } from './bulkQuestionOps.js'
 import ImageCropModal from './ImageCropModal'
 import { getRichPlainText } from '../../editor/RichContent.jsx'
 import { suggestQuizAnswers } from '../../utils/aiAssistant'
@@ -802,6 +803,22 @@ export default function EditQuizV2() {
     setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
     setDirty(true)
   }, [])
+
+  // Bulk "Merge selected" from the selection toolbar: combine the selected
+  // standalone questions into the first one (paper order). The pure helper
+  // returns the absorbed questions' Firestore ids, which join the same
+  // deletion queue single-card removal uses — so the merged-away docs are
+  // actually deleted on save, not orphaned.
+  const mergeSelectedSections = useCallback(function mergeSelectedSections(sectionIds) {
+    const result = mergeStandaloneSections(sectionsRef.current, sectionIds)
+    if (!result.mergedCount) return
+    if (result.removedQuestionIds.length) {
+      setDeletedIds(current => [...current, ...result.removedQuestionIds])
+    }
+    setSections(result.sections)
+    setDirty(true)
+    show(`Merged ${result.mergedCount + 1} questions into one — flagged for review.`)
+  }, [show])
 
   const updatePassage = useCallback(function updatePassage(sectionIndex, field, value) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -2068,6 +2085,7 @@ export default function EditQuizV2() {
             onShuffleSections={handleShuffleSections}
             onAutoGroupComprehension={handleAutoGroupComprehension}
             onMoveQuestionToPassage={handleMoveQuestionToPassage}
+            onMergeSections={mergeSelectedSections}
           />
           {deletedIds.length > 0 && (
             <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

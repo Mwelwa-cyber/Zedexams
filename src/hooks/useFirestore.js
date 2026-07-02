@@ -81,9 +81,11 @@ function loadWritePipeline() {
     _writePipelinePromise = Promise.all([
       import('../editor/utils/migration.js'),
       import('../utils/quizRichText.js'),
-    ]).then(([migration, quizRichText]) => ({
+      import('../utils/quizEngineAdapter.js'),
+    ]).then(([migration, quizRichText, quizEngineAdapter]) => ({
       migrateContent: migration.migrateContent,
       normalizeRichTextPayload: quizRichText.normalizeRichTextPayload,
+      questionValidationStatus: quizEngineAdapter.questionValidationStatus,
     }))
   }
   return _writePipelinePromise
@@ -121,7 +123,7 @@ function normalizeDiagramParams(params) {
 async function normalizeQuestionPayload(q, order) {
   // Lazily fetch the editor-backed rich-text helpers (see loadWritePipeline).
   // The promise is memoised, so this resolves instantly after the first call.
-  const { migrateContent, normalizeRichTextPayload } = await loadWritePipeline()
+  const { migrateContent, normalizeRichTextPayload, questionValidationStatus } = await loadWritePipeline()
   // Convert a rich-text field to its Tiptap JSON for persistence. null/empty →
   // null; HTML/plain string or Tiptap JSON → migrateContent handles every case.
   const toRichTextJSON = (value) => {
@@ -400,9 +402,11 @@ async function normalizeQuestionPayload(q, order) {
         ? null
         : Math.max(0, Math.min(1, Number(raw)))
     })(),
-    validationStatus: ['ok', 'warning', 'error'].includes(q.validationStatus)
-      ? q.validationStatus
-      : 'ok',
+    // Recomputed LIVE at save time by the shared Document Understanding
+    // Engine, so the stored value always reflects the question's current
+    // structural state — a teacher fixing a flagged card flips it back to
+    // 'ok' in Firestore, not just on the in-editor chip.
+    validationStatus: questionValidationStatus(q),
     order,
 
     // ── Tiptap JSON mirrors (canonical source going forward) ──

@@ -219,6 +219,7 @@
     "test:past-paper-import": "node functions/teacherTools/pastPaperImport.test.js",
     "test:document-engine": "node functions/documentEngine/validationEngineCore.test.js && node functions/documentEngine/structuredDocumentCore.test.js",
     "test:quiz-engine-adapter": "node scripts/test-quiz-engine-adapter.mjs",
+    "test:bulk-question-ops": "node src/components/quiz/bulkQuestionOps.test.js",
     "test:document-engine-parity": "node scripts/test-document-engine-parity.mjs",
     "test:aria": "node functions/agents/runners/aria.test.js",
     "test:reva": "node functions/agents/runners/reva.test.js",
