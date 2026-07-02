@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
-import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
+import { studioGradeToKbGrade, toKbSubjectKey, resolveFramework } from '../paperTaxonomy'
 
 /**
  * Topic + sub-topic picker for the teacher generation studios.
@@ -42,18 +42,6 @@ import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
 // every mount and the two frameworks don't trample each other.
 const _cacheByFw = new Map()   // framework → Map<"grade|subject", Map<topic, Set<subtopic>>>
 const _promiseByFw = new Map() // framework → in-flight Promise
-
-// Grades still on the 2013 OBC syllabus. Zambia is rolling out the 2023 CBC
-// gradually — currently live on CBC: ECE, G1, G2, G4, G8 (Form 1), G9 (Form 2).
-// The rest remain on OBC until their grade is transitioned.
-const GRADES_2013 = new Set(['G3', 'G5', 'G6', 'G7', 'G10', 'G11', 'G12'])
-
-function resolveFramework(grade, frameworkProp) {
-  // Normalize to KB grade code first so bare numbers ('7') and G-prefixed
-  // values ('G7') both hit the GRADES_2013 set correctly.
-  if (grade && GRADES_2013.has(studioGradeToKbGrade(grade))) return '2013'
-  return frameworkProp || '2023'
-}
 
 async function build2023Lookup() {
   const merged = await getMergedSyllabi()

@@ -13,6 +13,7 @@ import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 import { useSyllabusTopicOptions, CURRICULUM_FRAMEWORKS } from './syllabusTopicOptions'
+import { resolveFramework, isFrameworkLockedGrade } from './paperTaxonomy'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
 import { PaperBlock } from './views/PaperBlocks'
 import Icon from './studio/studioIcons'
@@ -303,7 +304,11 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
   const [customCount, setCustomCount] = useState(false)
   // 'pick' = choose from the syllabus drop-down, 'write' = free text.
   const [topicMode, setTopicMode] = useState('pick')
-  const { topics: topicOptions, loading: topicsLoading } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
+  // Grades still on the 2013 syllabus (G7, G10-12, …) have no 2023 curriculum,
+  // so force their framework rather than letting it default to an empty 2023.
+  const effectiveFramework = resolveFramework(form.grade, aiForm.framework)
+  const frameworkLocked = isFrameworkLockedGrade(form.grade)
+  const { topics: topicOptions, loading: topicsLoading } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, effectiveFramework)
   const topicPickEmpty = !topicsLoading && topicOptions.length === 0
   // No syllabus rows for this grade/subject → free text is the only option.
   useEffect(() => {
@@ -361,14 +366,27 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
         </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
           <label>Curriculum</label>
-          <select
-            value={aiForm.framework}
-            onChange={e => setAiForm(prev => ({ ...prev, framework: e.target.value, topic: '' }))}
-          >
-            {CURRICULUM_FRAMEWORKS.map(f => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
+          {frameworkLocked ? (
+            <>
+              <select value={effectiveFramework} disabled aria-readonly="true">
+                {CURRICULUM_FRAMEWORKS.map(f => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+              <small style={{ color: '#64748b' }}>
+                Grade {form.grade} is on this syllabus — fixed.
+              </small>
+            </>
+          ) : (
+            <select
+              value={aiForm.framework}
+              onChange={e => setAiForm(prev => ({ ...prev, framework: e.target.value, topic: '' }))}
+            >
+              {CURRICULUM_FRAMEWORKS.map(f => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

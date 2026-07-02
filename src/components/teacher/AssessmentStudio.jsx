@@ -62,7 +62,7 @@ import { consumeVisualHandoff, isVisualHandoffRequest } from '../../utils/studio
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
 import ScanPaperModal from './scan/ScanPaperModal'
 import { studioGradeToKbGrade, studioSubjectToKey } from './syllabusTopicOptions'
-import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
+import { subjectLabel as kbSubjectLabel, isExamPaperType, resolveFramework } from './paperTaxonomy'
 import { getStudioVariant } from './studioVariant'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 import {
@@ -1388,7 +1388,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
         topic,
         count: aiForm.count,
         type: aiForm.type,
-        framework: aiForm.framework,
+        // OBC grades (G7, G10-12, …) have no 2023 curriculum, so ground
+        // generation on the framework the grade is actually on — matches the
+        // topic suggestions the teacher saw in the AI panel.
+        framework: resolveFramework(form.grade, aiForm.framework),
       })
       const generatedList = Array.isArray(generated) ? generated : []
       const usable = generatedList.filter(q => {

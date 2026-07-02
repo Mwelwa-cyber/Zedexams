@@ -54,6 +54,31 @@ export function studioGradeToKbGrade(grade) {
   return g.startsWith('G') || g.startsWith('F') || g.startsWith('ECE') ? g : `G${g}`
 }
 
+// ── Curriculum framework by grade ────────────────────────────────────────
+// Zambia is rolling out the 2023 CBC grade by grade. These grades have NOT
+// transitioned yet and remain on the 2013 OBC syllabus, so their topics live
+// only in curriculum-data-2013.json. Currently live on CBC: ECE, G1, G2, G4,
+// G8 (Form 1), G9 (Form 2); everything listed here stays on OBC until its
+// grade is transitioned.
+export const GRADES_2013 = new Set(['G3', 'G5', 'G6', 'G7', 'G10', 'G11', 'G12'])
+
+// Resolve which curriculum framework actually applies to a grade. Grades still
+// on the old syllabus force '2013' regardless of the requested framework —
+// there is no valid 2023 curriculum for them, so both topic suggestions and AI
+// generation must ground on 2013. Every other grade honours the requested
+// framework (default '2023'). Normalises bare numbers ('7') and G-codes ('G7')
+// alike via studioGradeToKbGrade.
+export function resolveFramework(grade, frameworkProp = '2023') {
+  if (grade && GRADES_2013.has(studioGradeToKbGrade(grade))) return '2013'
+  return frameworkProp || '2023'
+}
+
+// True when the grade is locked to a single framework (see GRADES_2013), so a
+// UI can render a read-only indicator instead of an inert framework toggle.
+export function isFrameworkLockedGrade(grade) {
+  return !!grade && GRADES_2013.has(studioGradeToKbGrade(grade))
+}
+
 // ── Test types ───────────────────────────────────────────────────────────
 // The Test Paper Studio offers exactly four test types: a narrow topic
 // recap, a weekly check, the mid-term and the end-of-term paper. 'exercise'

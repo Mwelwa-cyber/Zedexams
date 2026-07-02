@@ -15,6 +15,7 @@ import {
   PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
+  GRADES_2013, resolveFramework, isFrameworkLockedGrade,
 } from '../src/components/teacher/paperTaxonomy.js'
 
 let passed = 0
@@ -106,5 +107,27 @@ for (const t of examTypeValues) {
   ok(maxTopicsFor(t) >= 10, `${t} covers many topics`)
   ok(isCumulativeType(t), `${t} is cumulative`)
 }
+
+// ── Curriculum framework resolution ──────────────────────────────────────
+// Grades still on the 2013 OBC syllabus force '2013' no matter what framework
+// is requested — there is no valid 2023 curriculum for them, so both topic
+// suggestions and generation must ground on 2013.
+for (const g of ['3', '5', '6', '7', '10', '11', '12']) {
+  eq(resolveFramework(g, '2023'), '2013', `Grade ${g} forces 2013 even when 2023 requested`)
+  eq(resolveFramework(g, '2013'), '2013', `Grade ${g} stays 2013`)
+  ok(isFrameworkLockedGrade(g), `Grade ${g} is framework-locked`)
+}
+// G-prefixed and bare-number forms resolve identically.
+eq(resolveFramework('G7', '2023'), '2013', 'G7 forces 2013 (prefixed form)')
+// CBC grades honour the requested framework and are not locked.
+for (const g of ['1', '2', '4', '8', '9', 'ECE_N', 'ECE_R']) {
+  eq(resolveFramework(g, '2023'), '2023', `Grade ${g} honours 2023`)
+  eq(resolveFramework(g, '2013'), '2013', `Grade ${g} honours a 2013 request`)
+  ok(!isFrameworkLockedGrade(g), `Grade ${g} is not framework-locked`)
+}
+// Defaults + edge cases.
+eq(resolveFramework('4'), '2023', 'default framework is 2023')
+eq(resolveFramework('', '2023'), '2023', 'empty grade → requested framework')
+ok(GRADES_2013.has('G7') && !GRADES_2013.has('G8'), 'GRADES_2013 membership')
 
 console.log(`✓ paper-taxonomy: ${passed} assertions passed`)
