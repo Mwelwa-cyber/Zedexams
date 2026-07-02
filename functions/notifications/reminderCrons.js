@@ -203,8 +203,143 @@ const archiveOldNotifications = onSchedule(
     },
 );
 
+// ── Weekly revision (in-app, recently-active learners) ─────────────────────
+const WEEKLY_PAGE = 500;
+function isLearnerRole(role) {
+  return !role || role === "learner";
+}
+
+const weeklyRevisionReminder = onSchedule(
+    {...BASE_OPTS, schedule: "every sunday 17:00", timeoutSeconds: 540},
+    async () => {
+      const db = admin.firestore();
+      const weekKey = dateKey(0);
+      // Only learners active in the last 30 days — inactiveLearnerReminder +
+      // Anchor own the longer-lapsed cohorts, and we don't want to nag churned
+      // users every Sunday. lastAttemptDate is a YYYY-MM-DD string, so a lexical
+      // range on it is correct and index-free.
+      const activeSince = dateKey(-30);
+      let last = null;
+      let written = 0;
+      for (let round = 0; round < 40; round++) {
+        let q = db
+            .collection("users")
+            .where("lastAttemptDate", ">=", activeSince)
+            .orderBy("lastAttemptDate")
+            .limit(WEEKLY_PAGE);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get().catch((err) => {
+          console.error("[weeklyRevisionReminder] query failed", err);
+          return null;
+        });
+        if (!snap || snap.empty) break;
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data() || {};
+          if (!isLearnerRole(data.role)) continue;
+          try {
+            const res = await createNotification({
+              uid: docSnap.id,
+              category: "learning",
+              type: "weekly_revision",
+              title: "Time for your weekly revision",
+              body: "A short revision session keeps what you learned this week fresh. Pick a quiz to start.",
+              priority: "low",
+              icon: "academic-cap",
+              action: {label: "Start revising", url: "/quizzes"},
+              dedupeKey: `weekly-revision-${weekKey}`,
+              source: "weekly-revision-reminder",
+              userData: data,
+            });
+            if (res.written) written += 1;
+          } catch (err) {
+            console.warn(
+                `[weeklyRevisionReminder] ${docSnap.id} failed`,
+                (err && err.message) || err,
+            );
+          }
+        }
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < WEEKLY_PAGE) break;
+      }
+      console.log(`[weeklyRevisionReminder] ${written} written`);
+    },
+);
+
+// ── Inactive-learner win-back (in-app) ─────────────────────────────────────
+// Learners who last practised 7–13 days ago. dailyStreakReminders owns
+// "missed today"; Anchor drafts win-backs for the 14–45 day cohort. A per-user
+// cooldown stamp keeps us from nagging every day inside the window.
+const WINBACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
+const inactiveLearnerReminder = onSchedule(
+    {...BASE_OPTS, schedule: "every day 10:00", timeoutSeconds: 540},
+    async () => {
+      const db = admin.firestore();
+      const now = Date.now();
+      const from = dateKey(-13);
+      const to = dateKey(-7);
+      let last = null;
+      let written = 0;
+      for (let round = 0; round < 40; round++) {
+        let q = db
+            .collection("users")
+            .where("lastAttemptDate", ">=", from)
+            .where("lastAttemptDate", "<=", to)
+            .orderBy("lastAttemptDate")
+            .limit(WEEKLY_PAGE);
+        if (last) q = q.startAfter(last);
+        const snap = await q.get().catch((err) => {
+          console.error("[inactiveLearnerReminder] query failed", err);
+          return null;
+        });
+        if (!snap || snap.empty) break;
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data() || {};
+          if (!isLearnerRole(data.role)) continue;
+          const lastSent = data.notifyWinbackAt &&
+            typeof data.notifyWinbackAt.toMillis === "function" ?
+            data.notifyWinbackAt.toMillis() : 0;
+          if (lastSent && now - lastSent < WINBACK_COOLDOWN_MS) continue;
+          try {
+            const res = await createNotification({
+              uid: docSnap.id,
+              category: "learning",
+              type: "winback",
+              title: "We miss you! 👋",
+              body: "It's been a few days. Jump back in with a quick quiz — your progress is waiting.",
+              priority: "low",
+              icon: "academic-cap",
+              action: {label: "Resume learning", url: "/dashboard"},
+              dedupeKey: `winback-${dateKey(0)}`,
+              source: "inactive-learner-reminder",
+              userData: data,
+            });
+            if (res.written) {
+              written += 1;
+              await docSnap.ref
+                  .update({
+                    notifyWinbackAt: admin.firestore.FieldValue.serverTimestamp(),
+                  })
+                  .catch(() => {});
+            }
+          } catch (err) {
+            console.warn(
+                `[inactiveLearnerReminder] ${docSnap.id} failed`,
+                (err && err.message) || err,
+            );
+          }
+        }
+        last = snap.docs[snap.docs.length - 1];
+        if (snap.size < WEEKLY_PAGE) break;
+      }
+      console.log(`[inactiveLearnerReminder] ${written} written`);
+    },
+);
+
 module.exports = {
   dailyPracticeReminders,
+  weeklyRevisionReminder,
+  inactiveLearnerReminder,
   subscriptionExpiryReminders,
   archiveOldNotifications,
 };

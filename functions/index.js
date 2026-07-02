@@ -2846,14 +2846,28 @@ exports.onLearnerStatsWritten = onLearnerStatsWritten;
 const {onAnnouncementWritten} = require("./notifications/onAnnouncementWritten");
 exports.onAnnouncementWritten = onAnnouncementWritten;
 
-// Reminder + housekeeping crons (us-central1, Africa/Lusaka): in-app daily
-// practice nudge, subscription-expiry reminder, and the 90-day archival sweep.
+// Admin in-app alerts — new registrations + new feedback/bug reports fan out to
+// every admin's notification centre (africa-south1 triggers, best-effort).
+const {
+  onUserCreatedNotifyAdmins,
+  onFeedbackCreatedNotifyAdmins,
+} = require("./notifications/adminNotificationTriggers");
+exports.onUserCreatedNotifyAdmins = onUserCreatedNotifyAdmins;
+exports.onFeedbackCreatedNotifyAdmins = onFeedbackCreatedNotifyAdmins;
+
+// Reminder + housekeeping crons (us-central1, Africa/Lusaka): daily practice
+// nudge, weekly revision, inactive-learner win-back, subscription-expiry
+// reminder, and the 90-day archival sweep.
 const {
   dailyPracticeReminders,
+  weeklyRevisionReminder,
+  inactiveLearnerReminder,
   subscriptionExpiryReminders,
   archiveOldNotifications,
 } = require("./notifications/reminderCrons");
 exports.dailyPracticeReminders = dailyPracticeReminders;
+exports.weeklyRevisionReminder = weeklyRevisionReminder;
+exports.inactiveLearnerReminder = inactiveLearnerReminder;
 exports.subscriptionExpiryReminders = subscriptionExpiryReminders;
 exports.archiveOldNotifications = archiveOldNotifications;
 

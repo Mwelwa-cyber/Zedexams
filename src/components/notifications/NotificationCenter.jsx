@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../contexts/NotificationContext'
 import Icon from '../ui/Icon'
@@ -117,6 +117,17 @@ export default function NotificationCenter() {
   const [category, setCategory] = useState('all')
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [search, setSearch] = useState('')
+  const panelRef = useRef(null)
+
+  // Close on Escape and move focus into the panel when it opens (a11y).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    panelRef.current?.focus()
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setOpen])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -162,7 +173,11 @@ export default function NotificationCenter() {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onMouseDown={close} />
 
       {/* Panel: full-screen on mobile, anchored card on desktop */}
-      <div className="relative flex h-full w-full flex-col overflow-hidden theme-card shadow-elev-xl animate-slide-up sm:h-auto sm:max-h-[80vh] sm:w-[26rem] sm:rounded-2xl sm:border theme-border">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="relative flex h-full w-full flex-col overflow-hidden theme-card shadow-elev-xl animate-slide-up outline-none sm:h-auto sm:max-h-[80vh] sm:w-[26rem] sm:rounded-2xl sm:border theme-border"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b theme-border px-4 py-3">
           <div className="flex items-center gap-2">
