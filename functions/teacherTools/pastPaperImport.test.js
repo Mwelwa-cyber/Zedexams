@@ -678,10 +678,12 @@ test('OCR-drift re-read (same section+number, drifted stem) still collapses', ()
   assert.equal(fresh.length, 0, 'same printed number in the same section is a re-read');
 });
 
-test('two DISTINCT questions sharing a verbatim stem are both kept when numbered', () => {
+test('two DISTINCT questions sharing a verbatim stem are both kept when numbered (same batch)', () => {
   // Real papers repeat options-less stems verbatim ("Give a reason for your
   // answer."). The old stem-only dedup collapsed them, dropping questions and
-  // shifting everything after — part of the "wrong questions" report.
+  // shifting everything after — part of the "wrong questions" report. Distinct
+  // same-stem questions are printed near each other, so they arrive TOGETHER
+  // in one model response — the exception is deliberately batch-scoped.
   const paper = [
     {prompt: 'Give a reason for your answer.', options: [], sourceNumber: 9, order: 0},
     {prompt: 'Give a reason for your answer.', options: [], sourceNumber: 14, order: 1},
@@ -691,9 +693,59 @@ test('two DISTINCT questions sharing a verbatim stem are both kept when numbered
 
   const seenKeys = new Set();
   const seenNumbers = new Set();
-  selectNewQuestions(seenKeys, [paper[0]], seenNumbers);
-  const {fresh} = selectNewQuestions(seenKeys, [paper[1]], seenNumbers);
-  assert.equal(fresh.length, 1, 'same stem + NEW printed number is kept');
+  const {fresh} = selectNewQuestions(seenKeys, paper, seenNumbers);
+  assert.equal(fresh.length, 2, 'same-batch same-stem pair with distinct numbers both kept');
+});
+
+test('REGRESSION (review): cross-batch same-stem re-read with a DRIFTED number is dropped and never poisons seenNumbers', () => {
+  // Round 0 captures Q12. Round 1 re-reads the SAME question (identical stem)
+  // but misreads the printed number as 17. Keeping it would (a) import a
+  // duplicate and (b) record '#17' so the REAL Q17 arriving later is dropped
+  // and its gap is masked — the confirmed "seenNumbers poisoning" finding.
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  selectNewQuestions(seenKeys, [
+    {prompt: 'What is 7 x 8?', options: ['54', '56', '58', '64'], sourceNumber: 12},
+  ], seenNumbers);
+  const round1 = selectNewQuestions(seenKeys, [
+    {prompt: 'What is 7 x 8?', options: ['54', '56', '58', '64'], sourceNumber: 17},
+  ], seenNumbers);
+  assert.equal(round1.fresh.length, 0, 'cross-batch stem repeat is a re-read, drifted number or not');
+  assert.equal(seenNumbers.has('#17'), false, 'the drifted number must NOT be recorded');
+  // The genuine Q17 still gets in.
+  const round2 = selectNewQuestions(seenKeys, [
+    {prompt: 'Name the largest lake in Zambia.', options: [], sourceNumber: 17},
+  ], seenNumbers);
+  assert.equal(round2.fresh.length, 1, 'the REAL Q17 must survive');
+});
+
+test('REGRESSION (review): sectionLabel drift on a re-read cannot create a duplicate', () => {
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  selectNewQuestions(seenKeys, [
+    {prompt: 'Explain the water cycle.', options: [], sourceNumber: 5, sectionLabel: 'SECTION B'},
+  ], seenNumbers);
+  // Continuation round re-emits the identical question but omits the label.
+  const {fresh} = selectNewQuestions(seenKeys, [
+    {prompt: 'Explain the water cycle.', options: [], sourceNumber: 5},
+  ], seenNumbers);
+  assert.equal(fresh.length, 0, 'label drift must not defeat the stem dedupe');
+});
+
+test('REGRESSION (review): a verbatim question re-numbered to a wanted gap is rejected end-to-end', () => {
+  // The gap-recovery invention mode: paper is missing Q4; the model "finds" it
+  // by re-numbering already-captured Q6 verbatim. filterRecoveredToWanted
+  // passes it (the number IS wanted, by construction) — the cross-batch stem
+  // dedupe is the layer that must kill it, leaving the gap honestly open.
+  const seenKeys = new Set();
+  const seenNumbers = new Set();
+  const q6 = {prompt: 'Which river forms the border with Zimbabwe?', options: ['Kafue', 'Zambezi', 'Luangwa', 'Chambeshi'], sourceNumber: 6};
+  selectNewQuestions(seenKeys, [q6], seenNumbers);
+  const recovered = filterRecoveredToWanted([{...q6, sourceNumber: 4}], [4]);
+  assert.equal(recovered.length, 1, 'the wanted-number filter alone cannot catch re-numbering');
+  const {fresh} = selectNewQuestions(seenKeys, recovered, seenNumbers);
+  assert.equal(fresh.length, 0, 'the cross-batch stem dedupe rejects the invented copy');
+  assert.equal(seenNumbers.has('#4'), false, 'gap 4 stays open for the report/gate');
 });
 
 test('unnumbered identical stems still collapse (conservative default)', () => {
@@ -771,15 +823,61 @@ test('collectPassages KEEPS a text-less map that carries a printed location', ()
   assert.equal(questions[0].passageId, 'p001');
 });
 
-test('collectPassages: first sourcePage wins, LARGEST figureBox wins across re-reads', () => {
+test('collectPassages: page + box travel as an ATOMIC pair — re-reads never mix', () => {
+  // A box only means anything on the page it was reported with. Mixing one
+  // read's page with another's box crops a random region (confirmed finding).
   const qs = [
     {prompt: 'Q1', order: 0, passage: {ref: 'M1', kind: 'map', text: 'Study the map.', sourcePage: 2, figureBox: {x: 0.2, y: 0.2, w: 0.3, h: 0.3}}},
     {prompt: 'Q2', order: 1, passage: {ref: 'M1', kind: 'map', text: 'Study the map.', sourcePage: 5, figureBox: {x: 0.1, y: 0.1, w: 0.8, h: 0.6}}},
   ];
   const {passages} = collectPassages(qs);
   assert.equal(passages.length, 1);
-  assert.equal(passages[0].sourcePage, 2, 'first reported page wins');
-  assert.deepEqual(passages[0].figureBox, {x: 0.1, y: 0.1, w: 0.8, h: 0.6}, 'largest box wins');
+  assert.equal(passages[0].sourcePage, 2, 'first complete pair wins');
+  assert.deepEqual(passages[0].figureBox, {x: 0.2, y: 0.2, w: 0.3, h: 0.3},
+    "page 2's own box — never page 5's box on page 2");
+});
+
+test('collectPassages: a complete page+box pair beats a page-only report; larger box wins on the SAME page', () => {
+  const qs = [
+    {prompt: 'Q1', order: 0, passage: {ref: 'M1', kind: 'map', text: 'Map.', sourcePage: 2}},
+    {prompt: 'Q2', order: 1, passage: {ref: 'M1', kind: 'map', text: 'Map.', sourcePage: 3, figureBox: {x: 0.1, y: 0.1, w: 0.4, h: 0.3}}},
+    {prompt: 'Q3', order: 2, passage: {ref: 'M1', kind: 'map', text: 'Map.', sourcePage: 3, figureBox: {x: 0.05, y: 0.05, w: 0.9, h: 0.6}}},
+  ];
+  const {passages} = collectPassages(qs);
+  assert.equal(passages[0].sourcePage, 3, 'complete pair replaces page-only');
+  assert.deepEqual(passages[0].figureBox, {x: 0.05, y: 0.05, w: 0.9, h: 0.6}, 'largest same-page box wins');
+});
+
+test('collectPassages: figure location NEVER attaches to a comprehension passage', () => {
+  // A comprehension passage is its text; attaching the raw page scan under a
+  // story because the model reported its start page was a confirmed
+  // mis-feature. Location only travels on map passages.
+  const qs = [
+    {prompt: 'Q1', order: 0, passage: {ref: 'P1', kind: 'comprehension', text: 'A long story about a farmer...', sourcePage: 2, figureBox: {x: 0, y: 0, w: 0.9, h: 0.9}}},
+    {prompt: 'Q2', order: 1, passage: {ref: 'P1', kind: 'comprehension', text: ''}},
+  ];
+  const {passages} = collectPassages(qs);
+  assert.equal(passages.length, 1);
+  assert.equal('sourcePage' in passages[0], false);
+  assert.equal('figureBox' in passages[0], false);
+});
+
+test('findSourceNumberGaps is SECTION-SCOPED: a restart paper cannot mask a missing question', () => {
+  // Section A is complete 1..5; Section B (restarted numbering) is missing 3.
+  // The old global union {1..5} looked complete — the gap was invisible to
+  // recovery AND to the gate's missing-numbers blocker.
+  const qs = [
+    ...[1, 2, 3, 4, 5].map(n => ({sourceNumber: n, sectionLabel: 'SECTION A'})),
+    ...[1, 2, 4, 5].map(n => ({sourceNumber: n, sectionLabel: 'SECTION B'})),
+  ];
+  assert.deepEqual(findSourceNumberGaps(qs), [3]);
+  // A section with too few numbers of its own is not trusted (no phantom gaps
+  // from one stray mislabelled question).
+  const sparse = [
+    ...[1, 2, 3, 4, 5].map(n => ({sourceNumber: n, sectionLabel: 'SECTION A'})),
+    {sourceNumber: 9, sectionLabel: 'SECTIN A (typo)'},
+  ];
+  assert.deepEqual(findSourceNumberGaps(sparse), []);
 });
 
 test('collectPassages still drops a text-less LONE block with no location (misfire guard)', () => {

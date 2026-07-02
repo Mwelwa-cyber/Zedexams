@@ -352,24 +352,36 @@ function planPageBatches(items, size) {
  * number guard; when omitted the behaviour is the original stem-only de-dupe.
  * Both sets are mutated in place + returned.
  *
- * Same-stem exception: a question whose stem matches a seen one but that
- * carries a genuinely NEW printed number is a DISTINCT question, not a re-read
- * ("Give a reason for your answer." repeats verbatim on real papers) — it is
- * kept. Without a printed number the stem match wins (conservative, original
- * behaviour).
+ * Same-stem exception — BATCH-SCOPED. Distinct printed questions can share a
+ * verbatim stem ("Give a reason for your answer." repeats on real papers), and
+ * when they do they arrive TOGETHER in one model response (they're printed
+ * near each other, read in one pass). So a repeated stem is kept as a distinct
+ * question only when its first occurrence was in THIS batch and it carries a
+ * new printed number. A stem already known from a PREVIOUS round/segment is a
+ * re-read whose printed number may have DRIFTED (misread digit, dropped
+ * section heading) — keeping it would (a) import a duplicate, (b) poison
+ * seenNumbers with the drifted number so the REAL question carrying it later
+ * gets dropped, and (c) hide that number from gap detection and the gate's
+ * missing-numbers blocker. All three were confirmed live failure modes, so a
+ * cross-batch stem repeat is always dropped and its number never recorded.
  */
 function selectNewQuestions(seenKeys, incoming, seenNumbers) {
   const keys = seenKeys instanceof Set ? seenKeys : new Set();
   const nums = seenNumbers instanceof Set ? seenNumbers : null;
   const fresh = [];
+  // Stems first accepted within THIS call — the only scope where a repeated
+  // stem with a new number is trusted as a genuinely distinct question.
+  const batchKeys = new Set();
   for (const q of (Array.isArray(incoming) ? incoming : [])) {
     const nkey = numberKey(q);
     // A re-read of an already-captured printed number is the same question.
     if (nums && nkey != null && nums.has(nkey)) continue;
     const key = questionKey(q);
-    // A repeated stem is a duplicate UNLESS this question carries a new
-    // printed number (checked above) — then it's a distinct same-stem item.
-    if (keys.has(key) && !(nums && nkey != null)) continue;
+    if (keys.has(key)) {
+      const distinctSameStem = batchKeys.has(key) && nums && nkey != null;
+      if (!distinctSameStem) continue; // cross-batch re-read (or unnumbered)
+    }
+    batchKeys.add(key);
     keys.add(key);
     if (nums && nkey != null) nums.add(nkey);
     fresh.push(q);
@@ -599,7 +611,7 @@ function collectPassages(questions) {
     const ord = Number.isInteger(q.order) ? q.order : i;
     let g = groups.get(p.ref);
     if (!g) {
-      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null, sourcePage: null, figureBox: null};
+      g = {ref: p.ref, title: "", passageText: "", passageKind: p.kind || "comprehension", order: ord, count: 0, table: null, figureLoc: null};
       groups.set(p.ref, g);
     }
     g.count += 1;
@@ -607,10 +619,24 @@ function collectPassages(questions) {
     if (p.text && p.text.length > g.passageText.length) g.passageText = p.text;
     if (p.table && tableCellCount(p.table) > tableCellCount(g.table)) g.table = p.table;
     if (p.kind === "map") g.passageKind = "map";
-    // Figure location: first reported page wins; the LARGEST reported box wins
-    // (re-reads of the same figure jitter — the generous crop keeps it whole).
-    if (p.sourcePage && !g.sourcePage) g.sourcePage = p.sourcePage;
-    if (p.figureBox && boxArea(p.figureBox) > boxArea(g.figureBox)) g.figureBox = p.figureBox;
+    // Figure location: page + box are an ATOMIC pair — a box only means
+    // anything on the page it was reported with, so re-reads must never mix
+    // one read's page with another's box (that crops a random region).
+    // Preference: a complete page+box pair beats a page-only report; among
+    // complete pairs the LARGEST box wins (jittery re-reads of the same
+    // figure — the generous crop keeps the whole figure).
+    if (p.sourcePage) {
+      const incoming = {page: p.sourcePage, box: p.figureBox || null};
+      const cur = g.figureLoc;
+      if (!cur) {
+        g.figureLoc = incoming;
+      } else if (incoming.box && !cur.box) {
+        g.figureLoc = incoming;
+      } else if (incoming.box && cur.box && incoming.page === cur.page &&
+                 boxArea(incoming.box) > boxArea(cur.box)) {
+        g.figureLoc = incoming;
+      }
+    }
     if (ord < g.order) g.order = ord;
   });
 
@@ -624,10 +650,14 @@ function collectPassages(questions) {
     // studio attaches an image to. Dropping it was why imported Social
     // Studies maps vanished entirely.
     if (!g.passageText && !g.table && g.count < 2 &&
-        !(g.passageKind === "map" && (g.sourcePage || g.figureBox))) continue;
+        !(g.passageKind === "map" && g.figureLoc)) continue;
     idx += 1;
     const id = `p${String(idx).padStart(3, "0")}`;
     refToId.set(g.ref, id);
+    // Figure location only travels on MAP passages: a comprehension passage
+    // is its text — attaching the raw page scan under a story just because
+    // the model reported the page it starts on was a confirmed mis-feature.
+    const loc = g.passageKind === "map" ? g.figureLoc : null;
     passages.push({
       id,
       title: g.title,
@@ -635,8 +665,8 @@ function collectPassages(questions) {
       passageKind: g.table && !g.passageText ? "map" : g.passageKind || "comprehension",
       order: g.order,
       ...(g.table ? {table: g.table} : {}),
-      ...(g.sourcePage ? {sourcePage: g.sourcePage} : {}),
-      ...(g.figureBox ? {figureBox: g.figureBox} : {}),
+      ...(loc ? {sourcePage: loc.page} : {}),
+      ...(loc && loc.box ? {figureBox: loc.box} : {}),
     });
   }
 
@@ -680,27 +710,44 @@ function parseSourceNumber(v) {
  * Detect gaps in the source-paper numbering. When the model reported numbers
  * 1,2,3,5,6 we surface "4" as missing so the admin knows a question may not
  * have been captured. Only runs when enough questions carry a source number
- * (≥60%) — otherwise the signal is too noisy to trust. Returns the sorted list
- * of missing integers between the min and max observed.
+ * (≥60% overall) — otherwise the signal is too noisy to trust.
+ *
+ * SECTION-SCOPED: papers that restart numbering per section are checked per
+ * section label, else Section A's Q12 would mask a missing Q12 in Section B
+ * (the union of restarted runs looks complete when it isn't). The returned
+ * list is the sorted, de-duplicated union of every section's missing numbers
+ * — plain integers, because the recovery prompt asks by printed number.
  */
 function findSourceNumberGaps(questions) {
-  const nums = (Array.isArray(questions) ? questions : [])
-    .map((q) => parseSourceNumber(q && q.sourceNumber))
-    .filter((n) => n != null);
-  if (nums.length < 3) return [];
-  if (nums.length < (Array.isArray(questions) ? questions.length : 0) * 0.6) {
-    return [];
+  const list = Array.isArray(questions) ? questions : [];
+  const bySection = new Map();
+  let numbered = 0;
+  for (const q of list) {
+    const n = parseSourceNumber(q && q.sourceNumber);
+    if (n == null) continue;
+    numbered += 1;
+    const section = normaliseSectionLabel(q && q.sectionLabel);
+    if (!bySection.has(section)) bySection.set(section, []);
+    bySection.get(section).push(n);
   }
-  const set = new Set(nums);
-  const lo = Math.min(...nums);
-  const hi = Math.max(...nums);
-  // Guard against an absurd span (a mis-read "1999") producing a huge list.
-  if (hi - lo > 500) return [];
-  const missing = [];
-  for (let n = lo; n <= hi; n++) {
-    if (!set.has(n)) missing.push(n);
+  if (numbered < 3) return [];
+  if (numbered < list.length * 0.6) return [];
+
+  const missing = new Set();
+  for (const nums of bySection.values()) {
+    // A section needs a few numbers of its own before its run is trusted —
+    // one stray mislabelled question must not spawn a phantom gap list.
+    if (nums.length < 3) continue;
+    const set = new Set(nums);
+    const lo = Math.min(...nums);
+    const hi = Math.max(...nums);
+    // Guard against an absurd span (a mis-read "1999") producing a huge list.
+    if (hi - lo > 500) continue;
+    for (let n = lo; n <= hi; n++) {
+      if (!set.has(n)) missing.add(n);
+    }
   }
-  return missing;
+  return [...missing].sort((a, b) => a - b);
 }
 
 /**
