@@ -5,7 +5,7 @@ import { renderHook, act } from '@testing-library/react'
 // Generate button. It reads caps through useTeacherUsage + TOOL_TO_FEATURE,
 // so a tool key missing from TOOL_TO_FEATURE silently resolves to cap 0 and
 // paywalls teachers whose plan actually funds the tool — that exact bug
-// shipped for full_lesson. This spec runs the REAL useTeacherUsage +
+// shipped for the (now retired) full_lesson studio. This spec runs the REAL useTeacherUsage +
 // teacherPlans catalogue (only firebase/auth/paywall are mocked) so every
 // studio tool key is exercised end-to-end against the live plan limits.
 
@@ -31,7 +31,6 @@ const STUDIO_TOOL_KEYS = [
   'flashcards',
   'notes',
   'homework',
-  'full_lesson',
   'rubric',
   'scheme_of_work',
   'assessment',

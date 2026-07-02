@@ -211,7 +211,6 @@ const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/Reco
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
-const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
 const SbaTaskStudio = lazy(() => import('./components/teacher/generate/SbaTaskStudio'))
 const SbaMarkTracker = lazy(() => import('./components/teacher/generate/SbaMarkTracker'))
 const SbaYearPlanner = lazy(() => import('./components/teacher/generate/SbaYearPlanner'))
@@ -651,7 +650,6 @@ export default function App() {
           <Route path="/teacher/generate/class-timetable" element={<TeacherRoute><StudioGate tool="class_timetable"><ClassTimetableStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><StudioGate tool="rubric"><RubricGenerator /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><StudioGate tool="notes"><NotesStudio /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/generate/full-lesson"     element={<TeacherRoute><StudioGate tool="full_lesson"><FullLessonStudio /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/visual-studio"            element={<TeacherRoute><VisualStudioPage /></TeacherRoute>} />
           <Route path="/teacher/generate/visual-studio"   element={<Navigate to="/teacher/visual-studio" replace />} />
           <Route path="/teacher/generate/sba"             element={<TeacherRoute><StudioGate tool="sba_task"><SbaTaskStudio /></StudioGate></TeacherRoute>} />

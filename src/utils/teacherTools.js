@@ -36,9 +36,6 @@ const generateRubricCallable = httpsCallable(functions, 'generateRubric', {
 const generateNotesCallable = httpsCallable(functions, 'generateNotes', {
   timeout: 130_000, // server: 120s
 })
-const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson', {
-  timeout: 130_000, // server: 120s
-})
 const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
@@ -674,43 +671,6 @@ export async function generateLessonPlan(inputs) {
   }
 }
 
-/**
- * Generate a complete, ready-to-deliver CBC lesson. Grounded on the stored
- * curriculum module when grade+subject+topic+sub-topic+term resolve one.
- */
-export async function generateFullLesson(inputs) {
-  console.info('[zedexams] generateFullLesson →', {
-    grade: inputs?.grade,
-    subject: inputs?.subject,
-    topic: inputs?.topic,
-    subtopic: inputs?.subtopic,
-  })
-  const startedAt = Date.now()
-  try {
-    const result = await withTimeout(
-      generateFullLessonCallable(inputs),
-      HARD_CLIENT_TIMEOUT_MS,
-      'generateFullLesson',
-    )
-    console.info(
-      '[zedexams] generateFullLesson ← ok in',
-      Date.now() - startedAt, 'ms',
-      { generationId: result?.data?.generationId, warning: result?.data?.warning },
-    )
-    return { ok: true, data: result.data }
-  } catch (error) {
-    console.error('[zedexams] generateFullLesson ← FAILED after',
-      Date.now() - startedAt, 'ms',
-      { code: error?.code, message: error?.message },
-    )
-    return {
-      ok: false,
-      error: messageFromError(error),
-      code: error?.code || 'unknown',
-      rawMessage: error?.message || '',
-    }
-  }
-}
 
 /**
  * Generate short take-home homework. Grounded on the stored curriculum

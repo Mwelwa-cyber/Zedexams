@@ -35,7 +35,6 @@ export const PLAN_LIMITS = {
     rubric: 0,
     scheme_of_work: 0,
     notes: 0,
-    full_lesson: 0,
     homework: 0,
     lesson_activities: 0,
     assessment: 0,
@@ -56,7 +55,6 @@ export const PLAN_LIMITS = {
     rubric: 8,
     scheme_of_work: 2,
     notes: 25,
-    full_lesson: 20,
     homework: 30,
     lesson_activities: 30,
     // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): Pro
@@ -79,7 +77,6 @@ export const PLAN_LIMITS = {
     rubric: 200,
     scheme_of_work: 200,
     notes: 200,
-    full_lesson: 200,
     homework: 200,
     lesson_activities: 200,
     assessment: 200,

@@ -202,7 +202,7 @@ test("every daily-counted tool is a registered tool", () => {
 test("studio generators count toward the daily cap", () => {
   for (const tool of [
     "lesson_plan", "worksheet", "quiz", "assessment", "exam_paper",
-    "scheme_of_work", "notes", "full_lesson", "homework", "rubric",
+    "scheme_of_work", "notes", "homework", "rubric",
     "flashcards", "diagram", "slide_notes",
   ]) {
     assert.ok(isDailyCountedTool(tool), `${tool} should count daily`);

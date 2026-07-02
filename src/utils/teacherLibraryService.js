@@ -470,10 +470,11 @@ export async function getLibrarySummary(uid) {
 /* ── UI constants ─────────────────────────────────────────── */
 
 export const TOOL_META = {
+  // The Full Lesson studio was retired; the entry stays (no `route`, so
+  // "Generate similar" is hidden) to render lessons saved before removal.
   full_lesson: {
     label: 'Full Lesson',
     icon: '✨',
-    route: '/teacher/generate/full-lesson',
     colour: 'cyan',
   },
   lesson_plan: {

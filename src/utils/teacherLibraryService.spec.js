@@ -124,7 +124,7 @@ describe('summarizeGenerations', () => {
     const LIBRARY_KEYS = [
       'scheme-of-work', 'weekly-forecast', 'lesson-plan', 'record-of-work',
       'class-timetable', 'notes', 'worksheet', 'flashcards', 'exam-paper',
-      'rubric', 'sba-task', 'mark-schedule', 'homework', 'full-lesson',
+      'rubric', 'sba-task', 'mark-schedule', 'homework',
     ]
     const rows = LIBRARY_KEYS.map((key) => ({ tool: key.replace(/-/g, '_') }))
     const { byTool } = summarizeGenerations(rows)

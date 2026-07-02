@@ -82,9 +82,6 @@ const {
   createGenerateSlideNotes,
 } = require("./teacherTools/generateSlideNotes");
 const {
-  createGenerateFullLesson,
-} = require("./teacherTools/generateFullLesson");
-const {
   createGenerateHomework,
 } = require("./teacherTools/generateHomework");
 const {
@@ -2294,9 +2291,6 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 // per prompt via OpenAI gpt-image-1. Needs the Anthropic + OpenAI keys.
 exports.generateVisualNotes =
   createGenerateSlideNotes(anthropicApiKey, openaiApiKey);
-
-// Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
-exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
 
 // Teacher Tools — Homework (short curriculum-grounded take-home practice).
 exports.generateHomework = createGenerateHomework(anthropicApiKey);

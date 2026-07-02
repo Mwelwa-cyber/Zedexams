@@ -351,18 +351,6 @@ export const STUDIO_SAMPLES = {
     },
   },
 
-  // Metadata-only (no artifact): LockedStudio renders the header + upgrade
-  // banner and simply skips the sample section when the artifact is absent.
-  full_lesson: {
-    tool: 'full_lesson',
-    render: 'full_lesson',
-    emoji: '📖',
-    eyebrow: 'Full Lesson Studio',
-    title: 'A complete lesson, ready to deliver',
-    subtitle: 'Objectives, vocabulary, hook, teaching content, worked examples, practice, checks, summary and homework.',
-    feature: 'Full lessons',
-  },
-
   homework: {
     tool: 'homework',
     render: 'homework',
