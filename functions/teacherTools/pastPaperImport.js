@@ -117,7 +117,7 @@ const MAX_GAP_NUMBERS_PER_ASK = 40;
 // (the silent firebase-tools "exit 0 but stale" deploy failure that made
 // importer fixes look broken in production while passing every test). Bump on
 // any change to the extraction/dedup/recovery logic in this pipeline.
-const PAST_PAPER_ENGINE_VERSION = "2026.07.02-faithful1";
+const PAST_PAPER_ENGINE_VERSION = "2026.07.02-faithful2";
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -235,7 +235,7 @@ SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of 
 
 READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
 
-SHARED MAPS & PRINTED FIGURES — REPORT WHERE THEY ARE. For a shared map, diagram, picture or figure (kind:"map"), ALSO report passage.sourcePage (the 1-based page where the figure is printed) and passage.figureBox (a tight {x,y,w,h} bounding box around JUST the figure, as fractions 0-1 of that page, excluding the questions and options). The figure image is attached automatically from your location report — without it the map is lost. Never skip a map-based question because the map is a picture; transcribe the question and report the figure's location.
+SHARED MAPS & PRINTED FIGURES — REPORT WHERE THEY ARE. For a shared map, diagram, picture or figure (kind:"map"), ALSO report passage.sourcePage and passage.figureBox (a tight {x,y,w,h} bounding box around JUST the figure, as fractions 0-1 of that page, excluding the questions and options). sourcePage is: for a PDF, the 1-based page of the PDF counting the cover; for photographed pages, the number printed in the "--- Uploaded page N ---" marker directly above the image the figure appears in — always use the marker number, never your own count. The figure image is attached automatically from your location report — without it the map is lost. Never skip a map-based question because the map is a picture; transcribe the question and report the figure's location.
 
 FAITHFUL TRANSCRIPTION — NEVER INVENT. Transcribe questions EXACTLY as printed. Never re-word, paraphrase, reconstruct, complete or invent a question, an option, or a number. If part of a question is unreadable, transcribe what you can read and mark the unreadable part [UNCLEAR]. Returning a question that is not printed on the paper is the worst possible error — far worse than omitting one.
 
@@ -247,7 +247,7 @@ For each question:
 - table: whenever a question (or a shared passage) includes a printed TABLE, TIMETABLE or data grid, capture it in the table field — headers as the column headings and rows as arrays of cell strings, transcribing EVERY row and column. Put a table that several questions share on the passage.table; put a table belonging to one question on that question's table. Capture the table data even when the cells also appear in the text.
 - correctAnswer: only if the paper actually marks it (answer key, asterisk, shading) — the 0-based option index for mcq/tf, or the answer text for short_answer/fill_blanks/numeric. If the answer is NOT printed, return null. NEVER guess an answer.
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
-- sectionLabel: the printed section heading the question sits under ("SECTION A", "SECTION B: STRUCTURED QUESTIONS"), copied verbatim — null when the paper has no section headings. Papers often RESTART numbering at 1 in each section; the label is what keeps a restarted Q1 distinct from Section A's Q1, so never omit it when headings are printed.
+- sectionLabel: the printed section heading the question sits under ("SECTION A", "SECTION B: STRUCTURED QUESTIONS"), copied verbatim — null when the paper has no section headings. Papers often RESTART numbering at 1 in each section; the label is what keeps a restarted Q1 distinct from Section A's Q1, so never omit it when headings are printed. A section continues until the next heading: questions on a continuation page (no heading visible on that page) still belong to the most recent heading — report that same label for them, spelled identically every time.
 - explanation: one short sentence on the concept tested, or empty if unsure.
 
 Transcribe faithfully. It is far better to return a complete paper with a few questions flagged for review than a tidy subset.`;
@@ -458,28 +458,43 @@ async function planSegments(source) {
     return {segments, droppedForSize: 0, extraNote: note};
   }
 
-  // images — download every page once, drop oversize, batch the rest.
+  // images — download every page once, drop oversize, batch the rest. Each
+  // page keeps its ORIGINAL 1-based position in the uploaded page list and is
+  // preceded by a printed "--- Uploaded page N ---" marker. That marker is the
+  // page number the model reports in passage.sourcePage, and it's the SAME
+  // index the studio's figure-attach pass uses to pick the photo to crop —
+  // without it the model could only report its position within a 4-page batch
+  // (and a >5MB page being dropped shifted every later page), so the map was
+  // cropped from the WRONG photo.
   const prepared = [];
   let droppedForSize = 0;
-  for (const item of source.items) {
+  for (let i = 0; i < source.items.length; i++) {
+    const item = source.items[i];
     const buf = await downloadAsset(item.path);
     if (buf.length > MAX_IMAGE_BYTES) {
       droppedForSize += 1;
       continue;
     }
-    prepared.push(imageBlock(item.contentType, buf));
+    prepared.push({page: i + 1, block: imageBlock(item.contentType, buf)});
   }
   if (!prepared.length) {
     throw new HttpsError("failed-precondition",
       "Every page asset was over 5MB. Compress the scans and retry.");
   }
   const batches = planPageBatches(prepared, IMAGE_PAGES_PER_BATCH);
-  const segments = batches.map((b) => ({
-    label: b.startPage === b.endPage ?
-      `page ${b.startPage}` : `pages ${b.startPage}–${b.endPage}`,
-    pageCount: b.pages.length,
-    blocks: b.pages,
-  }));
+  const segments = batches.map((b) => {
+    const first = b.pages[0].page;
+    const last = b.pages[b.pages.length - 1].page;
+    return {
+      label: first === last ?
+        `uploaded page ${first}` : `uploaded pages ${first}–${last}`,
+      pageCount: b.pages.length,
+      blocks: b.pages.flatMap((p) => [
+        {type: "text", text: `--- Uploaded page ${p.page} ---`},
+        p.block,
+      ]),
+    };
+  });
   return {segments, droppedForSize, extraNote: ""};
 }
 
