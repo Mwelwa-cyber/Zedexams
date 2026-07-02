@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 import { Upload, FileType, Eye, Loader2 } from '../../../components/ui/icons'
 import { uploadNoteFile } from '../lib/storage'
 import { formatDate } from '../lib/format'
+import { friendlyMessage } from '../../../utils/friendlyErrors'
 
 export function NoteUploader({ ownerUid, assetBatchId, currentFile, onUploaded, onError }) {
   const inputRef = useRef(null)
@@ -32,7 +33,17 @@ export function NoteUploader({ ownerUid, assetBatchId, currentFile, onUploaded, 
       const result = await uploadNoteFile({ ownerUid, assetBatchId, file, onProgress: setProgress })
       onUploaded?.(result)
     } catch (err) {
-      onError?.(err)
+      console.warn('[NoteUploader] upload failed', err)
+      // Firebase Storage failures (permission / quota / network) carry a raw
+      // technical `.code` + message — map those to calm copy. The plain
+      // validation errors uploadNoteFile throws ("Only PDF or Word documents
+      // are allowed.", "File is too large (max 25 MB).") have no code, so they
+      // pass through unchanged and keep their specific wording.
+      onError?.(
+        err?.code
+          ? new Error(friendlyMessage(err, 'Could not upload the file. Please try again.'))
+          : err,
+      )
     } finally {
       setBusy(false)
       setProgress(null)

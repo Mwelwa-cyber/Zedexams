@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { captureReferralFromUrl } from '../../utils/referrals'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
+import { validateFields, hasErrors, focusFirstError } from '../../utils/formValidation'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
@@ -91,6 +92,9 @@ export default function Register() {
   const [loading, setLoading]         = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError]             = useState('')
+  // Per-field validation messages, keyed by field name. Drives the inline
+  // errors + the scroll-to-first-invalid behaviour (see handleSubmit).
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const isTeacher = form.role === 'teacher'
   const score = useMemo(() => passwordScore(form.password), [form.password])
@@ -99,27 +103,37 @@ export default function Register() {
     STRENGTH_MSGS[Math.max(0, score - 1)]
 
   function set(field) {
-    return e => setForm(f => ({ ...f, [field]: e.target.value }))
+    return e => {
+      const { value } = e.target
+      setForm(f => ({ ...f, [field]: value }))
+      // Clear a field's error the moment the user starts fixing it.
+      setFieldErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
+    }
   }
 
   function pickRole(role) {
     setForm(f => ({ ...f, role }))
     setError('')
+    // Role switch changes which fields are required (grade vs subject +
+    // province) — drop stale field errors so they don't linger.
+    setFieldErrors({})
   }
 
-  function validate() {
-    if (!form.displayName.trim()) return 'Full name is required.'
-    if (!form.email.trim())       return 'Email is required.'
-    if (form.password.length < 6) return 'Password must be at least 6 characters.'
-    if (form.password !== form.confirm) return 'Passwords do not match.'
-    if (!form.school.trim())      return 'School name is required.'
-    if (isTeacher) {
-      if (!form.subject.trim())  return 'Please select a subject.'
-      if (!form.province.trim()) return 'Please select a province.'
-    } else {
-      if (!form.grade.trim())    return 'Please select your grade.'
+  // Friendlier field nouns than the humanised defaults ("full name", not
+  // "display name"). See src/utils/formValidation.js.
+  const VALIDATION_LABELS = { displayName: 'full name', school: 'school name' }
+
+  function buildSchema() {
+    return {
+      displayName: ['required'],
+      email: ['required', 'email'],
+      password: ['required', { min: 6 }],
+      confirm: [{ match: 'password', value: form.password, message: 'Passwords do not match.' }],
+      school: ['required'],
+      ...(isTeacher
+        ? { subject: ['required'], province: ['required'] }
+        : { grade: ['required'] }),
     }
-    return ''
   }
 
   async function handleGoogleSignUp() {
@@ -143,8 +157,16 @@ export default function Register() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const message = validate()
-    if (message) { setError(message); return }
+    // Client-side validation: name the exact field, show its message inline,
+    // and scroll to + focus the first offending field (spec requirement).
+    const errors = validateFields(form, buildSchema(), VALIDATION_LABELS)
+    if (hasErrors(errors)) {
+      setFieldErrors(errors)
+      setError('')
+      focusFirstError(errors)
+      return
+    }
+    setFieldErrors({})
 
     setError(''); setLoading(true)
     try {
@@ -279,7 +301,9 @@ export default function Register() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        {/* noValidate: our own validateFields drives friendly inline errors +
+            scroll-to-first-invalid instead of the browser's native bubbles. */}
+        <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
           <Field
             label="Full Name"
             id="displayName"
@@ -288,6 +312,7 @@ export default function Register() {
             placeholder="Your full name"
             autoComplete="name"
             icon="👤"
+            error={fieldErrors.displayName}
           />
 
           <Field
@@ -302,6 +327,7 @@ export default function Register() {
             spellCheck={false}
             autoCapitalize="none"
             icon="✉"
+            error={fieldErrors.email}
           />
 
           <div>
@@ -316,10 +342,15 @@ export default function Register() {
                 required
                 placeholder="Min 6 characters"
                 autoComplete="new-password"
-                className={`${INPUT_CLASS} pr-11`}
+                aria-invalid={fieldErrors.password ? 'true' : undefined}
+                aria-describedby={fieldErrors.password ? 'password-error' : undefined}
+                className={`${INPUT_CLASS} pr-11 ${fieldErrors.password ? '!border-red-500' : ''}`}
               />
               <EyeBtn shown={showPw} onClick={() => setShowPw(v => !v)} />
             </div>
+            {fieldErrors.password && (
+              <p id="password-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.password}</p>
+            )}
             {/* Strength bars */}
             <div className="flex gap-1 mt-1.5">
               {[0, 1, 2, 3].map(i => (
@@ -347,10 +378,15 @@ export default function Register() {
                 required
                 placeholder="Repeat password"
                 autoComplete="new-password"
-                className={`${INPUT_CLASS} pr-11`}
+                aria-invalid={fieldErrors.confirm ? 'true' : undefined}
+                aria-describedby={fieldErrors.confirm ? 'confirm-error' : undefined}
+                className={`${INPUT_CLASS} pr-11 ${fieldErrors.confirm ? '!border-red-500' : ''}`}
               />
               <EyeBtn shown={showConfirm} onClick={() => setShowConfirm(v => !v)} />
             </div>
+            {fieldErrors.confirm && (
+              <p id="confirm-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.confirm}</p>
+            )}
           </div>
 
           <Field
@@ -361,6 +397,7 @@ export default function Register() {
             placeholder="e.g. Lusaka Academy"
             autoComplete="organization"
             icon="🏫"
+            error={fieldErrors.school}
           />
 
           {!isTeacher && (
@@ -373,7 +410,9 @@ export default function Register() {
                   value={form.grade}
                   onChange={set('grade')}
                   required
-                  className={SELECT_CLASS}
+                  aria-invalid={fieldErrors.grade ? 'true' : undefined}
+                  aria-describedby={fieldErrors.grade ? 'grade-error' : undefined}
+                  className={`${SELECT_CLASS} ${fieldErrors.grade ? '!border-red-500' : ''}`}
                 >
                   <option value="">Select your grade</option>
                   <option value="4">Grade 4</option>
@@ -383,6 +422,9 @@ export default function Register() {
                 </select>
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
               </div>
+              {fieldErrors.grade && (
+                <p id="grade-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.grade}</p>
+              )}
             </div>
           )}
 
@@ -397,13 +439,18 @@ export default function Register() {
                     value={form.subject}
                     onChange={set('subject')}
                     required
-                    className={SELECT_CLASS}
+                    aria-invalid={fieldErrors.subject ? 'true' : undefined}
+                    aria-describedby={fieldErrors.subject ? 'subject-error' : undefined}
+                    className={`${SELECT_CLASS} ${fieldErrors.subject ? '!border-red-500' : ''}`}
                   >
                     <option value="">Select subject</option>
                     {TEACHER_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
                 </div>
+                {fieldErrors.subject && (
+                  <p id="subject-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.subject}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="province" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">Province</label>
@@ -414,13 +461,18 @@ export default function Register() {
                     value={form.province}
                     onChange={set('province')}
                     required
-                    className={SELECT_CLASS}
+                    aria-invalid={fieldErrors.province ? 'true' : undefined}
+                    aria-describedby={fieldErrors.province ? 'province-error' : undefined}
+                    className={`${SELECT_CLASS} ${fieldErrors.province ? '!border-red-500' : ''}`}
                   >
                     <option value="">Province</option>
                     {ZAMBIAN_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
                 </div>
+                {fieldErrors.province && (
+                  <p id="province-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.province}</p>
+                )}
               </div>
             </div>
           )}
@@ -496,7 +548,7 @@ function RoleCard({ active, onClick, emoji, name, hint }) {
   )
 }
 
-function Field({ label, id, icon, type = 'text', ...rest }) {
+function Field({ label, id, icon, type = 'text', error, ...rest }) {
   return (
     <div>
       <label htmlFor={id} className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">{label}</label>
@@ -506,7 +558,9 @@ function Field({ label, id, icon, type = 'text', ...rest }) {
           name={id}
           type={type}
           required
-          className={`${INPUT_CLASS} ${icon ? 'pr-11' : ''}`}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`${INPUT_CLASS} ${icon ? 'pr-11' : ''} ${error ? '!border-red-500' : ''}`}
           {...rest}
         />
         {icon && (
@@ -515,6 +569,9 @@ function Field({ label, id, icon, type = 'text', ...rest }) {
           </span>
         )}
       </div>
+      {error && (
+        <p id={`${id}-error`} className="text-red-600 text-[11.5px] mt-1">{error}</p>
+      )}
     </div>
   )
 }
