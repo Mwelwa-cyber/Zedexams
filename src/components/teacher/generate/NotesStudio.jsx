@@ -5,12 +5,9 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateNotes,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   DURATION_PRESETS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { downloadNotesPdf } from '../../../utils/notesToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -33,7 +30,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
-import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 
@@ -61,10 +58,6 @@ export default function NotesStudio() {
   const [mode, setMode] = useState(initialMode)
 
   const [form, setForm] = useState(() => ({
-    grade: 'G5',
-    subject: 'mathematics',
-    topic: '',
-    subtopic: '',
     date: '',
     term: '',
     lessonNumber: '',
@@ -78,6 +71,10 @@ export default function NotesStudio() {
     lessonPlanId: '',
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject → topic →
+  // subtopic) — drives the Standalone tab. `curr` holds the latest payload,
+  // including the server-ready grade/subject/curriculum/framework fields.
+  const [curr, setCurr] = useState({})
 
   const [plans, setPlans] = useState([])
   const [plansLoading, setPlansLoading] = useState(true)
@@ -131,14 +128,6 @@ export default function NotesStudio() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
-
   const selectedPlan = useMemo(
     () => plans.find((p) => p.id === form.lessonPlanId) || null,
     [plans, form.lessonPlanId],
@@ -154,7 +143,17 @@ export default function NotesStudio() {
         return
       }
     } else {
-      if (!form.topic.trim()) {
+      if (!curr.curriculumMode) {
+        setErrorMessage('Please choose a curriculum.')
+        setStatus('error')
+        return
+      }
+      if (!curr.grade || !curr.subject) {
+        setErrorMessage('Please select a class and subject.')
+        setStatus('error')
+        return
+      }
+      if (!curr.topic || !curr.topic.trim()) {
         setErrorMessage('Please enter a topic.')
         setStatus('error')
         return
@@ -170,7 +169,16 @@ export default function NotesStudio() {
 
     const payload = mode === MODE_FROM_PLAN
       ? { lessonPlanId: form.lessonPlanId, instructions: form.instructions, date: form.date }
-      : { ...form, lessonPlanId: '' }
+      : {
+          ...form,
+          lessonPlanId: '',
+          grade: curr.grade,
+          subject: curr.subject,
+          topic: curr.topic,
+          subtopic: curr.subtopic,
+          curriculum: curr.curriculum,
+          framework: curr.framework,
+        }
 
     const res = await generateNotes(payload)
     if (!isMounted.current) return
@@ -193,8 +201,8 @@ export default function NotesStudio() {
       // For from-plan mode, the term hint may not be in the form — fall
       // back to the source plan's term (best-effort).
       const sourcePlan = mode === MODE_FROM_PLAN ? selectedPlan : null
-      const grade   = res.data.notes?.header?.grade   || form.grade   || sourcePlan?.inputs?.grade
-      const subject = res.data.notes?.header?.subject || form.subject || sourcePlan?.inputs?.subject
+      const grade   = res.data.notes?.header?.grade   || curr.grade   || sourcePlan?.inputs?.grade
+      const subject = res.data.notes?.header?.subject || curr.subject || sourcePlan?.inputs?.subject
       const term    = sourcePlan?.inputs?.term || sourcePlan?.library?.term
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.NOTES,
@@ -242,9 +250,9 @@ export default function NotesStudio() {
     if (!notes) return
     const name = buildDownloadName({
       docType: 'Notes',
-      grade: notes.header?.grade || form.grade,
-      subject: notes.header?.subject || form.subject,
-      topic: notes.header?.topic || form.topic,
+      grade: notes.header?.grade || curr.grade,
+      subject: notes.header?.subject || curr.subjectLabel || curr.subject,
+      topic: notes.header?.topic || curr.topic,
     })
     downloadNotesDocx(notes, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
@@ -253,9 +261,9 @@ export default function NotesStudio() {
     if (!notes) return
     const name = buildDownloadName({
       docType: 'Notes',
-      grade: notes.header?.grade || form.grade,
-      subject: notes.header?.subject || form.subject,
-      topic: notes.header?.topic || form.topic,
+      grade: notes.header?.grade || curr.grade,
+      subject: notes.header?.subject || curr.subjectLabel || curr.subject,
+      topic: notes.header?.topic || curr.topic,
       ext: 'pdf',
     })
     downloadNotesPdf(notes, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
@@ -315,27 +323,9 @@ export default function NotesStudio() {
 
             {mode === MODE_STANDALONE && (
               <>
-                <FieldSelect
-                  label="Grade"
-                  value={form.grade}
-                  options={TEACHER_GRADES}
-                  onChange={(v) => updateField('grade', v)}
-                />
-                <FieldSelect
-                  label="Subject"
-                  value={form.subject}
-                  options={subjectOptions}
-                  onChange={(v) => updateField('subject', v)}
-                />
-                <TopicSubtopicPicker
-                  grade={form.grade}
-                  subject={form.subject}
-                  topic={form.topic}
-                  subtopic={form.subtopic}
-                  onChangeTopic={(v) => updateField('topic', v)}
-                  onChangeSubtopic={(v) => updateField('subtopic', v)}
-                  topicPlaceholder="e.g. Photosynthesis"
-                  subtopicPlaceholder="e.g. Light-dependent reactions"
+                <StudioCurriculumSelector
+                  value={urlDefaults}
+                  onChange={setCurr}
                 />
                 <FieldSelect
                   label="Lesson duration"

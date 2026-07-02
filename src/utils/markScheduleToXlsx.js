@@ -22,6 +22,7 @@
  */
 
 import { saveBlob } from './saveBlob.js'
+import { scheduleClassLabel } from './markSchedule.js'
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 
@@ -127,11 +128,13 @@ function sheetXml({ cols, rows, merges, freezeAfterRow }) {
 const SHEET1 = 'Mark Schedule'
 const sheet1Ref = (cellRef) => `'${SHEET1}'!${cellRef}`
 
-const gradeLabelOf = (header) => String(header?.grade || '').replace(/^G/i, '')
+// Prefer the saved human label ("Form 1"); legacy artifacts without one keep
+// the historical "GRADE " + G-strip rendering ('G4' → "GRADE 4").
+const classLabelOf = (header) => scheduleClassLabel(header).toUpperCase()
 
 function headingOf(schedule) {
   const h = schedule.header || {}
-  return `GRADE ${gradeLabelOf(h)} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
+  return `${classLabelOf(h)} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
 }
 
 /** Sheet 1 — the official grid with live total + dense-rank formulas. */
@@ -273,7 +276,7 @@ function commentsSheet(schedule) {
 
   const rows = [
     { r: 1, cells: [strCell('A1', h.school || '', S.TITLE)] },
-    { r: 2, cells: [strCell('A2', `REPORT COMMENTS SHEET — GRADE ${gradeLabelOf(h)} TERM ${h.term ?? ''} ${h.year ?? ''}`, S.SUBTITLE)] },
+    { r: 2, cells: [strCell('A2', `REPORT COMMENTS SHEET — ${classLabelOf(h)} TERM ${h.term ?? ''} ${h.year ?? ''}`, S.SUBTITLE)] },
     {
       r: 3,
       cells: [

@@ -7,14 +7,59 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { createRegister, getRegister, updateRegister } from '../../../utils/classRegister'
+import {
+  CLASS_REGISTER_GRADE_OPTIONS,
+  CLASS_REGISTER_GRADES,
+  formatClassGrade,
+} from '../../../schemas/classRegister'
 import { SUBJECTS } from '../../../config/curriculum'
-import { CLASS_REGISTER_GRADE_OPTIONS } from '../../../schemas/classRegister'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 
 const TERMS = ['Term 1', 'Term 2', 'Term 3']
+
+// The register's grade set is its OWN data model (the full school ladder,
+// Baby Class through Form 4 — see CLASS_REGISTER_GRADE_OPTIONS), not the
+// syllabi's, so the selector is given the enum verbatim via `gradeOptions`:
+// every grade the schema can store is offered (Baby/Middle Class included)
+// and nothing unmappable (Nursery, Grade 8/10-12) ever appears.
+const ECE_GRADE_VALUES = new Set(['baby', 'middle', 'reception'])
+const REGISTER_GRADE_OPTIONS = CLASS_REGISTER_GRADE_OPTIONS.map((o) => ({
+  group: ECE_GRADE_VALUES.has(o.value)
+    ? 'ECE'
+    : /^\d+$/.test(o.value) ? 'Primary' : 'Secondary',
+  value: o.label,
+  label: o.label,
+}))
+
+// The syllabi carry no subjects for ECE classes (and may lag elsewhere) —
+// offer the platform's static subject list so those classes can still pick
+// a subject, as they could before the standardized-selector migration.
+const REGISTER_SUBJECT_FALLBACK = SUBJECTS.map((s) => s.label)
+
+// The standardized selector speaks grade LABELS ('Grade 5', 'Form 1',
+// 'Reception'); the register persists compact wire values ('5', 'form-1',
+// 'reception'). Build the label→value lookup from the register's own option
+// table so EVERY grade offered above maps back by construction, and any
+// formatClassGrade()-derived seed label round-trips on save.
+const REGISTER_GRADE_BY_LABEL = Object.fromEntries(
+  CLASS_REGISTER_GRADE_OPTIONS.map((o) => [o.label, o.value]),
+)
+function toRegisterGrade(gradeLabel) {
+  const label = String(gradeLabel || '').trim()
+  if (!label) return ''
+  if (REGISTER_GRADE_BY_LABEL[label]) return REGISTER_GRADE_BY_LABEL[label]
+  // Every offered option hits the lookup above; this defensive parse only
+  // covers loosely-formatted seed labels (spacing/casing variants).
+  const grade = /^grade\s*(\d+)$/i.exec(label)
+  if (grade && CLASS_REGISTER_GRADES.includes(grade[1])) return grade[1]
+  const form = /^form\s*(\d+)$/i.exec(label)
+  if (form && CLASS_REGISTER_GRADES.includes(`form-${form[1]}`)) return `form-${form[1]}`
+  return ''
+}
 
 export default function ClassRegisterEditor() {
   const { classId } = useParams()
@@ -26,12 +71,16 @@ export default function ClassRegisterEditor() {
   const currentYear = new Date().getFullYear()
   const [form, setForm] = useState({
     className: '',
-    grade: '5',
     term: 'Term 1',
     year: currentYear,
-    subject: '',
     school: '',
   })
+  // Standardized curriculum selection (curriculum → grade → subject; no
+  // topic/subtopic). `curr` holds the latest selector payload; `seed` pre-fills
+  // it from the edited record. The selector reads its `value` once on mount, so
+  // it is only rendered after the record has loaded (below the loading gate).
+  const [curr, setCurr] = useState({})
+  const [seed, setSeed] = useState(editing ? null : {})
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
 
@@ -44,11 +93,14 @@ export default function ClassRegisterEditor() {
         if (cancelled || !reg) return
         setForm({
           className: reg.className || '',
-          grade: String(reg.grade || '5'),
           term: reg.term || 'Term 1',
           year: reg.year || currentYear,
-          subject: reg.subject || '',
           school: reg.school || '',
+        })
+        setSeed({
+          curriculumMode: reg.curriculum || null,
+          gradeLabel: reg.grade ? formatClassGrade(reg.grade) : '',
+          subjectKey: reg.subject || '',
         })
       })
       .catch((err) => console.warn('[ClassRegisterEditor] load failed', err))
@@ -64,14 +116,22 @@ export default function ClassRegisterEditor() {
       toast.error('Give the class a name (e.g. "Grade 4 Blue").')
       return
     }
+    const grade = toRegisterGrade(curr.gradeLabel)
+    if (!grade) {
+      toast.error('Choose the class grade.')
+      return
+    }
     setSaving(true)
     try {
       const fields = {
         className: form.className.trim(),
-        grade: String(form.grade),
+        grade,
         term: form.term,
         year: Number(form.year),
-        subject: form.subject || null,
+        subject: curr.subjectLabel || null,
+        // Persisted so re-editing seeds the selector on the right framework
+        // (legacy registers without it default to CBC via the seed normalizer).
+        curriculum: curr.curriculum || null,
         school: form.school.trim() || null,
       }
       if (editing) {
@@ -113,33 +173,31 @@ export default function ClassRegisterEditor() {
             placeholder="e.g. Grade 4 Blue" maxLength={120} autoFocus />
         </div>
 
+        {/* Standardized curriculum + grade + subject selector (no topic/subtopic).
+            gradeOptions = the register's own grade enum (offered verbatim for
+            both curricula); subjectFallback keeps ECE classes with no syllabi
+            subjects able to pick one. */}
+        <StudioCurriculumSelector
+          showTopicSubtopic={false}
+          gradeOptions={REGISTER_GRADE_OPTIONS}
+          subjectFallback={REGISTER_SUBJECT_FALLBACK}
+          value={seed || {}}
+          onChange={setCurr}
+          labelClassName={labelCls}
+          inputClassName={inputCls}
+        />
+
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls} htmlFor="grade">Grade</label>
-            <select id="grade" className={inputCls} value={form.grade} onChange={set('grade')}>
-              {CLASS_REGISTER_GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-            </select>
-          </div>
           <div>
             <label className={labelCls} htmlFor="term">Term</label>
             <select id="term" className={inputCls} value={form.term} onChange={set('term')}>
               {TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelCls} htmlFor="year">Year</label>
             <input id="year" type="number" className={inputCls} value={form.year} onChange={set('year')}
               min={2000} max={2100} />
-          </div>
-          <div>
-            <label className={labelCls} htmlFor="subject">Subject (optional)</label>
-            <select id="subject" className={inputCls} value={form.subject} onChange={set('subject')}>
-              <option value="">— Any / not set —</option>
-              {SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
           </div>
         </div>
 

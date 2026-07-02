@@ -98,6 +98,17 @@ test('blank marks become empty cells, not zeros', () => {
 test('grade label drops the G prefix in the heading', () => {
   assert(sheet1.includes('GRADE 4 · TERM 2 MARK SCHEDULE — 2026'), 'heading reads GRADE 4, not GRADE G4')
 })
+test('header.gradeLabel is preferred in headings (Form 1, not GRADE F1)', () => {
+  const formFiles = buildMarkScheduleWorkbookFiles({
+    ...SCHEDULE,
+    header: { ...SCHEDULE.header, grade: 'F1', gradeLabel: 'Form 1' },
+  })
+  const formSheet1 = formFiles['xl/worksheets/sheet1.xml']
+  const formSheet3 = formFiles['xl/worksheets/sheet3.xml']
+  assert(formSheet1.includes('FORM 1 · TERM 2 MARK SCHEDULE — 2026'), 'schedule heading uses the human label')
+  assert(!formSheet1.includes('GRADE F1'), 'no GRADE F1 mash-up in the schedule heading')
+  assert(formSheet3.includes('REPORT COMMENTS SHEET — FORM 1 TERM 2 2026'), 'comments heading uses the human label')
+})
 
 console.log('\npercentages sheet')
 test('subject % cells divide sheet-1 marks by sheet-1 maxima', () => {

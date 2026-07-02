@@ -12,8 +12,10 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useGenerationGate } from '../../hooks/useGenerationGate'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
-  useSyllabusTopicOptions, useSyllabusSubjectOptions, CURRICULUM_FRAMEWORKS,
+  useSyllabusTopicOptions, useSyllabusSubjectOptions,
 } from './syllabusTopicOptions'
+import { CurriculumPicker } from './studio/sections/CurriculumPicker'
+import './studio/lessonStudio.css'
 import {
   PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
   paperGradeOptions, isPaperGrade, maxTopicsFor,
@@ -473,21 +475,10 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               </div>
             </div>
             <div>
-              <label className="sv-cpm-label">Curriculum</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {CURRICULUM_FRAMEWORKS.map((f) => (
-                  <button key={f.value} type="button"
-                    onClick={() => setMeta('framework', f.value)}
-                    style={{
-                      flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
-                      border: `1.5px solid ${form.framework === f.value ? 'var(--sv-primary)' : 'var(--sv-border)'}`,
-                      background: form.framework === f.value ? 'var(--sv-tinted)' : '#fff',
-                      color: 'var(--sv-text)', fontWeight: form.framework === f.value ? 700 : 400,
-                    }}>
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+              <CurriculumPicker
+                curriculumMode={form.framework === '2013' ? 'previous' : 'cbc'}
+                onSelect={(mode) => setMeta('framework', mode === 'previous' ? '2013' : '2023')}
+              />
             </div>
             <div className="sv-cpm-grid2">
               <div>

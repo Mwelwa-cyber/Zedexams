@@ -1,13 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   generateFlashcards,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
   FLASHCARD_COUNTS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -19,7 +16,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
@@ -35,16 +32,16 @@ export default function FlashcardGenerator() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    grade: 'G5',
-    subject: 'mathematics',
-    topic: '',
-    subtopic: '',
     count: 15,
     difficulty: 'mixed',
     language: 'english',
     instructions: '',
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject → topic →
+  // subtopic). `curr` holds the latest payload, including the server-ready
+  // grade/subject/curriculum/framework fields.
+  const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -58,22 +55,24 @@ export default function FlashcardGenerator() {
   const [isFlipped, setIsFlipped] = useState(false)
   const { masteredCards, markMastered, markReview } = useFlashcardProgress(generationId)
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
-
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   async function onGenerate(e) {
     e.preventDefault()
-    if (!form.topic.trim()) {
-      setErrorMessage('Please enter a topic.')
+    if (!curr.curriculumMode) {
+      setErrorMessage('Please choose a curriculum.')
+      setStatus('error')
+      return
+    }
+    if (!curr.grade || !curr.subject) {
+      setErrorMessage('Please select a class and subject.')
+      setStatus('error')
+      return
+    }
+    if (!curr.topic || !curr.topic.trim()) {
+      setErrorMessage('Please select a topic.')
       setStatus('error')
       return
     }
@@ -86,7 +85,15 @@ export default function FlashcardGenerator() {
     setStudyIndex(0)
     setIsFlipped(false)
 
-    const res = await generateFlashcards(form)
+    const res = await generateFlashcards({
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      topic: curr.topic,
+      subtopic: curr.subtopic,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    })
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -108,8 +115,8 @@ export default function FlashcardGenerator() {
       // assessment.
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.NOTES,
-        grade:       form.grade,
-        subject:     form.subject,
+        grade:       curr.grade,
+        subject:     curr.subject,
       }).catch((err) => console.error('[library attach]', err))
     }
   }
@@ -147,9 +154,9 @@ export default function FlashcardGenerator() {
   function buildFilename() {
     return buildDownloadName({
       docType: 'Flashcards',
-      grade: form.grade,
-      subject: form.subject,
-      topic: flashcards?.header?.topic || form.topic,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
+      topic: flashcards?.header?.topic || curr.topic,
     })
   }
 
@@ -162,9 +169,9 @@ export default function FlashcardGenerator() {
     if (!flashcards) return
     const filename = buildDownloadName({
       docType: 'Flashcards',
-      grade: form.grade,
-      subject: form.subject,
-      topic: flashcards?.header?.topic || form.topic,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
+      topic: flashcards?.header?.topic || curr.topic,
       ext: 'pdf',
     })
     downloadFlashcardsPdf(flashcards, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
@@ -187,27 +194,9 @@ export default function FlashcardGenerator() {
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit sticky top-4"
           >
-            <FieldSelect
-              label="Grade"
-              value={form.grade}
-              options={TEACHER_GRADES}
-              onChange={(v) => updateField('grade', v)}
-            />
-            <FieldSelect
-              label="Subject"
-              value={form.subject}
-              options={subjectOptions}
-              onChange={(v) => updateField('subject', v)}
-            />
-            <TopicSubtopicPicker
-              grade={form.grade}
-              subject={form.subject}
-              topic={form.topic}
-              subtopic={form.subtopic}
-              onChangeTopic={(v) => updateField('topic', v)}
-              onChangeSubtopic={(v) => updateField('subtopic', v)}
-              topicPlaceholder="e.g. The Circulatory System"
-              subtopicPlaceholder="e.g. The heart and blood vessels"
+            <StudioCurriculumSelector
+              value={urlDefaults}
+              onChange={setCurr}
             />
             <FieldSelect
               label="Number of cards"

@@ -14,12 +14,16 @@
 import { buildSchedule } from './markSchedule.js'
 import { computeRecordRows, maxTotalOf } from './classRecordMath.js'
 import { convertSbaMark } from '../config/sba.js'
-import { classGradeShortLabel } from '../schemas/classRegister.js'
+import { classGradeShortLabel, formatClassGrade } from '../schemas/classRegister.js'
 
 function header(record, register) {
   return {
     school: register.school || '',
     grade: register.grade ? classGradeShortLabel(register.grade) : '',
+    // Full human label ("Form 1", "Baby Class") — the exporters' headings
+    // prefer this over `grade`, so non-"Grade N" classes don't print as
+    // "GRADE Form 1" / "GRADE Baby Class".
+    gradeLabel: register.grade ? formatClassGrade(register.grade) : '',
     term: record.term || register.term || '',
     year: record.year || register.year || '',
   }

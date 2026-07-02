@@ -26,6 +26,7 @@ const {
   DEFAULT_FRAMEWORK,
   VALID_FRAMEWORKS,
 } = require("./syllabiCurriculumData");
+const {gradeCandidates, subjectCandidates} = require("./kbLookupCandidates");
 
 // Default ("seed") KB version. Used as the fallback active version when
 // cbcKnowledgeBase/_meta doesn't exist yet — i.e. before the first Phase-C
@@ -325,8 +326,35 @@ function invalidateKbCache() {
 const TOPICS = SEED_TOPICS;
 
 /**
- * Look up a topic. Fuzzy-matches on the topic string within a grade+subject.
- * Returns null if no confident match.
+ * Filter the merged topic set to entries matching the requested
+ * grade+subject, including their folded equivalents: the KB stores
+ * Forms-syllabus topics under G-codes (F1 → G8 … F4 → G11) and vocational
+ * syllabi under core subject keys (fashion_fabrics → home_economics,
+ * travel_tourism → social_studies, …) — see kbLookupCandidates.js. Exact
+ * grade+subject matches come FIRST in the returned list, so at every match
+ * tier below an exact match wins over a folded one.
+ */
+function filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm) {
+  // Always keep the caller's normalized values in the accepted sets so the
+  // pre-candidates exact-equality behaviour is preserved byte-for-byte.
+  const gradeSet = new Set([...gradeCandidates(gradeNorm), gradeNorm]);
+  const subjectSet = new Set([...subjectCandidates(subjectNorm), subjectNorm]);
+  const exact = [];
+  const folded = [];
+  for (const t of allTopics) {
+    const g = String(t.grade || "").toUpperCase();
+    const s = String(t.subject || "").toLowerCase();
+    if (!gradeSet.has(g) || !subjectSet.has(s)) continue;
+    if (g === gradeNorm && s === subjectNorm) exact.push(t);
+    else folded.push(t);
+  }
+  return exact.concat(folded);
+}
+
+/**
+ * Look up a topic. Fuzzy-matches on the topic string within a grade+subject
+ * (including folded F-code / vocational-subject equivalents — see
+ * filterGradeSubjectCandidates). Returns null if no confident match.
  *
  * Now async — pulls merged topic set (Firestore + seed).
  */
@@ -336,10 +364,8 @@ async function lookupTopic({grade, subject, topic, framework}) {
   const subjectNorm = String(subject).toLowerCase().replace(/[^a-z]/g, "_");
   const topicNorm = String(topic).toLowerCase().trim();
   const allTopics = await getAllTopics({framework});
-  const candidates = allTopics.filter((t) =>
-    String(t.grade || "").toUpperCase() === gradeNorm &&
-    String(t.subject || "").toLowerCase() === subjectNorm,
-  );
+  const candidates =
+    filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm);
   if (candidates.length === 0) return null;
 
   // Exact topic match wins.
@@ -381,18 +407,16 @@ async function lookupTopic({grade, subject, topic, framework}) {
 }
 
 /**
- * Suggest up to 5 topic strings for a grade + subject. Used when we can't
- * find a confident match — teacher sees: "Did you mean one of these?"
+ * Suggest up to 5 topic strings for a grade + subject (including folded
+ * F-code / vocational-subject equivalents, exact matches first). Used when
+ * we can't find a confident match — teacher sees: "Did you mean one of
+ * these?"
  */
 async function suggestTopics({grade, subject, framework}) {
   const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
   const allTopics = await getAllTopics({framework});
-  return allTopics
-    .filter((t) =>
-      String(t.grade || "").toUpperCase() === gradeNorm &&
-      String(t.subject || "").toLowerCase() === subjectNorm,
-    )
+  return filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm)
     .map((t) => t.topic)
     .slice(0, 5);
 }

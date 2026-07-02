@@ -16,59 +16,16 @@ const fs = require("fs");
 const path = require("path");
 const admin = require("firebase-admin");
 
-const STUDIO_SUBJECT_TO_KB = {
-  "Early Childhood Education Syllabi (3-5 Years)": "expressive_arts",
-  "Lower Primary Syllabi (Grades 1-3)": "english",
-  "English Language Syllabus (Grades 4-6)": "english",
-  "Mathematics Syllabus (Grades 4-6)": "mathematics",
-  "Science Syllabus (Grades 4-6)": "integrated_science",
-  "Social Studies Syllabus (Grades 4-6)": "social_studies",
-  "Home Economics & Hospitality Syllabus (Grades 4-6)": "home_economics",
-  "Technology Studies Syllabus (Grades 4-6)": "technology_studies",
-  "Mathematics Syllabus (Forms 1-4)": "mathematics",
-  "Mathematics II Syllabus (Forms 1-4)": "mathematics",
-  "Physics Syllabus (Forms 1-4)": "physics",
-  "History Syllabus (Forms 1-4)": "history",
-  "Geography Syllabus (Forms 1-4)": "geography",
-  "ICT Syllabus (Forms 1-4)": "technology_studies",
-  "Literature in English Syllabus (Forms 1-4)": "english",
-  "Religious Education Syllabus (Forms 1-4)": "religious_education",
-  "Physical Education Syllabus (Forms 1-4)": "physical_education",
-  "Food & Nutrition Syllabus (Forms 1-4)": "home_economics",
-  "Fashion & Fabrics Syllabus (Forms 1-4)": "home_economics",
-  "Hospitality Management Syllabus (Forms 1-4)": "home_economics",
-  "Travel & Tourism Syllabus (Forms 1-4)": "social_studies",
-};
-
-// Legacy 2013-curriculum subject → KB key map. Names mirror exactly the
-// top-level keys in /public/syllabi/curriculum-data-2013.json, so a new
-// 2013 syllabus shows up in the AI knowledge base as soon as it's added to
-// the data file + listed here.
-const STUDIO_SUBJECT_TO_KB_2013 = {
-  "Integrated Science Syllabus (Grades 1-7, 2013)": "integrated_science",
-  "Mathematics Syllabus (Grades 1-7, 2013)": "mathematics",
-  "Social Studies Syllabus (Grades 1-7, 2013)": "social_studies",
-  "English Language Syllabus (Grades 2-7, 2013)": "english",
-  "Creative & Technology Studies Syllabus (2013)": "creative_and_technology_studies",
-  "Home Economics Syllabus (Grades 5-7, 2013)": "home_economics",
-  "Technology Studies Syllabus (Grades 5-7, 2013)": "technology_studies",
-  "Expressive Arts Syllabus (Grades 5-7, 2013)": "expressive_arts",
-  "Zambian Language Syllabus (Grades 5-7, 2013)": "zambian_language",
-  "Physical Education Syllabus (Grades 8-9, 2013)": "physical_education",
-  "Agricultural Science Syllabus (Grades 10-12, 2013)": "agricultural_science",
-  "Art & Design Syllabus (Grades 10-12, 2013)": "art_and_design",
-  "Biology Syllabus (Grades 10-12, 2013)": "biology",
-  "Chemistry Syllabus (Grades 10-12, 2013)": "chemistry",
-  "Civic Education Syllabus (Grades 10-12, 2013)": "civic_education",
-  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "home_economics",
-  "Geography Syllabus (Grades 10-12, 2013)": "geography",
-  "History Syllabus (Senior Secondary, 2013)": "history",
-  "Home Management Syllabus (Grades 10-12, 2013)": "home_economics",
-  "Mathematics Syllabus (Grades 10-12, 2013)": "mathematics",
-  "Physical Education Syllabus (Grades 10-12, 2013)": "physical_education",
-  "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education",
-  "Religious Education 2046 Syllabus (Grades 10-12, 2013)": "religious_education",
-};
+// The studio-subject → KB-subject tables + the "form N" → grade map live in
+// kbLookupCandidates.js (a firebase-free module) so the KB grade/subject
+// candidate helpers and their plain-node tests can share them without
+// pulling in firebase-admin. Re-exported from this module below, so
+// existing consumers keep importing them from here.
+const {
+  STUDIO_SUBJECT_TO_KB,
+  STUDIO_SUBJECT_TO_KB_2013,
+  FORM_TO_GRADE,
+} = require("./kbLookupCandidates");
 
 // Filenames for each curriculum framework — used by locateDataFile().
 const FRAMEWORK_FILES = {
@@ -84,15 +41,6 @@ function normalizeFramework(framework) {
   const s = String(framework).trim();
   return VALID_FRAMEWORKS.includes(s) ? s : DEFAULT_FRAMEWORK;
 }
-
-const FORM_TO_GRADE = {
-  "form 1": "G8",
-  "form 2": "G9",
-  "form 3": "G10",
-  "form 4": "G11",
-  "form 3 - 4": "G10",
-  "form 5": "G12",
-};
 
 // ECE age bands map to distinct grade codes (Nursery 3-4 → ECE_N,
 // Reception 4-5 → ECE_R) so KB topics are scoped per band. Mirrors

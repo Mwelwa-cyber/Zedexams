@@ -92,6 +92,11 @@ export const classRegisterWriteSchema = z
       (v) => (typeof v === 'string' && v ? normalizeSubject(v) : v),
       z.string().max(100).nullable().default(null),
     ),
+    // Curriculum framework the class follows ('cbc' | 'previous') — persisted
+    // so the editor's seeded curriculum → grade → subject cascade re-opens on
+    // the right framework. Optional: registers created before the
+    // standardized selector lack it (the selector seed defaults those to CBC).
+    curriculum: z.enum(['cbc', 'previous']).nullable().default(null),
     teacherUid: z.string().min(1).max(200),
     status: z.enum(CLASS_STATUSES).default('active'),
     learnerCount: z.number().int().min(0).max(100000).default(0),
@@ -129,6 +134,7 @@ export function coerceClassRegister(raw) {
     year: safeNumber(raw.year, new Date().getFullYear()),
     school: raw.school == null ? null : safeString(raw.school),
     subject: raw.subject == null ? null : safeString(raw.subject),
+    curriculum: raw.curriculum === 'cbc' || raw.curriculum === 'previous' ? raw.curriculum : null,
     status,
     learnerCount: safeNumber(raw.learnerCount, 0),
   }

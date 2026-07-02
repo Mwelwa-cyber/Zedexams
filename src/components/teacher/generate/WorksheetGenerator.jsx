@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   generateWorksheetStream,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
   WORKSHEET_STYLES,
@@ -13,9 +12,7 @@ import {
   LESSON_NUMBER_OPTIONS,
   TOTAL_LESSONS_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadWorksheetPdf } from '../../../utils/worksheetToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -28,7 +25,7 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
-import TopicSubtopicPicker from './TopicSubtopicPicker'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 import { FieldTextarea, FieldSelect } from './studioFields'
@@ -43,10 +40,6 @@ export default function WorksheetGenerator() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    grade: 'G5',
-    subject: 'mathematics',
-    topic: '',
-    subtopic: '',
     term: '',
     lessonNumber: '',
     totalLessons: '',
@@ -62,6 +55,10 @@ export default function WorksheetGenerator() {
     includeAnswerKey: true,
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject → topic →
+  // subtopic). `curr` holds the latest payload, including the server-ready
+  // grade/subject/curriculum/framework fields.
+  const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -79,22 +76,24 @@ export default function WorksheetGenerator() {
     }
   }, [])
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
-
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   function onGenerate(e) {
     e.preventDefault()
-    if (!form.topic.trim()) {
-      setErrorMessage('Please enter a topic.')
+    if (!curr.curriculumMode) {
+      setErrorMessage('Please choose a curriculum.')
+      setStatus('error')
+      return
+    }
+    if (!curr.grade || !curr.subject) {
+      setErrorMessage('Please select a class and subject.')
+      setStatus('error')
+      return
+    }
+    if (!curr.topic || !curr.topic.trim()) {
+      setErrorMessage('Please select a topic.')
       setStatus('error')
       return
     }
@@ -109,7 +108,15 @@ export default function WorksheetGenerator() {
     setWorksheet(null)
     setProgress({ phase: 'queued', elapsedMs: 0 })
 
-    cancelRef.current = generateWorksheetStream(form, {
+    cancelRef.current = generateWorksheetStream({
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      topic: curr.topic,
+      subtopic: curr.subtopic,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    }, {
       onProgress: (p) => setProgress(p),
       onResult: (data) => {
         setWorksheet(data.worksheet)
@@ -123,8 +130,8 @@ export default function WorksheetGenerator() {
           // they're the "Topic Test" of a teacher's day-to-day routine.
           attachLibraryToGeneration(data.generationId, {
             libraryType:    LIBRARY_TYPES.ASSESSMENTS,
-            grade:          form.grade,
-            subject:        form.subject,
+            grade:          curr.grade,
+            subject:        curr.subject,
             assessmentType: 'topic',
           }).catch((err) => console.error('[library attach]', err))
         }
@@ -148,9 +155,9 @@ export default function WorksheetGenerator() {
   function buildFilename(mode) {
     return buildDownloadName({
       docType: 'Worksheet',
-      grade: form.grade,
-      subject: form.subject,
-      topic: worksheet?.header?.topic || form.topic,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
+      topic: worksheet?.header?.topic || curr.topic,
       variant: mode === 'answer_key' ? 'Answer Key' : undefined,
     })
   }
@@ -163,7 +170,7 @@ export default function WorksheetGenerator() {
       tool: 'worksheet',
       filename,
       output: worksheet,
-      inputs: { grade: form.grade, subject: form.subject, topic: worksheet?.header?.topic || form.topic },
+      inputs: { grade: curr.grade, subject: curr.subjectLabel || curr.subject, topic: worksheet?.header?.topic || curr.topic },
     })
     if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
   }
@@ -185,8 +192,8 @@ export default function WorksheetGenerator() {
   function onExportPupilPdf() {
     if (!worksheet) return
     const filename = buildDownloadName({
-      docType: 'Worksheet', grade: form.grade, subject: form.subject,
-      topic: worksheet?.header?.topic || form.topic, ext: 'pdf',
+      docType: 'Worksheet', grade: curr.grade, subject: curr.subjectLabel || curr.subject,
+      topic: worksheet?.header?.topic || curr.topic, ext: 'pdf',
     })
     downloadWorksheetPdf(worksheet, filename, {
       mode: 'worksheet',
@@ -197,8 +204,8 @@ export default function WorksheetGenerator() {
   function onExportAnswerKeyPdf() {
     if (!worksheet) return
     const filename = buildDownloadName({
-      docType: 'Worksheet', grade: form.grade, subject: form.subject,
-      topic: worksheet?.header?.topic || form.topic, variant: 'Answer Key', ext: 'pdf',
+      docType: 'Worksheet', grade: curr.grade, subject: curr.subjectLabel || curr.subject,
+      topic: worksheet?.header?.topic || curr.topic, variant: 'Answer Key', ext: 'pdf',
     })
     downloadWorksheetPdf(worksheet, filename, {
       mode: 'answer_key',
@@ -223,26 +230,9 @@ export default function WorksheetGenerator() {
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
           >
-            <FieldSelect
-              label="Grade"
-              value={form.grade}
-              options={TEACHER_GRADES}
-              onChange={(v) => updateField('grade', v)}
-            />
-            <FieldSelect
-              label="Subject"
-              value={form.subject}
-              options={subjectOptions}
-              onChange={(v) => updateField('subject', v)}
-            />
-            <TopicSubtopicPicker
-              grade={form.grade}
-              subject={form.subject}
-              topic={form.topic}
-              subtopic={form.subtopic}
-              onChangeTopic={(v) => updateField('topic', v)}
-              onChangeSubtopic={(v) => updateField('subtopic', v)}
-              subtopicPlaceholder="e.g. Adding Fractions with Unlike Denominators"
+            <StudioCurriculumSelector
+              value={urlDefaults}
+              onChange={setCurr}
             />
             <FieldSelect
               label="Term"

@@ -25,7 +25,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
-import { buildReportCards } from './markSchedule.js'
+import { buildReportCards, scheduleClassLabel } from './markSchedule.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -93,7 +93,11 @@ function marksTable(card) {
 
 function cardChildren(card, header, { first }) {
   const h = header || {}
-  const gradeLabel = String(h.grade || '').replace(/^G/i, '')
+  // The card prints its own "GRADE:" caption, so drop a redundant leading
+  // "Grade " from the class label ("Grade 5" → "5", "Form 1" stays "Form 1").
+  // Legacy artifacts without header.gradeLabel keep the historical G-strip
+  // rendering ('G4' → "4", 'F1' → "F1").
+  const gradeLabel = scheduleClassLabel(h).replace(/^Grade\s*/i, '')
   return [
     new Paragraph({
       children: [text(h.school || '', { bold: true, size: 30 })],

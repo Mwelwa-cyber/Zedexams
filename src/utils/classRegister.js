@@ -67,6 +67,7 @@ export async function createRegister({ teacherUid, fields }) {
     year: fields.year,
     school: fields.school ?? null,
     subject: fields.subject ?? null,
+    curriculum: fields.curriculum ?? null,
     teacherUid,
     status: 'active',
     learnerCount: 0,

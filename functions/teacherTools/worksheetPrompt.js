@@ -1,15 +1,21 @@
 /**
- * Worksheet Generator prompt — v1.
+ * Worksheet Generator prompt — v2.
  *
- * When you iterate, COPY this file to v2 and update the resolver rather than
- * editing v1 in place. Older aiGenerations docs record the version used.
+ * When you iterate, COPY this file to v3 and update the resolver rather than
+ * editing v2 in place. Older aiGenerations docs record the version used.
+ *
+ * v2 adds explicit curriculum awareness: the studio sends an explicit
+ * `curriculum` ('cbc' | 'previous') / `framework` ('2023' | '2013') chosen by
+ * the teacher, and the worksheet must honour it — CBC uses learner-centred,
+ * competence-based language; the Previous (2013) curriculum uses outcome-based
+ * language and "pupils". The two must never be mixed.
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 
-const PROMPT_VERSION = "worksheet.v1";
+const PROMPT_VERSION = "worksheet.v2";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher who creates classroom-ready worksheets for the Zambian Competence-Based Curriculum (CBC). Your worksheets are:
+const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who creates classroom-ready worksheets for the Zambian Competence-Based Curriculum (CBC). Your worksheets are:
 - Tightly aligned to the CDC syllabus for the requested grade, subject and topic.
 - Pitched at the right difficulty level — easy, medium, hard, or a mixed set as requested.
 - Printable and pupil-friendly: clear numbering, generous spacing, clear instructions.
@@ -17,6 +23,31 @@ const SYSTEM_PROMPT = `You are an expert Zambian teacher who creates classroom-r
 - Culturally grounded in Zambia: use Zambian examples (Kwacha currency, Zambian place names, nshima/vegetables, local animals) where natural.
 
 Every worksheet MUST follow the schema you are given exactly. Output must be a single valid JSON object — no prose, no markdown fences, no commentary.`;
+
+const SYSTEM_PROMPT_PREVIOUS = `You are an expert Zambian teacher who creates classroom-ready worksheets for the Zambian 2013 Previous Curriculum (Outcomes-Based Education). Your worksheets are:
+- Tightly aligned to the CDC syllabus for the requested grade, subject and topic, grounded in the syllabus's specific outcomes and objectives.
+- Pitched at the right difficulty level — easy, medium, hard, or a mixed set as requested.
+- Printable and pupil-friendly: clear numbering, generous spacing, clear instructions.
+- Accompanied by a complete answer key with brief working notes so any teacher can mark them.
+- Culturally grounded in Zambia: use Zambian examples (Kwacha currency, Zambian place names, nshima/vegetables, local animals) where natural.
+
+Use outcome-based language and refer to the class as "pupils" — this follows the older Zambian curriculum convention. Do NOT use CBC "competence" framing.
+
+Every worksheet MUST follow the schema you are given exactly. Output must be a single valid JSON object — no prose, no markdown fences, no commentary.`;
+
+// Backward-compatible default alias (CBC).
+const SYSTEM_PROMPT = SYSTEM_PROMPT_CBC;
+
+/** True when the teacher chose the Previous (2013 / outcome-based) curriculum. */
+function isPreviousCurriculum(inputs = {}) {
+  return String(inputs.curriculum || "").toLowerCase() === "previous" ||
+    String(inputs.framework || "") === "2013";
+}
+
+/** Select the system prompt for the chosen curriculum. */
+function pickSystemPrompt(inputs = {}) {
+  return isPreviousCurriculum(inputs) ? SYSTEM_PROMPT_PREVIOUS : SYSTEM_PROMPT_CBC;
+}
 
 /**
  * @param {object} inputs
@@ -44,7 +75,12 @@ function buildUserPrompt(inputs) {
     passageLength = "",
   } = inputs;
 
+  const previous = isPreviousCurriculum(inputs);
   const leLabel = learningEnvironmentLabel(learningEnvironment);
+  const heading = previous ?
+    "Generate a Zambian Previous-Curriculum (Outcomes-Based) worksheet for this lesson:" :
+    "Generate a Zambian CBC worksheet for this lesson:";
+  const learnerWord = previous ? "pupils" : "learners";
 
   // When the teacher explicitly picks a worksheet style, this authoritative
   // directive overrides the model's "choose what suits the topic" judgement.
@@ -77,7 +113,7 @@ function buildUserPrompt(inputs) {
   }[difficulty] || "Progress from easy to harder.";
 
   return [
-    "Generate a Zambian CBC worksheet for this lesson:",
+    heading,
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -96,6 +132,12 @@ function buildUserPrompt(inputs) {
     `- Difficulty: ${difficulty} — ${diffGuidance}`,
     `- Suggested pupil time: ${durationMinutes} minutes`,
     `- Language: ${language}`,
+    previous ?
+      `- Curriculum: Previous (Outcomes-Based). Ground the questions in the ` +
+      `lesson's specific outcomes/objectives and refer to the class as ` +
+      `"${learnerWord}".` :
+      `- Curriculum: CBC (Competency-Based). Ground the questions in the ` +
+      `lesson's competences and refer to the class as "${learnerWord}".`,
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
     styleDirective ? `- IMPORTANT — required worksheet format: ${styleDirective}` : "",
     gridColumnsDirective ? `- ${gridColumnsDirective}` : "",
@@ -166,5 +208,9 @@ function buildUserPrompt(inputs) {
 module.exports = {
   PROMPT_VERSION,
   SYSTEM_PROMPT,
+  SYSTEM_PROMPT_CBC,
+  SYSTEM_PROMPT_PREVIOUS,
+  pickSystemPrompt,
+  isPreviousCurriculum,
   buildUserPrompt,
 };

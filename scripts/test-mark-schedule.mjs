@@ -18,6 +18,7 @@ import {
   suggestComment,
   buildSchedule,
   buildReportCards,
+  scheduleClassLabel,
 } from '../src/utils/markSchedule.js'
 
 let pass = 0
@@ -58,6 +59,18 @@ const PUPILS = [
   { sn: 5, name: 'Lushomo Hamoonga', marks: { maths: 18, english: 20, science: 21, social: 19, cts: 20 } },
   { sn: 6, name: 'Chanda Mwansa', marks: { maths: 12, english: 14, science: 13, social: 15, cts: 14 } },
 ]
+
+console.log('\nclass label')
+test('scheduleClassLabel prefers the human gradeLabel end-to-end', () => {
+  assert(scheduleClassLabel({ grade: 'F1', gradeLabel: 'Form 1' }) === 'Form 1', 'Form 1 label wins over the F1 code')
+  assert(scheduleClassLabel({ grade: 'G5', gradeLabel: 'Grade 5' }) === 'Grade 5', 'Grade 5 label passes through')
+})
+test('scheduleClassLabel keeps the legacy G-strip fallback for old artifacts', () => {
+  assert(scheduleClassLabel({ grade: 'G4' }) === 'Grade 4', "'G4' → 'Grade 4' exactly as before")
+  assert(scheduleClassLabel({ grade: 'F1' }) === 'Grade F1', "old 'F1' data renders unchanged (the pre-gradeLabel quirk)")
+  assert(scheduleClassLabel({ grade: 'G4', gradeLabel: '  ' }) === 'Grade 4', 'blank gradeLabel falls back')
+  assert(scheduleClassLabel({}) === 'Grade ', 'missing grade matches the historical empty rendering')
+})
 
 console.log('\ntotals')
 test('computeTotal sums across subjects', () => {

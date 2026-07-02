@@ -36,10 +36,20 @@ export function splitLines(value) {
     .filter(Boolean)
 }
 
-/** Normalise a grade to the catalogue's 'G4' form (accepts 4, '4', 'g4'). */
+/**
+ * Normalise a grade to the catalogue's 'G4' form (accepts 4, '4', 'g4').
+ *
+ * CBC secondary codes ('F1'–'F4' from the standardized curriculum selector,
+ * or 'Form 1' labels) fold to the KB grade the catalogue actually keys the
+ * Forms syllabi under (F1→G8 … F4→G11 — the same fold the server's
+ * kbLookupCandidates does). Without this, 'F1' fell through the digits
+ * branch and became 'G1', matching Grade 1 topics instead of Form 1's.
+ */
 export function normalizeGrade(grade) {
   const raw = String(grade ?? '').trim().toUpperCase()
   if (!raw) return ''
+  const form = raw.match(/^F(?:ORM)?\s*([1-4])$/)
+  if (form) return `G${Number(form[1]) + 7}`
   return raw.startsWith('G') ? raw : `G${raw.replace(/[^0-9]/g, '')}`
 }
 

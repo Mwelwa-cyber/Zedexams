@@ -41,7 +41,12 @@ export function gradeLabel(grade) {
   if (!raw) return ''
   let label = GRADE_LABELS[raw] || GRADE_LABELS[raw.toUpperCase()]
   if (!label) {
-    if (/grade/i.test(raw)) label = titleCase(raw)
+    // CBC secondary codes/labels ("F1" / "Form 1") — the standardized
+    // curriculum selector emits these; without this branch "F1" fell through
+    // to the digits fallback and produced "Grade 1" for a Form 1 document.
+    const form = raw.match(/^f(?:orm)?\s*(\d+)$/i)
+    if (form) label = `Form ${form[1]}`
+    else if (/grade/i.test(raw)) label = titleCase(raw)
     else {
       const digits = raw.match(/\d+/)
       label = digits ? `Grade ${digits[0]}` : titleCase(raw)

@@ -66,6 +66,14 @@ test('normalizeGrade accepts 4 / "4" / "g4"', () => {
   assert(normalizeGrade(4) === 'G4' && normalizeGrade('4') === 'G4' && normalizeGrade('g4') === 'G4', 'grade normalisation')
   assert(normalizeGrade('') === '', 'empty in, empty out')
 })
+test('normalizeGrade folds Form codes to the KB grade (F1→G8 … F4→G11)', () => {
+  assert(normalizeGrade('F1') === 'G8', `F1 → ${normalizeGrade('F1')}`)
+  assert(normalizeGrade('f2') === 'G9', `f2 → ${normalizeGrade('f2')}`)
+  assert(normalizeGrade('Form 3') === 'G10', `Form 3 → ${normalizeGrade('Form 3')}`)
+  assert(normalizeGrade('F4') === 'G11', `F4 → ${normalizeGrade('F4')}`)
+  // Plain G-codes are untouched.
+  assert(normalizeGrade('G8') === 'G8', 'G8 passthrough')
+})
 test('splitLines breaks newlines, semicolons and bullets', () => {
   assert(splitLines('a\n- b; c').join('|') === 'a|b|c', `got ${splitLines('a\n- b; c').join('|')}`)
   assert(splitLines(['x', '', 'y']).length === 2, 'array trimmed of blanks')

@@ -23,6 +23,8 @@
  * documents.
  */
 
+import { scheduleClassLabel } from '../../../utils/markSchedule.js'
+
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top'
 
@@ -31,7 +33,9 @@ const pct = (mark, max) => (max > 0 ? Math.round((mark / max) * 100) : 0)
 export default function MarkScheduleView({ schedule, mode = 'marks' }) {
   if (!schedule) return null
   const h = schedule.header || {}
-  const gradeLabel = String(h.grade || '').replace(/^G/i, '')
+  // Prefer the human label ("Form 1") saved with new schedules; old data
+  // falls back to the historical G-strip of the wire code ('G4' → "Grade 4").
+  const classLabel = scheduleClassLabel(h)
   const subjects = schedule.subjects || []
   const maxTotal = subjects.reduce((sum, s) => sum + (s.max || 0), 0)
   const isPercent = mode === 'percent'
@@ -48,7 +52,7 @@ export default function MarkScheduleView({ schedule, mode = 'marks' }) {
       <div className="text-center">
         <div className="text-base font-bold uppercase">{h.school}</div>
         <div className="mt-1 border-y border-black py-1 text-sm font-bold tracking-[0.12em] uppercase">
-          Grade {gradeLabel} · Term {h.term} Mark Schedule — {h.year}
+          {classLabel} · Term {h.term} Mark Schedule — {h.year}
         </div>
       </div>
 

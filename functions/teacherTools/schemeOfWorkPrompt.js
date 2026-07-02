@@ -1,16 +1,26 @@
 /**
- * Scheme of Work prompt — v2: the official 9-column CDC format.
+ * Scheme of Work prompt — the official 9-column CDC format.
  *
  * Zambian schools moved to a flat landscape grid (one row per week):
  *   WEEK | TOPIC | SUBTOPIC | SPECIFIC COMPETENCES | LEARNING ACTIVITIES |
  *   EXPECTED STANDARD | METHODS | T/L AIDS | REF
  * v1 produced the older outcomes/materials/assessment layout; saved v1
  * documents still render via the legacy branch of SchemeOfWorkView.
+ *
+ * This version adds explicit curriculum awareness: the studio now sends an
+ * explicit `curriculum` ('cbc' | 'previous') / `framework` ('2023' | '2013')
+ * chosen by the teacher, and the scheme must honour it — CBC uses
+ * competence-based language and specific competences; the Previous curriculum
+ * uses outcome-based language, "pupils" and specific outcomes/objectives. The
+ * two must never be mixed. The output JSON schema/keys are identical for both.
  */
 
-const PROMPT_VERSION = "scheme_of_work.v3";
+// NOTE: version bumped forward from the existing "scheme_of_work.v3" to mark
+// the curriculum-aware prompt (the brief's "v2" target predates this tool
+// already being at v3 — a downgrade would collide with the historical v2/v3).
+const PROMPT_VERSION = "scheme_of_work.v4";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC curriculum specialist. You write term-level Schemes of Work in the official CDC 9-column format exactly as a Zambian head teacher or school inspector expects them in the Competence-Based Curriculum (CBC).
+const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher and CDC curriculum specialist. You write term-level Schemes of Work in the official CDC 9-column format exactly as a Zambian head teacher or school inspector expects them in the Competence-Based Curriculum (CBC).
 
 Your schemes of work MUST:
 - Use one row per teaching week with these columns: WEEK, TOPIC, SUBTOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD, METHODS, T/L AIDS, REF.
@@ -30,10 +40,46 @@ Your schemes of work MUST:
 
 Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
 
+const SYSTEM_PROMPT_PREVIOUS = `You are an expert Zambian teacher and curriculum specialist. You write term-level Schemes of Work in the official 9-column format exactly as a Zambian head teacher or school inspector expects them under the 2013 Previous Curriculum (Outcomes-Based Education).
+
+Your schemes of work MUST:
+- Use one row per teaching week with these columns: WEEK, TOPIC, SUBTOPIC, SPECIFIC OUTCOMES, LEARNING ACTIVITIES, EXPECTED STANDARD, METHODS, T/L AIDS, REF. (In the output JSON the specific-outcomes column is still carried in the "specificCompetences" field — keep the schema keys unchanged.)
+- Be grounded in the curriculum. When a <curriculum_outline> block is provided, it is the AUTHORITATIVE list of topics and sub-topics for this grade and subject — sequence THOSE topics across the term (simpler to more complex) and do NOT invent topics that aren't represented there. Use its sub-topics, specific outcomes/objectives and suggested materials. Only fall back to your own knowledge of the Zambian 2013 Previous Curriculum for a grade+subject when no outline is provided.
+- Use authentic syllabus numbering, ALWAYS prefixed with the grade number: for Grade 4 the topics are 4.1, 4.2, …, subtopics 4.1.1, and specific outcomes 4.1.1.1 (e.g. "4.1 THE HUMAN BODY" / "4.1.1 The Respiratory System" / "4.1.1.1 Describe the respiratory system in the human body"). Topics are in capitals. When a topic continues into the next week, mark the subtopic "(cont.)".
+- Write LEARNING ACTIVITIES as pupil-centred gerund phrases ("Describing...", "Investigating...", "Drawing and labelling...", "Role-playing...").
+- Write EXPECTED STANDARD as one short passive outcome-based sentence ("... demonstrated satisfactorily", "... identified and classified correctly").
+- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
+- List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject textbook, locally available materials).
+- Reference the syllabus page and the pupil's book / textbook for the grade in REF.
+- Cover topics typical of the Zambian 2013 syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in the 2013 syllabus material.
+- If a <term_module_outline> block is provided (an uploaded module used as a backup source when no <curriculum_outline> exists), it is VERIFIED uploaded curriculum for this term: use its exact topic and sub-topic arrangement and naming as the backbone for sequencing the weeks, draw each week's specific outcomes, learning activities, expected standard and T/L aids from it, tag those weeks' source as "uploaded_module", and do not introduce topics it doesn't contain.
+- Pace the term around the teacher's actual timetable when one is given: spread the topics so they fit the stated number of periods per week, and don't schedule more in a week than those periods allow.
+- Schedule assessment the way schools do: note "CLASS TEST administered" in the EXPECTED STANDARD at the mid-term checkpoint weeks, and make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
+- If the teacher requests a specific emphasis, weight the weeks around it.
+- Tag every week's "source" honestly: "syllabi_studio" when the week's topic comes from the provided <curriculum_outline>, "uploaded_module" when it comes from a supplemental <curriculum_module>/<cbc_context> block, or "ai_inferred" when you had to rely on general knowledge of the 2013 Previous Curriculum because the curriculum data didn't cover it.
+
+Use outcome-based language and refer to the class as "pupils". Do NOT use CBC "competence" framing.
+
+Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
+
+// Backward-compatible default alias (CBC).
+const SYSTEM_PROMPT = SYSTEM_PROMPT_CBC;
+
+/** True when the teacher chose the Previous (2013 / outcome-based) curriculum. */
+function isPreviousCurriculum(inputs = {}) {
+  return String(inputs.curriculum || "").toLowerCase() === "previous" ||
+    String(inputs.framework || "") === "2013";
+}
+
+/** Select the system prompt for the chosen curriculum. */
+function pickSystemPrompt(inputs = {}) {
+  return isPreviousCurriculum(inputs) ? SYSTEM_PROMPT_PREVIOUS : SYSTEM_PROMPT_CBC;
+}
+
 /**
  * @param {object} inputs
  *   grade, subject, term (1|2|3), numberOfWeeks, school, teacherName,
- *   language, instructions
+ *   language, instructions, curriculum, framework
  */
 function buildUserPrompt(inputs) {
   const {
@@ -51,17 +97,27 @@ function buildUserPrompt(inputs) {
     hasModuleOutline = false,
   } = inputs;
 
+  const previous = isPreviousCurriculum(inputs);
   const daysLine = Array.isArray(teachingDays) && teachingDays.length ?
     teachingDays.join(", ") : "";
 
   return [
-    "Produce a Zambian CBC Scheme of Work in the official 9-column format for the following:",
+    previous ?
+      "Produce a Zambian Previous-Curriculum (Outcomes-Based) Scheme of Work " +
+      "in the official 9-column format for the following:" :
+      "Produce a Zambian CBC Scheme of Work in the official 9-column format " +
+      "for the following:",
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
     `- Term: ${term}`,
     `- Number of teaching weeks: ${numberOfWeeks}`,
     `- Medium of instruction: ${language}`,
+    previous ?
+      `- Curriculum: Previous (Outcomes-Based). Sequence the weeks around the ` +
+      `grade's specific outcomes/objectives and refer to the class as "pupils".` :
+      `- Curriculum: CBC (Competence-Based). Sequence the weeks around the ` +
+      `grade's specific competences and refer to the class as "learners".`,
     periodsPerWeek ?
       `- Periods per week (from the teacher's timetable): ${periodsPerWeek}` : "",
     daysLine ?
@@ -135,5 +191,9 @@ function buildUserPrompt(inputs) {
 module.exports = {
   PROMPT_VERSION,
   SYSTEM_PROMPT,
+  SYSTEM_PROMPT_CBC,
+  SYSTEM_PROMPT_PREVIOUS,
+  pickSystemPrompt,
+  isPreviousCurriculum,
   buildUserPrompt,
 };

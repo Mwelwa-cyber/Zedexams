@@ -9,6 +9,23 @@
  * with plain node, per repo convention.
  */
 
+/**
+ * Display label for the schedule's class, e.g. "Grade 4" or "Form 1".
+ *
+ * New artifacts carry header.gradeLabel — the human label from the
+ * standardized curriculum selector — which is preferred verbatim (it
+ * already reads "Form 1" / "Reception"). Old saved schedules only have
+ * the wire code in header.grade ('G4'), which historically rendered by
+ * stripping a leading 'G' and prefixing "Grade"; that exact fallback is
+ * kept so legacy documents render unchanged (including the 'F1' →
+ * "Grade F1" quirk this label fixes going forward).
+ */
+export function scheduleClassLabel(header) {
+  const label = String(header?.gradeLabel || '').trim()
+  if (label) return label
+  return `Grade ${String(header?.grade ?? '').replace(/^G/i, '')}`
+}
+
 /** Sum a pupil's marks across the schedule's subjects (missing = 0). */
 export function computeTotal(marks, subjects) {
   return subjects.reduce((sum, s) => sum + (Number(marks?.[s.key]) || 0), 0)

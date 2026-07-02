@@ -1,5 +1,5 @@
 /**
- * Notes Studio prompt — v1.
+ * Notes Studio prompt — v2.
  *
  * Produces TEACHER delivery notes for a single lesson — not student handouts.
  * Notes are written in plain teacher voice with hooks, worked examples,
@@ -10,24 +10,57 @@
  *      saved CBC lesson plan — same topic, same SMART goal, same competencies.
  *   2. Free-form: only grade/subject/topic — the notes are derived from the
  *      grounded CBC context block.
+ *
+ * v2 adds explicit curriculum awareness: the studio now sends an explicit
+ * `curriculum` ('cbc' | 'previous') / `framework` ('2023' | '2013') chosen by
+ * the teacher, and the notes must honour it — CBC uses learner-centred,
+ * competence-based language; the Previous curriculum uses outcome-based
+ * language and "pupils". The two must never be mixed.
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 
-const PROMPT_VERSION = "notes.v1";
+const PROMPT_VERSION = "notes.v2";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher who writes delivery notes for fellow teachers — NOT student handouts.
+const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who writes delivery notes for fellow teachers — NOT student handouts.
 
 Your notes:
 - Speak directly to the teacher in second person ("You'll want to start with…", "Remind learners that…").
 - Use plain Zambian classroom voice. No jargon unless you immediately explain it.
 - Are practical and time-aware: a teacher should be able to skim the notes during a 5-minute break and walk into class confident.
 - Always include concrete worked examples with the steps spelled out — never just an answer.
-- Anticipate where pupils will struggle, what wrong answers they'll give, and what to say when they do.
-- Stay aligned with the Zambian Competence-Based Curriculum (CBC) — values, key competencies, the 5E lesson cycle.
+- Anticipate where learners will struggle, what wrong answers they'll give, and what to say when they do.
+- Stay aligned with the Zambian Competence-Based Curriculum (CBC) — values, key competences, the 5E lesson cycle.
 - Use Zambian English spelling and Zambian context (kwacha, local foods, common landmarks) in examples wherever it fits naturally.
 
 Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
+
+const SYSTEM_PROMPT_PREVIOUS = `You are an expert Zambian teacher who writes delivery notes for fellow teachers — NOT pupil handouts.
+
+Your notes:
+- Speak directly to the teacher in second person ("You'll want to start with…", "Remind pupils that…").
+- Use plain Zambian classroom voice. No jargon unless you immediately explain it.
+- Are practical and time-aware: a teacher should be able to skim the notes during a 5-minute break and walk into class confident.
+- Always include concrete worked examples with the steps spelled out — never just an answer.
+- Anticipate where pupils will struggle, what wrong answers they'll give, and what to say when they do.
+- Stay aligned with the 2013 Zambian Previous Curriculum (Outcomes-Based Education) — the subject's specific outcomes and objectives. Do NOT use CBC "competence" framing.
+- Use Zambian English spelling and Zambian context (kwacha, local foods, common landmarks) in examples wherever it fits naturally.
+
+Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
+
+// Backward-compatible default alias (CBC).
+const SYSTEM_PROMPT = SYSTEM_PROMPT_CBC;
+
+/** True when the teacher chose the Previous (2013 / outcome-based) curriculum. */
+function isPreviousCurriculum(inputs = {}) {
+  return String(inputs.curriculum || "").toLowerCase() === "previous" ||
+    String(inputs.framework || "") === "2013";
+}
+
+/** Select the system prompt for the chosen curriculum. */
+function pickSystemPrompt(inputs = {}) {
+  return isPreviousCurriculum(inputs) ? SYSTEM_PROMPT_PREVIOUS : SYSTEM_PROMPT_CBC;
+}
 
 function summariseLessonPlan(plan) {
   if (!plan || typeof plan !== "object") return "";
@@ -115,7 +148,13 @@ function buildUserPrompt(inputs) {
     lessonPlan = null,
   } = inputs;
 
+  const previous = isPreviousCurriculum(inputs);
   const leLabel = learningEnvironmentLabel(learningEnvironment);
+  const heading = previous ?
+    "Write Zambian Previous-Curriculum (Outcomes-Based) TEACHER DELIVERY " +
+    "NOTES for the following lesson." :
+    "Write Zambian-CBC TEACHER DELIVERY NOTES for the following lesson.";
+  const learnerWord = previous ? "pupils" : "learners";
 
   const lessonPlanBlock = lessonPlan ? [
     "Source lesson plan (use this as the authoritative spine — same topic, same goal):",
@@ -126,7 +165,7 @@ function buildUserPrompt(inputs) {
   ].join("\n") : "";
 
   return [
-    "Write Zambian-CBC TEACHER DELIVERY NOTES for the following lesson.",
+    heading,
     "",
     `- Grade: ${grade}`,
     `- Subject: ${subject}`,
@@ -143,6 +182,12 @@ function buildUserPrompt(inputs) {
     leLabel ? `- Learning environment: ${leLabel}` : "",
     `- Lesson duration: ${durationMinutes} min`,
     `- Medium of instruction: ${language}`,
+    previous ?
+      `- Curriculum: Previous (Outcomes-Based). Ground the notes in the ` +
+      `lesson's specific outcomes/objectives and refer to the class as ` +
+      `"${learnerWord}".` :
+      `- Curriculum: CBC (Competence-Based). Ground the notes in the ` +
+      `lesson's competences and refer to the class as "${learnerWord}".`,
     school ? `- School: ${school}` : "",
     teacherName ? `- Teacher: ${teacherName}` : "",
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
@@ -201,6 +246,10 @@ function buildUserPrompt(inputs) {
 module.exports = {
   PROMPT_VERSION,
   SYSTEM_PROMPT,
+  SYSTEM_PROMPT_CBC,
+  SYSTEM_PROMPT_PREVIOUS,
+  pickSystemPrompt,
+  isPreviousCurriculum,
   buildUserPrompt,
   summariseLessonPlan,
 };

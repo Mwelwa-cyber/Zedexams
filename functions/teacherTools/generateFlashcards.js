@@ -22,7 +22,7 @@ const {callClaude} = require("./anthropicClient");
 
 const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateFlashcards} = require("./flashcardSchema");
-const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
+const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./flashcardPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 
@@ -40,6 +40,7 @@ const FLASHCARDS_TOOL_SCHEMA = {
 const ALLOWED_GRADES = new Set([
   "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
+  "F1", "F2", "F3", "F4",
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
 const ALLOWED_SUBJECTS = new Set([
@@ -51,6 +52,13 @@ const ALLOWED_SUBJECTS = new Set([
   "religious_education",
   "technology_studies", "creative_and_technology_studies",
   "home_economics", "expressive_arts", "physical_education",
+  // Senior/vocational subjects the syllabi expose (Forms 1-4) — accepted so the
+  // standardized curriculum selector never dead-ends on a real syllabus subject.
+  "fashion_fabrics", "food_nutrition", "hospitality_management",
+  "travel_tourism", "literature_in_english",
+  // 2013-framework subjects exposed by curriculum-data-2013.json
+  // (Agricultural Science / Art & Design / Home Management, Grades 10-12).
+  "agricultural_science", "art_and_design", "home_management",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
@@ -76,6 +84,11 @@ function sanitizeInputs(raw = {}) {
     difficulty: ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : "mixed",
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    // Explicit curriculum chosen by the teacher — drives CBC vs Previous
+    // prompt/terminology + framework-aware KB grounding.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
+    curriculum: String(raw.curriculum || "").toLowerCase() === "previous" ?
+      "previous" : "cbc",
   };
 }
 
@@ -105,6 +118,7 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
     subject: inputs.subject,
     topic: inputs.topic,
     subtopic: inputs.subtopic,
+    framework: inputs.framework,
   });
 
   const usage = await assertAndIncrement(uid, "flashcards");
@@ -138,7 +152,7 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
   let modelUsed = FLASHCARDS_MODEL;
   try {
     const response = await callClaude(apiKey, {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 3000,

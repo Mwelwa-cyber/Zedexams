@@ -20,7 +20,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
-import { percentFor, averagePercent } from './markSchedule.js'
+import { percentFor, averagePercent, scheduleClassLabel } from './markSchedule.js'
 
 // Solid black grid — the schedule is a formal school record.
 const CELL_BORDER = {
@@ -136,8 +136,9 @@ function commentsTable(schedule) {
 
 export function buildMarkScheduleDocument(schedule, { mode = 'marks', attribution = false } = {}) {
   const h = schedule.header || {}
-  const gradeLabel = String(h.grade ?? '').replace(/^G/i, '')
-  const heading = `GRADE ${gradeLabel} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
+  // scheduleClassLabel prefers the saved human label ("Form 1"); legacy
+  // artifacts without one keep the historical G-strip ('G4' → "GRADE 4").
+  const heading = `${scheduleClassLabel(h).toUpperCase()} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
 
   return new Document({
     sections: [
