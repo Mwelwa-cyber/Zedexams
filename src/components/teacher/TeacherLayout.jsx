@@ -8,6 +8,10 @@ import {
   LogOut,
   Settings,
   Sparkles,
+  FileText,
+  BookOpen,
+  Target,
+  ClipboardList,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -18,14 +22,18 @@ import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
 
 const NAV = [
-  { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
-  { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
-  { to: '/teacher/test-papers',      icon: PencilLine,      label: 'Test Papers'             },
-  { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
-  { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
-  { to: '/teacher/calendar',         icon: CalendarDays,    label: 'School Calendar'         },
-  { to: '/my-subscription',          icon: Sparkles,        label: 'My Subscription'         },
-  { to: '/settings',                 icon: Settings,        label: 'Settings'                },
+  { to: '/teacher',                        icon: LayoutDashboard, label: 'My Dashboard', end: true },
+  { to: '/teacher/generate/lesson-plan',   icon: FileText,        label: 'Lesson Plans'            },
+  { to: '/teacher/generate/scheme-of-work', icon: BookOpen,       label: 'Schemes of Work'         },
+  { to: '/teacher/generate/weekly-forecast', icon: Target,        label: 'Weekly Focus'            },
+  { to: '/teacher/generate/record-of-work', icon: ClipboardList,  label: 'Record of Work'          },
+  { to: '/teacher/library',                icon: FolderOpen,      label: 'My Library'              },
+  { to: '/teacher/test-papers',            icon: PencilLine,      label: 'Test Papers'             },
+  { to: '/teacher/syllabi',                icon: FolderOpen,      label: 'Syllabi Studio'          },
+  { to: '/teacher/curriculum',             icon: GraduationCap,   label: 'Curriculum'              },
+  { to: '/teacher/calendar',               icon: CalendarDays,    label: 'School Calendar'         },
+  { to: '/my-subscription',                icon: Sparkles,        label: 'My Subscription'         },
+  { to: '/settings',                       icon: Settings,        label: 'Settings'                },
 ]
 
 export default function TeacherLayout({ children }) {
