@@ -177,6 +177,33 @@ console.log("\nbuildUserPrompt — Previous Curriculum emits coveredActivities b
   ok("prev: lessonFocus included in previous mode", prompt.includes("Sandy soil and loam"));
 }
 
+// ── buildUserPrompt — resourceLevel (school equipment) ───────────────────────
+
+console.log("\nbuildUserPrompt — resourceLevel");
+
+{
+  const prompt = buildUserPrompt(baseInputs({resourceLevel: "low"}));
+  ok("resourceLevel low: LOW-RESOURCE line present", prompt.includes("LOW-RESOURCE RURAL SCHOOL"));
+  ok("resourceLevel low: hard constraint present", prompt.includes("HARD CONSTRAINT"));
+  ok("resourceLevel low: forbids printing/projection", prompt.includes("Do NOT include any activity that needs printing"));
+}
+
+{
+  const prompt = buildUserPrompt(baseInputs({resourceLevel: "basic"}));
+  ok("resourceLevel basic: BASIC line present", prompt.includes("School resources: BASIC"));
+  ok("resourceLevel basic: no low-resource hard constraint", !prompt.includes("HARD CONSTRAINT"));
+}
+
+{
+  const prompt = buildUserPrompt(baseInputs({resourceLevel: "full"}));
+  ok("resourceLevel full: WELL-RESOURCED line present", prompt.includes("WELL-RESOURCED"));
+}
+
+{
+  const prompt = buildUserPrompt(baseInputs());
+  ok("resourceLevel absent: no School resources line", !prompt.includes("School resources:"));
+}
+
 // ── sanitizeInputs — new fields ───────────────────────────────────────────────
 
 console.log("\nsanitizeInputs — new curriculum fields");
@@ -234,6 +261,16 @@ console.log("\nsanitizeInputs — new curriculum fields");
   // Null/missing curriculumMode should default to 'cbc'
   const result = sanitizeInputs({grade: "G4", subject: "english", topic: "Nouns"});
   ok("sanitize: absent curriculumMode defaults to 'cbc'", result.curriculumMode === "cbc");
+}
+
+{
+  // resourceLevel: allowlisted values pass, anything else becomes ""
+  const low = sanitizeInputs({grade: "G4", subject: "english", topic: "Nouns", resourceLevel: "LOW"});
+  ok("sanitize: resourceLevel 'LOW' normalised to 'low'", low.resourceLevel === "low");
+  const bogus = sanitizeInputs({grade: "G4", subject: "english", topic: "Nouns", resourceLevel: "mega"});
+  ok("sanitize: unknown resourceLevel becomes ''", bogus.resourceLevel === "");
+  const absent = sanitizeInputs({grade: "G4", subject: "english", topic: "Nouns"});
+  ok("sanitize: absent resourceLevel becomes ''", absent.resourceLevel === "");
 }
 
 {
