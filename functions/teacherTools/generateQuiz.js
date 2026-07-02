@@ -72,9 +72,18 @@ function sanitizeInputs(raw = {}) {
   const learningEnvironment = str(raw.learningEnvironment, 40)
       .toLowerCase().replace(/[^a-z_]/g, "_");
 
+  // Curriculum era. Accept the explicit `framework` flag the standardized
+  // studio selector sends, and fall back to the `curriculum`/`curriculumMode`
+  // ("previous") shape older callers use. Default to 2023 when unspecified.
+  const framework =
+    String(raw.framework) === "2013" ||
+    raw.curriculum === "previous" ||
+    raw.curriculumMode === "previous" ? "2013" : "2023";
+
   return {
     grade,
     subject,
+    framework,
     topic: str(raw.topic, 160),
     subtopic: str(raw.subtopic, 200),
     term: term >= 1 && term <= 3 ? term : null,
@@ -124,6 +133,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      framework: inputs.framework,
       ownerUid: uid,
     }),
     assertAndIncrement(uid, "quiz"),
