@@ -31,6 +31,8 @@ const {
   validateImport,
   computeConfidence,
   countByType,
+  confidenceBand,
+  countConfidenceBands,
   buildImportReport,
   canonicalPassageKind,
   normalisePassageRef,
@@ -470,6 +472,39 @@ test('buildImportReport assembles the studio report', () => {
   assert.ok(report.corrections.some((c) => /duplicate/.test(c)));
   // Extra rounds beyond #segments means the coverage loop recovered questions.
   assert.ok(report.corrections.some((c) => /loop-until-complete/.test(c)));
+});
+
+test('confidenceBand mirrors the shared 0.95/0.80 policy', () => {
+  assert.equal(confidenceBand(0.97), 'auto');
+  assert.equal(confidenceBand(0.85), 'review');
+  assert.equal(confidenceBand(0.5), 'approve');
+  assert.equal(confidenceBand(null), 'review'); // unknown → review, never auto
+});
+
+test('countConfidenceBands tallies only scored questions', () => {
+  const bands = countConfidenceBands([
+    {aiConfidence: 0.99},
+    {aiConfidence: 0.9},
+    {confidence: 0.4}, // falls back to raw confidence field
+    {}, // no score — not counted
+  ]);
+  assert.equal(bands.auto, 1);
+  assert.equal(bands.review, 1);
+  assert.equal(bands.approve, 1);
+  assert.equal(bands.scored, 3);
+});
+
+test('buildImportReport includes a confidence-band breakdown', () => {
+  const report = buildImportReport({
+    questionsImported: 2,
+    questions: [
+      {type: 'mcq', options: ['a', 'b'], answerKnown: true, aiConfidence: 0.98},
+      {type: 'short_answer', options: [], answerKnown: false, aiConfidence: 0.6},
+    ],
+  });
+  assert.equal(report.confidenceBands.auto, 1);
+  assert.equal(report.confidenceBands.approve, 1);
+  assert.equal(report.confidenceBands.scored, 2);
 });
 
 test('buildImportReport flags a truncation-limited run', () => {

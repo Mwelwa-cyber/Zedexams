@@ -219,6 +219,14 @@ const QUESTIONS_TOOL_SCHEMA = {
           },
           table: TABLE_SCHEMA,
           explanation: {type: "string"},
+          confidence: {
+            type: "number",
+            description:
+              "How confident you are (0-1) that you read THIS question " +
+              "correctly (wording, options, marks). Use > 0.95 only for crisp, " +
+              "unambiguous text; use < 0.8 for anything smudged, cut off or " +
+              "ambiguous so the admin checks it first. Be honest.",
+          },
         },
         required: ["prompt"],
       },
@@ -249,6 +257,7 @@ For each question:
 - sourceNumber: the question number printed on the paper, so skipped numbers can be detected.
 - sectionLabel: the printed section heading the question sits under ("SECTION A", "SECTION B: STRUCTURED QUESTIONS"), copied verbatim — null when the paper has no section headings. Papers often RESTART numbering at 1 in each section; the label is what keeps a restarted Q1 distinct from Section A's Q1, so never omit it when headings are printed. A section continues until the next heading: questions on a continuation page (no heading visible on that page) still belong to the most recent heading — report that same label for them, spelled identically every time.
 - explanation: one short sentence on the concept tested, or empty if unsure.
+- confidence: 0-1, how sure you are you read this question correctly. Use > 0.95 only for crisp, unambiguous text; use < 0.8 for anything smudged, cut off or ambiguous so the admin checks it first. Be honest — a low score is a helpful flag, not a failure.
 
 Transcribe faithfully. It is far better to return a complete paper with a few questions flagged for review than a tidy subset.`;
 

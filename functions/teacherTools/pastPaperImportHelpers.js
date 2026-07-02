@@ -839,6 +839,34 @@ function countByType(questions) {
   return out;
 }
 
+// Per-question confidence band — mirrors the client policy in
+// src/utils/objectConfidence.js (>0.95 auto / 0.80-0.95 review / <0.80 approve).
+// Kept as a small CJS copy here because that module is frontend ESM and can't be
+// required from these CommonJS Cloud Functions. An unknown score reads as
+// "review" — we never silently treat a missing score as high-confidence.
+function confidenceBand(value) {
+  const c = value == null ? NaN : Number(value);
+  if (!Number.isFinite(c)) return "review";
+  if (c >= 0.95) return "auto";
+  if (c >= 0.8) return "review";
+  return "approve";
+}
+
+// Tally the import's per-question confidence into the three bands. Reads
+// aiConfidence (set by normaliseImportedQuestion from the model's per-question
+// score) and falls back to a raw `confidence` field. Questions with no score at
+// all are not counted — only ones the model actually scored.
+function countConfidenceBands(questions) {
+  const bands = {auto: 0, review: 0, approve: 0, scored: 0};
+  for (const q of (Array.isArray(questions) ? questions : [])) {
+    const raw = q && (q.aiConfidence != null ? q.aiConfidence : q.confidence);
+    if (raw == null || !Number.isFinite(Number(raw))) continue;
+    bands[confidenceBand(raw)] += 1;
+    bands.scored += 1;
+  }
+  return bands;
+}
+
 /**
  * Assemble the import report surfaced in the studio after a run. Pure assembly
  * of already-computed numbers so it round-trips in tests.
@@ -907,6 +935,10 @@ function buildImportReport({
     passagesCaptured,
     tablesCaptured,
     confidence: computeConfidence(questions, {truncationHit}),
+    // Per-question confidence banding so the studio can show how many questions
+    // the AI was sure about vs. which to check first. Empty scored count when the
+    // model returned no per-question scores (older runs).
+    confidenceBands: countConfidenceBands(questions),
     issues,
     corrections,
     notes: Array.isArray(extraNotes) ? extraNotes.filter(Boolean) : [],
@@ -945,6 +977,8 @@ module.exports = {
   validateImport,
   computeConfidence,
   countByType,
+  confidenceBand,
+  countConfidenceBands,
   buildImportReport,
   // Passage capture.
   canonicalPassageKind,
