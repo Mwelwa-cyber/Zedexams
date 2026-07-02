@@ -295,7 +295,7 @@ service firebase.storage {
     }
 
     // Teacher Settings branding assets: profile photo, school logo, teacher
-    // signature, school stamp, letterhead. Fixed filenames per asset
+    // signature, letterhead. Fixed filenames per asset
     // (overwrite-in-place, so no orphan buildup). Owner-only read — branding
     // is baked into exports in the OWNER'S browser; nothing learner-facing
     // references these URLs. Bucket CORS (cors.json) must be deployed so the

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import Icon from '../../../../components/ui/Icon'
 import { ImageIcon } from '../../../../components/ui/icons'
 
-// Generic branding-asset upload tile (logo / signature / stamp / letterhead).
+// Generic branding-asset upload tile (logo / signature / letterhead).
 // The OWNER of the Firestore field does the persistence: this component only
 // picks the file and calls onUpload(file) / onRemove(), showing busy/error
 // state. Preview keeps aspect (object-fit: contain) since these are documents

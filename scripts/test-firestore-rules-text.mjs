@@ -475,7 +475,6 @@ test('schoolProfiles stays owner-write with bounded school-identity fields', () 
     ['footerText', 300],
     ['resourceLevel', 10],
     ['teacherSignatureUrl', 2000],
-    ['schoolStampUrl', 2000],
     ['letterheadUrl', 2000],
   ]) {
     assert(

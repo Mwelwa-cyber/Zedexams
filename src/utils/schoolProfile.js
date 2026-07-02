@@ -3,8 +3,8 @@
 // A teacher's saved school branding lives in schoolProfiles/{uid}: the school
 // name and identity (EMIS number, province, district, type, address, motto),
 // the default paper duration + cover instructions, the school's resource
-// level, and uploaded branding assets (logo, teacher signature, stamp,
-// letterhead). These helpers normalise the stored shape and apply it as
+// level, and uploaded branding assets (logo, teacher signature, letterhead).
+// These helpers normalise the stored shape and apply it as
 // DEFAULTS onto a fresh paper's header so new papers print pre-branded. The
 // Firestore IO lives in ./schoolProfileService; everything here is pure so it
 // can be covered by the plain-node test suite (schoolProfile.test.js).
@@ -65,8 +65,6 @@ export function normalizeSchoolProfile(data = {}) {
     schoolLogoPath: trimStr(d.schoolLogoPath, MAX_PATH),
     teacherSignatureUrl: trimStr(d.teacherSignatureUrl, MAX_URL),
     teacherSignaturePath: trimStr(d.teacherSignaturePath, MAX_PATH),
-    schoolStampUrl: trimStr(d.schoolStampUrl, MAX_URL),
-    schoolStampPath: trimStr(d.schoolStampPath, MAX_PATH),
     letterheadUrl: trimStr(d.letterheadUrl, MAX_URL),
     letterheadPath: trimStr(d.letterheadPath, MAX_PATH),
   }
