@@ -377,6 +377,32 @@ async function normalizeQuestionPayload(q, order) {
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],
     importWarnings: Array.isArray(q.importWarnings) ? q.importWarnings.map(note => String(note ?? '').trim()).filter(Boolean) : [],
     sourcePage:    q.sourcePage || null,
+    // Printed source-paper question number — persisted so the editor's
+    // structural numbering analysis (missing/duplicate/out-of-order) still
+    // works after a reload, not just in the import session. Distinct from
+    // sourcePage (page index on scans). Clamped to the schema's 1..9999.
+    sourceQuestionNumber: (() => {
+      const n = Number(q.sourceQuestionNumber)
+      return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null
+    })(),
+    // CBC curriculum tagging + import provenance. Always written (the schema
+    // defaults them) so a teacher-cleared field actually clears in Firestore.
+    subtopic:        String(q.subtopic ?? '').trim().slice(0, 200),
+    competency:      String(q.competency ?? '').trim().slice(0, 200),
+    specificOutcome: String(q.specificOutcome ?? '').trim().slice(0, 500),
+    curriculum:      String(q.curriculum ?? '').trim().slice(0, 100),
+    // aiConfidence falls back to the scanned importer's in-session
+    // ocrConfidence so a scan's per-question score survives the first save
+    // instead of living only in editor memory.
+    aiConfidence: (() => {
+      const raw = q.aiConfidence ?? q.ocrConfidence
+      return raw == null || !Number.isFinite(Number(raw))
+        ? null
+        : Math.max(0, Math.min(1, Number(raw)))
+    })(),
+    validationStatus: ['ok', 'warning', 'error'].includes(q.validationStatus)
+      ? q.validationStatus
+      : 'ok',
     order,
 
     // ── Tiptap JSON mirrors (canonical source going forward) ──

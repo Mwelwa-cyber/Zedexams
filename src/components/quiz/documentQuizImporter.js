@@ -875,6 +875,13 @@ function aiQuestionToLocalOverrides(q) {
     explanation: importMarkupToRichHtml(q.explanation || ''),
     type,
     detectedType: type,
+    // Carry the printed question number into the editor so the structural
+    // numbering analysis (missing/duplicate/out-of-order) can run on real
+    // source numbers instead of a synthetic 1..N.
+    sourceQuestionNumber: (() => {
+      const n = Number(q.sourceQuestionNumber)
+      return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null
+    })(),
   }
 }
 

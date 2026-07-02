@@ -107,6 +107,12 @@ test('CBC tagging + import provenance fields are gated (mirrors question.js)', (
   assertContains("incoming().validationStatus in ['ok', 'warning', 'error']", 'validationStatus enum missing')
 })
 
+test('sourceQuestionNumber (printed number) is gated with int bounds', () => {
+  assertContains("'sourceQuestionNumber' in incoming()", 'sourceQuestionNumber not gated in validQuestionFields')
+  assertContains('incoming().sourceQuestionNumber >= 1', 'sourceQuestionNumber lower bound missing')
+  assertContains('incoming().sourceQuestionNumber <= 9999', 'sourceQuestionNumber upper bound missing')
+})
+
 // ── A few defensive invariants worth pinning ────────────────────
 
 console.log('\nstructural invariants')

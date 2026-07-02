@@ -752,7 +752,13 @@ function toQuestionDoc(q, order) {
     importedAt: admin.firestore.FieldValue.serverTimestamp(),
     importSource: "past_paper_ai",
   };
-  if (q.sourceNumber != null) base.sourcePage = String(q.sourceNumber);
+  if (q.sourceNumber != null) {
+    base.sourcePage = String(q.sourceNumber);
+    // Dedicated integer field for the printed number — the editor's numbering
+    // analysis reads this (sourcePage's meaning varies across import paths).
+    const n = Number(q.sourceNumber);
+    if (Number.isInteger(n) && n >= 1 && n <= 9999) base.sourceQuestionNumber = n;
+  }
   // Carry an importer confidence onto the card when the extractor provided one.
   if (q.confidence != null && Number.isFinite(Number(q.confidence))) {
     base.aiConfidence = Math.max(0, Math.min(1, Number(q.confidence)));

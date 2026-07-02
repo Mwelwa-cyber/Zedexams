@@ -2,9 +2,92 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
 import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
 import { clampInt } from '../../utils/inputs.js'
+import { questionValidationStatus } from '../../utils/quizEngineAdapter.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
 import DiagramPicker from '../diagrams/DiagramPicker.jsx'
 import { getDiagram } from '../diagrams/diagramCatalog.js'
+
+// Live per-card verdict chip from the shared Document Understanding Engine.
+// Computed inside each memoised card (recomputes only when that card's
+// question changes) so no map has to be threaded through the tree. Shows the
+// CURRENT state — a card goes green the moment the teacher fixes it,
+// independent of the persisted import-time `validationStatus` snapshot.
+const STATUS_CHIP = {
+  ok: { label: 'Valid', className: 'bg-emerald-100 text-emerald-800' },
+  warning: { label: 'Check', className: 'bg-amber-100 text-amber-800' },
+  error: { label: 'Fix', className: 'bg-rose-100 text-rose-800' },
+}
+
+function ValidationStatusChip({ question }) {
+  // useMemo on the question object: memoised cards re-render only when their
+  // question reference changes, so this recomputes exactly then.
+  const status = useMemo(() => questionValidationStatus(question), [question])
+  const chip = STATUS_CHIP[status] || STATUS_CHIP.ok
+  const confidence = question.aiConfidence ?? question.ocrConfidence
+  return (
+    <span className="flex items-center gap-1.5">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${chip.className}`}
+        title={`Structure check: ${status}`}
+      >
+        {chip.label}
+      </span>
+      {Number.isFinite(Number(confidence)) && confidence != null && (
+        <span
+          className="theme-text-muted text-[10px] font-bold"
+          title="Importer confidence for this question"
+        >
+          AI {Math.round(Number(confidence) * 100)}%
+        </span>
+      )}
+    </span>
+  )
+}
+
+// CBC curriculum tagging — collapsible footer row shared by the standalone
+// and passage question cards. `set(field, value)` is each card's own updater,
+// so edits flow through the normal dirty → autosave path.
+function CbcMetaFields({ question, theme, set }) {
+  const filled = ['subtopic', 'competency', 'specificOutcome', 'curriculum']
+    .filter(field => String(question[field] ?? '').trim()).length
+  return (
+    <details className="theme-border rounded-lg border">
+      <summary className="theme-text-muted cursor-pointer px-2.5 py-1.5 text-xs font-bold">
+        CBC tags{filled ? ` (${filled})` : ''} — subtopic, competency, outcome
+      </summary>
+      <div className="grid gap-2 border-t theme-border p-2.5 sm:grid-cols-2">
+        <input
+          value={question.subtopic || ''}
+          onChange={event => set('subtopic', event.target.value)}
+          placeholder="Subtopic (e.g. Equivalent fractions)"
+          maxLength={200}
+          className={smallFieldClass(theme)}
+        />
+        <input
+          value={question.competency || ''}
+          onChange={event => set('competency', event.target.value)}
+          placeholder="Competency (e.g. Number operations)"
+          maxLength={200}
+          className={smallFieldClass(theme)}
+        />
+        <input
+          value={question.specificOutcome || ''}
+          onChange={event => set('specificOutcome', event.target.value)}
+          placeholder="Specific outcome (e.g. 5.1.1 Compare fractions)"
+          maxLength={500}
+          className={smallFieldClass(theme)}
+        />
+        <input
+          value={question.curriculum || ''}
+          onChange={event => set('curriculum', event.target.value)}
+          placeholder="Curriculum (e.g. CBC 2023)"
+          maxLength={100}
+          className={smallFieldClass(theme)}
+        />
+      </div>
+    </details>
+  )
+}
 
 // PRISCA mock-paper question subtypes. Storage shape stays as 4-option MCQ;
 // these labels just drive the editor preset — option input style, badge text.
@@ -1317,7 +1400,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             resetKey={aiResetKey}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <input
             value={question.topic}
             onChange={event => set('topic', event.target.value)}
@@ -1335,7 +1418,9 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
               className="theme-text w-10 bg-transparent text-center text-xs font-black outline-none"
             />
           </div>
+          <ValidationStatusChip question={question} />
         </div>
+        <CbcMetaFields question={question} theme={theme} set={set} />
       </div>
     </div>
   )
@@ -1637,7 +1722,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
         }}
       />
 
-      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
         <input
           value={question.topic}
           onChange={event => set('topic', event.target.value)}
@@ -1655,7 +1740,11 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
             className="theme-text w-10 bg-transparent text-center text-xs font-black outline-none"
           />
         </div>
+        <div className="flex items-center">
+          <ValidationStatusChip question={question} />
+        </div>
       </div>
+      <CbcMetaFields question={question} theme={theme || THEMES.create} set={set} />
 
       <div className="space-y-2">
         <FieldHeader title="Explanation" badge="Shown after attempt" />

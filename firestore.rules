@@ -124,6 +124,11 @@ service cloud.firestore {
         && (!('aiConfidence' in incoming()) || incoming().aiConfidence == null || (incoming().aiConfidence is number && incoming().aiConfidence >= 0 && incoming().aiConfidence <= 1))
         // Per-question validation rollup — ok | warning | error.
         && (!('validationStatus' in incoming()) || (incoming().validationStatus is string && incoming().validationStatus in ['ok', 'warning', 'error']))
+        // Printed source-paper question number (distinct from sourcePage, whose
+        // meaning varies by import path: page index for scans, question number
+        // for the server past-paper import). Drives the Document Understanding
+        // Engine's numbering analysis in the editor after a reload.
+        && (!('sourceQuestionNumber' in incoming()) || incoming().sourceQuestionNumber == null || (incoming().sourceQuestionNumber is int && incoming().sourceQuestionNumber >= 1 && incoming().sourceQuestionNumber <= 9999))
         // PRISCA mock-paper format: optional MCQ subtype + Part membership.
         && (!('subtype' in incoming()) || _validQuestionSubtype(incoming().subtype))
         && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64))
