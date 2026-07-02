@@ -4,11 +4,16 @@
 > is now a project dependency (`package.json`), so `npx cap sync android`
 > (run automatically by the release workflows) registers the native
 > `FirebaseAppCheck` plugin and `src/firebase/config.js` activates Play
-> Integrity on the Android build. **The remaining work is Console-only:**
+> Integrity on the Android build. 2026-07-02 also fixed the WebView bridge:
+> the native plugin used to initialise WITHOUT feeding tokens into the
+> Firebase JS SDK, so callables/Firestore/Storage from the WebView never
+> attached a token even where Play Integrity worked; `initAppCheck()` now
+> wires a CustomProvider bridge. **The remaining work is Console-only:**
 > register the release keystore's SHA-256 in Firebase (Step 2–3) and enable
 > the Play Integrity provider + App Check enforcement (Step 4+). Until those
 > Console steps are done, native traffic still reaches the backend
-> unattested — the plugin initialises but has no provider to enforce.
+> unattested — the plugin initialises but has no provider to attest with.
+> Use the "This device" self-test on `/admin/app-check` to verify each stage.
 
 The web App Check shipped via PR #317 protects browser traffic with reCAPTCHA v3.
 The Capacitor Android wrapper currently bypasses that — every Firestore /

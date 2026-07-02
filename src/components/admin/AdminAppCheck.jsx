@@ -12,11 +12,15 @@
  * AdminRoute too.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { getAppCheckClientState, getAppCheckToken } from '../../firebase/config'
+import { APPCHECK_PLACEHOLDER_TOKEN } from '../../firebase/appCheckResilient'
 import {
   listAppCheckHealth,
   summarise,
   enforcementReadiness,
+  classifyDeviceAttestation,
 } from '../../utils/appCheckHealth'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -90,6 +94,99 @@ function EndpointTable({ rows }) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+const VERDICT_TONE_CLS = {
+  good: 'border-emerald-300 bg-emerald-50 text-emerald-900',
+  warn: 'theme-bg-subtle theme-text',
+  block: 'border-rose-300 bg-rose-50 text-rose-900',
+}
+
+/**
+ * "This device" self-test — separates the failure modes the per-endpoint
+ * counters fold together: it reads the build's App Check state, mints a
+ * token, then asks the appCheckPing callable whether the server actually
+ * verified the token this session attached.
+ */
+function DeviceSelfTest() {
+  const [running, setRunning] = useState(true)
+  const [result, setResult] = useState(null)
+
+  const run = useCallback(async () => {
+    setRunning(true)
+    const state = getAppCheckClientState()
+    const token = await getAppCheckToken()
+    const tokenKind = !token
+      ? 'none'
+      : token === APPCHECK_PLACEHOLDER_TOKEN
+        ? 'placeholder'
+        : 'real'
+    let attested = null
+    try {
+      const ping = httpsCallable(getFunctions(app, 'us-central1'), 'appCheckPing')
+      const res = await ping({})
+      attested = Boolean(res?.data?.attested)
+    } catch (err) {
+      console.warn('[AdminAppCheck] appCheckPing failed', err)
+    }
+    setResult({
+      state,
+      tokenKind,
+      attested,
+      verdict: classifyDeviceAttestation({ ...state, tokenKind, attested }),
+    })
+    setRunning(false)
+  }, [])
+
+  useEffect(() => { run() }, [run])
+
+  const facts = result && [
+    ['Platform', result.state.native ? 'Android wrapper' : 'Web'],
+    ['Build key', result.state.native ? 'n/a (Play Integrity)' : result.state.recaptchaKeyConfigured ? 'configured' : 'MISSING'],
+    ['Token minted', result.tokenKind],
+    ['Server verdict', result.attested == null ? 'unreachable' : result.attested ? 'valid' : 'not attested'],
+  ]
+
+  return (
+    <section className="theme-card border theme-border rounded-radius-md p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="theme-text-muted text-[11px] uppercase tracking-wider font-bold">
+          This device
+        </p>
+        <button
+          type="button"
+          onClick={run}
+          disabled={running}
+          className="text-xs font-bold theme-text underline underline-offset-2 disabled:opacity-50"
+        >
+          {running ? 'Testing…' : 'Re-run test'}
+        </button>
+      </div>
+      {running && !result ? (
+        <Skeleton className="h-16 rounded-radius-md" />
+      ) : result ? (
+        <>
+          <div
+            role="status"
+            className={`rounded-radius-md p-3 text-sm border-2 ${VERDICT_TONE_CLS[result.verdict.tone]}`}
+          >
+            <span className="font-black uppercase text-[11px] tracking-wider mr-2">
+              {result.verdict.title}
+            </span>
+            {result.verdict.detail}
+          </div>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            {facts.map(([label, value]) => (
+              <div key={label} className="theme-bg-subtle rounded-radius-md p-2 text-center">
+                <dt className="theme-text-muted text-[10px] uppercase tracking-wider font-bold">{label}</dt>
+                <dd className="theme-text font-mono text-xs mt-0.5">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      ) : null}
+    </section>
   )
 }
 
@@ -200,6 +297,8 @@ export default function AdminAppCheck() {
             </div>
           </section>
 
+          <DeviceSelfTest />
+
           <section className="theme-card border theme-border rounded-radius-md p-4">
             <p className="theme-text-muted text-[11px] uppercase tracking-wider font-bold mb-2">
               By endpoint — last 7 days
@@ -211,8 +310,9 @@ export default function AdminAppCheck() {
               distinguish them at the telemetry layer); only the HTTP
               <span className="font-mono"> apiAiChat</span> path reports
               <span className="font-mono"> invalid</span> separately.
-              Native clients show as unattested until the Capacitor
-              FirebaseAppCheck plugin is registered and attesting.
+              Native clients show as unattested until Play Integrity is
+              registered in Firebase Console (docs/B3-PLAY-INTEGRITY-SETUP.md)
+              and users update to a build with the App Check bridge.
             </p>
           </section>
         </>

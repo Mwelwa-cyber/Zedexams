@@ -425,6 +425,16 @@ async function softVerifyAppCheckHttp(req, label) {
 // APPCHECK_ENFORCE=1 set; no code change needed. Defaults OFF so the
 // next deploy doesn't break existing clients before they propagate
 // the App Check init from #317.
+//
+// NOTE: none of the callables set `consumeAppCheckToken: true` any more
+// (removed 2026-07). Consuming requires every client call site to opt in
+// with `httpsCallable(fns, name, {limitedUseAppCheckTokens: true})` so a
+// fresh single-use token is minted per call; no ZedExams client does that,
+// so the runtime consumed the SDK's ~1h cached token on the first call and
+// every later call in the window verified as already-consumed → recorded
+// "missing" on /admin/app-check even for perfectly-attesting clients.
+// Reintroduce replay protection together with client-side limited-use
+// support when flipping APPCHECK_ENFORCE=1.
 const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
 
 /**
@@ -461,6 +471,28 @@ async function recordAppCheckCallable(request, label) {
     console.warn(`[appCheck:${label}] callable health write failed`, err?.message || err);
   }
 }
+
+// Diagnostic ping for the /admin/app-check "this device" self-test. Returns
+// whether THIS request carried a valid App Check token — request.app is only
+// populated when the runtime verified one, which is exactly the signal the
+// per-endpoint counters can't attribute to a specific client. enforceAppCheck
+// stays hard-off so the diagnostic keeps answering even after
+// APPCHECK_ENFORCE=1 (its whole job is to explain a rejection). Deliberately
+// NOT recorded in appCheckHealth: self-tests would inflate the readiness
+// sample the dashboard judges against.
+exports.appCheckPing = onCall(
+  {
+    region: "us-central1",
+    timeoutSeconds: 10,
+    enforceAppCheck: false,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    return {attested: Boolean(request.app)};
+  },
+);
 
 async function getUserProfileOrThrow(uid) {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
@@ -870,7 +902,6 @@ exports.aiChat = onCall(
     region: "us-central1",
     timeoutSeconds: 30,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1339,7 +1370,6 @@ exports.explainAnswer = onCall(
     region: "us-central1",
     timeoutSeconds: 30,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1390,7 +1420,6 @@ exports.generateNoteInsights = onCall(
     timeoutSeconds: 45,
     memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1425,7 +1454,6 @@ exports.generateNoteSmart = onCall(
     timeoutSeconds: 90,
     memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1466,7 +1494,6 @@ exports.editQuizQuestion = onCall(
     region: "us-central1",
     timeoutSeconds: 45,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1535,7 +1562,6 @@ exports.generateQuizQuestions = onCall(
     region: "us-central1",
     timeoutSeconds: 45,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1712,7 +1738,6 @@ exports.structureImportedQuiz = onCall(
     region: "us-central1",
     timeoutSeconds: 90, // pipeline calls two models; allow extra headroom
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1852,7 +1877,6 @@ exports.structureScannedQuiz = onCall(
     timeoutSeconds: 240,
     memory: "1GiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1899,7 +1923,6 @@ exports.structureImportedNote = onCall(
     region: "us-central1",
     timeoutSeconds: 120,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1944,7 +1967,6 @@ exports.ocrNotePages = onCall(
     timeoutSeconds: 240,
     memory: "1GiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -1985,7 +2007,6 @@ exports.suggestQuizAnswers = onCall(
     region: "us-central1",
     timeoutSeconds: 120,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -2029,7 +2050,6 @@ exports.checkShortAnswer = onCall(
     region: "us-central1",
     timeoutSeconds: 30,
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
@@ -2671,7 +2691,6 @@ exports.retryAgentJob = onCall(
     timeoutSeconds: 300,
     memory: "512MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {

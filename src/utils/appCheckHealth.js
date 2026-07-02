@@ -113,6 +113,76 @@ export function summarise(rawDays) {
  * A single endpoint still seeing unattested traffic blocks readiness —
  * that's the one that breaks for real users on the flip.
  */
+/**
+ * Classify the "this device" self-test into one actionable verdict.
+ *
+ * The server-side counters say HOW MUCH traffic is unattested but not WHY —
+ * a missing build key, a crashed reCAPTCHA, an unconfigured Play Integrity,
+ * and a console-side key mismatch all land in the same "missing" bucket.
+ * This runs in the admin's own session where each of those is separable.
+ *
+ * @param {object} p
+ * @param {boolean} p.native — running inside the Capacitor wrapper
+ * @param {boolean} p.recaptchaKeyConfigured — web site key baked into this build
+ * @param {boolean} p.initialized — App Check init completed on this platform
+ * @param {'real'|'placeholder'|'none'} p.tokenKind — what getAppCheckToken() minted
+ * @param {boolean|null} p.attested — appCheckPing verdict (null = ping unreachable)
+ * @returns {{tone:'good'|'warn'|'block', title:string, detail:string}}
+ */
+export function classifyDeviceAttestation({ native, recaptchaKeyConfigured, initialized, tokenKind, attested }) {
+  if (attested === true) {
+    return {
+      tone: 'good',
+      title: 'This device is attesting',
+      detail: 'The server verified this session’s App Check token. Calls from this device count as valid.',
+    }
+  }
+  if (!native && !recaptchaKeyConfigured) {
+    return {
+      tone: 'block',
+      title: 'No reCAPTCHA key in this build',
+      detail: 'This deploy shipped without VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY, so no web client can mint a token. Set the GitHub Actions secret and redeploy hosting.',
+    }
+  }
+  if (!initialized) {
+    return {
+      tone: 'warn',
+      title: 'App Check did not initialise',
+      detail: native
+        ? 'The FirebaseAppCheck Capacitor plugin is not registered in this build — rebuild after npx cap sync android.'
+        : 'The deferred App Check init has not completed in this session. Re-run the test; if it persists, check the console for [appCheck] warnings.',
+    }
+  }
+  if (tokenKind === 'placeholder') {
+    return {
+      tone: 'block',
+      title: native ? 'Play Integrity is not attesting' : 'reCAPTCHA is not attesting',
+      detail: native
+        ? 'Token minting fails, so the fail-open placeholder is sent — counted as unattested. Finish the Firebase/Play Console setup in docs/B3-PLAY-INTEGRITY-SETUP.md.'
+        : 'reCAPTCHA is unreachable or crashing, so the fail-open placeholder is sent — counted as unattested. Check that the site key is valid for this domain.',
+    }
+  }
+  if (tokenKind === 'none') {
+    return {
+      tone: 'warn',
+      title: 'No token minted',
+      detail: 'App Check initialised but returned no token. Re-run the test; if it persists, check the console for [appCheck] warnings.',
+    }
+  }
+  if (attested === false) {
+    return {
+      tone: 'block',
+      title: 'Server rejected this device’s token',
+      detail: 'A real-looking token was minted but verification failed — the reCAPTCHA site key (web) or Play Integrity registration (Android) in Firebase Console → App Check does not match this app.',
+    }
+  }
+  return {
+    tone: 'warn',
+    title: 'Server verdict unavailable',
+    detail: 'A token was minted but the appCheckPing call failed, so the server verdict is unknown. Check connectivity and retry.',
+  }
+}
+
 export function enforcementReadiness(summary, { minAttempts = 200 } = {}) {
   const { overall, rows } = summary
   if (overall.attempts < minAttempts) {

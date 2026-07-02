@@ -97,20 +97,15 @@ applyAuthPersistence()
 // to whatever the server's enforce mode is.
 //
 // Native (Capacitor / Android, audit B3 follow-up): Play Integrity via
-// `@capacitor-firebase/app-check`. The native plugin handles the
-// integrity-check round-trip with Google Play Services and surfaces
-// tokens through the Firebase JS SDK's CustomProvider hook so all
-// outbound Firestore/Storage/Functions calls from the WebView are
-// attested without any JS-level token plumbing.
-//
-// IMPORTANT: the npm package is intentionally NOT bundled here. To
-// activate Play Integrity, the operator runs:
-//   npm install @capacitor-firebase/app-check
-//   npx cap sync android
-// + completes the Firebase Console / Play Console setup documented
-// in docs/B3-PLAY-INTEGRITY-SETUP.md. Until then the runtime lookup
-// returns null and native traffic stays unattested — the same
-// soft-fail pattern as Sentry's DSN gating.
+// `@capacitor-firebase/app-check` (a project dependency since 2026-07).
+// The native plugin handles the integrity-check round-trip with Google
+// Play Services; a CustomProvider bridge below feeds its tokens into the
+// Firebase JS SDK so all outbound Firestore/Storage/Functions calls from
+// the WebView are attested. Attestation also needs the Firebase Console /
+// Play Console setup documented in docs/B3-PLAY-INTEGRITY-SETUP.md —
+// until that's done the plugin has no provider, token minting fails, and
+// the fail-open bridge sends the placeholder token (recorded server-side
+// as unattested, same as before).
 //
 // Plugin lookup uses `Capacitor.Plugins.FirebaseAppCheck` (runtime
 // registry) rather than `await import('@capacitor-firebase/app-check')`
@@ -135,7 +130,10 @@ const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_
 // raw-fetch HTTP/SSE endpoints. Firebase callables attach an App Check token
 // automatically; a plain fetch() does not, so those endpoints need the header
 // set by hand. Null until initAppCheck() runs (or when App Check is unconfigured).
-let webAppCheck = null
+// jsAppCheck is the Firebase JS SDK instance (set on BOTH platforms — on
+// native it's the CustomProvider bridge below); nativeAppCheck is the raw
+// Capacitor plugin handle.
+let jsAppCheck = null
 let nativeAppCheck = null
 // One-shot guard. A second initializeAppCheck() (or a second reCAPTCHA render)
 // makes Google's reCAPTCHA SDK throw "reCAPTCHA placeholder element must be
@@ -190,6 +188,38 @@ async function initAppCheck() {
       nativeAppCheck = FirebaseAppCheck
     } catch (err) {
       console.warn('[appCheck] native init failed:', err?.message || err)
+      return
+    }
+    // Bridge native (Play Integrity) tokens into the Firebase JS SDK. The
+    // Capacitor plugin above only configures the NATIVE Firebase SDK — the
+    // JS SDK running inside the WebView, which issues every Firestore /
+    // Storage / callable request, knows nothing about it until
+    // initializeAppCheck() is called with a provider. Without this bridge
+    // native traffic reaches the backend with no X-Firebase-AppCheck header
+    // at all — the "every callable shows missing" signature on
+    // /admin/app-check. resilientGetToken gives the bridge the same
+    // fail-open guarantee as the web path: an unconfigured or hung Play
+    // Integrity yields a short-lived placeholder instead of stalling
+    // Auth/Firestore (see appCheckResilient.js).
+    try {
+      const provider = new CustomProvider({
+        getToken: () => resilientGetToken(async () => {
+          const res = await FirebaseAppCheck.getToken()
+          if (!res || !res.token) return null
+          return {
+            token: res.token,
+            // Some plugin platforms omit expireTimeMillis; a short TTL just
+            // makes the SDK re-request sooner, which is safe.
+            expireTimeMillis: res.expireTimeMillis || Date.now() + 60_000,
+          }
+        }),
+      })
+      jsAppCheck = initializeAppCheck(app, {
+        provider,
+        isTokenAutoRefreshEnabled: true,
+      })
+    } catch (err) {
+      console.warn('[appCheck] native JS-SDK bridge init failed:', err?.message || err)
     }
     return
   }
@@ -229,7 +259,7 @@ async function initAppCheck() {
         return resilientGetToken(() => recaptcha.getToken())
       },
     })
-    webAppCheck = initializeAppCheck(app, {
+    jsAppCheck = initializeAppCheck(app, {
       provider,
       // Auto-refresh tokens behind the scenes; the SDK handles it. This also
       // re-requests a real token soon after reCAPTCHA recovers from a placeholder.
@@ -260,12 +290,26 @@ export async function getAppCheckToken() {
       const res = await nativeAppCheck.getToken()
       return (res && res.token) || ''
     }
-    if (!webAppCheck) return ''
-    const res = await getToken(webAppCheck, /* forceRefresh */ false)
+    if (!jsAppCheck) return ''
+    const res = await getToken(jsAppCheck, /* forceRefresh */ false)
     return (res && res.token) || ''
   } catch (err) {
     console.warn('[appCheck] getAppCheckToken failed:', err?.message || err)
     return ''
+  }
+}
+
+/**
+ * Client-side App Check state for the /admin/app-check "this device"
+ * self-test. Answers, from inside the deployed bundle, the questions the
+ * server-side counters can't: did this build ship with a reCAPTCHA site key
+ * at all, and did App Check init actually run on this platform?
+ */
+export function getAppCheckClientState() {
+  return {
+    native: isNativePlatform(),
+    recaptchaKeyConfigured: Boolean(APPCHECK_RECAPTCHA_KEY),
+    initialized: Boolean(jsAppCheck || nativeAppCheck),
   }
 }
 

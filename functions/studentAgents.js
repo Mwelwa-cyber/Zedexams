@@ -369,7 +369,6 @@ function createGenerateStudyPlan(
       timeoutSeconds: 45,
       memory: "512MiB",
       enforceAppCheck,
-      consumeAppCheckToken: true,
     },
     async (request) => {
       if (!request.auth) {
