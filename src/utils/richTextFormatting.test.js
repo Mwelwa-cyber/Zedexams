@@ -6,7 +6,7 @@
  * Run: node src/utils/richTextFormatting.test.js
  */
 
-import { richTextHasFormatting } from './quizRichText.js'
+import { richTextHasFormatting, extractRichTextPlain } from './quizRichText.js'
 
 let failures = 0
 function assert(cond, msg) {
@@ -37,6 +37,22 @@ console.log('\nformatted content → has formatting')
   assert(richTextHasFormatting('<p>H<sub>2</sub>O</p>') === true, 'HTML with a subscript tag')
   assert(richTextHasFormatting('<p>See <strong>this</strong></p>') === true, 'HTML with bold tag')
   assert(richTextHasFormatting('<table><tr><td>x</td></tr></table>') === true, 'HTML table')
+}
+
+// Regression: the admin Question Review queue rendered question stems as raw
+// Tiptap JSON symbols ({"content":[{"attrs":{"textAlign":null},...}) because it
+// decoded with richTextToPlainText, which dumps a stringified doc verbatim.
+// extractRichTextPlain must decode the same shapes to readable text.
+console.log('\nextractRichTextPlain → readable text (no raw JSON symbols)')
+{
+  const stem = 'Training people to obey rules is called …'
+  assert(extractRichTextPlain(plainDoc(stem)) === stem, 'Tiptap object → stem text')
+  assert(extractRichTextPlain(JSON.stringify(plainDoc(stem))) === stem, 'stringified Tiptap doc → stem text')
+  const out = extractRichTextPlain(JSON.stringify(plainDoc(stem)))
+  assert(!out.includes('{') && !out.includes('textAlign') && !out.includes('"type"'), 'no JSON symbols leak through')
+  assert(extractRichTextPlain('An oasis is associated with …') === 'An oasis is associated with …', 'plain string passes through')
+  assert(extractRichTextPlain('<p>discipline</p>') === 'discipline', 'HTML string → text')
+  assert(extractRichTextPlain(null) === '' && extractRichTextPlain('') === '', 'empty inputs → empty string')
 }
 
 if (failures > 0) {
