@@ -214,11 +214,14 @@ const weeklyRevisionReminder = onSchedule(
     async () => {
       const db = admin.firestore();
       const weekKey = dateKey(0);
-      // Only learners active in the last 30 days — inactiveLearnerReminder +
-      // Anchor own the longer-lapsed cohorts, and we don't want to nag churned
-      // users every Sunday. lastAttemptDate is a YYYY-MM-DD string, so a lexical
-      // range on it is correct and index-free.
-      const activeSince = dateKey(-30);
+      // Only learners active in the last 6 days. The cohorts are disjoint by
+      // design: 0–6 days quiet → this weekly revision nudge, 7–13 days →
+      // inactiveLearnerReminder, 14–45 days → Anchor's win-back drafts. Without
+      // this bound a learner 8 days quiet would get BOTH the Sunday revision
+      // nudge and the win-back on the same day (different dedupeKeys, so the
+      // 24h dedupe can't save them). lastAttemptDate is a YYYY-MM-DD string,
+      // so a lexical range on it is correct and index-free.
+      const activeSince = dateKey(-6);
       let last = null;
       let written = 0;
       for (let round = 0; round < 40; round++) {

@@ -345,8 +345,10 @@ async function activateSubscriptionFromPayment({
       const {notifyAdmins} = require("./notifications/notifyAudience");
       await notifyAdmins("payment_received", {
         paymentId,
-        email: (payloadForInvoice && payloadForInvoice.userEmail) || "",
-        amount: planForInvoice && planForInvoice.priceLabel ? planForInvoice.priceLabel : "",
+        amount: payloadForInvoice.amount ?
+          `${payloadForInvoice.amount} ${payloadForInvoice.currency || "ZMW"}` : "",
+        plan: (planForInvoice && planForInvoice.name) || "",
+        phone: payloadForInvoice.phoneNumber || "",
       });
     } catch (err) {
       console.error("[subscriptionActivation] admin payment notify failed", err);

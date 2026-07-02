@@ -48,7 +48,8 @@ function buildAdminNotification(kind, data = {}) {
       return {
         type: "admin_payment_received",
         title: "Payment received",
-        body: `${d.amount ? `${d.amount} ` : ""}subscription payment confirmed${d.email ? ` from ${d.email}` : ""}.`,
+        body: `${d.amount ? `${d.amount} ` : ""}subscription payment confirmed` +
+          `${d.plan ? ` (${d.plan})` : ""}${d.phone ? ` from ${d.phone}` : ""}.`,
         priority: "medium",
         icon: "credit-card",
         action: { label: "View payments", url: "/admin/payments" },

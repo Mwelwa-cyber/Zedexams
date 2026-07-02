@@ -65,10 +65,17 @@ const { buildAdminNotification, resolveAdminUids, notifyAdmins, ADMIN_ROLES } = 
   ok("new_learner includes grade", learner.body.includes("Grade 5"));
   ok("new_learner dedupeKey", learner.dedupeKey === "admin-new-learner-l1");
 
-  const payOk = buildAdminNotification("payment_received", { paymentId: "p1", amount: "K120" });
+  const payOk = buildAdminNotification("payment_received", {
+    paymentId: "p1", amount: "120 ZMW", plan: "Pro", phone: "0977000000",
+  });
   ok("payment_received medium priority", payOk.priority === "medium");
   ok("payment_received dedupeKey", payOk.dedupeKey === "admin-payment-ok-p1");
-  ok("payment_received shows amount", payOk.body.includes("K120"));
+  ok("payment_received shows amount", payOk.body.includes("120 ZMW"));
+  ok("payment_received shows plan", payOk.body.includes("(Pro)"));
+  ok("payment_received shows phone", payOk.body.includes("0977000000"));
+  const payBare = buildAdminNotification("payment_received", { paymentId: "p9" });
+  ok("payment_received degrades with no amount/plan/phone",
+      payBare.body === "subscription payment confirmed.");
 
   const payFail = buildAdminNotification("payment_failed", { paymentId: "p2", reason: "timeout" });
   ok("payment_failed dedupeKey", payFail.dedupeKey === "admin-payment-fail-p2");
