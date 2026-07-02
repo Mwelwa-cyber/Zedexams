@@ -99,7 +99,7 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
       </span>
 
       {/* Mobile text label — visible only on small screens where hover doesn't exist */}
-      <span aria-hidden="true" className={`${dashboardStyle ? `learner-chrome-label font-black ${isCompactDashboard ? 'mt-0.5 text-[9px]' : 'mt-1 text-[10px]'}` : 'mt-0.5 text-[9px] font-bold sm:hidden theme-text-muted'} leading-none`}>
+      <span aria-hidden="true" className={`${dashboardStyle ? `learner-chrome-label font-semibold tracking-tight ${isCompactDashboard ? 'mt-1 text-[9px]' : 'mt-1.5 text-[10px]'}` : 'mt-0.5 text-[9px] font-bold sm:hidden theme-text-muted'} leading-none`}>
         Theme
       </span>
 
