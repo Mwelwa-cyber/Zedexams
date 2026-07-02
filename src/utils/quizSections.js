@@ -53,6 +53,18 @@ export function emptyQuestion(overrides = {}) {
     reviewNotes: [],
     importWarnings: [],
     sourcePage: null,
+    // Printed source-paper question number (importer-set; null when
+    // hand-authored). Distinct from sourcePage — see the question schema.
+    sourceQuestionNumber: null,
+    // CBC curriculum tagging + import provenance (mirrors the question
+    // schema). Editable on the card footer; defaults keep legacy docs and
+    // hand-authored questions neutral.
+    subtopic: '',
+    competency: '',
+    specificOutcome: '',
+    curriculum: '',
+    aiConfidence: null,
+    validationStatus: 'ok',
     passageId: null,
     // Numeric question fields. Defaulted on every question so the studio
     // doesn't have to special-case undefined when reading them; only the
@@ -730,6 +742,29 @@ function hydrateOptionMedia(rawMedia) {
   })
 }
 
+// CBC tagging + import provenance — shared between the standalone and passage
+// hydrate paths so a saved question's tags survive a reload on both card kinds.
+// (hydrate uses explicit field lists, so anything not read here is dropped.)
+function hydrateCbcMeta(question = {}) {
+  const conf = Number(question.aiConfidence)
+  const srcNum = Number(question.sourceQuestionNumber)
+  return {
+    subtopic: typeof question.subtopic === 'string' ? question.subtopic : '',
+    competency: typeof question.competency === 'string' ? question.competency : '',
+    specificOutcome: typeof question.specificOutcome === 'string' ? question.specificOutcome : '',
+    curriculum: typeof question.curriculum === 'string' ? question.curriculum : '',
+    aiConfidence: question.aiConfidence != null && Number.isFinite(conf)
+      ? Math.max(0, Math.min(1, conf))
+      : null,
+    validationStatus: ['ok', 'warning', 'error'].includes(question.validationStatus)
+      ? question.validationStatus
+      : 'ok',
+    sourceQuestionNumber: Number.isInteger(srcNum) && srcNum >= 1 && srcNum <= 9999
+      ? srcNum
+      : null,
+  }
+}
+
 function hydrateStandaloneQuestion(question = {}) {
   const type = question.type ?? 'mcq'
   // `fill` answers are stored as a comma-separated string and behave like
@@ -864,6 +899,7 @@ function hydrateStandaloneQuestion(question = {}) {
     // question reopens with its (a)(b)(c) intact instead of one crammed stem.
     subParts: normalizeSubParts(question.subParts),
     ...normalizeAnswerSpace(question),
+    ...hydrateCbcMeta(question),
   })
 }
 
@@ -955,6 +991,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
       : null,
     subParts: normalizeSubParts(question.subParts),
     ...normalizeAnswerSpace(question),
+    ...hydrateCbcMeta(question),
   })
 }
 

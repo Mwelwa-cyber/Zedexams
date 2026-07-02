@@ -443,6 +443,13 @@ export const questionSchema = z
     reviewNotes: z.array(z.string().max(2000)).default([]),
     importWarnings: z.array(z.string().max(2000)).default([]),
     sourcePage: z.union([z.string(), z.number(), z.null()]).default(null),
+    // The PRINTED question number on the source paper (e.g. 47), as read by the
+    // importer. Distinct from `sourcePage`, whose meaning varies by import path
+    // (page index for scans, question number for the server past-paper import).
+    // Drives the Document Understanding Engine's numbering analysis (missing /
+    // duplicate / out-of-order) in the editor — including after a reload.
+    // null for hand-authored questions and papers with no usable numbering.
+    sourceQuestionNumber: z.number().int().min(1).max(9999).nullable().default(null),
 
     // ── Versioning ──
     contentVersion: z.literal(3),
@@ -624,6 +631,11 @@ export function coerceQuestion(raw) {
   const validationStatus = VALIDATION_STATUSES.includes(raw.validationStatus)
     ? raw.validationStatus
     : 'ok'
+  const rawSourceNumber = Number(raw.sourceQuestionNumber)
+  const sourceQuestionNumber =
+    Number.isInteger(rawSourceNumber) && rawSourceNumber >= 1 && rawSourceNumber <= 9999
+      ? rawSourceNumber
+      : null
 
   return {
     ...raw,
@@ -640,6 +652,7 @@ export function coerceQuestion(raw) {
     curriculum: str(raw.curriculum, 100),
     aiConfidence,
     validationStatus,
+    sourceQuestionNumber,
   }
 }
 

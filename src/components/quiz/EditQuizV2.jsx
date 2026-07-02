@@ -48,6 +48,8 @@ import BulkAnswerKey from './BulkAnswerKey'
 import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
 import ReviewPanel from './ReviewPanel'
 import { collectReviewItems } from './reviewUtils'
+import StructuralValidationPanel from './StructuralValidationPanel'
+import { runQuizValidation } from '../../utils/quizEngineAdapter.js'
 import ImageCropModal from './ImageCropModal'
 import { getRichPlainText } from '../../editor/RichContent.jsx'
 import { suggestQuizAnswers } from '../../utils/aiAssistant'
@@ -402,6 +404,16 @@ export default function EditQuizV2() {
   const validationIssues = validationResult.issues
   const validationSummary = validationResult.summary
   const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // Live structural validation from the shared Document Understanding Engine
+  // (the same checks the importers gate on): missing/duplicate/out-of-order
+  // printed numbers, incomplete MCQs, [UNCLEAR] spans, answer-key blocks.
+  // Derived-only — never written back into sections (that would dirty the
+  // autosave loop on every recompute).
+  const engineValidation = useMemo(
+    () => runQuizValidation(sections, { questionNumbers }),
+    [sections, questionNumbers],
+  )
 
   // Per-question issue counts, keyed by question.localId. Feeds the inline
   // red badge in each card header so a teacher can see at a glance which
@@ -1980,6 +1992,38 @@ export default function EditQuizV2() {
               <ReviewPanel
                 items={reviewData.items}
                 total={reviewData.total}
+                onJump={scrollToQuestion}
+              />
+            </div>
+          </details>
+          {/* Structural validation (collapsible) — the shared Document
+              Understanding Engine's live checks over the whole quiz: printed
+              numbering (missing/duplicate/out-of-order), incomplete MCQs,
+              [UNCLEAR] spans, answer-key blocks. Opens itself when there is
+              a hard blocker so a bad import can't be missed. */}
+          <details
+            className="theme-card theme-border overflow-hidden rounded-2xl border"
+            open={engineValidation.blockers.length > 0}
+          >
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">📐 Structure check</span>
+              <span className={`text-xs font-bold ${
+                engineValidation.blockers.length
+                  ? 'text-rose-700'
+                  : engineValidation.items.length
+                    ? 'text-amber-700'
+                    : 'theme-text-muted'
+              }`}>
+                {engineValidation.blockers.length
+                  ? `${engineValidation.blockers.length} blocker${engineValidation.blockers.length === 1 ? '' : 's'}`
+                  : engineValidation.items.length
+                    ? `${engineValidation.items.length} to check`
+                    : 'All clear'}
+              </span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <StructuralValidationPanel
+                result={engineValidation}
                 onJump={scrollToQuestion}
               />
             </div>

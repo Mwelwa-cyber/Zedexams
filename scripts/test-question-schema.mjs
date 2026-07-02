@@ -772,6 +772,34 @@ test('coerceQuestion clamps aiConfidence into [0,1] and defaults to null', () =>
   assert(coerceQuestion({ marks: 1, aiConfidence: 'x' }).aiConfidence === null, 'unparseable → null')
 })
 
+test('accepts a printed sourceQuestionNumber and null; rejects junk', () => {
+  const d = validDoc()
+  d.sourceQuestionNumber = 47
+  let result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+  assert(result.data.sourceQuestionNumber === 47, 'number survives')
+
+  d.sourceQuestionNumber = null
+  result = questionWriteSchema.safeParse(d)
+  assert(result.success, 'null accepted (hand-authored)')
+
+  d.sourceQuestionNumber = 0
+  assert(!questionWriteSchema.safeParse(d).success, '0 rejected (numbers are 1-based)')
+  d.sourceQuestionNumber = 10000
+  assert(!questionWriteSchema.safeParse(d).success, 'above 9999 rejected')
+  d.sourceQuestionNumber = 4.5
+  assert(!questionWriteSchema.safeParse(d).success, 'non-integer rejected')
+})
+
+test('sourceQuestionNumber defaults to null and coerces defensively', () => {
+  const result = questionWriteSchema.safeParse(validDoc())
+  assert(result.success && result.data.sourceQuestionNumber === null, 'defaults to null')
+  assert(coerceQuestion({ marks: 1, sourceQuestionNumber: 47 }).sourceQuestionNumber === 47)
+  assert(coerceQuestion({ marks: 1, sourceQuestionNumber: '47' }).sourceQuestionNumber === 47, 'numeric string coerced')
+  assert(coerceQuestion({ marks: 1, sourceQuestionNumber: 'junk' }).sourceQuestionNumber === null)
+  assert(coerceQuestion({ marks: 1 }).sourceQuestionNumber === null)
+})
+
 // ── canonicalizeQuestionType (alias folding) ──────────────────────
 console.log('\ncanonicalizeQuestionType')
 
