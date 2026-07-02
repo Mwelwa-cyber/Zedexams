@@ -442,6 +442,35 @@ describe('LessonDetailsForm — onChange callbacks', () => {
   })
 })
 
+// ── School resources picker ───────────────────────────────────────────────────
+
+describe('LessonDetailsForm — school resources', () => {
+  it('renders the School Resources select with all three levels', () => {
+    renderForm()
+    const select = screen.getByRole('combobox', { name: /school resources/i })
+    const values = [...select.querySelectorAll('option')].map((o) => o.value)
+    expect(values).toEqual(['low', 'basic', 'full'])
+  })
+
+  it('defaults to basic when lessonDetails has no resources value', () => {
+    renderForm() // DEFAULT_DETAILS has no `resources` key
+    expect(screen.getByRole('combobox', { name: /school resources/i })).toHaveValue('basic')
+  })
+
+  it('calls onChange("resources", "low") when the rural level is picked', () => {
+    const { onChange } = renderForm()
+    fireEvent.change(screen.getByRole('combobox', { name: /school resources/i }), {
+      target: { value: 'low' },
+    })
+    expect(onChange).toHaveBeenCalledWith('resources', 'low')
+  })
+
+  it('reflects a stored resources value', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, resources: 'low' } })
+    expect(screen.getByRole('combobox', { name: /school resources/i })).toHaveValue('low')
+  })
+})
+
 // ── Disabled state ────────────────────────────────────────────────────────────
 
 describe('LessonDetailsForm — disabled state', () => {

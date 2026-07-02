@@ -46,6 +46,19 @@ describe('studioSystemPrompt — writing-style honouring', () => {
   })
 })
 
+// Rural-teacher feedback: generated activities assumed projectors, printing and
+// lab kits village schools don't have. Both prompts must now default to a
+// low-resource Zambian classroom unless the user prompt says otherwise.
+describe('studioSystemPrompt — low-resource default', () => {
+  it('both prompts assume no projector/photocopier/electricity by default', () => {
+    for (const p of [STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS]) {
+      expect(p).toMatch(/Respect the school's resources/i)
+      expect(p).toMatch(/NO projector, computers, photocopier or reliable electricity/)
+      expect(p).toMatch(/free local alternative/i)
+    }
+  })
+})
+
 // Regression for the "blank skeleton" bug: the rewrite dropped the JSON-key
 // contract, so the model invented its own keys and the renderer (which reads
 // generalCompetences / stages[].{teacher,pupils,assessment}) showed nothing.

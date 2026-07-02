@@ -23,6 +23,7 @@
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
+const {schoolResourcePromptLines} = require("./schoolResources");
 
 const PROMPT_VERSION = "lesson_plan.v3";
 
@@ -42,6 +43,7 @@ Your lesson plans MUST follow the official module structure:
 - INTRODUCTION starts with a hook (question, scenario, song, picture, quick review). EXERCISE / ASSESSMENT produces evidence (written exercise, demonstration, presentation). HOMEWORK is one short task often involving family or the local community. CONCLUSION guides learners to bring out the main points themselves.
 - Inside LESSON DEVELOPMENT let learners explore and discover BEFORE the teacher consolidates with formal explanation.
 - Be concrete, not abstract — every activity is something a teacher could actually do tomorrow morning in a real Zambian classroom.
+- Respect the school's resources. Unless the prompt says the school is well-resourced, assume a typical Zambian classroom with NO projector, computers, photocopier or reliable electricity: build activities around the chalkboard and materials a teacher can gather for free locally (stones, sticks, bottle tops, seeds, sand, clay, hand-made paper aids), and whenever you name a bought or powered item, give a free local alternative in the same line.
 - Be culturally grounded in Zambia: use Zambian examples (Kwacha, nshima, Lusaka/Kitwe/Ndola, local markets) where natural, never where forced.
 - Ground content in the <cbc_context> block provided. Do not invent topics, outcomes, or competences inconsistent with it.
 
@@ -60,7 +62,9 @@ PROFESSIONAL WRITING STANDARDS — this document is inspected by head teachers a
  *   // Existing fields:
  *   grade, subject, topic, subtopic, term, lessonNumber, totalLessons,
  *   learningEnvironment, durationMinutes, language, teacherName, school,
- *   numberOfPupils, boysPresent, girlsPresent, instructions
+ *   numberOfPupils, boysPresent, girlsPresent, instructions,
+ *   resourceLevel: 'low' | 'basic' | 'full' | ''  (school equipment level;
+ *     '' omits the block and the system prompt's low-resource default applies)
  *   // New fields:
  *   curriculumMode: 'cbc' | 'previous' | null  (default 'cbc')
  *   specificCompetence: string   (CBC only — from SPECIFIC COMPETENCES column)
@@ -88,6 +92,7 @@ function buildUserPrompt(inputs) {
     boysPresent = null,
     girlsPresent = null,
     instructions = "",
+    resourceLevel = "",
     curriculumMode = "cbc",
     specificCompetence = "",
     learningActivities = [],
@@ -122,6 +127,7 @@ function buildUserPrompt(inputs) {
         "this lesson's portion; build on earlier lessons without repeating " +
         "them and do not pre-empt later ones." : "",
     leLabel ? `- Learning environment: ${leLabel}` : "",
+    ...schoolResourcePromptLines(resourceLevel),
     `- Lesson duration: ${durationMinutes} minutes`,
     `- Medium of instruction: ${language}`,
     `- Estimated number of pupils: ${numberOfPupils}`,

@@ -105,6 +105,7 @@ describe('useStudioState — initial state shape', () => {
       time: '',
       teacherName: '',
       school: '',
+      resources: 'basic',
     })
   })
 

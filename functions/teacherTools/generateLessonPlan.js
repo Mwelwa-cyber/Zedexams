@@ -28,6 +28,7 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./lessonPlanPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {SCHOOL_RESOURCE_VALUES} = require("./schoolResources");
 
 // Override at deploy-time without a code change. Set LESSON_PLAN_MODEL=claude-haiku-4-5
 // to drop generation time roughly in half at the cost of some reasoning depth,
@@ -125,6 +126,7 @@ const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
+const RESOURCE_VALUES = new Set(SCHOOL_RESOURCE_VALUES);
 
 function sanitizeInputs(raw = {}) {
   const str = (v, max) => (typeof v === "string" ?
@@ -142,6 +144,7 @@ function sanitizeInputs(raw = {}) {
   const totalLessons = Math.round(num(raw.totalLessons, 0));
   const learningEnvironment = str(raw.learningEnvironment, 40)
     .toLowerCase().replace(/[^a-z_]/g, "_");
+  const resourceLevel = str(raw.resourceLevel, 10).toLowerCase();
 
   const curriculumMode = ["cbc", "previous"].includes(raw.curriculumMode) ?
     raw.curriculumMode : "cbc";
@@ -165,6 +168,7 @@ function sanitizeInputs(raw = {}) {
     totalLessons: totalLessons >= 1 ? totalLessons : null,
     learningEnvironment: LE_VALUES.has(learningEnvironment) ?
       learningEnvironment : "",
+    resourceLevel: RESOURCE_VALUES.has(resourceLevel) ? resourceLevel : "",
     durationMinutes: Math.min(120, Math.max(20, Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     teacherName: str(raw.teacherName, 80),

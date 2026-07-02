@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useCurriculumMode } from './useCurriculumMode.js'
+import { DEFAULT_SCHOOL_RESOURCES } from '../../../../config/schoolResources.js'
 
 /**
  * Root state hook for the Lesson Plan Studio.
@@ -18,6 +19,9 @@ export function useStudioState() {
     time: '',
     teacherName: '',
     school: '',
+    // How well-equipped the school is ('low' | 'basic' | 'full') — constrains
+    // generated activities/materials to what the school actually has.
+    resources: DEFAULT_SCHOOL_RESOURCES,
   })
 
   // Topic Data — the selected topic, subtopic, and the auto-loaded row from curriculum data

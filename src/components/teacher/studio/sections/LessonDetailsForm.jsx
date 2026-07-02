@@ -3,6 +3,7 @@ import { GraduationCap, BookOpen, Clock, Calendar, User, School } from '../../..
 import { useSubjectsForGrade } from '../hooks/useSubjectsForGrade.js'
 import { useAvailableGrades } from '../hooks/useAvailableGrades.js'
 import { cleanSubjectName } from '../utils/subjectName.js'
+import { SCHOOL_RESOURCE_LEVELS, DEFAULT_SCHOOL_RESOURCES } from '../../../../config/schoolResources.js'
 
 /**
  * Turn a syllabi subject key into a friendlier label for the dropdown while
@@ -359,6 +360,29 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                 disabled={disabled}
               />
             </div>
+          </div>
+
+          {/* School resources — constrains generated activities/materials to
+              what the school actually has (rural-teacher feedback). */}
+          <div>
+            <label htmlFor="ldf-resources" className={LABEL_CLS}>School Resources</label>
+            <div className="relative">
+              <FieldIcon><BookOpen size={15} /></FieldIcon>
+              <select
+                id="ldf-resources"
+                value={lessonDetails.resources || DEFAULT_SCHOOL_RESOURCES}
+                onChange={(e) => onChange('resources', e.target.value)}
+                className={INPUT_CLS}
+                disabled={disabled}
+              >
+                {SCHOOL_RESOURCE_LEVELS.map((l) => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <p className="mt-1 text-[11px] text-[#a39d8e]">
+              Activities and materials will only use what your school has.
+            </p>
           </div>
           </div>
         </div>

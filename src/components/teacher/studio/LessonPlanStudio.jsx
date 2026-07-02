@@ -15,6 +15,7 @@ import { renderPlanHtml } from './utils/renderPlanHtml'
 import { normalizePlanShape } from './utils/planShape'
 import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
+import { schoolResourcePromptLines, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
@@ -452,6 +453,9 @@ export default function LessonPlanStudio() {
       learningEnvironments?.length
         ? `- Learning environment: ${learningEnvironments.join(', ')}`
         : '',
+      // What the school actually has — constrains every activity/material so a
+      // rural teacher never gets a plan needing equipment they don't have.
+      ...schoolResourcePromptLines(lessonDetails.resources || DEFAULT_SCHOOL_RESOURCES),
       `- Lesson duration: ${lessonDetails.duration || 40} minutes`,
       `- Medium of instruction: ${lessonDetails.medium || 'English'}`,
     ]

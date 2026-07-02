@@ -583,6 +583,54 @@ describe('LessonPlanStudio — CBC user prompt', () => {
   })
 })
 
+// ── School resources flow into the user prompt ────────────────────────────────
+
+describe('LessonPlanStudio — school resources in user prompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('defaults to the BASIC resources line when lessonDetails has no resources', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({ curriculumMode: 'cbc' })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('School resources: BASIC')
+    expect(userPrompt).not.toContain('LOW-RESOURCE RURAL SCHOOL')
+  })
+
+  it('adds the hard low-resource constraint when the rural level is selected', async () => {
+    innerCallable.mockResolvedValue({
+      data: { text: '{"topic":"Test","stages":[]}' },
+    })
+
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      lessonDetails: {
+        grade: 'Grade 4', subject: 'Science', duration: '40', medium: 'English',
+        term: '', week: '', date: '', time: '', teacherName: '', school: '',
+        resources: 'low',
+      },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => {
+      expect(innerCallable).toHaveBeenCalled()
+    })
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toContain('LOW-RESOURCE RURAL SCHOOL')
+    expect(userPrompt).toContain('HARD CONSTRAINT')
+    expect(userPrompt).toContain('Do NOT include any activity that needs printing')
+  })
+})
+
 // ── Previous Curriculum user prompt includes <previous_context> ───────────────
 
 describe('LessonPlanStudio — Previous Curriculum user prompt', () => {
