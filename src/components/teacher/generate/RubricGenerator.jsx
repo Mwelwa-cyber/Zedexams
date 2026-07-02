@@ -1,14 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   generateRubric,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   RUBRIC_TASK_TYPES,
   RUBRIC_TOTAL_MARKS,
   RUBRIC_CRITERIA_COUNTS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadRubricPdf } from '../../../utils/rubricToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -22,6 +19,7 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 
@@ -30,8 +28,6 @@ export default function RubricGenerator() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    grade: 'G9',
-    subject: 'english',
     taskType: 'essay',
     taskDescription: '',
     totalMarks: 20,
@@ -40,6 +36,10 @@ export default function RubricGenerator() {
     instructions: '',
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject). `curr`
+  // holds the latest payload, including the server-ready grade/subject/
+  // curriculum/framework fields.
+  const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -49,20 +49,22 @@ export default function RubricGenerator() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
-
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   async function onGenerate(e) {
     e.preventDefault()
+    if (!curr.curriculumMode) {
+      setErrorMessage('Please choose a curriculum.')
+      setStatus('error')
+      return
+    }
+    if (!curr.grade || !curr.subject) {
+      setErrorMessage('Please select a class and subject.')
+      setStatus('error')
+      return
+    }
     if (!form.taskDescription.trim()) {
       setErrorMessage('Please describe the task being graded.')
       setStatus('error')
@@ -75,7 +77,13 @@ export default function RubricGenerator() {
     setWarning('')
     setRubric(null)
 
-    const res = await generateRubric(form)
+    const res = await generateRubric({
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    })
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -96,8 +104,8 @@ export default function RubricGenerator() {
       // Rubrics file under Assessments — they're scoring guides for tests.
       attachLibraryToGeneration(res.data.generationId, {
         libraryType:    LIBRARY_TYPES.ASSESSMENTS,
-        grade:          form.grade,
-        subject:        form.subject,
+        grade:          curr.grade,
+        subject:        curr.subject,
         assessmentType: 'topic',
       }).catch((err) => console.error('[library attach]', err))
     }
@@ -107,8 +115,8 @@ export default function RubricGenerator() {
     if (!rubric) return
     const name = buildDownloadName({
       docType: 'Rubric',
-      grade: form.grade,
-      subject: form.subject,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
       topic: form.taskType,
     })
     downloadRubricDocx(rubric, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
@@ -118,8 +126,8 @@ export default function RubricGenerator() {
     if (!rubric) return
     const name = buildDownloadName({
       docType: 'Rubric',
-      grade: form.grade,
-      subject: form.subject,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
       topic: form.taskType,
       ext: 'pdf',
     })
@@ -142,17 +150,16 @@ export default function RubricGenerator() {
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit sticky top-4"
           >
-            <FieldSelect
-              label="Grade"
-              value={form.grade}
-              options={TEACHER_GRADES}
-              onChange={(v) => updateField('grade', v)}
-            />
-            <FieldSelect
-              label="Subject"
-              value={form.subject}
-              options={subjectOptions}
-              onChange={(v) => updateField('subject', v)}
+            <StudioCurriculumSelector
+              value={{
+                curriculumMode: urlDefaults?.curriculum || null,
+                gradeLabel: urlDefaults?.grade || '',
+                subjectKey: urlDefaults?.subject || '',
+                topic: urlDefaults?.topic || '',
+                subtopic: urlDefaults?.subtopic || '',
+              }}
+              onChange={setCurr}
+              showTopicSubtopic={false}
             />
             <FieldSelect
               label="Task type"

@@ -30,11 +30,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
-  TEACHER_GRADES, TEACHER_SUBJECTS,
-  defaultSubjectForGrade,
+  TEACHER_SUBJECTS,
   getTermModuleOutline,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
@@ -57,6 +55,7 @@ import {
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import WeeklyForecastView from '../views/WeeklyForecastView'
 import StudioPageHeader from '../StudioPageHeader'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
@@ -65,33 +64,23 @@ const DRAFT_PREFIX = 'examprep:weeklyforecast:draft:'
 const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
 const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
 
-// teacher-tools subject slug → display label, and the inverse. The forecast
-// header stores the *label* (it prints on the document), but topic/competence
-// catalogue lookups are keyed by the slug, so we bridge between the two.
-const SUBJECT_LABEL = Object.fromEntries(
-  TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),
-)
+// The standardized curriculum selector emits a clean subject *label* (e.g.
+// "Mathematics"); the forecast header prints that label, but the topic/
+// competence catalogue lookups are keyed by the teacher-tools subject *slug*,
+// so we map the label back to its slug. A scheme's header subject is whatever
+// the model emitted (often UPPERCASED, e.g. "MATHEMATICS"), which an exact
+// lookup misses — the case-insensitive fall-back map rescues those.
 const SUBJECT_SLUG_BY_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label, s.value]),
 )
-// Case-insensitive fall-back map. A scheme's header subject is whatever the
-// model emitted (often UPPERCASED, e.g. "MATHEMATICS"), which an exact-label
-// lookup misses — leaving subjectSlug empty and the competence/topic pickers
-// blank after "Build from scheme". Normalising rescues those.
 const SUBJECT_SLUG_BY_NORM_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label.toLowerCase(), s.value]),
 )
 
-const subjectLabelFor = (slug) => SUBJECT_LABEL[slug] || ''
 const subjectSlugFor = (label) =>
   SUBJECT_SLUG_BY_LABEL[label] ||
   SUBJECT_SLUG_BY_NORM_LABEL[String(label || '').trim().toLowerCase()] ||
   ''
-// Map an arbitrary subject string back to its canonical drop-down label, so a
-// scheme's free-form subject lands on a real <option> (and powers the slug).
-const canonicalSubjectLabel = (raw, fallbackSlug) =>
-  subjectLabelFor(subjectSlugFor(raw) || fallbackSlug) || raw || ''
-const defaultSubjectLabel = (grade) => subjectLabelFor(defaultSubjectForGrade(grade))
 
 const YEARS = getCalendarYears()
 const thisYear = new Date().getFullYear()
@@ -169,10 +158,12 @@ export default function WeeklyForecastStudio() {
   const [header, setHeader] = useState(() => ({
     school: profileSchool,
     teacherName: profileName,
-    grade: 'G4',
-    subject: defaultSubjectLabel('G4'),
     ...currentWeekDefaults(),
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject). `curr`
+  // is the source of truth for grade + subject; the rest of the studio reads
+  // the derived `grade` / `subjectLabel` / `subjectSlug` computed below.
+  const [curr, setCurr] = useState({})
   const [days, setDays] = useState(() => DEFAULT_WEEKDAYS.map(blankDay))
 
   // Scheme source picker.
@@ -258,21 +249,13 @@ export default function WeeklyForecastStudio() {
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
-  // ── Smart, grade-aware option lists ──
-  // Subjects come from the Syllabi Studio for the chosen grade (with the
-  // curriculum-valid fall-back); the forecast header stores the printed
-  // *label*, so we map the slug options to label-valued ones.
-  const { subjectOptions: curriculumSubjectOptions, subjectValues } = useCurriculumOptions(header.grade)
-  const subjectOptions = useMemo(() => {
-    const opts = curriculumSubjectOptions.map((o) =>
-      o.group !== undefined ? o : { value: o.label, label: o.label })
-    if (header.subject && !opts.some((o) => o.value === header.subject)) {
-      return [{ value: header.subject, label: header.subject }, ...opts]
-    }
-    return opts
-  }, [curriculumSubjectOptions, header.subject])
-
-  const subjectSlug = subjectSlugFor(header.subject)
+  // ── Grade + subject from the standardized curriculum selector ──
+  // `grade` is the KB code ('G4'); `subjectLabel` is the printed label
+  // ('Mathematics'); `subjectSlug` is the teacher-tools slug that keys the
+  // topic/competence catalogue lookups.
+  const grade = curr.grade || ''
+  const subjectLabel = curr.subjectLabel || ''
+  const subjectSlug = subjectSlugFor(subjectLabel)
   const competenceOptions = useMemo(
     () => getCompetencies(TEACHER_SUBJECT_TO_CURRICULUM[subjectSlug]),
     [subjectSlug],
@@ -289,15 +272,15 @@ export default function WeeklyForecastStudio() {
   // The curriculum catalogue for the chosen grade + subject — from the merged
   // Syllabi Studio + uploaded modules. Drives every topic/sub-topic dropdown.
   const topicCatalog = useMemo(
-    () => buildTopicCatalog(kbTopics || [], header.grade, subjectSlug),
-    [kbTopics, header.grade, subjectSlug],
+    () => buildTopicCatalog(kbTopics || [], grade, subjectSlug),
+    [kbTopics, grade, subjectSlug],
   )
   // Topic names from the syllabus KB; fall back to the static curriculum
   // catalogue when the KB has no rows for this grade/subject so the dropdown
   // is never empty for a catalogued combination.
   const topicNames = useMemo(() => (
-    topicCatalog.length ? topicCatalog.map((t) => t.topic) : getTopicsForTeacherSubject(subjectSlug, header.grade)
-  ), [topicCatalog, subjectSlug, header.grade])
+    topicCatalog.length ? topicCatalog.map((t) => t.topic) : getTopicsForTeacherSubject(subjectSlug, grade)
+  ), [topicCatalog, subjectSlug, grade])
   const kbLoading = kbTopics == null
 
   // Sub-topics for a day's topic: prefer the syllabus KB, fall back to the
@@ -305,7 +288,7 @@ export default function WeeklyForecastStudio() {
   const subtopicOptionsFor = (topic) => {
     const fromKb = subtopicsForTopic(topicCatalog, topic)
     if (fromKb.length) return fromKb
-    return getSubtopicsForTeacherSubject(subjectSlug, header.grade, topic)
+    return getSubtopicsForTeacherSubject(subjectSlug, grade, topic)
   }
 
   // The timetable's view of this subject: which weekdays + how many periods.
@@ -314,29 +297,20 @@ export default function WeeklyForecastStudio() {
     [timetables, timetableId],
   )
   const schedule = useMemo(
-    () => subjectScheduleFromTimetable(selectedTimetable, header.subject),
-    [selectedTimetable, header.subject],
+    () => subjectScheduleFromTimetable(selectedTimetable, subjectLabel),
+    [selectedTimetable, subjectLabel],
   )
-
-  // When the grade changes, drop a now-invalid subject back to a sensible
-  // default and forget any module-fallback flag.
-  useEffect(() => {
-    const slug = subjectSlugFor(header.subject)
-    if (slug && !subjectValues.has(slug)) {
-      setHeader((h) => ({ ...h, subject: defaultSubjectLabel(h.grade) }))
-    }
-  }, [header.grade, header.subject, subjectValues])
 
   // Apply the timetable's teaching days for this subject — once per
   // timetable+subject combo, so manual day edits afterwards still stick.
   useEffect(() => {
-    const key = `${timetableId}|${header.subject}`
+    const key = `${timetableId}|${subjectLabel}`
     if (!timetableId || autoTimetableRef.current === key) return
     if (schedule.days.length) {
       autoTimetableRef.current = key
       setDays((prev) => reconcileDays(prev, schedule.days))
     }
-  }, [timetableId, header.subject, schedule.days])
+  }, [timetableId, subjectLabel, schedule.days])
 
   // ── Week dates ──
   function pickCalendarWeek(weekNumber) {
@@ -376,10 +350,10 @@ export default function WeeklyForecastStudio() {
   // Load the term's uploaded curriculum modules for the current grade/subject/
   // term. Used as the third source when there's no saved scheme to start from.
   async function loadModules() {
-    const subject = subjectSlugFor(header.subject)
+    const subject = subjectSlug
     if (!subject) { toast.error('Pick a subject first.'); return }
     setModuleStatus('loading')
-    const res = await getTermModuleOutline({ grade: header.grade, subject, term: header.term })
+    const res = await getTermModuleOutline({ grade, subject, term: header.term })
     if (!res.ok) { setModuleStatus('error'); toast.error(res.error || 'Could not load modules.'); return }
     const weeks = Array.isArray(res.data?.weeks) ? res.data.weeks : []
     setSchemeId(''); setWeekPick('')
@@ -400,10 +374,11 @@ export default function WeeklyForecastStudio() {
     setDays(weekdays.map((wd, i) => ({ ...(content[i] || blankDay(wd)), day: wd })))
     if (selectedScheme) {
       const out = selectedScheme.output || {}
+      // Grade + subject now come from the curriculum selector (an uncontrolled
+      // widget we can't drive from here), so we only pull the term + week from
+      // the scheme. Pick the matching grade/subject in the selector above.
       setHeader((h) => ({
         ...h,
-        grade: selectedScheme.inputs?.grade || h.grade,
-        subject: canonicalSubjectLabel(out.header?.subject, selectedScheme.inputs?.subject) || h.subject,
         term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
         weekNumber: Number(picked.value) || h.weekNumber,
       }))
@@ -463,30 +438,28 @@ export default function WeeklyForecastStudio() {
 
   const alerts = useMemo(() => forecastAlerts({
     days,
-    subjectLabel: header.subject,
+    subjectLabel,
     timetableSelected: Boolean(timetableId),
     scheduleDays: schedule.days,
     periodsPerWeek: schedule.periodsPerWeek,
     topicCatalog,
     usedModuleFallback,
-  }), [days, header.subject, timetableId, schedule, topicCatalog, usedModuleFallback])
+  }), [days, subjectLabel, timetableId, schedule, topicCatalog, usedModuleFallback])
 
   const artifact = useMemo(() => {
     const filled = days.filter((d) => d.topic.trim() || d.learningActivities.length)
     if (!filled.length) return null
     return {
       schemaVersion: 'forecast-table-1.0',
-      header,
+      header: { ...header, grade, subject: subjectLabel },
       days: days.map((d) => ({ ...d })),
     }
-  }, [days, header])
+  }, [days, header, grade, subjectLabel])
 
   function clearAll() {
     setHeader({
       school: profileSchool,
       teacherName: profileName,
-      grade: 'G4',
-      subject: defaultSubjectLabel('G4'),
       ...currentWeekDefaults(),
     })
     setDays(DEFAULT_WEEKDAYS.map(blankDay))
@@ -526,7 +499,7 @@ export default function WeeklyForecastStudio() {
 
   async function onExportDocx() {
     if (!artifact) return
-    const name = buildDownloadName({ docType: 'Weekly Forecast', grade: header.grade, subject: header.subject, term: header.term, week: header.weekNumber })
+    const name = buildDownloadName({ docType: 'Weekly Forecast', grade, subject: subjectLabel, term: header.term, week: header.weekNumber })
     try {
       await downloadWeeklyForecastDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Weekly forecast downloaded.')
@@ -553,9 +526,10 @@ export default function WeeklyForecastStudio() {
             <div>
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>1. Choose what you're planning</h2>
               <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
-                Pick the grade first — the subject and topic lists become specific to it. The week's dates fill from the MoE calendar.
+                Pick the curriculum, grade and subject — the topic and competence lists become specific to them. The week's dates fill from the MoE calendar.
               </p>
             </div>
+            <StudioCurriculumSelector onChange={setCurr} showTopicSubtopic={false} />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="studio-label">School</label>
@@ -564,22 +538,6 @@ export default function WeeklyForecastStudio() {
               <div>
                 <label className="studio-label">Teacher's name</label>
                 <input type="text" value={header.teacherName} maxLength={80} onChange={(e) => setH('teacherName', e.target.value)} placeholder="Mr / Mrs …" className="studio-input" />
-              </div>
-              <div>
-                <label className="studio-label">Grade</label>
-                <select value={header.grade} onChange={(e) => setH('grade', e.target.value)} className="studio-input">
-                  {TEACHER_GRADES.filter((g) => g.value).map((g) => (
-                    <option key={g.value} value={g.value}>{g.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="studio-label">Subject</label>
-                <GroupedSelect
-                  value={header.subject}
-                  options={subjectOptions}
-                  onChange={(v) => setH('subject', v)}
-                />
               </div>
               <div>
                 <label className="studio-label">Year</label>
@@ -699,12 +657,12 @@ export default function WeeklyForecastStudio() {
                   schedule.days.length ? (
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs" style={{ color: '#566f76' }}>
-                        {header.subject} is taught on <strong>{schedule.days.join(', ')}</strong> ({schedule.periodsPerWeek} period{schedule.periodsPerWeek === 1 ? '' : 's'}/week).
+                        {subjectLabel} is taught on <strong>{schedule.days.join(', ')}</strong> ({schedule.periodsPerWeek} period{schedule.periodsPerWeek === 1 ? '' : 's'}/week).
                       </p>
                       <button type="button" onClick={applyTimetableDays} className="studio-btn-ghost text-xs whitespace-nowrap">Apply days</button>
                     </div>
                   ) : (
-                    <p className="text-xs text-amber-700">{header.subject} isn’t on this timetable — choose the days manually below.</p>
+                    <p className="text-xs text-amber-700">{subjectLabel} isn’t on this timetable — choose the days manually below.</p>
                   )
                 ) : (
                   <p className="text-xs" style={{ color: '#566f76' }}>
@@ -811,8 +769,8 @@ export default function WeeklyForecastStudio() {
                     <label className="studio-label">T/L resources (one per line)</label>
                     <textarea rows={3} value={listToLines(d.resources)} onChange={(e) => updateDay(i, 'resources', linesToList(e.target.value))} className="studio-input !py-1.5 text-sm resize-none" />
                     <ResourceAssistant
-                      grade={header.grade}
-                      subject={header.subject}
+                      grade={grade}
+                      subject={subjectLabel}
                       topic={d.topic}
                       subtopic={d.subtopic}
                       competence={d.specificCompetence}
@@ -993,26 +951,3 @@ function PickSelect({ options, onPick, placeholder, value }) {
   )
 }
 
-/**
- * A <select> that understands the teacher-tools option shape — entries with a
- * `group` key render as <optgroup> labels, the rest as options. Used for the
- * grade-filtered subject list.
- */
-function GroupedSelect({ value, options, onChange }) {
-  const groups = []
-  let cur = null
-  for (const o of options) {
-    if (o.group !== undefined) { if (cur) groups.push(cur); cur = { label: o.group, items: [] } }
-    else { if (!cur) cur = { label: null, items: [] }; cur.items.push(o) }
-  }
-  if (cur) groups.push(cur)
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="studio-input">
-      {groups.map((g, i) => (
-        g.label
-          ? <optgroup key={i} label={g.label}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
-          : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)
-      ))}
-    </select>
-  )
-}

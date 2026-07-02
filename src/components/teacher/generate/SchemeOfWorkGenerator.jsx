@@ -4,13 +4,10 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import {
   generateSchemeOfWork,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   SCHEME_TERMS,
   SCHEME_WEEK_COUNTS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import { downloadSchemeOfWorkPdf } from '../../../utils/schemeOfWorkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -26,6 +23,7 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
 import { FieldText, FieldTextarea, FieldSelect } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
@@ -35,8 +33,6 @@ export default function SchemeOfWorkGenerator() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    grade: 'G5',
-    subject: 'mathematics',
     term: 1,
     numberOfWeeks: 12,
     language: 'english',
@@ -45,6 +41,10 @@ export default function SchemeOfWorkGenerator() {
     instructions: '',
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject). `curr`
+  // holds the latest payload, including the server-ready grade/subject/
+  // curriculum/framework fields.
+  const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -61,8 +61,6 @@ export default function SchemeOfWorkGenerator() {
   const [timetables, setTimetables] = useState([])
   const [timetableId, setTimetableId] = useState('')
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-
   useEffect(() => {
     let cancelled = false
     const uid = userProfile?.uid
@@ -77,23 +75,17 @@ export default function SchemeOfWorkGenerator() {
   const timetableOptions = useMemo(() => {
     const opts = [{ value: '', label: 'None — pace by curriculum only' }]
     const sorted = [...timetables].sort((a, b) => {
-      const am = a.inputs?.grade === form.grade ? 0 : 1
-      const bm = b.inputs?.grade === form.grade ? 0 : 1
+      const am = a.inputs?.grade === curr.grade ? 0 : 1
+      const bm = b.inputs?.grade === curr.grade ? 0 : 1
       return am - bm
     })
     for (const t of sorted) {
       const grade = t.inputs?.grade
-      const mismatch = grade && grade !== form.grade ? ` · ${grade}` : ''
+      const mismatch = grade && grade !== curr.grade ? ` · ${grade}` : ''
       opts.push({ value: t.id, label: `${titleForGeneration(t)}${mismatch}` })
     }
     return opts
-  }, [timetables, form.grade])
-
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
+  }, [timetables, curr.grade])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -115,6 +107,16 @@ export default function SchemeOfWorkGenerator() {
 
   async function onGenerate(e) {
     e.preventDefault()
+    if (!curr.curriculumMode) {
+      setErrorMessage('Please choose a curriculum.')
+      setStatus('error')
+      return
+    }
+    if (!curr.grade || !curr.subject) {
+      setErrorMessage('Please select a class and subject.')
+      setStatus('error')
+      return
+    }
     if (!ensureCanGenerate('scheme_of_work')) return
     setStatus('generating')
     setErrorMessage('')
@@ -124,7 +126,14 @@ export default function SchemeOfWorkGenerator() {
     setCurriculumSource('')
     setScheme(null)
 
-    const payload = { ...form, timetable: selectedTimetablePayload() }
+    const payload = {
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+      timetable: selectedTimetablePayload(),
+    }
     const res = await generateSchemeOfWork(payload)
     if (!isMounted.current) return
     if (!res.ok) {
@@ -147,9 +156,9 @@ export default function SchemeOfWorkGenerator() {
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.SCHEMES_OF_WORK,
-        grade:       form.grade,
+        grade:       curr.grade,
         term:        form.term,
-        subject:     form.subject,
+        subject:     curr.subject,
       }).catch(() => { /* non-fatal — doc still readable via legacy path */ })
     }
   }
@@ -158,8 +167,8 @@ export default function SchemeOfWorkGenerator() {
     if (!scheme) return
     const name = buildDownloadName({
       docType: 'Scheme of Work',
-      grade: form.grade,
-      subject: form.subject,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
       term: form.term,
     })
     downloadSchemeOfWorkDocx(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
@@ -169,8 +178,8 @@ export default function SchemeOfWorkGenerator() {
     if (!scheme) return
     const name = buildDownloadName({
       docType: 'Scheme of Work',
-      grade: form.grade,
-      subject: form.subject,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
       term: form.term,
       ext: 'pdf',
     })
@@ -193,17 +202,16 @@ export default function SchemeOfWorkGenerator() {
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 max-w-2xl mx-auto w-full"
           >
-            <FieldSelect
-              label="Grade"
-              value={form.grade}
-              options={TEACHER_GRADES}
-              onChange={(v) => updateField('grade', v)}
-            />
-            <FieldSelect
-              label="Subject"
-              value={form.subject}
-              options={subjectOptions}
-              onChange={(v) => updateField('subject', v)}
+            <StudioCurriculumSelector
+              value={{
+                curriculumMode: urlDefaults?.curriculum || null,
+                gradeLabel: urlDefaults?.grade || '',
+                subjectKey: urlDefaults?.subject || '',
+                topic: urlDefaults?.topic || '',
+                subtopic: urlDefaults?.subtopic || '',
+              }}
+              onChange={setCurr}
+              showTopicSubtopic={false}
             />
             <FieldSelect
               label="Term"
