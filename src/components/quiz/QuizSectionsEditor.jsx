@@ -3,6 +3,7 @@ import { QUESTION_LETTERS } from '../../utils/quizSections.js'
 import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
 import { clampInt } from '../../utils/inputs.js'
 import { questionValidationStatus } from '../../utils/quizEngineAdapter.js'
+import { sanitizeBulkPatch } from './bulkQuestionOps.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
 import DiagramPicker from '../diagrams/DiagramPicker.jsx'
 import { getDiagram } from '../diagrams/diagramCatalog.js'
@@ -2029,61 +2030,138 @@ const PassageSectionCard = memo(function PassageSectionCard({
 // paper: delete N and re-mark N to a uniform value. Type changes intentionally
 // stay per-card — switching mcq ↔ short_answer ↔ truefalse rewrites options
 // and correctAnswer in ways a teacher needs to see one question at a time.
-function BulkActionBar({ count, theme, onClear, onDelete, onSetMarks }) {
+const BULK_INPUT_CLASS = 'rounded-lg border-2 border-amber-300 bg-white px-2 py-1 text-sm font-bold text-amber-900 placeholder:text-amber-400 outline-none focus:border-amber-600'
+
+function BulkActionBar({ count, theme, onClear, onDelete, onSetMarks, onApplyPatch, onMerge }) {
   const [marksInput, setMarksInput] = useState('')
+  // "Tag all" form state — applied together via one sanitized patch so a
+  // half-filled form only touches the fields the teacher actually set.
+  const [showTags, setShowTags] = useState(false)
+  const [tagForm, setTagForm] = useState({
+    topic: '', subtopic: '', competency: '', specificOutcome: '', curriculum: '', difficulty: '', bloom: '',
+  })
   if (count <= 0) return null
+
+  const setTag = (field) => (event) => {
+    const value = event.target.value
+    setTagForm(current => ({ ...current, [field]: value }))
+  }
+  const tagFormHasInput = Object.values(tagForm).some(value => String(value).trim())
+
+  function applyTags() {
+    if (!onApplyPatch || !tagFormHasInput) return
+    onApplyPatch(tagForm)
+    setTagForm({ topic: '', subtopic: '', competency: '', specificOutcome: '', curriculum: '', difficulty: '', bloom: '' })
+    setShowTags(false)
+  }
+
   return (
     <div
       role="region"
       aria-label={`${count} questions selected`}
-      className="sticky top-2 z-30 theme-card theme-border flex flex-wrap items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-2.5 shadow-md"
+      className="sticky top-2 z-30 theme-card theme-border space-y-2 rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-2.5 shadow-md"
     >
-      <span className="text-sm font-black text-amber-900">
-        {count} selected
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <label className="text-xs font-black text-amber-900">Marks:</label>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          value={marksInput}
-          onChange={event => setMarksInput(event.target.value)}
-          placeholder="1-20"
-          className="w-16 rounded-lg border-2 border-amber-300 bg-white px-2 py-1 text-sm font-bold text-amber-900 placeholder:text-amber-400 outline-none focus:border-amber-600"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-black text-amber-900">
+          {count} selected
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <label className="text-xs font-black text-amber-900">Marks:</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={marksInput}
+            onChange={event => setMarksInput(event.target.value)}
+            placeholder="1-20"
+            className={joinClasses('w-16', BULK_INPUT_CLASS)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const value = clampInt(marksInput, 1, 20, NaN)
+              if (Number.isFinite(value)) {
+                onSetMarks(value)
+                setMarksInput('')
+              }
+            }}
+            disabled={!marksInput.trim()}
+            className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-black text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Apply
+          </button>
+        </div>
+        {onApplyPatch && (
+          <button
+            type="button"
+            onClick={() => setShowTags(current => !current)}
+            className="rounded-lg border-2 border-amber-400 px-3 py-1 text-xs font-black text-amber-900 transition-colors hover:bg-amber-100"
+            aria-expanded={showTags}
+          >
+            🏷 Tag all{showTags ? ' ▲' : ' ▼'}
+          </button>
+        )}
+        {onMerge && count >= 2 && (
+          <button
+            type="button"
+            onClick={onMerge}
+            title="Combine the selected questions into the first one (fixes an import that split one question)"
+            className="rounded-lg border-2 border-amber-400 px-3 py-1 text-xs font-black text-amber-900 transition-colors hover:bg-amber-100"
+          >
+            ⇤ Merge {count}
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => {
-            const value = clampInt(marksInput, 1, 20, NaN)
-            if (Number.isFinite(value)) {
-              onSetMarks(value)
-              setMarksInput('')
-            }
-          }}
-          disabled={!marksInput.trim()}
-          className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-black text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={onDelete}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-colors hover:bg-red-700"
         >
-          Apply
+          Delete {count}
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          className={joinClasses(
+            'ml-auto rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors',
+            theme?.button || 'border-amber-700 text-amber-900 hover:bg-amber-100',
+          )}
+        >
+          Clear
         </button>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-colors hover:bg-red-700"
-      >
-        Delete {count}
-      </button>
-      <button
-        type="button"
-        onClick={onClear}
-        className={joinClasses(
-          'ml-auto rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors',
-          theme?.button || 'border-amber-700 text-amber-900 hover:bg-amber-100',
-        )}
-      >
-        Clear
-      </button>
+
+      {showTags && onApplyPatch && (
+        <div className="grid gap-2 border-t-2 border-amber-200 pt-2 sm:grid-cols-2 lg:grid-cols-4">
+          <input value={tagForm.topic} onChange={setTag('topic')} placeholder="Topic" maxLength={200} className={BULK_INPUT_CLASS} />
+          <input value={tagForm.subtopic} onChange={setTag('subtopic')} placeholder="Subtopic" maxLength={200} className={BULK_INPUT_CLASS} />
+          <input value={tagForm.competency} onChange={setTag('competency')} placeholder="Competency" maxLength={200} className={BULK_INPUT_CLASS} />
+          <input value={tagForm.curriculum} onChange={setTag('curriculum')} placeholder="Curriculum (e.g. CBC 2023)" maxLength={100} className={BULK_INPUT_CLASS} />
+          <input value={tagForm.specificOutcome} onChange={setTag('specificOutcome')} placeholder="Specific outcome" maxLength={500} className={joinClasses('sm:col-span-2', BULK_INPUT_CLASS)} />
+          <select value={tagForm.difficulty} onChange={setTag('difficulty')} className={BULK_INPUT_CLASS} aria-label="Difficulty for all selected">
+            <option value="">Difficulty — keep</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          <select value={tagForm.bloom} onChange={setTag('bloom')} className={BULK_INPUT_CLASS} aria-label="Bloom's level for all selected">
+            <option value="">Bloom&apos;s — keep</option>
+            <option value="remember">Remember</option>
+            <option value="understand">Understand</option>
+            <option value="apply">Apply</option>
+            <option value="analyze">Analyze</option>
+            <option value="evaluate">Evaluate</option>
+            <option value="create">Create</option>
+          </select>
+          <button
+            type="button"
+            onClick={applyTags}
+            disabled={!tagFormHasInput}
+            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2 lg:col-span-4"
+          >
+            Apply to {count} selected (only filled fields)
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -2298,6 +2376,10 @@ export default function QuizSectionsEditor({
   //   onAutoGroupComprehension()  — keyword-regroup every comprehension run
   onMoveQuestionToPassage,
   onAutoGroupComprehension,
+  // Merge the selected standalone sections into the first (document order).
+  // Optional — the Merge button only renders when the parent wires this in.
+  //   onMergeSections(sectionIds: string[])
+  onMergeSections,
   emptyStateTitle = 'No questions yet',
   emptyStateDescription = 'Click "Add Question" below to start building this quiz.',
 }) {
@@ -2492,6 +2574,44 @@ export default function QuizSectionsEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, selectedIds, onStandaloneChange, clearSelection])
 
+  // "Tag all" — apply one sanitized field patch (topic / CBC tags /
+  // difficulty / Bloom's / marks) to every selected card. Routes through the
+  // same per-field onStandaloneChange as single-card edits, so the normal
+  // dirty → autosave path applies. Junk/empty fields are dropped by
+  // sanitizeBulkPatch before anything touches a card.
+  const bulkApplyPatch = useCallback(function bulkApplyPatch(rawPatch) {
+    const patch = sanitizeBulkPatch(rawPatch)
+    const fields = Object.entries(patch)
+    const indexes = selectedStandaloneIndexes()
+    if (!indexes.length || !fields.length || !onStandaloneChange) return
+    indexes.forEach(idx => {
+      fields.forEach(([field, value]) => onStandaloneChange(idx, field, value))
+    })
+    clearSelection()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneChange, clearSelection])
+
+  const bulkMerge = useCallback(function bulkMerge() {
+    if (!onMergeSections) return
+    if (selectedStandaloneIndexes().length < 2) return
+    setPendingAction('bulk-merge')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onMergeSections])
+
+  // Selection can't change while the dialog is open (modal), so recomputing
+  // the id list at confirm time matches what was requested. Ids go over in
+  // DOCUMENT order — the first one is the survivor the rest merge into.
+  function performBulkMerge() {
+    setPendingAction(null)
+    if (!onMergeSections) return
+    const ids = sections
+      .filter(section => section.kind !== 'passage' && section.kind !== 'pagebreak' && selectedIds.has(section.id))
+      .map(section => section.id)
+    if (ids.length < 2) return
+    onMergeSections(ids)
+    clearSelection()
+  }
+
   const handleShuffleClick = useCallback(function handleShuffleClick() {
     if (!onShuffleSections) return
     if (totalQuestions < 2) return
@@ -2513,6 +2633,8 @@ export default function QuizSectionsEditor({
         onClear={clearSelection}
         onDelete={bulkDelete}
         onSetMarks={bulkSetMarks}
+        onApplyPatch={onStandaloneChange ? bulkApplyPatch : undefined}
+        onMerge={onMergeSections ? bulkMerge : undefined}
       />
       {(sections.length > 0 || sortedParts.length > 0) && (canShuffle || canAutoGroup) && (
         <div className="theme-card theme-border flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-sm">
@@ -2611,13 +2733,22 @@ export default function QuizSectionsEditor({
         title={
           pendingAction === 'bulk-delete'
             ? `Delete ${liveSelectedCount} selected question${liveSelectedCount === 1 ? '' : 's'}?`
-            : pendingAction === 'shuffle'
-              ? 'Shuffle the order of all questions?'
-              : 'Auto-group comprehension questions?'
+            : pendingAction === 'bulk-merge'
+              ? `Merge ${liveSelectedCount} selected questions into one?`
+              : pendingAction === 'shuffle'
+                ? 'Shuffle the order of all questions?'
+                : 'Auto-group comprehension questions?'
         }
         message={
           pendingAction === 'bulk-delete' ? (
             "This can't be undone."
+          ) : pendingAction === 'bulk-merge' ? (
+            <ul className="list-disc pl-4 space-y-1">
+              <li>The FIRST selected question (in paper order) is kept; the others' text is appended to it.</li>
+              <li>Marks add up (capped at 20) and every figure is kept.</li>
+              <li>The kept question's options and answer stay as they are.</li>
+              <li>The merged question is flagged for review so you can check the combined wording.</li>
+            </ul>
           ) : pendingAction === 'shuffle' ? (
             <ul className="list-disc pl-4 space-y-1">
               <li>Ungrouped questions and passages will be randomised.</li>
@@ -2635,12 +2766,14 @@ export default function QuizSectionsEditor({
         }
         confirmLabel={
           pendingAction === 'bulk-delete' ? 'Delete'
-            : pendingAction === 'shuffle' ? 'Shuffle'
-              : 'Auto-group'
+            : pendingAction === 'bulk-merge' ? 'Merge'
+              : pendingAction === 'shuffle' ? 'Shuffle'
+                : 'Auto-group'
         }
         variant={pendingAction === 'bulk-delete' ? 'danger' : 'primary'}
         onConfirm={() => {
           if (pendingAction === 'bulk-delete') performBulkDelete()
+          else if (pendingAction === 'bulk-merge') performBulkMerge()
           else if (pendingAction === 'shuffle') { setPendingAction(null); onShuffleSections?.() }
           else if (pendingAction === 'autogroup') { setPendingAction(null); onAutoGroupComprehension?.() }
         }}
