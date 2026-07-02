@@ -9,7 +9,6 @@
 
 import {
   User,
-  GraduationCap,
   ShieldCheck,
   Home,
   ImageIcon,
@@ -39,14 +38,6 @@ export const SETTINGS_SECTIONS = [
         desc: 'Your personal information, photo and biography',
         icon: User,
         tone: 'green',
-      },
-      {
-        id: 'identity',
-        path: 'identity',
-        title: 'Teaching Identity',
-        desc: 'Qualifications, TS number, experience and signature',
-        icon: GraduationCap,
-        tone: 'purple',
       },
       {
         id: 'security',

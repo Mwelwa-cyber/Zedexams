@@ -54,8 +54,8 @@ describe('SettingsHome', () => {
     renderHome()
     const links = screen.getAllByRole('link')
     for (const row of ALL_SETTINGS_ROWS) {
-      // Row titles overlap ("Profile" vs "Edit profile", "Teaching" vs
-      // "Teaching Identity") so match on href + title together.
+      // Row titles overlap ("Profile" vs "Edit profile") so match on href +
+      // title together.
       const hit = links.find(
         (l) =>
           l.getAttribute('href') === `/settings/${row.path}` &&
@@ -63,7 +63,7 @@ describe('SettingsHome', () => {
       )
       expect(hit, `row link for ${row.id}`).toBeTruthy()
     }
-    expect(ALL_SETTINGS_ROWS).toHaveLength(17)
+    expect(ALL_SETTINGS_ROWS).toHaveLength(16)
   })
 
   it('shows the hero with greeting, plan badge, school and stats', () => {

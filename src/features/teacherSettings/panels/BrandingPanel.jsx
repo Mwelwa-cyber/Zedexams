@@ -10,9 +10,8 @@ import UploadField from '../components/fields/UploadField'
 import { useSettingsSave } from '../lib/useSettingsSave'
 
 // Document branding: the images stamped onto exports (logo / stamp /
-// letterhead — the teacher signature lives on the Teaching Identity panel),
-// the footer line, and the default export format. Uploads save immediately;
-// footer + format go through the Save bar.
+// letterhead), the footer line, and the default export format. Uploads save
+// immediately; footer + format go through the Save bar.
 export default function BrandingPanel() {
   const { userProfile, currentUser, updateProfileFields } = useAuth()
   const school = useSchoolProfileForm()
