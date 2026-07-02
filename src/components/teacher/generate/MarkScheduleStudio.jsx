@@ -18,7 +18,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { SUBJECTS } from '../../../config/curriculum'
-import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -29,6 +28,7 @@ import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
 import MarkScheduleView from '../views/MarkScheduleView'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
@@ -88,6 +88,9 @@ export default function MarkScheduleStudio() {
   const [subjects, setSubjects] = useState(DEFAULT_SUBJECTS)
   const [pupils, setPupils] = useState(() => blankPupils(5))
   const [mode, setMode] = useState('marks')
+  // Standardized curriculum selection (curriculum → grade → subject). Drives the
+  // schedule's class grade; the marks grid keeps its own per-column subjects.
+  const [curr, setCurr] = useState({})
   const [confirmClear, setConfirmClear] = useState(false)
   // Library persistence: the saved generation id (create once, then
   // update) and whether edits happened after the last save.
@@ -135,6 +138,16 @@ export default function MarkScheduleStudio() {
   }, [header, subjects, pupils])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+
+  // Feed the standardized selector's grade + subject into the schedule header.
+  // Grade ('G5') matches the existing TEACHER_GRADES wire shape the heading and
+  // download names already consume; subject is kept as class context (the
+  // exports read the per-column subjects, not this field). Only overwrite once
+  // the selector yields a value so the default grade isn't wiped beforehand.
+  useEffect(() => {
+    if (curr.grade) setH('grade', curr.grade)
+    if (curr.subjectLabel) setH('subject', curr.subjectLabel)
+  }, [curr.grade, curr.subjectLabel])
 
   /* ── subjects ── */
   function updateSubject(key, field, value) {
@@ -273,20 +286,14 @@ export default function MarkScheduleStudio() {
         <div className="space-y-6">
           {/* ── Class details ── */}
           <section className="studio-card p-5 space-y-4">
+            {/* Standardized curriculum + grade + subject selector (no topic/subtopic). */}
+            <StudioCurriculumSelector showTopicSubtopic={false} onChange={setCurr} />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="studio-label">School</label>
                 <input type="text" value={header.school} maxLength={120}
                   onChange={(e) => setH('school', e.target.value)}
                   placeholder="School name" className="studio-input" />
-              </div>
-              <div>
-                <label className="studio-label">Grade</label>
-                <select value={header.grade} onChange={(e) => setH('grade', e.target.value)} className="studio-input">
-                  {TEACHER_GRADES.filter((g) => g.value).map((g) => (
-                    <option key={g.value} value={g.value}>{g.label}</option>
-                  ))}
-                </select>
               </div>
               <div>
                 <label className="studio-label">Term</label>
