@@ -100,6 +100,29 @@ export default function CurriculumHome() {
         </div>
       </section>
 
+      {/* Switcher to the previous (2013) curriculum — some grades still use it */}
+      <Link
+        to="/teacher/curriculum/2013"
+        className="mb-4 flex items-center gap-3 rounded-2xl border theme-border theme-card p-4 shadow-elev-md no-underline transition hover:theme-card-hover"
+      >
+        <span
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white"
+          style={{ background: ZAMBIA_GOLD }}
+          aria-hidden
+        >
+          <Icon as={BookOpen} size="sm" strokeWidth={2.1} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-black theme-text">
+            Teaching a grade still on the previous curriculum?
+          </span>
+          <span className="block text-xs theme-text-muted">
+            View the 2013 Zambia Education Curriculum Framework — structure, learning areas and career pathways.
+          </span>
+        </span>
+        <Icon as={ArrowRight} size="sm" className="theme-text-muted" />
+      </Link>
+
       {/* Level cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {LEVELS.map(level => (

@@ -234,6 +234,9 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      // "previous" curriculum mode → 2013 framework so the KB grounds against
+      // the 2013 syllabi rather than always defaulting to 2023.
+      framework: inputs.curriculumMode === "previous" ? "2013" : "2023",
       ownerUid: uid,
     }),
     assertAndIncrement(uid, "lesson_plan"),

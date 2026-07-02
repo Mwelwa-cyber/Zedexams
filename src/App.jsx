@@ -189,6 +189,10 @@ const CurriculumHome = lazy(() => import('./components/teacher/curriculum/Curric
 const ECECurriculum = lazy(() => import('./components/teacher/curriculum/ECECurriculum'))
 const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/PrimaryCurriculum'))
 const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
+const Curriculum2013Home = lazy(() => import('./components/teacher/curriculum/Curriculum2013Home'))
+const ECE2013Curriculum = lazy(() => import('./components/teacher/curriculum/ECE2013Curriculum'))
+const Primary2013Curriculum = lazy(() => import('./components/teacher/curriculum/Primary2013Curriculum'))
+const Secondary2013Curriculum = lazy(() => import('./components/teacher/curriculum/Secondary2013Curriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 const CentralQuestionBank = lazy(() => import('./components/teacher/CentralQuestionBank'))
@@ -667,6 +671,11 @@ export default function App() {
           <Route path="/teacher/curriculum/ece"          element={<TeacherRoute><ECECurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
+          {/* Previous (2013) curriculum reference — some grades are still taught on it. */}
+          <Route path="/teacher/curriculum/2013"           element={<TeacherRoute><Curriculum2013Home /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/2013/ece"       element={<TeacherRoute><ECE2013Curriculum /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/2013/primary"   element={<TeacherRoute><Primary2013Curriculum /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/2013/secondary" element={<TeacherRoute><Secondary2013Curriculum /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
               class analytics surfaces stack onto these in follow-ups. */}
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />
