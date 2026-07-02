@@ -40,6 +40,7 @@ const FLASHCARDS_TOOL_SCHEMA = {
 const ALLOWED_GRADES = new Set([
   "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
   "G8", "G9", "G10", "G11", "G12",
+  "F1", "F2", "F3", "F4",
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
 const ALLOWED_SUBJECTS = new Set([
@@ -54,7 +55,10 @@ const ALLOWED_SUBJECTS = new Set([
   // Senior/vocational subjects the syllabi expose (Forms 1-4) — accepted so the
   // standardized curriculum selector never dead-ends on a real syllabus subject.
   "fashion_fabrics", "food_nutrition", "hospitality_management",
-  "travel_tourism", "literature_in_english", "accounts",
+  "travel_tourism", "literature_in_english",
+  // 2013-framework subjects exposed by curriculum-data-2013.json
+  // (Agricultural Science / Art & Design / Home Management, Grades 10-12).
+  "agricultural_science", "art_and_design", "home_management",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",

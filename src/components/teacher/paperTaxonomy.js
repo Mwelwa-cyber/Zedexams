@@ -198,6 +198,11 @@ const SUBJECT_FIXES = {
   zambian_languages: 'zambian_language',
   creative_tech: 'creative_and_technology_studies',
   creative_technology: 'creative_and_technology_studies',
+  // 2013-framework subjects whose derived slug differs from the KB's
+  // canonical key ("Art & Design" → art_design vs KB art_and_design;
+  // "Creative & Technology Studies" Grades 1-4 → creative_technology_studies).
+  art_design: 'art_and_design',
+  creative_technology_studies: 'creative_and_technology_studies',
 }
 
 export function toKbSubjectKey(subject) {

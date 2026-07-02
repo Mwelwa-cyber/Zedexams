@@ -140,14 +140,18 @@ export default function MarkScheduleStudio() {
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
   // Feed the standardized selector's grade + subject into the schedule header.
-  // Grade ('G5') matches the existing TEACHER_GRADES wire shape the heading and
-  // download names already consume; subject is kept as class context (the
-  // exports read the per-column subjects, not this field). Only overwrite once
-  // the selector yields a value so the default grade isn't wiped beforehand.
+  // Grade keeps BOTH shapes: `grade` ('G5'/'F1') is the wire code the download
+  // names and legacy consumers use, `gradeLabel` ('Grade 5'/'Form 1') is the
+  // human label the headings prefer (so Form picks don't print "GRADE F1").
+  // Subject is kept as class context (the exports read the per-column
+  // subjects, not this field). Only overwrite once the selector yields a
+  // value so the default grade isn't wiped beforehand.
   useEffect(() => {
-    if (curr.grade) setH('grade', curr.grade)
+    if (curr.grade) {
+      setHeader((h) => ({ ...h, grade: curr.grade, gradeLabel: curr.gradeLabel || '' }))
+    }
     if (curr.subjectLabel) setH('subject', curr.subjectLabel)
-  }, [curr.grade, curr.subjectLabel])
+  }, [curr.grade, curr.gradeLabel, curr.subjectLabel])
 
   /* ── subjects ── */
   function updateSubject(key, field, value) {

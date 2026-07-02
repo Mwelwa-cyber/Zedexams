@@ -199,6 +199,7 @@
     "test:lesson-kit": "node scripts/test-lesson-kit.test.js",
     "test:worksheet-schema": "node functions/teacherTools/worksheetSchema.test.js",
     "test:worksheet-prompt": "node functions/teacherTools/worksheetPrompt.test.js",
+    "test:kb-candidates": "node functions/teacherTools/cbcGradeSubjectCandidates.test.js",
     "test:scheme-schema": "node functions/teacherTools/schemeOfWorkSchema.test.js",
     "test:scheme-outline": "node functions/teacherTools/schemeCurriculumOutline.test.js",
     "test:scheme-timetable": "node functions/teacherTools/schemeTimetable.test.js",

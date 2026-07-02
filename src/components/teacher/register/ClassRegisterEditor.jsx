@@ -12,6 +12,7 @@ import {
   CLASS_REGISTER_GRADES,
   formatClassGrade,
 } from '../../../schemas/classRegister'
+import { SUBJECTS } from '../../../config/curriculum'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
@@ -20,11 +21,30 @@ import Skeleton from '../../ui/Skeleton'
 
 const TERMS = ['Term 1', 'Term 2', 'Term 3']
 
+// The register's grade set is its OWN data model (the full school ladder,
+// Baby Class through Form 4 — see CLASS_REGISTER_GRADE_OPTIONS), not the
+// syllabi's, so the selector is given the enum verbatim via `gradeOptions`:
+// every grade the schema can store is offered (Baby/Middle Class included)
+// and nothing unmappable (Nursery, Grade 8/10-12) ever appears.
+const ECE_GRADE_VALUES = new Set(['baby', 'middle', 'reception'])
+const REGISTER_GRADE_OPTIONS = CLASS_REGISTER_GRADE_OPTIONS.map((o) => ({
+  group: ECE_GRADE_VALUES.has(o.value)
+    ? 'ECE'
+    : /^\d+$/.test(o.value) ? 'Primary' : 'Secondary',
+  value: o.label,
+  label: o.label,
+}))
+
+// The syllabi carry no subjects for ECE classes (and may lag elsewhere) —
+// offer the platform's static subject list so those classes can still pick
+// a subject, as they could before the standardized-selector migration.
+const REGISTER_SUBJECT_FALLBACK = SUBJECTS.map((s) => s.label)
+
 // The standardized selector speaks grade LABELS ('Grade 5', 'Form 1',
 // 'Reception'); the register persists compact wire values ('5', 'form-1',
 // 'reception'). Build the label→value lookup from the register's own option
-// table so every stored grade round-trips and any formatClassGrade()-derived
-// seed label maps cleanly back on save.
+// table so EVERY grade offered above maps back by construction, and any
+// formatClassGrade()-derived seed label round-trips on save.
 const REGISTER_GRADE_BY_LABEL = Object.fromEntries(
   CLASS_REGISTER_GRADE_OPTIONS.map((o) => [o.label, o.value]),
 )
@@ -32,7 +52,8 @@ function toRegisterGrade(gradeLabel) {
   const label = String(gradeLabel || '').trim()
   if (!label) return ''
   if (REGISTER_GRADE_BY_LABEL[label]) return REGISTER_GRADE_BY_LABEL[label]
-  // Fall back to parsing the label families the selector can emit.
+  // Every offered option hits the lookup above; this defensive parse only
+  // covers loosely-formatted seed labels (spacing/casing variants).
   const grade = /^grade\s*(\d+)$/i.exec(label)
   if (grade && CLASS_REGISTER_GRADES.includes(grade[1])) return grade[1]
   const form = /^form\s*(\d+)$/i.exec(label)
@@ -108,6 +129,9 @@ export default function ClassRegisterEditor() {
         term: form.term,
         year: Number(form.year),
         subject: curr.subjectLabel || null,
+        // Persisted so re-editing seeds the selector on the right framework
+        // (legacy registers without it default to CBC via the seed normalizer).
+        curriculum: curr.curriculum || null,
         school: form.school.trim() || null,
       }
       if (editing) {
@@ -149,9 +173,14 @@ export default function ClassRegisterEditor() {
             placeholder="e.g. Grade 4 Blue" maxLength={120} autoFocus />
         </div>
 
-        {/* Standardized curriculum + grade + subject selector (no topic/subtopic). */}
+        {/* Standardized curriculum + grade + subject selector (no topic/subtopic).
+            gradeOptions = the register's own grade enum (offered verbatim for
+            both curricula); subjectFallback keeps ECE classes with no syllabi
+            subjects able to pick one. */}
         <StudioCurriculumSelector
           showTopicSubtopic={false}
+          gradeOptions={REGISTER_GRADE_OPTIONS}
+          subjectFallback={REGISTER_SUBJECT_FALLBACK}
           value={seed || {}}
           onChange={setCurr}
           labelClassName={labelCls}

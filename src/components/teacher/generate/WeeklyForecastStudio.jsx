@@ -37,6 +37,8 @@ import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
 } from '../../../config/curriculum'
+import { toKbSubjectKey, subjectLabel as subjectLabelForSlug } from '../paperTaxonomy'
+import { kbGradeToStudioLabel, studioLabelToKbGrade } from '../curriculum/curriculumSelectorConstants'
 import {
   getCalendarYears, getTermWeeks, getCurrentForecastWeek,
 } from '../../../utils/moeCalendar'
@@ -64,12 +66,13 @@ const DRAFT_PREFIX = 'examprep:weeklyforecast:draft:'
 const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
 const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
 
-// The standardized curriculum selector emits a clean subject *label* (e.g.
-// "Mathematics"); the forecast header prints that label, but the topic/
-// competence catalogue lookups are keyed by the teacher-tools subject *slug*,
-// so we map the label back to its slug. A scheme's header subject is whatever
-// the model emitted (often UPPERCASED, e.g. "MATHEMATICS"), which an exact
-// lookup misses — the case-insensitive fall-back map rescues those.
+// The standardized curriculum selector's payload already carries the
+// canonical KB subject slug (`curr.subject`, e.g. 'mathematics'), which is the
+// primary key for every catalogue lookup below. These label→slug maps are the
+// FALLBACK bridge only, for subjects that arrive as a bare label with no
+// selector payload: a restored draft's header, or a scheme's header subject
+// (whatever the model emitted — often UPPERCASED, e.g. "MATHEMATICS", which
+// the case-insensitive map rescues).
 const SUBJECT_SLUG_BY_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.label, s.value]),
 )
@@ -81,6 +84,19 @@ const subjectSlugFor = (label) =>
   SUBJECT_SLUG_BY_LABEL[label] ||
   SUBJECT_SLUG_BY_NORM_LABEL[String(label || '').trim().toLowerCase()] ||
   ''
+
+// Two slug vocabularies key the two topic catalogues:
+//   - The syllabus KB (listAllSyllabusTopics → buildTopicCatalog, and the
+//     uploaded-modules callable) keys rows by CANONICAL KB slugs — the
+//     studioSubjectToKbSubject output: 'mathematics', 'zambian_language',
+//     'numeracy', 'creative_and_technology_studies', … — exactly the shape
+//     `curr.subject` carries.
+//   - The static curriculum catalogue (TEACHER_SUBJECT_TO_CURRICULUM →
+//     getTopicsForTeacherSubject / getCompetencies) is keyed by TEACHER slugs.
+// The two agree for every subject except where a teacher subject folds into a
+// broader KB subject — currently only Cinyanja (teacher 'cinyanja' → KB
+// 'zambian_language'), so bridge just that one back for the static lookups.
+const KB_TO_TEACHER_SUBJECT = { zambian_language: 'cinyanja' }
 
 const YEARS = getCalendarYears()
 const thisYear = new Date().getFullYear()
@@ -143,6 +159,17 @@ function loadDraft(uid) {
   } catch { return null }
 }
 
+// Grade + subject carried by a stored draft. Current drafts persist the
+// effective values top-level ({ grade: 'G4', subjectLabel: 'Mathematics' });
+// drafts written by the pre-selector studio kept them inside `header`
+// (header.grade code + header.subject printed label).
+function restoredMetaFromDraft(draft) {
+  return {
+    grade: String(draft?.grade || draft?.header?.grade || ''),
+    subjectLabel: String(draft?.subjectLabel || draft?.header?.subject || ''),
+  }
+}
+
 const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
 const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
@@ -164,6 +191,28 @@ export default function WeeklyForecastStudio() {
   // is the source of truth for grade + subject; the rest of the studio reads
   // the derived `grade` / `subjectLabel` / `subjectSlug` computed below.
   const [curr, setCurr] = useState({})
+  // Grade + subject recovered from a restored draft or an imported scheme —
+  // the fallback for the derived values below whenever the selector is
+  // untouched, so a restore round-trips its original grade/subject instead of
+  // stamping blanks into the saved/exported header. Initialized synchronously
+  // from localStorage (uid is known at mount behind TeacherRoute) so the
+  // mount-once selector can also be seeded from it.
+  const [restoredMeta, setRestoredMeta] = useState(() => restoredMetaFromDraft(loadDraft(uid)))
+  // Seed for the curriculum selector, computed once on first render (the
+  // selector reads its `value` prop once, in a useState initializer). The
+  // selector normalizes the loose shapes itself and resolves the subject
+  // label against the loaded syllabi keys. When the draft restores late
+  // (uid not yet known at mount) the seed is null and the restoredMeta
+  // fallback chain still carries the grade/subject.
+  const [selectorSeed] = useState(() => (
+    (restoredMeta.grade || restoredMeta.subjectLabel)
+      ? {
+        curriculumMode: 'cbc',
+        gradeLabel: kbGradeToStudioLabel(restoredMeta.grade),
+        subjectKey: restoredMeta.subjectLabel,
+      }
+      : null
+  ))
   const [days, setDays] = useState(() => DEFAULT_WEEKDAYS.map(blankDay))
 
   // Scheme source picker.
@@ -193,6 +242,23 @@ export default function WeeklyForecastStudio() {
   // freshly-loaded saved forecast isn't flagged "Update in library".
   const dirtySkipRef = useRef(1)
   const autoTimetableRef = useRef('')
+
+  // ── Grade + subject: the curriculum selector, falling back to restore ──
+  // `curr` (the live selector pick) always wins; `restoredMeta` fills in for
+  // a restored draft / imported scheme the mount-once selector can't replay.
+  // `grade` is the KB code ('G4'); `subjectLabel` is the printed label
+  // ('Mathematics'); the slugs key the catalogue lookups — the KB flavour for
+  // the syllabus KB + uploaded modules, the teacher flavour for the static
+  // curriculum catalogue (see KB_TO_TEACHER_SUBJECT above).
+  const grade = curr.grade || restoredMeta.grade
+  const subjectLabel = curr.subjectLabel || restoredMeta.subjectLabel
+  // Primary source: the selector's canonical KB slug. The label bridges only
+  // serve restores, whose stored header carries the label alone —
+  // subjectSlugFor for teacher-taxonomy labels ('Mathematics and Science'),
+  // toKbSubjectKey for syllabi-derived ones ('English Language', 'ICT', …).
+  const subjectSlug = curr.subject || subjectSlugFor(subjectLabel) || toKbSubjectKey(subjectLabel)
+  const kbSubjectSlug = toKbSubjectKey(subjectSlug)
+  const teacherSubjectSlug = KB_TO_TEACHER_SUBJECT[kbSubjectSlug] || subjectSlug
 
   // Saved schemes + timetables for the pickers — quietly degrade to manual.
   useEffect(() => {
@@ -228,19 +294,31 @@ export default function WeeklyForecastStudio() {
     if (Array.isArray(draft.days) && draft.days.length) { setDays(migrateDayWeekdays(draft.days)); restoredDirtyState = true }
     if (draft.timetableId) setTimetableId(draft.timetableId)
     if (draft.generationId) setGenerationId(draft.generationId)
+    // Covers the late-uid mount, where the synchronous initializer read the
+    // anon draft key and came up empty.
+    const meta = restoredMetaFromDraft(draft)
+    if (meta.grade || meta.subjectLabel) {
+      setRestoredMeta((m) => (
+        m.grade === meta.grade && m.subjectLabel === meta.subjectLabel ? m : meta
+      ))
+    }
     if (restoredDirtyState) dirtySkipRef.current += 1
   }, [uid])
 
-  // Debounced autosave.
+  // Debounced autosave. Persists the EFFECTIVE grade + subject label alongside
+  // the header (which no longer carries them) so a reloaded draft can re-seed
+  // the curriculum selector and the restoredMeta fallback.
   useEffect(() => {
     if (!uid) return undefined
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, days, timetableId, generationId }))
+        localStorage.setItem(draftKey(uid), JSON.stringify({
+          savedAt: Date.now(), header, days, timetableId, generationId, grade, subjectLabel,
+        }))
       } catch { /* storage full/blocked — the editor still works */ }
     }, 800)
     return () => clearTimeout(t)
-  }, [uid, header, days, timetableId, generationId])
+  }, [uid, header, days, timetableId, generationId, grade, subjectLabel])
 
   useEffect(() => {
     if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
@@ -249,16 +327,9 @@ export default function WeeklyForecastStudio() {
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
-  // ── Grade + subject from the standardized curriculum selector ──
-  // `grade` is the KB code ('G4'); `subjectLabel` is the printed label
-  // ('Mathematics'); `subjectSlug` is the teacher-tools slug that keys the
-  // topic/competence catalogue lookups.
-  const grade = curr.grade || ''
-  const subjectLabel = curr.subjectLabel || ''
-  const subjectSlug = subjectSlugFor(subjectLabel)
   const competenceOptions = useMemo(
-    () => getCompetencies(TEACHER_SUBJECT_TO_CURRICULUM[subjectSlug]),
-    [subjectSlug],
+    () => getCompetencies(TEACHER_SUBJECT_TO_CURRICULUM[teacherSubjectSlug]),
+    [teacherSubjectSlug],
   )
   const termWeeks = useMemo(
     () => getTermWeeks(Number(header.year), header.term),
@@ -272,15 +343,15 @@ export default function WeeklyForecastStudio() {
   // The curriculum catalogue for the chosen grade + subject — from the merged
   // Syllabi Studio + uploaded modules. Drives every topic/sub-topic dropdown.
   const topicCatalog = useMemo(
-    () => buildTopicCatalog(kbTopics || [], grade, subjectSlug),
-    [kbTopics, grade, subjectSlug],
+    () => buildTopicCatalog(kbTopics || [], grade, kbSubjectSlug),
+    [kbTopics, grade, kbSubjectSlug],
   )
   // Topic names from the syllabus KB; fall back to the static curriculum
   // catalogue when the KB has no rows for this grade/subject so the dropdown
   // is never empty for a catalogued combination.
   const topicNames = useMemo(() => (
-    topicCatalog.length ? topicCatalog.map((t) => t.topic) : getTopicsForTeacherSubject(subjectSlug, grade)
-  ), [topicCatalog, subjectSlug, grade])
+    topicCatalog.length ? topicCatalog.map((t) => t.topic) : getTopicsForTeacherSubject(teacherSubjectSlug, grade)
+  ), [topicCatalog, teacherSubjectSlug, grade])
   const kbLoading = kbTopics == null
 
   // Sub-topics for a day's topic: prefer the syllabus KB, fall back to the
@@ -288,7 +359,7 @@ export default function WeeklyForecastStudio() {
   const subtopicOptionsFor = (topic) => {
     const fromKb = subtopicsForTopic(topicCatalog, topic)
     if (fromKb.length) return fromKb
-    return getSubtopicsForTeacherSubject(subjectSlug, grade, topic)
+    return getSubtopicsForTeacherSubject(teacherSubjectSlug, grade, topic)
   }
 
   // The timetable's view of this subject: which weekdays + how many periods.
@@ -350,7 +421,9 @@ export default function WeeklyForecastStudio() {
   // Load the term's uploaded curriculum modules for the current grade/subject/
   // term. Used as the third source when there's no saved scheme to start from.
   async function loadModules() {
-    const subject = subjectSlug
+    // The uploaded-modules KB (cbcKnowledgeBase/{version}/topics) is keyed by
+    // the canonical KB subject slug — the same shape `curr.subject` carries.
+    const subject = kbSubjectSlug
     if (!subject) { toast.error('Pick a subject first.'); return }
     setModuleStatus('loading')
     const res = await getTermModuleOutline({ grade, subject, term: header.term })
@@ -374,9 +447,25 @@ export default function WeeklyForecastStudio() {
     setDays(weekdays.map((wd, i) => ({ ...(content[i] || blankDay(wd)), day: wd })))
     if (selectedScheme) {
       const out = selectedScheme.output || {}
-      // Grade + subject now come from the curriculum selector (an uncontrolled
-      // widget we can't drive from here), so we only pull the term + week from
-      // the scheme. Pick the matching grade/subject in the selector above.
+      // The mount-once curriculum selector can't be driven from here, so the
+      // scheme's grade + subject land in restoredMeta: they stamp the header,
+      // exports and catalogue lookups unless (until) the teacher picks
+      // something in the selector, which always wins. inputs.grade is the
+      // server-shape KB code ('G4'); the output header's class/grade + subject
+      // are whatever the model emitted (labels, often UPPERCASED) — normalise
+      // both to the KB code + canonical printed label.
+      const schemeGrade = studioLabelToKbGrade(String(
+        selectedScheme.inputs?.grade || out.header?.class || out.header?.grade || '',
+      ).trim())
+      const rawSubject = String(out.header?.subject || selectedScheme.inputs?.subject || '').trim()
+      const schemeSubjectSlug = subjectSlugFor(rawSubject) || toKbSubjectKey(rawSubject)
+      const schemeSubjectLabel = subjectLabelForSlug(schemeSubjectSlug) || rawSubject
+      if (schemeGrade || schemeSubjectLabel) {
+        setRestoredMeta((m) => ({
+          grade: schemeGrade || m.grade,
+          subjectLabel: schemeSubjectLabel || m.subjectLabel,
+        }))
+      }
       setHeader((h) => ({
         ...h,
         term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
@@ -466,6 +555,8 @@ export default function WeeklyForecastStudio() {
     setSchemeId(''); setWeekPick(''); setTimetableId('')
     setModuleWeeks([]); setModuleStatus('idle')
     setUsedModuleFallback(false)
+    // Drop any restore/scheme fallback — a live selector pick (curr) survives.
+    setRestoredMeta({ grade: '', subjectLabel: '' })
     autoTimetableRef.current = ''
     setGenerationId(null)
     try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
@@ -529,7 +620,7 @@ export default function WeeklyForecastStudio() {
                 Pick the curriculum, grade and subject — the topic and competence lists become specific to them. The week's dates fill from the MoE calendar.
               </p>
             </div>
-            <StudioCurriculumSelector onChange={setCurr} showTopicSubtopic={false} />
+            <StudioCurriculumSelector value={selectorSeed} onChange={setCurr} showTopicSubtopic={false} />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="studio-label">School</label>
