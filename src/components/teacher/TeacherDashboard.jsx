@@ -203,15 +203,6 @@ const STUDIO_GROUPS = [
         to: '/teacher/generate/flashcards',
       },
       {
-        img: iconLessonPlan,
-        tone: 'cyan',
-        badge: null,
-        libraryKey: 'full-lesson',
-        title: 'Full Lesson Studio',
-        tagline: 'One complete, ready-to-deliver lesson — content, examples, practice and homework.',
-        to: '/teacher/generate/full-lesson',
-      },
-      {
         img: iconWorksheet,
         tone: 'sky',
         badge: null,
@@ -346,7 +337,6 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/notes',
   '/teacher/generate/worksheet',
   '/teacher/generate/flashcards',
-  '/teacher/generate/full-lesson',
   '/teacher/generate/homework',
   '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
@@ -368,6 +358,7 @@ const TOOL_META = {
   assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Test Paper' },
   // 'quiz' stays for generations saved before the studio was retired (#909).
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
+  // 'full_lesson' stays for lessons saved before the studio was retired.
   full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
   sba_task: { icon: GraduationCap, accent: '#d8e6f0', label: 'SBA Task' },

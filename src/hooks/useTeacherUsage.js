@@ -22,7 +22,6 @@ export const TOOL_TO_FEATURE = {
   flashcards:     'flashcards',
   notes:          'notes',
   homework:       'homework',
-  full_lesson:    'full_lessons',
   rubric:         'rubric',
   scheme_of_work: 'schemes',
   assessment:     'assessments',
@@ -33,15 +32,14 @@ export const TOOL_TO_FEATURE = {
 // Feature key → human label, shared by the paywall copy in useGenerationGate
 // and the UsageMeter banners. Single source of truth: this map used to be
 // hand-copied in both files, and a tool missing from TOOL_TO_FEATURE above
-// once shipped a studio that paywalled paying teachers (full_lesson) — keep
-// these two maps together and 1:1.
+// once shipped a studio that paywalled paying teachers (the retired
+// full_lesson studio) — keep these two maps together and 1:1.
 export const FEATURE_LABELS = {
   plans: 'lesson plans',
   worksheets: 'worksheets',
   flashcards: 'flashcards',
   notes: 'teacher notes',
   homework: 'homework',
-  full_lessons: 'full lessons',
   rubric: 'rubrics',
   assessments: 'test papers',
   exams: 'exam papers',
