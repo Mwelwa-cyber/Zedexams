@@ -91,7 +91,6 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
     timeoutSeconds: 540,
     memory: "1GiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -276,7 +275,6 @@ function createDeleteCurriculumUpload() {
     timeoutSeconds: 120,
     memory: "512MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");

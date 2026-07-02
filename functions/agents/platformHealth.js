@@ -186,7 +186,6 @@ function createGetPlatformHealth(anthropicApiKeySecret) {
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     await requireAdmin(request);
     const [anthropic, agentControl, kb, recentJobs] = await Promise.all([
@@ -215,7 +214,6 @@ function createInitializeAgentPipeline() {
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     const uid = await requireAdmin(request);
     const db = admin.firestore();
@@ -248,7 +246,6 @@ function createRunSampleAgentJob() {
     timeoutSeconds: 30,
     memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     const uid = await requireAdmin(request);
     const db = admin.firestore();

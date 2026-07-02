@@ -162,7 +162,6 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     timeoutSeconds: 540,
     memory: "1GiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
-    consumeAppCheckToken: true,
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
