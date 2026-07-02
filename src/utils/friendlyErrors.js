@@ -522,9 +522,13 @@ export function toFriendlyError(error, options = {}) {
   // 4. Functions / Firestore canonical codes (strip any `prefix/`).
   const bare = c.includes('/') ? c.slice(c.indexOf('/') + 1) : c
   if (STATUS_CODE_TEMPLATES[bare]) {
-    // `resource-exhausted` inside a payment flow is not an AI cap; let the
-    // category bias correct it below before returning.
-    if (!(category === 'payment' && bare === 'resource-exhausted')) {
+    // `resource-exhausted` maps to the AI daily-cap card ("try again
+    // tomorrow") ONLY when the caller is an AI surface (category 'ai').
+    // Anywhere else it's a transient backend quota / write-rate limit, not a
+    // day-long cap — so fall through and let the category fallback (e.g.
+    // paymentFailed) or the retryable generic card handle it instead of
+    // dead-ending the user with the wrong copy + a Go Back-only action.
+    if (!(bare === 'resource-exhausted' && category !== 'ai')) {
       return finalize(STATUS_CODE_TEMPLATES[bare])
     }
   }
@@ -576,11 +580,17 @@ export function friendlyMessage(error, fallback) {
 export function technicalDetails(error, context = {}) {
   const { code, status, message } = normalizeError(error)
   const friendly = toFriendlyError(error, context)
+  // The stack is the single most useful field for an admin triaging a bug —
+  // a 300-char message rarely locates it. Guarded (only Error instances have
+  // one) and clipped so a huge stack can't bloat the analytics event.
+  const stack =
+    error && typeof error.stack === 'string' ? error.stack.slice(0, 2000) : undefined
   return {
     code: code || (status ? `http/${status}` : ''),
     status: status || undefined,
     category: friendly.category,
     severity: friendly.severity,
     rawMessage: String(message || '').slice(0, 300),
+    stack,
   }
 }

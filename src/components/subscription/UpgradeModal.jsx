@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { PLANS } from '../../utils/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 import {
   initiateLencoPayment,
   looksLikeZambianPhone,
@@ -166,7 +167,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
       await beginPolling(res.paymentId)
     } catch (err) {
       setPayState('failed')
-      setError(err?.message || 'Could not start the payment. Please try again.')
+      setError(friendlyMessage(err, 'Could not start the payment. Please try again.'))
       capture('lenco_payment_failed', { planId: selectedPlanId, method, reason: 'initiate_error' })
     }
   }
@@ -186,7 +187,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
       await beginPolling(paymentId)
     } catch (err) {
       setPayState('otp')
-      setError(err?.message || 'The code could not be verified. Please try again.')
+      setError(friendlyMessage(err, 'The code could not be verified. Please try again.'))
     }
   }
 

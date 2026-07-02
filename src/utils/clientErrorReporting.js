@@ -175,16 +175,34 @@ function adminContext(err) {
   return ctx
 }
 
-export function reportClientError(err, context = 'manual') {
+/**
+ * @param {*} err       whatever was caught
+ * @param {string} context short bucket tag (e.g. 'quiz_submit')
+ * @param {{ force?: boolean }} [opts]
+ *   force — bypass the per-session cap AND the 60s dedup. Use this ONLY for a
+ *   DELIBERATE, user-initiated report ("Report this problem"). Without it, a
+ *   user's report is silently dropped when (a) ErrorBoundary already
+ *   auto-reported the same error seconds earlier — the dedup key ignores
+ *   context, so the two collapse — or (b) the 5-events/session budget was
+ *   spent on background noise. Either way the UI would still say "Thanks —
+ *   reported" while nothing reached PostHog. force closes that gap.
+ */
+export function reportClientError(err, context = 'manual', opts = {}) {
+  const force = !!opts.force
   try {
     const { name, message } = summarise(err)
     if (isIgnoredErrorMessage(message)) return
-    if (!shouldReport(name, message)) return
-    eventsSent += 1
+    // Forced (user-initiated) reports skip the rate-limit + dedup gate, and
+    // don't spend the background budget, so they always get through.
+    if (!force) {
+      if (!shouldReport(name, message)) return
+      eventsSent += 1
+    }
     _capture('client_error', {
       error_name: name,
       error_message: message,
       context: typeof context === 'string' ? context.slice(0, 40) : 'manual',
+      ...(force ? { user_reported: true } : {}),
       ...adminContext(err),
     })
   } catch {

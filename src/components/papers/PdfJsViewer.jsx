@@ -29,6 +29,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadPdfjs } from '../../utils/pdfjsLoader'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 
 const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 const DEFAULT_ZOOM_INDEX = 3 // 1.0
@@ -89,7 +90,7 @@ export default function PdfJsViewer({ url, blob, title }) {
         setPdf(doc)
       } catch (err) {
         console.warn('[PdfJsViewer] load failed', err)
-        if (!cancelled) setError(err?.message || 'Could not open this paper.')
+        if (!cancelled) setError(friendlyMessage(err, 'Could not open this paper.'))
       } finally {
         if (!cancelled) setLoading(false)
       }

@@ -15,6 +15,7 @@ import {
   resendInvoiceEmail,
   resolveInvoicePdfUrl,
 } from '../../utils/invoices'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 
 function fmtDate(ts) {
   if (!ts) return '—'
@@ -57,7 +58,7 @@ function InvoiceRow({ invoice }) {
         : 'Receipt sent.')
     } catch (err) {
       console.warn('[InvoiceRow] resend failed', err)
-      setError(err?.message || 'Could not resend the receipt.')
+      setError(friendlyMessage(err, 'Could not resend the receipt.'))
     } finally {
       setResending(false)
     }

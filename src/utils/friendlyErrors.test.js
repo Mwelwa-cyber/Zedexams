@@ -91,7 +91,10 @@ console.log('\nfriendlyErrors — permission / session / functions codes')
 eq('permission-denied → Access Restricted', toFriendlyError({ code: 'permission-denied' }).title, 'Access Restricted')
 eq('functions/permission-denied → Access Restricted', toFriendlyError({ code: 'functions/permission-denied' }).title, 'Access Restricted')
 eq('unauthenticated → Session Expired', toFriendlyError({ code: 'unauthenticated' }).title, 'Session Expired')
-eq('resource-exhausted → Daily Limit Reached', toFriendlyError({ code: 'functions/resource-exhausted' }).title, 'Daily Limit Reached')
+// resource-exhausted is the AI daily cap ONLY in an AI context; a generic
+// backend quota must not dead-end the user with "try again tomorrow".
+eq('resource-exhausted (ai) → Daily Limit Reached', toFriendlyError({ code: 'functions/resource-exhausted' }, { category: 'ai' }).title, 'Daily Limit Reached')
+eq('resource-exhausted (no ai context) → not the AI cap', toFriendlyError({ code: 'functions/resource-exhausted' }).title, 'Something Went Wrong')
 eq('internal → server', toFriendlyError({ code: 'internal' }).title, 'Something Went Wrong')
 
 console.log('\nfriendlyErrors — storage codes')
@@ -179,6 +182,11 @@ console.log('\nfriendlyErrors — technicalDetails keeps the raw signal for admi
   const t2 = technicalDetails({ status: 500 })
   eq('http status encoded as code', t2.code, 'http/500')
   eq('status kept', t2.status, 500)
+  // The stack trace is the field admins triage from — captured (clipped) for
+  // real Error instances, absent for plain objects.
+  const withStack = technicalDetails(new Error('kaboom'))
+  ok('captures stack from Error instances', typeof withStack.stack === 'string' && withStack.stack.includes('kaboom'))
+  ok('no stack for plain objects', technicalDetails({ code: 'internal' }).stack === undefined)
 }
 
 console.log(`\n✓ friendlyErrors: ${passed} assertions passed`)

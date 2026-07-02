@@ -179,6 +179,42 @@ test('messages differing past DEDUP_KEY_LEN still dedup (intentional)', () => {
   assert(calls.length === 1, `expected dedup, got ${calls.length}`)
 })
 
+// ── force (user-initiated reports) ──────────────────────────────
+
+console.log('\nreportClientError: force flag for user-initiated reports')
+
+test('force bypasses the per-session cap', () => {
+  const calls = makeSpy()
+  // Exhaust the background budget first.
+  for (let i = 0; i < __TEST_CONFIG.MAX_EVENTS_PER_SESSION; i++) {
+    reportClientError(new Error(`bg-${i}`), 'window_error')
+  }
+  assert(calls.length === __TEST_CONFIG.MAX_EVENTS_PER_SESSION)
+  // A deliberate user report still gets through.
+  reportClientError(new Error('user report'), 'error_state_report', { force: true })
+  assert(calls.length === __TEST_CONFIG.MAX_EVENTS_PER_SESSION + 1, `expected forced report to bypass cap, got ${calls.length}`)
+  assert(calls[calls.length - 1].props.user_reported === true, 'forced report should be tagged user_reported')
+})
+
+test('force bypasses dedup even when the same error was auto-reported', () => {
+  const calls = makeSpy()
+  const err = new TypeError('render crash')
+  // Simulates ErrorBoundary.componentDidCatch auto-reporting first…
+  reportClientError(err, 'error_boundary')
+  // …then the learner clicking "Report this problem" on the SAME error.
+  reportClientError(err, 'error_boundary_user_report', { force: true })
+  assert(calls.length === 2, `expected the forced report to survive dedup, got ${calls.length}`)
+})
+
+test('non-forced report is still deduped/capped as before', () => {
+  const calls = makeSpy()
+  const err = new TypeError('same')
+  reportClientError(err, 'window_error')
+  reportClientError(err, 'window_error')
+  assert(calls.length === 1, `expected dedup for non-forced, got ${calls.length}`)
+  assert(calls[0].props.user_reported === undefined, 'non-forced report must not be tagged user_reported')
+})
+
 // ── noise filter ────────────────────────────────────────────────
 
 console.log('\nreportClientError: known-noise filtering')

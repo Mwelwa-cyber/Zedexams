@@ -62,8 +62,9 @@ function defaultHandlers(error) {
     },
     [ACTIONS.REPORT_PROBLEM]: () => {
       // Silently forward the technical details to the admin sink. The
-      // learner just sees the confirmation from `onReported`.
-      reportClientError(error, 'error_state_report')
+      // learner just sees the confirmation from `onReported`. `force` bypasses
+      // the dedup + per-session cap so a deliberate report is never dropped.
+      reportClientError(error, 'error_state_report', { force: true })
     },
   }
 }
@@ -87,14 +88,16 @@ export default function ErrorState({
   const friendly = friendlyProp || toFriendlyError(error, { category, online })
   const tone = SEVERITY_TONE[friendly.severity] || SEVERITY_TONE.error
 
+  // Build the built-in handlers ONCE — this used to be called three times
+  // per render, allocating a fresh set of closures each time for no reason.
+  const defaults = defaultHandlers(error)
   const resolved = {
-    ...defaultHandlers(error),
+    ...defaults,
     [ACTIONS.RETRY]: onRetry,
-    [ACTIONS.GO_BACK]: onGoBack || defaultHandlers(error)[ACTIONS.GO_BACK],
-    [ACTIONS.CONTACT_SUPPORT]:
-      onContactSupport || defaultHandlers(error)[ACTIONS.CONTACT_SUPPORT],
+    [ACTIONS.GO_BACK]: onGoBack || defaults[ACTIONS.GO_BACK],
+    [ACTIONS.CONTACT_SUPPORT]: onContactSupport || defaults[ACTIONS.CONTACT_SUPPORT],
     [ACTIONS.REPORT_PROBLEM]: () => {
-      defaultHandlers(error)[ACTIONS.REPORT_PROBLEM]()
+      defaults[ACTIONS.REPORT_PROBLEM]()
       onReportProblem?.()
       onReported?.()
     },

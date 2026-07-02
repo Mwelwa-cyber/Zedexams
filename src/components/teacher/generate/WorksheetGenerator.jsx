@@ -21,6 +21,7 @@ import { downloadWorksheetPdf } from '../../../utils/worksheetToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
+import { friendlyMessage } from '../../../utils/friendlyErrors'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -130,7 +131,7 @@ export default function WorksheetGenerator() {
       },
       onError: (err) => {
         setStatus('error')
-        setErrorMessage(err?.message || 'Generation failed.')
+        setErrorMessage(friendlyMessage(err, 'Generation failed. Please try again.'))
         setErrorDetail('')
         cancelRef.current = null
       },

@@ -1,6 +1,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth, getAppCheckToken } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
+import { toFriendlyError } from './friendlyErrors'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -34,6 +35,7 @@ const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
 function messageFromError(error) {
   const code = error?.code || ''
+  // Domain-specific copy that beats the generic templates — keep it.
   if (code.includes('resource-exhausted')) {
     return 'Daily AI limit reached. Please try again tomorrow.'
   }
@@ -42,6 +44,16 @@ function messageFromError(error) {
   }
   if (code.includes('unauthenticated')) {
     return 'Please sign in before using Zed.'
+  }
+  // Real infrastructure failures (Firebase/HTTP codes, offline, 5xx) get calm
+  // mapped copy instead of a raw technical string. We deliberately pass NO
+  // category bias: our own thrown errors (withTimeout messages, SSE [ERROR]
+  // fallbacks) resolve to category 'unknown' and keep their already-friendly
+  // `.message`, while only genuinely-technical failures get remapped.
+  const online = typeof navigator !== 'undefined' ? navigator.onLine : undefined
+  const friendly = toFriendlyError(error, { online })
+  if (friendly.category !== 'unknown') {
+    return friendly.message
   }
   return error?.message || 'Zed is unavailable right now. Please try again.'
 }
@@ -379,10 +391,12 @@ export function sendAIChatStream({
     } catch (err) {
       if (cancelled) return
       // A stall-triggered abort surfaces as an AbortError — translate it into
-      // a friendly timeout message rather than the raw "aborted" string.
+      // a friendly timeout message rather than the raw "aborted" string. All
+      // other failures go through messageFromError so a raw network error
+      // (e.g. "Failed to fetch") is mapped to calm copy, not echoed verbatim.
       const message = stalled
         ? 'Zed lost connection mid-reply. Please try again.'
-        : (err?.message || messageFromError(err))
+        : messageFromError(err)
       onError?.(new Error(message))
     } finally {
       if (stallTimer) clearTimeout(stallTimer)

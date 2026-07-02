@@ -21,6 +21,7 @@ import ComingSoon from '../ui/ComingSoon'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import ContentLoadError from '../ui/ContentLoadError'
 import SeoHelmet from '../seo/SeoHelmet'
 import GameStickerStyles from '../games/GameStickerStyles'
 import { QuizzesHubTour } from '../ui/learnerTours'
@@ -274,6 +275,10 @@ export default function QuizList() {
   const initialKey = `${resolveDefaultGrade(profileGrade)}|`
   const [quizzes, setQuizzes]           = useState(() => quizListCache.get(initialKey) || [])
   const [loading, setLoading]           = useState(() => !quizListCache.has(initialKey))
+  // A Firestore read failure must never masquerade as "no quizzes yet" or hang
+  // on the skeleton forever — track it so we can show a retryable error card.
+  const [loadError, setLoadError]       = useState(false)
+  const [reloadNonce, setReloadNonce]   = useState(0)
   const [showUpgrade, setShowUpgrade]   = useState(false)
   const [blockedToast, setBlockedToast] = useState(location.state?.blocked || false)
 
@@ -300,16 +305,28 @@ export default function QuizList() {
       } else {
         setLoading(true)
       }
-      const data = await getQuizzes({ grade: gradeF, term: termF })
-      quizListCache.set(key, data)
-      if (!cancelled) {
-        setQuizzes(data)
-        setLoading(false)
+      try {
+        const data = await getQuizzes({ grade: gradeF, term: termF })
+        quizListCache.set(key, data)
+        if (!cancelled) {
+          setQuizzes(data)
+          setLoadError(false)
+          setLoading(false)
+        }
+      } catch (err) {
+        // Read failure (offline / Firestore outage): stop the skeleton and
+        // surface a friendly retry instead of an infinite spinner or a false
+        // "no quizzes published" empty state.
+        console.warn('[QuizList] load failed', err)
+        if (!cancelled) {
+          setLoadError(true)
+          setLoading(false)
+        }
       }
     }
     load()
     return () => { cancelled = true }
-  }, [gradeF, termF, getQuizzes])
+  }, [gradeF, termF, getQuizzes, reloadNonce])
 
   // Auto-dismiss the "blocked" toast that the upgrade flow forwards in.
   useEffect(() => {
@@ -553,7 +570,13 @@ export default function QuizList() {
             </p>
           </div>
 
-          {loading ? (
+          {loadError && quizzes.length === 0 ? (
+            <ContentLoadError
+              title="Couldn’t load quizzes"
+              message="We couldn’t load the quizzes just now. Please check your connection and try again."
+              onRetry={() => { setLoadError(false); setReloadNonce(n => n + 1) }}
+            />
+          ) : loading ? (
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
               {Array.from({ length: 4 }).map((_, i) => <SubjectSkeleton key={i} />)}
             </div>
