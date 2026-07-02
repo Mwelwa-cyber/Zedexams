@@ -175,10 +175,29 @@ export const FALLBACK_SUBJECT_KEYS = [
 // Display label / slug / canonical key → canonical CBC subject key. Idempotent
 // for values that are already canonical keys, so the dynamic subject dropdown
 // (which yields keys) and a display label coming from paperMeta both resolve.
+//
+// The second group folds the verbose syllabi subject keys + ECE/Lower-Primary
+// strand names surfaced by the standardized StudioCurriculumSelector into the
+// canonical slug a subject genuinely IS (same subject, different label), so the
+// selector never dead-ends on a real syllabus subject. Distinct senior/
+// vocational subjects that have no core equivalent (Fashion & Fabrics, Food &
+// Nutrition, Hospitality, Travel & Tourism, Literature in English) keep their
+// own slug and are accepted by the generators' allowlists instead of folded.
 const SUBJECT_FIXES = {
   expressive_art: 'expressive_arts',
   science: 'integrated_science',
   cinyanja: 'zambian_language',
+  // Verbose grade-4-6 / forms-1-4 subject-key variants → canonical slug.
+  english_language: 'english',
+  mathematics_ii: 'mathematics',
+  home_economics_hospitality: 'home_economics',
+  ict: 'technology_studies',
+  // ECE + Lower-Primary strand names (post cleanSubjectName) → canonical slug.
+  maths_science: 'numeracy',
+  pre_maths_science: 'numeracy',
+  zambian_languages: 'zambian_language',
+  creative_tech: 'creative_and_technology_studies',
+  creative_technology: 'creative_and_technology_studies',
 }
 
 export function toKbSubjectKey(subject) {

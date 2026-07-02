@@ -18,7 +18,7 @@ const {callClaude} = require("./anthropicClient");
 
 const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateHomework} = require("./homeworkSchema");
-const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
+const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./homeworkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
@@ -48,6 +48,10 @@ const ALLOWED_SUBJECTS = new Set([
   "biology", "chemistry", "physics", "geography", "history",
   "environmental_science", "technology_studies", "home_economics",
   "expressive_arts",
+  // Senior/vocational subjects the syllabi expose (Forms 1-4) — accepted so the
+  // standardized curriculum selector never dead-ends on a real syllabus subject.
+  "fashion_fabrics", "food_nutrition", "hospitality_management",
+  "travel_tourism", "literature_in_english", "accounts",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
@@ -83,6 +87,11 @@ function sanitizeInputs(raw = {}) {
         Math.round(num(raw.estimatedMinutes, 20)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    // Explicit curriculum chosen by the teacher — drives CBC vs Previous
+    // prompt/terminology + framework-aware KB grounding.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
+    curriculum: String(raw.curriculum || "").toLowerCase() === "previous" ?
+      "previous" : "cbc",
   };
 }
 
@@ -117,6 +126,7 @@ async function runHomework({uid, rawInputs, apiKey}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      framework: inputs.framework,
       ownerUid: uid,
     }),
     assertAndIncrement(uid, "homework"),
@@ -152,7 +162,7 @@ async function runHomework({uid, rawInputs, apiKey}) {
   let modelUsed = HOMEWORK_MODEL;
   try {
     const response = await callClaude(apiKey, {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 4000,

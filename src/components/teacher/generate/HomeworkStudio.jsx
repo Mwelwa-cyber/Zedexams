@@ -1,15 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   generateHomework,
-  TEACHER_GRADES,
   TEACHER_LANGUAGES,
   CURRICULUM_TERMS,
   TOTAL_LESSONS_OPTIONS,
   LESSON_NUMBER_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
-  defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
-import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
 import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -23,9 +20,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import TopicSubtopicPicker from './TopicSubtopicPicker'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { FieldTextarea, FieldSelect } from './studioFields'
+import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
 
@@ -39,10 +36,6 @@ export default function HomeworkStudio() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    grade: 'G5',
-    subject: 'mathematics',
-    topic: '',
-    subtopic: '',
     term: '',
     lessonNumber: '',
     totalLessons: '',
@@ -53,6 +46,10 @@ export default function HomeworkStudio() {
     instructions: '',
     ...urlDefaults,
   }))
+  // Standardized curriculum selection (CBC/Previous → grade → subject → topic →
+  // subtopic) sourced from the Syllabus Studio. `curr` holds the latest payload,
+  // including the server-ready grade/subject/curriculum/framework fields.
+  const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -63,19 +60,22 @@ export default function HomeworkStudio() {
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
 
-  const { subjectOptions, subjectValues } = useCurriculumOptions(form.grade)
-  useEffect(() => {
-    if (form.subject && !subjectValues.has(form.subject)) {
-      setForm((f) => ({ ...f, subject: defaultSubjectForGrade(f.grade) }))
-    }
-  }, [form.grade, form.subject, subjectValues])
-
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   async function onGenerate(e) {
     e.preventDefault()
-    if (!form.topic.trim()) {
-      setErrorMessage('Please enter a topic.')
+    if (!curr.curriculumMode) {
+      setErrorMessage('Please choose a curriculum.')
+      setStatus('error')
+      return
+    }
+    if (!curr.grade || !curr.subject) {
+      setErrorMessage('Please select a class and subject.')
+      setStatus('error')
+      return
+    }
+    if (!curr.topic || !curr.topic.trim()) {
+      setErrorMessage('Please select a topic.')
       setStatus('error')
       return
     }
@@ -85,7 +85,15 @@ export default function HomeworkStudio() {
     setErrorDetail('')
     setWarning('')
     setHomework(null)
-    const res = await generateHomework(form)
+    const res = await generateHomework({
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      topic: curr.topic,
+      subtopic: curr.subtopic,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    })
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -105,8 +113,8 @@ export default function HomeworkStudio() {
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
-        grade: form.grade,
-        subject: form.subject,
+        grade: curr.grade,
+        subject: curr.subject,
         assessmentType: 'homework',
       }).catch((err) => console.error('[library attach]', err))
     }
@@ -114,14 +122,14 @@ export default function HomeworkStudio() {
     // (no Share button). Homework items are plain short-answer, mapped to the
     // editor shape the bank stores. Fire-and-forget: must never affect the UX.
     if (currentUser?.uid) {
-      const topic = res.data.homework?.header?.topic || form.topic
+      const topic = res.data.homework?.header?.topic || curr.topic
       const banked = (res.data.homework?.questions || [])
         .map((q) => homeworkQuestionToBank(q, { topic }))
         .filter(Boolean)
       captureQuestionsToBank(
         currentUser.uid,
         banked,
-        { subject: form.subject, grade: form.grade, topic },
+        { subject: curr.subject, grade: curr.grade, topic },
         'homework_studio',
       )
     }
@@ -131,9 +139,9 @@ export default function HomeworkStudio() {
     if (!homework) return
     const name = buildDownloadName({
       docType: includeAnswers ? 'Homework' : 'Homework (pupil)',
-      grade: form.grade,
-      subject: form.subject,
-      topic: homework.header?.topic || form.topic,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
+      topic: homework.header?.topic || curr.topic,
     })
     downloadHomeworkDocx(homework, name, {
       attribution: isFreePlanTeacher({ userProfile, isAdmin }),
@@ -145,9 +153,9 @@ export default function HomeworkStudio() {
     if (!homework) return
     const name = buildDownloadName({
       docType: includeAnswers ? 'Homework' : 'Homework (pupil)',
-      grade: form.grade,
-      subject: form.subject,
-      topic: homework.header?.topic || form.topic,
+      grade: curr.grade,
+      subject: curr.subjectLabel || curr.subject,
+      topic: homework.header?.topic || curr.topic,
       ext: 'pdf',
     })
     downloadHomeworkPdf(homework, name, {
@@ -169,17 +177,15 @@ export default function HomeworkStudio() {
         <div className="grid grid-cols-1 gap-6">
           <form onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto">
-            <FieldSelect label="Grade" value={form.grade}
-              options={TEACHER_GRADES} onChange={(v) => set('grade', v)} />
-            <FieldSelect label="Subject" value={form.subject}
-              options={subjectOptions} onChange={(v) => set('subject', v)} />
-            <TopicSubtopicPicker
-              grade={form.grade}
-              subject={form.subject}
-              topic={form.topic}
-              subtopic={form.subtopic}
-              onChangeTopic={(v) => set('topic', v)}
-              onChangeSubtopic={(v) => set('subtopic', v)}
+            <StudioCurriculumSelector
+              value={{
+                curriculumMode: urlDefaults.curriculum || null,
+                gradeLabel: urlDefaults.grade || '',
+                subjectKey: urlDefaults.subject || '',
+                topic: urlDefaults.topic || '',
+                subtopic: urlDefaults.subtopic || '',
+              }}
+              onChange={setCurr}
             />
             <FieldSelect label="Term" value={form.term}
               options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
