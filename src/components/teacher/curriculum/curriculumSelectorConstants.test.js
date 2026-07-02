@@ -9,8 +9,11 @@
 import assert from 'node:assert/strict'
 import {
   studioLabelToKbGrade,
+  kbGradeToStudioLabel,
   curriculumToFramework,
+  normalizeSelectorSeed,
   selectorPayloadToServerInputs,
+  subjectSlugOf,
   gradeListFor,
   gradeValuesFor,
 } from './curriculumSelectorConstants.js'
@@ -127,6 +130,48 @@ ok('empty subject/grade map to empty strings (no crash)', () => {
   assert.equal(out.grade, '')
   assert.equal(out.subject, '')
   assert.equal(out.curriculum, 'cbc')
+})
+
+ok('kbGradeToStudioLabel inverts codes, numbers and passes labels through', () => {
+  assert.equal(kbGradeToStudioLabel('G5'), 'Grade 5')
+  assert.equal(kbGradeToStudioLabel('g12'), 'Grade 12')
+  assert.equal(kbGradeToStudioLabel('F1'), 'Form 1')
+  assert.equal(kbGradeToStudioLabel('ECE_N'), 'Nursery')
+  assert.equal(kbGradeToStudioLabel('ECE_R'), 'Reception')
+  assert.equal(kbGradeToStudioLabel('5'), 'Grade 5')
+  assert.equal(kbGradeToStudioLabel('Grade 5'), 'Grade 5')
+  assert.equal(kbGradeToStudioLabel('Form 2'), 'Form 2')
+  assert.equal(kbGradeToStudioLabel(''), '')
+  // Round-trip with the forward mapper for every offered grade.
+  for (const g of [...gradeListFor('cbc'), ...gradeListFor('previous')]) {
+    assert.equal(kbGradeToStudioLabel(studioLabelToKbGrade(g.value)), g.value)
+  }
+})
+
+ok('normalizeSelectorSeed accepts legacy deep-link shapes', () => {
+  // Old links carried KB codes + slugs, no curriculum → defaults to cbc.
+  const s = normalizeSelectorSeed({ grade: 'G5', subject: 'mathematics', topic: 'Fractions' })
+  assert.equal(s.curriculumMode, 'cbc')
+  assert.equal(s.gradeLabel, 'Grade 5')
+  assert.equal(s.subjectKey, 'mathematics')
+  assert.equal(s.topic, 'Fractions')
+})
+
+ok('normalizeSelectorSeed honours explicit curriculum/framework', () => {
+  assert.equal(normalizeSelectorSeed({ curriculum: 'previous', grade: 'G10' }).curriculumMode, 'previous')
+  assert.equal(normalizeSelectorSeed({ framework: '2013', grade: 'G10' }).curriculumMode, 'previous')
+  assert.equal(normalizeSelectorSeed({ framework: '2023' }).curriculumMode, 'cbc')
+  assert.equal(normalizeSelectorSeed({ curriculumMode: 'previous' }).curriculumMode, 'previous')
+  // Empty seed stays null — no seed means no preselected curriculum.
+  assert.equal(normalizeSelectorSeed({}).curriculumMode, null)
+  assert.equal(normalizeSelectorSeed(null).curriculumMode, null)
+})
+
+ok('subjectSlugOf folds keys, strand keys, labels and slugs alike', () => {
+  assert.equal(subjectSlugOf('Mathematics Syllabus (Grades 4-6)'), 'mathematics')
+  assert.equal(subjectSlugOf('mathematics'), 'mathematics')
+  assert.equal(subjectSlugOf('Lower Primary Syllabi (Grades 1-3)::Grade 1 - English Language'), 'english')
+  assert.equal(subjectSlugOf('English Language Syllabus (Grades 4-6)'), 'english')
 })
 
 console.log(`\ncurriculumSelectorConstants: ${passed} checks passed`)

@@ -324,13 +324,7 @@ export default function NotesStudio() {
             {mode === MODE_STANDALONE && (
               <>
                 <StudioCurriculumSelector
-                  value={{
-                    curriculumMode: urlDefaults?.curriculum || null,
-                    gradeLabel: urlDefaults?.grade || '',
-                    subjectKey: urlDefaults?.subject || '',
-                    topic: urlDefaults?.topic || '',
-                    subtopic: urlDefaults?.subtopic || '',
-                  }}
+                  value={urlDefaults}
                   onChange={setCurr}
                 />
                 <FieldSelect

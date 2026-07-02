@@ -20,13 +20,25 @@
  * their existing Cloud Function call.
  *
  * Props:
- *   value              optional initial seed { curriculumMode, gradeLabel,
- *                      subjectKey, topic, subtopic } — used for deep-link /
- *                      Teaching-Kit prefill (read once on mount).
+ *   value              optional loose seed — deep link / Teaching-Kit handoff /
+ *                      edited record. Read once on mount and normalized via
+ *                      normalizeSelectorSeed, so legacy shapes (grade 'G5',
+ *                      subject slug 'mathematics', framework '2013') seed
+ *                      correctly. A seeded subject slug is resolved against the
+ *                      loaded syllabi keys once they arrive.
  *   onChange(payload)  fired on any change with the payload documented below.
  *   showTopicSubtopic  default true; false for roster/marks tools (Class
  *                      Register, Mark Schedule) that stop at subject.
  *   showCurriculumPicker default true.
+ *   gradeOptions       optional [{group, value, label}] override. When given,
+ *                      this exact list is offered for BOTH curricula (no
+ *                      syllabi-availability filtering, no validity clearing) —
+ *                      for tools whose grade set is their own data model (the
+ *                      Class Register's Baby/Middle classes) rather than the
+ *                      syllabi's.
+ *   subjectFallback    optional string[] offered when the syllabi have no
+ *                      subjects for the chosen grade — keeps roster tools
+ *                      usable for classes the syllabi don't cover.
  *   disabled           default false.
  *   className / labelClassName / inputClassName  theming hooks.
  *
@@ -52,7 +64,9 @@ import {
   gradeListFor,
   gradeValuesFor,
   groupedGrades,
+  normalizeSelectorSeed,
   selectorPayloadToServerInputs,
+  subjectSlugOf,
 } from './curriculumSelectorConstants.js'
 // The CurriculumPicker cards use `.lps-*` classes; importing the reference CSS
 // once makes them styled wherever this shared component is mounted.
@@ -63,28 +77,41 @@ export default function StudioCurriculumSelector({
   onChange,
   showTopicSubtopic = true,
   showCurriculumPicker = true,
+  gradeOptions = null,
+  subjectFallback = null,
   disabled = false,
   className = '',
   labelClassName = 'studio-label',
   inputClassName = 'studio-input',
 }) {
   const uid = useId()
-  const seed = value || {}
-  const [curriculumMode, setCurriculumMode] = useState(seed.curriculumMode ?? null)
-  const [gradeLabel, setGradeLabel] = useState(seed.gradeLabel ?? '')
-  const [subjectKey, setSubjectKey] = useState(seed.subjectKey ?? '')
-  const [topic, setTopic] = useState(seed.topic ?? '')
-  const [subtopic, setSubtopic] = useState(seed.subtopic ?? '')
+  // Normalize the loose seed once (state initializers run only on mount).
+  const [seed] = useState(() => normalizeSelectorSeed(value))
+  const [curriculumMode, setCurriculumMode] = useState(seed.curriculumMode)
+  const [gradeLabel, setGradeLabel] = useState(seed.gradeLabel)
+  const [subjectKey, setSubjectKey] = useState(seed.subjectKey)
+  const [topic, setTopic] = useState(seed.topic)
+  const [subtopic, setSubtopic] = useState(seed.subtopic)
+
+  const hasCustomGrades = Array.isArray(gradeOptions) && gradeOptions.length > 0
 
   // Grades that actually resolve to subjects for this curriculum (data-driven,
   // so a grade with no syllabus data is never offered — matches the reference).
-  const candidateGradeValues = curriculumMode
+  // Skipped entirely when the host supplies its own grade list.
+  const candidateGradeValues = !hasCustomGrades && curriculumMode
     ? gradeListFor(curriculumMode).map((g) => g.value)
     : []
   const { available: availableGrades, loading: gradesLoading } = useAvailableGrades(
     candidateGradeValues,
     curriculumMode,
   )
+  // Treat an EMPTY availability list the same as "unknown": the data layer
+  // swallows fetch failures into an empty syllabi object, so [] can mean "the
+  // syllabi failed to load" — never empty the picker (or clear a selection)
+  // on what may be a transient failure. A curriculum with genuinely zero
+  // grades would be a data emergency where the full list is the safer offer.
+  const gradesKnown = Array.isArray(availableGrades) && availableGrades.length > 0
+
   const { subjects, loading: subjectsLoading } = useSubjectsForGrade(gradeLabel, curriculumMode)
   const { topics, loading: topicsLoading, error: topicsError } = useSubjectTopics(
     subjectKey,
@@ -98,6 +125,14 @@ export default function StudioCurriculumSelector({
     subtopic,
     curriculumMode,
   )
+
+  // Syllabi empty for this grade → offer the host's fallback subjects (roster
+  // tools cover classes the syllabi don't). Values pass through unchanged.
+  const usingFallbackSubjects = Boolean(
+    subjectFallback && subjectFallback.length > 0 &&
+    gradeLabel && !subjectsLoading && subjects.length === 0,
+  )
+  const subjectOptions = usingFallbackSubjects ? subjectFallback : subjects
 
   // ── Cascading resets: changing a level clears everything below it ──────────
   function chooseCurriculum(mode) {
@@ -125,36 +160,48 @@ export default function StudioCurriculumSelector({
   }
 
   // Clear a grade that isn't valid for the active curriculum's grade list
-  // (guards a seeded mode/grade mismatch).
+  // (guards a seeded mode/grade mismatch). Hosts with a custom grade list own
+  // their values for both curricula, so this check doesn't apply there.
   useEffect(() => {
-    if (!curriculumMode) return
+    if (!curriculumMode || hasCustomGrades) return
     if (gradeLabel && !gradeValuesFor(curriculumMode).has(gradeLabel)) {
       setGradeLabel('')
       setSubjectKey('')
       setTopic('')
       setSubtopic('')
     }
-  }, [curriculumMode, gradeLabel])
+  }, [curriculumMode, gradeLabel, hasCustomGrades])
 
-  // Clear a grade that resolves to no subjects once availability is known.
+  // Clear a grade that resolves to no subjects once availability is KNOWN
+  // (non-empty — see gradesKnown above for why [] doesn't count).
   useEffect(() => {
-    if (!availableGrades) return
+    if (!gradesKnown || hasCustomGrades) return
     if (gradeLabel && !availableGrades.includes(gradeLabel)) {
       setGradeLabel('')
       setSubjectKey('')
       setTopic('')
       setSubtopic('')
     }
-  }, [availableGrades, gradeLabel])
+  }, [availableGrades, gradesKnown, gradeLabel, hasCustomGrades])
 
-  // Clear a subject that's no longer offered for the current grade.
+  // Reconcile the subject against the loaded list. A seeded subject may be a
+  // canonical slug ('mathematics' from a legacy deep link) or a stale key from
+  // another grade: try to resolve it to the matching syllabi key by slug
+  // before clearing, so old links and edited records land on the right option
+  // instead of dead-ending.
   useEffect(() => {
-    if (subjectKey && !subjectsLoading && subjects.length > 0 && !subjects.includes(subjectKey)) {
+    if (!subjectKey || subjectsLoading || subjects.length === 0) return
+    if (subjects.includes(subjectKey)) return
+    const slug = subjectSlugOf(subjectKey)
+    const match = subjects.find((s) => subjectSlugOf(s) === slug)
+    if (match) {
+      setSubjectKey(match)
+    } else if (!usingFallbackSubjects) {
       setSubjectKey('')
       setTopic('')
       setSubtopic('')
     }
-  }, [subjects, subjectsLoading, subjectKey])
+  }, [subjects, subjectsLoading, subjectKey, usingFallbackSubjects])
 
   // ── Emit the full selection on any change ─────────────────────────────────
   const onChangeRef = useRef(onChange)
@@ -182,11 +229,14 @@ export default function StudioCurriculumSelector({
     })
   }, [curriculumMode, gradeLabel, subjectKey, topic, subtopic, subtopicRow])
 
-  // Grades to render: only those with data once availability resolves; until
-  // then (or on a load failure → null) fall back to the full candidate list.
-  const gradeList = availableGrades
-    ? gradeListFor(curriculumMode).filter((g) => availableGrades.includes(g.value))
-    : gradeListFor(curriculumMode)
+  // Grades to render: the host's own list verbatim, or the curriculum's list
+  // filtered to grades with data once availability is known (falling back to
+  // the full candidate list until then / on a failed load).
+  const gradeList = hasCustomGrades
+    ? gradeOptions
+    : gradesKnown
+      ? gradeListFor(curriculumMode).filter((g) => availableGrades.includes(g.value))
+      : gradeListFor(curriculumMode)
   const grouped = groupedGrades(gradeList)
 
   const selectedTopicObj = topics.find((t) => t.label === topic) ?? null
@@ -223,7 +273,7 @@ export default function StudioCurriculumSelector({
           <option value="">
             {!curriculumMode
               ? 'Choose a curriculum first…'
-              : gradesLoading && !availableGrades
+              : gradesLoading && !gradesKnown
                 ? 'Loading classes…'
                 : 'Select class…'}
           </option>
@@ -245,18 +295,18 @@ export default function StudioCurriculumSelector({
           className={inputClassName}
           value={subjectKey}
           onChange={(e) => chooseSubject(e.target.value)}
-          disabled={subjectDisabled}
+          disabled={subjectDisabled || (subjectOptions.length === 0 && !subjectsLoading)}
         >
           <option value="">
             {!gradeLabel
               ? 'Select a class first…'
               : subjectsLoading
                 ? 'Loading subjects…'
-                : subjects.length === 0
+                : subjectOptions.length === 0
                   ? 'No subjects for this class yet'
                   : 'Select subject…'}
           </option>
-          {subjects.map((s) => (
+          {subjectOptions.map((s) => (
             <option key={s} value={s}>{cleanSubjectName(s)}</option>
           ))}
         </select>

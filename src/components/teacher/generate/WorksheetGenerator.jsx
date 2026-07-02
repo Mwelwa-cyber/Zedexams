@@ -231,13 +231,7 @@ export default function WorksheetGenerator() {
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
           >
             <StudioCurriculumSelector
-              value={{
-                curriculumMode: urlDefaults?.curriculum || null,
-                gradeLabel: urlDefaults?.grade || '',
-                subjectKey: urlDefaults?.subject || '',
-                topic: urlDefaults?.topic || '',
-                subtopic: urlDefaults?.subtopic || '',
-              }}
+              value={urlDefaults}
               onChange={setCurr}
             />
             <FieldSelect

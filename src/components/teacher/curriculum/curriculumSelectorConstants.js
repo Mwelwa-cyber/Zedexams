@@ -115,6 +115,71 @@ export function studioLabelToKbGrade(label) {
 }
 
 /**
+ * Canonical subject slug for any subject shape — raw syllabi key, strand key,
+ * clean label or already-canonical slug. Used to match a seeded subject (which
+ * may arrive as a slug like 'mathematics' from a legacy deep link) against the
+ * loaded syllabi subject keys.
+ */
+export function subjectSlugOf(subjectKeyOrLabel) {
+  return toKbSubjectKey(cleanSubjectName(subjectKeyOrLabel))
+}
+
+/**
+ * KB grade code → studio grade LABEL (the inverse of studioLabelToKbGrade).
+ * Accepts codes ('G5', 'F1', 'ECE_N'), bare numbers ('5') and already-correct
+ * labels ('Grade 5', 'Form 1', 'Nursery' — returned unchanged). Used to
+ * normalize deep-link / Teaching-Kit seeds, which historically carried KB
+ * codes, into the label shape the selector's cascade matches against.
+ *
+ * @param {string} value grade in any known shape
+ * @returns {string} studio grade label, or '' when unrecognisable
+ */
+export function kbGradeToStudioLabel(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const upper = raw.toUpperCase()
+  if (upper === 'ECE_N') return 'Nursery'
+  if (upper === 'ECE_R') return 'Reception'
+  const g = upper.match(/^G(\d+)$/)
+  if (g) return `Grade ${g[1]}`
+  const f = upper.match(/^F(\d+)$/)
+  if (f) return `Form ${f[1]}`
+  if (/^\d+$/.test(upper)) return `Grade ${upper}`
+  // Already a label ('Grade 5', 'Form 1', 'Nursery') — pass through.
+  return raw
+}
+
+/**
+ * Normalize a loose seed (deep link, Teaching-Kit handoff, edited record)
+ * into the exact seed shape StudioCurriculumSelector's state expects.
+ *
+ * Accepts any mix of legacy and new shapes:
+ *   curriculumMode | curriculum ('cbc'/'previous') | framework ('2023'/'2013')
+ *   gradeLabel ('Grade 5') | grade ('G5' / '5' / 'Grade 5')
+ *   subjectKey (raw syllabi key) | subject (canonical slug or key)
+ * When no curriculum is given but other coordinates are, defaults to 'cbc'
+ * so the seeded cascade is actually usable (a null mode leaves every field
+ * disabled and the seed would otherwise be dead on arrival).
+ *
+ * @param {object|null} seedLike
+ * @returns {{curriculumMode, gradeLabel, subjectKey, topic, subtopic}}
+ */
+export function normalizeSelectorSeed(seedLike) {
+  const s = seedLike || {}
+  const modeRaw = String(s.curriculumMode ?? s.curriculum ?? '').toLowerCase()
+  let curriculumMode =
+    modeRaw === 'previous' || modeRaw === 'cbc' ? modeRaw :
+    String(s.framework || '') === '2013' ? 'previous' :
+    String(s.framework || '') === '2023' ? 'cbc' : null
+  const gradeLabel = kbGradeToStudioLabel(s.gradeLabel || s.grade || '')
+  const subjectKey = String(s.subjectKey || s.subject || '')
+  const topic = String(s.topic || '')
+  const subtopic = String(s.subtopic || '')
+  if (!curriculumMode && (gradeLabel || subjectKey || topic)) curriculumMode = 'cbc'
+  return { curriculumMode, gradeLabel, subjectKey, topic, subtopic }
+}
+
+/**
  * Map a StudioCurriculumSelector payload to the input shape the teacher-tool
  * Cloud Functions already validate + ground against, plus the explicit
  * curriculum/framework flags that drive CBC-vs-Previous AI branching.

@@ -9,8 +9,10 @@ vi.mock('../studio/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: () => ({ available: null, loading: false }),
 }))
 vi.mock('../studio/hooks/useSubjectsForGrade.js', () => ({
+  // Subjects exist only for Grade 4 — other grades (e.g. a host-supplied
+  // "Baby Class") resolve to an empty list, exercising the fallback path.
   useSubjectsForGrade: (grade) => ({
-    subjects: grade ? ['Mathematics Syllabus (Grades 4-6)'] : [],
+    subjects: grade === 'Grade 4' ? ['Mathematics Syllabus (Grades 4-6)'] : [],
     loading: false,
     error: null,
   }),
@@ -106,6 +108,80 @@ describe('StudioCurriculumSelector — reset on curriculum change', () => {
     expect(p.subject).toBe('')
     expect(p.curriculum).toBe('previous')
     expect(screen.getByRole('combobox', { name: /class \/ grade/i })).toHaveValue('')
+  })
+})
+
+describe('StudioCurriculumSelector — seeding (deep links / edited records)', () => {
+  it('normalizes a legacy KB-shaped seed and defaults the curriculum to CBC', () => {
+    const onChange = vi.fn()
+    render(
+      <StudioCurriculumSelector
+        onChange={onChange}
+        value={{ grade: 'G4', subject: 'mathematics', topic: 'Fractions' }}
+      />,
+    )
+    const p = lastPayload(onChange)
+    expect(p.curriculumMode).toBe('cbc')
+    expect(p.gradeLabel).toBe('Grade 4')
+    // The slug seed resolves to the matching syllabi key once subjects load.
+    expect(p.subjectKey).toBe('Mathematics Syllabus (Grades 4-6)')
+    expect(p.subject).toBe('mathematics')
+    expect(p.topic).toBe('Fractions')
+  })
+
+  it('keeps a seeded raw syllabi subject key as-is', () => {
+    const onChange = vi.fn()
+    render(
+      <StudioCurriculumSelector
+        onChange={onChange}
+        value={{
+          curriculumMode: 'cbc',
+          gradeLabel: 'Grade 4',
+          subjectKey: 'Mathematics Syllabus (Grades 4-6)',
+        }}
+      />,
+    )
+    expect(lastPayload(onChange).subjectKey).toBe('Mathematics Syllabus (Grades 4-6)')
+  })
+})
+
+describe('StudioCurriculumSelector — gradeOptions override + subjectFallback', () => {
+  it('offers the host grade list verbatim and does not clear off-list grades', () => {
+    const onChange = vi.fn()
+    render(
+      <StudioCurriculumSelector
+        onChange={onChange}
+        value={{ curriculumMode: 'cbc', gradeLabel: 'Baby Class' }}
+        gradeOptions={[
+          { group: 'ECE', value: 'Baby Class', label: 'Baby Class' },
+          { group: 'Primary', value: 'Grade 9', label: 'Grade 9' },
+        ]}
+      />,
+    )
+    const grade = screen.getByRole('combobox', { name: /class \/ grade/i })
+    expect(grade).toHaveValue('Baby Class')
+    expect(screen.getByRole('option', { name: 'Grade 9' })).toBeInTheDocument()
+    expect(lastPayload(onChange).gradeLabel).toBe('Baby Class')
+  })
+
+  it('falls back to host subjects when the syllabi have none for the grade', () => {
+    const onChange = vi.fn()
+    render(
+      <StudioCurriculumSelector
+        onChange={onChange}
+        value={{ curriculumMode: 'cbc', gradeLabel: 'Baby Class' }}
+        gradeOptions={[{ group: 'ECE', value: 'Baby Class', label: 'Baby Class' }]}
+        subjectFallback={['Mathematics', 'English']}
+      />,
+    )
+    // The mock resolves no syllabi subjects for "Baby Class", so the host's
+    // fallback subjects are offered and selectable.
+    fireEvent.change(screen.getByRole('combobox', { name: /subject/i }), {
+      target: { value: 'Mathematics' },
+    })
+    const p = lastPayload(onChange)
+    expect(p.subjectKey).toBe('Mathematics')
+    expect(p.subjectLabel).toBe('Mathematics')
   })
 })
 

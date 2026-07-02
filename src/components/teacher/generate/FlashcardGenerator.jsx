@@ -195,13 +195,7 @@ export default function FlashcardGenerator() {
             className="studio-card p-5 space-y-4 h-fit sticky top-4"
           >
             <StudioCurriculumSelector
-              value={{
-                curriculumMode: urlDefaults?.curriculum || null,
-                gradeLabel: urlDefaults?.grade || '',
-                subjectKey: urlDefaults?.subject || '',
-                topic: urlDefaults?.topic || '',
-                subtopic: urlDefaults?.subtopic || '',
-              }}
+              value={urlDefaults}
               onChange={setCurr}
             />
             <FieldSelect
