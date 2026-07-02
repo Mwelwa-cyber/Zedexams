@@ -707,6 +707,13 @@ function headerParagraphs(b) {
   if (!b) return []
   const out = []
   out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 }), { spacing: { after: 40 } }))
+  // School identity lines from Teacher Settings → My School (all optional).
+  // The logo image is preview/PDF-only for now — embedding it in the Word
+  // header needs a CORS byte fetch; the text identity is what schools require.
+  const addressLine = [b.address, b.emisNumber ? `EMIS: ${b.emisNumber}` : '']
+    .filter(Boolean).join(' · ')
+  if (addressLine) out.push(centeredPara(runText(addressLine, { size: 18 }), { spacing: { after: 30 } }))
+  if (b.motto) out.push(centeredPara(runText(`“${b.motto}”`, { italics: true, size: 18 }), { spacing: { after: 40 } }))
   out.push(centeredPara(runText(b.title, { bold: true, size: 22 }), { spacing: { after: 40 } }))
   if (b.subject) out.push(centeredPara(runText(b.subject, { bold: true, size: 24 }), { spacing: { after: 40 } }))
   if (b.paperName) out.push(centeredPara(runText(b.paperName, { bold: true, size: 22 }), { spacing: { after: 40 } }))

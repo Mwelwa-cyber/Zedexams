@@ -16,6 +16,8 @@ import { normalizePlanShape } from './utils/planShape'
 import { cleanSubjectName } from './utils/subjectName'
 import { STUDIO_SYSTEM_PROMPT_CBC, STUDIO_SYSTEM_PROMPT_PREVIOUS } from './utils/studioSystemPrompt'
 import { schoolResourcePromptLines, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
+import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefaults'
+import { getSchoolProfile } from '../../../utils/schoolProfileService'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
@@ -167,22 +169,62 @@ export default function LessonPlanStudio() {
     studioStateRef.current = studioState
   })
 
+  // Same ref pattern for the live profile: handleGenerate is memoised on
+  // [uid] only, so reading userProfile from its closure would freeze the
+  // teacher's AI preferences at first render.
+  const userProfileRef = useRef(userProfile)
+  useEffect(() => {
+    userProfileRef.current = userProfile
+  })
+
   // Auto-fill Teacher Name + School from the signed-in teacher's profile (the
   // details they gave at signup) the first time the profile loads, so they
-  // don't retype them on every plan. Only fills fields that are still empty —
-  // never clobbers something the teacher has already typed — and both inputs
-  // stay fully editable in the Lesson Details section.
+  // don't retype them on every plan. Teacher Settings preferences (medium /
+  // detail / reflection / school resource level — see utils/teacherDefaults)
+  // seed the same way. Only fills fields still at their defaults — never
+  // clobbers something the teacher has already set — and every input stays
+  // fully editable.
   const prefilledIdentityRef = useRef(false)
-  const { setLessonDetails } = studioState
+  // Unmount-only guard for the async seed below. A `cancelled` flag in the
+  // effect closure would also fire when the profile snapshot ticks again
+  // (userProfile is a fresh object every onSnapshot), silently dropping the
+  // pending seed — the ref only flips on real unmount.
+  const unmountedRef = useRef(false)
+  useEffect(() => () => { unmountedRef.current = true }, [])
+  const { setLessonDetails, updateFormatOption } = studioState
   useEffect(() => {
     if (prefilledIdentityRef.current || !userProfile) return
     prefilledIdentityRef.current = true
-    setLessonDetails((prev) => ({
-      ...prev,
-      teacherName: prev.teacherName || userProfile.displayName || '',
-      school: prev.school || userProfile.school || '',
-    }))
-  }, [userProfile, setLessonDetails])
+    // The resource level lives on schoolProfiles/{uid}; the fetch is
+    // best-effort (returns null offline) and everything else applies without it.
+    // eslint-disable-next-line promise/catch-or-return -- catch precedes then by design: the seed applies even when the profile fetch fails
+    getSchoolProfile(currentUser?.uid)
+      .catch(() => null)
+      .then((schoolProfile) => {
+        if (unmountedRef.current) return
+        const seed = lessonStudioSeed(userProfile, schoolProfile)
+        setLessonDetails((prev) => ({
+          ...prev,
+          teacherName: prev.teacherName || userProfile.displayName || '',
+          school: prev.school || userProfile.school || '',
+          medium: prev.medium === 'English' && seed.medium ? seed.medium : prev.medium,
+          resources:
+            prev.resources === DEFAULT_SCHOOL_RESOURCES && seed.resources
+              ? seed.resources
+              : prev.resources,
+        }))
+        const current = studioStateRef.current
+        if (seed.detail && current.formatOptions.detail === 'standard') {
+          updateFormatOption('detail', seed.detail)
+        }
+        if (
+          seed.includeLessonEvaluation === false &&
+          current.formatOptions.advanced?.includeLessonEvaluation === true
+        ) {
+          updateFormatOption('advanced', { includeLessonEvaluation: false })
+        }
+      })
+  }, [userProfile, currentUser, setLessonDetails, updateFormatOption])
 
   // Learning Environment is a CBC-only concept. When the teacher switches to
   // the Previous (Outcomes-Based) curriculum, clear any environments selected
@@ -509,6 +551,10 @@ export default function LessonPlanStudio() {
         : 'Standard — formal teacher language'
     userPromptLines.push('', `- Lesson plan detail: ${detailLabel}`)
     userPromptLines.push(`- Writing style: ${styleLabel}`)
+
+    // Teacher Settings → My AI: English variant + include/exclude switches
+    // (pure derivation, order-stable — see utils/teacherDefaults).
+    userPromptLines.push(...aiPrefsPromptLines(userProfileRef.current))
 
     // "Write in Local Language" toggle — only meaningful when the medium of
     // instruction is a Zambian local language (the form disables it otherwise).

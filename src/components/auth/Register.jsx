@@ -9,24 +9,12 @@ import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
+import { ZAMBIAN_PROVINCES } from '../../config/zambia'
 
 // Auth-error copy is centralised in src/utils/friendlyErrors.js
 // (friendlyAuthMessage with flow: 'signup') so Login + Register share one
 // source of truth. The sign-up phrasing of the native Google failures lives
 // there too.
-
-const ZAMBIAN_PROVINCES = [
-  'Central',
-  'Copperbelt',
-  'Eastern',
-  'Luapula',
-  'Lusaka',
-  'Muchinga',
-  'Northern',
-  'North-Western',
-  'Southern',
-  'Western',
-]
 
 const TEACHER_SUBJECTS = [
   'English',

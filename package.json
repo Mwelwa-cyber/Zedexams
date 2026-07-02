@@ -163,6 +163,8 @@
     "test:difficulty": "node src/utils/assessmentDifficulty.test.js",
     "test:bloom": "node src/utils/assessmentBloom.test.js",
     "test:school-profile": "node src/utils/schoolProfile.test.js",
+    "test:teacher-settings": "node src/utils/teacherSettingsCore.test.js",
+    "test:teacher-defaults": "node src/utils/teacherDefaults.test.js",
     "test:rich-formatting": "node src/utils/richTextFormatting.test.js",
     "test:exam-paper-library": "node functions/teacherTools/examPaperLibraryHelpers.test.js",
     "test:anthropic-client": "node functions/teacherTools/anthropicClient.test.js",

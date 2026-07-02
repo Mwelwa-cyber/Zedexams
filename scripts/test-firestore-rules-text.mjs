@@ -453,6 +453,38 @@ test('examTimetables are public-read, admin-write', () => {
   )
 })
 
+test('schoolProfiles stays owner-write with bounded school-identity fields', () => {
+  // Teacher Settings → My School writes these; every field validator is
+  // presence-gated (validate only what the write carries) and size-bounded as
+  // a tampered-client backstop. UI caps mirror these in
+  // src/utils/schoolProfile.js normalizeSchoolProfile.
+  const idx = rules.indexOf('match /schoolProfiles/{uid}')
+  assert(idx >= 0, 'schoolProfiles match block not found')
+  const slice = rules.slice(idx, idx + 3200)
+  assert(
+    /allow write: if isAuthed\(\) && isOwner\(uid\)/.test(slice),
+    'schoolProfiles writes must stay owner-only',
+  )
+  for (const [field, cap] of [
+    ['emisNumber', 40],
+    ['province', 40],
+    ['district', 80],
+    ['schoolType', 40],
+    ['address', 300],
+    ['motto', 160],
+    ['footerText', 300],
+    ['resourceLevel', 10],
+    ['teacherSignatureUrl', 2000],
+    ['schoolStampUrl', 2000],
+    ['letterheadUrl', 2000],
+  ]) {
+    assert(
+      slice.includes(`incoming().${field} is string && incoming().${field}.size() <= ${cap}`),
+      `schoolProfiles.${field} validator (≤${cap}) missing — Teacher Settings School/Branding panel field unguarded`,
+    )
+  }
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

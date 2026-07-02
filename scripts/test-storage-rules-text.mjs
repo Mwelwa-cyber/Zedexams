@@ -174,6 +174,7 @@ test('every per-user upload path requires ownsPath(ownerUid)', () => {
     'match /lesson-images/{ownerUid}/',
     'match /lesson-presentations/{ownerUid}/',
     'match /lesson-files/{ownerUid}/',
+    'match /user-branding/{ownerUid}/',
   ]
   for (const path of userPaths) {
     const idx = rules.indexOf(path)
@@ -197,6 +198,28 @@ test('inline lesson images rule sits before the bare lesson-files match', () => 
   assert(inlineIdx > 0, 'inline lesson-files match not found')
   assert(bareIdx > 0, 'bare lesson-files match not found')
   assert(inlineIdx < bareIdx, 'inline match must appear before the bare match — order matters for the wildcard')
+})
+
+// ── Teacher Settings branding assets ────────────────────────────
+
+console.log('\nuser-branding (Teacher Settings assets)')
+
+test('user-branding block exists with the image validator', () => {
+  assertContains('function validBrandingUpload()', 'validBrandingUpload helper missing')
+  const idx = rules.indexOf('match /user-branding/{ownerUid}/')
+  assert(idx >= 0, 'user-branding match path missing')
+  const slice = rules.slice(idx, idx + 600)
+  assert(slice.includes('validBrandingUpload()'), 'user-branding create/update no longer runs validBrandingUpload')
+})
+
+test('user-branding reads are owner/admin only (never public)', () => {
+  const idx = rules.indexOf('match /user-branding/{ownerUid}/')
+  const slice = rules.slice(idx, idx + 600)
+  assert(
+    /allow read: if ownsPath\(ownerUid\) \|\| isAdmin\(\);/.test(slice),
+    'user-branding read rule changed — branding assets are private to the owner'
+  )
+  assert(!/allow read: if true/.test(slice), 'user-branding must never be public-read')
 })
 
 // ── public/anonymous read surfaces ──────────────────────────────

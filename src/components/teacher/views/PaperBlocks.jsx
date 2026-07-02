@@ -72,10 +72,34 @@ export function PaperBlock({ block }) {
 }
 
 function PaperHeaderBlock({ block }) {
+  // Address / EMIS share one small line under the school name; the motto sits
+  // in italics below it. All are optional (Teacher Settings → My School).
+  const addressLine = [block.address, block.emisNumber ? `EMIS: ${block.emisNumber}` : '']
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div className="sv-paper-banner">
       <div className="sv-paper-banner-text">
+        {block.schoolLogoUrl && (
+          <img
+            className="sv-pbn-logo"
+            src={block.schoolLogoUrl}
+            alt=""
+            crossOrigin="anonymous"
+            style={{ height: 56, margin: '0 auto 6px', display: 'block', objectFit: 'contain' }}
+          />
+        )}
         <div className="sv-pbn-school">{(block.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
+        {addressLine && (
+          <div className="sv-pbn-address" style={{ fontSize: 11, letterSpacing: '.02em' }}>
+            {addressLine}
+          </div>
+        )}
+        {block.motto && (
+          <div className="sv-pbn-motto" style={{ fontSize: 11, fontStyle: 'italic', marginBottom: 2 }}>
+            “{block.motto}”
+          </div>
+        )}
         <div className="sv-pbn-title">{block.title}</div>
         {block.subject && <div className="sv-pbn-subject">{block.subject}</div>}
         {block.paperName && <div className="sv-pbn-paper">{block.paperName}</div>}

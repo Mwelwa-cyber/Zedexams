@@ -243,6 +243,12 @@ function mapAssessmentToForm(a = {}) {
   copy('topic')
   copy('assessmentType')
   copy('schoolName')
+  // School identity from Teacher Settings → My School (printed in the paper
+  // header alongside the school name).
+  copy('schoolLogoUrl')
+  copy('motto')
+  copy('address')
+  copy('emisNumber')
   copy('className')
   copy('paperName')
   copy('assessmentDate')
@@ -346,6 +352,12 @@ export default function AssessmentStudio({ variant = 'test' }) {
     topic: '',
     assessmentType: cfg.defaultType,
     schoolName: '',
+    // School identity (seeded from the saved school profile by
+    // applySchoolProfileDefaults; rendered in the paper header when set).
+    schoolLogoUrl: '',
+    motto: '',
+    address: '',
+    emisNumber: '',
     className: '',
     paperName: '',
     assessmentDate: '',
@@ -494,6 +506,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
     topic: form.topic,
     assessmentType: form.assessmentType,
     schoolName: form.schoolName,
+    schoolLogoUrl: form.schoolLogoUrl,
+    motto: form.motto,
+    address: form.address,
+    emisNumber: form.emisNumber,
     className: form.className,
     paperName: form.paperName,
     assessmentDate: form.assessmentDate,
@@ -1845,6 +1861,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
       topic: form.topic,
       assessmentType: form.assessmentType,
       schoolName: form.schoolName,
+      schoolLogoUrl: form.schoolLogoUrl || '',
+      motto: form.motto || '',
+      address: form.address || '',
+      emisNumber: form.emisNumber || '',
       className: form.className,
       paperName: form.paperName,
       assessmentDate: form.assessmentDate,

@@ -25,6 +25,7 @@ import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
+import { curriculumSeedFromProfile, preferredDifficulty } from '../../../utils/teacherDefaults'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -50,6 +51,14 @@ export default function HomeworkStudio() {
   // subtopic) sourced from the Syllabus Studio. `curr` holds the latest payload,
   // including the server-ready grade/subject/curriculum/framework fields.
   const [curr, setCurr] = useState({})
+  // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
+  // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
+  // Read once on mount by the selector — never re-seeds reactively.
+  const [selectorSeed] = useState(() =>
+    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
+      ? urlDefaults
+      : curriculumSeedFromProfile(userProfile),
+  )
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -85,8 +94,19 @@ export default function HomeworkStudio() {
     setErrorDetail('')
     setWarning('')
     setHomework(null)
+    // Teacher Settings → My AI → homework difficulty. The generator has no
+    // difficulty field, so a non-default preference rides along as an extra
+    // instruction line (server caps instructions at 500 chars).
+    const difficulty = preferredDifficulty(userProfile, 'homework')
+    const difficultyLine =
+      difficulty === 'easy'
+        ? 'Keep the questions gentle and confidence-building, with scaffolding.'
+        : difficulty === 'hard'
+          ? 'Make the questions challenging, with stretch tasks that need deeper thinking.'
+          : ''
     const res = await generateHomework({
       ...form,
+      instructions: [form.instructions, difficultyLine].filter(Boolean).join('\n'),
       grade: curr.grade,
       subject: curr.subject,
       topic: curr.topic,
@@ -178,7 +198,7 @@ export default function HomeworkStudio() {
           <form onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto">
             <StudioCurriculumSelector
-              value={urlDefaults}
+              value={selectorSeed}
               onChange={setCurr}
             />
             <FieldSelect label="Term" value={form.term}

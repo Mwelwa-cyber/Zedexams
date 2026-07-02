@@ -1,14 +1,27 @@
 // School Profile — pure helpers (no Firebase, unit-testable).
 //
 // A teacher's saved school branding lives in schoolProfiles/{uid}: the school
-// name and the default paper duration + cover instructions. These helpers
-// normalise the stored shape and apply it as DEFAULTS onto a fresh paper's
-// header so new papers print pre-branded. The Firestore IO lives in
-// ./schoolProfileService; everything here is pure so it can be covered by the
-// plain-node test suite (schoolProfile.test.js).
+// name and identity (EMIS number, province, district, type, address, motto),
+// the default paper duration + cover instructions, the school's resource
+// level, and uploaded branding assets (logo, teacher signature, stamp,
+// letterhead). These helpers normalise the stored shape and apply it as
+// DEFAULTS onto a fresh paper's header so new papers print pre-branded. The
+// Firestore IO lives in ./schoolProfileService; everything here is pure so it
+// can be covered by the plain-node test suite (schoolProfile.test.js).
 
 const MAX_NAME = 200
 const MAX_INSTRUCTIONS = 2000
+const MAX_SHORT = 80
+const MAX_ADDRESS = 300
+const MAX_MOTTO = 160
+const MAX_FOOTER = 300
+const MAX_URL = 2000
+const MAX_PATH = 500
+
+// How well-equipped the school is — mirrors src/config/schoolResources.js
+// values. Stored here (a property of the school, not the teacher) and used to
+// seed the studios' resource-level selects.
+export const SCHOOL_RESOURCE_LEVELS = ['low', 'basic', 'full']
 
 function hasText(v) {
   return typeof v === 'string' && v.trim().length > 0
@@ -35,16 +48,43 @@ export function normalizeSchoolProfile(data = {}) {
       typeof d.defaultCoverInstructions === 'string'
         ? d.defaultCoverInstructions.slice(0, MAX_INSTRUCTIONS)
         : '',
+    // School identity (Teacher Settings → School panel).
+    emisNumber: trimStr(d.emisNumber, 40),
+    province: trimStr(d.province, 40),
+    district: trimStr(d.district, MAX_SHORT),
+    schoolType: trimStr(d.schoolType, 40),
+    address: trimStr(d.address, MAX_ADDRESS),
+    department: trimStr(d.department, MAX_SHORT),
+    motto: trimStr(d.motto, MAX_MOTTO),
+    footerText: trimStr(d.footerText, MAX_FOOTER),
+    // '' means "not set" — studios fall back to their own default ('basic').
+    resourceLevel: SCHOOL_RESOURCE_LEVELS.includes(d.resourceLevel) ? d.resourceLevel : '',
+    // Branding assets (Documents & Branding panel) — Storage download URL +
+    // the object path so the panel can overwrite/delete in place.
+    schoolLogoUrl: trimStr(d.schoolLogoUrl, MAX_URL),
+    schoolLogoPath: trimStr(d.schoolLogoPath, MAX_PATH),
+    teacherSignatureUrl: trimStr(d.teacherSignatureUrl, MAX_URL),
+    teacherSignaturePath: trimStr(d.teacherSignaturePath, MAX_PATH),
+    schoolStampUrl: trimStr(d.schoolStampUrl, MAX_URL),
+    schoolStampPath: trimStr(d.schoolStampPath, MAX_PATH),
+    letterheadUrl: trimStr(d.letterheadUrl, MAX_URL),
+    letterheadPath: trimStr(d.letterheadPath, MAX_PATH),
   }
 }
 
-// True when the profile carries no usable branding at all.
+// True when the profile carries no usable branding at all. Only the fields
+// that would visibly brand a paper count — a saved export-format preference
+// alone doesn't make the profile "set up".
 export function isEmptySchoolProfile(profile) {
   const p = normalizeSchoolProfile(profile)
   return (
     !p.schoolName &&
     !p.defaultDuration &&
-    !p.defaultCoverInstructions
+    !p.defaultCoverInstructions &&
+    !p.emisNumber &&
+    !p.address &&
+    !p.motto &&
+    !p.schoolLogoUrl
   )
 }
 
@@ -61,6 +101,10 @@ export function applySchoolProfileDefaults(form, profile) {
     schoolName: p.schoolName || f.schoolName || '',
     duration: p.defaultDuration || f.duration,
     coverInstructions: p.defaultCoverInstructions || f.coverInstructions || '',
+    schoolLogoUrl: p.schoolLogoUrl || f.schoolLogoUrl || '',
+    motto: p.motto || f.motto || '',
+    address: p.address || f.address || '',
+    emisNumber: p.emisNumber || f.emisNumber || '',
   }
 }
 
@@ -76,6 +120,10 @@ export function brandingForAiPaper(form, profile, recentBranding) {
     hasText(formVal) ? formVal : (p?.[key] || r?.[key] || formVal || '')
   return {
     schoolName: pick(f.schoolName, 'schoolName'),
+    schoolLogoUrl: pick(f.schoolLogoUrl, 'schoolLogoUrl'),
+    motto: pick(f.motto, 'motto'),
+    address: pick(f.address, 'address'),
+    emisNumber: pick(f.emisNumber, 'emisNumber'),
   }
 }
 

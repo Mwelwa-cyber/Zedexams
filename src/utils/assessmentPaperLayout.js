@@ -360,10 +360,16 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
 
   const blocks = []
 
-  // 1. Header
+  // 1. Header — school identity from Teacher Settings → My School rides on
+  // the saved paper (applySchoolProfileDefaults seeds it onto fresh papers).
+  // All optional: blank fields simply don't render a line.
   blocks.push({
     kind: 'header',
     schoolName: String(assessment.schoolName || '').trim(),
+    schoolLogoUrl: String(assessment.schoolLogoUrl || '').trim(),
+    motto: String(assessment.motto || '').trim(),
+    address: String(assessment.address || '').trim(),
+    emisNumber: String(assessment.emisNumber || '').trim(),
     title: buildPaperTitle(assessment),
     subject: String(assessment.subject || '').trim().toUpperCase(),
     paperName: String(assessment.paperName || '').trim().toUpperCase(),
