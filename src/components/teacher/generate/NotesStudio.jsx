@@ -31,6 +31,7 @@ import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
+import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 
@@ -52,6 +53,14 @@ export default function NotesStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
+  // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
+  // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
+  // Read once on mount by the selector — never re-seeds reactively.
+  const [selectorSeed] = useState(() =>
+    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
+      ? urlDefaults
+      : curriculumSeedFromProfile(userProfile),
+  )
 
   // If a lessonPlanId is in the URL, default to the from-plan tab.
   const initialMode = urlDefaults.lessonPlanId ? MODE_FROM_PLAN : MODE_STANDALONE
@@ -324,7 +333,7 @@ export default function NotesStudio() {
             {mode === MODE_STANDALONE && (
               <>
                 <StudioCurriculumSelector
-                  value={urlDefaults}
+                  value={selectorSeed}
                   onChange={setCurr}
                 />
                 <FieldSelect

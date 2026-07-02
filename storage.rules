@@ -294,6 +294,25 @@ service firebase.storage {
       allow delete: if ownsPath(ownerUid);
     }
 
+    // Teacher Settings branding assets: profile photo, school logo, teacher
+    // signature, school stamp, letterhead. Fixed filenames per asset
+    // (overwrite-in-place, so no orphan buildup). Owner-only read — branding
+    // is baked into exports in the OWNER'S browser; nothing learner-facing
+    // references these URLs. Bucket CORS (cors.json) must be deployed so the
+    // PDF/DOCX exporters can read the BYTES — see CLAUDE.md "npm run
+    // storage:cors".
+    function validBrandingUpload() {
+      return request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+    match /user-branding/{ownerUid}/{fileName=**} {
+      allow read: if ownsPath(ownerUid) || isAdmin();
+      allow create, update: if ownsPath(ownerUid)
+        && isTeacherOrAdmin()
+        && validBrandingUpload();
+      allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
+    }
+
     // Block all other paths
     match /{allPaths=**} {
       allow read, write: if false;

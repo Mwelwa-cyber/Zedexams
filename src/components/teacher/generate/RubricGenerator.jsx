@@ -20,6 +20,7 @@ import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
+import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 
@@ -27,6 +28,14 @@ export default function RubricGenerator() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
+  // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
+  // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
+  // Read once on mount by the selector — never re-seeds reactively.
+  const [selectorSeed] = useState(() =>
+    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
+      ? urlDefaults
+      : curriculumSeedFromProfile(userProfile),
+  )
   const [form, setForm] = useState(() => ({
     taskType: 'essay',
     taskDescription: '',
@@ -151,7 +160,7 @@ export default function RubricGenerator() {
             className="studio-card p-5 space-y-4 h-fit sticky top-4"
           >
             <StudioCurriculumSelector
-              value={urlDefaults}
+              value={selectorSeed}
               onChange={setCurr}
               showTopicSubtopic={false}
             />

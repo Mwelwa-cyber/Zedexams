@@ -31,6 +31,7 @@ import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
+import { curriculumSeedFromProfile, preferredDifficulty } from '../../../utils/teacherDefaults'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -48,7 +49,9 @@ export default function WorksheetGenerator() {
     style: 'auto',
     gridColumns: 0,
     passageLength: '',
-    difficulty: 'mixed',
+    // Teacher Settings → My AI assessment-difficulty default ('mixed' when
+    // unset); a deep-link difficulty in urlDefaults still wins via the spread.
+    difficulty: preferredDifficulty(userProfile, 'assessment'),
     durationMinutes: 30,
     language: 'english',
     instructions: '',
@@ -59,6 +62,13 @@ export default function WorksheetGenerator() {
   // subtopic). `curr` holds the latest payload, including the server-ready
   // grade/subject/curriculum/framework fields.
   const [curr, setCurr] = useState({})
+  // Selector seed: deep-link handoff wins; else the teacher's saved
+  // curriculum defaults (read once on mount by the selector).
+  const [selectorSeed] = useState(() =>
+    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
+      ? urlDefaults
+      : curriculumSeedFromProfile(userProfile),
+  )
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -231,7 +241,7 @@ export default function WorksheetGenerator() {
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
           >
             <StudioCurriculumSelector
-              value={urlDefaults}
+              value={selectorSeed}
               onChange={setCurr}
             />
             <FieldSelect

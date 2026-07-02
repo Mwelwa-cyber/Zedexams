@@ -153,6 +153,13 @@ vi.mock('./utils/studioSystemPrompt', () => ({
   STUDIO_SYSTEM_PROMPT: 'MOCK_CBC_PROMPT',
 }))
 
+// School profile (resource level for the Teacher Settings seed) — resolves
+// null by default so the identity prefill behaves as before; the settings-
+// seeding tests override the resolved value.
+vi.mock('../../../utils/schoolProfileService', () => ({
+  getSchoolProfile: vi.fn(() => Promise.resolve(null)),
+}))
+
 // ── Default studioState stub ──────────────────────────────────────────────────
 // Returns the static (non-reactive) parts of studioState. The generation-
 // status fields need real React state so handleGenerate's setGenerationStatus /
@@ -929,6 +936,8 @@ describe('LessonPlanStudio — local language wiring', () => {
 })
 
 // ── Auto-fill Teacher Name + School from the signed-in profile ────────────────
+// The prefill now resolves the school profile first (Teacher Settings resource
+// level), so the setLessonDetails call is asynchronous — hence the waitFor.
 
 describe('LessonPlanStudio — teacher identity auto-fill', () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -943,7 +952,7 @@ describe('LessonPlanStudio — teacher identity auto-fill', () => {
     const setLessonDetails = vi.fn()
     renderStudio({ setLessonDetails })
 
-    expect(setLessonDetails).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(setLessonDetails).toHaveBeenCalledTimes(1))
     // The updater fills empty fields from the profile…
     const updater = setLessonDetails.mock.calls[0][0]
     const empty = { teacherName: '', school: '' }
@@ -966,6 +975,110 @@ describe('LessonPlanStudio — teacher identity auto-fill', () => {
     const setLessonDetails = vi.fn()
     renderStudio({ setLessonDetails })
 
+    // Give any pending microtasks a chance to flush before asserting silence.
+    await new Promise((r) => setTimeout(r, 0))
     expect(setLessonDetails).not.toHaveBeenCalled()
+  })
+})
+
+// ── Teacher Settings preferences seed the studio once, fill-only-blank ────────
+
+describe('LessonPlanStudio — Teacher Settings seeding', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  const PREFS_PROFILE = {
+    displayName: 'Mrs. Banda',
+    school: 'Lusaka Primary',
+    teacherPreferences: {
+      ai: {
+        planDetail: 'detailed',
+        teachingLanguage: 'bemba',
+        rememberLastUsed: true,
+        include: { reflection: false },
+      },
+    },
+  }
+
+  it('seeds medium, resources, detail and reflection from saved preferences', async () => {
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    const { getSchoolProfile } = await import('../../../utils/schoolProfileService')
+    useAuth.mockReturnValue({ currentUser: { uid: 'uid-teach' }, userProfile: PREFS_PROFILE })
+    getSchoolProfile.mockResolvedValueOnce({ resourceLevel: 'low' })
+
+    const setLessonDetails = vi.fn()
+    const updateFormatOption = vi.fn()
+    renderStudio({ setLessonDetails, updateFormatOption })
+
+    await waitFor(() => expect(setLessonDetails).toHaveBeenCalledTimes(1))
+    const updater = setLessonDetails.mock.calls[0][0]
+
+    // Fields still at their defaults are seeded…
+    expect(updater({ teacherName: '', school: '', medium: 'English', resources: 'basic' }))
+      .toMatchObject({ medium: 'Bemba', resources: 'low' })
+    // …but anything the teacher already changed is left alone.
+    expect(updater({ teacherName: '', school: '', medium: 'Tonga', resources: 'full' }))
+      .toMatchObject({ medium: 'Tonga', resources: 'full' })
+
+    // Format options seed through updateFormatOption (detail + reflection off).
+    await waitFor(() => expect(updateFormatOption).toHaveBeenCalledWith('detail', 'detailed'))
+    expect(updateFormatOption).toHaveBeenCalledWith('advanced', { includeLessonEvaluation: false })
+  })
+
+  it('does not seed when AI Memory (rememberLastUsed) is off', async () => {
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    const { getSchoolProfile } = await import('../../../utils/schoolProfileService')
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'uid-teach' },
+      userProfile: {
+        ...PREFS_PROFILE,
+        teacherPreferences: {
+          ai: { ...PREFS_PROFILE.teacherPreferences.ai, rememberLastUsed: false },
+        },
+      },
+    })
+    getSchoolProfile.mockResolvedValueOnce({ resourceLevel: 'low' })
+
+    const setLessonDetails = vi.fn()
+    const updateFormatOption = vi.fn()
+    renderStudio({ setLessonDetails, updateFormatOption })
+
+    // Identity still prefills (that's profile data, not memory)…
+    await waitFor(() => expect(setLessonDetails).toHaveBeenCalledTimes(1))
+    const updater = setLessonDetails.mock.calls[0][0]
+    const out = updater({ teacherName: '', school: '', medium: 'English', resources: 'basic' })
+    // …but preference-driven fields stay at their defaults.
+    expect(out).toMatchObject({ medium: 'English', resources: 'basic', teacherName: 'Mrs. Banda' })
+    expect(updateFormatOption).not.toHaveBeenCalled()
+  })
+
+  it('appends the AI-preference prompt lines to the generation prompt', async () => {
+    const { useAuth } = await import('../../../contexts/AuthContext')
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'uid-teach' },
+      userProfile: {
+        teacherPreferences: {
+          ai: {
+            preferredEnglish: 'american',
+            include: { homework: false, teachingAids: true },
+          },
+        },
+      },
+    })
+    innerCallable.mockResolvedValue({ data: { text: '{"topic":"T","stages":[]}' } })
+    renderStudioWithGeneration({
+      curriculumMode: 'cbc',
+      lessonDetails: {
+        grade: 'G5', subject: 'Science', duration: '40', medium: 'English',
+        term: '', week: '', date: '', time: '', teacherName: '', school: '',
+      },
+      topicData: { topic: 'Plants', subtopic: '', subtopicRow: null },
+    })
+    fireEvent.click(screen.getByTestId('trigger-generate'))
+
+    await waitFor(() => expect(innerCallable).toHaveBeenCalled())
+    const { userPrompt } = innerCallable.mock.calls[0][0]
+    expect(userPrompt).toMatch(/American English/)
+    expect(userPrompt).toMatch(/Do not include homework/)
+    expect(userPrompt).not.toMatch(/teaching\/learning aids/)
   })
 })

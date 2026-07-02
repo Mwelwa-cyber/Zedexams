@@ -278,6 +278,7 @@ eq("emits one prefix per user-keyed top folder",
     "lesson-presentations/alice/",
     "papers/alice/",
     "quiz-images/alice/",
+    "user-branding/alice/",
   ]);
 
 eq("collectUserPrefixes returns empty for a missing uid",
@@ -285,7 +286,10 @@ eq("collectUserPrefixes returns empty for a missing uid",
 
 ok("USER_KEYED_PREFIXES is the source of truth, frozen",
   Object.isFrozen(USER_KEYED_PREFIXES) &&
-  USER_KEYED_PREFIXES.length === 7);
+  USER_KEYED_PREFIXES.length === 8);
+
+ok("user-branding/ (Teacher Settings assets) is swept on account deletion",
+  USER_KEYED_PREFIXES.includes("user-branding/"));
 
 ok("syllabi/ is NOT user-keyed (admin-owned global content)",
   !USER_KEYED_PREFIXES.includes("syllabi/"));

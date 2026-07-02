@@ -29,6 +29,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -211,7 +212,9 @@ export default function WeeklyForecastStudio() {
         gradeLabel: kbGradeToStudioLabel(restoredMeta.grade),
         subjectKey: restoredMeta.subjectLabel,
       }
-      : null
+      // No restored draft → the teacher's saved curriculum defaults
+      // (Teacher Settings → My Teaching), or no seed at all.
+      : curriculumSeedFromProfile(userProfile)
   ))
   const [days, setDays] = useState(() => DEFAULT_WEEKDAYS.map(blankDay))
 

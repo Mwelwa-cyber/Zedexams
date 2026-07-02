@@ -234,6 +234,9 @@ const USER_KEYED_PREFIXES = Object.freeze([
   "assessment-images/",
   "papers/",
   "invoices/",
+  // Teacher Settings branding assets (profile photo, school logo, signature,
+  // stamp, letterhead) — fixed filenames under user-branding/{uid}/.
+  "user-branding/",
 ]);
 
 /**

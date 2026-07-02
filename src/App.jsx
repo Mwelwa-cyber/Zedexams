@@ -98,6 +98,7 @@ const MyResults = lazy(() => import('./components/dashboard/MyResults'))
 const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
+const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
 const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
@@ -267,10 +268,27 @@ function RootRedirect() {
   )
 }
 
+// Role-branched settings. Teachers get the redesigned Teacher Settings inside
+// the studio chrome (TeacherLayout — sidebar's Settings item lights up);
+// learners and admins keep the shared settings page under the global Navbar.
+// isAdmin is checked FIRST: isTeacher includes superAdmins (AuthContext), and
+// admins must stay on the admin tab set.
 function SettingsPage() {
   const { userProfile, isAdmin, isTeacher } = useAuth()
   const role = isAdmin ? 'admin' : (isTeacher ? 'teacher' : (userProfile?.role || 'learner'))
-  return <ZedExamsSettings role={role} />
+  if (role === 'teacher') {
+    return (
+      <TeacherLayout>
+        <TeacherSettings />
+      </TeacherLayout>
+    )
+  }
+  return (
+    <>
+      <Navbar />
+      <ZedExamsSettings role={role} />
+    </>
+  )
 }
 
 function AdminRoute({ children }) {
@@ -536,7 +554,10 @@ export default function App() {
           {/* My Subscription — shared learner/teacher plan, benefits, payment
               status, and upgrade/renew. Audience-aware copy inside. */}
           <Route path="/my-subscription"   element={<ProtectedRoute><MySubscriptionPage /></ProtectedRoute>} />
-          <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
+          {/* Nested paths (/settings/profile, /settings/school, …) are the
+              Teacher Settings detail panels; SettingsPage renders the right
+              chrome per role and TeacherSettings routes the subpath. */}
+          <Route path="/settings/*"        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
               floating launcher in App handles the in-context entry
               point but a direct /ask-zed URL is useful for shares. */}
