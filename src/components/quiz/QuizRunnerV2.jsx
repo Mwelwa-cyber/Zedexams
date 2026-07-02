@@ -33,6 +33,8 @@ import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabel
 import { gradeMatching } from '../../utils/matchingGrading'
 import { gradeSequence } from '../../utils/sequenceGrading'
 import SeoHelmet from '../seo/SeoHelmet'
+import ErrorState from '../ui/ErrorState'
+import { friendlyTemplate, toFriendlyError } from '../../utils/friendlyErrors'
 
 function fmt(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
@@ -280,7 +282,7 @@ export default function QuizRunnerV2() {
       try {
         const [quizDoc, questionDocs] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
         if (!quizDoc) {
-          setError('Quiz not found')
+          setError(friendlyTemplate('quizNotFound'))
           setLoading(false)
           return
         }
@@ -358,7 +360,9 @@ export default function QuizRunnerV2() {
         }
       } catch (err) {
         console.error('QuizRunner load failed', err)
-        setError('Could not load quiz. Please try again.')
+        // A read failure is usually a dropped connection, not a missing quiz —
+        // let the translator pick the right card (offline / retryable generic).
+        setError(toFriendlyError(err, { online: typeof navigator !== 'undefined' ? navigator.onLine : undefined }))
       } finally {
         setLoading(false)
       }
@@ -571,13 +575,12 @@ export default function QuizRunnerV2() {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center px-4">
         <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
-        <div className="zx-card-shared p-8 text-center">
-          <div className="mb-3 text-4xl">😕</div>
-          <p className="font-bold text-red-600">{error}</p>
-          <button type="button" onClick={() => navigate('/quizzes')} className="zx-sb zx-sb-primary mt-4 text-sm">
-            ← Back
-          </button>
-        </div>
+        <ErrorState
+          friendly={error}
+          inline
+          onRetry={() => window.location.reload()}
+          onGoBack={() => navigate('/quizzes')}
+        />
       </div>
     )
   }

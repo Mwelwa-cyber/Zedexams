@@ -1,4 +1,4 @@
-import { Component } from 'react'
+import { Component, createRef } from 'react'
 import { reportClientError } from '../../utils/clientErrorReporting'
 import { isChunkLoadError, recoverFromChunkError } from '../../utils/swRecovery'
 
@@ -43,6 +43,9 @@ export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
     this.state = { hasError: false, error: null, reported: false }
+    // Moves keyboard/screen-reader focus onto the recovery card's primary
+    // action the moment it appears (see componentDidUpdate).
+    this.primaryActionRef = createRef()
   }
 
   static getDerivedStateFromError(error) {
@@ -74,9 +77,16 @@ export default class ErrorBoundary extends Component {
     }
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps, prevState) {
     if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
       this.setState({ hasError: false, error: null })
+      return
+    }
+    // When the recovery card first appears, move focus to its primary action
+    // so keyboard + screen-reader users land on the way out (the role="alert"
+    // wrapper announces the message; focus gives them somewhere to go).
+    if (this.state.hasError && !prevState.hasError && this.props.fallback === undefined) {
+      this.primaryActionRef.current?.focus?.()
     }
   }
 
@@ -141,7 +151,11 @@ export default class ErrorBoundary extends Component {
 
     return (
       <div className={containerClass}>
-        <div className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm"
+        >
           <div className="text-5xl mb-3">{isOffline ? '📡' : '😕'}</div>
           <p className="theme-text-muted font-black text-xs uppercase tracking-widest mb-2">
             {isOffline ? "You're offline" : 'Something went wrong'}
@@ -159,6 +173,7 @@ export default class ErrorBoundary extends Component {
 
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button
+              ref={this.primaryActionRef}
               type="button"
               onClick={this.handleRetry}
               className="inline-flex items-center justify-center gap-2 theme-accent-fill theme-on-accent font-black text-sm px-5 py-3 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"

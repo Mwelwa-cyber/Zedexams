@@ -38,6 +38,7 @@ import {
 } from '../../utils/quizSections.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { getErrorMessage } from '../../utils/errors.js'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 import { compressImage } from '../../utils/imageCompression'
 import { getSchoolProfile } from '../../utils/schoolProfileService'
 import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/schoolProfile'
@@ -1500,7 +1501,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
       closeSlide()
       if (view !== 'builder') changeView('builder')
     } catch (error) {
-      showToast(getErrorMessage(error, 'AI generation failed.'), true)
+      // Map daily-cap / timeout / offline to calm copy instead of a raw
+      // callable string ("resource-exhausted", "internal", …).
+      showToast(friendlyMessage(error, 'AI generation failed. Please try again.'), true)
     } finally {
       setAiGenerating(false)
     }

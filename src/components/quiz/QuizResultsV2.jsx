@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { explainQuizAnswer } from '../../utils/aiAssistant'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 import useSoundEffects from '../../hooks/useSoundEffects'
 // Format-aware renderer + plain-text extractor. Works for both legacy HTML
 // quizzes and Tiptap JSON quizzes saved by the new editor.
@@ -151,7 +152,12 @@ export default function QuizResultsV2() {
       })
       setAiExplanations(current => ({ ...current, [question.id]: explanation }))
     } catch (error) {
-      setAiExplanations(current => ({ ...current, [question.id]: error.message }))
+      // Never drop a raw technical string into the learner-facing explanation
+      // panel — map it to calm copy first.
+      setAiExplanations(current => ({
+        ...current,
+        [question.id]: friendlyMessage(error, 'The explanation could not be generated. Please try again.'),
+      }))
     } finally {
       setAiLoading(current => ({ ...current, [question.id]: false }))
     }
