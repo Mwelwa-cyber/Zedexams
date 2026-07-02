@@ -106,8 +106,11 @@ export default class ErrorBoundary extends Component {
 
   handleReport = () => {
     // Re-forward the caught error to the admin sink on explicit request and
-    // acknowledge so the learner knows it went somewhere.
-    reportClientError(this.state.error, 'error_boundary_user_report')
+    // acknowledge so the learner knows it went somewhere. `force` bypasses the
+    // dedup + per-session cap so this deliberate report is never silently
+    // dropped — componentDidCatch already auto-reported the SAME error, which
+    // would otherwise dedup this one away while we still show "Thanks".
+    reportClientError(this.state.error, 'error_boundary_user_report', { force: true })
     this.setState({ reported: true })
   }
 

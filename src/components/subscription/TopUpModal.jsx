@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, Loader2, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { capture } from '../../utils/analytics'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 import {
   initiateLencoPayment,
   looksLikeZambianPhone,
@@ -102,7 +103,7 @@ export default function TopUpModal({ onClose, feature }) {
       await beginPolling(res.paymentId)
     } catch (err) {
       setPayState('failed')
-      setError(err?.message || 'Could not start the payment. Please try again.')
+      setError(friendlyMessage(err, 'Could not start the payment. Please try again.'))
       capture('topup_payment_failed', { reason: 'initiate_error' })
     }
   }
@@ -122,7 +123,7 @@ export default function TopUpModal({ onClose, feature }) {
       await beginPolling(paymentId)
     } catch (err) {
       setPayState('otp')
-      setError(err?.message || 'The code could not be verified. Please try again.')
+      setError(friendlyMessage(err, 'The code could not be verified. Please try again.'))
     }
   }
 

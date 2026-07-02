@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { loadPdfjs } from '../../utils/pdfjsLoader'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 
 async function fetchPdfBuffer(url, { retries = 1 } = {}) {
   let lastErr
@@ -68,7 +69,7 @@ export default function PdfScrollViewer({ url, title }) {
         setPdf(doc)
       } catch (err) {
         console.warn('[PdfScrollViewer] load failed', err)
-        if (!cancelled) setError(err?.message || 'Could not open this document.')
+        if (!cancelled) setError(friendlyMessage(err, 'Could not open this document.'))
       } finally {
         if (!cancelled) setLoading(false)
       }

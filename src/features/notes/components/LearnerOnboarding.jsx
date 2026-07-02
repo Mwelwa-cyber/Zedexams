@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { GraduationCap, Lock, Loader2, BookOpen } from '../../../components/ui/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ALL_GRADES, BAND_LABELS } from '../../../config/curriculum'
+import { friendlyMessage } from '../../../utils/friendlyErrors'
 import '../styles/notes.css'
 
 export function LearnerOnboarding({ user, onDone }) {
@@ -28,7 +29,7 @@ export function LearnerOnboarding({ user, onDone }) {
       onDone?.()
     } catch (err) {
       console.error(err)
-      setError(err.message || 'Could not save your grade. Try again.')
+      setError(friendlyMessage(err, 'Could not save your grade. Try again.'))
       setBusy(false)
     }
   }

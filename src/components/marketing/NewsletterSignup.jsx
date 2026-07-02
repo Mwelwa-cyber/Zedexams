@@ -25,6 +25,7 @@
 
 import { useState } from 'react'
 import { subscribeToNewsletter } from '../../utils/newsletter'
+import { friendlyMessage } from '../../utils/friendlyErrors'
 
 const HONEYPOT_STYLE = {
   position: 'absolute',
@@ -65,7 +66,7 @@ export default function NewsletterSignup({ source = 'marketing-footer' }) {
       }
     } catch (err) {
       console.error('[NewsletterSignup] subscribe failed', err)
-      setError(err?.message || 'Could not subscribe. Try again in a minute.')
+      setError(friendlyMessage(err, 'Could not subscribe. Try again in a minute.'))
       setStatus('error')
     }
   }
