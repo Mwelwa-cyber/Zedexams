@@ -315,6 +315,85 @@ describe('LessonProgressionForm — accept generates breakdown', () => {
   })
 })
 
+// ── AI breakdown (titles + focus from the aiLessonCount backend) ─────────────
+
+describe('LessonProgressionForm — accept uses the AI per-lesson breakdown', () => {
+  const aiRec = {
+    count: 2,
+    reason: 'Concept then application.',
+    source: 'ai',
+    breakdown: [
+      { lessonNumber: 1, title: 'Place value recap', focus: 'Revise tens and units.', status: 'pending' },
+      { lessonNumber: 2, title: 'Adding with carrying', focus: 'Column addition practice.', status: 'pending' },
+    ],
+  }
+
+  it('previews the AI lesson titles in the recommendation panel', () => {
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: aiRec,
+    })
+    expect(screen.getByText('Place value recap')).toBeInTheDocument()
+    expect(screen.getByText('Adding with carrying')).toBeInTheDocument()
+  })
+
+  it('Accept seeds the breakdown with the AI titles and focus', () => {
+    const onUpdateBreakdown = vi.fn()
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: aiRec,
+      onUpdateBreakdown,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /accept \(2 lesson/i }))
+    const breakdown = onUpdateBreakdown.mock.calls[0][0]
+    expect(breakdown).toHaveLength(2)
+    expect(breakdown[0]).toMatchObject({
+      lessonNumber: 1,
+      title: 'Place value recap',
+      focus: 'Revise tens and units.',
+      status: 'pending',
+    })
+    expect(breakdown[1].title).toBe('Adding with carrying')
+  })
+
+  it('Accept records the AI reason on the series', () => {
+    const onUpdateSeries = vi.fn()
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: aiRec,
+      onUpdateSeries,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /accept \(2 lesson/i }))
+    expect(onUpdateSeries).toHaveBeenCalledWith('totalLessons', 2)
+    expect(onUpdateSeries).toHaveBeenCalledWith('aiSuggestedReason', 'Concept then application.')
+  })
+
+  it('manual build of a different count falls back to default stubs', () => {
+    const onUpdateBreakdown = vi.fn()
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: aiRec,
+      onUpdateBreakdown,
+    })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /number of lessons/i }), {
+      target: { value: '4' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /build lessons/i }))
+    const breakdown = onUpdateBreakdown.mock.calls[0][0]
+    expect(breakdown).toHaveLength(4)
+    expect(breakdown[0].title).toContain('Addition of whole numbers')
+  })
+
+  it('labels the offline heuristic fallback instead of claiming AI', () => {
+    renderForm({
+      lessonSeries: { ...DEFAULT_SERIES, planningMode: 'series' },
+      recommendation: { count: 3, reason: 'One per activity.', source: 'heuristic', breakdown: [] },
+    })
+    expect(screen.getByText(/suggested pacing: 3 lessons \(offline estimate\)/i)).toBeInTheDocument()
+    expect(screen.queryByText(/ai recommends/i)).not.toBeInTheDocument()
+  })
+})
+
 // ── Manual count builder (always available in series mode) ────────────────────
 
 describe('LessonProgressionForm — manual count builder', () => {

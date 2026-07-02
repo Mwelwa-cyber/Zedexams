@@ -234,8 +234,10 @@ export default function LessonPlanStudio() {
   const [illustrationStatus, setIllustrationStatus] = useState('idle')
   const [illustrationError, setIllustrationError] = useState(null)
 
-  // AI lesson-count recommendation (used by LessonProgressionForm).
-  // useAILessonCount(topic, subtopic, learningActivities, expectedStandard, curriculumMode)
+  // AI lesson-count recommendation (used by LessonProgressionForm). Calls the
+  // aiLessonCount Cloud Function (Claude Haiku); grade/subject sharpen the
+  // pacing and `enabled` defers the call until the teacher is actually in
+  // Lesson Series mode — the only surface that renders the suggestion.
   const subtopicRow = studioState.topicData.subtopicRow
   const aiState = useAILessonCount(
     studioState.topicData.topic,
@@ -243,6 +245,11 @@ export default function LessonPlanStudio() {
     subtopicRow?.learningActivities ?? [],
     subtopicRow?.expectedStandard ?? '',
     studioState.curriculumMode,
+    {
+      grade: studioState.lessonDetails.grade,
+      subject: studioState.lessonDetails.subject,
+      enabled: studioState.lessonSeries?.planningMode === 'series',
+    },
   )
 
   // Series progress — live Firestore subscription via useLessonSeries.

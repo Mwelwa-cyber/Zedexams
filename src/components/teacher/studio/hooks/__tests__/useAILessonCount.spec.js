@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useAILessonCount, suggestLessonCount } from '../useAILessonCount.js'
+import { fetchAiLessonCount } from '../../../../../utils/aiLessonCount.js'
+
+vi.mock('../../../../../utils/aiLessonCount.js', () => ({
+  fetchAiLessonCount: vi.fn(),
+}))
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -9,7 +14,40 @@ const SUBTOPIC = 'Addition of whole numbers'
 const ACTIVITIES = ['Group work', 'Drill', 'Game']
 const STANDARD = 'Learner adds whole numbers up to 1000'
 
-// ── suggestLessonCount (pure heuristic) ───────────────────────────────────────
+const AI_REC = {
+  count: 4,
+  reason: 'Four steps: place value, no-carry, carrying, application.',
+  breakdown: [
+    { lessonNumber: 1, title: 'Place value recap', focus: 'Revise tens/units.', status: 'pending' },
+    { lessonNumber: 2, title: 'Adding without carrying', focus: 'Column addition.', status: 'pending' },
+    { lessonNumber: 3, title: 'Adding with carrying', focus: 'Carrying practice.', status: 'pending' },
+    { lessonNumber: 4, title: 'Word problems', focus: 'Apply to daily life.', status: 'pending' },
+  ],
+}
+
+function renderAiHook(overrides = {}) {
+  const props = {
+    topic: TOPIC,
+    subtopic: SUBTOPIC,
+    activities: ACTIVITIES,
+    standard: STANDARD,
+    mode: 'cbc',
+    context: { grade: 'G5', subject: 'mathematics', enabled: true },
+    ...overrides,
+  }
+  return renderHook(
+    ({ topic, subtopic, activities, standard, mode, context }) =>
+      useAILessonCount(topic, subtopic, activities, standard, mode, context),
+    { initialProps: props },
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  fetchAiLessonCount.mockResolvedValue(AI_REC)
+})
+
+// ── suggestLessonCount (pure heuristic — the offline fallback) ────────────────
 
 describe('suggestLessonCount', () => {
   it('returns one lesson per learning activity (clamped 1–6)', () => {
@@ -29,14 +67,7 @@ describe('suggestLessonCount', () => {
     expect(suggestLessonCount([]).reason.length).toBeGreaterThan(0)
   })
 
-  it('variant 0 is the base suggestion (back-compat default)', () => {
-    expect(suggestLessonCount(ACTIVITIES, 0).count).toBe(3)
-    expect(suggestLessonCount(ACTIVITIES).count).toBe(3)
-  })
-
-  it('successive variants surface DIFFERENT counts (the "Get New Suggestion" fix)', () => {
-    // Regression guard: cycling the variant must move the count, otherwise the
-    // button is a no-op. Base of 3 → nearest-first fan-out 3,4,2,5,1,6.
+  it('successive variants surface DIFFERENT counts', () => {
     expect(suggestLessonCount(ACTIVITIES, 0).count).toBe(3)
     expect(suggestLessonCount(ACTIVITIES, 1).count).toBe(4)
     expect(suggestLessonCount(ACTIVITIES, 2).count).toBe(2)
@@ -45,7 +76,6 @@ describe('suggestLessonCount', () => {
   it('cycles through the full 1–6 span and wraps back to the base', () => {
     const seen = [0, 1, 2, 3, 4, 5].map((v) => suggestLessonCount(ACTIVITIES, v).count)
     expect([...seen].sort()).toEqual([1, 2, 3, 4, 5, 6])
-    // Wrap: variant 6 returns to the base.
     expect(suggestLessonCount(ACTIVITIES, 6).count).toBe(3)
   })
 
@@ -61,96 +91,146 @@ describe('suggestLessonCount', () => {
 // ── Idle / guard ──────────────────────────────────────────────────────────────
 
 describe('useAILessonCount — idle state', () => {
-  it('returns null recommendation, loading false, error null when not ready', () => {
-    const { result } = renderHook(() => useAILessonCount('', '', [], '', null))
+  it('returns null recommendation, loading false when not ready', () => {
+    const { result } = renderAiHook({ topic: '', subtopic: '', activities: [], standard: '', mode: null })
     expect(result.current.recommendation).toBeNull()
     expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBeNull()
+    expect(fetchAiLessonCount).not.toHaveBeenCalled()
   })
 
   it('exposes a fetchRecommendation function', () => {
-    const { result } = renderHook(() => useAILessonCount('', '', [], '', null))
+    const { result } = renderAiHook({ topic: '', subtopic: '' })
     expect(typeof result.current.fetchRecommendation).toBe('function')
   })
 
-  it('does not recommend for non-CBC mode', () => {
-    const { result } = renderHook(() =>
-      useAILessonCount(TOPIC, SUBTOPIC, ACTIVITIES, STANDARD, 'previous'),
-    )
-    expect(result.current.recommendation).toBeNull()
+  it('does not call the backend for non-CBC mode', () => {
+    renderAiHook({ mode: 'previous' })
+    expect(fetchAiLessonCount).not.toHaveBeenCalled()
   })
 
-  it('does not recommend when subtopic is empty', () => {
-    const { result } = renderHook(() =>
-      useAILessonCount(TOPIC, '', ACTIVITIES, STANDARD, 'cbc'),
-    )
+  it('does not call the backend when subtopic is empty', () => {
+    renderAiHook({ subtopic: '' })
+    expect(fetchAiLessonCount).not.toHaveBeenCalled()
+  })
+
+  it('does not call the backend when disabled (single-lesson mode)', () => {
+    const { result } = renderAiHook({ context: { enabled: false } })
+    expect(fetchAiLessonCount).not.toHaveBeenCalled()
     expect(result.current.recommendation).toBeNull()
   })
 })
 
-// ── Deterministic recommendation ──────────────────────────────────────────────
+// ── AI recommendation path ────────────────────────────────────────────────────
 
-describe('useAILessonCount — recommends when CBC + topic + subtopic present', () => {
-  it('computes a recommendation immediately (no loading, no error)', () => {
-    const { result } = renderHook(() =>
-      useAILessonCount(TOPIC, SUBTOPIC, ACTIVITIES, STANDARD, 'cbc'),
-    )
-    expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBeNull()
-    expect(result.current.recommendation).toEqual({
-      count: 3,
-      reason: expect.stringContaining('3 learning activities'),
+describe('useAILessonCount — AI recommendation', () => {
+  it('fetches from the backend and surfaces count/reason/breakdown', async () => {
+    const { result } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    expect(fetchAiLessonCount).toHaveBeenCalledTimes(1)
+    expect(fetchAiLessonCount).toHaveBeenCalledWith(expect.objectContaining({
+      grade: 'G5',
+      subject: 'mathematics',
+      topic: TOPIC,
+      subtopic: SUBTOPIC,
+      learningActivities: ACTIVITIES,
+      expectedStandard: STANDARD,
+      avoidCounts: [],
+    }))
+    expect(result.current.recommendation).toMatchObject({
+      count: 4,
+      reason: AI_REC.reason,
+      source: 'ai',
     })
+    expect(result.current.recommendation.breakdown).toHaveLength(4)
+    expect(result.current.loading).toBe(false)
   })
 
-  it('recommends even when the syllabus row lists no activities (sparse rows)', () => {
-    const { result } = renderHook(() =>
-      useAILessonCount(TOPIC, SUBTOPIC, [], '', 'cbc'),
-    )
-    expect(result.current.recommendation?.count).toBe(2)
+  it('starts fetching when enabled flips on (single → series)', async () => {
+    const { result, rerender } = renderAiHook({ context: { grade: 'G5', subject: 'mathematics', enabled: false } })
+    expect(fetchAiLessonCount).not.toHaveBeenCalled()
+    rerender({
+      topic: TOPIC, subtopic: SUBTOPIC, activities: ACTIVITIES, standard: STANDARD, mode: 'cbc',
+      context: { grade: 'G5', subject: 'mathematics', enabled: true },
+    })
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    expect(fetchAiLessonCount).toHaveBeenCalledTimes(1)
   })
 
-  it('recomputes when the subtopic changes', () => {
-    const { result, rerender } = renderHook(
-      ({ acts }) => useAILessonCount(TOPIC, SUBTOPIC, acts, STANDARD, 'cbc'),
-      { initialProps: { acts: ACTIVITIES } },
+  it('refetches when the sub-topic changes', async () => {
+    const { result, rerender } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    rerender({
+      topic: TOPIC, subtopic: 'Subtraction', activities: ACTIVITIES, standard: STANDARD, mode: 'cbc',
+      context: { grade: 'G5', subject: 'mathematics', enabled: true },
+    })
+    await waitFor(() => expect(fetchAiLessonCount).toHaveBeenCalledTimes(2))
+    expect(fetchAiLessonCount).toHaveBeenLastCalledWith(
+      expect.objectContaining({ subtopic: 'Subtraction' }),
     )
-    expect(result.current.recommendation.count).toBe(3)
-    rerender({ acts: ['only one'] })
-    expect(result.current.recommendation.count).toBe(1)
   })
 
-  it('clears the recommendation when params become invalid', () => {
-    const { result, rerender } = renderHook(
-      ({ mode }) => useAILessonCount(TOPIC, SUBTOPIC, ACTIVITIES, STANDARD, mode),
-      { initialProps: { mode: 'cbc' } },
-    )
-    expect(result.current.recommendation).not.toBeNull()
-    rerender({ mode: 'previous' })
+  it('does not refetch on unrelated re-renders with the same context', async () => {
+    const { result, rerender } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    rerender({
+      topic: TOPIC, subtopic: SUBTOPIC, activities: ACTIVITIES, standard: STANDARD, mode: 'cbc',
+      context: { grade: 'G5', subject: 'mathematics', enabled: true },
+    })
+    expect(fetchAiLessonCount).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the recommendation when params become invalid', async () => {
+    const { result, rerender } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    rerender({
+      topic: TOPIC, subtopic: SUBTOPIC, activities: ACTIVITIES, standard: STANDARD, mode: 'previous',
+      context: { grade: 'G5', subject: 'mathematics', enabled: true },
+    })
     expect(result.current.recommendation).toBeNull()
   })
 
-  it('fetchRecommendation surfaces a DIFFERENT suggestion each press', () => {
-    // The core "Get New Suggestion is not working" fix: each press must move the
-    // recommendation to a fresh count, not recompute the same one.
-    const { result } = renderHook(() =>
-      useAILessonCount(TOPIC, SUBTOPIC, ACTIVITIES, STANDARD, 'cbc'),
+  it('"Get New Suggestion" refetches, passing the counts already shown', async () => {
+    fetchAiLessonCount
+      .mockResolvedValueOnce(AI_REC)
+      .mockResolvedValueOnce({ count: 2, reason: 'Consolidated pace.', breakdown: [] })
+    const { result } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation?.count).toBe(4))
+
+    act(() => result.current.fetchRecommendation())
+    await waitFor(() => expect(result.current.recommendation?.count).toBe(2))
+
+    expect(fetchAiLessonCount).toHaveBeenCalledTimes(2)
+    expect(fetchAiLessonCount).toHaveBeenLastCalledWith(
+      expect.objectContaining({ avoidCounts: [4] }),
     )
-    expect(result.current.recommendation.count).toBe(3)
-    act(() => result.current.fetchRecommendation())
-    expect(result.current.recommendation.count).toBe(4)
-    act(() => result.current.fetchRecommendation())
-    expect(result.current.recommendation.count).toBe(2)
+  })
+})
+
+// ── Offline / failure fallback ────────────────────────────────────────────────
+
+describe('useAILessonCount — heuristic fallback when the backend fails', () => {
+  it('falls back to the deterministic heuristic (never blocks series mode)', async () => {
+    fetchAiLessonCount.mockRejectedValue(new Error('offline'))
+    const { result } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation).not.toBeNull())
+    expect(result.current.recommendation).toMatchObject({
+      count: 3, // one per activity
+      source: 'heuristic',
+      breakdown: [],
+    })
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
   })
 
-  it('resets to the base suggestion when the sub-topic changes', () => {
-    const { result, rerender } = renderHook(
-      ({ sub }) => useAILessonCount(TOPIC, sub, ACTIVITIES, STANDARD, 'cbc'),
-      { initialProps: { sub: SUBTOPIC } },
-    )
+  it('fallback presses still cycle to different counts', async () => {
+    fetchAiLessonCount.mockRejectedValue(new Error('offline'))
+    const { result } = renderAiHook()
+    await waitFor(() => expect(result.current.recommendation?.count).toBe(3))
+
     act(() => result.current.fetchRecommendation())
-    expect(result.current.recommendation.count).toBe(4)
-    rerender({ sub: 'A different sub-topic' })
-    expect(result.current.recommendation.count).toBe(3)
+    await waitFor(() => expect(result.current.recommendation?.count).toBe(4))
+
+    act(() => result.current.fetchRecommendation())
+    await waitFor(() => expect(result.current.recommendation?.count).toBe(2))
   })
 })
