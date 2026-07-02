@@ -8,6 +8,7 @@ import {
   pageKey,
   isReviewComplete,
   autoApprovedPageKeys,
+  describeImportScale,
 } from './importReviewModel'
 import { CONFIDENCE_BANDS } from '../../../utils/objectConfidence'
 
@@ -175,6 +176,9 @@ export default function ImportReviewScreen({
             {summary.missingDiagrams ? ` · ${summary.missingDiagrams} missing figure` : ''}
             {summary.missingLabels ? ` · ${summary.missingLabels} need labels` : ''}
           </p>
+          {describeImportScale(summary) ? (
+            <p className="text-[11px] theme-text-muted mt-0.5">{describeImportScale(summary)}</p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {summary.autoApprovable > 0 ? (

@@ -290,6 +290,27 @@ export function summarizeReviewModel(model = {}) {
 }
 
 /**
+ * A short, honest scale/cost line for the review header. The heavy AI (diagram
+ * redraw / generation) is opt-in per figure, so we describe SCALE — pages read
+ * and figures awaiting a decision — and make clear generation only runs on the
+ * teacher's choice, rather than inventing a dollar figure. Pure; returns '' when
+ * there is nothing to describe.
+ *
+ * @param {object} summary a summarizeReviewModel() result
+ */
+export function describeImportScale(summary = {}) {
+  const pages = Number(summary.pageCount) || 0
+  const figures = Number(summary.withDiagrams) || 0
+  if (!pages && !figures) return ''
+  const parts = []
+  if (pages) parts.push(`${pages} page${pages === 1 ? '' : 's'} read`)
+  if (figures) parts.push(`${figures} figure${figures === 1 ? '' : 's'} detected`)
+  let line = `Reconstructed from ${parts.join(' · ')}.`
+  if (figures) line += ' AI redraw / generation runs only when you choose it for a figure.'
+  return line
+}
+
+/**
  * The set of page keys safe to pre-approve: pages that have at least one
  * question and whose EVERY question item is high-confidence with no outstanding
  * issue (`signals.autoApprove`). Passage-only rows (a shared figure) don't block

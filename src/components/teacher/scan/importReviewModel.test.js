@@ -16,6 +16,7 @@ import {
   pageKey,
   stripTags,
   autoApprovedPageKeys,
+  describeImportScale,
 } from './importReviewModel.js'
 
 let passed = 0
@@ -273,6 +274,26 @@ test('summary counts auto-approvable questions', () => {
     { kind: 'standalone', question: { type: 'short_answer', text: 'b', ocrConfidence: 0.5, requiresReview: false, sourcePage: 1 } },
   ])
   assert.strictEqual(model.summary.autoApprovable, 1)
+})
+
+// ── describeImportScale ──────────────────────────────────────────────────────
+test('describeImportScale summarises pages + figures and flags opt-in generation', () => {
+  const line = describeImportScale({ pageCount: 3, withDiagrams: 2 })
+  assert.ok(/3 pages read/.test(line))
+  assert.ok(/2 figures detected/.test(line))
+  assert.ok(/only when you choose it/i.test(line))
+})
+
+test('describeImportScale omits the figure clause when there are none', () => {
+  const line = describeImportScale({ pageCount: 1, withDiagrams: 0 })
+  assert.ok(/1 page read/.test(line))
+  assert.ok(!/figure/.test(line))
+  assert.ok(!/choose it/i.test(line))
+})
+
+test('describeImportScale is empty when there is nothing to describe', () => {
+  assert.strictEqual(describeImportScale({}), '')
+  assert.strictEqual(describeImportScale({ pageCount: 0, withDiagrams: 0 }), '')
 })
 
 console.log(`\nimportReviewModel: ${passed} passed\n`)
