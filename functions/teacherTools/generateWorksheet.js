@@ -27,7 +27,7 @@ const {callClaude} = require("./anthropicClient");
 
 const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateWorksheet} = require("./worksheetSchema");
-const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
+const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./worksheetPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
@@ -121,6 +121,10 @@ const ALLOWED_SUBJECTS = new Set([
   "religious_education",
   "technology_studies", "creative_and_technology_studies",
   "home_economics", "expressive_arts", "physical_education",
+  // Senior/vocational subjects the syllabi expose (Forms 1-4) — accepted so the
+  // standardized curriculum selector never dead-ends on a real syllabus subject.
+  "fashion_fabrics", "food_nutrition", "hospitality_management",
+  "travel_tourism", "literature_in_english", "accounts",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
@@ -177,6 +181,11 @@ function sanitizeInputs(raw = {}) {
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     includeAnswerKey: raw.includeAnswerKey !== false,
     instructions: str(raw.instructions, 500),
+    // Explicit curriculum chosen by the teacher — drives CBC vs Previous
+    // prompt/terminology + framework-aware KB grounding.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
+    curriculum: String(raw.curriculum || "").toLowerCase() === "previous" ?
+      "previous" : "cbc",
   };
 }
 
@@ -216,6 +225,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      framework: inputs.framework,
       ownerUid: uid,
     }),
     assertAndIncrement(uid, "worksheet"),
@@ -257,7 +267,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
 
   try {
     const baseClaudeArgs = {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: worksheetMaxTokens({

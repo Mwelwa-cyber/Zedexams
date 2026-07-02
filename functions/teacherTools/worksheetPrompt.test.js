@@ -8,13 +8,79 @@
  */
 
 const assert = require("node:assert");
-const {buildUserPrompt} = require("./worksheetPrompt");
+const {
+  buildUserPrompt,
+  pickSystemPrompt,
+  PROMPT_VERSION,
+  SYSTEM_PROMPT_CBC,
+  SYSTEM_PROMPT_PREVIOUS,
+} = require("./worksheetPrompt");
 
 const base = {
   grade: "G4",
   subject: "mathematics",
   topic: "Decimals",
 };
+
+// ── prompt version bumped to v2 ───────────────────────────────────────────
+{
+  assert.strictEqual(
+    PROMPT_VERSION,
+    "worksheet.v2",
+    "PROMPT_VERSION should be worksheet.v2",
+  );
+}
+
+// ── CBC vs Previous curriculum system-prompt selection ────────────────────
+{
+  // Renamed CBC constant is the exported default.
+  assert.ok(
+    /Competence-Based Curriculum \(CBC\)/.test(SYSTEM_PROMPT_CBC),
+    "SYSTEM_PROMPT_CBC should keep the CBC framing",
+  );
+  assert.ok(
+    /Outcomes-Based Education/.test(SYSTEM_PROMPT_PREVIOUS),
+    "SYSTEM_PROMPT_PREVIOUS should carry the Previous-curriculum framing",
+  );
+
+  // pickSystemPrompt routes on curriculum/framework.
+  const previousPrompt = pickSystemPrompt({...base, curriculum: "previous"});
+  assert.ok(
+    previousPrompt.includes("pupils"),
+    "Previous system prompt must use 'pupils'",
+  );
+  assert.strictEqual(
+    previousPrompt,
+    SYSTEM_PROMPT_PREVIOUS,
+    "curriculum:'previous' should select the Previous system prompt",
+  );
+  assert.strictEqual(
+    pickSystemPrompt({...base, framework: "2013"}),
+    SYSTEM_PROMPT_PREVIOUS,
+    "framework:'2013' should select the Previous system prompt",
+  );
+  assert.strictEqual(
+    pickSystemPrompt({...base}),
+    SYSTEM_PROMPT_CBC,
+    "default (no curriculum) should select the CBC system prompt",
+  );
+
+  // The user-prompt terminology branch: CBC → 'learners', Previous → 'pupils'.
+  assert.ok(
+    buildUserPrompt({...base}).includes('refer to the class as "learners"'),
+    "CBC user prompt should refer to 'learners'",
+  );
+  assert.ok(
+    buildUserPrompt({...base, curriculum: "previous"})
+      .includes('refer to the class as "pupils"'),
+    "Previous user prompt should refer to 'pupils'",
+  );
+  assert.ok(
+    buildUserPrompt({...base, curriculum: "previous"})
+      .includes("Previous-Curriculum (Outcomes-Based)"),
+    "Previous user prompt heading should name the Previous curriculum",
+  );
+}
 
 // ── auto / omitted: no forced format directive ────────────────────────────
 {

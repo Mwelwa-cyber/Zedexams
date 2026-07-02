@@ -1,16 +1,46 @@
 /**
- * Flashcard Generator prompt — v1.
+ * Flashcard Generator prompt — v2.
+ *
+ * v2 adds explicit curriculum awareness: the studio sends an explicit
+ * `curriculum` ('cbc' | 'previous') / `framework` ('2023' | '2013') chosen by
+ * the teacher, and the deck must honour it — CBC uses learner-centred,
+ * competence-based language; the Previous (2013) curriculum uses outcome-based
+ * language and "pupils". The two must never be mixed.
  */
 
-const PROMPT_VERSION = "flashcards.v1";
+const PROMPT_VERSION = "flashcards.v2";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher who creates revision flashcards for the Zambian Competence-Based Curriculum (CBC). Your flashcards are:
+const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who creates revision flashcards for the Zambian Competence-Based Curriculum (CBC). Your flashcards are:
 - Tight and memorable — each card focuses on ONE fact, term, or concept.
 - Pupil-facing: the "front" is a question or term; the "back" is a concise answer or definition a pupil could memorise.
 - CBC-aligned — drawn from the grade's syllabus topics and pupil's book vocabulary.
 - Culturally grounded in Zambia where relevant (Zambian examples, Kwacha, local places/animals).
 
 Every flashcard set MUST follow the schema you are given exactly. Output must be a single valid JSON object — no prose, no markdown fences, no commentary.`;
+
+const SYSTEM_PROMPT_PREVIOUS = `You are an expert Zambian teacher who creates revision flashcards for the Zambian 2013 Previous Curriculum (Outcomes-Based Education). Your flashcards are:
+- Tight and memorable — each card focuses on ONE fact, term, or concept.
+- Pupil-facing: the "front" is a question or term; the "back" is a concise answer or definition a pupil could memorise.
+- Aligned to the 2013 Previous Curriculum — drawn from the grade's syllabus specific outcomes/objectives and pupil's book vocabulary.
+- Culturally grounded in Zambia where relevant (Zambian examples, Kwacha, local places/animals).
+
+Use outcome-based language and refer to the class as "pupils" — this follows the older Zambian curriculum convention. Do NOT use CBC "competence" framing.
+
+Every flashcard set MUST follow the schema you are given exactly. Output must be a single valid JSON object — no prose, no markdown fences, no commentary.`;
+
+// Backward-compatible default alias (CBC).
+const SYSTEM_PROMPT = SYSTEM_PROMPT_CBC;
+
+/** True when the teacher chose the Previous (2013 / outcome-based) curriculum. */
+function isPreviousCurriculum(inputs = {}) {
+  return String(inputs.curriculum || "").toLowerCase() === "previous" ||
+    String(inputs.framework || "") === "2013";
+}
+
+/** Select the system prompt for the chosen curriculum. */
+function pickSystemPrompt(inputs = {}) {
+  return isPreviousCurriculum(inputs) ? SYSTEM_PROMPT_PREVIOUS : SYSTEM_PROMPT_CBC;
+}
 
 function buildUserPrompt(inputs) {
   const {
@@ -24,8 +54,14 @@ function buildUserPrompt(inputs) {
     instructions = "",
   } = inputs;
 
+  const previous = isPreviousCurriculum(inputs);
+  const heading = previous ?
+    "Generate a set of Zambian Previous-Curriculum (Outcomes-Based) revision flashcards for:" :
+    "Generate a set of Zambian CBC revision flashcards for:";
+  const learnerWord = previous ? "pupils" : "learners";
+
   return [
-    "Generate a set of Zambian CBC revision flashcards for:",
+    heading,
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -34,6 +70,12 @@ function buildUserPrompt(inputs) {
     `- Number of cards (approx): ${count}`,
     `- Difficulty: ${difficulty}`,
     `- Language: ${language}`,
+    previous ?
+      `- Curriculum: Previous (Outcomes-Based). Draw the cards from the ` +
+      `syllabus's specific outcomes/objectives and refer to the class as ` +
+      `"${learnerWord}".` :
+      `- Curriculum: CBC (Competency-Based). Draw the cards from the ` +
+      `topic's competences and refer to the class as "${learnerWord}".`,
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
     "",
     "Produce a single JSON object with EXACTLY these keys:",
@@ -75,5 +117,9 @@ function buildUserPrompt(inputs) {
 module.exports = {
   PROMPT_VERSION,
   SYSTEM_PROMPT,
+  SYSTEM_PROMPT_CBC,
+  SYSTEM_PROMPT_PREVIOUS,
+  pickSystemPrompt,
+  isPreviousCurriculum,
   buildUserPrompt,
 };

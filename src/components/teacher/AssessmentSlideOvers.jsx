@@ -12,7 +12,7 @@ import { parsePastedQuestions } from '../../utils/pasteQuestionParser.js'
 import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
-import { useSyllabusTopicOptions, CURRICULUM_FRAMEWORKS } from './syllabusTopicOptions'
+import { useSyllabusTopicOptions } from './syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
 import { PaperBlock } from './views/PaperBlocks'
 import Icon from './studio/studioIcons'
@@ -25,6 +25,8 @@ import {
   DetectDuplicatesAction,
 } from './AssessmentAnalysisActions'
 import { McqOptions, FillBlanksInputs } from './AssessmentQuestionEditors'
+import { CurriculumPicker } from './studio/sections/CurriculumPicker'
+import './studio/lessonStudio.css'
 
 /* ==================================================================
  * PAPER RENDER VIEW (preview + marking key)
@@ -359,16 +361,11 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             </select>
           </div>
         </div>
-        <div className="sv-field" style={{ marginBottom: 12 }}>
-          <label>Curriculum</label>
-          <select
-            value={aiForm.framework}
-            onChange={e => setAiForm(prev => ({ ...prev, framework: e.target.value, topic: '' }))}
-          >
-            {CURRICULUM_FRAMEWORKS.map(f => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
+        <div style={{ marginBottom: 12 }}>
+          <CurriculumPicker
+            curriculumMode={aiForm.framework === '2013' ? 'previous' : 'cbc'}
+            onSelect={(mode) => setAiForm(prev => ({ ...prev, framework: mode === 'previous' ? '2013' : '2023', topic: '' }))}
+          />
         </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

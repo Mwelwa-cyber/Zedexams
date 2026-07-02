@@ -26,7 +26,7 @@ const {
   getOfficialSubjectsForGrade,
 } = require("./cbcKnowledge");
 const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
-const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
+const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {resolveSchemeOutline} = require("./schemeCurriculumOutline");
@@ -65,6 +65,10 @@ const ALLOWED_SUBJECTS = new Set([
   "religious_education",
   "technology_studies", "creative_and_technology_studies",
   "home_economics", "expressive_arts", "physical_education",
+  // Senior/vocational subjects the syllabi expose (Forms 1-4) — accepted so the
+  // standardized curriculum selector never dead-ends on a real syllabus subject.
+  "fashion_fabrics", "food_nutrition", "hospitality_management",
+  "travel_tourism", "literature_in_english", "accounts",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
@@ -91,6 +95,12 @@ function sanitizeInputs(raw = {}) {
     // Optional: a trimmed copy of one of the teacher's saved Class Timetables
     // so the scheme can pace around the real week. null when not attached.
     timetable: sanitizeTimetableInput(raw.timetable),
+    // Explicit curriculum chosen by the teacher — drives CBC vs Previous
+    // prompt/terminology + framework-aware KB grounding. A whole-term scheme
+    // has no single topic, but still branches on curriculum/framework.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
+    curriculum: String(raw.curriculum || "").toLowerCase() === "previous" ?
+      "previous" : "cbc",
   };
 }
 
@@ -124,6 +134,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         subject: inputs.subject,
         topic: `Term ${inputs.term} overview`,
         subtopic: "",
+        framework: inputs.framework,
       }),
       resolveSchemeOutline({
         grade: inputs.grade,
@@ -223,7 +234,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   let modelUsed = DEFAULT_MODEL;
   try {
     const response = await callClaude(apiKey, {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: fullContextBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 8000,   // schemes are long
