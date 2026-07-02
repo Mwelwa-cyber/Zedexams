@@ -121,7 +121,7 @@ async function assertDailyLimit(uid, role, action) {
   // daily row / chart axis label. Same reasoning as aiUsageMonthly.
   const ref = admin.firestore().doc(`aiDailyLimits/${uid}_${day}`);
 
-  await admin.firestore().runTransaction(async (tx) => {
+  const newTotal = await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.exists ? snap.data() : {};
     const total = Number(data.total || 0);
@@ -142,7 +142,33 @@ async function assertDailyLimit(uid, role, action) {
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, {merge: true});
+    return total + 1;
   });
+
+  // Nudge a learner once when they cross 80% of the daily allowance so a hard
+  // block tomorrow isn't a surprise. Learners only (staff get the per-tool
+  // usage-meter warning); dedupeKey pins it to one per day. Best-effort.
+  if (!isStaffRole(role)) {
+    const threshold = Math.ceil(limit * 0.8);
+    if (newTotal >= threshold && newTotal - 1 < threshold && newTotal < limit) {
+      try {
+        const {createNotification} = require("./notifications/createNotification");
+        await createNotification({
+          uid,
+          category: "account",
+          type: "ai_limit_warning",
+          title: "You're close to today's AI limit",
+          body: `You've used ${newTotal} of your ${limit} daily AI actions. The limit resets tomorrow.`,
+          priority: "low",
+          icon: "user-circle",
+          dedupeKey: `ai-daily-limit-${day}`,
+          source: "ai-daily-limit",
+        });
+      } catch (err) {
+        console.warn("[aiService] AI-limit notification failed", (err && err.message) || err);
+      }
+    }
+  }
 }
 
 // Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the

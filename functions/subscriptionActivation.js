@@ -338,6 +338,23 @@ async function activateSubscriptionFromPayment({
     console.error("[subscriptionActivation] success notification failed", err);
   }
 
+  // Tell the admins a payment landed (in-app complement to the receipt email).
+  // Subscriptions only — a K25 top-up isn't worth an admin ping.
+  if (!isTopUp) {
+    try {
+      const {notifyAdmins} = require("./notifications/notifyAudience");
+      await notifyAdmins("payment_received", {
+        paymentId,
+        amount: payloadForInvoice.amount ?
+          `${payloadForInvoice.amount} ${payloadForInvoice.currency || "ZMW"}` : "",
+        plan: (planForInvoice && planForInvoice.name) || "",
+        phone: payloadForInvoice.phoneNumber || "",
+      });
+    } catch (err) {
+      console.error("[subscriptionActivation] admin payment notify failed", err);
+    }
+  }
+
   return {ok: true, activated: true, topUp: isTopUp, overCollected};
 }
 
@@ -383,6 +400,16 @@ async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""
         });
       } catch (err) {
         console.error("[subscriptionActivation] failure notification failed", err);
+      }
+      // Surface the failure to admins in-app too.
+      try {
+        const {notifyAdmins} = require("./notifications/notifyAudience");
+        await notifyAdmins("payment_failed", {
+          paymentId,
+          reason: String(reason || "").slice(0, 120),
+        });
+      } catch (err) {
+        console.error("[subscriptionActivation] admin failure notify failed", err);
       }
     }
     return {ok: true};

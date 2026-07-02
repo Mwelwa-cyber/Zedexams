@@ -22,6 +22,7 @@
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {isPrunableToken, pruneDeadTokensByUid} = require("./notifications/sendPushToUser");
+const {shouldSendPush} = require("./notifications/notificationPrefsCore");
 
 const REMINDER_OPTS = {
   schedule: "every day 16:00",
@@ -90,9 +91,15 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
   // Collect (uid, token) pairs across all candidates so we can batch.
   // sendEachForMulticast accepts up to 500 tokens per call.
   const pairs = [];
+  const now = new Date();
   for (const docSnap of snap.docs) {
     const data = docSnap.data() || {};
     if (data.lastAttemptDate === today) continue; // raced — already practised
+    // Respect the learner's notification preferences: skip push if they've
+    // turned off push / the Learning category, or are in quiet hours / muted.
+    // (The in-app nudge still lands via dailyPracticeReminders.) Uses the
+    // already-read user doc, so no extra read.
+    if (!shouldSendPush(data.notificationPrefs, "learning", now)) continue;
     const tokens = Array.isArray(data.fcmTokens) ? data.fcmTokens : [];
     if (tokens.length === 0) continue;
     summary.candidates += 1;
