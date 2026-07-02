@@ -1243,6 +1243,25 @@ function ImportReportCard({ report }) {
         </div>
       )}
 
+      {report.confidenceBands && report.confidenceBands.scored > 0 && (
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide theme-text-muted mb-1.5">
+            AI read confidence — check the lower bands first in the Quiz Editor
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full px-3 py-1 text-xs font-black bg-emerald-100 text-emerald-800">
+              High: {report.confidenceBands.auto ?? 0}
+            </span>
+            <span className="rounded-full px-3 py-1 text-xs font-black bg-amber-100 text-amber-800">
+              Review: {report.confidenceBands.review ?? 0}
+            </span>
+            <span className="rounded-full px-3 py-1 text-xs font-black bg-rose-100 text-rose-800">
+              Check: {report.confidenceBands.approve ?? 0}
+            </span>
+          </div>
+        </div>
+      )}
+
       {typeEntries.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {typeEntries.map(([type, n]) => (
