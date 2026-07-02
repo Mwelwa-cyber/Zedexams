@@ -7,7 +7,7 @@ import StatusBadge from '../ui/StatusBadge'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 import { parseBankQuestion } from '../../utils/questionBankService'
-import { richTextToPlainText } from '../../utils/quizRichText.js'
+import { extractRichTextPlain } from '../../utils/quizRichText.js'
 import {
   loadReviewQueue, approveQuestion, editAndApproveQuestion, rejectQuestion,
   archiveQuestion, keepPrivateQuestion, mergeWithExisting,
@@ -65,8 +65,13 @@ function AutoApproveToggle() {
   )
 }
 
-function plain(html) {
-  try { return richTextToPlainText(String(html || '')) } catch { return String(html || '') }
+// Decode any rich-text shape the bank stores — a stringified Tiptap doc
+// ({"type":"doc",...}, what the quiz editor saves), HTML, or plain text — to
+// readable text. extractRichTextPlain (not richTextToPlainText) is what keeps
+// the question stem / answer / preview from rendering as raw JSON symbols in
+// the review queue.
+function plain(value) {
+  try { return extractRichTextPlain(value) } catch { return String(value || '') }
 }
 
 /** Resolve a readable answer string for any question type. */
@@ -114,7 +119,7 @@ function ReviewCard({ row, busy, onAction }) {
           ? <img src={q.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover border flex-shrink-0" />
           : <div className="w-16 h-16 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">📝</div>}
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-800 text-sm leading-snug">{row.preview || plain(q?.text) || '(no text)'}</p>
+          <p className="font-bold text-gray-800 text-sm leading-snug">{plain(row.preview) || plain(q?.text) || '(no text)'}</p>
           <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
             {row.grade && <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Grade {row.grade}</span>}
             {row.subject && <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{row.subject}</span>}
