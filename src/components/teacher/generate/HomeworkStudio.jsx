@@ -124,6 +124,7 @@ export default function HomeworkStudio() {
     if (!generationId) return
     attachLibraryToGeneration(generationId, {
       libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
       grade: curr.grade,
       subject: curr.subject,
       assessmentType: 'homework',
@@ -171,6 +172,7 @@ export default function HomeworkStudio() {
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
+        syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
         grade: curr.grade,
         subject: curr.subject,
         assessmentType: 'homework',

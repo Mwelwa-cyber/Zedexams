@@ -108,6 +108,7 @@ export default function FlashcardGenerator() {
     if (!generationId) return
     attachLibraryToGeneration(generationId, {
       libraryType: LIBRARY_TYPES.NOTES,
+      syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
       grade: curr.grade,
       subject: curr.subject,
     }).catch((err) => console.error('[library attach]', err))
@@ -158,6 +159,7 @@ export default function FlashcardGenerator() {
       // assessment.
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.NOTES,
+        syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
         grade:       curr.grade,
         subject:     curr.subject,
       }).catch((err) => console.error('[library attach]', err))

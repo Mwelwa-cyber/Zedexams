@@ -18,58 +18,84 @@ import {
 
 /* ── Grade / Form translation ────────────────────────────────── */
 
-// Internal teacherTools value → academic gradeForm + default syllabus.
-// Multiple grades map to multiple academic levels; for ECE we treat it as
-// CBC Grade 1 because the library has no separate ECE bucket yet.
-const GRADE_FORM_MAP = {
-  ECE:   { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
-  ECE_N: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
-  ECE_R: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
-  G1:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' },
-  G2:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 2' },
-  G3:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 3' },
-  G4:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 4' },
-  G5:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 5' },
-  G6:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Grade 6' },
-  // CBC primary ends at Grade 6; Grade 7 is the old OBC curriculum's final
-  // primary year, so it files under OBC rather than CBC.
-  G7:  { syllabus: SYLLABUS_TYPES.OBC, gradeForm: 'Grade 7' },
-  // Secondary now lives inside CBC as Forms 1–4 (the standalone Secondary
-  // syllabus root was removed), so the secondary grade ids map there.
-  G8:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 1' },
-  G9:  { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 2' },
-  G10: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 3' },
-  G11: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 4' },
-  G12: { syllabus: SYLLABUS_TYPES.CBC, gradeForm: 'Form 4' }, // best-effort mapping
+// Which syllabus an internal 'G#' code belongs to when the caller gives no
+// explicit hint. Grade 7 has no CBC equivalent (CBC primary ends at Grade 6),
+// so it defaults to the old OBC curriculum; everything else defaults to CBC —
+// the internal secondary codes ('G8'…'G12') map onto CBC Forms 1–4 to preserve
+// the long-standing library convention. An explicit `syllabusHint` always wins.
+function defaultSyllabusForGradeNumber(n) {
+  return n === 7 ? SYLLABUS_TYPES.OBC : SYLLABUS_TYPES.CBC
+}
+
+// Which syllabus an *academic* 'Grade N' label belongs to with no hint. CBC
+// never labels its upper grades "Grade 7"…"Grade 12" — it uses Forms 1–4 — so
+// an academic "Grade 7" or higher can only be OBC (which numbers grades 1–12).
+// Grades 1–6 exist in both, so they default to CBC (the current curriculum).
+function defaultSyllabusForAcademicGrade(n) {
+  return n >= 7 ? SYLLABUS_TYPES.OBC : SYLLABUS_TYPES.CBC
+}
+
+// A grade *number* + its resolved syllabus → the academic grade/form label.
+//
+//   • OBC keeps its literal grade number all the way up (Grade 7 … Grade 12).
+//   • CBC primary stays Grades 1–6; Grades 8–12 are the secondary Forms 1–4
+//     (secondary now lives inside CBC — the standalone Secondary root was
+//     removed). Grade 7 has no CBC slot, so it stays a literal 'Grade 7'.
+//
+// This is the crux of the CBC-vs-OBC fix: the same internal id ('G10') resolves
+// to 'Grade 10' under OBC but 'Form 3' under CBC — so a plan the teacher built
+// for OBC no longer lands in a CBC folder.
+const CBC_SECONDARY_FORM = { 8: 'Form 1', 9: 'Form 2', 10: 'Form 3', 11: 'Form 4', 12: 'Form 4' }
+
+function gradeFormForNumber(n, syllabus) {
+  if (syllabus === SYLLABUS_TYPES.OBC) return `Grade ${n}`
+  if (n <= 7) return `Grade ${n}`
+  return CBC_SECONDARY_FORM[n] || `Grade ${n}`
 }
 
 /**
  * Resolve a `{ syllabus, gradeForm }` pair from any incoming grade hint.
- * Accepts the internal 'G4' form as well as the academic 'Grade 4' form.
+ *
+ * Accepts the internal shorthand ('G4', 'F1', 'ECE_N') as well as the academic
+ * form ('Grade 4', 'Form 1'). When the caller passes a `syllabusHint` (the
+ * curriculum the teacher actually chose in the studio) it is authoritative —
+ * both for the returned `syllabus` AND for how a grade number maps to its
+ * academic label, because OBC and CBC number their upper grades differently.
  */
 export function resolveGradeForm(grade, syllabusHint) {
   if (!grade) return { syllabus: syllabusHint || null, gradeForm: null }
   const raw = String(grade).trim()
-  if (GRADE_FORM_MAP[raw]) {
-    return {
-      syllabus:  syllabusHint || GRADE_FORM_MAP[raw].syllabus,
-      gradeForm: GRADE_FORM_MAP[raw].gradeForm,
-    }
+
+  // ECE buckets → CBC Grade 1 (the library has no separate ECE bucket yet).
+  if (/^ECE(_[NR])?$/i.test(raw)) {
+    return { syllabus: syllabusHint || SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' }
   }
-  // Already in academic form? e.g. 'Grade 4' or 'Form 1'.
-  if (/^Grade\s+\d+$/i.test(raw)) {
-    return {
-      syllabus:  syllabusHint || SYLLABUS_TYPES.CBC,
-      gradeForm: raw.replace(/\s+/g, ' ').replace(/grade/i, 'Grade'),
-    }
+
+  // Already-academic labels are kept verbatim — the caller has already chosen
+  // the exact label, so we never re-map 'Grade 10' into a Form here.
+  const acadForm = raw.match(/^Form\s+(\d+)$/i)
+  if (acadForm) {
+    return { syllabus: syllabusHint || SYLLABUS_TYPES.CBC, gradeForm: `Form ${acadForm[1]}` }
   }
-  if (/^Form\s+\d+$/i.test(raw)) {
-    return {
-      // Forms live inside CBC now (no separate Secondary root).
-      syllabus:  syllabusHint || SYLLABUS_TYPES.CBC,
-      gradeForm: raw.replace(/\s+/g, ' ').replace(/form/i, 'Form'),
-    }
+  const acadGrade = raw.match(/^Grade\s+(\d+)$/i)
+  if (acadGrade) {
+    const n = Number(acadGrade[1])
+    return { syllabus: syllabusHint || defaultSyllabusForAcademicGrade(n), gradeForm: `Grade ${n}` }
   }
+
+  // Internal 'F1' code → CBC Form.
+  const codeForm = raw.match(/^F(\d+)$/i)
+  if (codeForm) {
+    return { syllabus: syllabusHint || SYLLABUS_TYPES.CBC, gradeForm: `Form ${codeForm[1]}` }
+  }
+  // Internal 'G4' code → syllabus-aware number mapping (the CBC/OBC crux).
+  const codeGrade = raw.match(/^G(\d+)$/i)
+  if (codeGrade) {
+    const n = Number(codeGrade[1])
+    const syllabus = syllabusHint || defaultSyllabusForGradeNumber(n)
+    return { syllabus, gradeForm: gradeFormForNumber(n, syllabus) }
+  }
+
   return { syllabus: syllabusHint || null, gradeForm: null }
 }
 

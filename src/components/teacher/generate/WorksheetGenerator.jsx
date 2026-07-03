@@ -169,6 +169,7 @@ export default function WorksheetGenerator() {
           // they're the "Topic Test" of a teacher's day-to-day routine.
           attachLibraryToGeneration(data.generationId, {
             libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+            syllabusHint:   curr.curriculum === 'previous' ? 'OBC' : 'CBC',
             grade:          curr.grade,
             subject:        curr.subject,
             assessmentType: 'topic',
@@ -207,6 +208,7 @@ export default function WorksheetGenerator() {
     if (!generationId) return
     attachLibraryToGeneration(generationId, {
       libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
       grade: curr.grade,
       subject: curr.subject,
       assessmentType: 'topic',
