@@ -340,12 +340,18 @@ describe('renderPlanHtml — previous curriculum, modern format', () => {
 describe('renderPlanHtml — previous curriculum, classic format', () => {
   const meta = { ...BASE_META, format: 'classic' }
 
-  it('contains CONTENT column header', () => {
+  it('does NOT render a CONTENT column header (dropped for legibility)', () => {
     const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain('CONTENT')
+    expect(html).not.toContain('>CONTENT<')
   })
 
-  it('contains METHODS column header', () => {
+  it('contains TEACHER\'S ACTIVITY and PUPILS\' ACTIVITY column headers', () => {
+    const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
+    expect(html).toContain("TEACHER'S ACTIVITY")
+    expect(html).toContain("PUPILS' ACTIVITY")
+  })
+
+  it('contains METHODS column header when stages carry methods', () => {
     const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
     expect(html).toContain('METHODS')
   })

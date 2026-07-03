@@ -574,32 +574,29 @@ function renderOldClosing(data, meta) {
 
 /**
  * Old-curriculum "Classic" — progression table
- * (STAGE/TIME | [CONTENT] | TEACHER'S ACTIVITY | PUPILS' ACTIVITY | [METHODS]).
+ * (STAGE/TIME | TEACHER'S ACTIVITY | PUPILS' ACTIVITY | [METHODS]).
  *
- * The CONTENT and METHODS columns are OPTIONAL: they render only when at least
- * one stage actually carries that data — mirroring the Word exporter
- * (buildV3PreviousBody in lessonPlanToDocx.js). This is what keeps the table
- * legible: the generator usually leaves CONTENT empty, and an always-on 30%
- * CONTENT column was squeezing STAGE/TIME down to ~11% (chopping "INTRODUCTION"
- * mid-word) and each activity column to ~22% (one word per line). Dropping the
- * empty columns lets STAGE/TIME and the two activity columns breathe. Widths
- * are recomputed per column set so they always sum to 100%.
+ * The CONTENT column is intentionally NOT rendered: the generator leaves it
+ * empty on outcome-based plans, and an always-on 30% CONTENT column was
+ * squeezing STAGE/TIME down to ~11% (chopping "INTRODUCTION" mid-word) and each
+ * activity column to ~22% (one word per line). Dropping it lets STAGE/TIME and
+ * the two activity columns breathe so every stage (Introduction, Development,
+ * Conclusion, Homework) is fully legible. METHODS stays optional — it renders
+ * only when at least one stage carries that data. Widths are recomputed per
+ * column set so they always sum to 100%.
  * @param {object} data
  * @param {object} meta
  * @returns {string}
  */
 function renderOldClassic(data, meta) {
   const stages = ensureOldStages(data.stages)
-  const hasContent = stages.some((s) => String(s.content || '').trim())
   const hasMethods = stages.some((s) => String(s.methods || '').trim())
 
-  const stageW = hasContent ? 12 : hasMethods ? 14 : 16
-  const contentW = hasContent ? 26 : 0
+  const stageW = hasMethods ? 14 : 16
   const methodsW = hasMethods ? 18 : 0
-  const activityW = Math.round((100 - stageW - contentW - methodsW) / 2)
+  const activityW = Math.round((100 - stageW - methodsW) / 2)
 
   const heads = [['STAGE/TIME', stageW]]
-  if (hasContent) heads.push(['CONTENT', contentW])
   heads.push(["TEACHER'S ACTIVITY", activityW])
   heads.push(["PUPILS' ACTIVITY", activityW])
   if (hasMethods) heads.push(['METHODS', methodsW])
@@ -613,7 +610,6 @@ function renderOldClassic(data, meta) {
       const cells = [
         `<td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>`,
       ]
-      if (hasContent) cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>`)
       cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>`)
       cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>`)
       if (hasMethods) cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td>`)

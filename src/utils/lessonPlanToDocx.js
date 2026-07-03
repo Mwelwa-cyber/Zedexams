@@ -649,7 +649,7 @@ function v3CbcHeaderTable(h) {
  * v3 body for the Previous (Outcomes-Based / 2013) curriculum. Mirrors the
  * on-screen preview (renderOldClassic): RATIONALE → PRE-REQUISITE → SPECIFIC
  * OUTCOMES, one ruled progression table whose columns are the old-curriculum
- * STAGE / TEACHER / PUPILS (+ optional CONTENT / METHODS) headings, then
+ * STAGE / TEACHER / PUPILS (+ optional METHODS) headings, then
  * HOMEWORK and the pupil/teacher evaluation blanks. No CBC-only sections
  * (general/specific competences, learning environment, expected standard).
  */
@@ -676,21 +676,21 @@ function buildV3PreviousBody(plan, opts = {}) {
 
   children.push(...lessonIllustrationParagraphs(plan, opts))
 
-  // Decide whether to show the optional CONTENT / METHODS columns: only when at
-  // least one stage carries that data, so the table stays clean otherwise.
+  // The CONTENT column is intentionally dropped (matches the on-screen preview
+  // renderOldClassic): the generator leaves it empty on outcome-based plans and
+  // it only squeezed the stage/activity columns. METHODS stays optional — shown
+  // only when at least one stage carries that data.
   const stages = plan.stages || []
-  const hasContent = stages.some((s) => String(s.content || '').trim())
   const hasMethods = stages.some((s) => String(s.methods || '').trim())
 
   children.push(new Paragraph({
     children: [text('LESSON DEVELOPMENT', { bold: true, size: 22 })],
     spacing: { before: 160, after: 120 },
   }))
-  const cols = [['STAGE / TIME', 14]]
-  if (hasContent) cols.push(['CONTENT', 26])
-  cols.push(["TEACHER'S ACTIVITY", hasContent ? 22 : 32])
-  cols.push(["PUPILS' ACTIVITY", hasContent ? 22 : 32])
-  if (hasMethods) cols.push(['METHODS', hasContent ? 16 : 22])
+  const cols = [['STAGE / TIME', hasMethods ? 14 : 16]]
+  cols.push(["TEACHER'S ACTIVITY", hasMethods ? 34 : 42])
+  cols.push(["PUPILS' ACTIVITY", hasMethods ? 34 : 42])
+  if (hasMethods) cols.push(['METHODS', 18])
   const headerRow = new TableRow({ tableHeader: true, cantSplit: true, children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
   const stageRows = stages.map((s) => {
     const cells = [
@@ -702,7 +702,6 @@ function buildV3PreviousBody(plan, opts = {}) {
       ], cols[0][1]),
     ]
     let i = 1
-    if (hasContent) cells.push(v3StageCell(bulletList(toLinesLocal(s.content)), cols[i++][1]))
     cells.push(v3StageCell(bulletList(s.teacherActivities), cols[i++][1]))
     cells.push(v3StageCell(bulletList(s.learnerActivities), cols[i++][1]))
     if (hasMethods) cells.push(v3StageCell(bulletList(toLinesLocal(s.methods)), cols[i++][1]))
