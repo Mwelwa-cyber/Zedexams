@@ -54,6 +54,21 @@ const PREVIOUS_GRADES = [
   { group: 'Secondary',      value: 'Grade 12',   label: 'Grade 12' },
 ]
 
+// Lesson duration choices offered in the dropdown. Values are strings so they
+// match how the studio stores `lessonDetails.duration` ('40' by default). The
+// common Zambian period lengths are annotated so teachers can pick at a glance.
+const DURATION_OPTIONS = [
+  { value: '30', label: '30 mins' },
+  { value: '35', label: '35 mins' },
+  { value: '40', label: '40 mins (single period)' },
+  { value: '45', label: '45 mins' },
+  { value: '60', label: '60 mins (1 hour)' },
+  { value: '70', label: '70 mins (double period)' },
+  { value: '80', label: '80 mins (double period)' },
+  { value: '90', label: '90 mins' },
+  { value: '120', label: '120 mins' },
+]
+
 /** Return the grade list for the active curriculum mode. */
 function gradeListFor(curriculumMode) {
   return curriculumMode === 'previous' ? PREVIOUS_GRADES : CBC_GRADES
@@ -280,20 +295,22 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
             <label htmlFor="ldf-duration" className={LABEL_CLS}>Duration</label>
             <div className="relative">
               <FieldIcon><Clock size={15} /></FieldIcon>
-              <input
+              <select
                 id="ldf-duration"
-                type="number"
-                min={20}
-                max={120}
-                step={5}
                 value={lessonDetails.duration}
                 onChange={(e) => onChange('duration', e.target.value)}
-                className={INPUT_CLS + ' pr-12'}
+                className={INPUT_CLS}
                 disabled={disabled}
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] text-[#a39d8e]">
-                mins
-              </span>
+              >
+                {/* Keep any saved value not in the preset list selectable. */}
+                {lessonDetails.duration &&
+                  !DURATION_OPTIONS.some((o) => o.value === String(lessonDetails.duration)) && (
+                    <option value={lessonDetails.duration}>{lessonDetails.duration} mins</option>
+                  )}
+                {DURATION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

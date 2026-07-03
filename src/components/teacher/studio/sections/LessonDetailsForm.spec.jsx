@@ -437,7 +437,7 @@ describe('LessonDetailsForm — onChange callbacks', () => {
         disabled={false}
       />,
     )
-    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '60' } })
     expect(onChange).toHaveBeenCalledWith('duration', '60')
   })
 })
