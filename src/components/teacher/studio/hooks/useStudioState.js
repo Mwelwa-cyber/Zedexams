@@ -172,5 +172,11 @@ export function useStudioState() {
     setGenerationStatus,
     generatedPlan,
     setGeneratedPlan,
+    // Raw useState setters — used ONLY by the Universal Draft Manager to restore
+    // a whole slice atomically, bypassing the cascade-reset helpers (updateTopic
+    // / setTopicField / updateFormatOption) that intentionally wipe subtopic +
+    // selectedOutcomes on a user edit.
+    setTopicData,
+    setFormatOptions,
   }
 }

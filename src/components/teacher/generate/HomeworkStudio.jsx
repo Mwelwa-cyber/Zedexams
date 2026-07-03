@@ -25,6 +25,10 @@ import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
+import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
+import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 
 /**
@@ -56,11 +60,12 @@ export default function HomeworkStudio() {
   // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
-  const [selectorSeed] = useState(() =>
+  const [selectorSeed, setSelectorSeed] = useState(() =>
     urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
       ? urlDefaults
       : curriculumSeedFromProfile(userProfile),
   )
+  const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const isMounted = useIsMounted()
@@ -71,6 +76,14 @@ export default function HomeworkStudio() {
   const [showAnswers, setShowAnswers] = useState(false)
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+
+  // Universal Draft Manager: auto-save the homework inputs.
+  const draft = useStudioInputDraft({
+    descriptor: homeworkInputDescriptor,
+    uid: currentUser?.uid,
+    form, setForm, curr, setCurr,
+    onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -154,6 +167,7 @@ export default function HomeworkStudio() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+    draft.clear().catch(() => {})
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
@@ -219,9 +233,16 @@ export default function HomeworkStudio() {
           emoji="🏠"
         />
         <div className="grid grid-cols-1 gap-6">
+          <div className="w-full max-w-2xl mx-auto">
+            <DraftRecoveryPrompt {...draft} label="homework" />
+          </div>
           <form onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto">
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             <StudioCurriculumSelector
+              key={selectorKey}
               value={selectorSeed}
               onChange={setCurr}
             />

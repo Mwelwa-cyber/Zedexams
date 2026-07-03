@@ -35,6 +35,11 @@ import { useIsMounted } from '../../../hooks/useIsMounted'
 import StudioPageHeader from '../StudioPageHeader'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { sbaTaskInputDescriptor } from '../../../hooks/draft/descriptors'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import SbaTaskView from '../views/SbaTaskView'
 import SbaWorkflowNote from '../SbaWorkflowNote'
@@ -81,6 +86,18 @@ export default function SbaTaskStudio() {
   useEffect(() => {
     setSchoolName((prev) => prev || userProfile?.school || userProfile?.schoolName || '')
   }, [userProfile?.school, userProfile?.schoolName])
+
+  // Universal Draft Manager: auto-save the SBA task inputs.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'sba_task',
+    uid: currentUser?.uid,
+    draftId: 'sba_task-current',
+    descriptor: sbaTaskInputDescriptor,
+    state: { form },
+    enabled: Boolean(currentUser?.uid && featureFlags?.universalDrafts !== false),
+    onRestore: (payload) => { if (payload?.form) setForm((f) => ({ ...f, ...payload.form })) },
+  })
 
   const subjectMeta = getSbaSubject(form.subject)
   const taskTypeOptions = useMemo(() => getSbaTaskTypes(form.subject), [form.subject])
@@ -142,6 +159,7 @@ export default function SbaTaskStudio() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+    draft.clear().catch(() => {})
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.SBA_TASKS,
@@ -215,9 +233,14 @@ export default function SbaTaskStudio() {
           </Link>
         </div>
 
+        <div className="mb-4"><DraftRecoveryPrompt {...draft} label="SBA task" /></div>
+
         <div className="grid lg:grid-cols-5 gap-6">
           {/* ── Form ── */}
           <form onSubmit={onGenerate} className="lg:col-span-2 studio-card p-5 space-y-4 self-start">
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="studio-label">Grade</label>

@@ -45,6 +45,8 @@
     "test:syllabus-word-spacing": "node scripts/test-syllabus-word-spacing.test.js",
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
+    "test:draft-core": "node src/hooks/draft/draftCore.test.js",
+    "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:sba-docx": "node scripts/test-sba-task-docx.mjs",
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
     "test:schema": "node scripts/test-question-schema.mjs",

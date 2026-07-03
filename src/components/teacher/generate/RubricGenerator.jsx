@@ -23,6 +23,10 @@ import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
+import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
+import { rubricInputDescriptor } from '../../../hooks/draft/descriptors'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 
 export default function RubricGenerator() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -31,11 +35,12 @@ export default function RubricGenerator() {
   // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
-  const [selectorSeed] = useState(() =>
+  const [selectorSeed, setSelectorSeed] = useState(() =>
     urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
       ? urlDefaults
       : curriculumSeedFromProfile(userProfile),
   )
+  const [selectorKey, setSelectorKey] = useState(0)
   const [form, setForm] = useState(() => ({
     taskType: 'essay',
     taskDescription: '',
@@ -58,6 +63,14 @@ export default function RubricGenerator() {
   const [warning, setWarning] = useState('')
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+
+  // Universal Draft Manager: auto-save the rubric inputs.
+  const draft = useStudioInputDraft({
+    descriptor: rubricInputDescriptor,
+    uid: currentUser?.uid,
+    form, setForm, curr, setCurr,
+    onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -129,6 +142,7 @@ export default function RubricGenerator() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+    draft.clear().catch(() => {})
 
     if (res.data.generationId) {
       // Rubrics file under Assessments — they're scoring guides for tests.
@@ -175,12 +189,18 @@ export default function RubricGenerator() {
           emoji="📋"
         />
 
+        <div className="mb-4"><DraftRecoveryPrompt {...draft} label="rubric" /></div>
+
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
           <form
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit sticky top-4"
           >
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             <StudioCurriculumSelector
+              key={selectorKey}
               value={selectorSeed}
               onChange={setCurr}
               showTopicSubtopic={false}

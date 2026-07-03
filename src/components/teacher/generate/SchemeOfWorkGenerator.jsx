@@ -30,6 +30,10 @@ import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
 import { FieldText, FieldTextarea, FieldSelect } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
+import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
+import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { getCalendarYears } from '../../../utils/moeCalendar'
 import {
   buildTermPlan,
@@ -59,11 +63,15 @@ export default function SchemeOfWorkGenerator() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
-  const [selectorSeed] = useState(() =>
+  // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the teacher's
+  // saved curriculum defaults. Read once on mount by the selector; recovering a
+  // draft re-seeds it and bumps selectorKey to remount on the saved curriculum.
+  const [selectorSeed, setSelectorSeed] = useState(() =>
     urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
       ? urlDefaults
       : curriculumSeedFromProfile(userProfile),
   )
+  const [selectorKey, setSelectorKey] = useState(0)
   const [form, setForm] = useState(() => ({
     term: 1,
     year: CALENDAR_YEARS.includes(new Date().getFullYear())
@@ -92,6 +100,14 @@ export default function SchemeOfWorkGenerator() {
   const [handedOff, setHandedOff] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+
+  // Universal Draft Manager: auto-save the scheme-of-work inputs.
+  const draft = useStudioInputDraft({
+    descriptor: schemeInputDescriptor,
+    uid: currentUser?.uid,
+    form, setForm, curr, setCurr,
+    onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
 
   // Teacher's saved Class Timetables — attaching one makes the scheme
   // timetable-aware (periods/week + teaching days for the chosen subject).
@@ -279,6 +295,7 @@ export default function SchemeOfWorkGenerator() {
     setAdvisories(Array.isArray(res.data.advisories) ? res.data.advisories : [])
     setCurriculumSource(res.data.curriculumSource || '')
     setStatus('success')
+    draft.clear().catch(() => {})
 
     if (res.data.generationId) {
       attachLibraryToGeneration(res.data.generationId, {
@@ -332,11 +349,18 @@ export default function SchemeOfWorkGenerator() {
         />
 
         <div className="space-y-6">
+          <div className="max-w-2xl mx-auto w-full">
+            <DraftRecoveryPrompt {...draft} label="scheme of work" />
+          </div>
           <form
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 max-w-2xl mx-auto w-full"
           >
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             <StudioCurriculumSelector
+              key={selectorKey}
               value={selectorSeed}
               onChange={setCurr}
               showTopicSubtopic={false}

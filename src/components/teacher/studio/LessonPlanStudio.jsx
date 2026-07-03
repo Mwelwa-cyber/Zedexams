@@ -52,6 +52,12 @@ import {
   stripCode,
 } from './utils/lessonMemory'
 import { DuplicateLessonModal } from './modals/DuplicateLessonModal'
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { lessonPlanInputDescriptor } from '../../../hooks/draft/descriptors'
+import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
@@ -331,6 +337,29 @@ export default function LessonPlanStudio() {
     }
   }, [planContext])
 
+  // ── Universal Draft Manager restore ─────────────────────────────────────────
+  // Runs when the teacher clicks "Continue editing" in <DraftRecoveryPrompt>.
+  // The setter ORDER defeats the cascade-reset effects that would otherwise wipe
+  // a naive restore (see the reset effects in LessonDetailsForm/useStudioState):
+  //   1. curriculumMode first, so a restored grade is valid for the mode's list.
+  //   2. lessonDetails whole (raw key preserved so subjects-resolve doesn't clear
+  //      it).
+  //   3. topicData whole via the raw setter — bypasses setTopicField's cascade so
+  //      topic + subtopic + subtopicRow land atomically and outcomes aren't wiped.
+  //   4. selectedOutcomes after topicData.
+  //   5. learningEnvironments only for CBC (Previous force-clears them).
+  //   6/7. lessonSeries / lessonBreakdown / formatOptions whole.
+  // A one-shot ref prevents a re-fire from clobbering post-restore edits, and we
+  // mark the plan-context auto-fill applied so it can't overwrite the recovery.
+  const restoredDraftRef = useRef(false)
+  const restoreDraft = useCallback((payload) => {
+    if (restoredDraftRef.current || !payload) return
+    restoredDraftRef.current = true
+    applyLessonPlanRestore(studioStateRef.current, payload)
+    // The recovered draft wins over "This week's lesson" auto-fill.
+    appliedPlanContextRef.current = true
+  }, [])
+
   // ── Persistent lesson memory ────────────────────────────────────────────────
   // Live subscription to every lesson plan the teacher has saved. This is the
   // single source of truth for BOTH the per-subtopic Saved Lessons panel and
@@ -421,6 +450,44 @@ export default function LessonPlanStudio() {
   })
 
   const isValid = computeIsValid(studioState)
+
+  // ── Universal Draft Manager: auto-save the lesson-plan INPUTS ───────────────
+  // Only the input slices (never generatedPlan/generationStatus) so a refresh /
+  // crash / offline drop never loses a half-built plan.
+  const draftState = useMemo(() => ({
+    curriculumMode:       studioState.curriculumMode,
+    lessonDetails:        studioState.lessonDetails,
+    topicData:            studioState.topicData,
+    selectedOutcomes:     studioState.selectedOutcomes,
+    learningEnvironments: studioState.learningEnvironments,
+    lessonSeries:         studioState.lessonSeries,
+    lessonBreakdown:      studioState.lessonBreakdown,
+    formatOptions:        studioState.formatOptions,
+  }), [
+    studioState.curriculumMode,
+    studioState.lessonDetails,
+    studioState.topicData,
+    studioState.selectedOutcomes,
+    studioState.learningEnvironments,
+    studioState.lessonSeries,
+    studioState.lessonBreakdown,
+    studioState.formatOptions,
+  ])
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'lesson_plan',
+    uid,
+    draftId: 'lesson_plan-current',
+    descriptor: lessonPlanInputDescriptor,
+    state: draftState,
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: restoreDraft,
+  })
+  // Ref-mirror so handleGenerate can clear the draft without `draft` (a new
+  // object each render) entering its dependency array — same pattern as
+  // studioStateRef / gateRef above.
+  const draftRef = useRef(draft)
+  draftRef.current = draft
 
   // ── Generate handler ──────────────────────────────────────────────────────
 
@@ -684,6 +751,10 @@ export default function LessonPlanStudio() {
           setSavedPlanId(savedId)
           setSavedSignature(JSON.stringify({ plan: planJson, diagrams: [] }))
           setSaveStatus('saved')
+          // Plan is now persisted to the library — drop the input draft so it
+          // doesn't resurface as a stale recovery prompt. (Only on the success
+          // branch: a save failure keeps the draft for a retry.)
+          draftRef.current.clear().catch(() => {})
         } catch (saveErr) {
           console.warn('[zedexams] lesson-plan auto-save failed', saveErr)
           setSaveError(
@@ -1115,8 +1186,15 @@ export default function LessonPlanStudio() {
         setCurriculumMode: studioState.setCurriculumMode,
       }}
     >
+      <div className="w-full max-w-3xl mx-auto px-4 pt-3">
+        <DraftRecoveryPrompt {...draft} label="lesson plan" />
+      </div>
       <StudioShell
         sidebar={
+          <>
+          <div className="flex justify-end px-3 pt-2">
+            <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+          </div>
           <StudioSidebar
             studioState={studioState}
             aiState={aiState}
@@ -1141,6 +1219,7 @@ export default function LessonPlanStudio() {
               onOpenLesson: handleOpenLesson,
             }}
           />
+          </>
         }
         canvas={
           <StudioCanvas
