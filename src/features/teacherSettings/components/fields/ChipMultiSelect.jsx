@@ -6,6 +6,8 @@ import { useMemo, useState } from 'react'
 // add free-text values (streams like "5A") with Enter or the Add button.
 export default function ChipMultiSelect({
   id,
+  label, // accessible name for the chip group (the visible label element
+  // can't be wired via htmlFor — this isn't a single form control)
   values = [],
   onChange,
   options = [],
@@ -48,7 +50,7 @@ export default function ChipMultiSelect({
   const customSelected = values.filter((v) => !normalized.some((o) => o.value === v))
 
   return (
-    <div>
+    <div role="group" aria-label={label}>
       {(showSearch || allowCustom) && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input

@@ -67,6 +67,11 @@ export function PaperBlock({ block }) {
       </div>
     )
     case 'footerCode': return <div className="sv-paper-footer-code">{block.code}</div>
+    case 'schoolFooter': return (
+      <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: '#555' }}>
+        {block.text}
+      </div>
+    )
     default: return null
   }
 }

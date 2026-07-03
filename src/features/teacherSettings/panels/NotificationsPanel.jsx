@@ -4,6 +4,7 @@ import {
   NOTIFICATION_CATEGORY_META,
   normalizeNotificationPrefs,
 } from '../../../utils/notificationPrefs'
+import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import ToggleRow from '../components/fields/ToggleRow'
 import { useSettingsSave } from '../lib/useSettingsSave'
@@ -25,10 +26,23 @@ const TEACHER_HINTS = {
 // shape as the learner settings page (shared normalizer keeps the two panels
 // byte-compatible with the server gate).
 export default function NotificationsPanel() {
-  const { userProfile, updateProfileFields } = useAuth()
+  const { userProfile, currentUser, updateProfileFields } = useAuth()
   const source = normalizeNotificationPrefs(userProfile?.notificationPrefs)
   const [prefs, setPrefs] = useState(source)
+  const [pushState, setPushState] = useState(() => pushPermission())
   const { run, saving, saved, error } = useSettingsSave()
+
+  // Turning push ON is only real once the browser grants permission and an
+  // FCM token registers — same flow as the learner settings page. Turning it
+  // off just flips the stored pref (we can't revoke a browser grant).
+  const onTogglePush = async (push) => {
+    if (push && isPushSupported() && pushPermission() !== 'granted' && currentUser?.uid) {
+      const result = await requestPushPermission(currentUser.uid)
+      setPushState(result)
+      if (result !== 'granted') return // pref stays off — nothing would arrive
+    }
+    setPrefs((p) => ({ ...p, channels: { ...p.channels, push } }))
+  }
 
   const dirty = useMemo(
     () => JSON.stringify(prefs) !== JSON.stringify(source),
@@ -37,7 +51,9 @@ export default function NotificationsPanel() {
 
   const onSave = () =>
     run(async () => {
-      await updateProfileFields({ notificationPrefs: normalizeNotificationPrefs(prefs) })
+      const next = normalizeNotificationPrefs(prefs)
+      await updateProfileFields({ notificationPrefs: next })
+      setPrefs(next)
     })
 
   const setCategory = (key) => (on) =>
@@ -76,10 +92,16 @@ export default function NotificationsPanel() {
         <h2 className="tset-section__title">Channels</h2>
         <ToggleRow
           title="Push notifications"
-          hint="Delivered to this device even when ZedExams is closed."
+          hint={
+            !isPushSupported()
+              ? 'Not supported in this browser.'
+              : pushState === 'denied'
+                ? 'Blocked in your browser settings — allow notifications for zedexams.com to enable.'
+                : 'Delivered to this device even when ZedExams is closed.'
+          }
           checked={prefs.channels.push}
-          onChange={(push) => setPrefs((p) => ({ ...p, channels: { ...p.channels, push } }))}
-          disabled={!prefs.master}
+          onChange={onTogglePush}
+          disabled={!prefs.master || !isPushSupported() || pushState === 'denied'}
         />
         <ToggleRow
           title="In-app notifications"

@@ -29,9 +29,11 @@ export default function TeachingPanel() {
 
   const onSave = () =>
     run(async () => {
-      await updateProfileFields({
-        teaching: normalizeTeaching({ ...userProfile?.teaching, ...form }),
-      })
+      const next = normalizeTeaching({ ...userProfile?.teaching, ...form })
+      await updateProfileFields({ teaching: next })
+      // Reflect the normalized value back (trimmed/deduped) so the form
+      // matches the freshly saved profile and dirty clears.
+      setForm(next)
     })
 
   return (
@@ -42,6 +44,7 @@ export default function TeachingPanel() {
       <section className="tset-section">
         <h2 className="tset-section__title">Grades you teach</h2>
         <ChipMultiSelect
+          label="Grades you teach"
           values={form.grades}
           onChange={(grades) => setForm((f) => ({ ...f, grades }))}
           options={GRADE_OPTIONS}
@@ -52,6 +55,7 @@ export default function TeachingPanel() {
       <section className="tset-section">
         <h2 className="tset-section__title">Subjects you teach</h2>
         <ChipMultiSelect
+          label="Subjects you teach"
           values={form.subjects}
           onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
           options={SUBJECT_OPTIONS}
@@ -70,6 +74,7 @@ export default function TeachingPanel() {
           >
             <ChipMultiSelect
               id="tp-streams"
+              label="Streams / classes"
               values={form.streams}
               onChange={(streams) => setForm((f) => ({ ...f, streams }))}
               options={[]}

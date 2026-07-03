@@ -12,11 +12,11 @@ const DETAIL_ICONS = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const LOCAL_LANGUAGES = new Set(['Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Luvale'])
+const LOCAL_LANGUAGES = new Set(['Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Lunda', 'Luvale'])
 
 // Languages of instruction. English is the default; the rest live behind the
 // Advanced Options drawer so the form isn't cluttered for the common case.
-const MEDIUM_OPTIONS = ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Luvale']
+const MEDIUM_OPTIONS = ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Lunda', 'Luvale']
 
 const DETAIL_OPTIONS = [
   { value: 'simplified', label: 'Simplified', description: 'Key points only, concise' },

@@ -2,6 +2,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { ZAMBIAN_PROVINCES, SCHOOL_TYPES } from '../../../config/zambia'
 import { useSchoolProfileForm } from '../lib/useSchoolProfileForm'
 import SettingsDetailShell from '../components/SettingsDetailShell'
+import SchoolProfileLoadError from '../components/SchoolProfileLoadError'
 import FieldRow from '../components/fields/FieldRow'
 import SelectField from '../components/fields/SelectField'
 import { useSettingsSave } from '../lib/useSettingsSave'
@@ -16,6 +17,7 @@ export default function SchoolPanel() {
   const { run, saving, saved, error } = useSettingsSave()
 
   const dirty = school.dirty || false
+  const blocked = school.loading || school.loadError
 
   const onSave = () =>
     run(async () => {
@@ -33,8 +35,9 @@ export default function SchoolPanel() {
   return (
     <SettingsDetailShell
       rowId="school"
-      saveBar={{ onSave, saving, saved, error, dirty, disabled: !dirty || school.loading }}
+      saveBar={{ onSave, saving, saved, error, dirty, disabled: !dirty || blocked }}
     >
+      <SchoolProfileLoadError school={school} />
       <section className="tset-section">
         <h2 className="tset-section__title">School details</h2>
         <p className="tset-section__hint">
@@ -51,7 +54,7 @@ export default function SchoolPanel() {
               onChange={setText('schoolName')}
               placeholder="e.g. Twatasha Primary School"
               maxLength={200}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="EMIS number" htmlFor="sc-emis" help="Your school's EMIS registration number.">
@@ -63,7 +66,7 @@ export default function SchoolPanel() {
               onChange={setText('emisNumber')}
               placeholder="e.g. 8012345"
               maxLength={40}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="School type" htmlFor="sc-type">
@@ -73,6 +76,7 @@ export default function SchoolPanel() {
               onChange={set('schoolType')}
               options={SCHOOL_TYPES}
               placeholder="Select type…"
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="Province" htmlFor="sc-province">
@@ -82,6 +86,7 @@ export default function SchoolPanel() {
               onChange={set('province')}
               options={ZAMBIAN_PROVINCES}
               placeholder="Select province…"
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="District" htmlFor="sc-district">
@@ -93,7 +98,7 @@ export default function SchoolPanel() {
               onChange={setText('district')}
               placeholder="e.g. Chongwe"
               maxLength={80}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="School address" htmlFor="sc-address" full>
@@ -105,7 +110,7 @@ export default function SchoolPanel() {
               onChange={setText('address')}
               placeholder="e.g. Plot 5, Great East Road, Lusaka"
               maxLength={300}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="Department" htmlFor="sc-dept" help="Shown on departmental documents (if your school uses them).">
@@ -117,7 +122,7 @@ export default function SchoolPanel() {
               onChange={setText('department')}
               placeholder="e.g. Social Sciences"
               maxLength={80}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
           <FieldRow label="School motto" htmlFor="sc-motto">
@@ -129,7 +134,7 @@ export default function SchoolPanel() {
               onChange={setText('motto')}
               placeholder="e.g. Knowledge is Light"
               maxLength={160}
-              disabled={school.loading}
+              disabled={blocked}
             />
           </FieldRow>
         </div>

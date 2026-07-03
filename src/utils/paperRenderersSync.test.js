@@ -69,9 +69,9 @@ assert(
 
 // A comprehensive paper that exercises EVERY block kind buildPaperLayout can
 // emit (header, learnerFields, instructions, sectionHeader, passage, question,
-// passageTotal, pagebreak, endOfPaper, footerCode). The set of kinds actually
-// produced must match what both renderers handle — so a kind can never be
-// emitted-but-unrendered.
+// passageTotal, pagebreak, endOfPaper, footerCode, schoolFooter). The set of
+// kinds actually produced must match what both renderers handle — so a kind
+// can never be emitted-but-unrendered.
 const assessment = {
   schoolName: 'Sync Primary', subject: 'Integrated Science', grade: '7',
   assessmentType: 'end_of_term', term: '2',
@@ -79,6 +79,7 @@ const assessment = {
   coverInstructions: 'Answer ALL the questions.',
   endOfPaperText: 'END OF PAPER',
   footerCode: 'G7/Science/Term 2/2026',
+  footerText: 'Sync Primary — Sciences Department',
   parts: [{ id: 'pA', order: 0, title: 'Section A' }],
   passages: [{ id: 'ps1', order: 1, partId: 'pA', passageKind: 'diagram', title: 'Study the diagram below.', imageUrl: 'https://x/d.png' }],
   pagebreaks: [{ id: 'pb1', order: 3, partId: 'pA' }],
@@ -88,7 +89,7 @@ const questions = [
   { id: 'q2', order: 4, partId: 'pA', type: 'mcq', marks: 1, text: 'Pick one', options: ['Lungs', 'Heart'], correctAnswer: 0 },
 ]
 const layoutKinds = new Set(buildPaperLayout(assessment, questions, { mode: 'paper' }).map((b) => b.kind))
-const expected = new Set(['header', 'learnerFields', 'instructions', 'sectionHeader', 'passage', 'question', 'passageTotal', 'pagebreak', 'endOfPaper', 'footerCode'])
+const expected = new Set(['header', 'learnerFields', 'instructions', 'sectionHeader', 'passage', 'question', 'passageTotal', 'pagebreak', 'endOfPaper', 'footerCode', 'schoolFooter'])
 assert(eqSet(layoutKinds, expected), `buildPaperLayout emits every expected block kind ${showSet(layoutKinds)}`)
 // Both renderer sets are equal (asserted above), so checking the layout against
 // the DOCX set is enough to prove no kind is emitted-but-unrendered.

@@ -29,12 +29,16 @@ export default function ProfilePanel() {
   const onSave = () =>
     run(async () => {
       const name = displayName.trim().slice(0, 100)
+      // Merge over the LATEST stored map so photo fields saved by the
+      // uploader (or another tab) are never clobbered.
+      const next = normalizeTeacherProfile({ ...userProfile?.teacherProfile, ...form })
       await updateProfileFields({
         ...(name && name !== userProfile?.displayName ? { displayName: name } : {}),
-        // Merge over the LATEST stored map so photo fields saved by the
-        // uploader (or another tab) are never clobbered.
-        teacherProfile: normalizeTeacherProfile({ ...userProfile?.teacherProfile, ...form }),
+        teacherProfile: next,
       })
+      // Reflect normalized values back (trimmed phone etc.) so dirty clears.
+      setForm(editable(next))
+      if (name) setDisplayName(name)
     })
 
   return (

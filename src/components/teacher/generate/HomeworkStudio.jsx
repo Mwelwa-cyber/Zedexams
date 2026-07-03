@@ -25,7 +25,7 @@ import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
-import { curriculumSeedFromProfile, preferredDifficulty } from '../../../utils/teacherDefaults'
+import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -37,7 +37,9 @@ export default function HomeworkStudio() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    term: '',
+    // Saved current term (Teacher Settings → Calendar) pre-fills the Term
+    // select; a deep-link term in urlDefaults still wins via the spread.
+    term: preferredTermYear(userProfile).term,
     lessonNumber: '',
     totalLessons: '',
     learningEnvironment: '',
@@ -106,7 +108,12 @@ export default function HomeworkStudio() {
           : ''
     const res = await generateHomework({
       ...form,
-      instructions: [form.instructions, difficultyLine].filter(Boolean).join('\n'),
+      // Server caps instructions at 500 chars — only append the difficulty
+      // line when the combined text fits, never send a truncated fragment.
+      instructions: (() => {
+        const joined = [form.instructions, difficultyLine].filter(Boolean).join('\n')
+        return joined.length <= 500 ? joined : form.instructions
+      })(),
       grade: curr.grade,
       subject: curr.subject,
       topic: curr.topic,

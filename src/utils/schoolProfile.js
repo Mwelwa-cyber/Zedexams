@@ -70,6 +70,24 @@ export function normalizeSchoolProfile(data = {}) {
   }
 }
 
+// Normalize ONLY the keys the caller actually provided — the write-side
+// companion to normalizeSchoolProfile. saveSchoolProfile writes this partial
+// payload with setDoc merge:true, so a caller editing one slice (the Branding
+// upload, the legacy settings page's three fields, one panel of the Teacher
+// Settings) can never blank the other 17 fields by omission. Without this,
+// every save wrote the FULL normalized shape ('' for anything absent) and
+// merge protected nothing — a blank form after a failed read wiped the whole
+// saved school identity on the next Save.
+export function normalizeSchoolProfilePartial(data = {}) {
+  const d = data && typeof data === 'object' ? data : {}
+  const normalized = normalizeSchoolProfile(d)
+  const out = {}
+  for (const key of Object.keys(normalized)) {
+    if (key in d) out[key] = normalized[key]
+  }
+  return out
+}
+
 // True when the profile carries no usable branding at all. Only the fields
 // that would visibly brand a paper count — a saved export-format preference
 // alone doesn't make the profile "set up".
@@ -103,6 +121,7 @@ export function applySchoolProfileDefaults(form, profile) {
     motto: p.motto || f.motto || '',
     address: p.address || f.address || '',
     emisNumber: p.emisNumber || f.emisNumber || '',
+    footerText: p.footerText || f.footerText || '',
   }
 }
 
@@ -122,6 +141,7 @@ export function brandingForAiPaper(form, profile, recentBranding) {
     motto: pick(f.motto, 'motto'),
     address: pick(f.address, 'address'),
     emisNumber: pick(f.emisNumber, 'emisNumber'),
+    footerText: pick(f.footerText, 'footerText'),
   }
 }
 

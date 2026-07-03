@@ -396,6 +396,7 @@ service cloud.firestore {
         && (!('motto' in incoming()) || (incoming().motto is string && incoming().motto.size() <= 160))
         && (!('address' in incoming()) || (incoming().address is string && incoming().address.size() <= 300))
         && (!('emisNumber' in incoming()) || (incoming().emisNumber is string && incoming().emisNumber.size() <= 40))
+        && (!('footerText' in incoming()) || (incoming().footerText is string && incoming().footerText.size() <= 300))
         && (!('className' in incoming()) || (incoming().className is string && incoming().className.size() <= 100))
         && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 20))
         && (!('assessmentDate' in incoming()) || (incoming().assessmentDate is string && incoming().assessmentDate.size() <= 40))

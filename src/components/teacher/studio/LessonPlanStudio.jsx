@@ -190,7 +190,13 @@ export default function LessonPlanStudio() {
   // (userProfile is a fresh object every onSnapshot), silently dropping the
   // pending seed — the ref only flips on real unmount.
   const unmountedRef = useRef(false)
-  useEffect(() => () => { unmountedRef.current = true }, [])
+  useEffect(() => {
+    // Reset on setup so React.StrictMode's dev-only mount→cleanup→remount
+    // cycle doesn't leave the flag stuck true (which silently discarded the
+    // async seed below in `npm run dev`). A real unmount still trips it.
+    unmountedRef.current = false
+    return () => { unmountedRef.current = true }
+  }, [])
   const { setLessonDetails, updateFormatOption } = studioState
   useEffect(() => {
     if (prefilledIdentityRef.current || !userProfile) return

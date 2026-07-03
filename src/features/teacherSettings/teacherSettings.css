@@ -559,6 +559,14 @@
 .studio-theme .tset-savebar__status--saved { color: #10864e; }
 .studio-theme .tset-savebar__status--error { color: #b91c1c; }
 
+/* TeacherBottomNav is fixed to the bottom below Tailwind lg (1024px); lift
+   the sticky save bar above it so Save is never hidden under the nav. */
+@media (max-width: 1023.98px) {
+  .studio-theme .tset-savebar {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 5.25rem);
+  }
+}
+
 /* Calm stat rows for AI Memory / Subscription (no gauges). */
 .studio-theme .tset-usage-row {
   display: flex;

@@ -31,7 +31,7 @@ import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
-import { curriculumSeedFromProfile, preferredDifficulty } from '../../../utils/teacherDefaults'
+import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -41,7 +41,9 @@ export default function WorksheetGenerator() {
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
-    term: '',
+    // Saved current term (Teacher Settings → Calendar) pre-fills the Term
+    // select; a deep-link term in urlDefaults still wins via the spread.
+    term: preferredTermYear(userProfile).term,
     lessonNumber: '',
     totalLessons: '',
     learningEnvironment: '',
