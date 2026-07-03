@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { normalizeTeacherProfile } from '../../../../utils/teacherSettingsCore'
-import { uploadBrandingAsset, deleteBrandingAsset } from '../../lib/uploadBrandingAsset'
+import { uploadBrandingAsset, deleteBrandingAssetByPath } from '../../lib/uploadBrandingAsset'
 import Icon from '../../../../components/ui/Icon'
 import { Camera } from '../../../../components/ui/icons'
 
 // Profile photo uploader. Saves immediately on pick (independent of the
-// panel's Save button): uploads to user-branding/{uid}/profile-photo.jpg and
-// writes teacherProfile.photoUrl merged over the latest stored map.
+// panel's Save button): uploads a versioned object under user-branding/{uid}/
+// and writes teacherProfile.photoUrl merged over the latest stored map.
 export default function PhotoUploadField() {
   const { userProfile, currentUser, updateProfileFields } = useAuth()
   const inputRef = useRef(null)
@@ -15,9 +15,17 @@ export default function PhotoUploadField() {
   const [error, setError] = useState('')
   const profile = normalizeTeacherProfile(userProfile?.teacherProfile)
 
+  // Uploads take seconds; the profile may change mid-flight (panel save,
+  // another tab). Merge over the profile as of WRITE time, not pick time.
+  const profileRef = useRef(userProfile)
+  profileRef.current = userProfile
+
   const writeProfile = (fields) =>
     updateProfileFields({
-      teacherProfile: normalizeTeacherProfile({ ...userProfile?.teacherProfile, ...fields }),
+      teacherProfile: normalizeTeacherProfile({
+        ...profileRef.current?.teacherProfile,
+        ...fields,
+      }),
     })
 
   const onPick = async (e) => {
@@ -27,8 +35,11 @@ export default function PhotoUploadField() {
     setBusy(true)
     setError('')
     try {
+      const previousPath = normalizeTeacherProfile(profileRef.current?.teacherProfile).photoPath
       const { url, path } = await uploadBrandingAsset(currentUser.uid, 'photo', file)
       await writeProfile({ photoUrl: url, photoPath: path })
+      // Old photo versions aren't referenced anywhere else — reclaim now.
+      await deleteBrandingAssetByPath(previousPath).catch(() => null)
     } catch (err) {
       console.error('Photo upload failed:', err)
       setError(err?.message || 'Upload failed — please try again.')
@@ -42,8 +53,9 @@ export default function PhotoUploadField() {
     setBusy(true)
     setError('')
     try {
-      await deleteBrandingAsset(currentUser.uid, 'photo')
+      const currentPath = normalizeTeacherProfile(profileRef.current?.teacherProfile).photoPath
       await writeProfile({ photoUrl: '', photoPath: '' })
+      await deleteBrandingAssetByPath(currentPath)
     } catch (err) {
       console.error('Photo remove failed:', err)
       setError('Could not remove the photo — please try again.')

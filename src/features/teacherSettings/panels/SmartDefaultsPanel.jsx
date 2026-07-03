@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { normalizeTeacherPreferences } from '../../../utils/teacherSettingsCore'
 import { useSchoolProfileForm } from '../lib/useSchoolProfileForm'
 import SettingsDetailShell from '../components/SettingsDetailShell'
+import SchoolProfileLoadError from '../components/SchoolProfileLoadError'
 import FieldRow from '../components/fields/FieldRow'
 import OptionCards from '../components/fields/OptionCards'
 import { useSettingsSave } from '../lib/useSettingsSave'
@@ -27,6 +28,8 @@ export default function SmartDefaultsPanel() {
   const school = useSchoolProfileForm()
   const { run, saving, saved, error } = useSettingsSave()
 
+  // The duration slice lives on schoolProfiles — while it can't load, only
+  // that half is gated; the users-doc difficulty knobs stay editable.
   const dirty = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(editable(source)) || school.dirty,
     [form, source, school.dirty],
@@ -35,12 +38,11 @@ export default function SmartDefaultsPanel() {
   const onSave = () =>
     run(async () => {
       const latest = normalizeTeacherPreferences(userProfile?.teacherPreferences)
-      await updateProfileFields({
-        teacherPreferences: {
-          ...latest,
-          ai: { ...latest.ai, ...form },
-        },
-      })
+      const next = { ...latest, ai: { ...latest.ai, ...form } }
+      await updateProfileFields({ teacherPreferences: next })
+      // Reflect the normalized value back so the form isn't left "dirty"
+      // against the freshly saved profile.
+      setForm(editable(normalizeTeacherPreferences(next)))
       if (school.dirty) await school.save()
     })
 
@@ -49,6 +51,7 @@ export default function SmartDefaultsPanel() {
       rowId="defaults"
       saveBar={{ onSave, saving, saved, error, dirty, disabled: !dirty }}
     >
+      <SchoolProfileLoadError school={school} />
       <section className="tset-section">
         <h2 className="tset-section__title">Homework difficulty</h2>
         <OptionCards
@@ -84,7 +87,7 @@ export default function SmartDefaultsPanel() {
               min={10}
               max={240}
               value={school.form.defaultDuration ?? ''}
-              disabled={school.loading}
+              disabled={school.loading || school.loadError}
               onChange={(e) =>
                 school.patch({
                   defaultDuration: e.target.value === '' ? null : Number(e.target.value),

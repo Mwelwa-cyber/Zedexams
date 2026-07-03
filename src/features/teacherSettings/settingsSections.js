@@ -179,7 +179,7 @@ export const SETTINGS_SECTIONS = [
         id: 'advanced',
         path: 'advanced',
         title: 'Advanced',
-        desc: 'Autosave, downloads and power-user options',
+        desc: 'Power-user options and what’s coming next',
         icon: Settings,
         tone: 'slate',
       },
@@ -188,13 +188,15 @@ export const SETTINGS_SECTIONS = [
 ]
 
 // Legacy deep links (`/settings?tab=<id>` — e.g. AssessmentBlocks links to
-// ?tab=school) → new nested paths. Unknown tabs land on the hub.
+// ?tab=school) → new nested paths. Unknown tabs land on the hub. The old
+// "account" tab's only content was the delete-account flow, which now lives
+// on the Security panel.
 export const LEGACY_TAB_TO_PATH = {
   school: 'school',
   notifications: 'notifications',
   appearance: 'appearance',
   accessibility: 'appearance',
-  account: 'advanced',
+  account: 'security',
 }
 
 // Flat row lookup used by the router + specs.

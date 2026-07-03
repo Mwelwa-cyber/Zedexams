@@ -249,6 +249,7 @@ function mapAssessmentToForm(a = {}) {
   copy('motto')
   copy('address')
   copy('emisNumber')
+  copy('footerText')
   copy('className')
   copy('paperName')
   copy('assessmentDate')
@@ -358,6 +359,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     motto: '',
     address: '',
     emisNumber: '',
+    footerText: '',
     className: '',
     paperName: '',
     assessmentDate: '',
@@ -510,6 +512,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     motto: form.motto,
     address: form.address,
     emisNumber: form.emisNumber,
+    footerText: form.footerText,
     className: form.className,
     paperName: form.paperName,
     assessmentDate: form.assessmentDate,
@@ -1366,7 +1369,14 @@ export default function AssessmentStudio({ variant = 'test' }) {
         assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
         coverInstructions: f.coverInstructions ||
           String(assessment?.header?.instructions || ''),
+        // brandingForAiPaper already implements per-field form-wins, so all
+        // its outputs apply — not just the school name.
         schoolName: branding.schoolName,
+        schoolLogoUrl: branding.schoolLogoUrl,
+        motto: branding.motto,
+        address: branding.address,
+        emisNumber: branding.emisNumber,
+        footerText: branding.footerText,
       }
     })
     setCreatePaperOpen(false)
@@ -1865,6 +1875,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       motto: form.motto || '',
       address: form.address || '',
       emisNumber: form.emisNumber || '',
+      footerText: form.footerText || '',
       className: form.className,
       paperName: form.paperName,
       assessmentDate: form.assessmentDate,

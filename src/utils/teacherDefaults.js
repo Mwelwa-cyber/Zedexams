@@ -44,7 +44,10 @@ export function curriculumSeedFromProfile(userProfile) {
   if (!autoSeedEnabled(userProfile)) return null
   const prefs = normalizeTeacherPreferences(userProfile?.teacherPreferences)
   const { curriculum, grade, subject } = prefs.curriculum
-  if (!grade && !subject) return null
+  // Only the normalizer's 'cbc' default counts as "nothing worth seeding" —
+  // a teacher who saved ONLY "Previous curriculum" still expects the pickers
+  // to open on 2013, even with no default grade/subject.
+  if (!grade && !subject && curriculum === 'cbc') return null
   return { curriculum, grade, subject }
 }
 
@@ -91,6 +94,23 @@ export function aiPrefsPromptLines(userProfile) {
   if (!include.exercises) lines.push('- Do not include practice exercises.')
   if (!include.reflection) lines.push('- Do not include a lesson reflection or evaluation section.')
   return lines
+}
+
+// Saved current period (Teacher Settings → My Teaching → Calendar) in the
+// shapes the consumers use: `term` is the generator studios' CURRICULUM_TERMS
+// value ('1'|'2'|'3', '' when unset), `termLabel` the classTerms display
+// ('Term 1'), `academicYear` the year string. Gated by AI Memory like every
+// other seed.
+export function preferredTermYear(userProfile) {
+  if (!autoSeedEnabled(userProfile)) return { term: '', termLabel: '', academicYear: '' }
+  const prefs = normalizeTeacherPreferences(userProfile?.teacherPreferences)
+  const { term, academicYear } = prefs.curriculum
+  const m = /^Term ([123])$/.exec(term)
+  return {
+    term: m ? m[1] : '',
+    termLabel: m ? term : '',
+    academicYear: academicYear || '',
+  }
 }
 
 // Default for a studio's difficulty control. `kind` is 'assessment' or

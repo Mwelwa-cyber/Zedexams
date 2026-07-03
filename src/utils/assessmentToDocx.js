@@ -694,6 +694,8 @@ async function renderBlock(block, stats = null) {
       alignment: AlignmentType.RIGHT,
       spacing: { before: 200 },
     })]
+    // School footer line (Teacher Settings → My School → Branding).
+    case 'schoolFooter': return [centeredPara(runText(block.text, { size: 18, color: '555555' }), { spacing: { before: 120 } })]
     default: return []
   }
 }

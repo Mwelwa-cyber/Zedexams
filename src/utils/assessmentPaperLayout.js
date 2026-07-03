@@ -509,6 +509,11 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   if (assessment.footerCode || (assessment.subject && assessment.grade)) {
     blocks.push({ kind: 'footerCode', code: assessment.footerCode || buildFooterCode(assessment) })
   }
+  // School footer line (Teacher Settings → My School → Branding) — printed
+  // last, under the paper code.
+  if (String(assessment.footerText || '').trim()) {
+    blocks.push({ kind: 'schoolFooter', text: String(assessment.footerText).trim() })
+  }
 
   return blocks
 }

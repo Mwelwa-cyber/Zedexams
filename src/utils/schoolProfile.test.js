@@ -6,6 +6,7 @@
 
 import {
   normalizeSchoolProfile,
+  normalizeSchoolProfilePartial,
   isEmptySchoolProfile,
   applySchoolProfileDefaults,
   brandingForAiPaper,
@@ -70,6 +71,28 @@ console.log('\nnormalizeSchoolProfile — school identity + branding fields')
   assert(normalizeSchoolProfile({}).resourceLevel === '', 'missing resource level → blank (studios use own default)')
   assert(normalizeSchoolProfile({ motto: 'a'.repeat(400) }).motto.length === 160, 'caps motto length')
   assert(normalizeSchoolProfile({}).emisNumber === '', 'missing EMIS → blank')
+}
+
+console.log('\nnormalizeSchoolProfilePartial — writes only the provided keys')
+{
+  const partial = normalizeSchoolProfilePartial({ schoolName: '  Twatasha  ', motto: 'Light' })
+  assert(Object.keys(partial).length === 2, 'only provided keys survive')
+  assert(partial.schoolName === 'Twatasha', 'provided keys are normalized')
+  assert(!('emisNumber' in partial), 'absent keys are NOT blanked — merge protects them')
+  assert(!('schoolLogoUrl' in partial), 'absent branding urls are NOT blanked')
+
+  // The legacy settings page passes exactly its three fields — the other 17
+  // saved fields must never ride along as blanks.
+  const legacy = normalizeSchoolProfilePartial({
+    schoolName: 'X', defaultDuration: 60, defaultCoverInstructions: 'Answer all.',
+  })
+  assert(Object.keys(legacy).sort().join(',') === 'defaultCoverInstructions,defaultDuration,schoolName',
+    'legacy 3-field save writes exactly 3 keys')
+
+  // Explicit blanks still clear ('' present in input → written).
+  const cleared = normalizeSchoolProfilePartial({ motto: '' })
+  assert('motto' in cleared && cleared.motto === '', 'explicit blank clears the field')
+  assert(Object.keys(normalizeSchoolProfilePartial(undefined)).length === 0, 'undefined → empty payload')
 }
 
 console.log('\nisEmptySchoolProfile')

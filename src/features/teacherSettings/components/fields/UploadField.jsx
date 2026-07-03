@@ -7,10 +7,11 @@ import { ImageIcon } from '../../../../components/ui/icons'
 // picks the file and calls onUpload(file) / onRemove(), showing busy/error
 // state. Preview keeps aspect (object-fit: contain) since these are documents
 // marks, not avatars.
-export default function UploadField({ title, hint, url, onUpload, onRemove }) {
+export default function UploadField({ title, hint, url, onUpload, onRemove, disabled = false }) {
   const inputRef = useRef(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const blocked = busy || disabled
 
   const onPick = async (e) => {
     const file = e.target.files?.[0]
@@ -54,13 +55,13 @@ export default function UploadField({ title, hint, url, onUpload, onRemove }) {
           <button
             type="button"
             className="tset-btn tset-btn--ghost tset-btn--sm"
-            disabled={busy}
+            disabled={blocked}
             onClick={() => inputRef.current?.click()}
           >
             {busy ? 'Working…' : url ? 'Change' : 'Upload'}
           </button>
           {url && (
-            <button type="button" className="tset-btn tset-btn--danger tset-btn--sm" disabled={busy} onClick={remove}>
+            <button type="button" className="tset-btn tset-btn--danger tset-btn--sm" disabled={blocked} onClick={remove}>
               Remove
             </button>
           )}

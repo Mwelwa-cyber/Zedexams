@@ -33,12 +33,9 @@ export default function CurriculumPanel() {
   const onSave = () =>
     run(async () => {
       const latest = normalizeTeacherPreferences(userProfile?.teacherPreferences)
-      await updateProfileFields({
-        teacherPreferences: {
-          ...latest,
-          curriculum: { ...latest.curriculum, ...form },
-        },
-      })
+      const next = { ...latest, curriculum: { ...latest.curriculum, ...form } }
+      await updateProfileFields({ teacherPreferences: next })
+      setForm(editable(normalizeTeacherPreferences(next)))
     })
 
   return (

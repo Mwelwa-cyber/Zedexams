@@ -1,6 +1,7 @@
 import { SCHOOL_RESOURCE_LEVELS, DEFAULT_SCHOOL_RESOURCES } from '../../../config/schoolResources'
 import { useSchoolProfileForm } from '../lib/useSchoolProfileForm'
 import SettingsDetailShell from '../components/SettingsDetailShell'
+import SchoolProfileLoadError from '../components/SchoolProfileLoadError'
 import OptionCards from '../components/fields/OptionCards'
 import { useSettingsSave } from '../lib/useSettingsSave'
 
@@ -23,13 +24,15 @@ export default function ResourcesPanel() {
   const { run, saving, saved, error } = useSettingsSave()
 
   const value = school.form.resourceLevel || DEFAULT_SCHOOL_RESOURCES
+  const blocked = school.loading || school.loadError
   const onSave = () => run(() => school.save())
 
   return (
     <SettingsDetailShell
       rowId="resources"
-      saveBar={{ onSave, saving, saved, error, dirty: school.dirty, disabled: !school.dirty || school.loading }}
+      saveBar={{ onSave, saving, saved, error, dirty: school.dirty, disabled: !school.dirty || blocked }}
     >
+      <SchoolProfileLoadError school={school} />
       <section className="tset-section">
         <h2 className="tset-section__title">School resource level</h2>
         <p className="tset-section__hint">
@@ -41,6 +44,7 @@ export default function ResourcesPanel() {
           columns={3}
           value={value}
           onChange={(resourceLevel) => school.patch({ resourceLevel })}
+          disabled={blocked}
           options={SCHOOL_RESOURCE_LEVELS.map((l) => ({
             value: l.value,
             title: LEVEL_TITLES[l.value] || l.label,

@@ -305,7 +305,10 @@ service firebase.storage {
       return request.resource.size <= 5 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
-    match /user-branding/{ownerUid}/{fileName=**} {
+    // Single path segment (NOT a recursive wildcard): the client writes flat
+    // versioned filenames (profile-photo-<ts>.jpg, school-logo-<ts>.png, …),
+    // so nested paths under a uid have no legitimate writer.
+    match /user-branding/{ownerUid}/{fileName} {
       allow read: if ownsPath(ownerUid) || isAdmin();
       allow create, update: if ownsPath(ownerUid)
         && isTeacherOrAdmin()

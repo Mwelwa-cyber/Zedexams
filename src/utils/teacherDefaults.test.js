@@ -9,6 +9,7 @@ import {
   lessonStudioSeed,
   aiPrefsPromptLines,
   preferredDifficulty,
+  preferredTermYear,
   teachingCounts,
 } from './teacherDefaults.js'
 
@@ -33,7 +34,14 @@ console.log('curriculumSeedFromProfile')
   assert(curriculumSeedFromProfile({}) === null, 'no prefs → null')
   assert(
     curriculumSeedFromProfile({ teacherPreferences: { curriculum: { curriculum: 'cbc' } } }) === null,
-    'curriculum alone (no grade/subject) → null — nothing worth seeding',
+    'default cbc alone (no grade/subject) → null — nothing worth seeding',
+  )
+  const prevOnly = curriculumSeedFromProfile({
+    teacherPreferences: { curriculum: { curriculum: 'previous' } },
+  })
+  assert(
+    prevOnly && prevOnly.curriculum === 'previous',
+    'saved Previous curriculum seeds even without grade/subject',
   )
   const gradeOnly = curriculumSeedFromProfile({
     teacherPreferences: { curriculum: { grade: 'G5' } },
@@ -141,6 +149,32 @@ console.log('\npreferredDifficulty')
       'assessment',
     ) === 'mixed',
     'memory off → difficulty falls back to mixed',
+  )
+}
+
+console.log('\npreferredTermYear')
+{
+  const saved = preferredTermYear({
+    teacherPreferences: { curriculum: { term: 'Term 2', academicYear: '2026' } },
+  })
+  assert(saved.term === '2', "maps 'Term 2' → studio value '2'")
+  assert(saved.termLabel === 'Term 2', 'keeps the display label')
+  assert(saved.academicYear === '2026', 'carries the year')
+
+  const blank = preferredTermYear(null)
+  assert(blank.term === '' && blank.academicYear === '', 'unset → blanks')
+  assert(
+    preferredTermYear({
+      teacherPreferences: {
+        ai: { rememberLastUsed: false },
+        curriculum: { term: 'Term 1', academicYear: '2026' },
+      },
+    }).term === '',
+    'memory off → no term seed',
+  )
+  assert(
+    preferredTermYear({ teacherPreferences: { curriculum: { term: 'Trimester 9' } } }).term === '',
+    'unknown term shape → blank (never an invalid select value)',
   )
 }
 

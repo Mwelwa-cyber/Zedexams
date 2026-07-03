@@ -41,12 +41,12 @@ export default function AiPreferencesPanel() {
   const onSave = () =>
     run(async () => {
       const latest = normalizeTeacherPreferences(userProfile?.teacherPreferences)
-      await updateProfileFields({
-        teacherPreferences: {
-          ...latest,
-          ai: { ...latest.ai, ...form, include: { ...latest.ai.include, ...form.include } },
-        },
-      })
+      const next = {
+        ...latest,
+        ai: { ...latest.ai, ...form, include: { ...latest.ai.include, ...form.include } },
+      }
+      await updateProfileFields({ teacherPreferences: next })
+      setForm(editable(normalizeTeacherPreferences(next)))
     })
 
   return (

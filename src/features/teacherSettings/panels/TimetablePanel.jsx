@@ -52,7 +52,9 @@ export default function TimetablePanel() {
 
   const onSave = () =>
     run(async () => {
-      await updateProfileFields({ timetable: normalizeTimetable(form) })
+      const next = normalizeTimetable(form)
+      await updateProfileFields({ timetable: next })
+      setForm(next)
     })
 
   const setEntry = (day, index, fields) =>

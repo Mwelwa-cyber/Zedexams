@@ -561,6 +561,7 @@ function renderBlock(block) {
     case 'pagebreak': return '<div class="pagebreak"></div>'
     case 'endOfPaper': return `<div class="end-of-paper">${escapeHtml(block.text)}</div>`
     case 'footerCode': return `<div class="footer-code">${escapeHtml(block.code)}</div>`
+    case 'schoolFooter': return `<div class="end-of-paper" style="border-top:none;font-style:normal;">${escapeHtml(block.text)}</div>`
     default: return ''
   }
 }
@@ -587,8 +588,9 @@ function renderHeader(b) {
     logoStyleParts.push(`transform: translate(${Math.round(t.offsetX)}pt, ${Math.round(t.offsetY)}pt)`)
   }
   const logoStyle = logoStyleParts.length ? ` style="${logoStyleParts.join('; ')}"` : ''
-  const logoHtml = b.logoUrl
-    ? `<div class="logo"${logoStyle}><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
+  const logoSrc = b.logoUrl || b.schoolLogoUrl
+  const logoHtml = logoSrc
+    ? `<div class="logo"${logoStyle}><img src="${escapeHtml(logoSrc)}" alt=""></div>`
     : `<div class="logo"${logoStyle}></div>`
   const codeLine = b.footerCode
     ? `<div class="line-1">${escapeHtml(String(b.footerCode).toUpperCase())}</div>`
@@ -597,11 +599,23 @@ function renderHeader(b) {
     ? `<div class="line-2">${escapeHtml(b.title)}</div>`
     : ''
   const durationLine = b.duration ? `<div class="banner-duration">${escapeHtml(String(b.duration))} MINUTES</div>` : ''
+  // School identity lines from Teacher Settings → My School (all optional) —
+  // keeps the PDF header in step with the preview and the DOCX export.
+  const addressLine = [b.address, b.emisNumber ? `EMIS: ${b.emisNumber}` : '']
+    .filter(Boolean).join(' · ')
+  const addressHtml = addressLine
+    ? `<div style="font-size:9pt;letter-spacing:.02em;">${escapeHtml(addressLine)}</div>`
+    : ''
+  const mottoHtml = b.motto
+    ? `<div style="font-size:9pt;font-style:italic;margin-bottom:2pt;">“${escapeHtml(b.motto)}”</div>`
+    : ''
   return `<div class="banner">
   <div class="banner-top">
     ${logoHtml}
     <div class="banner-text">
     <div class="school">${escapeHtml(school).toUpperCase()}</div>
+    ${addressHtml}
+    ${mottoHtml}
     <div class="title">${escapeHtml(b.title)}</div>
     ${subjectLine}
     ${paperLine}

@@ -48,9 +48,9 @@ describe('TeacherSettings routing', () => {
     expect(await screen.findByTestId('panel-school')).toBeInTheDocument()
   })
 
-  it('maps legacy ?tab=account to the Advanced panel', async () => {
+  it('maps legacy ?tab=account to the Security panel (delete-account lives there)', async () => {
     renderAt('/settings?tab=account')
-    expect(await screen.findByTestId('panel-advanced')).toBeInTheDocument()
+    expect(await screen.findByTestId('panel-security')).toBeInTheDocument()
   })
 
   it('renders a detail panel at its nested path', async () => {
