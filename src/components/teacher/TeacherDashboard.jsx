@@ -328,6 +328,14 @@ const STUDIO_GROUPS = [
         tagline: 'All saved plans, notes, worksheets, rubrics, and assessments.',
         to: '/teacher/library',
       },
+      {
+        img: iconLibrary,
+        tone: 'slate',
+        badge: null,
+        title: 'Recovery Centre',
+        tagline: 'Every unfinished draft across your studios — resume or clear it out.',
+        to: '/teacher/drafts',
+      },
     ],
   },
 ]
