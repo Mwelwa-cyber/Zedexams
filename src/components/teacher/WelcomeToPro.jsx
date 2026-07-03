@@ -64,10 +64,19 @@ export default function WelcomeToPro() {
     return fallback
   }, [userProfile?.subscriptionExpiry, today, plan])
 
-  const txnId = userProfile?.lastPaymentId || userProfile?.momoTransactionId || 'MOMO-7HK3Q-9B82F'
+  // Provider-aware receipt: a Google Play purchase (Android) has no MoMo
+  // number and Google owns the charged amount, so the MoMo/ZMW lines would
+  // be wrong — on web Lenco stays the default.
+  const isPlayBilled = userProfile?.subscriptionProvider === 'google_play'
+  const txnId = isPlayBilled
+    ? (userProfile?.subscriptionPaymentId || 'GOOGLE-PLAY')
+    : (userProfile?.lastPaymentId || userProfile?.momoTransactionId || 'MOMO-7HK3Q-9B82F')
   const momoNumber = maskMomoNumber(userProfile?.momoNumber || userProfile?.phoneNumber)
+  const paidVia = isPlayBilled ? 'Google Play' : `MTN MoMo · ${momoNumber}`
   const planLabel = plan?.name ? `Pro · ${plan.name.toLowerCase()}` : 'Pro · monthly'
-  const planTotal = plan?.priceZMW != null ? `K${plan.priceZMW}.00` : 'K59.00'
+  const planTotal = isPlayBilled
+    ? 'Billed via Google Play'
+    : (plan?.priceZMW != null ? `K${plan.priceZMW}.00` : 'K59.00')
 
   return (
     <>
@@ -142,7 +151,7 @@ export default function WelcomeToPro() {
               <span>{formatDateTime(today)}</span>
             </div>
             <div className="zwp-receipt-row"><span>Plan</span><span>{planLabel}</span></div>
-            <div className="zwp-receipt-row"><span>Paid via</span><span>MTN MoMo · {momoNumber}</span></div>
+            <div className="zwp-receipt-row"><span>Paid via</span><span>{paidVia}</span></div>
             <div className="zwp-receipt-row"><span>Transaction ID</span><code>{txnId}</code></div>
             <div className="zwp-receipt-row"><span className="zwp-muted">Next renewal</span><span className="zwp-muted">{formatDate(renew)}</span></div>
             <div className="zwp-receipt-row zwp-total"><span>Total</span><span>{planTotal}</span></div>

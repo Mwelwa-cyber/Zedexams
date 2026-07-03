@@ -9,6 +9,7 @@ import ContactDialog from './ContactDialog'
 import LiveStats from './LiveStats'
 import NewsletterSignup from './NewsletterSignup'
 import { listPapersWithQuiz } from '../../utils/pastPapers'
+import { isNativePlatform } from '../../utils/runtime'
 import { SUBJECTS } from '../../config/curriculum'
 import {
   AcademicCapIcon,
@@ -137,6 +138,18 @@ const FAQ = [
     a: "Today: Grades 4 through 7 with full CBC alignment. Earlier and later grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
   },
 ]
+
+// Android (Google Play) build: the pricing answer must not quote ZMW web
+// prices or name mobile-money/card payment methods (Play policy — in-app
+// digital purchases go through Google Play Billing only).
+const FAQ_NATIVE = FAQ.map((item) =>
+  item.q === 'How much does it cost?'
+    ? {
+        ...item,
+        a: 'Learners start with a free demo, and teachers get the AI toolset free with daily limits. Upgrade anytime from inside the app — subscriptions are billed securely through Google Play, with prices shown before you confirm, and your account unlocks instantly.',
+      }
+    : item
+)
 
 const TRUST = [
   {
@@ -677,7 +690,10 @@ export default function Marketing() {
                   </span>
                 )}
               </div>
-              <p className="font-display font-black text-3xl mb-1">{tier.price}</p>
+              <p className="font-display font-black text-3xl mb-1">
+                {/* Android: no ZMW price literals — Google Play prices at checkout. */}
+                {isNativePlatform() ? tier.price.replace(/,?\s*then K\d+\/mo/, ' to start') : tier.price}
+              </p>
               <p className="theme-text-muted text-sm mb-5">{tier.note}</p>
               <ul className="space-y-2.5 mb-4 theme-text-muted text-sm">
                 {tier.bullets.map((b) => (
@@ -774,7 +790,7 @@ export default function Marketing() {
           </p>
         </div>
         <div className="max-w-3xl mx-auto space-y-3">
-          {FAQ.map(({ q, a }) => (
+          {(isNativePlatform() ? FAQ_NATIVE : FAQ).map(({ q, a }) => (
             <details
               key={q}
               className="group theme-card border theme-border rounded-2xl px-5 py-4 transition-all open:shadow-elev-md"

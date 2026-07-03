@@ -3,6 +3,7 @@ import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
 import { ensureProFonts } from '../../utils/proFonts'
+import { isNativePlatform } from '../../utils/runtime'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 const TopUpModal = lazy(() => import('./TopUpModal'))
@@ -21,6 +22,9 @@ const SCENARIOS = {
     tag: '⏱ Limit reached',
     title: (ctx) => `You've used all your free ${ctx.feature || 'lesson plans'} this month`,
     sub: () => 'Upgrade to keep planning — or pay K25 for one more right now.',
+    // Native (Android) copy: Play policy — no one-off mobile-money offer,
+    // no ZMW prices; Google Play shows its own localized pricing.
+    subNative: () => 'Upgrade to keep planning without monthly limits.',
     mascot: '🦊',
     primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
@@ -32,6 +36,7 @@ const SCENARIOS = {
     tag: '⏱ Daily cap',
     title: () => "You've hit today's generation cap",
     sub: () => 'You can come back tomorrow, upgrade for a higher daily cap, or pay K25 for one more right now.',
+    subNative: () => 'You can come back tomorrow, or upgrade for a higher daily cap.',
     mascot: '🐢',
     primary: 'Upgrade to Pro · K59/mo',
     primaryAction: 'upgrade',
@@ -55,6 +60,7 @@ const SCENARIOS = {
     tag: '🦅 Max studio',
     title: (ctx) => `${ctx.feature || 'Assessments'} are a Max studio`,
     sub: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme — or pay K25 for just one more now.`,
+    subNative: (ctx) => `You've used your free ${(ctx.feature || 'assessment').toLowerCase()} this month. Max unlocks unlimited full papers with a complete marking scheme.`,
     mascot: '🦅',
     primary: 'Upgrade to Max · K149/mo',
     primaryAction: 'upgrade',
@@ -126,13 +132,17 @@ function paywallPlanTarget(reason) {
   return 'pro'
 }
 
-function CompareCol({ data, recommended }) {
+function CompareCol({ data, recommended, hidePrices }) {
+  // Native (Android): ZMW price literals stay off-screen — Google Play's
+  // purchase sheet shows the authoritative localized price. The non-price
+  // "You're here" label survives; "K59 / month" style cells render empty.
+  const showPrice = !hidePrices || !/^K\d/.test(String(data.price || ''))
   return (
     <div className={`pwh-col${recommended ? ' pwh-col-rec' : ''}`}>
       <div className="pwh-col-head">
         <span className="pwh-col-name">{data.name}</span>
         <span className="pwh-col-price">
-          <strong>{data.price}</strong> {data.priceLabel}
+          {showPrice ? <><strong>{data.price}</strong> {data.priceLabel}</> : null}
         </span>
       </div>
       {data.feats.map((f, i) => (
@@ -143,6 +153,11 @@ function CompareCol({ data, recommended }) {
 }
 
 export default function PaywallHost() {
+  // Inside the Capacitor Android shell every purchase runs through Google
+  // Play Billing: the K25 one-off (Lenco) offer is hidden, price literals
+  // are stripped, and the top-up bus routes to the Play upgrade flow.
+  // Computed per render (not module scope) so specs can mock runtime.
+  const native = isNativePlatform()
   const [state, setState] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   // Reason of the scenario that triggered the upgrade modal — captured
@@ -242,24 +257,24 @@ export default function PaywallHost() {
               <button className="pwh-close" onClick={() => paywall.hide()} aria-label="Close">✕</button>
               <span className="pwh-tag">{scenario.tag}</span>
               <h2 className="pwh-title" id="pwh-title">{scenario.title(ctx)}</h2>
-              <p className="pwh-sub">{scenario.sub(ctx)}</p>
+              <p className="pwh-sub">{native && scenario.subNative ? scenario.subNative(ctx) : scenario.sub(ctx)}</p>
               <div className="pwh-mascot" aria-hidden="true">{scenario.mascot}</div>
             </div>
             <div className="pwh-body">
               <div className="pwh-compare">
                 {COMPARE[scenario.compare] && (
                   <>
-                    <CompareCol data={COMPARE[scenario.compare].left} />
-                    <CompareCol data={COMPARE[scenario.compare].right} recommended />
+                    <CompareCol data={COMPARE[scenario.compare].left} hidePrices={native} />
+                    <CompareCol data={COMPARE[scenario.compare].right} recommended hidePrices={native} />
                   </>
                 )}
               </div>
             </div>
             <div className="pwh-actions">
               <button ref={primaryBtnRef} className="pwh-btn pwh-btn-primary" onClick={handlePrimary}>
-                {scenario.primary}
+                {native ? scenario.primary.replace(/\s*·\s*K\d.*$/, '') : scenario.primary}
               </button>
-              {scenario.secondary && (
+              {scenario.secondary && !native && (
                 <button className="pwh-btn pwh-btn-secondary" onClick={handleSecondary}>
                   {scenario.secondary}
                 </button>
@@ -267,11 +282,13 @@ export default function PaywallHost() {
               <button className="pwh-btn pwh-btn-ghost" onClick={() => paywall.hide()}>Maybe later</button>
             </div>
             <div className="pwh-foot">
-              <span>Cancel anytime · No card needed for Free</span>
-              <div className="pwh-trust">
-                <span><span className="pwh-swatch pwh-swatch-momo" />MoMo</span>
-                <span><span className="pwh-swatch pwh-swatch-airtel" />Airtel</span>
-              </div>
+              <span>{native ? 'Cancel anytime in the Play Store' : 'Cancel anytime · No card needed for Free'}</span>
+              {!native && (
+                <div className="pwh-trust">
+                  <span><span className="pwh-swatch pwh-swatch-momo" />MoMo</span>
+                  <span><span className="pwh-swatch pwh-swatch-airtel" />Airtel</span>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -304,10 +321,22 @@ export default function PaywallHost() {
       )}
       {topUpState && (
         <Suspense fallback={null}>
-          <TopUpModal
-            feature={topUpState.ctx?.feature || null}
-            onClose={() => topup.hide()}
-          />
+          {native ? (
+            // The K25 top-up is a Lenco one-off with no Play product (v1) —
+            // on Android every topup.show() caller (UsageMeter, the paywall
+            // secondary) lands on the Play subscription upgrade instead.
+            <UpgradeModal
+              portal="teacher"
+              planIds={['pro_monthly', 'pro_yearly']}
+              defaultPlanId="pro_monthly"
+              onClose={() => topup.hide()}
+            />
+          ) : (
+            <TopUpModal
+              feature={topUpState.ctx?.feature || null}
+              onClose={() => topup.hide()}
+            />
+          )}
         </Suspense>
       )}
     </>

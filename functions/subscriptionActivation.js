@@ -189,7 +189,7 @@ async function activateSubscriptionFromPayment({
         currency: pay.currency || "ZMW",
         planId: pay.planId,
         phoneNumber: pay.phoneNumber || null,
-        provider: "lenco",
+        provider: pay.provider || "lenco",
         userId: pay.userId,
       };
       return;
@@ -209,9 +209,18 @@ async function activateSubscriptionFromPayment({
     const hasActiveExpiry = !!currentExpiry && currentExpiry > new Date();
     const isUpgrade = pay.isUpgrade === true;
 
+    // Provider-authoritative expiry (Google Play): the store owns the
+    // renewal date, so a Play payment doc carries `grantExpiryAt` (Google's
+    // expiryTime) and we pin to it — no durationDays stacking. Lenco docs
+    // never carry this field, so the branch is inert for the web flow.
+    const overrideExpiry = toDate(pay.grantExpiryAt);
+
     let expiry;
     let invoiceDays;
-    if (isUpgrade) {
+    if (overrideExpiry) {
+      expiry = new Date(overrideExpiry);
+      invoiceDays = Number(plan.durationDays || 30);
+    } else if (isUpgrade) {
       const intended = toDate(pay.intendedExpiry) || currentExpiry || new Date();
       expiry = new Date(intended);
       // Receipt reads the plan's nominal length, not "0 days".
@@ -240,7 +249,7 @@ async function activateSubscriptionFromPayment({
       subscriptionPlan: pay.planId,
       subscriptionExpiry: admin.firestore.Timestamp.fromDate(expiry),
       subscriptionActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      subscriptionProvider: "lenco",
+      subscriptionProvider: pay.provider || "lenco",
       subscriptionPaymentId: paymentId,
       // Reset the reminder cooldown so the next near-expiry window can
       // send a renewal nudge.
@@ -248,6 +257,13 @@ async function activateSubscriptionFromPayment({
     };
     if (pay.phoneNumber) {
       userUpdate.subscriptionPhoneNumber = pay.phoneNumber;
+    }
+    // Google Play purchases: record which token/product owns this grant so
+    // the verify path can tell "this user's premium is managed by THIS Play
+    // subscription" apart from web/Lenco grants (never-downgrade guard).
+    if (pay.provider === "google_play") {
+      userUpdate.googlePlayPurchaseToken = pay.googlePlayPurchaseToken || null;
+      userUpdate.googlePlayProductId = pay.googlePlayProductId || null;
     }
     // Teacher studio quotas are gated by a SEPARATE field that the usage
     // meter reads (functions/teacherTools/usageMeter.js → users.teacherPlan),
@@ -273,7 +289,7 @@ async function activateSubscriptionFromPayment({
       currency: pay.currency || "ZMW",
       planId: pay.planId,
       phoneNumber: pay.phoneNumber || null,
-      provider: "lenco",
+      provider: pay.provider || "lenco",
       userId: pay.userId,
     };
   });
@@ -307,7 +323,11 @@ async function activateSubscriptionFromPayment({
 
   // Referral credits reward subscriptions, not one-off top-ups — skip them
   // for a top-up so a K25 credit purchase can't redeem/consume a free month.
-  if (!isTopUp) {
+  // Google Play purchases are skipped too: the store owns the renewal date
+  // (grantExpiryAt pins expiry on every renewal), so bonus days appended here
+  // would be silently overwritten at the next renewal — consuming the credit
+  // without delivering it. Referral credits stay redeemable on web payments.
+  if (!isTopUp && payloadForInvoice.provider !== "google_play") {
     try {
       const {redeemReferralCredit, consumeReferralCredits} = require("./referralRedemption");
       await redeemReferralCredit({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});

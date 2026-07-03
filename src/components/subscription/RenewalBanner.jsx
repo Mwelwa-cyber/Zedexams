@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { daysUntilExpiry, PLANS } from '../../utils/subscriptionConfig'
+import { isNativePlatform } from '../../utils/runtime'
 import Button from '../ui/Button'
 
 // How early to start nudging. 7 days is enough lead time for a parent
@@ -97,7 +98,9 @@ export default function RenewalBanner({ onRenewClick }) {
           {planName} {t.verb}
         </p>
         <p className="text-xs text-gray-600 mt-0.5">
-          Top up {priceLabel} via Mobile Money to keep your access — no break in service.
+          {isNativePlatform()
+            ? 'Renew your plan to keep your access — no break in service.'
+            : `Top up ${priceLabel} via Mobile Money to keep your access — no break in service.`}
         </p>
       </div>
       <div className="flex gap-2 flex-shrink-0">

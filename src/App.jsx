@@ -11,6 +11,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
+import { isNativePlatform } from './utils/runtime'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
@@ -100,6 +101,7 @@ const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
+const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
 const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
 const MySubscriptionPage = lazy(() => import('./components/subscription/MySubscriptionPage'))
@@ -716,6 +718,9 @@ export default function App() {
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />
+          {/* Android only: restore/verify Google Play subscriptions on open.
+              Gated so the web bundle never loads the billing chunk. */}
+          {isNativePlatform() && <NativePlayBillingSync />}
           {/* Locked-feature modal — listens for lockedFeature.show({feature,audience}) */}
           <LockedFeatureModal />
           {/* Once-a-day upgrade/renew popup for Free & Expired users */}

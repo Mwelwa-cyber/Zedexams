@@ -129,6 +129,11 @@ test('user self-update blocks all subscription fields', () => {
     'role', 'plan', 'premium', 'isPremium', 'paymentStatus',
     'subscriptionStatus', 'subscriptionPlan', 'subscriptionExpiry',
     'cancelAtPeriodEnd',
+    // Google Play billing linkage + teacher studio tier (usageMeter.js
+    // grants pro/max quotas from users.teacherPlan — self-writable would
+    // be a straight paid-features escalation).
+    'googlePlayPurchaseToken', 'googlePlayProductId',
+    'teacherPlan', 'teacherPlanExpiresAt',
   ]
   for (const f of SUBSCRIPTION_FIELDS) {
     assert(rules.includes(`'${f}'`), `user self-update no longer blocks '${f}' — possible privilege escalation`)
@@ -147,6 +152,8 @@ test('user create pins paid-portal / referral / lifecycle fields', () => {
     'learnerPortalActive', 'learnerPortalExpiry', 'learnerPortalPlan',
     'referralCount', 'referralCredits', 'referralCreditRedeemed',
     'cancelAtPeriodEnd', 'status', 'deletedAt',
+    'googlePlayPurchaseToken', 'googlePlayProductId',
+    'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
   ]
   for (const f of MUST_PIN) {
     assert(

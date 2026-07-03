@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Lock, Sparkles, X } from '../ui/icons'
 import { useSubscription } from '../../hooks/useSubscription'
 import { PLANS } from '../../utils/subscriptionConfig'
+import { isNativePlatform } from '../../utils/runtime'
 import { lockedFeature } from '../../utils/lockedFeature'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -102,7 +103,8 @@ export function UpgradeBanner({ onUpgradeClick }) {
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button variant="primary" size="sm" onClick={onUpgradeClick}>
-          From K{entryPriceZMW}/mo
+          {/* Android: no ZMW price literals — Google Play shows its own price. */}
+          {isNativePlatform() ? 'Go Premium' : `From K${entryPriceZMW}/mo`}
         </Button>
         <button
           onClick={() => setShow(false)}
