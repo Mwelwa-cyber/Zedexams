@@ -263,23 +263,6 @@ const STUDIO_GROUPS = [
         to: '/teacher/generate/rubric',
       },
       {
-        img: iconSbaStudio,
-        tone: 'sky',
-        badge: null,
-        libraryKey: 'sba-task',
-        title: 'SBA Studio',
-        tagline: 'ECZ School Based Assessment — create tasks, record marks, track coverage.',
-        to: '/teacher/sba',
-      },
-      {
-        img: iconSbaStudio,
-        tone: 'cyan',
-        badge: null,
-        title: 'SBA Mark Tracker',
-        tagline: 'Record SBA marks and watch task coverage build up over the term.',
-        to: '/teacher/generate/sba-tracker',
-      },
-      {
         img: iconMarkSchedule,
         tone: 'green',
         badge: null,
@@ -291,17 +274,41 @@ const STUDIO_GROUPS = [
     ],
   },
   {
-    label: 'SBA Planning',
-    icon: Target,
-    accent: 'green',
+    // All three SBA tools live together here so teachers can see at a glance
+    // that they belong to the ECZ School Based Assessment workflow — not the
+    // general test/exam tools above. The `description` spells out what SBA is
+    // and who it's for; "View all" opens the SBA Hub, which carries the
+    // step-by-step guide for each tool.
+    label: 'School Based Assessment (SBA)',
+    icon: GraduationCap,
+    accent: 'blue',
     viewAll: '/teacher/sba',
+    description:
+      'ECZ School Based Assessment — Grades 5–7 only, worth 30% of the final Grade 7 mark (10% banked per grade). Create tasks, record marks and track coverage. These are not for ordinary class tests — use Test Papers or Exam Studio for those. New to SBA? Tap “View all” for a short how-to guide.',
     items: [
       {
         img: iconSbaStudio,
         tone: 'sky',
         badge: null,
+        libraryKey: 'sba-task',
+        title: 'SBA Studio',
+        tagline: 'Step 1 · Create an ECZ-compliant SBA task — the right task type, Bloom level and marking scheme. Never multiple-choice.',
+        to: '/teacher/generate/sba',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'cyan',
+        badge: null,
+        title: 'SBA Mark Tracker',
+        tagline: 'Step 2 · Enter each pupil’s task marks; the 10%-per-grade SBA mark converts for you, ready for the ECZ OMES portal.',
+        to: '/teacher/generate/sba-tracker',
+      },
+      {
+        img: iconSbaStudio,
+        tone: 'green',
+        badge: null,
         title: 'SBA Year Planner',
-        tagline: 'Plan SBA tasks across the year and track planned vs marked.',
+        tagline: 'Step 3 · Plan every required task across the year and track each one Planned → Administered → Marked.',
         to: '/teacher/generate/sba-planner',
       },
     ],
@@ -342,6 +349,7 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/mark-schedule',
   '/teacher/test-papers',
   '/teacher/exam-papers',
+  '/teacher/generate/sba',
   '/teacher/generate/sba-tracker',
   '/teacher/generate/sba-planner',
 ])
@@ -390,13 +398,18 @@ function SectionLabel({ children }) {
   return <div className="teacher-dashboard-eyebrow">{children}</div>
 }
 
-function WorkspaceSectionHead({ icon, accent, label, viewAll }) {
+function WorkspaceSectionHead({ icon, accent, label, viewAll, description }) {
   return (
     <div className="teacher-workspace-section__head">
       <span className={`teacher-workspace-section__icon teacher-workspace-section__icon--${accent || 'amber'}`}>
         <Icon as={icon} size="sm" />
       </span>
-      <span className="teacher-workspace-section__label">{label}</span>
+      <div className="teacher-workspace-section__titles">
+        <span className="teacher-workspace-section__label">{label}</span>
+        {description && (
+          <span className="teacher-workspace-section__desc">{description}</span>
+        )}
+      </div>
       {viewAll && (
         <Link to={viewAll} className="teacher-workspace-section__viewall">
           View all
@@ -1024,6 +1037,7 @@ export default function TeacherDashboard() {
             accent={group.accent}
             label={group.label}
             viewAll={group.viewAll}
+            description={group.description}
           />
           <div className="teacher-workspace-grid">
             {group.items.map((s) => (

@@ -19,22 +19,40 @@ export const SBA_WORKFLOW_STEPS = [
     id: 'studio',
     emoji: '🏫',
     title: 'Create tasks',
+    tool: 'SBA Studio',
     to: '/teacher/generate/sba',
     desc: 'Generate ECZ-compliant SBA tasks — the right task type, Bloom level and marking scheme per subject. Never multiple-choice.',
+    how: [
+      'Pick the grade, subject and task type — the form only offers ECZ-valid SBA task types (never multiple-choice).',
+      'Optionally set a Bloom level, term and syllabus topic, then tap “Generate SBA task”.',
+      'Check the task and its marking scheme, then download a learner copy and a teacher (marking) copy as PDF or Word.',
+    ],
   },
   {
     id: 'tracker',
     emoji: '🧮',
     title: 'Record marks',
+    tool: 'SBA Mark Tracker',
     to: '/teacher/generate/sba-tracker',
     desc: 'Enter each pupil’s task marks; the 10%-per-grade SBA mark is converted for you, ready for the ECZ OMES portal.',
+    how: [
+      'Choose the grade and subject — the official ECZ task blueprint loads automatically as the mark columns.',
+      'Type each pupil’s raw mark per task; the running total converts to the mark out of 10 (their 10% for the grade) as you go.',
+      'Export the mark sheet to Excel or Word for your records and the ECZ OMES portal.',
+    ],
   },
   {
     id: 'planner',
     emoji: '🗂️',
     title: 'Track coverage',
+    tool: 'SBA Year Planner',
     to: '/teacher/generate/sba-planner',
     desc: 'Tick every required task from Planned → Administered → Marked, so nothing is missed or over-assessed.',
+    how: [
+      'Pick the grade and subject to see every task the ECZ requires across the year.',
+      'Move each task through Planned → Administered → Marked so nothing is missed or double-counted.',
+      'Download the plan to share with your HOD or keep as evidence of coverage.',
+    ],
   },
 ]
 
