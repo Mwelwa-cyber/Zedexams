@@ -23,6 +23,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { forecastColumns, forecastCurriculum } from './schemeFormat.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -67,20 +68,24 @@ export function buildWeeklyForecastDocument(forecast, opts = {}) {
   const days = forecast.days || []
   const subject = String(h.subject || '').toUpperCase()
 
+  // CBC (with Learning Activity + Expected Standard) vs OBC (without) — the
+  // WEEK column merges down separately, so the shared spec covers DAY onward.
+  const columns = forecastColumns(forecastCurriculum(forecast))
+
   const headerRow = new TableRow({
     tableHeader: true,
     children: [
       headCell('WEEK', 5),
-      headCell('DAY', 5),
-      headCell('TOPIC', 10),
-      headCell('SUB-TOPIC / TO BE DONE', 12),
-      headCell('SPECIFIC COMPETENCE', 15),
-      headCell('LEARNING ACTIVITY', 21),
-      headCell('EXPECTED STANDARD', 12),
-      headCell('T/L RESOURCES', 10),
-      headCell('REMARKS / COMMENTS ON PROGRESS', 10),
+      ...columns.map((col) => headCell(col.label, col.width)),
     ],
   })
+
+  const dayCellFor = (d, col) => {
+    if (col.type === 'list') return cell(d[col.key], { bullets: true })
+    if (col.key === 'day') return cell(d.day, { center: true })
+    if (col.key === 'topic') return cell(d.topic, { bold: true })
+    return cell(d[col.key] || '')
+  }
 
   const dayRows = days.map((d, i) => new TableRow({
     children: [
@@ -90,14 +95,7 @@ export function buildWeeklyForecastDocument(forecast, opts = {}) {
         verticalMerge: i === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE,
         borders: CELL_BORDER,
       }),
-      cell(d.day, { center: true }),
-      cell(d.topic, { bold: true }),
-      cell(d.subtopic),
-      cell(d.specificCompetence),
-      cell(d.learningActivities, { bullets: true }),
-      cell(d.expectedStandard),
-      cell(d.resources, { bullets: true }),
-      cell(d.remarks || ''),
+      ...columns.map((col) => dayCellFor(d, col)),
     ],
   }))
 

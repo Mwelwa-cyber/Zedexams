@@ -15,6 +15,7 @@
 
 import { renderText } from '../../../utils/mathRender'
 import { isOfficialScheme } from '../../../utils/weeklyForecast'
+import { schemeColumns, schemeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
 
 export default function SchemeOfWorkView({ scheme }) {
   if (!scheme) return null
@@ -92,10 +93,36 @@ function DocCellList({ items }) {
   )
 }
 
+/** Render one week's value for a column descriptor (week | text | list). */
+function OfficialCell({ week, col }) {
+  if (col.type === 'week') {
+    return <td className={`${TD} font-bold text-center`}>{week.week}</td>
+  }
+  if (col.key === 'topic') {
+    return (
+      <td className={`${TD} font-bold`}>
+        {week.topic}
+        {week.source && <div><SourceTag source={week.source} /></div>}
+      </td>
+    )
+  }
+  if (col.type === 'list') {
+    return <td className={TD}><DocCellList items={week[col.key]} /></td>
+  }
+  const cls = col.key === 'references' ? `${TD} text-[11px]` : TD
+  return <td className={cls}>{week[col.key] || '—'}</td>
+}
+
 function OfficialScheme({ scheme }) {
   const h = scheme.header || {}
   const subject = (h.subject || '').toUpperCase()
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
+  // CBC (9-column) vs OBC (7-column) — one column spec shared with the
+  // exporters + the editable table so the printed page never diverges.
+  const curriculum = schemeCurriculum(scheme)
+  const columns = schemeColumns(curriculum)
+  // 9-column CBC only fits landscape; OBC's 7 columns are narrower.
+  const minWidth = curriculum === 'obc' ? 640 : 860
 
   return (
     <article
@@ -110,6 +137,9 @@ function OfficialScheme({ scheme }) {
         <div className="mt-1 text-[12px] font-bold">
           GRADE: {gradeLabel} &nbsp;·&nbsp; TERM {h.term} &nbsp; {h.year}
           {h.periodsPerWeek ? <> &nbsp;·&nbsp; PERIODS PER WEEK: {h.periodsPerWeek}</> : null}
+        </div>
+        <div className="mt-0.5 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: '#555' }}>
+          {curriculumLabel(curriculum)} · {curriculum === 'obc' ? 'Outcome-Based' : 'Competency-Based'} Curriculum
         </div>
       </div>
 
@@ -129,35 +159,20 @@ function OfficialScheme({ scheme }) {
 
       {/* Scheme grid */}
       <div className="mt-1 overflow-x-auto">
-        <table className="w-full border-collapse border border-black min-w-[860px]">
+        <table className="w-full border-collapse border border-black" style={{ minWidth }}>
           <thead>
             <tr className="align-bottom">
-              <th className={`${TD} font-bold w-[4%]`}>WEEK</th>
-              <th className={`${TD} font-bold w-[11%]`}>TOPIC</th>
-              <th className={`${TD} font-bold w-[12%]`}>SUBTOPIC</th>
-              <th className={`${TD} font-bold w-[17%]`}>SPECIFIC COMPETENCES</th>
-              <th className={`${TD} font-bold w-[20%]`}>LEARNING ACTIVITIES</th>
-              <th className={`${TD} font-bold w-[13%]`}>EXPECTED STANDARD</th>
-              <th className={`${TD} font-bold w-[9%]`}>METHODS</th>
-              <th className={`${TD} font-bold w-[9%]`}>T/L AIDS</th>
-              <th className={`${TD} font-bold w-[6%]`}>REF</th>
+              {columns.map((col) => (
+                <th key={col.key} className={`${TD} font-bold`} style={{ width: `${col.width}%` }}>
+                  {col.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {(scheme.weeks || []).map((w, i) => (
               <tr key={i}>
-                <td className={`${TD} font-bold text-center`}>{w.week}</td>
-                <td className={`${TD} font-bold`}>
-                  {w.topic}
-                  {w.source && <div><SourceTag source={w.source} /></div>}
-                </td>
-                <td className={TD}>{w.subtopic}</td>
-                <td className={TD}><DocCellList items={w.specificCompetences} /></td>
-                <td className={TD}><DocCellList items={w.learningActivities} /></td>
-                <td className={TD}>{w.expectedStandard || '—'}</td>
-                <td className={TD}><DocCellList items={w.methods} /></td>
-                <td className={TD}><DocCellList items={w.tlAids} /></td>
-                <td className={`${TD} text-[11px]`}>{w.references || '—'}</td>
+                {columns.map((col) => <OfficialCell key={col.key} week={w} col={col} />)}
               </tr>
             ))}
           </tbody>
