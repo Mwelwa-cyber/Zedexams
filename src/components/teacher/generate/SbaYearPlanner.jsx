@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { SBA_GRADES, SBA_SUBJECTS, getSbaSubject } from '../../../config/sba'
 import {
@@ -45,8 +45,17 @@ export default function SbaYearPlanner() {
   const toast = useToast()
   const uid = currentUser?.uid
 
-  const [subject, setSubject] = useState('mathematics')
-  const [grade, setGrade] = useState('G5')
+  // Deep-link support: the Recovery Centre resumes a per-combo draft with
+  // ?subject=&grade=. Seed from the URL when the values are valid, else default.
+  const [searchParams] = useSearchParams()
+  const [subject, setSubject] = useState(() => {
+    const s = searchParams.get('subject')
+    return s && SBA_SUBJECTS.some((x) => x.value === s) ? s : 'mathematics'
+  })
+  const [grade, setGrade] = useState(() => {
+    const g = searchParams.get('grade')
+    return g && SBA_GRADES.some((x) => x.value === g) ? g : 'G5'
+  })
   const [header, setHeader] = useState(() => ({
     school: userProfile?.school || userProfile?.schoolName || '',
     className: '',

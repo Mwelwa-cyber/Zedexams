@@ -226,6 +226,7 @@ const VisualStudioPage = lazy(() => import('./features/visualStudio').then(m => 
 
 // Teacher — Library
 const TeacherLibrary = lazy(() => import('./components/teacher/library/TeacherLibrary'))
+const RecoveryCentre = lazy(() => import('./features/drafts/RecoveryCentre'))
 const LibraryItemDetail = lazy(() => import('./components/teacher/library/LibraryItemDetail'))
 const TemplateBank = lazy(() => import('./components/teacher/templates/TemplateBank'))
 const TemplateBankDetail = lazy(() => import('./components/teacher/templates/TemplateBankDetail'))
@@ -684,6 +685,7 @@ export default function App() {
           <Route path="/teacher/templates"               element={<TeacherRoute><TemplateBank /></TeacherRoute>} />
           <Route path="/teacher/templates/:id"           element={<TeacherRoute><TemplateBankDetail /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
+          <Route path="/teacher/drafts"                  element={<TeacherRoute><RecoveryCentre /></TeacherRoute>} />
           <Route path="/teacher/question-bank"           element={<TeacherRoute><CentralQuestionBank /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
