@@ -29,7 +29,7 @@ import {
 import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
@@ -90,12 +90,13 @@ export default function NotesStudio() {
   const [plansError, setPlansError] = useState(false)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [errorDetail, setErrorDetail] = useState('')
   const isMounted = useIsMounted()
   const [notes, setNotes] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
+  // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
+  const [handedOff, setHandedOff] = useState(false)
   // Diagram generation state (post-generation optional pass)
   const [diagramStatus, setDiagramStatus] = useState('idle') // idle | generating | done | error
   const [diagramProgress, setDiagramProgress] = useState({ done: 0, total: 0 })
@@ -142,8 +143,49 @@ export default function NotesStudio() {
     [plans, form.lessonPlanId],
   )
 
+  // Reproduce whichever payload the current mode uses (from-plan vs standalone),
+  // so onGenerate and regenerateSection stay in lock-step.
+  function buildInputs() {
+    return mode === MODE_FROM_PLAN
+      ? { lessonPlanId: form.lessonPlanId, instructions: form.instructions, date: form.date }
+      : {
+          ...form,
+          lessonPlanId: '',
+          grade: curr.grade,
+          subject: curr.subject,
+          topic: curr.topic,
+          subtopic: curr.subtopic,
+          curriculum: curr.curriculum,
+          framework: curr.framework,
+        }
+  }
+
+  async function regenerateSection(sectionId) {
+    const res = await generateNotes(buildInputs())
+    if (res.ok && res.data?.notes) {
+      const fresh = res.data.notes
+      setNotes((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
+      return fresh
+    }
+    return null
+  }
+
+  function saveToLibrary() {
+    if (!generationId) return
+    const sourcePlan = mode === MODE_FROM_PLAN ? selectedPlan : null
+    const grade   = notes?.header?.grade   || curr.grade   || sourcePlan?.inputs?.grade
+    const subject = notes?.header?.subject || curr.subject || sourcePlan?.inputs?.subject
+    const term    = sourcePlan?.inputs?.term || sourcePlan?.library?.term
+    attachLibraryToGeneration(generationId, {
+      libraryType: LIBRARY_TYPES.NOTES,
+      grade,
+      term,
+      subject,
+    }).catch((err) => console.error('[library attach]', err))
+  }
+
   async function onGenerate(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
 
     if (mode === MODE_FROM_PLAN) {
       if (!form.lessonPlanId) {
@@ -170,34 +212,17 @@ export default function NotesStudio() {
     }
 
     if (!ensureCanGenerate('notes')) return
+    setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
-    setErrorDetail('')
     setWarning('')
     setNotes(null)
 
-    const payload = mode === MODE_FROM_PLAN
-      ? { lessonPlanId: form.lessonPlanId, instructions: form.instructions, date: form.date }
-      : {
-          ...form,
-          lessonPlanId: '',
-          grade: curr.grade,
-          subject: curr.subject,
-          topic: curr.topic,
-          subtopic: curr.subtopic,
-          curriculum: curr.curriculum,
-          framework: curr.framework,
-        }
-
-    const res = await generateNotes(payload)
+    const res = await generateNotes(buildInputs())
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
-      setErrorDetail(
-        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
-          .filter(Boolean).join(' · '),
-      )
       return
     }
     setNotes(res.data.notes)
@@ -404,19 +429,8 @@ export default function NotesStudio() {
 
           {/* ── Output panel ────────────────────────────────────── */}
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+          {handedOff && status === 'success' && notes ? (
           <section className="studio-card p-5 min-h-[400px]">
-            {status === 'idle' && <EmptyState mode={mode} />}
-            {status === 'generating' && (
-              <AiGenerationProgress variant="card" preset="notes" running title="Writing your notes…" />
-            )}
-            {status === 'error' && (
-              <ErrorState
-                message={errorMessage}
-                detail={errorDetail}
-                onDismiss={() => setStatus('idle')}
-              />
-            )}
-            {status === 'success' && notes && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
@@ -482,8 +496,26 @@ export default function NotesStudio() {
                   </div>
                 )}
               </>
-            )}
           </section>
+          ) : (
+            <LiveGenerationCanvas
+              tool="notes"
+              status={status}
+              result={notes}
+              docTitle={notes?.header?.title}
+              title="Writing your notes…"
+              emptyState={<EmptyState mode={mode} />}
+              errorMessage={errorMessage}
+              savedToLibrary={Boolean(generationId)}
+              onStop={() => setStatus('idle')}
+              onRegenerate={() => onGenerate()}
+              onRegenerateSection={regenerateSection}
+              onSaveToLibrary={saveToLibrary}
+              onContinueEditing={() => setHandedOff(true)}
+              onRetry={() => setStatus('idle')}
+              continueLabel="Continue to editing & export"
+            />
+          )}
           </StudioOutputBoundary>
         </div>
       </div>
@@ -606,24 +638,6 @@ function EmptyState({ mode }) {
           ? 'Pick one of your saved lesson plans on the left and we\'ll write delivery notes that match it.'
           : 'Tell us the grade, subject and topic on the left and we\'ll write teacher notes you can skim before class.'}
       </p>
-    </div>
-  )
-}
-
-function ErrorState({ message, detail, onDismiss }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
-      <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
-      {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
-          {detail}
-        </p>
-      )}
-      <button onClick={onDismiss} className="studio-btn-ghost">
-        Try again
-      </button>
     </div>
   )
 }

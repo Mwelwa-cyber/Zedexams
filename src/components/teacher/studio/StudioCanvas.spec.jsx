@@ -2,14 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StudioCanvas } from './StudioCanvas'
 
-// ── Mock AiGenerationProgress ─────────────────────────────────────────────────
-vi.mock('../../ui/AiGenerationProgress', () => ({
-  default: ({ title, preset, running, variant }) => (
+// ── Mock LiveGenerationCanvas ─────────────────────────────────────────────────
+// The loading state (and the post-generation reveal) now render the shared
+// LiveGenerationCanvas instead of the old AiGenerationProgress.
+vi.mock('../../ui/LiveGenerationCanvas', () => ({
+  default: ({ title, status, tool, variant }) => (
     <div
-      data-testid="ai-generation-progress"
+      data-testid="live-generation-canvas"
       data-title={title}
-      data-preset={preset}
-      data-running={String(running)}
+      data-status={status}
+      data-tool={tool}
       data-variant={variant}
     />
   ),
@@ -81,26 +83,26 @@ describe('StudioCanvas — idle state', () => {
     expect(screen.getByText(/fill in your details on the left/i)).toBeInTheDocument()
   })
 
-  it('does NOT render AiGenerationProgress', () => {
+  it('does NOT render the live generation canvas', () => {
     renderCanvas({ generationStatus: 'idle' })
-    expect(screen.queryByTestId('ai-generation-progress')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
   })
 })
 
 // ── Loading state ─────────────────────────────────────────────────────────────
 
 describe('StudioCanvas — loading state', () => {
-  it('renders AiGenerationProgress when loading', () => {
+  it('renders the live generation canvas when loading', () => {
     renderCanvas({ generationStatus: 'loading' })
-    expect(screen.getByTestId('ai-generation-progress')).toBeInTheDocument()
+    expect(screen.getByTestId('live-generation-canvas')).toBeInTheDocument()
   })
 
-  it('passes correct props to AiGenerationProgress', () => {
+  it('passes correct props to the live generation canvas', () => {
     renderCanvas({ generationStatus: 'loading' })
-    const el = screen.getByTestId('ai-generation-progress')
-    expect(el).toHaveAttribute('data-variant', 'card')
-    expect(el).toHaveAttribute('data-preset', 'lessonPlan')
-    expect(el).toHaveAttribute('data-running', 'true')
+    const el = screen.getByTestId('live-generation-canvas')
+    expect(el).toHaveAttribute('data-variant', 'embedded')
+    expect(el).toHaveAttribute('data-tool', 'lessonPlan')
+    expect(el).toHaveAttribute('data-status', 'generating')
     expect(el).toHaveAttribute('data-title', 'Composing your lesson plan…')
   })
 
@@ -127,9 +129,9 @@ describe('StudioCanvas — done state', () => {
     expect(doc.innerHTML).toContain('Lesson plan content')
   })
 
-  it('does NOT render AiGenerationProgress', () => {
+  it('does NOT render the live generation canvas', () => {
     renderCanvas({ generationStatus: 'done', generatedPlan: HTML })
-    expect(screen.queryByTestId('ai-generation-progress')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
   })
 
   it('does NOT show the empty-state heading', () => {
@@ -213,9 +215,9 @@ describe('StudioCanvas — error state', () => {
     expect(screen.queryByText('Network timeout')).not.toBeInTheDocument()
   })
 
-  it('does NOT render AiGenerationProgress', () => {
+  it('does NOT render the live generation canvas', () => {
     renderCanvas({ generationStatus: 'error' })
-    expect(screen.queryByTestId('ai-generation-progress')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
   })
 })
 

@@ -22,7 +22,7 @@ import {
   isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
   FALLBACK_SUBJECT_KEYS,
 } from './paperTaxonomy'
-import AiGenerationProgress from '../ui/AiGenerationProgress'
+import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
 import { canonicalizeAssessmentType } from '../../utils/questionType'
 
 // Each chip maps to a canonical schema question type (`canonical`) sent to the
@@ -713,13 +713,12 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
             {status === 'generating' && (
               <div style={{ marginTop: 14 }}>
-                <AiGenerationProgress
-                  variant="card"
-                  running
-                  title="Writing your paper…"
-                  preset={form.autoDiagrams
-                    ? ['reading', 'curriculum', 'content', 'diagrams', 'answerKey', 'preview']
-                    : ['reading', 'curriculum', 'content', 'answerKey', 'preview']}
+                <LiveGenerationCanvas
+                  variant="embedded"
+                  tool="assessment"
+                  status="generating"
+                  title={isExam ? 'Writing your exam…' : 'Writing your paper…'}
+                  onStop={() => setStatus('idle')}
                 />
               </div>
             )}
@@ -728,6 +727,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
         {status === 'done' && result && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <LiveGenerationCanvas
+              variant="embedded"
+              tool="assessment"
+              status="success"
+              result={result.assessment}
+              docTitle={result.assessment?.header?.title}
+              title={isExam ? 'Your exam' : 'Your paper'}
+            />
             <div style={{ borderRadius: 10, border: '1px solid var(--sv-border)', padding: 12, fontSize: 14, color: 'var(--sv-text)' }}>
               <strong>{result.assessment?.header?.title || 'Paper ready'}</strong>
               <div style={{ fontSize: 13, color: 'var(--sv-muted)', marginTop: 4 }}>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { useEffect, useRef, useState } from 'react'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import LessonPlanEditor from './LessonPlanEditor'
 
 /**
@@ -61,6 +61,7 @@ export function StudioCanvas({
   generatedPlan,
   generationStatus,
   generationError,
+  onStop,
   onExportWord,
   illustrationMode = 'automatic',
   illustrationStatus = 'idle',
@@ -82,6 +83,17 @@ export function StudioCanvas({
 }) {
   const [showAdd, setShowAdd] = useState(false)
   const [desc, setDesc] = useState('')
+  // Live section-by-section reveal: play once right after a fresh generation
+  // finishes (loading → done), then hand off to the full print-ready preview.
+  // Existing/reopened plans (mounted already-done) skip straight to the preview.
+  const [revealDone, setRevealDone] = useState(true)
+  const prevStatusRef = useRef(generationStatus)
+  useEffect(() => {
+    if (prevStatusRef.current === 'loading' && generationStatus === 'done') {
+      setRevealDone(false)
+    }
+    prevStatusRef.current = generationStatus
+  }, [generationStatus])
   // Inject lesson.css from /public/studio/ on mount.
   // The file lives in public/ so Vite won't bundle it; we inject a <link>
   // instead. We intentionally do NOT remove it on unmount — the styles are
@@ -388,14 +400,31 @@ export function StudioCanvas({
           </div>
         )}
 
-        {/* 2. Loading state */}
+        {/* 2. Loading state — live generation timeline */}
         {isLoading && (
-          <div className="w-full max-w-md pt-10">
-            <AiGenerationProgress
-              variant="card"
-              preset="lessonPlan"
-              running
+          <div className="w-full max-w-xl pt-6">
+            <LiveGenerationCanvas
+              variant="embedded"
+              tool="lessonPlan"
+              status="generating"
               title="Composing your lesson plan…"
+              onStop={typeof onStop === 'function' ? onStop : undefined}
+            />
+          </div>
+        )}
+
+        {/* 2b. Fresh generation just finished — reveal it section by section
+             before dropping into the full print-ready preview. */}
+        {isDone && !isEditing && !revealDone && planJson && (
+          <div className="w-full max-w-xl pt-2">
+            <LiveGenerationCanvas
+              variant="embedded"
+              tool="lessonPlan"
+              status="success"
+              result={planJson}
+              docTitle={planJson.lessonTitle || planJson.title}
+              onContinueEditing={() => setRevealDone(true)}
+              continueLabel="View the full lesson plan"
             />
           </div>
         )}
@@ -410,8 +439,9 @@ export function StudioCanvas({
           />
         )}
 
-        {/* 3b. Generated / done state (preview) */}
-        {isDone && !isEditing && generatedPlan && (
+        {/* 3b. Generated / done state (preview) — after the live reveal, or
+             immediately for reopened plans that have no structured planJson. */}
+        {isDone && !isEditing && generatedPlan && (revealDone || !planJson) && (
           /* The .doc-wrap caps the document at A4 width (794px) and centres it;
              without it the bare .doc sized to its content and, under the parent's
              justify-center, overflowed off BOTH edges on phones (text clipped

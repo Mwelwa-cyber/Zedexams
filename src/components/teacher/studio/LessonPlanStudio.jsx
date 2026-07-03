@@ -1147,6 +1147,7 @@ export default function LessonPlanStudio() {
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
             generationError={generationError}
+            onStop={() => studioState.setGenerationStatus('idle')}
             onExportWord={handleExportWord}
             illustrationMode={studioState.formatOptions.illustrations}
             illustrationStatus={illustrationStatus}
