@@ -26,13 +26,16 @@ describe('dailyRate', () => {
 })
 
 describe('isUpgradePath', () => {
-  it('only pro → max counts', () => {
+  it('only a same-period pro → max counts', () => {
     expect(isUpgradePath('pro_monthly', 'max_monthly')).toBe(true)
     expect(isUpgradePath('pro_yearly', 'max_yearly')).toBe(true)
     expect(isUpgradePath('max_monthly', 'max_yearly')).toBe(false) // already max
     expect(isUpgradePath('max_monthly', 'pro_monthly')).toBe(false) // downgrade
     expect(isUpgradePath('pro_monthly', 'pro_yearly')).toBe(false) // renewal
     expect(isUpgradePath('grade7_monthly', 'max_monthly')).toBe(false) // learner pack
+    // Cross-cadence is a plan change, not a prorated tier bump.
+    expect(isUpgradePath('pro_monthly', 'max_yearly')).toBe(false)
+    expect(isUpgradePath('pro_yearly', 'max_monthly')).toBe(false)
   })
 })
 
@@ -78,6 +81,12 @@ describe('getUpgradeQuoteForProfile', () => {
   it('is a no-op for a teacher already on Max', () => {
     expect(getUpgradeQuoteForProfile(
       { subscriptionPlan: 'max_monthly', teacherPlanExpiresAt: inDays(30) }, 'max_yearly', NOW,
+    ).isUpgrade).toBe(false)
+  })
+
+  it('does not prorate a Pro · Monthly teacher onto Max · Yearly (cross-period → full price)', () => {
+    expect(getUpgradeQuoteForProfile(
+      { subscriptionPlan: 'pro_monthly', teacherPlanExpiresAt: inDays(29) }, 'max_yearly', NOW,
     ).isUpgrade).toBe(false)
   })
 
