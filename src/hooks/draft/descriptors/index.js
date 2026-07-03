@@ -80,3 +80,29 @@ export const sbaTaskInputDescriptor = makeInputDescriptor({
   keys: ['form'],
   isNonEmpty: (p) => Boolean(p?.form?.topic?.trim() || p?.form?.outcome?.trim() || p?.form?.instructions?.trim()),
 })
+
+// Lesson Plan Studio has a bespoke input shape (no { form, curr } selector) — the
+// state passed to useDraftManager mirrors useStudioState's INPUT slices only.
+// generatedPlan / generationStatus are never passed in and are not in `keys`, so
+// the AI output can never be persisted or restored as if freshly generated.
+export const lessonPlanInputDescriptor = makeInputDescriptor({
+  studioId: 'lesson_plan',
+  schemaVersion: 1,
+  keys: [
+    'curriculumMode',
+    'lessonDetails',
+    'topicData',
+    'selectedOutcomes',
+    'learningEnvironments',
+    'lessonSeries',
+    'lessonBreakdown',
+    'formatOptions',
+  ],
+  isNonEmpty: (p) =>
+    Boolean(
+      p?.topicData?.topic ||
+      p?.lessonDetails?.grade ||
+      p?.lessonDetails?.subject ||
+      p?.lessonSeries?.lessonFocus?.trim(),
+    ),
+})
