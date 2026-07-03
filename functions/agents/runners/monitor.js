@@ -38,6 +38,12 @@ const QUIZ_SAMPLE = 10;        // published quizzes to structurally validate
 const IMAGE_SAMPLE = 20;       // image URLs to HEAD-check per run
 const QUESTIONS_PER_QUIZ = 30; // cap questions read per sampled quiz
 const FETCH_TIMEOUT_MS = 8000;
+// The public origin is served through a CDN/SPA shell that can be slower than
+// a bare API call, so give the page probe a more forgiving budget than the
+// generic fetch and retry once — a single transient stall (edge cold-hit,
+// undici connect blip) must not raise a false "site is down" critical.
+const PAGE_TIMEOUT_MS = 15000;
+const PAGE_ATTEMPTS = 2;
 const MAX_ISSUES_PER_RUN = 3;  // ceiling on bug issues filed in one run
 // Only code/infra failures are plausibly fixable by a code-fixer agent;
 // content/data failures (images, quizzes) are reported but not routed to Mendi.
@@ -46,10 +52,19 @@ const MENDI_CHECKS = new Set(["pages", "firebase"]);
 // ── small helpers ────────────────────────────────────────────────────
 
 async function fetchWithTimeout(url, opts = {}) {
+  const {timeoutMs = FETCH_TIMEOUT_MS, ...fetchOpts} = opts;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    return await fetch(url, {...opts, signal: ctrl.signal});
+    return await fetch(url, {...fetchOpts, signal: ctrl.signal});
+  } catch (err) {
+    // undici surfaces our own AbortController firing as the opaque
+    // "This operation was aborted." — rewrite it to an honest timeout so the
+    // monitor report says *why* the request failed instead of that string.
+    if (err?.name === "AbortError" || ctrl.signal.aborted) {
+      throw new Error(`timed out after ${timeoutMs}ms`);
+    }
+    throw err;
   } finally {
     clearTimeout(t);
   }
@@ -185,6 +200,32 @@ function isMendiEligible(failure) {
 
 // ── individual checks ────────────────────────────────────────────────
 
+/**
+ * Probe one route, retrying on a network/timeout error. A bare `fetch` with no
+ * User-Agent can be slow-walked or refused by edge protections, so send
+ * browser-like headers. Returns the successful Response or throws the last
+ * error after PAGE_ATTEMPTS tries.
+ */
+async function fetchPage(url) {
+  let lastErr;
+  for (let attempt = 1; attempt <= PAGE_ATTEMPTS; attempt++) {
+    try {
+      return await fetchWithTimeout(url, {
+        method: "GET",
+        redirect: "follow",
+        timeoutMs: PAGE_TIMEOUT_MS,
+        headers: {
+          "User-Agent": "zedexams-vigil/1.0 (+https://zedexams.com)",
+          "Accept": "text/html,application/xhtml+xml",
+        },
+      });
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 async function checkPages() {
   const routes = ["/", "/login"];
   const results = [];
@@ -192,7 +233,7 @@ async function checkPages() {
   for (const route of routes) {
     const url = ORIGIN + route;
     try {
-      const res = await fetchWithTimeout(url, {method: "GET", redirect: "follow"});
+      const res = await fetchPage(url);
       results.push({url, status: res.status});
       if (res.status >= 500) {
         failures.push({check: "pages", id: route, severity: "critical", message: `${url} returned ${res.status}.`});
@@ -201,7 +242,7 @@ async function checkPages() {
       }
     } catch (err) {
       results.push({url, status: null, error: String(err?.message || err)});
-      failures.push({check: "pages", id: route, severity: "critical", message: `${url} is unreachable: ${String(err?.message || err)}.`});
+      failures.push({check: "pages", id: route, severity: "critical", message: `${url} is unreachable after ${PAGE_ATTEMPTS} attempts: ${String(err?.message || err)}.`});
     }
   }
   return {ok: failures.length === 0, results, failures};
@@ -473,6 +514,37 @@ function buildTransporter(smtpUser, smtpPass) {
 const crypto = require("node:crypto");
 
 /**
+ * Coerce whatever a secret store handed us into a PEM OpenSSL 3 will decode.
+ *
+ * The GitHub App key routinely arrives mangled: literal "\n"/"\r\n" escape
+ * sequences (dotenv / `firebase functions:secrets:set` from a single-line
+ * value), a wrapping pair of quotes, or — the one that produces
+ * `error:1E08010C:DECODER routines::unsupported` from crypto.sign — the whole
+ * key collapsed onto one line so the base64 body carries interior spaces.
+ * Rebuilding the PEM from its BEGIN/END markers and re-wrapping the stripped
+ * body at 64 chars fixes all three; a correctly-formatted PEM round-trips
+ * unchanged.
+ */
+function normalizePem(raw) {
+  let pem = String(raw || "").trim();
+  // Strip one layer of wrapping quotes a secret store may have added.
+  if ((pem.startsWith("\"") && pem.endsWith("\"")) || (pem.startsWith("'") && pem.endsWith("'"))) {
+    pem = pem.slice(1, -1).trim();
+  }
+  // Turn literal escape sequences back into real newlines.
+  pem = pem.replace(/\\r\\n|\\n|\\r/g, "\n");
+  // Rebuild from the header + base64 body, dropping any interior whitespace.
+  const match = pem.match(/-----BEGIN ([A-Z0-9 ]+?)-----([\s\S]*?)-----END \1-----/);
+  if (match) {
+    const label = match[1].trim();
+    const body = match[2].replace(/\s+/g, "");
+    const wrapped = body.match(/.{1,64}/g) || [];
+    pem = `-----BEGIN ${label}-----\n${wrapped.join("\n")}\n-----END ${label}-----\n`;
+  }
+  return pem;
+}
+
+/**
  * Mint a short-lived RS256 JWT for a GitHub App (built-in crypto, no dep).
  * `iat` is backdated 60s to tolerate clock skew; `exp` stays under GitHub's
  * 10-minute ceiling.
@@ -483,10 +555,15 @@ function makeAppJwt(appId, privateKey) {
   const header = b64({alg: "RS256", typ: "JWT"});
   const payload = b64({iat: now - 60, exp: now + 9 * 60, iss: String(appId)});
   const signingInput = `${header}.${payload}`;
-  // Secret Manager often stores the PEM with literal "\n" — normalise back.
-  const pem = String(privateKey).replace(/\\n/g, "\n");
-  const signature = crypto.sign("RSA-SHA256", Buffer.from(signingInput), pem).toString("base64url");
-  return `${signingInput}.${signature}`;
+  const pem = normalizePem(privateKey);
+  try {
+    const signature = crypto.sign("RSA-SHA256", Buffer.from(signingInput), pem).toString("base64url");
+    return `${signingInput}.${signature}`;
+  } catch (err) {
+    // A malformed key surfaces as an opaque OpenSSL DECODER error — make the
+    // monitor report point at the actual secret to fix.
+    throw new Error(`GitHub App private key could not be parsed (${String(err?.code || err?.message || err)}); check the GITHUB_APP_PRIVATE_KEY secret format.`);
+  }
 }
 
 /** Exchange the App JWT for a 1-hour installation token scoped to the repo. */
@@ -656,5 +733,6 @@ module.exports = {
   suggestFixes,
   notifyFailures,
   makeAppJwt,
+  normalizePem,
   resolveGithubToken,
 };
