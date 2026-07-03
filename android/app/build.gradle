@@ -121,6 +121,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // reCAPTCHA Enterprise SDK — see recaptchaVersion in variables.gradle and
+    // ZedExamsApplication/RecaptchaPlugin for the init + execute wiring.
+    implementation "com.google.android.recaptcha:recaptcha:$recaptchaVersion"
 }
 
 apply from: 'capacitor.build.gradle'

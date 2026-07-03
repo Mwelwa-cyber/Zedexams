@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { captureReferralFromUrl } from '../../utils/referrals'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
+import { assessAction, shouldBlock } from '../../utils/recaptcha'
 import { validateFields, hasErrors, focusFirstError } from '../../utils/formValidation'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
@@ -158,6 +159,13 @@ export default function Register() {
 
     setError(''); setLoading(true)
     try {
+      // reCAPTCHA Enterprise bot check (native Android only — no-op on web,
+      // which is covered by App Check). Fail-open: only a definitive 'block'
+      // verdict stops sign-up; a null token or any assessment error proceeds.
+      if (shouldBlock(await assessAction('signup'))) {
+        setError('We could not verify this request. Please try again in a moment.')
+        return
+      }
       const cred = await register(
         form.email.trim(),
         form.password,

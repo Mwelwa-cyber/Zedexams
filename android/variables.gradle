@@ -13,6 +13,12 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // reCAPTCHA Enterprise Android SDK — mints per-action bot-score tokens
+    // for sensitive flows (login/signup). Consumed by ZedExamsApplication +
+    // RecaptchaPlugin; scored server-side by the assessRecaptcha function.
+    // Pin >= 18.9.0 (earlier builds crash on iOS 27 beta; Android is fine
+    // either way but stay current). See docs/RECAPTCHA-ENTERPRISE-SETUP.md.
+    recaptchaVersion = '18.9.0'
     // @capacitor-firebase/authentication: ship the native Google sign-in
     // dependencies (play-services-auth, androidx.credentials, googleid) as
     // implementation instead of compileOnly. capacitor.config.json enables

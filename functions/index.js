@@ -9,6 +9,13 @@ const nodemailer = require("nodemailer");
 admin.initializeApp();
 
 const {purgeUserData} = require("./accountDeletion");
+const {createAssessment} = require("./recaptchaEnterprise");
+const {
+  ANDROID_SITE_KEY,
+  resolveProjectId,
+  isAssessableToken,
+  interpretAssessment,
+} = require("./recaptchaAssessmentCore");
 
 const {
   LIMITS,
@@ -753,6 +760,56 @@ exports.deleteMyAccount = onCall(
       `deleteMyAccount uid=${uid} summary=${JSON.stringify(summary)}`,
     );
     return {success: true, summary};
+  },
+);
+
+// ── reCAPTCHA Enterprise assessment (bot scoring for sensitive actions) ──
+// The native Android app mints a per-action reCAPTCHA Enterprise token (login
+// / signup / …) via the device SDK and sends it here; we trade it with Google
+// for a risk score. This is SEPARATE from App Check: App Check attests "real
+// ZedExams client", this scores "does this specific attempt look like a bot".
+// The assessment MUST be server-side — a compromised client could otherwise
+// fake a passing result.
+//
+// PUBLIC by necessity: login/signup happen while logged out, so no request.auth
+// and (for now) no App Check enforcement. The design is fail-open end to end —
+// this only ever returns verdict 'block' on a genuine, valid low score; every
+// error / ambiguity resolves to 'skip' so a misconfiguration can't lock real
+// users out. The client (src/utils/recaptcha.js) blocks iff verdict==='block'.
+// Cheap abuse guard: a token too short to be real is rejected before any paid
+// Assessment API call. GCP setup: docs/RECAPTCHA-ENTERPRISE-SETUP.md.
+exports.assessRecaptcha = onCall(
+  {region: "us-central1", timeoutSeconds: 20},
+  async (request) => {
+    const token = cleanString(request.data?.token, 4000);
+    const action = cleanString(request.data?.action, 50);
+
+    if (!isAssessableToken(token)) {
+      return {verdict: "skip", reason: "no-token"};
+    }
+
+    try {
+      const assessment = await createAssessment({
+        token,
+        action: action || undefined,
+        siteKey: ANDROID_SITE_KEY,
+        projectId: resolveProjectId(),
+      });
+      const result = interpretAssessment(assessment, {expectedAction: action});
+      // Operator breadcrumb — score distribution informs threshold tuning.
+      // Never log the token itself.
+      console.log(
+        `assessRecaptcha action=${action || "(none)"} verdict=${result.verdict} ` +
+        `score=${result.score} valid=${result.valid}` +
+        (result.invalidReason ? ` invalidReason=${result.invalidReason}` : "") +
+        (result.actionMismatch ? " actionMismatch=true" : ""),
+      );
+      return result;
+    } catch (err) {
+      // Fail open: a broken/unconfigured assessment must never block sign-in.
+      console.error("assessRecaptcha failed:", err?.message || err);
+      return {verdict: "skip", reason: "assessment-error"};
+    }
   },
 );
 
