@@ -161,6 +161,7 @@ jobs:
 
       - name: Compute release version
         run: |
+          set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"
             echo "ZED_VERSION_NAME=$version" >> "$GITHUB_ENV"
@@ -168,6 +169,16 @@ jobs:
           else
             echo "Manual dispatch — leaving ZED_VERSION_NAME at the build.gradle default."
           fi
+          # versionCode: commit-timestamp minutes-since-epoch — the SAME source
+          # the Play AAB workflow (android-play-release.yml) uses, so both signed
+          # channels emit the IDENTICAL monotonic code for a given tag. Without
+          # this, build.gradle falls back to the git commit count (~1.4k) while
+          # the Play AAB uses ~29M; since Android only installs updates with a
+          # strictly greater versionCode (docs/ANDROID-RELEASE.md), a tester who
+          # already has the Play build could not install this Firebase APK.
+          code=$(( $(git log -1 --format=%ct) / 60 ))
+          echo "ZED_VERSION_CODE=$code" >> "$GITHUB_ENV"
+          echo "Release versionCode: $code"
 
       - name: Build web bundle
         env:

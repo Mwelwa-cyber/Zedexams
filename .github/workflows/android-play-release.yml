@@ -190,17 +190,21 @@ jobs:
             upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-alpha}"; status="${IN_STATUS:-draft}"
             version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"; code="${IN_VERSIONCODE:-}"
           fi
-          # versionCode: default to wall-clock minutes-since-epoch when not
-          # explicitly overridden. Commit count (build.gradle's fallback) is NOT
-          # monotonic across this repo's divergent histories — a tag on a longer
-          # branch line can outrank a newer main commit. That is exactly why
-          # v1.2.3 (code 1432, on main) failed to supersede the stale v1.2.2
+          # versionCode: default to the COMMIT timestamp in minutes-since-epoch
+          # when not explicitly overridden. Commit count (build.gradle's fallback)
+          # is NOT monotonic across this repo's divergent histories — a tag on a
+          # longer branch line can outrank a newer main commit. That is exactly
+          # why v1.2.3 (code 1432, on main) failed to supersede the stale v1.2.2
           # (code 1439) already live on the track: "existing users cannot
-          # upgrade". Minutes-since-epoch only ever increases with time, so each
-          # release always supersedes the last regardless of git topology, and it
-          # stays far under Play's 2,100,000,000 ceiling for centuries.
+          # upgrade". Commit-timestamp minutes only ever increase (committer dates
+          # advance with each merge) and stay far under Play's 2,100,000,000
+          # ceiling for centuries. Using the COMMIT time (not wall-clock) makes it
+          # deterministic and IDENTICAL to the code the companion Firebase App
+          # Distribution workflow (android-release.yml) derives for the same tag,
+          # so a device can move between the two signed channels without hitting a
+          # version downgrade.
           if [ -z "$code" ]; then
-            code=$(( $(date -u +%s) / 60 ))
+            code=$(( $(git log -1 --format=%ct) / 60 ))
           fi
           # Staged rollout only applies to production with a fraction; otherwise ignore it.
           if [ "$track" = "production" ] && [ -n "$fraction" ]; then
