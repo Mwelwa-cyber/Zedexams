@@ -7,7 +7,6 @@ import {
   CalendarDays,
   LogOut,
   Settings,
-  Sparkles,
   FileText,
   BookOpen,
   Target,
@@ -32,7 +31,6 @@ const NAV = [
   { to: '/teacher/syllabi',                icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',             icon: GraduationCap,   label: 'Curriculum'              },
   { to: '/teacher/calendar',               icon: CalendarDays,    label: 'School Calendar'         },
-  { to: '/my-subscription',                icon: Sparkles,        label: 'My Subscription'         },
   { to: '/settings',                       icon: Settings,        label: 'Settings'                },
 ]
 
