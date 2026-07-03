@@ -57,6 +57,46 @@ export default function SbaHub() {
           </li>
         ))}
       </ol>
+
+      {/* Per-tool instructions — the "how do I actually use this?" answer that
+          teachers were missing. Kept in sync with the workflow cards above via
+          the shared SBA_WORKFLOW_STEPS. */}
+      <section aria-label="How to use each SBA tool" className="mt-6">
+        <h2 className="text-sm font-black theme-text mb-3">How to use each tool</h2>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {SBA_WORKFLOW_STEPS.map((step) => (
+            <div key={step.id} className="rounded-2xl border theme-border bg-white/60 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span aria-hidden="true" style={{ fontSize: 18 }}>{step.emoji}</span>
+                <span className="text-sm font-black theme-text">
+                  {step.tool || step.title}
+                </span>
+              </div>
+              <ol className="space-y-2">
+                {step.how.map((line, j) => (
+                  <li key={j} className="flex gap-2 text-xs leading-snug" style={{ color: '#566f76' }}>
+                    <span
+                      aria-hidden="true"
+                      className="flex-none grid place-items-center rounded-full text-[10px] font-black"
+                      style={{ width: 18, height: 18, background: '#e0f2f7', color: '#0e7490' }}
+                    >
+                      {j + 1}
+                    </span>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ol>
+              <Link
+                to={step.to}
+                className="mt-3 inline-block text-xs font-black no-underline"
+                style={{ color: '#0e7490' }}
+              >
+                Open {step.tool || step.title} →
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

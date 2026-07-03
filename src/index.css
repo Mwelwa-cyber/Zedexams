@@ -1077,14 +1077,32 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-workspace-section__icon--green  { --ws-icon-bg: #d8ecd0; --ws-icon-fg: #166534; }
   .studio-theme .teacher-workspace-section__icon--slate  { --ws-icon-bg: #e3dcc8; --ws-icon-fg: #334155; }
 
-  .studio-theme .teacher-workspace-section__label {
+  .studio-theme .teacher-workspace-section__titles {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .studio-theme .teacher-workspace-section__label {
     color: #0e2a32;
     font-size: 13px;
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+  }
+
+  /* Optional one-line clarifier under a section label (e.g. the SBA group
+     spells out that its tools are ECZ Grades 5–7 only, so teachers don't open
+     them by mistake). Muted, sentence-case, wraps freely on small screens. */
+  .studio-theme .teacher-workspace-section__desc {
+    color: #4a6670;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .studio-theme .teacher-workspace-section__viewall {
