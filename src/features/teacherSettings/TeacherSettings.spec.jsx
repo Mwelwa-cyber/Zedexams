@@ -6,7 +6,6 @@ import TeacherSettings from './TeacherSettings'
 // Panels are lazy Firebase-heavy modules — stub every one so the router spec
 // only exercises routing (redirects, unknown paths, panel selection).
 vi.mock('./panels/ProfilePanel', () => ({ default: () => <div data-testid="panel-profile" /> }))
-vi.mock('./panels/TeachingIdentityPanel', () => ({ default: () => <div data-testid="panel-identity" /> }))
 vi.mock('./panels/SecurityPanel', () => ({ default: () => <div data-testid="panel-security" /> }))
 vi.mock('./panels/SchoolPanel', () => ({ default: () => <div data-testid="panel-school" /> }))
 vi.mock('./panels/BrandingPanel', () => ({ default: () => <div data-testid="panel-branding" /> }))

@@ -20,7 +20,6 @@ import { LEGACY_TAB_TO_PATH } from './settingsSections'
 import './teacherSettings.css'
 
 const ProfilePanel = lazy(() => import('./panels/ProfilePanel'))
-const TeachingIdentityPanel = lazy(() => import('./panels/TeachingIdentityPanel'))
 const SecurityPanel = lazy(() => import('./panels/SecurityPanel'))
 const SchoolPanel = lazy(() => import('./panels/SchoolPanel'))
 const BrandingPanel = lazy(() => import('./panels/BrandingPanel'))
@@ -58,7 +57,6 @@ export default function TeacherSettings() {
         <Route index element={<HomeOrLegacyRedirect />} />
         {/* Me */}
         <Route path="profile" element={<Panel><ProfilePanel /></Panel>} />
-        <Route path="identity" element={<Panel><TeachingIdentityPanel /></Panel>} />
         <Route path="security" element={<Panel><SecurityPanel /></Panel>} />
         {/* My School */}
         <Route path="school" element={<Panel><SchoolPanel /></Panel>} />
