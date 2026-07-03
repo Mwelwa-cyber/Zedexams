@@ -9,9 +9,10 @@ import OptionCards from '../components/fields/OptionCards'
 import UploadField from '../components/fields/UploadField'
 import { useSettingsSave } from '../lib/useSettingsSave'
 
-// Document branding: the images stamped onto exports (logo / stamp /
-// letterhead), the footer line, and the default export format. Uploads save
-// immediately; footer + format go through the Save bar.
+// Document branding: the images placed onto exports (logo / letterhead — the
+// teacher signature lives on the Teaching Identity panel), the footer line, and
+// the default export format. Uploads save immediately; footer + format go
+// through the Save bar.
 export default function BrandingPanel() {
   const { userProfile, currentUser, updateProfileFields } = useAuth()
   const school = useSchoolProfileForm()
@@ -58,7 +59,7 @@ export default function BrandingPanel() {
         <h2 className="tset-section__title">Images</h2>
         <p className="tset-section__hint">
           Uploaded images are placed onto your generated documents. PNG with a
-          transparent background works best for stamps and logos.
+          transparent background works best for logos and letterheads.
         </p>
         <div style={{ display: 'grid', gap: 18 }}>
           <UploadField
@@ -66,12 +67,6 @@ export default function BrandingPanel() {
             hint="Printed in the header of papers and plans."
             url={school.form.schoolLogoUrl}
             {...makeUpload('schoolLogo', 'schoolLogoUrl', 'schoolLogoPath')}
-          />
-          <UploadField
-            title="School stamp"
-            hint="For documents that need the official stamp."
-            url={school.form.schoolStampUrl}
-            {...makeUpload('schoolStamp', 'schoolStampUrl', 'schoolStampPath')}
           />
           <UploadField
             title="Letterhead"

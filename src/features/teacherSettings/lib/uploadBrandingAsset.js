@@ -6,8 +6,8 @@
 // at 5 MB image/(jpeg|png|webp).
 //
 // Photos re-encode to JPEG via the shared compressImage; logos, signatures,
-// stamps and letterheads go through preparePngImage, which PRESERVES ALPHA —
-// a signature flattened to JPEG would print as a white box on papers.
+// and letterheads go through preparePngImage, which PRESERVES ALPHA — a
+// signature flattened to JPEG would print as a white box on papers.
 
 import { getDownloadURL, ref as storageRef, uploadBytes, deleteObject } from 'firebase/storage'
 import { storage } from '../../../firebase/config'
@@ -17,7 +17,6 @@ export const BRANDING_ASSETS = {
   photo: { file: 'profile-photo.jpg', maxWidth: 512, keepAlpha: false },
   schoolLogo: { file: 'school-logo.png', maxWidth: 800, keepAlpha: true },
   teacherSignature: { file: 'signature.png', maxWidth: 800, keepAlpha: true },
-  schoolStamp: { file: 'stamp.png', maxWidth: 800, keepAlpha: true },
   letterhead: { file: 'letterhead.png', maxWidth: 1600, keepAlpha: true },
 }
 

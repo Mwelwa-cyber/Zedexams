@@ -53,7 +53,6 @@ console.log('\nnormalizeSchoolProfile — school identity + branding fields')
     schoolLogoUrl: 'https://x/logo.png',
     schoolLogoPath: 'user-branding/u1/school-logo.png',
     teacherSignatureUrl: 'https://x/sig.png',
-    schoolStampUrl: 'https://x/stamp.png',
     letterheadUrl: 'https://x/head.png',
   })
   assert(n.emisNumber === '8012345', 'trims EMIS number')
@@ -65,7 +64,6 @@ console.log('\nnormalizeSchoolProfile — school identity + branding fields')
   assert(n.schoolLogoUrl === 'https://x/logo.png', 'keeps logo url')
   assert(n.schoolLogoPath === 'user-branding/u1/school-logo.png', 'keeps logo path')
   assert(n.teacherSignatureUrl === 'https://x/sig.png', 'keeps signature url')
-  assert(n.schoolStampUrl === 'https://x/stamp.png', 'keeps stamp url')
   assert(n.letterheadUrl === 'https://x/head.png', 'keeps letterhead url')
 
   assert(normalizeSchoolProfile({ resourceLevel: 'luxury' }).resourceLevel === '', 'unknown resource level → blank')

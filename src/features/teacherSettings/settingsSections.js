@@ -65,7 +65,7 @@ export const SETTINGS_SECTIONS = [
         id: 'branding',
         path: 'branding',
         title: 'Branding',
-        desc: 'Logo, stamp, letterhead and document defaults',
+        desc: 'Logo, letterhead and document defaults',
         icon: ImageIcon,
         tone: 'orange',
       },

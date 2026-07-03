@@ -870,7 +870,7 @@ service cloud.firestore {
     // One saved "school branding" doc per teacher: school identity (EMIS,
     // province, district, type, address, motto), the default paper duration +
     // cover instructions, the school's resource level, and uploaded branding
-    // assets (logo, teacher signature, stamp, letterhead), reused as the
+    // assets (logo, teacher signature, letterhead), reused as the
     // header defaults across the Assessment Studio (and other printable
     // outputs). Edited from Teacher Settings → My School. Owner-only writes;
     // owner + admin reads (admins read for support, like teacherLibraries).
@@ -895,8 +895,6 @@ service cloud.firestore {
         && (!('schoolLogoPath' in incoming()) || (incoming().schoolLogoPath is string && incoming().schoolLogoPath.size() <= 500))
         && (!('teacherSignatureUrl' in incoming()) || (incoming().teacherSignatureUrl is string && incoming().teacherSignatureUrl.size() <= 2000))
         && (!('teacherSignaturePath' in incoming()) || (incoming().teacherSignaturePath is string && incoming().teacherSignaturePath.size() <= 500))
-        && (!('schoolStampUrl' in incoming()) || (incoming().schoolStampUrl is string && incoming().schoolStampUrl.size() <= 2000))
-        && (!('schoolStampPath' in incoming()) || (incoming().schoolStampPath is string && incoming().schoolStampPath.size() <= 500))
         && (!('letterheadUrl' in incoming()) || (incoming().letterheadUrl is string && incoming().letterheadUrl.size() <= 2000))
         && (!('letterheadPath' in incoming()) || (incoming().letterheadPath is string && incoming().letterheadPath.size() <= 500));
     }
