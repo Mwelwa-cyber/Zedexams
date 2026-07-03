@@ -190,6 +190,18 @@ jobs:
             upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-alpha}"; status="${IN_STATUS:-draft}"
             version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"; code="${IN_VERSIONCODE:-}"
           fi
+          # versionCode: default to wall-clock minutes-since-epoch when not
+          # explicitly overridden. Commit count (build.gradle's fallback) is NOT
+          # monotonic across this repo's divergent histories — a tag on a longer
+          # branch line can outrank a newer main commit. That is exactly why
+          # v1.2.3 (code 1432, on main) failed to supersede the stale v1.2.2
+          # (code 1439) already live on the track: "existing users cannot
+          # upgrade". Minutes-since-epoch only ever increases with time, so each
+          # release always supersedes the last regardless of git topology, and it
+          # stays far under Play's 2,100,000,000 ceiling for centuries.
+          if [ -z "$code" ]; then
+            code=$(( $(date -u +%s) / 60 ))
+          fi
           # Staged rollout only applies to production with a fraction; otherwise ignore it.
           if [ "$track" = "production" ] && [ -n "$fraction" ]; then
             status=inProgress
@@ -205,10 +217,11 @@ jobs:
           if [ -n "$version" ]; then
             echo "ZED_VERSION_NAME=$version" >> "$GITHUB_ENV"
           fi
-          if [ -n "$code" ]; then
-            echo "ZED_VERSION_CODE=$code" >> "$GITHUB_ENV"
-          fi
-          echo "Effective release → upload=$upload track=$track status=$status fraction=${fraction:-<full>} versionName=${version:-<gradle default>} versionCode=${code:-<commit count>}"
+          # Always set — `code` is now guaranteed non-empty (override or the
+          # minutes-since-epoch default above), so CI never falls back to the
+          # non-monotonic commit count.
+          echo "ZED_VERSION_CODE=$code" >> "$GITHUB_ENV"
+          echo "Effective release → upload=$upload track=$track status=$status fraction=${fraction:-<full>} versionName=${version:-<gradle default>} versionCode=$code"
 
       - name: Build web bundle
         env:
