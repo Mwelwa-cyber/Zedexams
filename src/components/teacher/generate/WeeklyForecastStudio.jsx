@@ -57,6 +57,7 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import WeeklyForecastView from '../views/WeeklyForecastView'
+import { normalizeCurriculum, schemeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
 import StudioPageHeader from '../StudioPageHeader'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -538,15 +539,22 @@ export default function WeeklyForecastStudio() {
     usedModuleFallback,
   }), [days, subjectLabel, timetableId, schedule, topicCatalog, usedModuleFallback])
 
+  // CBC (2023) vs OBC (2013/"previous") drives the forecast's column set. A
+  // picked scheme's curriculum wins (the forecast is that scheme's week split
+  // across the days); otherwise the curriculum selector decides.
+  const forecastCurriculum = useMemo(() => (
+    selectedScheme?.output ? schemeCurriculum(selectedScheme.output) : normalizeCurriculum(curr.curriculum)
+  ), [selectedScheme, curr.curriculum])
+
   const artifact = useMemo(() => {
     const filled = days.filter((d) => d.topic.trim() || d.learningActivities.length)
     if (!filled.length) return null
     return {
       schemaVersion: 'forecast-table-1.0',
-      header: { ...header, grade, subject: subjectLabel },
+      header: { ...header, grade, subject: subjectLabel, curriculum: forecastCurriculum },
       days: days.map((d) => ({ ...d })),
     }
-  }, [days, header, grade, subjectLabel])
+  }, [days, header, grade, subjectLabel, forecastCurriculum])
 
   function clearAll() {
     setHeader({
@@ -885,9 +893,18 @@ export default function WeeklyForecastStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your weekly forecast</h2>
+                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>
+                  Your weekly forecast
+                  <span
+                    className="ml-2 align-middle text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full"
+                    style={{ background: forecastCurriculum === 'obc' ? '#ede9fe' : '#dcfce7', color: forecastCurriculum === 'obc' ? '#6b21a8' : '#166534' }}
+                  >
+                    {curriculumLabel(forecastCurriculum)}
+                  </span>
+                </h2>
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
-                  Exactly what prints — the remarks column travels with it for the classroom.
+                  Exactly what prints — the remarks column travels with it for the classroom
+                  {forecastCurriculum === 'obc' ? ' (Outcome-Based: no learning-activity or expected-standard columns).' : '.'}
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap items-center">

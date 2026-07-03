@@ -129,23 +129,23 @@ export function isOutcomeBased(curriculum) {
  * STANDARD and relabels SPECIFIC COMPETENCE → SPECIFIC OUTCOME.
  */
 const FORECAST_CBC_COLUMNS = [
-  { key: 'day', label: 'DAY', type: 'text' },
-  { key: 'topic', label: 'TOPIC', type: 'text' },
-  { key: 'subtopic', label: 'SUB-TOPIC', type: 'text' },
-  { key: 'specificCompetence', label: 'SPECIFIC COMPETENCE', type: 'text' },
-  { key: 'learningActivities', label: 'LEARNING ACTIVITY', type: 'list' },
-  { key: 'expectedStandard', label: 'EXPECTED STANDARD', type: 'text' },
-  { key: 'resources', label: 'T/L RESOURCES', type: 'list' },
-  { key: 'remarks', label: 'REMARKS', type: 'text' },
+  { key: 'day', label: 'DAY', type: 'text', width: 4 },
+  { key: 'topic', label: 'TOPIC', type: 'text', width: 10 },
+  { key: 'subtopic', label: 'SUB-TOPIC / TO BE DONE', type: 'text', width: 12 },
+  { key: 'specificCompetence', label: 'SPECIFIC COMPETENCE', type: 'text', width: 15 },
+  { key: 'learningActivities', label: 'LEARNING ACTIVITY', type: 'list', width: 20 },
+  { key: 'expectedStandard', label: 'EXPECTED STANDARD', type: 'text', width: 13 },
+  { key: 'resources', label: 'T/L RESOURCES', type: 'list', width: 12 },
+  { key: 'remarks', label: 'REMARKS / COMMENTS ON PROGRESS', type: 'text', width: 10 },
 ]
 
 const FORECAST_OBC_COLUMNS = [
-  { key: 'day', label: 'DAY', type: 'text' },
-  { key: 'topic', label: 'TOPIC', type: 'text' },
-  { key: 'subtopic', label: 'SUB-TOPIC', type: 'text' },
-  { key: 'specificCompetence', label: 'SPECIFIC OUTCOME', type: 'text' },
-  { key: 'resources', label: 'T/L RESOURCES', type: 'list' },
-  { key: 'remarks', label: 'REMARKS', type: 'text' },
+  { key: 'day', label: 'DAY', type: 'text', width: 5 },
+  { key: 'topic', label: 'TOPIC', type: 'text', width: 14 },
+  { key: 'subtopic', label: 'SUB-TOPIC / TO BE DONE', type: 'text', width: 16 },
+  { key: 'specificCompetence', label: 'SPECIFIC OUTCOME', type: 'text', width: 28 },
+  { key: 'resources', label: 'T/L RESOURCES', type: 'list', width: 16 },
+  { key: 'remarks', label: 'REMARKS / COMMENTS ON PROGRESS', type: 'text', width: 17 },
 ]
 
 /** The ordered per-day column spec for a weekly forecast in this curriculum. */

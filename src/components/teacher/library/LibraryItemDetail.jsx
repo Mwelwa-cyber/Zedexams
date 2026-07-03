@@ -61,6 +61,9 @@ import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
 import { buildSbaPlan } from '../../../utils/sbaPlanner'
 import { buildDownloadName } from '../../../utils/downloadFilename'
+import SchemeEditableTable from '../generate/SchemeEditableTable'
+import WeeklyForecastEditableTable from '../generate/WeeklyForecastEditableTable'
+import { stampEditHistory, lastEditedAt, editHistoryOf } from '../../../utils/schemeEditHistory'
 
 // Human-readable document-type labels, keyed by the generation's `tool`.
 const TOOL_DOC_TYPES = {
@@ -117,6 +120,10 @@ export default function LibraryItemDetail() {
   const [showPercents, setShowPercents] = useState(false)
   const [editingHeader, setEditingHeader] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
+  // Full-document edit mode (scheme of work / weekly forecast row editing).
+  const [editingDoc, setEditingDoc] = useState(false)
+  const [docDraft, setDocDraft] = useState(null)
+  const [savingDoc, setSavingDoc] = useState(false)
   const [sharing, setSharing] = useState(false)
   // Live (non-revoked) share links for this item — loaded on open + updated on
   // create/revoke, so a teacher can take down a previously-shared link.
@@ -504,6 +511,36 @@ export default function LibraryItemDetail() {
   const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet', 'sba_task']
     .includes(item.tool)
 
+  // Full-document (row-level) editing — the teacher is never locked into the
+  // AI draft. Reopens the saved scheme/forecast in the same editable table the
+  // studio uses. Edit history rides inside output.meta (Firestore rules only
+  // let the owner write `output`, so a top-level updatedAt would be rejected).
+  const canEditDoc = item && ['scheme_of_work', 'weekly_forecast'].includes(item.tool)
+
+  function startEditDoc() {
+    if (!item?.output) return
+    setDocDraft(item.output)
+    setEditingDoc(true)
+  }
+
+  async function onSaveDoc() {
+    if (!item || !docDraft) return
+    setSavingDoc(true)
+    const summary = item.tool === 'weekly_forecast' ? 'edited forecast in library' : 'edited scheme in library'
+    const nextOutput = stampEditHistory(docDraft, summary)
+    const ok = await updateGenerationOutput(item.id, nextOutput)
+    if (ok) {
+      setItem((prev) => ({ ...prev, output: nextOutput, teacherEdited: true }))
+      setEditingDoc(false)
+      setDocDraft(null)
+    } else {
+      toast.error('Could not save changes. Please try again.')
+    }
+    setSavingDoc(false)
+  }
+
+  const editedAt = item?.output ? lastEditedAt(item.output) : null
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: '#f5efe1' }}>
@@ -566,6 +603,14 @@ export default function LibraryItemDetail() {
               <span>{formatSubject(item.inputs?.subject || item.meta?.subject)}</span>
               <span>·</span>
               <span>{formatDate(item.createdAt)}</span>
+              {editedAt && (
+                <>
+                  <span>·</span>
+                  <span title={`${editHistoryOf(item.output).length} edit(s)`}>
+                    ✏️ Last modified {formatIsoDate(editedAt)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -690,6 +735,11 @@ export default function LibraryItemDetail() {
                   : 'Premium only — upgrade to download answer keys'}
               >
                 🔑 Answer Key .docx
+              </button>
+            )}
+            {canEditDoc && !editingDoc && (
+              <button onClick={startEditDoc} className="studio-btn-primary">
+                ✏️ {item.tool === 'weekly_forecast' ? 'Edit forecast' : 'Edit scheme'}
               </button>
             )}
             {canEditDetails && (
@@ -836,14 +886,24 @@ export default function LibraryItemDetail() {
               onStudy={() => { setStudyIndex(0); setStudyFlipped(false); setStudyOpen(true) }}
             />
           )}
-          {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
+          {item.tool === 'scheme_of_work' && editingDoc && (
+            <DocEditBar saving={savingDoc} onSave={onSaveDoc} onCancel={() => { setEditingDoc(false); setDocDraft(null) }}>
+              <SchemeEditableTable scheme={docDraft} onChange={setDocDraft} />
+            </DocEditBar>
+          )}
+          {item.tool === 'scheme_of_work' && !editingDoc && <SchemeOfWorkView scheme={item.output} />}
           {item.tool === 'mark_schedule' && item.output && (
             <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
           )}
           {item.tool === 'class_timetable' && item.output && (
             <ClassTimetableView timetable={item.output} />
           )}
-          {item.tool === 'weekly_forecast' && item.output && (
+          {item.tool === 'weekly_forecast' && item.output && editingDoc && (
+            <DocEditBar saving={savingDoc} onSave={onSaveDoc} onCancel={() => { setEditingDoc(false); setDocDraft(null) }}>
+              <WeeklyForecastEditableTable forecast={docDraft} onChange={setDocDraft} />
+            </DocEditBar>
+          )}
+          {item.tool === 'weekly_forecast' && item.output && !editingDoc && (
             <WeeklyForecastView forecast={item.output} />
           )}
           {item.tool === 'record_of_work' && item.output && (
@@ -1037,6 +1097,40 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
 
 function formatSubject(s) {
   return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Format an ISO edit timestamp (output.meta.lastEditedAt) for display. */
+function formatIsoDate(iso) {
+  try {
+    return new Date(iso).toLocaleString('en-ZM', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Sticky Save / Cancel bar wrapping an in-library document editor. Keeps the
+ * exports working (they read item.output, which the save updates in place).
+ */
+function DocEditBar({ saving, onSave, onCancel, children }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap sticky top-0 z-10 py-2" style={{ background: 'var(--surface, #fff)' }}>
+        <p className="text-sm font-bold" style={{ color: '#0e2a32' }}>
+          ✏️ Editing — you're in control. Changes save to your library and future exports.
+        </p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="studio-btn-ghost">Cancel</button>
+          <button onClick={onSave} disabled={saving} className="studio-btn-primary disabled:opacity-50">
+            {saving ? 'Saving…' : '💾 Save changes'}
+          </button>
+        </div>
+      </div>
+      {children}
+    </div>
+  )
 }
 
 /**
