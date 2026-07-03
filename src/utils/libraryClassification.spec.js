@@ -43,6 +43,28 @@ describe('resolveGradeForm', () => {
     expect(resolveGradeForm('G4', 'OBC')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 4' })
   })
 
+  it('keeps OBC secondary grades as literal grades, not CBC Forms', () => {
+    // The CBC/OBC crux: 'G10' means Form 3 under CBC but Grade 10 under OBC.
+    // An OBC-hinted plan must NOT be filed as a CBC Form.
+    expect(resolveGradeForm('G10', 'OBC')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 10' })
+    expect(resolveGradeForm('G12', 'OBC')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 12' })
+    // CBC hint still maps the internal secondary codes to Forms.
+    expect(resolveGradeForm('G10', 'CBC')).toEqual({ syllabus: 'CBC', gradeForm: 'Form 3' })
+  })
+
+  it('respects the syllabus hint for lower grades shared by both curricula', () => {
+    // Grade 5/6 exist in both CBC and OBC — the hint is what disambiguates.
+    expect(resolveGradeForm('Grade 5', 'OBC')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 5' })
+    expect(resolveGradeForm('Grade 5', 'CBC')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 5' })
+  })
+
+  it('defaults an academic Grade 7+ label to OBC (CBC never labels grades that high)', () => {
+    // CBC uses Forms 1–4 for secondary, so an academic "Grade 10" can only be OBC.
+    expect(resolveGradeForm('Grade 10')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 10' })
+    expect(resolveGradeForm('Grade 7')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 7' })
+    expect(resolveGradeForm('Grade 6')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 6' })
+  })
+
   it('returns nulls for missing or unrecognisable grades', () => {
     expect(resolveGradeForm(null)).toEqual({ syllabus: null, gradeForm: null })
     expect(resolveGradeForm(undefined, 'CBC')).toEqual({ syllabus: 'CBC', gradeForm: null })

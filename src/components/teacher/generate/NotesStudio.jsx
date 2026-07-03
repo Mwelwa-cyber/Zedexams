@@ -203,8 +203,14 @@ export default function NotesStudio() {
     const grade   = notes?.header?.grade   || curr.grade   || sourcePlan?.inputs?.grade
     const subject = notes?.header?.subject || curr.subject || sourcePlan?.inputs?.subject
     const term    = sourcePlan?.inputs?.term || sourcePlan?.library?.term
+    // From a plan → inherit that plan's saved curriculum; otherwise use the
+    // curriculum the teacher picked in the selector. Keeps notes in the same
+    // CBC/OBC folder as their source.
+    const syllabusHint = sourcePlan?.library?.syllabus ||
+      (curr.curriculum === 'previous' ? 'OBC' : 'CBC')
     attachLibraryToGeneration(generationId, {
       libraryType: LIBRARY_TYPES.NOTES,
+      syllabusHint,
       grade,
       term,
       subject,
@@ -266,8 +272,11 @@ export default function NotesStudio() {
       const grade   = res.data.notes?.header?.grade   || curr.grade   || sourcePlan?.inputs?.grade
       const subject = res.data.notes?.header?.subject || curr.subject || sourcePlan?.inputs?.subject
       const term    = sourcePlan?.inputs?.term || sourcePlan?.library?.term
+      const syllabusHint = sourcePlan?.library?.syllabus ||
+        (curr.curriculum === 'previous' ? 'OBC' : 'CBC')
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.NOTES,
+        syllabusHint,
         grade,
         term,
         subject,

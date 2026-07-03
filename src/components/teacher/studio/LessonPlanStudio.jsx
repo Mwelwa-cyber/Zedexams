@@ -744,6 +744,10 @@ export default function LessonPlanStudio() {
             },
             classification: {
               libraryType: LIBRARY_TYPES.LESSON_PLANS,
+              // The teacher's chosen curriculum decides the library folder —
+              // without it every plan defaults to CBC, so an OBC plan lands in
+              // the wrong (CBC) folder.
+              syllabusHint: curriculumMode === 'previous' ? 'OBC' : 'CBC',
               grade: lessonDetails.grade,
               subject: lessonDetails.subject,
             },
@@ -968,6 +972,9 @@ export default function LessonPlanStudio() {
       },
       classification: {
         libraryType: LIBRARY_TYPES.LESSON_PLANS,
+        // Persist the curriculum so the library files this under CBC vs OBC
+        // correctly (see the auto-save path above).
+        syllabusHint: mode === 'previous' ? 'OBC' : 'CBC',
         grade: s.lessonDetails.grade,
         subject: s.lessonDetails.subject,
       },

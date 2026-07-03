@@ -100,6 +100,7 @@ export default function RubricGenerator() {
     if (!generationId) return
     attachLibraryToGeneration(generationId, {
       libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      syllabusHint: curr.curriculum === 'previous' ? 'OBC' : 'CBC',
       grade: curr.grade,
       subject: curr.subject,
       assessmentType: 'topic',
@@ -148,6 +149,7 @@ export default function RubricGenerator() {
       // Rubrics file under Assessments — they're scoring guides for tests.
       attachLibraryToGeneration(res.data.generationId, {
         libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+        syllabusHint:   curr.curriculum === 'previous' ? 'OBC' : 'CBC',
         grade:          curr.grade,
         subject:        curr.subject,
         assessmentType: 'topic',
