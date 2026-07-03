@@ -6,6 +6,7 @@ import { useAuth, SESSION_EXPIRED_KEY } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
+import { assessAction, shouldBlock } from '../../utils/recaptcha'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -86,6 +87,13 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
+      // reCAPTCHA Enterprise bot check (native Android only — no-op on web,
+      // which is covered by App Check). Fail-open: only a definitive 'block'
+      // verdict stops sign-in; a null token or any assessment error proceeds.
+      if (shouldBlock(await assessAction('login'))) {
+        setError('We could not verify this request. Please try again in a moment.')
+        return
+      }
       const cred = await login(email.trim(), password)
       const profile = await ensureUserProfile(cred.user)
       // A null profile after a successful auth is almost always a transient
