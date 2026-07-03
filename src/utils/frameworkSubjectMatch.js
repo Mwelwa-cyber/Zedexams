@@ -63,7 +63,7 @@ export function matchFrameworkSubject(grade, subjectSlug) {
   // Prefer a match that actually carries periods (choiceGroup alternates seed
   // one option at 0 — e.g. Home Economics — so fall back to its sibling's
   // allocation when the direct match is a 0-period alternate).
-  let chosen = matches.find((s) => s.periodsPerWeek > 0) || matches[0]
+  const chosen = matches.find((s) => s.periodsPerWeek > 0) || matches[0]
   let periodsPerWeek = chosen.periodsPerWeek
   let timeAllocation = chosen.timeAllocation
   if (periodsPerWeek === 0 && chosen.choiceGroup) {

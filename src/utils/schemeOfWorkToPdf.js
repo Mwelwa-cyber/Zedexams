@@ -11,6 +11,7 @@
  */
 import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
 import { isOfficialScheme } from './weeklyForecast.js'
+import { schemeColumns, schemeCurriculum } from './schemeFormat.js'
 
 const cellBullets = (items) => {
   const list = (items || []).filter(Boolean)
@@ -27,17 +28,21 @@ function officialBody(scheme) {
   const metaLine = `GRADE: ${safe(gradeLabel)} &middot; TERM ${safe(h.term ?? '')} ${safe(h.year ?? '')}` +
     (h.periodsPerWeek ? ` &middot; PERIODS PER WEEK: ${safe(h.periodsPerWeek)}` : '')
 
-  const rows = (scheme.weeks || []).map((w) => `<tr>
-    <td class="wk"><strong>${safe(w.week ?? '')}</strong></td>
-    <td><strong>${safe(w.topic || '—')}</strong></td>
-    <td>${safe(w.subtopic || '—')}</td>
-    <td>${cellBullets(w.specificCompetences)}</td>
-    <td>${cellBullets(w.learningActivities)}</td>
-    <td>${safe(w.expectedStandard || '—')}</td>
-    <td>${cellBullets(w.methods)}</td>
-    <td>${cellBullets(w.tlAids)}</td>
-    <td class="ref">${safe(w.references || '—')}</td>
-  </tr>`).join('')
+  // Shared CBC (9-col) / OBC (7-col) column spec — same as view + DOCX export.
+  const columns = schemeColumns(schemeCurriculum(scheme))
+
+  const cellFor = (w, col) => {
+    if (col.type === 'week') return `<td class="wk"><strong>${safe(w.week ?? '')}</strong></td>`
+    if (col.key === 'topic') return `<td><strong>${safe(w.topic || '—')}</strong></td>`
+    if (col.type === 'list') return `<td>${cellBullets(w[col.key])}</td>`
+    if (col.key === 'references') return `<td class="ref">${safe(w.references || '—')}</td>`
+    return `<td>${safe(w[col.key] || '—')}</td>`
+  }
+
+  const rows = (scheme.weeks || []).map((w) =>
+    `<tr>${columns.map((col) => cellFor(w, col)).join('')}</tr>`).join('')
+  const head = columns.map((col) =>
+    `<th style="width:${col.width}%">${safe(col.label)}</th>`).join('')
 
   return `
   <h1>${subject ? `${safe(subject)} ` : ''}SCHEMES OF WORK</h1>
@@ -48,17 +53,7 @@ function officialBody(scheme) {
   </p>` : ''}
   <table class="grid official">
     <thead>
-      <tr>
-        <th style="width:4%">WEEK</th>
-        <th style="width:11%">TOPIC</th>
-        <th style="width:12%">SUBTOPIC</th>
-        <th style="width:17%">SPECIFIC COMPETENCES</th>
-        <th style="width:20%">LEARNING ACTIVITIES</th>
-        <th style="width:13%">EXPECTED STANDARD</th>
-        <th style="width:9%">METHODS</th>
-        <th style="width:9%">T/L AIDS</th>
-        <th style="width:5%">REF</th>
-      </tr>
+      <tr>${head}</tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>`

@@ -26,6 +26,7 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { isOfficialScheme } from './weeklyForecast'
+import { schemeColumns, schemeCurriculum } from './schemeFormat.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -217,33 +218,24 @@ export function buildOfficialSchemeOfWorkDocument(scheme, opts = {}) {
   const subject = String(h.subject || '').toUpperCase()
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
 
+  // CBC (9-column) vs OBC (7-column) share one column spec with the on-screen
+  // view + PDF export, so the printed page never diverges between formats.
+  const columns = schemeColumns(schemeCurriculum(scheme))
+
   const headerRow = new TableRow({
     tableHeader: true,
-    children: [
-      officialHeadCell('WEEK', 4),
-      officialHeadCell('TOPIC', 11),
-      officialHeadCell('SUBTOPIC', 12),
-      officialHeadCell('SPECIFIC COMPETENCES', 17),
-      officialHeadCell('LEARNING ACTIVITIES', 20),
-      officialHeadCell('EXPECTED STANDARD', 13),
-      officialHeadCell('METHODS', 9),
-      officialHeadCell('T/L AIDS', 9),
-      officialHeadCell('REF', 5),
-    ],
+    children: columns.map((col) => officialHeadCell(col.label, col.width)),
   })
 
+  const officialCellFor = (w, col) => {
+    if (col.type === 'week') return officialCell(String(w.week ?? ''), { bold: true, center: true })
+    if (col.key === 'topic') return officialCell(w.topic, { bold: true })
+    if (col.type === 'list') return officialCell(w[col.key], { bullets: true })
+    return officialCell(w[col.key], col.key === 'references' ? { size: 16 } : {})
+  }
+
   const weekRows = (scheme.weeks || []).map((w) => new TableRow({
-    children: [
-      officialCell(String(w.week ?? ''), { bold: true, center: true }),
-      officialCell(w.topic, { bold: true }),
-      officialCell(w.subtopic),
-      officialCell(w.specificCompetences, { bullets: true }),
-      officialCell(w.learningActivities, { bullets: true }),
-      officialCell(w.expectedStandard),
-      officialCell(w.methods, { bullets: true }),
-      officialCell(w.tlAids, { bullets: true }),
-      officialCell(w.references, { size: 16 }),
-    ],
+    children: columns.map((col) => officialCellFor(w, col)),
   }))
 
   const children = [
