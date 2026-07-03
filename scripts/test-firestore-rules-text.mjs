@@ -287,6 +287,31 @@ test('assessmentDrafts is strictly owner-only', () => {
   )
 })
 
+test('drafts (Universal Draft Manager) is strictly owner-only + size-capped', () => {
+  const block = rules.match(/match \/drafts\/\{uid\}\/items\/\{draftId\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'drafts/{uid}/items/{draftId} match block not found')
+  assert(
+    block[1].includes('isOwner(uid)'),
+    'drafts must require document-owner access',
+  )
+  // Private working content — never readable by admins.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'drafts must not grant admin access to private drafts',
+  )
+  // The whole draft is stored as a single JSON 'data' string; cap it under
+  // Firestore's 1 MiB doc limit.
+  assert(
+    /incoming\(\)\.data\.size\(\) < 1000000/.test(block[1]),
+    'drafts must cap the data string below the 1 MiB document limit',
+  )
+  // The version ring competes for the same doc budget — cap it too.
+  assert(
+    /incoming\(\)\.versions\.size\(\) < 1000000/.test(block[1]),
+    'drafts must cap the versions string below the 1 MiB document limit',
+  )
+})
+
 // ── validLessonFields blocks cap ───────────────────────────────────────
 
 console.log('\nvalidLessonFields blocks cap')

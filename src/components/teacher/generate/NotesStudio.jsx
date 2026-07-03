@@ -34,6 +34,11 @@ import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { notesInputDescriptor } from '../../../hooks/draft/descriptors'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
@@ -56,11 +61,12 @@ export default function NotesStudio() {
   // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
-  const [selectorSeed] = useState(() =>
+  const [selectorSeed, setSelectorSeed] = useState(() =>
     urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
       ? urlDefaults
       : curriculumSeedFromProfile(userProfile),
   )
+  const [selectorKey, setSelectorKey] = useState(0)
 
   // If a lessonPlanId is in the URL, default to the from-plan tab.
   const initialMode = urlDefaults.lessonPlanId ? MODE_FROM_PLAN : MODE_STANDALONE
@@ -97,6 +103,27 @@ export default function NotesStudio() {
   const [warning, setWarning] = useState('')
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+
+  // Universal Draft Manager: auto-save the notes inputs (incl. the mode tab).
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'notes',
+    uid: currentUser?.uid,
+    draftId: 'notes-current',
+    descriptor: notesInputDescriptor,
+    state: { form, curr, mode },
+    enabled: Boolean(currentUser?.uid && featureFlags?.universalDrafts !== false),
+    onRestore: (payload) => {
+      if (payload?.form) setForm((f) => ({ ...f, ...payload.form }))
+      if (payload?.mode) setMode(payload.mode)
+      if (payload?.curr) {
+        setCurr(payload.curr)
+        setSelectorSeed(payload.curr)
+        setSelectorKey((k) => k + 1)
+      }
+    },
+  })
+
   // Diagram generation state (post-generation optional pass)
   const [diagramStatus, setDiagramStatus] = useState('idle') // idle | generating | done | error
   const [diagramProgress, setDiagramProgress] = useState({ done: 0, total: 0 })
@@ -230,6 +257,7 @@ export default function NotesStudio() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+    draft.clear().catch(() => {})
 
     if (res.data.generationId) {
       // For from-plan mode, the term hint may not be in the form — fall
@@ -315,11 +343,17 @@ export default function NotesStudio() {
         />
 
         <div className="grid grid-cols-1 gap-6">
+          <div className="w-full max-w-2xl mx-auto">
+            <DraftRecoveryPrompt {...draft} label="notes" />
+          </div>
           {/* ── Input panel ─────────────────────────────────────── */}
           <form
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
           >
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             {/* Mode tabs */}
             <div
               role="tablist"
@@ -358,6 +392,7 @@ export default function NotesStudio() {
             {mode === MODE_STANDALONE && (
               <>
                 <StudioCurriculumSelector
+                  key={selectorKey}
                   value={selectorSeed}
                   onChange={setCurr}
                 />

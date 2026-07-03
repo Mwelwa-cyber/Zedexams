@@ -867,6 +867,29 @@ service cloud.firestore {
         && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
     }
 
+    // ── drafts (Universal Draft Manager) ──────────────────────
+    // Per-draft auto-save for every studio: drafts/{uid}/items/{draftId}. Unlike
+    // the single-doc assessmentDrafts/{uid} above (kept for the Assessment Studio
+    // during migration), this holds MANY concurrent drafts per teacher — one per
+    // in-progress worksheet / notes / lesson plan / etc. — mirrored from the
+    // browser (IndexedDB + localStorage) so unsaved work follows the teacher
+    // across devices. Strictly owner-only: a draft is private working content and
+    // is never read by anyone else (not even admins). The client stores the whole
+    // draft as a single JSON string field ('data') plus a 'savedAt' millisecond
+    // timestamp and an optional 'versions' JSON string (recent auto-save
+    // snapshots); the draft is deleted once the work is saved to its real home.
+    match /drafts/{uid}/items/{draftId} {
+      allow read, delete: if isAuthed() && isOwner(uid);
+      // Server-side caps mirroring the client's REMOTE_MAX_CHARS intent: the JSON
+      // 'data' and 'versions' strings are each < 1,000,000 chars — under
+      // Firestore's 1 MiB (1,048,576-byte) hard document limit, leaving headroom
+      // for metadata and multi-byte chars (.size() counts characters, the limit
+      // is in bytes).
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000))
+        && (!('versions' in incoming()) || (incoming().versions is string && incoming().versions.size() < 1000000));
+    }
+
     // ── schoolProfiles ────────────────────────────────────────
     // One saved "school branding" doc per teacher: school identity (EMIS,
     // province, district, type, address, motto), the default paper duration +

@@ -28,6 +28,10 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
+import { worksheetInputDescriptor } from '../../../hooks/draft/descriptors'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
@@ -65,12 +69,15 @@ export default function WorksheetGenerator() {
   // grade/subject/curriculum/framework fields.
   const [curr, setCurr] = useState({})
   // Selector seed: deep-link handoff wins; else the teacher's saved
-  // curriculum defaults (read once on mount by the selector).
-  const [selectorSeed] = useState(() =>
+  // curriculum defaults (read once on mount by the selector). Recovering a draft
+  // re-seeds it and bumps selectorKey to remount the selector on the saved
+  // curriculum (the selector reads its seed once on mount).
+  const [selectorSeed, setSelectorSeed] = useState(() =>
     urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
       ? urlDefaults
       : curriculumSeedFromProfile(userProfile),
   )
+  const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [worksheet, setWorksheet] = useState(null)
@@ -84,6 +91,15 @@ export default function WorksheetGenerator() {
   // full editable/exportable view below.
   const [handedOff, setHandedOff] = useState(false)
   const cancelRef = useRef(null)
+
+  // Universal Draft Manager: auto-save the worksheet inputs so a refresh /
+  // crash / offline drop never loses a half-filled form.
+  const draft = useStudioInputDraft({
+    descriptor: worksheetInputDescriptor,
+    uid: currentUser?.uid,
+    form, setForm, curr, setCurr,
+    onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
 
   useEffect(() => {
     return () => {
@@ -144,6 +160,10 @@ export default function WorksheetGenerator() {
         setWarning(data.warning || '')
         setStatus('success')
         cancelRef.current = null
+        // The output is now persisted server-side (aiGenerations) — the input
+        // draft is no longer "unfinished", so clear it to avoid a stale
+        // recovery prompt on the next visit.
+        draft.clear().catch(() => {})
         if (data.generationId) {
           // Worksheets surface in the Assessments section of the library —
           // they're the "Topic Test" of a teacher's day-to-day routine.
@@ -266,12 +286,19 @@ export default function WorksheetGenerator() {
         />
 
         <div className="grid grid-cols-1 gap-6">
+          <div className="w-full max-w-2xl mx-auto">
+            <DraftRecoveryPrompt {...draft} label="worksheet" />
+          </div>
           {/* Input panel */}
           <form
             onSubmit={onGenerate}
             className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
           >
+            <div className="flex justify-end">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+            </div>
             <StudioCurriculumSelector
+              key={selectorKey}
               value={selectorSeed}
               onChange={setCurr}
             />
