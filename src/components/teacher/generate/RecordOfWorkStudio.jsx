@@ -234,7 +234,7 @@ export default function RecordOfWorkStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Record of work" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Record of Work"
           title="What you actually taught, week by week"

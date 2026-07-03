@@ -263,7 +263,7 @@ export default function MarkScheduleStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Mark schedule" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Mark Schedule"
           title="Marks in — positions and comments out"

@@ -340,7 +340,7 @@ export default function SchemeOfWorkGenerator() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Scheme of work" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Scheme of Work"
           title="Plan your whole term"
@@ -349,12 +349,12 @@ export default function SchemeOfWorkGenerator() {
         />
 
         <div className="space-y-6">
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="studio-form">
             <DraftRecoveryPrompt {...draft} label="scheme of work" />
           </div>
           <form
             onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 max-w-2xl mx-auto w-full"
+            className="studio-card p-5 space-y-4 studio-form"
           >
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />

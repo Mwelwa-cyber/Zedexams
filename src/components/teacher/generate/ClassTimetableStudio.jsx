@@ -361,7 +361,7 @@ export default function ClassTimetableStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Class timetable" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Class Timetable"
           title="Build your week from the curriculum"

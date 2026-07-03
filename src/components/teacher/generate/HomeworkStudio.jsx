@@ -227,7 +227,7 @@ export default function HomeworkStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Homework studio" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Homework Studio"
           title="Short take-home practice"
@@ -235,11 +235,11 @@ export default function HomeworkStudio() {
           emoji="🏠"
         />
         <div className="grid grid-cols-1 gap-6">
-          <div className="w-full max-w-2xl mx-auto">
+          <div className="studio-form">
             <DraftRecoveryPrompt {...draft} label="homework" />
           </div>
           <form onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto">
+            className="studio-card p-5 space-y-4 h-fit studio-form">
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
             </div>

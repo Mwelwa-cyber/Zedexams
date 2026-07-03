@@ -676,7 +676,7 @@ export default function PastPaperStudio() {
   if (!paperId) return <p className="theme-text-muted text-sm">{error || 'Loading…'}</p>
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5 w-full">
       <SeoHelmet title={isNew ? 'New past paper' : 'Edit past paper'} path="/admin/papers" noIndex />
 
       <div>

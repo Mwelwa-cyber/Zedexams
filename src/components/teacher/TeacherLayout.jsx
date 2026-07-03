@@ -143,7 +143,7 @@ export default function TeacherLayout({ children }) {
 
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-0">
-        <div className="app-container py-6 pb-24 lg:pb-6">
+        <div className="studio-shell py-6 pb-24 lg:pb-6">
           {/* The dashboard ships its own universal search below the hero (the
               redesign), so the global top search/quick-create bar is hidden
               there to avoid a duplicate. Other studio pages keep it. */}

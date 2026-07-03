@@ -474,9 +474,11 @@ body.theme-midnight .moe-calendar {
   .studio-theme h2,
   .studio-theme h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
   .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; color: var(--sv-ink, #0e2a32); }
-  .studio-theme .studio-page { background: var(--sv-canvas, #f5efe1); min-height: 100vh; padding: 1rem; }
-  @media (min-width: 640px)  { .studio-theme .studio-page { padding: 1.5rem; } }
-  @media (min-width: 1024px) { .studio-theme .studio-page { padding: 2rem; } }
+  /* Horizontal gutters come from `.studio-shell` (the layout wrapper) so we
+     don't double-inset; studio-page keeps only its vertical rhythm + canvas bg. */
+  .studio-theme .studio-page { background: var(--sv-canvas, #f5efe1); min-height: 100vh; padding: 1rem 0; }
+  @media (min-width: 640px)  { .studio-theme .studio-page { padding: 1.5rem 0; } }
+  @media (min-width: 1024px) { .studio-theme .studio-page { padding: 2rem 0; } }
   .studio-theme .studio-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
@@ -2282,6 +2284,22 @@ select option {
   .app-container-narrow {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
     max-width: 1024px;
+  }
+  /* Full-width authoring shell — drop-in replacement for `.app-container` in
+     TeacherLayout / AdminLayout so the whole authoring area uses the available
+     screen width instead of a narrow 1280 box. Owns the single set of safe
+     side gutters (12→20→32px) for every teacher/admin page; the cap is tunable
+     in one place via `--studio-shell-max`. Studios re-cap their inner opener to
+     `w-full` so their content fills this shell rather than the old 1280. */
+  .studio-shell {
+    @apply mx-auto w-full px-3 sm:px-5 lg:px-8;
+    max-width: var(--studio-shell-max, 1600px);
+  }
+  /* Comfortable single-column form width — a roomy step up from the old
+     max-w-2xl (672px) while keeping labels/fields readable. */
+  .studio-form {
+    @apply w-full mx-auto;
+    max-width: 920px;
   }
 
   /* Form input — picks up theme-aware border, gives a visible focus state.

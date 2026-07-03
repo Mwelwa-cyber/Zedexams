@@ -495,7 +495,7 @@ function Shell({ children }) {
   return (
     <div className="min-h-screen p-4 pb-10 sm:p-6 lg:p-8" style={{ background: COLORS.paper }}>
       <SeoHelmet title="Teacher library" noIndex />
-      <div className="max-w-6xl mx-auto">{children}</div>
+      <div className="w-full">{children}</div>
     </div>
   )
 }

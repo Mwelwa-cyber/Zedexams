@@ -183,7 +183,7 @@ export default function RubricGenerator() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Rubric studio" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Rubric Studio"
           title="Mark consistently"

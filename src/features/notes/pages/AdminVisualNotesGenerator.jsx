@@ -141,7 +141,7 @@ export function AdminVisualNotesGenerator() {
   return (
     <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
       <SeoHelmet title="Generate visual notes" noIndex />
-      <main className="max-w-5xl mx-auto px-5 py-6">
+      <main className="w-full px-5 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <button
             onClick={() => navigate('/admin/lessons')}

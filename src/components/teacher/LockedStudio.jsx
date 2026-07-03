@@ -123,7 +123,7 @@ export default function LockedStudio({ tool }) {
   return (
     <div className="studio-page">
       <SeoHelmet title={`${eyebrow} — Sample`} noIndex />
-      <div className="max-w-5xl mx-auto px-3 sm:px-4">
+      <div className="w-full px-3 sm:px-4">
         <StudioPageHeader
           eyebrow={eyebrow}
           title={title}

@@ -211,7 +211,7 @@ export default function SbaYearPlanner() {
   return (
     <div className="studio-page">
       <SeoHelmet title="SBA Year Planner" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="SBA Year Planner"
           title="Every ECZ task, tracked to done"
