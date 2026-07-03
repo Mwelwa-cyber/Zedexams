@@ -119,7 +119,7 @@ export default function TeacherTopBar() {
 
   return (
     <div
-      className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 flex items-center justify-end gap-2 backdrop-blur"
+      className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 hidden lg:flex items-center justify-end gap-2 backdrop-blur"
       style={{ background: 'rgba(245,239,225,.92)', borderBottom: '1px solid rgba(14,42,50,.08)' }}
     >
       {/* Notifications — desktop only (mobile/tablet use Alerts in TeacherGlassHeader) */}
