@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import {
-  listMyGenerations,
-  titleForGeneration,
-} from '../../utils/teacherLibraryService'
+import { listMyGenerations } from '../../utils/teacherLibraryService'
 import { buildReminders, SEEN_REMINDERS_KEY } from '../../utils/teacherReminders'
 import {
-  Search,
   Bell,
   Plus,
   X,
@@ -16,7 +12,6 @@ import {
   BookOpen,
   FileText,
   Sparkles,
-  FolderOpen,
 } from '../ui/icons'
 import Icon from '../ui/Icon'
 
@@ -26,15 +21,6 @@ const QUICK_CREATE = [
   { to: '/teacher/test-papers/new',      icon: PencilLine,  label: 'Test Paper',     accent: '#e8d8f0' },
   { to: '/teacher/generate/flashcards',  icon: Sparkles,    label: 'Flashcards',     accent: '#fde9b8' },
 ]
-
-const TOOL_ICON = {
-  lesson_plan:   { emoji: '🦊', label: 'Lesson Plan' },
-  scheme_of_work:{ emoji: '🦁', label: 'Scheme of Work' },
-  worksheet:     { emoji: '🐢', label: 'Worksheet' },
-  flashcards:    { emoji: '🎴', label: 'Flashcards' },
-  rubric:        { emoji: '📋', label: 'Rubric' },
-  notes:         { emoji: '🦉', label: 'Notes' },
-}
 
 function useClickAway(ref, onAway) {
   useEffect(() => {
@@ -54,22 +40,17 @@ function useClickAway(ref, onAway) {
 export default function TeacherTopBar() {
   const { currentUser } = useAuth()
   const { getMyQuizzes } = useFirestore()
-  const navigate = useNavigate()
 
   const [generations, setGenerations] = useState([])
   const [quizzes, setQuizzes] = useState([])
   const [seenReminderIds, setSeenReminderIds] = useState(() => new Set())
 
-  const [query, setQuery] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
-  const searchRef = useRef(null)
   const bellRef = useRef(null)
   const createRef = useRef(null)
 
-  useClickAway(searchRef, () => setSearchOpen(false))
   useClickAway(bellRef, () => setBellOpen(false))
   useClickAway(createRef, () => setCreateOpen(false))
 
@@ -91,17 +72,8 @@ export default function TeacherTopBar() {
 
   useEffect(() => {
     function onKey(e) {
-      const meta = e.metaKey || e.ctrlKey
-      // e.key is undefined for some IME / Android soft-keyboard (Gboard)
-      // keydown events — guard before calling .toLowerCase() so this global
-      // listener can't throw on every affected keypress (cf. #1438).
-      const key = (e.key || '').toLowerCase()
-      if (meta && key === 'k') {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
       if (e.key === 'Escape') {
-        setSearchOpen(false); setBellOpen(false); setCreateOpen(false)
+        setBellOpen(false); setCreateOpen(false)
       }
     }
     document.addEventListener('keydown', onKey)
@@ -145,116 +117,11 @@ export default function TeacherTopBar() {
     0,
   )
 
-  const searchResults = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    if (!term) return []
-    const fromGens = generations
-      .map(g => ({
-        id: `g-${g.id}`,
-        kind: 'generation',
-        title: titleForGeneration(g),
-        subtitle: [g.inputs?.grade, g.inputs?.subject ? String(g.inputs.subject).replace(/_/g, ' ') : ''].filter(Boolean).join(' · '),
-        meta: TOOL_ICON[g.tool] || { emoji: '📄', label: 'Item' },
-        to: `/teacher/library/${g.id}`,
-        haystack: [titleForGeneration(g), g.inputs?.topic, g.inputs?.subtopic, g.inputs?.grade, g.inputs?.subject, TOOL_ICON[g.tool]?.label].filter(Boolean).join(' ').toLowerCase(),
-      }))
-    const fromQuizzes = quizzes.map(q => ({
-      id: `q-${q.id}`,
-      kind: 'test-paper',
-      title: q.title || q.topic || 'Untitled test paper',
-      subtitle: [q.grade || q.targetGrade, q.subject ? String(q.subject).replace(/_/g, ' ') : ''].filter(Boolean).join(' · '),
-      meta: { emoji: '🦅', label: 'Test Paper' },
-      to: `/teacher/test-papers/${q.id}/edit`,
-      haystack: [q.title, q.topic, q.subject, q.grade, 'test paper assessment'].filter(Boolean).join(' ').toLowerCase(),
-    }))
-    return [...fromGens, ...fromQuizzes]
-      .filter(r => r.haystack.includes(term))
-      .slice(0, 8)
-  }, [query, generations, quizzes])
-
-  function handleSubmitSearch(e) {
-    e.preventDefault()
-    const term = query.trim()
-    if (!term) return
-    setSearchOpen(false)
-    navigate(`/teacher/library?q=${encodeURIComponent(term)}`)
-  }
-
   return (
     <div
-      className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 flex items-center gap-2 backdrop-blur"
+      className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 flex items-center justify-end gap-2 backdrop-blur"
       style={{ background: 'rgba(245,239,225,.92)', borderBottom: '1px solid rgba(14,42,50,.08)' }}
     >
-      {/* Search */}
-      <div ref={searchRef} className="relative flex-1 min-w-0 max-w-xl">
-        <form onSubmit={handleSubmitSearch}>
-          <div
-            className="flex items-center gap-2 rounded-xl border-2 px-3 py-2 transition-colors"
-            style={{ background: '#fff', borderColor: searchOpen ? '#ff7a2e' : '#0e2a32' }}
-          >
-            <Icon as={Search} size="sm" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setSearchOpen(true) }}
-              onFocus={() => setSearchOpen(true)}
-              placeholder="Search lessons, notes, test papers…"
-              className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
-              aria-label="Search your teaching materials"
-            />
-            <kbd
-              className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
-              style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)', border: '1px solid #d4cab2' }}
-            >
-              ⌘K
-            </kbd>
-          </div>
-        </form>
-        {searchOpen && query.trim() && (
-          <div
-            className="absolute left-0 right-0 mt-2 rounded-xl border-2 shadow-elev-xl overflow-hidden"
-            style={{ background: '#fff', borderColor: '#0e2a32', maxHeight: 360, overflowY: 'auto' }}
-          >
-            {searchResults.length === 0 ? (
-              <div className="p-4 text-center" style={{ fontSize: 13, color: '#8a9aa1' }}>
-                No matches. Press Enter to search the full library.
-              </div>
-            ) : (
-              <ul className="py-1">
-                {searchResults.map((r) => (
-                  <li key={r.id}>
-                    <Link
-                      to={r.to}
-                      onClick={() => setSearchOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 no-underline hover:bg-[#fff5e6] transition-colors"
-                    >
-                      <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{r.meta.emoji}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block font-bold text-sm truncate" style={{ color: '#0e2a32' }}>{r.title}</span>
-                        <span className="block text-xs truncate" style={{ color: '#566f76' }}>
-                          {r.meta.label}{r.subtitle ? ` · ${r.subtitle}` : ''}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-                <li className="border-t" style={{ borderColor: '#f0eee8' }}>
-                  <button
-                    type="button"
-                    onClick={handleSubmitSearch}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm font-bold hover:bg-[#fff5e6] transition-colors"
-                    style={{ color: '#0e2a32' }}
-                  >
-                    <Icon as={FolderOpen} size="sm" />
-                    See all results in Library →
-                  </button>
-                </li>
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Notifications — desktop only (mobile/tablet use Alerts in TeacherGlassHeader) */}
       <div ref={bellRef} className="relative flex-shrink-0 hidden lg:block">
         <button
