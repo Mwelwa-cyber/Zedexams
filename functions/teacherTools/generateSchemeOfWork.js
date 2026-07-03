@@ -92,6 +92,10 @@ function sanitizeInputs(raw = {}) {
     subject,
     term: Math.min(3, Math.max(1, Math.round(num(raw.term, 1)))),
     numberOfWeeks: Math.min(15, Math.max(6, Math.round(num(raw.numberOfWeeks, 12)))),
+    // Academic year from the studio's calendar selector; clamped to the MoE
+    // calendar range. Falls back to the current UTC year.
+    year: Math.min(2035, Math.max(2024,
+      Math.round(num(raw.year, new Date().getUTCFullYear())))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     teacherName: str(raw.teacherName, 80),
     school: str(raw.school, 120),
@@ -99,6 +103,14 @@ function sanitizeInputs(raw = {}) {
     // Optional: a trimmed copy of one of the teacher's saved Class Timetables
     // so the scheme can pace around the real week. null when not attached.
     timetable: sanitizeTimetableInput(raw.timetable),
+    // Periods/time-per-week the studio derived from the 2023 Curriculum
+    // Framework (or the teacher typed by hand) when no timetable is attached.
+    // An attached timetable still wins over these in runSchemeOfWork.
+    periodsPerWeek: str(raw.periodsPerWeek, 60),
+    timePerWeek: str(raw.timePerWeek, 40),
+    // Optional calendar week plan (School Calendar) — reserved exam/revision
+    // weeks + dates the model paces around. Empty when the studio didn't send one.
+    weekPlan: sanitizeWeekPlan(raw.weekPlan),
     // Explicit curriculum chosen by the teacher — drives CBC vs Previous
     // prompt/terminology + framework-aware KB grounding. A whole-term scheme
     // has no single topic, but still branches on curriculum/framework.
@@ -106,6 +118,25 @@ function sanitizeInputs(raw = {}) {
     curriculum: String(raw.curriculum || "").toLowerCase() === "previous" ?
       "previous" : "cbc",
   };
+}
+
+/** Trim a client-sent week plan to the few fields the prompt trusts. */
+function sanitizeWeekPlan(raw) {
+  if (!Array.isArray(raw)) return [];
+  const str = (v, max) => (typeof v === "string" ?
+    v.replace(/\u0000/g, "").trim().slice(0, max) : "");
+  const roles = new Set(["teaching", "revision", "exam"]);
+  return raw.slice(0, 20).map((w, i) => {
+    const role = String(w && w.role || "teaching").toLowerCase();
+    return {
+      week: Number.isFinite(Number(w && w.week)) ? Math.round(Number(w.week)) : i + 1,
+      role: roles.has(role) ? role : "teaching",
+      beginning: str(w && w.beginning, 24),
+      ending: str(w && w.ending, 24),
+      holidays: Array.isArray(w && w.holidays) ?
+        w.holidays.filter((h) => typeof h === "string").slice(0, 5).map((h) => str(h, 40)) : [],
+    };
+  });
 }
 
 function validateInputs(inputs) {
@@ -172,12 +203,14 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     ((moduleGrounded || kbMatch) ? "uploaded_module" : "ai_inferred");
 
   // Timetable awareness — pace the term around the teacher's real week.
+  // Precedence for the period allocation: an attached Class Timetable wins,
+  // then the framework/manual value the studio derived, else blank.
   const timetableSummary = inputs.timetable ?
     summarizeTimetableForSubject(inputs.timetable, inputs.subject) : null;
   const periodsPerWeek = timetableSummary && timetableSummary.found &&
     timetableSummary.periods > 0 ?
     `${timetableSummary.periods} period${timetableSummary.periods === 1 ? "" : "s"} per week` :
-    "";
+    (inputs.periodsPerWeek || "");
   const teachingDays = timetableSummary ? timetableSummary.days : [];
 
   // Curriculum advisories — flag mismatches between curriculum, timetable and
@@ -234,6 +267,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     ...inputs,
     periodsPerWeek,
     teachingDays,
+    weekPlan: inputs.weekPlan,
     hasOutline: outline.topicCount > 0,
     hasModuleOutline: moduleGrounded,
   });
@@ -282,7 +316,10 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     inputs.grade.replace(/^G/i, "");
   scheme.header.term = inputs.term;
   scheme.header.numberOfWeeks = inputs.numberOfWeeks;
-  scheme.header.year = String(new Date().getUTCFullYear());
+  scheme.header.year = String(inputs.year || new Date().getUTCFullYear());
+  // Curriculum drives the printed column set (CBC 9-col vs OBC 7-col). Stamp
+  // it from the teacher's explicit choice, never the model's guess.
+  scheme.header.curriculum = inputs.curriculum === "previous" ? "obc" : "cbc";
   // Timetable is the source of truth for the period allocation + days when one
   // is attached — never let the model override the teacher's real schedule.
   if (periodsPerWeek) scheme.header.periodsPerWeek = periodsPerWeek;
