@@ -116,7 +116,17 @@ async function getDeviceKey() {
 function newInstallId() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+    // No randomUUID (older Android WebViews) but WebCrypto's CSPRNG is present:
+    // pull 128 bits of cryptographically-secure entropy so the device key that
+    // backs the at-rest codec can't be brute-forced from a known install time.
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const buf = new Uint32Array(4)
+      crypto.getRandomValues(buf)
+      return `inst-${Array.from(buf, (n) => n.toString(36)).join('')}`
+    }
   } catch { /* ignore */ }
+  // Last resort only — no WebCrypto at all. Math.random() is NOT secure; on
+  // such a device the codec is best treated as obfuscation, not encryption.
   return `inst-${Date.now()}-${Math.floor(Math.random() * 1e9).toString(36)}`
 }
 
