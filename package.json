@@ -50,6 +50,7 @@
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
     "test:schema": "node scripts/test-question-schema.mjs",
     "test:curriculum-selector": "node src/components/teacher/curriculum/curriculumSelectorConstants.test.js",
+    "test:scheme-studio": "node src/utils/schemeFormat.test.js && node src/utils/schemeTermPlan.test.js && node src/utils/schemeReadiness.test.js && node src/utils/schemeEditing.test.js && node src/utils/frameworkSubjectMatch.test.js && node src/utils/schemeEditHistory.test.js",
     "test:lesson-activities": "node functions/teacherTools/lessonActivitiesSchema.test.js && node src/utils/activityBankCore.test.js",
     "test:zambian-facts": "node functions/teacherTools/zambianFacts.test.js",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",

@@ -15,6 +15,15 @@ const SCHEMA_VERSION = "2.0";
 function isNonEmptyString(v) { return typeof v === "string" && v.trim().length > 0; }
 function isPositiveNumber(v) { return typeof v === "number" && Number.isFinite(v) && v > 0; }
 function cleanString(v) { return isNonEmptyString(v) ? v.trim() : ""; }
+
+// Curriculum drives CBC (9-column) vs OBC (7-column) rendering. Kept in step
+// with normalizeCurriculum() in src/utils/schemeFormat.js — 'previous'/'2013'
+// mean OBC; everything else (incl. absent) is CBC, the historical default.
+function normalizeCurriculum(v) {
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  return (s === "obc" || s === "previous" || s === "2013" ||
+    s === "outcome" || s === "outcome-based") ? "obc" : "cbc";
+}
 function cleanStringArray(v) {
   if (!Array.isArray(v)) return [];
   return v.filter(isNonEmptyString).map((s) => s.trim());
@@ -46,6 +55,8 @@ function validateSchemeOfWork(input) {
       String(new Date().getUTCFullYear()),
     periodsPerWeek: cleanString(h.periodsPerWeek),
     mediumOfInstruction: cleanString(h.mediumOfInstruction) || "English",
+    // 'cbc' | 'obc' — selects the printed column set (view + exporters + editor).
+    curriculum: normalizeCurriculum(h.curriculum || h.framework),
   };
   if (!header.grade) errors.push("header.grade is required");
   if (!header.subject) errors.push("header.subject is required");

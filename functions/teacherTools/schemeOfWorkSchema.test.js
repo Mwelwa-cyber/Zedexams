@@ -52,6 +52,39 @@ test("valid official-shape scheme passes and is normalised", () => {
   assert.deepEqual(res.value.weeks[0].methods, ["Exposition", "Q & A", "Group work"]);
 });
 
+test("curriculum defaults to cbc, and 'previous'/'2013' map to obc", () => {
+  const cbc = validateSchemeOfWork({header: goodHeader, weeks: [goodWeek]});
+  assert.equal(cbc.value.header.curriculum, "cbc", "absent curriculum defaults to cbc");
+
+  const obc = validateSchemeOfWork({
+    header: {...goodHeader, curriculum: "previous"},
+    weeks: [goodWeek],
+  });
+  assert.equal(obc.value.header.curriculum, "obc");
+
+  const byFramework = validateSchemeOfWork({
+    header: {...goodHeader, curriculum: undefined, framework: "2013"},
+    weeks: [goodWeek],
+  });
+  assert.equal(byFramework.value.header.curriculum, "obc", "framework 2013 → obc");
+});
+
+test("OBC week with empty activities + standard still validates", () => {
+  const res = validateSchemeOfWork({
+    header: {...goodHeader, curriculum: "obc"},
+    weeks: [{
+      ...goodWeek,
+      specificCompetences: ["4.1.1.1 Describe the respiratory system"],
+      learningActivities: [],
+      expectedStandard: "",
+    }],
+  });
+  assert.equal(res.ok, true, "OBC omits activities + standard without failing");
+  assert.deepEqual(res.value.weeks[0].learningActivities, []);
+  assert.equal(res.value.weeks[0].expectedStandard, "");
+  assert.equal(res.value.header.curriculum, "obc");
+});
+
 test("weekNumber and class fallbacks are accepted (older drafts)", () => {
   const res = validateSchemeOfWork({
     header: {...goodHeader, grade: undefined, class: "Grade 5"},

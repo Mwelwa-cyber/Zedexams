@@ -13,6 +13,8 @@
  * mirroring LessonPlanOfficialTable / SchemeOfWorkOfficialTable.
  */
 
+import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top text-left'
 
@@ -27,12 +29,26 @@ function CellList({ items }) {
   )
 }
 
+function ForecastCell({ day, col }) {
+  if (col.type === 'list') {
+    return <td className={TD}><CellList items={day[col.key]} /></td>
+  }
+  const cls = col.key === 'topic' ? `${TD} font-bold` : (col.key === 'day' ? `${TD} text-center` : TD)
+  const val = day[col.key]
+  return <td className={cls}>{val || (col.key === 'remarks' ? '' : '—')}</td>
+}
+
 export default function WeeklyForecastView({ forecast }) {
   if (!forecast) return null
   const h = forecast.header || {}
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
   const subject = (h.subject || '').toUpperCase()
   const days = forecast.days || []
+  // CBC (with Learning Activity + Expected Standard) vs OBC (without) — the
+  // same column source the scheme + exporters use.
+  const curriculum = forecastCurriculum(forecast)
+  const columns = forecastColumns(curriculum)
+  const minWidth = curriculum === 'obc' ? 720 : 920
 
   return (
     <article
@@ -47,6 +63,9 @@ export default function WeeklyForecastView({ forecast }) {
         <div className="mt-1 text-[12px] font-bold">
           TERM {h.term} &nbsp;·&nbsp; YEAR: {h.year}
         </div>
+        <div className="mt-0.5 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: '#555' }}>
+          {curriculumLabel(curriculum)} · {curriculum === 'obc' ? 'Outcome-Based' : 'Competency-Based'} Curriculum
+        </div>
       </div>
 
       {/* Fill-in header line */}
@@ -59,18 +78,15 @@ export default function WeeklyForecastView({ forecast }) {
 
       {/* Forecast grid */}
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full border-collapse border border-black min-w-[920px]">
+        <table className="w-full border-collapse border border-black" style={{ minWidth }}>
           <thead>
             <tr className="align-bottom">
-              <th className={`${TD} font-bold w-[4%]`}>WEEK</th>
-              <th className={`${TD} font-bold w-[4%]`}>DAY</th>
-              <th className={`${TD} font-bold w-[10%]`}>TOPIC</th>
-              <th className={`${TD} font-bold w-[12%]`}>SUB-TOPIC / TO BE DONE</th>
-              <th className={`${TD} font-bold w-[15%]`}>SPECIFIC COMPETENCE</th>
-              <th className={`${TD} font-bold w-[20%]`}>LEARNING ACTIVITY</th>
-              <th className={`${TD} font-bold w-[13%]`}>EXPECTED STANDARD</th>
-              <th className={`${TD} font-bold w-[12%]`}>T/L RESOURCES</th>
-              <th className={`${TD} font-bold w-[10%]`}>REMARKS / COMMENTS ON PROGRESS</th>
+              <th className={`${TD} font-bold`} style={{ width: '4%' }}>WEEK</th>
+              {columns.map((col) => (
+                <th key={col.key} className={`${TD} font-bold`} style={{ width: `${col.width}%` }}>
+                  {col.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -81,14 +97,7 @@ export default function WeeklyForecastView({ forecast }) {
                     {h.weekNumber}
                   </td>
                 )}
-                <td className={`${TD} text-center`}>{d.day}</td>
-                <td className={`${TD} font-bold`}>{d.topic}</td>
-                <td className={TD}>{d.subtopic}</td>
-                <td className={TD}>{d.specificCompetence}</td>
-                <td className={TD}><CellList items={d.learningActivities} /></td>
-                <td className={TD}>{d.expectedStandard || '—'}</td>
-                <td className={TD}><CellList items={d.resources} /></td>
-                <td className={TD}>{d.remarks || ''}</td>
+                {columns.map((col) => <ForecastCell key={col.key} day={d} col={col} />)}
               </tr>
             ))}
           </tbody>
