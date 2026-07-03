@@ -17,10 +17,22 @@ import { isNativePlatform } from './runtime'
 // warmed up yet, or the backend assessment errors, the result is 'skip' and
 // the action proceeds. The ONLY verdict that should stop a flow is 'block'.
 
-const functions = getFunctions(app, 'us-central1')
-const assessRecaptchaCallable = httpsCallable(functions, 'assessRecaptcha', {
-  timeout: 20_000,
-})
+// Lazily created on first real use rather than at module load. The callable is
+// only ever reached on native Android (web short-circuits to null before here),
+// so deferring keeps `getFunctions(app, …)` — which needs an initialised
+// Firebase app — out of the module-load path. That matters for jsdom unit tests
+// that import Login/Register (and therefore this module) with a mocked
+// firebase/config: no app is created, so an eager call would throw at import.
+let assessRecaptchaCallable = null
+function getAssessCallable() {
+  if (!assessRecaptchaCallable) {
+    const functions = getFunctions(app, 'us-central1')
+    assessRecaptchaCallable = httpsCallable(functions, 'assessRecaptcha', {
+      timeout: 20_000,
+    })
+  }
+  return assessRecaptchaCallable
+}
 
 /**
  * Mint a reCAPTCHA Enterprise token for an action on native Android.
@@ -54,7 +66,7 @@ export async function assessAction(action) {
   const token = await executeRecaptcha(action)
   if (!token) return { verdict: 'skip', reason: 'no-token' }
   try {
-    const { data } = await assessRecaptchaCallable({ token, action })
+    const { data } = await getAssessCallable()({ token, action })
     return data || { verdict: 'skip', reason: 'no-data' }
   } catch (err) {
     console.warn('[recaptcha] assessment failed:', err?.message || err)
