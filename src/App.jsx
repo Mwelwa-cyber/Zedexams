@@ -14,6 +14,7 @@ import { getRoleLandingPath } from './utils/navigation'
 import { isNativePlatform } from './utils/runtime'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
+import { OfflineIndicator } from './offline'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
@@ -98,6 +99,7 @@ const LearnerGate       = lazy(() => import('./features/notes/components/Learner
 const MyResults = lazy(() => import('./components/dashboard/MyResults'))
 const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
+const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
@@ -423,6 +425,11 @@ export default function App() {
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
       <OfflineBanner />
+      {/* Offline-first status pill — compact, bottom-anchored badge for the
+          richer sync states (syncing / updating / waiting to sync / saved
+          offline) the top OfflineBanner doesn't cover. Hidden when fully
+          online + synced so it stays unobtrusive. */}
+      <OfflineIndicator />
       {/* PWA update prompt (audit A1.2) — toast appears bottom-right
           when a new SW version is waiting to take over. Self-hides on
           Capacitor + when no update is pending. */}
@@ -558,6 +565,9 @@ export default function App() {
           <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
+          {/* Offline Library + Storage settings (offline-first). Downloaded
+              content, device-storage breakdown, and cache/sync controls. */}
+          <Route path="/offline"           element={<ProtectedRoute><Navbar /><OfflineLibraryPage /></ProtectedRoute>} />
           {/* My Subscription — shared learner/teacher plan, benefits, payment
               status, and upgrade/renew. Audience-aware copy inside. */}
           <Route path="/my-subscription"   element={<ProtectedRoute><MySubscriptionPage /></ProtectedRoute>} />
