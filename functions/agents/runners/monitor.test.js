@@ -297,12 +297,12 @@ test("normalizePem strips wrapping quotes and re-wraps the body", () => {
   });
   const quoted = `"${privateKey.replace(/\n/g, "\\n")}"`;
   const out = normalizePem(quoted);
-  assert.ok(out.startsWith("-----BEGIN PRIVATE KEY-----\n"), "has real header + newline");
-  assert.ok(out.trimEnd().endsWith("-----END PRIVATE KEY-----"), "has real footer");
   assert.ok(!out.includes("\\n"), "no literal escape sequences remain");
-  // Body lines wrap at 64 chars.
-  const bodyLines = out.split("\n").slice(1, -2);
-  assert.ok(bodyLines.every((l) => l.length <= 64), "body wrapped at 64");
+  // The re-wrapped output parses as a real private key (the whole point).
+  assert.doesNotThrow(() => crypto.createPrivateKey(out));
+  // Base64 body lines wrap at 64 chars (marker lines start with dashes).
+  const bodyLines = out.split("\n").filter((l) => l && !l.startsWith("---"));
+  assert.ok(bodyLines.length > 0 && bodyLines.every((l) => l.length <= 64), "body wrapped at 64");
 });
 
 test("makeAppJwt throws a clear error on an unparseable key", () => {
