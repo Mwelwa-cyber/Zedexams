@@ -573,28 +573,58 @@ function renderOldClosing(data, meta) {
 }
 
 /**
- * Old-curriculum "Classic" — five-column progression table
- * (STAGE/TIME | CONTENT | TEACHER'S ACTIVITY | PUPILS' ACTIVITY | METHODS).
+ * Old-curriculum "Classic" — progression table
+ * (STAGE/TIME | [CONTENT] | TEACHER'S ACTIVITY | PUPILS' ACTIVITY | [METHODS]).
+ *
+ * The CONTENT and METHODS columns are OPTIONAL: they render only when at least
+ * one stage actually carries that data — mirroring the Word exporter
+ * (buildV3PreviousBody in lessonPlanToDocx.js). This is what keeps the table
+ * legible: the generator usually leaves CONTENT empty, and an always-on 30%
+ * CONTENT column was squeezing STAGE/TIME down to ~11% (chopping "INTRODUCTION"
+ * mid-word) and each activity column to ~22% (one word per line). Dropping the
+ * empty columns lets STAGE/TIME and the two activity columns breathe. Widths
+ * are recomputed per column set so they always sum to 100%.
  * @param {object} data
  * @param {object} meta
  * @returns {string}
  */
 function renderOldClassic(data, meta) {
-  const stagesHtml = ensureOldStages(data.stages)
-    .map(
-      (s) => `<tr>
-    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`,
-    )
+  const stages = ensureOldStages(data.stages)
+  const hasContent = stages.some((s) => String(s.content || '').trim())
+  const hasMethods = stages.some((s) => String(s.methods || '').trim())
+
+  const stageW = hasContent ? 12 : hasMethods ? 14 : 16
+  const contentW = hasContent ? 26 : 0
+  const methodsW = hasMethods ? 18 : 0
+  const activityW = Math.round((100 - stageW - contentW - methodsW) / 2)
+
+  const heads = [['STAGE/TIME', stageW]]
+  if (hasContent) heads.push(['CONTENT', contentW])
+  heads.push(["TEACHER'S ACTIVITY", activityW])
+  heads.push(["PUPILS' ACTIVITY", activityW])
+  if (hasMethods) heads.push(['METHODS', methodsW])
+
+  const theadHtml = heads
+    .map(([label, w]) => `<th style="width:${w}%;${OFFICIAL_TH}">${label}</th>`)
+    .join('')
+
+  const stagesHtml = stages
+    .map((s) => {
+      const cells = [
+        `<td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>`,
+      ]
+      if (hasContent) cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>`)
+      cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>`)
+      cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>`)
+      if (hasMethods) cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td>`)
+      return `<tr>${cells.join('')}</tr>`
+    })
     .join('')
 
   return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
     ${renderOldFieldLines(data)}
     <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
-      <thead><tr><th style="width:11%;${OFFICIAL_TH}">STAGE/TIME</th><th style="width:30%;${OFFICIAL_TH}">CONTENT</th><th style="width:22%;${OFFICIAL_TH}">TEACHER'S ACTIVITY</th><th style="width:22%;${OFFICIAL_TH}">PUPILS' ACTIVITY</th><th style="width:15%;${OFFICIAL_TH}">METHODS</th></tr></thead>
+      <thead><tr>${theadHtml}</tr></thead>
       <tbody>${stagesHtml}</tbody>
     </table>
     ${renderOldClosing(data, meta)}</div>`
