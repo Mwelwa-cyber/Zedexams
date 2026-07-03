@@ -22,7 +22,7 @@ import {
   titleForGeneration,
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
@@ -56,7 +56,6 @@ export default function SchemeOfWorkGenerator() {
   const [curr, setCurr] = useState({})
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [errorDetail, setErrorDetail] = useState('')
   const isMounted = useIsMounted()
   const [scheme, setScheme] = useState(null)
   const [generationId, setGenerationId] = useState(null)
@@ -64,6 +63,8 @@ export default function SchemeOfWorkGenerator() {
   const [warning, setWarning] = useState('')
   const [advisories, setAdvisories] = useState([])
   const [curriculumSource, setCurriculumSource] = useState('')
+  // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
+  const [handedOff, setHandedOff] = useState(false)
 
   // Teacher's saved Class Timetables — attaching one makes the scheme
   // timetable-aware (periods/week + teaching days for the chosen subject).
@@ -114,8 +115,39 @@ export default function SchemeOfWorkGenerator() {
     }
   }
 
+  function buildInputs() {
+    return {
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+      timetable: selectedTimetablePayload(),
+    }
+  }
+
+  async function regenerateSection(sectionId) {
+    const res = await generateSchemeOfWork(buildInputs())
+    if (res.ok && res.data?.schemeOfWork) {
+      const fresh = res.data.schemeOfWork
+      setScheme((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
+      return fresh
+    }
+    return null
+  }
+
+  function saveToLibrary() {
+    if (!generationId) return
+    attachLibraryToGeneration(generationId, {
+      libraryType: LIBRARY_TYPES.SCHEMES_OF_WORK,
+      grade:       curr.grade,
+      term:        form.term,
+      subject:     curr.subject,
+    }).catch((err) => console.error('[library attach]', err))
+  }
+
   async function onGenerate(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
     if (!curr.curriculumMode) {
       setErrorMessage('Please choose a curriculum.')
       setStatus('error')
@@ -127,31 +159,19 @@ export default function SchemeOfWorkGenerator() {
       return
     }
     if (!ensureCanGenerate('scheme_of_work')) return
+    setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
-    setErrorDetail('')
     setWarning('')
     setAdvisories([])
     setCurriculumSource('')
     setScheme(null)
 
-    const payload = {
-      ...form,
-      grade: curr.grade,
-      subject: curr.subject,
-      curriculum: curr.curriculum,
-      framework: curr.framework,
-      timetable: selectedTimetablePayload(),
-    }
-    const res = await generateSchemeOfWork(payload)
+    const res = await generateSchemeOfWork(buildInputs())
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
-      setErrorDetail(
-        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
-          .filter(Boolean).join(' · '),
-      )
       return
     }
     setScheme(res.data.schemeOfWork)
@@ -286,19 +306,8 @@ export default function SchemeOfWorkGenerator() {
           </form>
 
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+          {handedOff && status === 'success' && scheme ? (
           <section className="studio-card p-5 min-h-[400px]">
-            {status === 'idle' && <EmptyState />}
-            {status === 'generating' && (
-              <AiGenerationProgress variant="card" preset="scheme" running title="Planning your term…" />
-            )}
-            {status === 'error' && (
-              <ErrorState
-                message={errorMessage}
-                detail={errorDetail}
-                onDismiss={() => setStatus('idle')}
-              />
-            )}
-            {status === 'success' && scheme && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
@@ -332,8 +341,26 @@ export default function SchemeOfWorkGenerator() {
                   </div>
                 )}
               </>
-            )}
           </section>
+          ) : (
+            <LiveGenerationCanvas
+              tool="scheme"
+              status={status}
+              result={scheme}
+              docTitle={scheme?.header ? `Scheme of Work — Term ${scheme.header.term || ''}`.trim() : undefined}
+              title="Mapping your scheme of work…"
+              emptyState={<EmptyState />}
+              errorMessage={errorMessage}
+              savedToLibrary={Boolean(generationId)}
+              onStop={() => setStatus('idle')}
+              onRegenerate={() => onGenerate()}
+              onRegenerateSection={regenerateSection}
+              onSaveToLibrary={saveToLibrary}
+              onContinueEditing={() => setHandedOff(true)}
+              onRetry={() => setStatus('idle')}
+              continueLabel="Continue to editing & export"
+            />
+          )}
           </StudioOutputBoundary>
         </div>
       </div>
@@ -402,25 +429,6 @@ function EmptyState() {
         Pick grade, subject, and term. You'll get a full week-by-week scheme of
         work — ready to print for your head teacher.
       </p>
-    </div>
-  )
-}
-
-
-function ErrorState({ message, detail, onDismiss }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
-      <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
-      {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
-          {detail}
-        </p>
-      )}
-      <button onClick={onDismiss} className="studio-btn-ghost">
-        Try again
-      </button>
     </div>
   )
 }

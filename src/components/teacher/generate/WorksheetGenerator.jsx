@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
+  generateWorksheet,
   generateWorksheetStream,
   TEACHER_LANGUAGES,
   WORKSHEET_DIFFICULTIES,
@@ -26,8 +27,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
-import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
@@ -73,13 +73,16 @@ export default function WorksheetGenerator() {
   )
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [errorDetail, setErrorDetail] = useState('')
   const [worksheet, setWorksheet] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
   const [progress, setProgress] = useState(null)
+  // Live Generation Canvas: while false the teacher watches the worksheet being
+  // built section by section; "Continue editing" flips it true to reveal the
+  // full editable/exportable view below.
+  const [handedOff, setHandedOff] = useState(false)
   const cancelRef = useRef(null)
 
   useEffect(() => {
@@ -92,8 +95,20 @@ export default function WorksheetGenerator() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  function buildInputs() {
+    return {
+      ...form,
+      grade: curr.grade,
+      subject: curr.subject,
+      topic: curr.topic,
+      subtopic: curr.subtopic,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    }
+  }
+
   function onGenerate(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
     if (!curr.curriculumMode) {
       setErrorMessage('Please choose a curriculum.')
       setStatus('error')
@@ -113,22 +128,14 @@ export default function WorksheetGenerator() {
     // prompt now, before flipping into the "Generating…" state.
     if (!ensureCanGenerate('worksheet')) return
     try { cancelRef.current?.() } catch { /* ignore */ }
+    setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
-    setErrorDetail('')
     setWarning('')
     setWorksheet(null)
     setProgress({ phase: 'queued', elapsedMs: 0 })
 
-    cancelRef.current = generateWorksheetStream({
-      ...form,
-      grade: curr.grade,
-      subject: curr.subject,
-      topic: curr.topic,
-      subtopic: curr.subtopic,
-      curriculum: curr.curriculum,
-      framework: curr.framework,
-    }, {
+    cancelRef.current = generateWorksheetStream(buildInputs(), {
       onProgress: (p) => setProgress(p),
       onResult: (data) => {
         setWorksheet(data.worksheet)
@@ -151,7 +158,6 @@ export default function WorksheetGenerator() {
       onError: (err) => {
         setStatus('error')
         setErrorMessage(friendlyMessage(err, 'Generation failed. Please try again.'))
-        setErrorDetail('')
         cancelRef.current = null
       },
     })
@@ -162,6 +168,29 @@ export default function WorksheetGenerator() {
     cancelRef.current = null
     setStatus('idle')
     setProgress(null)
+  }
+
+  // Regenerate a single section: re-run the generator and merge just that
+  // section's fresh content back into the worksheet (so both the live preview
+  // and the exported file stay in sync).
+  async function regenerateSection(sectionId) {
+    const res = await generateWorksheet(buildInputs())
+    if (res.ok && res.data?.worksheet) {
+      const fresh = res.data.worksheet
+      setWorksheet((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
+      return fresh
+    }
+    return null
+  }
+
+  function saveToLibrary() {
+    if (!generationId) return
+    attachLibraryToGeneration(generationId, {
+      libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      grade: curr.grade,
+      subject: curr.subject,
+      assessmentType: 'topic',
+    }).catch((err) => console.error('[library attach]', err))
   }
 
   function buildFilename(mode) {
@@ -348,27 +377,8 @@ export default function WorksheetGenerator() {
 
           {/* Output panel */}
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+          {handedOff && status === 'success' && worksheet ? (
           <section className="studio-card p-5 min-h-[400px]">
-            {status === 'idle' && <EmptyState />}
-            {status === 'generating' && (
-              <AiGenerationProgress
-                variant="card"
-                preset="worksheet"
-                running
-                title="Writing your worksheet…"
-                subtitle={worksheetProgressSubtitle(progress)}
-                activeStageId={mapWorksheetPhaseToStage(progress?.phase)}
-                onCancel={onCancel}
-              />
-            )}
-            {status === 'error' && (
-              <ErrorState
-                message={errorMessage}
-                detail={errorDetail}
-                onDismiss={() => setStatus('idle')}
-              />
-            )}
-            {status === 'success' && worksheet && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
@@ -418,8 +428,27 @@ export default function WorksheetGenerator() {
                   </div>
                 )}
               </>
-            )}
           </section>
+          ) : (
+            <LiveGenerationCanvas
+              tool="worksheet"
+              status={status}
+              result={worksheet}
+              docTitle={worksheet?.header?.title}
+              title="Writing your worksheet…"
+              emptyState={<EmptyState />}
+              errorMessage={errorMessage}
+              progress={progress}
+              savedToLibrary={Boolean(generationId)}
+              onStop={onCancel}
+              onRegenerate={() => onGenerate()}
+              onRegenerateSection={regenerateSection}
+              onSaveToLibrary={saveToLibrary}
+              onContinueEditing={() => setHandedOff(true)}
+              onRetry={() => setStatus('idle')}
+              continueLabel="Continue to editing & export"
+            />
+          )}
           </StudioOutputBoundary>
         </div>
       </div>
@@ -446,31 +475,3 @@ function EmptyState() {
   )
 }
 
-// Secondary line under the progress tracker. Surfaces the live token count and
-// elapsed seconds from the real SSE stream when available.
-function worksheetProgressSubtitle(progress) {
-  const tokens = progress?.approxOutputTokens
-  const seconds = progress?.elapsedMs ? Math.round(progress.elapsedMs / 1000) : null
-  const parts = []
-  if (tokens) parts.push(`~${tokens.toLocaleString()} tokens written`)
-  if (seconds != null && progress?.phase && progress.phase !== 'queued') parts.push(`${seconds}s`)
-  return parts.length ? parts.join(' · ') : undefined
-}
-
-function ErrorState({ message, detail, onDismiss }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
-      <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
-      {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
-          {detail}
-        </p>
-      )}
-      <button onClick={onDismiss} className="studio-btn-ghost">
-        Try again
-      </button>
-    </div>
-  )
-}

@@ -20,7 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import { FieldTextarea, FieldSelect } from './studioFields'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
@@ -63,18 +63,62 @@ export default function HomeworkStudio() {
   )
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [errorDetail, setErrorDetail] = useState('')
   const isMounted = useIsMounted()
   const [homework, setHomework] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(false)
+  // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
+  const [handedOff, setHandedOff] = useState(false)
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
+  function buildPayload() {
+    const difficulty = preferredDifficulty(userProfile, 'homework')
+    const difficultyLine =
+      difficulty === 'easy'
+        ? 'Keep the questions gentle and confidence-building, with scaffolding.'
+        : difficulty === 'hard'
+          ? 'Make the questions challenging, with stretch tasks that need deeper thinking.'
+          : ''
+    return {
+      ...form,
+      instructions: (() => {
+        const joined = [form.instructions, difficultyLine].filter(Boolean).join('\n')
+        return joined.length <= 500 ? joined : form.instructions
+      })(),
+      grade: curr.grade,
+      subject: curr.subject,
+      topic: curr.topic,
+      subtopic: curr.subtopic,
+      curriculum: curr.curriculum,
+      framework: curr.framework,
+    }
+  }
+
+  async function regenerateSection(sectionId) {
+    const res = await generateHomework(buildPayload())
+    if (res.ok && res.data?.homework) {
+      const fresh = res.data.homework
+      setHomework((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
+      return fresh
+    }
+    return null
+  }
+
+  function saveToLibrary() {
+    if (!generationId) return
+    attachLibraryToGeneration(generationId, {
+      libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      grade: curr.grade,
+      subject: curr.subject,
+      assessmentType: 'homework',
+    }).catch((err) => console.error('[library attach]', err))
+  }
+
   async function onGenerate(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
     if (!curr.curriculumMode) {
       setErrorMessage('Please choose a curriculum.')
       setStatus('error')
@@ -91,45 +135,18 @@ export default function HomeworkStudio() {
       return
     }
     if (!ensureCanGenerate('homework')) return
+    setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
-    setErrorDetail('')
     setWarning('')
     setHomework(null)
-    // Teacher Settings → My AI → homework difficulty. The generator has no
-    // difficulty field, so a non-default preference rides along as an extra
-    // instruction line (server caps instructions at 500 chars).
-    const difficulty = preferredDifficulty(userProfile, 'homework')
-    const difficultyLine =
-      difficulty === 'easy'
-        ? 'Keep the questions gentle and confidence-building, with scaffolding.'
-        : difficulty === 'hard'
-          ? 'Make the questions challenging, with stretch tasks that need deeper thinking.'
-          : ''
-    const res = await generateHomework({
-      ...form,
-      // Server caps instructions at 500 chars — only append the difficulty
-      // line when the combined text fits, never send a truncated fragment.
-      instructions: (() => {
-        const joined = [form.instructions, difficultyLine].filter(Boolean).join('\n')
-        return joined.length <= 500 ? joined : form.instructions
-      })(),
-      grade: curr.grade,
-      subject: curr.subject,
-      topic: curr.topic,
-      subtopic: curr.subtopic,
-      curriculum: curr.curriculum,
-      framework: curr.framework,
-    })
+    // Teacher Settings → My AI → homework difficulty rides along inside
+    // buildPayload() as an extra instruction line (server caps at 500 chars).
+    const res = await generateHomework(buildPayload())
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')
-      // Surface the diagnostic code/detail like the other studios do.
-      setErrorDetail(
-        [res.code && `code: ${res.code}`, res.rawMessage && `detail: ${res.rawMessage}`]
-          .filter(Boolean).join(' · '),
-      )
       return
     }
     setHomework(res.data.homework)
@@ -252,23 +269,8 @@ export default function HomeworkStudio() {
           </form>
 
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+          {handedOff && status === 'success' && homework ? (
           <section className="studio-card p-5 min-h-[400px]">
-            {status === 'idle' && (
-              <Centered emoji="🏠" title="Ready to set homework"
-                body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get questions, an answer key and a parent note." />
-            )}
-            {status === 'generating' && (
-              <AiGenerationProgress variant="card" preset="homework" running title="Setting homework…" />
-            )}
-            {status === 'error' && (
-              <Centered emoji="⚠️" title="Something went wrong"
-                body={errorDetail
-                  ? <>{errorMessage}<br /><span style={{ opacity: 0.6, fontSize: 12 }}>{errorDetail}</span></>
-                  : errorMessage}
-                action={<button onClick={() => setStatus('idle')}
-                  className="studio-btn-ghost">Try again</button>} />
-            )}
-            {status === 'success' && homework && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
@@ -314,8 +316,29 @@ export default function HomeworkStudio() {
                   </div>
                 )}
               </>
-            )}
           </section>
+          ) : (
+            <LiveGenerationCanvas
+              tool="homework"
+              status={status}
+              result={homework}
+              docTitle={homework?.header?.title}
+              title="Setting homework…"
+              emptyState={
+                <Centered emoji="🏠" title="Ready to set homework"
+                  body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get questions, an answer key and a parent note." />
+              }
+              errorMessage={errorMessage}
+              savedToLibrary={Boolean(generationId)}
+              onStop={() => setStatus('idle')}
+              onRegenerate={() => onGenerate()}
+              onRegenerateSection={regenerateSection}
+              onSaveToLibrary={saveToLibrary}
+              onContinueEditing={() => setHandedOff(true)}
+              onRetry={() => setStatus('idle')}
+              continueLabel="Continue to editing & export"
+            />
+          )}
           </StudioOutputBoundary>
         </div>
       </div>
