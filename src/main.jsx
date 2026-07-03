@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { DataSaverProvider } from './contexts/DataSaverContext'
+import { OfflineProvider } from './offline'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { ToastProvider } from './components/ui/Toast'
@@ -65,13 +66,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <HelmetProvider>
         <ThemeProvider>
           <DataSaverProvider>
-            <AuthProvider>
-              <ToastProvider>
-                <NotificationProvider>
-                  <App />
-                </NotificationProvider>
-              </ToastProvider>
-            </AuthProvider>
+            <OfflineProvider>
+              <AuthProvider>
+                <ToastProvider>
+                  <NotificationProvider>
+                    <App />
+                  </NotificationProvider>
+                </ToastProvider>
+              </AuthProvider>
+            </OfflineProvider>
           </DataSaverProvider>
         </ThemeProvider>
       </HelmetProvider>
