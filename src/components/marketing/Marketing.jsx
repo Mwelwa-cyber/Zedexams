@@ -11,6 +11,10 @@ import NewsletterSignup from './NewsletterSignup'
 import { listPapersWithQuiz } from '../../utils/pastPapers'
 import { isNativePlatform } from '../../utils/runtime'
 import { SUBJECTS } from '../../config/curriculum'
+// Prices come from the same source-of-truth configs the /pricing page uses,
+// so the homepage can never drift from the real numbers.
+import { PLAN_PRICES } from '../../config/teacherPlanPricing'
+import { PLANS } from '../../utils/subscriptionConfig'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -18,21 +22,39 @@ import {
   ShieldCheck,
   Download,
   BookOpen,
+  BookMarked,
+  FileText,
+  ClipboardCheckList,
+  Printer,
+  Clock,
+  TrendingUp,
+  ComputerDesktop,
+  GraduationCap,
   Users,
   CheckCircleIcon,
-  Lock,
   Send,
   Mail,
   ChevronRight,
 } from '../ui/icons'
 
-// Public contact channels surfaced on the schools callout, pricing tier,
-// and footer. WhatsApp opens the chat directly; the contact form opens
-// an in-app modal that writes to the `contactMessages` Firestore collection.
+// Public contact channels surfaced in the footer. WhatsApp opens the chat
+// directly; the contact form opens an in-app modal that writes to the
+// `contactMessages` Firestore collection.
 const CONTACT_WHATSAPP_NUMBER = '+260 977 740 465'
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
 const CONTACT_EMAIL = 'support@zedexams.com'
 const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
+
+// ── Prices resolved once from config (single source of truth) ──────────────
+const LEARNER_WEEKLY = PLANS.weekly.priceZMW          // 15
+const LEARNER_MONTHLY = PLANS.monthly.priceZMW        // 50
+const GRADE7_MONTHLY = PLANS.grade7_monthly.priceZMW  // 75
+const GRADE7_TERMLY = PLANS.grade7_termly.priceZMW    // 200
+const PRO_MONTHLY = PLAN_PRICES.pro.monthly           // 59
+const MAX_MONTHLY = PLAN_PRICES.max.monthly           // 149
+// Binding yearly Pro price = 10x monthly ("two months free"), same framing
+// as the /pricing plan cards.
+const PRO_YEARLY = PRO_MONTHLY * 10                   // 590
 
 // Small inline brand-mark SVG for WhatsApp — heroicons doesn't ship one.
 function WhatsAppIcon({ size = 16, className = '' }) {
@@ -50,6 +72,56 @@ function WhatsAppIcon({ size = 16, className = '' }) {
     </svg>
   )
 }
+
+// Hero highlight chips (under the CTAs). The grade/curriculum split is
+// deliberate and truthful: the learner app is CBC Grades 4–7, while the
+// teacher generation tools span the wider CBC (2023) + OBC (2013) frameworks.
+const HERO_CHIPS = [
+  { icon: GraduationCap, label: 'Grades 4–7', sub: 'for learners' },
+  { icon: BookOpen, label: 'CBC + OBC', sub: 'Nursery–Form 4 · teacher tools' },
+  { icon: Sparkles, label: 'AI powered', sub: 'drafts in seconds' },
+  { icon: ComputerDesktop, label: 'Any device', sub: 'phone, tablet, laptop' },
+  { icon: ShieldCheck, label: 'Secure & private', sub: 'learner data never sold' },
+]
+
+// Floating product cards over the hero art (lg+ only; hero clips overflow).
+const HERO_FLOATERS = [
+  { icon: BookOpen, title: 'CBC + OBC', sub: 'Nursery–Form 4', pos: 'top-[8%] right-[4%]' },
+  { icon: FileText, title: 'Lesson Plan', sub: 'Generated in 10s', pos: 'top-[21%] right-[25%]' },
+  { icon: Printer, title: 'Worksheet', sub: 'Ready to print', pos: 'top-[35%] right-[3%]' },
+  { icon: CheckCircleIcon, title: 'Quiz', sub: 'Auto-marked', pos: 'top-[51%] right-[19%]' },
+  { icon: TrendingUp, title: 'Progress', sub: '85%', pos: 'top-[67%] right-[6%]' },
+]
+
+// Teacher generation studios, grouped for the "what you can make" grid.
+// Counts are the real AI-studio totals per bucket (5 / 5 / 7 / 1 = 18),
+// verified against the teacher routes in App.jsx + TeacherDashboard groups.
+const STUDIO_BUCKETS = [
+  {
+    icon: BookOpen,
+    title: 'Planning',
+    count: '5 studios',
+    body: 'Lesson plans, schemes of work, weekly forecast, class timetables and record of work.',
+  },
+  {
+    icon: FileText,
+    title: 'Teaching resources',
+    count: '5 studios',
+    body: 'Notes, worksheets, flashcards, homework and the visual studio for diagrams.',
+  },
+  {
+    icon: ClipboardCheckList,
+    title: 'Assessment',
+    count: '7 studios',
+    body: 'Tests, exam papers, rubrics, mark schedules and SBA task, tracker and planner.',
+  },
+  {
+    icon: BookMarked,
+    title: 'Curriculum',
+    count: '1 studio',
+    body: 'Syllabus studio and coverage tools across CBC (2023) and OBC (2013).',
+  },
+]
 
 const AUDIENCES = [
   {
@@ -69,7 +141,7 @@ const AUDIENCES = [
     tag: 'AI co-pilot',
     bullets: [
       'Generate lesson plans, worksheets, flashcards, and schemes of work',
-      'Build rubrics aligned to the CBC syllabus in seconds',
+      'Build assessments, exam papers and rubrics aligned to CBC or OBC',
       'Export everything to DOCX or PDF — print and go',
     ],
     cta: { label: 'Start free', to: '/register' },
@@ -79,27 +151,23 @@ const AUDIENCES = [
 const PRICING = [
   {
     title: 'Learners',
-    price: 'Free demo',
-    note: 'No card needed to start',
-    bullets: ['Try daily exams & quizzes', 'Play selected games', 'Upgrade for full access'],
-    upgradeIncludes: 'Upgrade unlocks every daily exam, the full quiz & lesson library, all games, leaderboards, and unlimited Ask Zed.',
+    price: `Free demo, then K${LEARNER_WEEKLY}/wk`,
+    priceNative: 'Free demo',
+    note: `or K${LEARNER_MONTHLY}/month for full access`,
+    noteNative: 'Upgrade anytime — priced in Google Play',
+    bullets: ['Daily exams & the full quiz library', 'All games & leaderboards', 'Unlimited Ask Zed study help'],
+    upgradeIncludes: `Full access unlocks every daily exam, the whole quiz & lesson library, all games and unlimited Ask Zed. The Grade 7 ECZ exam pack is also available at K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term.`,
     cta: { label: 'Create account', to: '/register' },
     primary: true,
   },
   {
     title: 'Teachers',
-    price: 'Free, then K59/mo',
-    note: 'Pro · 10 generations a day',
-    bullets: ['AI lesson plans', 'Worksheets & rubrics', 'DOCX / PDF export'],
+    price: `Free, then K${PRO_MONTHLY}/mo`,
+    priceNative: 'Free to start',
+    note: `Pro · 10 generations a day · or K${PRO_YEARLY}/yr`,
+    noteNative: 'Pro · 10 generations a day',
+    bullets: ['AI lesson plans, worksheets & notes', 'Assessments, exam papers & rubrics', 'DOCX / PDF export'],
     cta: { label: 'See teacher plans', to: '/pricing' },
-    primary: false,
-  },
-  {
-    title: 'Schools',
-    price: 'Custom',
-    note: 'Talk to us',
-    bullets: ['Learner monitoring', 'Teacher verification', 'Private CBC KB'],
-    cta: { label: 'Open contact form', kind: 'contact' },
     primary: false,
   },
 ]
@@ -115,7 +183,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K59/month for 10 a day and Max at K149/month for heavy users. Pay with Airtel Money, MTN MoMo or card right inside the app — your account unlocks instantly.",
+    a: `Learners start with a free demo, then K${LEARNER_WEEKLY}/week or K${LEARNER_MONTHLY}/month for full access to every daily exam, quiz, lesson and game (the Grade 7 ECZ exam pack is K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term). Teachers get the AI toolset free — 2 generations a day — with Pro at K${PRO_MONTHLY}/month for 10 a day and Max at K${MAX_MONTHLY}/month for heavy users. Pay with Airtel Money, MTN MoMo or card right inside the app — your account unlocks instantly.`,
   },
   {
     q: 'Is ZedExams safe for children?',
@@ -135,7 +203,7 @@ const FAQ = [
   },
   {
     q: 'What grades are supported?',
-    a: "Today: Grades 4 through 7 with full CBC alignment. Earlier and later grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
+    a: "Learners study Grades 4 to 7 with full CBC alignment. Teachers can generate material far wider — Nursery through Form 4 on the 2023 CBC, plus the 2013 Outcome-Based Curriculum for Grades 1 to 12. More learner grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
   },
 ]
 
@@ -151,34 +219,37 @@ const FAQ_NATIVE = FAQ.map((item) =>
     : item
 )
 
-const TRUST = [
-  {
-    icon: AcademicCapIcon,
-    title: 'Built in Zambia',
-    body: 'Made for Zambian classrooms — not borrowed from another curriculum.',
-  },
-  {
-    icon: BookOpen,
-    title: 'CBC-aligned',
-    body: 'Every exam, lesson, and generator is mapped to the official CBC syllabus.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Verified teachers',
-    body: 'Teachers are reviewed before they can publish content to learners.',
-  },
-  {
-    icon: Lock,
-    title: 'Privacy-first',
-    body: 'Learner accounts are protected and never sold. Schools control their own data.',
-  },
+// Compact trust strip (dark band) — replaces the old trust-card section.
+const TRUST_BAR = [
+  { icon: ShieldCheck, label: 'Trusted by teachers across Zambia' },
+  { icon: BookOpen, label: 'Curriculum-aligned · CBC & OBC' },
+  { icon: Clock, label: 'Save hours every week' },
+  { icon: TrendingUp, label: 'Better learning, better results' },
+  { icon: Sparkles, label: 'Made in Zambia, for Zambia' },
 ]
 
-function Section({ children, className = '' }) {
+function Section({ children, className = '', id }) {
   return (
-    <section className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
+    <section id={id} className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
       {children}
     </section>
+  )
+}
+
+// One floating product card overlaid on the hero art (decorative).
+function HeroFloatCard({ icon, title, sub, pos }) {
+  return (
+    <div
+      className={`absolute ${pos} flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-[0_10px_28px_-8px_rgba(0,0,0,0.45)] ring-1 ring-black/5`}
+    >
+      <span className="grid h-8 w-8 place-items-center rounded-xl bg-[color:var(--accent-bg)] theme-accent-text">
+        <Icon as={icon} size="sm" />
+      </span>
+      <span className="leading-tight">
+        <span className="block text-[13px] font-black text-slate-800">{title}</span>
+        <span className="block text-[11px] text-slate-500">{sub}</span>
+      </span>
+    </div>
   )
 }
 
@@ -248,15 +319,6 @@ function PastPaperPreviewSection() {
         </Link>
       </div>
     </Section>
-  )
-}
-
-function HeroStat({ value, label }) {
-  return (
-    <div className="marketing-hero-stat">
-      <span>{value}</span>
-      <p>{label}</p>
-    </div>
   )
 }
 
@@ -435,6 +497,7 @@ export default function Marketing() {
     setContactSource(source)
     setContactOpen(true)
   }
+  const native = isNativePlatform()
   return (
     <div className="marketing-page min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
@@ -472,31 +535,49 @@ export default function Marketing() {
           loading="eager"
           decoding="async"
         />
+        {/* Floating product cards over the art (decorative, lg+ only) */}
+        <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block" aria-hidden="true">
+          {HERO_FLOATERS.map((f) => (
+            <HeroFloatCard key={f.title} icon={f.icon} title={f.title} sub={f.sub} pos={f.pos} />
+          ))}
+        </div>
         <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
           <div className="max-w-3xl">
             <div className="marketing-kicker">
               <span aria-hidden="true" />
               Built in Zambia, for the Zambian CBC
             </div>
-            <h1 className="marketing-hero-title">
-              Zambian CBC exam prep
+            <h1 className="marketing-hero-title" style={{ maxWidth: '20ch' }}>
+              The AI partner for{' '}
+              <span style={{ color: '#66BB6A' }}>Teachers</span>{' '}
+              &amp;{' '}
+              <span style={{ color: '#F9A825' }}>Learners</span>
             </h1>
             <p className="marketing-hero-copy">
-              Daily exams, topic quizzes, lessons, games, and AI study help for Grade 4-7
-              learners, with printable tools for teachers who need classroom-ready material.
+              AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
+              exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
+              and OBC (2013) curricula.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button as={Link} to="/register" variant="primary" size="lg">
-                Create a free account
+                Get started free
               </Button>
-              <Button as={Link} to="/login" variant="secondary" size="lg">
-                I already have an account
+              <Button as="a" href="#what-you-can-make" variant="secondary" size="lg" trailingIcon={<Icon as={ChevronRight} size="sm" />}>
+                See how it works
               </Button>
             </div>
-            <div className="marketing-hero-stats" aria-label="ZedExams highlights">
-              <HeroStat value="4-7" label="Grades supported now" />
-              <HeroStat value="CBC" label="Mapped to the syllabus" />
-              <HeroStat value="0" label="Card needed to start" />
+            <p className="mt-3 text-sm text-white/60">No card needed to start.</p>
+            <div className="mt-8 flex flex-wrap gap-2.5" aria-label="ZedExams highlights">
+              {HERO_CHIPS.map(({ icon, label, sub }) => (
+                <div
+                  key={label}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
+                >
+                  <Icon as={icon} size="sm" className="text-[#F9A825]" />
+                  <span className="text-sm font-black text-white">{label}</span>
+                  <span className="hidden text-xs text-white/60 sm:inline">{sub}</span>
+                </div>
+              ))}
             </div>
           </div>
         </Section>
@@ -504,6 +585,95 @@ export default function Marketing() {
 
       <Section className="relative z-10 -mt-8 pb-8 sm:-mt-10 sm:pb-10">
         <DailyExamPreview />
+      </Section>
+
+      {/* What you can make — the teacher studio grid */}
+      <Section id="what-you-can-make" className="py-16 sm:py-20">
+        <div className="text-center mb-12">
+          <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
+            For teachers · 18 AI studios
+          </p>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3">
+            Every studio you need, in one login.
+          </h2>
+          <p className="theme-text-muted text-lg max-w-2xl mx-auto">
+            Give ZedExams the grade, subject and topic. It drafts classroom-ready material in
+            seconds — aligned to the CBC (2023) or the 2013 Outcome-Based Curriculum.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {STUDIO_BUCKETS.map(({ icon, title, count, body }) => (
+            <Card key={title} variant="elevated" size="lg" className="flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
+                >
+                  <Icon as={icon} size="lg" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-wider theme-accent-text">
+                  {count}
+                </span>
+              </div>
+              <h3 className="font-display font-black text-xl mb-2">{title}</h3>
+              <p className="theme-text-muted text-sm leading-relaxed">{body}</p>
+            </Card>
+          ))}
+        </div>
+
+        {/* AI creates. You edit. — export proof strip */}
+        <Card variant="flat" size="md" className="mt-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl shrink-0"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
+              >
+                <Icon as={Sparkles} size="md" />
+              </div>
+              <div>
+                <p className="font-display font-black text-lg leading-tight">AI creates. You edit.</p>
+                <p className="theme-text-muted text-sm">
+                  Download to Word or PDF, print, assign to a class and track progress.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
+                <Icon as={Download} size="xs" /> Word
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text px-3 py-1 text-xs font-black">
+                <Icon as={Download} size="xs" /> PDF
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full theme-card border theme-border px-3 py-1 text-xs font-black theme-text-muted">
+                <Icon as={Printer} size="xs" /> Print
+              </span>
+            </div>
+          </div>
+        </Card>
+
+        <div className="mt-8 text-center">
+          <Button as={Link} to="/teachers" variant="primary" size="lg">
+            Explore the teacher tools
+          </Button>
+        </div>
+      </Section>
+
+      {/* Trust bar */}
+      <Section className="py-8">
+        <div
+          className="rounded-3xl px-6 py-6 sm:px-10"
+          style={{ background: 'linear-gradient(135deg, #0F1B2D 0%, #123629 58%, #1C4D37 100%)' }}
+        >
+          <ul className="grid gap-y-4 gap-x-6 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-white/15">
+            {TRUST_BAR.map(({ icon, label }) => (
+              <li key={label} className="flex items-center gap-2.5 text-white lg:justify-center lg:px-3 lg:text-center">
+                <Icon as={icon} size="sm" className="shrink-0 text-[#F9A825]" />
+                <span className="text-sm font-bold leading-snug">{label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
 
       {/* Past-paper quizzes — try-before-signup hook. Renders nothing
@@ -558,62 +728,6 @@ export default function Marketing() {
               </div>
             </Card>
           ))}
-        </div>
-
-        {/* Schools demoted to a small inline callout */}
-        <div className="mt-6">
-          <Card variant="flat" size="md">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl shrink-0"
-                  style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
-                >
-                  <Icon as={ShieldCheck} size="md" />
-                </div>
-                <div>
-                  <p className="font-display font-black text-lg leading-tight">
-                    Running a school?
-                  </p>
-                  <p className="theme-text-muted text-sm">
-                    We work with admins on monitoring, content approvals, and a private CBC
-                    knowledge base.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  as="a"
-                  href={CONTACT_WHATSAPP_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="primary"
-                  size="md"
-                  leadingIcon={<WhatsAppIcon size={16} />}
-                >
-                  WhatsApp
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => openContact('schools-callout')}
-                  variant="secondary"
-                  size="md"
-                  trailingIcon={<Icon as={ChevronRight} size="sm" />}
-                >
-                  Contact form
-                </Button>
-                <Button
-                  as="a"
-                  href={CONTACT_EMAIL_HREF}
-                  variant="secondary"
-                  size="md"
-                  leadingIcon={<Icon as={Mail} size="sm" />}
-                >
-                  Email
-                </Button>
-              </div>
-            </div>
-          </Card>
         </div>
       </Section>
 
@@ -670,11 +784,10 @@ export default function Marketing() {
           <p className="theme-text-muted text-lg max-w-2xl mx-auto">
             Learners can start with a free demo and selected practice. Teachers get the AI tools
             free to start, then Pro or Max when they need more.
-            Schools work with us on a custom plan.
           </p>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 max-w-3xl mx-auto">
           {PRICING.map((tier) => (
             <Card
               key={tier.title}
@@ -692,9 +805,9 @@ export default function Marketing() {
               </div>
               <p className="font-display font-black text-3xl mb-1">
                 {/* Android: no ZMW price literals — Google Play prices at checkout. */}
-                {isNativePlatform() ? tier.price.replace(/,?\s*then K\d+\/mo/, ' to start') : tier.price}
+                {native ? tier.priceNative : tier.price}
               </p>
-              <p className="theme-text-muted text-sm mb-5">{tier.note}</p>
+              <p className="theme-text-muted text-sm mb-5">{native ? tier.noteNative : tier.note}</p>
               <ul className="space-y-2.5 mb-4 theme-text-muted text-sm">
                 {tier.bullets.map((b) => (
                   <li key={b} className="flex gap-2.5">
@@ -703,65 +816,16 @@ export default function Marketing() {
                   </li>
                 ))}
               </ul>
-              {tier.upgradeIncludes && (
+              {tier.upgradeIncludes && !native && (
                 <p className="mb-5 text-xs leading-relaxed theme-text-muted italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
                   {tier.upgradeIncludes}
                 </p>
               )}
               <div className="mt-auto">
-                {tier.cta.to ? (
-                  <Button as={Link} to={tier.cta.to} variant={tier.primary ? 'primary' : 'secondary'} fullWidth>
-                    {tier.cta.label}
-                  </Button>
-                ) : tier.cta.kind === 'contact' ? (
-                  <Button
-                    type="button"
-                    onClick={() => openContact(`pricing-${tier.title.toLowerCase()}`)}
-                    variant="secondary"
-                    fullWidth
-                  >
-                    {tier.cta.label}
-                  </Button>
-                ) : (
-                  <Button
-                    as="a"
-                    href={tier.cta.href}
-                    target={tier.cta.external ? '_blank' : undefined}
-                    rel={tier.cta.external ? 'noopener noreferrer' : undefined}
-                    variant="secondary"
-                    fullWidth
-                    leadingIcon={tier.cta.href === CONTACT_WHATSAPP_HREF ? <WhatsAppIcon size={16} /> : null}
-                  >
-                    {tier.cta.label}
-                  </Button>
-                )}
+                <Button as={Link} to={tier.cta.to} variant={tier.primary ? 'primary' : 'secondary'} fullWidth>
+                  {tier.cta.label}
+                </Button>
               </div>
-            </Card>
-          ))}
-        </div>
-      </Section>
-
-      {/* Trust section */}
-      <Section className="py-16 sm:py-20">
-        <div className="text-center mb-12">
-          <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
-            Why parents and schools choose ZedExams
-          </p>
-          <h2 className="font-display font-black text-3xl sm:text-4xl">
-            Built for trust, not for hype.
-          </h2>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {TRUST.map(({ icon, title, body }) => (
-            <Card key={title} variant="flat" size="md">
-              <div
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl mb-4"
-                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
-              >
-                <Icon as={icon} size="md" />
-              </div>
-              <h3 className="font-display font-black text-lg mb-1.5">{title}</h3>
-              <p className="theme-text-muted text-sm leading-relaxed">{body}</p>
             </Card>
           ))}
         </div>
@@ -790,7 +854,7 @@ export default function Marketing() {
           </p>
         </div>
         <div className="max-w-3xl mx-auto space-y-3">
-          {(isNativePlatform() ? FAQ_NATIVE : FAQ).map(({ q, a }) => (
+          {(native ? FAQ_NATIVE : FAQ).map(({ q, a }) => (
             <details
               key={q}
               className="group theme-card border theme-border rounded-2xl px-5 py-4 transition-all open:shadow-elev-md"
@@ -919,12 +983,6 @@ export default function Marketing() {
                     <Icon as={Send} size="sm" />
                     Contact form
                   </button>
-                </li>
-                <li className="theme-text-muted">
-                  <span className="inline-flex items-center gap-2">
-                    <Icon as={ShieldCheck} size="sm" />
-                    Schools & admins welcome
-                  </span>
                 </li>
               </ul>
             </div>
