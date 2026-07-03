@@ -74,11 +74,20 @@ const githubAppInstallationId = defineSecret("GITHUB_APP_INSTALLATION_ID");
 // (mirrors the secrets the Lenco webhook/poll already use in index.js).
 const lencoApiKey = defineSecret("LENCO_API_KEY");
 
-function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS || "")
+// Recipients for ops alerts. Prefer the explicit ADMIN_EMAILS list; when it is
+// unset (the common case here — ADMIN_EMAILS has never been configured), fall
+// back to the SMTP sender account itself so alerts still land in the ops
+// mailbox — the same EMAIL_SMTP_USER account Dawn and the daily cost summary
+// send through — instead of being silently dropped ("SMTP or ADMIN_EMAILS not
+// configured"). Callers pass the resolved sender so they control the fallback.
+function getAdminEmails(fallbackSender) {
+  const configured = (process.env.ADMIN_EMAILS || "")
       .split(",")
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
+  if (configured.length) return configured;
+  const sender = String(fallbackSender || "").trim().toLowerCase();
+  return sender ? [sender] : [];
 }
 
 const NIGHTLY_QA_OPTS = {
@@ -284,12 +293,13 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
       }
     }
     try {
+      const smtpUser = String(emailSmtpUser.value() || "").trim();
       report.notified = await notifyFailures({
         db,
         report,
-        smtpUser: String(emailSmtpUser.value() || "").trim(),
+        smtpUser,
         smtpPass: emailSmtpPassword.value(),
-        adminEmails: getAdminEmails(),
+        adminEmails: getAdminEmails(smtpUser),
         github: {
           repo: process.env.GITHUB_REPO || "Mwelwa-cyber/Zedexams",
           appId: String(githubAppId.value() || "").trim(),
