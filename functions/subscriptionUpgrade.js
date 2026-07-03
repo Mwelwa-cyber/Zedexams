@@ -44,9 +44,16 @@ function dailyRate(plan) {
   return days > 0 ? price / days : 0;
 }
 
-// Only the Pro → Max ladder is an "upgrade".
+// Only a *same-billing-period* Pro → Max step is a prorated "upgrade". A change
+// of cadence (Pro Monthly → Max Yearly) keeps its own renewal date and adds no
+// days under the prorated model, which is incoherent for an annual plan — it
+// falls through to full-price checkout, which starts a fresh term. Keep this in
+// sync with src/utils/subscriptionUpgrade.js.
 function isUpgradePath(fromPlanId, toPlanId) {
-  return planTier(fromPlanId) === "pro" && planTier(toPlanId) === "max";
+  const from = getPlan(fromPlanId);
+  const to = getPlan(toPlanId);
+  return planTier(fromPlanId) === "pro" && planTier(toPlanId) === "max" &&
+    Number(from?.durationDays) === Number(to?.durationDays);
 }
 
 function computeUpgradeQuote({fromPlan, toPlan, expiry, now = new Date()}) {
@@ -94,7 +101,9 @@ function quoteUpgradeForUser(user, toPlanId, now = new Date()) {
   // Guard on the user's ACTUAL tier first — a Max user must never be treated
   // as Pro by the pro_monthly fallback above.
   if (currentTier(user) !== "pro") return noop;
-  if (!fromPlan || !toPlan || planTier(toPlanId) !== "max") return noop;
+  // isUpgradePath enforces Pro→Max AND same billing period, so a cross-cadence
+  // move (Pro Monthly → Max Yearly) returns the full-price no-op here.
+  if (!fromPlan || !toPlan || !isUpgradePath(fromPlanId, toPlanId)) return noop;
   const expiry = user?.teacherPlanExpiresAt || user?.subscriptionExpiry;
   return {...computeUpgradeQuote({fromPlan, toPlan, expiry, now}), fromPlanId, toPlanId};
 }

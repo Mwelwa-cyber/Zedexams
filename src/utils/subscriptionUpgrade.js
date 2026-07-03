@@ -33,13 +33,27 @@ export function dailyRate(plan) {
   return days > 0 ? price / days : 0
 }
 
-// Only the Pro → Max ladder is an "upgrade". Same-tier repurchases (renewals),
-// down-grades, and learner packs all fall through to the normal stack-the-days
-// purchase path.
+// Only a *same-billing-period* Pro → Max step is a prorated "upgrade": pay the
+// daily-rate difference for the days you have left and keep your renewal date.
+// Same-tier repurchases (renewals), down-grades, and learner packs fall through
+// to the normal stack-the-days purchase path.
+//
+// The same-period guard is load-bearing. Proration keeps your existing renewal
+// date and adds NO days, which is only coherent when the target bills on the
+// same cadence you're already on (monthly→monthly, yearly→yearly). Applying it
+// across cadences (Pro Monthly → Max Yearly) is nonsense: the annual plan's
+// lower daily rate makes the prorated fee come out *below* the monthly upgrade,
+// and "yearly" would grant only the days left on your monthly cycle. A change
+// of cadence is a plan change, not a tier bump — it falls through to full-price
+// checkout, which starts a fresh term.
 export function isUpgradePath(fromPlanId, toPlanId) {
   const from = PLANS[fromPlanId]
   const to = PLANS[toPlanId]
-  return from?.tier === 'pro' && to?.tier === 'max'
+  return (
+    from?.tier === 'pro' &&
+    to?.tier === 'max' &&
+    Number(from.durationDays) === Number(to.durationDays)
+  )
 }
 
 /**
@@ -96,7 +110,9 @@ export function getUpgradeQuoteForProfile(userProfile, toPlanId, now = new Date(
   // Guard on the user's ACTUAL tier first — a Max user must never be treated
   // as Pro by the pro_monthly fallback above.
   if (currentTier(userProfile) !== 'pro') return noop
-  if (!fromPlan || !toPlan || PLANS[toPlanId]?.tier !== 'max') return noop
+  // isUpgradePath enforces Pro→Max AND same billing period, so a cross-cadence
+  // move (Pro Monthly → Max Yearly) returns the full-price no-op here.
+  if (!fromPlan || !toPlan || !isUpgradePath(fromPlanId, toPlanId)) return noop
   // Teachers gate on teacherPlanExpiresAt; fall back to the premium expiry.
   const expiry = userProfile?.teacherPlanExpiresAt ?? userProfile?.subscriptionExpiry
   return { ...computeUpgradeQuote({ fromPlan, toPlan, expiry, now }), fromPlanId, toPlanId }

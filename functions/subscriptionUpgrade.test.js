@@ -41,12 +41,17 @@ ok("dailyRate pro_monthly = price/30", Math.abs(dailyRate(getPlan("pro_monthly")
 ok("dailyRate guards zero duration", dailyRate({priceZMW: 10, durationDays: 0}) === 0);
 
 // ── isUpgradePath ──────────────────────────────────────────────────────────
-ok("pro → max is an upgrade", isUpgradePath("pro_monthly", "max_monthly"));
-ok("pro_yearly → max_yearly is an upgrade", isUpgradePath("pro_yearly", "max_yearly"));
+ok("pro → max (same period) is an upgrade", isUpgradePath("pro_monthly", "max_monthly"));
+ok("pro_yearly → max_yearly (same period) is an upgrade", isUpgradePath("pro_yearly", "max_yearly"));
 ok("max → max is NOT an upgrade", !isUpgradePath("max_monthly", "max_yearly"));
 ok("max → pro is NOT an upgrade (downgrade)", !isUpgradePath("max_monthly", "pro_monthly"));
 ok("pro → pro is NOT an upgrade (renewal)", !isUpgradePath("pro_monthly", "pro_yearly"));
 ok("learner pack is NOT an upgrade", !isUpgradePath("grade7_monthly", "max_monthly"));
+// Cross-cadence Pro→Max is NOT a prorated upgrade: keeping the monthly renewal
+// date while charging a yearly plan's (lower) daily rate is nonsense, so these
+// fall through to full-price checkout that starts a fresh term.
+ok("pro_monthly → max_yearly is NOT a prorated upgrade (cross-period)", !isUpgradePath("pro_monthly", "max_yearly"));
+ok("pro_yearly → max_monthly is NOT a prorated upgrade (cross-period)", !isUpgradePath("pro_yearly", "max_monthly"));
 
 // ── computeUpgradeQuote maths ──────────────────────────────────────────────
 {
@@ -101,6 +106,13 @@ ok("falls back to pro_monthly when missing", resolveCurrentProPlanId({}) === "pr
 }
 ok("Max teacher 'upgrading' to Max is not an upgrade",
     quoteUpgradeForUser({subscriptionPlan: "max_monthly", teacherPlanExpiresAt: inDays(30)}, "max_yearly", NOW).isUpgrade === false);
+{
+  // The reported bug: a Pro · Monthly teacher choosing Max · Yearly must NOT be
+  // quoted a prorated fee (which came out below the monthly upgrade and granted
+  // no days). It's a full-price plan change.
+  const q = quoteUpgradeForUser({subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: inDays(29)}, "max_yearly", NOW);
+  ok("pro_monthly → max_yearly is not a prorated upgrade → full price", q.isUpgrade === false);
+}
 ok("free teacher (no expiry) → not an upgrade, full price applies",
     quoteUpgradeForUser({}, "max_monthly", NOW).isUpgrade === false);
 {
