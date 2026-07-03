@@ -50,10 +50,11 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
 import { FieldWrapper } from './studioFields'
-
-const DRAFT_PREFIX = 'examprep:classtimetable:draft:'
-const DRAFT_TTL = 60 * 24 * 60 * 60 * 1000 // 60 days — a timetable spans a term
-const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { classTimetableDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const GRADE_OPTIONS = TEACHER_GRADES.filter((g) => g.value)
 
@@ -72,16 +73,6 @@ function seedSubjects(grade) {
 function lessonPeriodsForGrade(grade, days) {
   const fw = getFrameworkForGrade(grade)
   return fw ? recommendedLessonPeriods(fw.totalPeriods, days) : DEFAULT_TIMING.lessonPeriods
-}
-
-function loadDraft(uid) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
 }
 
 export default function ClassTimetableStudio() {
@@ -118,7 +109,6 @@ export default function ClassTimetableStudio() {
   // Grade pending a confirm — changing grade reseeds subjects and clears the
   // grid, so we ask first when the teacher has lessons placed.
   const [pendingGrade, setPendingGrade] = useState(null)
-  const loadedRef = useRef(false)
   const lastGradeRef = useRef(initialGrade)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
   // freshly-loaded saved timetable isn't flagged "Update in library".
@@ -157,21 +147,30 @@ export default function ClassTimetableStudio() {
     slots,
   }), [header, days, periods, slots])
 
-  /* Restore a saved draft once per mount. */
-  useEffect(() => {
-    if (loadedRef.current || !uid) return
-    loadedRef.current = true
-    const draft = loadDraft(uid)
-    if (!draft) return
-    let restoredDirtyState = false
-    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); lastGradeRef.current = draft.header.grade || lastGradeRef.current; restoredDirtyState = true }
-    if (Array.isArray(draft.days) && draft.days.length) { setDays(draft.days); restoredDirtyState = true }
-    if (draft.timing) { setTiming((t) => ({ ...t, ...draft.timing })); restoredDirtyState = true }
-    if (Array.isArray(draft.subjects) && draft.subjects.length) { setSubjects(draft.subjects); restoredDirtyState = true }
-    if (draft.slots && typeof draft.slots === 'object') { setSlots(draft.slots); restoredDirtyState = true }
-    if (draft.generationId) setGenerationId(draft.generationId)
-    if (restoredDirtyState) dirtySkipRef.current += 1
-  }, [uid])
+  // Universal Draft Manager: cross-device auto-save + recovery (replaces the old
+  // localStorage-only draft). The library copy (aiGenerations) is saved
+  // separately by useLibraryAutoSave below.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'class_timetable',
+    uid,
+    draftId: 'class_timetable-current',
+    descriptor: classTimetableDescriptor,
+    state: { header, days, timing, subjects, slots, generationId },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      // Set lastGradeRef BEFORE setHeader so the grade-reseed effect below sees
+      // the restored grade as "current" and doesn't wipe the recovered subjects/
+      // slots.
+      if (p.header) { lastGradeRef.current = p.header.grade || lastGradeRef.current; setHeader((h) => ({ ...h, ...p.header })) }
+      if (Array.isArray(p.days) && p.days.length) setDays(p.days)
+      if (p.timing) setTiming((t) => ({ ...t, ...p.timing }))
+      if (Array.isArray(p.subjects) && p.subjects.length) setSubjects(p.subjects)
+      if (p.slots && typeof p.slots === 'object') setSlots(p.slots)
+      if (p.generationId !== undefined) setGenerationId(p.generationId)
+      dirtySkipRef.current += 1
+    },
+  })
 
   /* Reseed the subject list — and right-size the grid — from the curriculum
    * when the grade changes. Skipped on the initial draft restore (the grade
@@ -183,19 +182,6 @@ export default function ClassTimetableStudio() {
     setTiming((t) => ({ ...t, lessonPeriods: lessonPeriodsForGrade(header.grade, days) }))
     setSlots({})
   }, [header.grade, days])
-
-  /* Debounced autosave. */
-  useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({
-          savedAt: Date.now(), header, days, timing, subjects, slots, generationId,
-        }))
-      } catch { /* storage full/blocked — the editor still works */ }
-    }, 800)
-    return () => clearTimeout(t)
-  }, [uid, header, days, timing, subjects, slots, generationId])
 
   /* Any data edit marks the library copy stale. */
   useEffect(() => {
@@ -384,6 +370,7 @@ export default function ClassTimetableStudio() {
         />
 
         <div className="space-y-6">
+          <DraftRecoveryPrompt {...draft} label="class timetable" />
           {/* ── Class details ── */}
           <section className="studio-card p-5 space-y-4">
             <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Class details</h2>
@@ -765,6 +752,7 @@ export default function ClassTimetableStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Preview &amp; export</h2>
               <div className="flex gap-2 flex-wrap items-center">
+                <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                 <button type="button" onClick={onSaveToLibrary}
                   disabled={filled === 0 || saving || (generationId && !dirtySinceSave)}
                   className="studio-btn-ghost disabled:opacity-50">

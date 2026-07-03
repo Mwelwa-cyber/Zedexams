@@ -32,24 +32,15 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
-
-const DRAFT_PREFIX = 'examprep:recordofwork:draft:'
-const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
-const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { recordOfWorkDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const SUBJECT_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),
 )
-
-function loadDraft(uid) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
-}
 
 const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
 const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
@@ -78,7 +69,6 @@ export default function RecordOfWorkStudio() {
   const [generationId, setGenerationId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
-  const loadedRef = useRef(false)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
   // freshly-loaded saved record isn't flagged "Update in library".
   const dirtySkipRef = useRef(1)
@@ -93,29 +83,26 @@ export default function RecordOfWorkStudio() {
     return () => { cancelled = true }
   }, [uid])
 
-  // Restore the draft once per mount.
-  useEffect(() => {
-    if (loadedRef.current || !uid) return
-    loadedRef.current = true
-    const draft = loadDraft(uid)
-    if (!draft) return
-    let restoredDirtyState = false
-    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
-    if (Array.isArray(draft.weeks) && draft.weeks.length) { setWeeks(draft.weeks); restoredDirtyState = true }
-    if (draft.generationId) setGenerationId(draft.generationId)
-    if (restoredDirtyState) dirtySkipRef.current += 1
-  }, [uid])
-
-  // Debounced autosave.
-  useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, weeks, generationId }))
-      } catch { /* storage full/blocked — the editor still works */ }
-    }, 800)
-    return () => clearTimeout(t)
-  }, [uid, header, weeks, generationId])
+  // Universal Draft Manager: cross-device auto-save + recovery (replaces the old
+  // localStorage-only draft). Persists the working record; the library copy
+  // (aiGenerations) is saved separately by useLibraryAutoSave below.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'record_of_work',
+    uid,
+    draftId: 'record_of_work-current',
+    descriptor: recordOfWorkDescriptor,
+    state: { header, weeks, generationId },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      if (p.header) setHeader((h) => ({ ...h, ...p.header }))
+      if (Array.isArray(p.weeks) && p.weeks.length) setWeeks(p.weeks)
+      if (p.generationId !== undefined) setGenerationId(p.generationId)
+      // One batched restore render → the dirty effect fires once; skip it so a
+      // recovered record doesn't read "Update in library" until a fresh edit.
+      dirtySkipRef.current += 1
+    },
+  })
 
   useEffect(() => {
     if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
@@ -203,7 +190,7 @@ export default function RecordOfWorkStudio() {
     setWeeks([blankRecordWeek(1)])
     setSchemeId('')
     setGenerationId(null)
-    try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
+    draft.clear().catch(() => {})
     setConfirmClear(false)
     toast.info('Cleared. Starting a fresh record of work.')
   }
@@ -256,6 +243,7 @@ export default function RecordOfWorkStudio() {
         />
 
         <div className="space-y-6">
+          <DraftRecoveryPrompt {...draft} label="record of work" />
           {/* ── Build from a scheme ── */}
           <section className="studio-card p-5 space-y-3">
             <div>
@@ -401,6 +389,7 @@ export default function RecordOfWorkStudio() {
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap items-center">
+                <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                 <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-rose-700">Clear all</button>
                 <button
                   type="button"

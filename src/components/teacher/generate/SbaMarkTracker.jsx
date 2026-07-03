@@ -34,24 +34,14 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import SbaWorkflowNote from '../SbaWorkflowNote'
 import { useToast } from '../../ui/Toast'
-
-const DRAFT_PREFIX = 'examprep:sba-tracker:draft:'
-const DRAFT_TTL = 120 * 24 * 60 * 60 * 1000 // an SBA grade spans a whole year
-const draftKey = (uid, subject, grade) => `${DRAFT_PREFIX}${uid || 'anon'}:${subject}:${grade}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { sbaTrackerDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {} })
 const blankPupils = (n) => Array.from({ length: n }, () => newPupil())
-
-function loadDraft(uid, subject, grade) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid, subject, grade))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
-}
 
 export default function SbaMarkTracker() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -92,36 +82,50 @@ export default function SbaMarkTracker() {
     return out
   }, [columns])
 
-  // Restore a draft whenever subject/grade changes (each combo is its own sheet).
-  const loadedKeyRef = useRef('')
-  useEffect(() => {
-    if (!uid) return
-    const key = `${subject}:${grade}`
-    if (loadedKeyRef.current === key) return
-    loadedKeyRef.current = key
-    const draft = loadDraft(uid, subject, grade)
-    if (draft) {
-      if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
-      setPupils(Array.isArray(draft.pupils) && draft.pupils.length ? draft.pupils : blankPupils(5))
-      setGenerationId(draft.generationId || null)
-    } else {
-      setPupils(blankPupils(5))
-      setGenerationId(null)
-    }
-    setDirtySinceSave(false)
-  }, [uid, subject, grade])
+  // Universal Draft Manager: one cross-device draft per (subject, grade) combo.
+  // The composite draftId re-keys the manager on switch, which re-offers that
+  // combo's saved sheet; auto-accepted below to preserve today's silent per-combo
+  // load. The library copy (aiGenerations) is saved separately by useLibraryAutoSave.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'sba_tracker',
+    uid,
+    draftId: `sba_tracker-${subject}-${grade}`,
+    descriptor: sbaTrackerDescriptor,
+    state: { header, pupils, generationId },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      // Direct setters (no markDirty), so a restored sheet reads "✓ Saved".
+      if (p.header) setHeader((h) => ({ ...h, ...p.header }))
+      setPupils(Array.isArray(p.pupils) && p.pupils.length ? p.pupils : blankPupils(5))
+      setGenerationId(p.generationId ?? null)
+    },
+  })
 
-  // Debounced autosave (the library doc id rides along so "Update in library"
-  // survives a refresh).
+  // Silent per-combo load: auto-accept the recovered sheet (no prompt) — matches
+  // today's "switch subject/grade → that sheet loads" behaviour, now cross-device.
+  // Depends only on the primitive availability flag; accept is called through a
+  // ref so the effect never re-fires on the changing draft object.
+  const acceptRecoveryRef = useRef(draft.acceptRecovery)
+  acceptRecoveryRef.current = draft.acceptRecovery
+  const recoveryAvailable = draft.recovery.available
   useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, pupils, generationId }))
-      } catch { /* storage full/blocked — the editor still works */ }
-    }, 700)
-    return () => clearTimeout(t)
-  }, [uid, subject, grade, header, pupils, generationId])
+    if (recoveryAvailable) acceptRecoveryRef.current()
+  }, [recoveryAvailable])
+
+  // Switching to a combo with NO saved draft must clear the previous combo's
+  // rows (the manager does nothing when a combo is empty). Skips the first mount
+  // (comboKeyRef seeded with the initial combo). Header is intentionally kept
+  // (matches the old behaviour); auto-accept overlays a saved sheet a tick later.
+  const comboKeyRef = useRef(`${subject}:${grade}`)
+  useEffect(() => {
+    const key = `${subject}:${grade}`
+    if (comboKeyRef.current === key) return
+    comboKeyRef.current = key
+    setPupils(blankPupils(5))
+    setGenerationId(null)
+    setDirtySinceSave(false)
+  }, [subject, grade])
 
   // Mark the saved library copy stale on a genuine *user* edit. (Driven from
   // the mutators below rather than a [header, pupils] effect: that effect also
@@ -181,7 +185,7 @@ export default function SbaMarkTracker() {
   function clearAll() {
     markDirty()
     setPupils(blankPupils(5))
-    try { localStorage.removeItem(draftKey(uid, subject, grade)) } catch { /* ignore */ }
+    draft.clear().catch(() => {})
     setConfirmClear(false)
     toast.info('Cleared this sheet.')
   }
@@ -305,7 +309,8 @@ export default function SbaMarkTracker() {
                   {named.length} pupil{named.length === 1 ? '' : 's'} · rows without a name are ignored
                 </p>
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
+                <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                 <button type="button" onClick={() => addPupils(1)} className="studio-btn-ghost text-xs">+ Add pupil</button>
                 <button type="button" onClick={() => addPupils(5)} className="studio-btn-ghost text-xs">+ Add 5</button>
                 <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-xs text-rose-700">Clear</button>
