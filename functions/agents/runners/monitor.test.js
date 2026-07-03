@@ -10,7 +10,7 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, resolveGithubToken, checkDailyExams, dailyExamCheckWindow} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkDailyExams, dailyExamCheckWindow} = require("./monitor");
 const {lusakaDayString} = require("../../lusakaTime");
 
 let passed = 0;
@@ -266,6 +266,50 @@ test("makeAppJwt normalises an escaped-newline PEM", () => {
       Buffer.from(signature, "base64url"),
   );
   assert.strictEqual(ok, true);
+});
+
+test("makeAppJwt recovers a single-line PEM whose newlines were collapsed", () => {
+  // Reproduces error:1E08010C:DECODER routines::unsupported: a secret store
+  // that flattened the multi-line key onto one line with spaces in the body.
+  const {privateKey, publicKey} = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: {type: "spki", format: "pem"},
+    privateKeyEncoding: {type: "pkcs8", format: "pem"},
+  });
+  const collapsed = privateKey.replace(/\n/g, " ").trim();
+  // Pre-fix, crypto.sign() on `collapsed` throws the DECODER error.
+  assert.throws(() => crypto.sign("RSA-SHA256", Buffer.from("x"), collapsed));
+  const jwt = makeAppJwt("77", collapsed);
+  const [header, payload, signature] = jwt.split(".");
+  const ok = crypto.verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      publicKey,
+      Buffer.from(signature, "base64url"),
+  );
+  assert.strictEqual(ok, true);
+});
+
+test("normalizePem strips wrapping quotes and re-wraps the body", () => {
+  const {privateKey} = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: {type: "pkcs8", format: "pem"},
+  });
+  const quoted = `"${privateKey.replace(/\n/g, "\\n")}"`;
+  const out = normalizePem(quoted);
+  assert.ok(!out.includes("\\n"), "no literal escape sequences remain");
+  // The re-wrapped output parses as a real private key (the whole point).
+  assert.doesNotThrow(() => crypto.createPrivateKey(out));
+  // Base64 body lines wrap at 64 chars (marker lines start with dashes).
+  const bodyLines = out.split("\n").filter((l) => l && !l.startsWith("---"));
+  assert.ok(bodyLines.length > 0 && bodyLines.every((l) => l.length <= 64), "body wrapped at 64");
+});
+
+test("makeAppJwt throws a clear error on an unparseable key", () => {
+  assert.throws(
+      () => makeAppJwt("1", "not a key at all"),
+      /GITHUB_APP_PRIVATE_KEY secret format/,
+  );
 });
 
 // ── resolveGithubToken precedence ────────────────────────────────────
