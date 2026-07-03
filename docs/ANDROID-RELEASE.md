@@ -49,6 +49,37 @@ Verify before installing.
 
 ---
 
+## Release hardening
+
+The release build is locked down in two places. Both are pinned by
+`scripts/test-android-release-config.mjs` (runs in `npm run test:all`), so a
+Capacitor re-sync or a manifest cleanup can't silently revert them without
+turning CI red.
+
+- **Backups off** — `android/app/src/main/AndroidManifest.xml` sets
+  `android:allowBackup="false"`. This is a school app used by minors and there
+  is no restore story worth keeping: the only device-local state is the
+  Firebase auth token and the Firestore offline cache, both of which rehydrate
+  from the server on the next sign-in. Auto Backup / key-value backup would
+  otherwise copy those tokens and any cached learner data into a Google cloud
+  backup.
+- **R8 shrink + obfuscate** — `android/app/build.gradle`'s `release` build type
+  sets `minifyEnabled true` + `shrinkResources true` with
+  `proguard-android-optimize.txt` and the app-level `proguard-rules.pro`. The
+  keep rules that make the minified build shippable live in
+  `proguard-rules.pro`: `@JavascriptInterface` methods are kept (stripping them
+  severs the Capacitor WebView bridge), `-dontwarn com.facebook.**` lets R8
+  finish (the disabled Facebook auth provider is traced but never run), and
+  `SourceFile`/`LineNumberTable` are kept + renamed so Play Console crash
+  traces stay retraceable via `app/build/outputs/mapping/release/mapping.txt`.
+
+The minified build itself is exercised end-to-end by the
+`android-release.yml` (`assembleRelease`) and `android-play-release.yml`
+(`bundleRelease`) workflows on a `v*.*.*` tag push — the node CI job has no
+Android SDK, so R8 only actually runs there.
+
+---
+
 ## Releasing via CI (recommended)
 
 The `.github/workflows/android-release.yml` workflow builds a **signed

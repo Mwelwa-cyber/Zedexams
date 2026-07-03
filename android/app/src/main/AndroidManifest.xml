@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Backups are off. ZedExams is a school app used by minors, and there is
+         no restore story worth preserving: the only device-local state is the
+         Firebase auth token and the Firestore offline cache, both of which
+         rehydrate from the server on the next sign-in. Disabling Auto Backup /
+         key-value backup keeps those tokens and any cached learner data from
+         being copied off the device into a Google cloud backup. -->
     <application
         android:name=".ZedExamsApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
