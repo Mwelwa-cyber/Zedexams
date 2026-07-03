@@ -63,10 +63,11 @@ import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
-
-const DRAFT_PREFIX = 'examprep:weeklyforecast:draft:'
-const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
-const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { weeklyForecastDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 // The standardized curriculum selector's payload already carries the
 // canonical KB subject slug (`curr.subject`, e.g. 'mathematics'), which is the
@@ -151,27 +152,6 @@ function migrateDayWeekdays(days) {
   return reconcileDays(out, out.map((d) => d.day))
 }
 
-function loadDraft(uid) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
-}
-
-// Grade + subject carried by a stored draft. Current drafts persist the
-// effective values top-level ({ grade: 'G4', subjectLabel: 'Mathematics' });
-// drafts written by the pre-selector studio kept them inside `header`
-// (header.grade code + header.subject printed label).
-function restoredMetaFromDraft(draft) {
-  return {
-    grade: String(draft?.grade || draft?.header?.grade || ''),
-    subjectLabel: String(draft?.subjectLabel || draft?.header?.subject || ''),
-  }
-}
-
 const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
 const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
@@ -199,24 +179,14 @@ export default function WeeklyForecastStudio() {
   // stamping blanks into the saved/exported header. Initialized synchronously
   // from localStorage (uid is known at mount behind TeacherRoute) so the
   // mount-once selector can also be seeded from it.
-  const [restoredMeta, setRestoredMeta] = useState(() => restoredMetaFromDraft(loadDraft(uid)))
-  // Seed for the curriculum selector, computed once on first render (the
-  // selector reads its `value` prop once, in a useState initializer). The
-  // selector normalizes the loose shapes itself and resolves the subject
-  // label against the loaded syllabi keys. When the draft restores late
-  // (uid not yet known at mount) the seed is null and the restoredMeta
-  // fallback chain still carries the grade/subject.
-  const [selectorSeed] = useState(() => (
-    (restoredMeta.grade || restoredMeta.subjectLabel)
-      ? {
-        curriculumMode: 'cbc',
-        gradeLabel: kbGradeToStudioLabel(restoredMeta.grade),
-        subjectKey: restoredMeta.subjectLabel,
-      }
-      // No restored draft → the teacher's saved curriculum defaults
-      // (Teacher Settings → My Teaching), or no seed at all.
-      : curriculumSeedFromProfile(userProfile)
-  ))
+  // Grade + subject recovered from a restored draft — the fallback for the
+  // derived values below whenever the selector is untouched. Starts empty; the
+  // Universal Draft Manager fills it on recovery (see onRestore).
+  const [restoredMeta, setRestoredMeta] = useState({ grade: '', subjectLabel: '' })
+  // Seed for the mount-once curriculum selector. Recovering a draft re-seeds it
+  // and bumps selectorKey to remount on the saved grade/subject.
+  const [selectorSeed, setSelectorSeed] = useState(() => curriculumSeedFromProfile(userProfile))
+  const [selectorKey, setSelectorKey] = useState(0)
   const [days, setDays] = useState(() => DEFAULT_WEEKDAYS.map(blankDay))
 
   // Scheme source picker.
@@ -241,7 +211,6 @@ export default function WeeklyForecastStudio() {
   const [generationId, setGenerationId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
-  const loadedRef = useRef(false)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
   // freshly-loaded saved forecast isn't flagged "Update in library".
   const dirtySkipRef = useRef(1)
@@ -287,42 +256,37 @@ export default function WeeklyForecastStudio() {
     return () => { cancelled = true }
   }, [])
 
-  // Restore the draft once per mount.
-  useEffect(() => {
-    if (loadedRef.current || !uid) return
-    loadedRef.current = true
-    const draft = loadDraft(uid)
-    if (!draft) return
-    let restoredDirtyState = false
-    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
-    if (Array.isArray(draft.days) && draft.days.length) { setDays(migrateDayWeekdays(draft.days)); restoredDirtyState = true }
-    if (draft.timetableId) setTimetableId(draft.timetableId)
-    if (draft.generationId) setGenerationId(draft.generationId)
-    // Covers the late-uid mount, where the synchronous initializer read the
-    // anon draft key and came up empty.
-    const meta = restoredMetaFromDraft(draft)
-    if (meta.grade || meta.subjectLabel) {
-      setRestoredMeta((m) => (
-        m.grade === meta.grade && m.subjectLabel === meta.subjectLabel ? m : meta
-      ))
-    }
-    if (restoredDirtyState) dirtySkipRef.current += 1
-  }, [uid])
-
-  // Debounced autosave. Persists the EFFECTIVE grade + subject label alongside
-  // the header (which no longer carries them) so a reloaded draft can re-seed
-  // the curriculum selector and the restoredMeta fallback.
-  useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({
-          savedAt: Date.now(), header, days, timetableId, generationId, grade, subjectLabel,
-        }))
-      } catch { /* storage full/blocked — the editor still works */ }
-    }, 800)
-    return () => clearTimeout(t)
-  }, [uid, header, days, timetableId, generationId, grade, subjectLabel])
+  // Universal Draft Manager: cross-device auto-save + recovery (replaces the old
+  // localStorage-only draft). Persists the effective grade + subjectLabel so a
+  // recovered draft can re-seed the curriculum selector and the restoredMeta
+  // fallback. The library copy (aiGenerations) is saved separately below.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'weekly_forecast',
+    uid,
+    draftId: 'weekly_forecast-current',
+    descriptor: weeklyForecastDescriptor,
+    state: { header, days, timetableId, generationId, grade, subjectLabel },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      if (p.header) setHeader((h) => ({ ...h, ...p.header }))
+      // Upgrade any pre-weekday (numeric) day shape on restore.
+      if (Array.isArray(p.days) && p.days.length) setDays(migrateDayWeekdays(p.days))
+      if (p.timetableId !== undefined) setTimetableId(p.timetableId)
+      if (p.generationId !== undefined) setGenerationId(p.generationId)
+      const meta = { grade: String(p.grade || ''), subjectLabel: String(p.subjectLabel || '') }
+      setRestoredMeta(meta)
+      if (meta.grade || meta.subjectLabel) {
+        setSelectorSeed({
+          curriculumMode: 'cbc',
+          gradeLabel: kbGradeToStudioLabel(meta.grade),
+          subjectKey: meta.subjectLabel,
+        })
+        setSelectorKey((k) => k + 1)
+      }
+      dirtySkipRef.current += 1
+    },
+  })
 
   useEffect(() => {
     if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
@@ -570,7 +534,7 @@ export default function WeeklyForecastStudio() {
     setRestoredMeta({ grade: '', subjectLabel: '' })
     autoTimetableRef.current = ''
     setGenerationId(null)
-    try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
+    draft.clear().catch(() => {})
     setConfirmClear(false)
     toast.info('Cleared. Starting a fresh forecast.')
   }
@@ -623,6 +587,7 @@ export default function WeeklyForecastStudio() {
         />
 
         <div className="space-y-6">
+          <DraftRecoveryPrompt {...draft} label="weekly forecast" />
           {/* ── Plan details (select first) ── */}
           <section className="studio-card p-5 space-y-4">
             <div>
@@ -631,7 +596,7 @@ export default function WeeklyForecastStudio() {
                 Pick the curriculum, grade and subject — the topic and competence lists become specific to them. The week's dates fill from the MoE calendar.
               </p>
             </div>
-            <StudioCurriculumSelector value={selectorSeed} onChange={setCurr} showTopicSubtopic={false} />
+            <StudioCurriculumSelector key={selectorKey} value={selectorSeed} onChange={setCurr} showTopicSubtopic={false} />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="studio-label">School</label>
@@ -908,6 +873,7 @@ export default function WeeklyForecastStudio() {
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap items-center">
+                <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                 <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-rose-700">Clear all</button>
                 <button
                   type="button"

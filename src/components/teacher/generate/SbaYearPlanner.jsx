@@ -27,10 +27,10 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import SbaWorkflowNote from '../SbaWorkflowNote'
 import { useToast } from '../../ui/Toast'
-
-const DRAFT_PREFIX = 'examprep:sba-planner:draft:'
-const DRAFT_TTL = 200 * 24 * 60 * 60 * 1000 // a plan spans the whole year
-const draftKey = (uid, subject, grade) => `${DRAFT_PREFIX}${uid || 'anon'}:${subject}:${grade}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { sbaPlannerDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const TONE_CLASSES = {
   slate: 'bg-slate-100 text-slate-600 border-slate-300',
@@ -39,16 +39,6 @@ const TONE_CLASSES = {
   green: 'bg-emerald-100 text-emerald-800 border-emerald-300',
 }
 const STATUS_BY_VALUE = Object.fromEntries(SBA_TASK_STATUSES.map((s) => [s.value, s]))
-
-function loadDraft(uid, subject, grade) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid, subject, grade))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
-}
 
 export default function SbaYearPlanner() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -72,30 +62,46 @@ export default function SbaYearPlanner() {
   const subjectMeta = getSbaSubject(subject)
   const plan = useMemo(() => buildSbaPlan(subject, grade, statuses), [subject, grade, statuses])
 
-  // Restore the draft for the active subject + grade sheet.
-  const loadedKeyRef = useRef('')
-  useEffect(() => {
-    if (!uid) return
-    const key = `${subject}:${grade}`
-    if (loadedKeyRef.current === key) return
-    loadedKeyRef.current = key
-    const draft = loadDraft(uid, subject, grade)
-    setStatuses(draft?.statuses && typeof draft.statuses === 'object' ? draft.statuses : {})
-    if (draft?.header) setHeader((h) => ({ ...h, ...draft.header }))
-    setGenerationId(draft?.generationId || null)
-    setDirtySinceSave(false)
-  }, [uid, subject, grade])
+  // Universal Draft Manager: one cross-device draft per (subject, grade) combo.
+  // The composite draftId re-keys on switch; that combo's saved plan is
+  // auto-accepted below to keep today's silent per-combo load. The library copy
+  // (aiGenerations) is saved separately by useLibraryAutoSave.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'sba_planner',
+    uid,
+    draftId: `sba_planner-${subject}-${grade}`,
+    descriptor: sbaPlannerDescriptor,
+    state: { header, statuses, generationId },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      // Direct setters (no markDirty), so a restored plan reads "✓ Saved".
+      setStatuses(p.statuses && typeof p.statuses === 'object' ? p.statuses : {})
+      if (p.header) setHeader((h) => ({ ...h, ...p.header }))
+      setGenerationId(p.generationId ?? null)
+    },
+  })
 
-  // Debounced autosave (the saved library doc id rides along).
+  // Silent per-combo load (no prompt), matching today's behaviour — cross-device.
+  const acceptRecoveryRef = useRef(draft.acceptRecovery)
+  acceptRecoveryRef.current = draft.acceptRecovery
+  const recoveryAvailable = draft.recovery.available
   useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid, subject, grade), JSON.stringify({ savedAt: Date.now(), header, statuses, generationId }))
-      } catch { /* storage full/blocked — the planner still works */ }
-    }, 600)
-    return () => clearTimeout(t)
-  }, [uid, subject, grade, header, statuses, generationId])
+    if (recoveryAvailable) acceptRecoveryRef.current()
+  }, [recoveryAvailable])
+
+  // Switching to a combo with NO saved draft clears the previous combo's
+  // statuses (the manager does nothing for an empty combo). Skips the first
+  // mount; header is kept (matches the old behaviour).
+  const comboKeyRef = useRef(`${subject}:${grade}`)
+  useEffect(() => {
+    const key = `${subject}:${grade}`
+    if (comboKeyRef.current === key) return
+    comboKeyRef.current = key
+    setStatuses({})
+    setGenerationId(null)
+    setDirtySinceSave(false)
+  }, [subject, grade])
 
   // Mark the saved library copy stale on a genuine *user* edit. (Driven from
   // the mutators below rather than a [header, statuses] effect: that effect
@@ -258,6 +264,7 @@ export default function SbaYearPlanner() {
                   </p>
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
+                  <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                   <button type="button" onClick={() => markAll('not_started')} className="studio-btn-ghost text-xs">Reset all</button>
                   <button type="button" onClick={() => markAll('marked')} className="studio-btn-ghost text-xs">Mark all done</button>
                   <button

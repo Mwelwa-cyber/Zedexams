@@ -33,10 +33,11 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { useToast } from '../../ui/Toast'
-
-const DRAFT_PREFIX = 'examprep:markschedule:draft:'
-const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000 // 30 days — a schedule spans a marking period
-const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { markScheduleDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const DEFAULT_SUBJECTS = [
   { key: 's1', label: 'MATHS', max: 25 },
@@ -63,16 +64,6 @@ let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {}, comment: '' })
 const blankPupils = (n) => Array.from({ length: n }, () => newPupil())
 
-function loadDraft(uid) {
-  try {
-    const raw = localStorage.getItem(draftKey(uid))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
-    return parsed
-  } catch { return null }
-}
-
 export default function MarkScheduleStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const toast = useToast()
@@ -97,38 +88,31 @@ export default function MarkScheduleStudio() {
   const [generationId, setGenerationId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
-  const loadedRef = useRef(false)
   // The dirty-marking effect below fires on the initial mount and again on the
   // re-render the draft-restore triggers. Skip those runs so a freshly-loaded
   // saved sheet shows "✓ Saved" rather than "Update in library".
   const dirtySkipRef = useRef(1)
 
-  // Restore a saved draft once per mount.
-  useEffect(() => {
-    if (loadedRef.current || !uid) return
-    loadedRef.current = true
-    const draft = loadDraft(uid)
-    if (!draft) return
-    let restoredDirtyState = false
-    if (draft.header) { setHeader((h) => ({ ...h, ...draft.header })); restoredDirtyState = true }
-    if (Array.isArray(draft.subjects) && draft.subjects.length) { setSubjects(draft.subjects); restoredDirtyState = true }
-    if (Array.isArray(draft.pupils) && draft.pupils.length) { setPupils(draft.pupils); restoredDirtyState = true }
-    if (draft.mode) setMode(draft.mode)
-    if (draft.generationId) setGenerationId(draft.generationId)
-    if (restoredDirtyState) dirtySkipRef.current += 1
-  }, [uid])
-
-  // Debounced autosave (the library doc id rides along so "Update in
-  // library" survives a refresh).
-  useEffect(() => {
-    if (!uid) return undefined
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, subjects, pupils, mode, generationId }))
-      } catch { /* storage full/blocked — the editor still works */ }
-    }, 800)
-    return () => clearTimeout(t)
-  }, [uid, header, subjects, pupils, mode, generationId])
+  // Universal Draft Manager: cross-device auto-save + recovery (replaces the old
+  // localStorage-only draft). The library copy (aiGenerations) is saved
+  // separately by useLibraryAutoSave below.
+  const { featureFlags } = usePlatformSettings().settings
+  const draft = useDraftManager({
+    studioId: 'mark_schedule',
+    uid,
+    draftId: 'mark_schedule-current',
+    descriptor: markScheduleDescriptor,
+    state: { header, subjects, pupils, mode, generationId },
+    enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
+    onRestore: (p) => {
+      if (p.header) setHeader((h) => ({ ...h, ...p.header }))
+      if (Array.isArray(p.subjects) && p.subjects.length) setSubjects(p.subjects)
+      if (Array.isArray(p.pupils) && p.pupils.length) setPupils(p.pupils)
+      if (p.mode) setMode(p.mode)
+      if (p.generationId !== undefined) setGenerationId(p.generationId)
+      dirtySkipRef.current += 1
+    },
+  })
 
   // Any data edit marks the library copy stale. (Skips the mount + restore
   // runs via dirtySkipRef so a just-loaded saved sheet isn't flagged dirty.)
@@ -211,7 +195,7 @@ export default function MarkScheduleStudio() {
     setPupils(blankPupils(5))
     setMode('marks')
     setGenerationId(null) // the library copy (if any) stays; a new save creates a fresh entry
-    try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
+    draft.clear().catch(() => {})
     setConfirmClear(false)
     toast.info('Cleared. Starting a fresh schedule.')
   }
@@ -288,6 +272,7 @@ export default function MarkScheduleStudio() {
         />
 
         <div className="space-y-6">
+          <DraftRecoveryPrompt {...draft} label="mark schedule" />
           {/* ── Class details ── */}
           <section className="studio-card p-5 space-y-4">
             {/* Standardized curriculum + grade + subject selector (no topic/subtopic). */}
@@ -470,6 +455,7 @@ export default function MarkScheduleStudio() {
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap items-center">
+                <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
                 <div className="inline-flex gap-1 rounded-full bg-white border theme-border p-1" role="group" aria-label="Schedule view">
                   {[['marks', 'Raw marks'], ['percent', 'Percentages']].map(([key, label]) => (
                     <button
