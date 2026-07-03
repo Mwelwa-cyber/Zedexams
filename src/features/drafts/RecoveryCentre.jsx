@@ -90,7 +90,7 @@ export default function RecoveryCentre() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Recovery Centre" noIndex />
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Recovery Centre"
           title="Your unfinished drafts"

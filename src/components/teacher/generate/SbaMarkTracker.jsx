@@ -256,7 +256,7 @@ export default function SbaMarkTracker() {
   return (
     <div className="studio-page">
       <SeoHelmet title="SBA Mark Tracker" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="SBA Mark Tracker"
           title="Raw marks in — the ECZ 10% out"

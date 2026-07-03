@@ -578,7 +578,7 @@ export default function WeeklyForecastStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Weekly focus" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Weekly Focus"
           title="This week's plan, day by day"

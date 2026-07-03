@@ -279,7 +279,7 @@ export default function WorksheetGenerator() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Worksheet studio" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Worksheet Studio"
           title="Print-ready practice"
@@ -288,13 +288,13 @@ export default function WorksheetGenerator() {
         />
 
         <div className="grid grid-cols-1 gap-6">
-          <div className="w-full max-w-2xl mx-auto">
+          <div className="studio-form">
             <DraftRecoveryPrompt {...draft} label="worksheet" />
           </div>
           {/* Input panel */}
           <form
             onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit w-full max-w-2xl mx-auto"
+            className="studio-card p-5 space-y-4 h-fit studio-form"
           >
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />

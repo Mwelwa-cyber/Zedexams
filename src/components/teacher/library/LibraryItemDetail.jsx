@@ -574,7 +574,7 @@ export default function LibraryItemDetail() {
   return (
     <div className="studio-page">
       <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full">
         {/* Breadcrumb */}
         <nav className="mb-4 text-sm" style={{ color: '#566f76' }}>
           <Link to="/teacher/library" className="hover:underline" style={{ color: '#0e2a32', fontWeight: 700 }}>← My Library</Link>

@@ -391,7 +391,7 @@ export default function AdminLayout({ children }) {
         >
           <ThemeSelector />
         </div>
-        <div className="app-container py-6 pb-28">
+        <div className="studio-shell py-6 pb-28">
           <ErrorBoundary inline resetKey={location.pathname}>
             {children}
           </ErrorBoundary>

@@ -225,7 +225,7 @@ export default function FlashcardGenerator() {
   return (
     <div className="studio-page">
       <SeoHelmet title="Flashcard generator" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="Flashcards"
           title="Revision cards"

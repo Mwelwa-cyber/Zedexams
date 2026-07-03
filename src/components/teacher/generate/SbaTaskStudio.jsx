@@ -214,7 +214,7 @@ export default function SbaTaskStudio() {
   return (
     <div className="studio-page">
       <SeoHelmet title="SBA Studio" noIndex />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <StudioPageHeader
           eyebrow="SBA Studio"
           title="School Based Assessment tasks, the ECZ way"

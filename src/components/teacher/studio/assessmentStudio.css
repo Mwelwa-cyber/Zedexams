@@ -67,7 +67,7 @@
   /* Layout */
   --sv-topbar-h: 56px;
   --sv-bottombar-h: 64px;
-  --sv-canvas-max: 760px;
+  --sv-canvas-max: 820px;
 
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--sv-canvas);
