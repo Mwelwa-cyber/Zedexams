@@ -9,12 +9,13 @@
     "androidScheme": "https"
   },
   "plugins": {
-    "SafeArea": {
-      "statusBarStyle": "LIGHT",
-      "navigationBarStyle": "LIGHT"
-    },
+    "SafeArea": {},
     "SystemBars": {
       "insetsHandling": "disable"
+    },
+    "EdgeToEdge": {
+      "statusBarColor": "#00000000",
+      "navigationBarColor": "#00000000"
     },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
