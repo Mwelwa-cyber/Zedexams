@@ -314,6 +314,15 @@ const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // unless you set a custom one (LENCO_WEBHOOK_KEY) on the Lenco
 // dashboard.
 const lencoApiKey = defineSecret("LENCO_API_KEY");
+// Google Play Developer API service account (JSON key, whole file as the
+// secret value) for verifying Android in-app subscription purchases
+// (verifyGooglePlayPurchase). Create it from Play Console ▸ Users and
+// permissions / API access with "View financial data" + "Manage orders".
+// IMPORTANT: fund this secret in Secret Manager BEFORE merging code that
+// binds it — `firebase functions:secrets:set GOOGLE_PLAY_SA_JSON` — or every
+// CI functions deploy hard-fails ("no value for the secret"), exactly like
+// the RECRAFT_API_KEY incident documented above (deadProviderSecrets.test.js).
+const googlePlaySaJson = defineSecret("GOOGLE_PLAY_SA_JSON");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -3282,6 +3291,83 @@ exports.recoverMyPendingPayments = onCall({
     failedClosed: summary.failedClosed.length,
     checked: summary.checked,
   };
+});
+
+// ── Google Play Billing (Android app) ─────────────────────────────────
+// The Android build sells subscriptions through Google Play Billing only
+// (Play policy — no Lenco/mobile-money inside the app). After a purchase
+// (and on every app open, as a restore), the app sends the purchase
+// token(s) here; we verify against the Google Play Developer API and grant
+// through the same idempotent activation path as Lenco. See
+// functions/googlePlayBilling.js + docs/GOOGLE-PLAY-BILLING.md.
+exports.verifyGooglePlayPurchase = onCall({
+  secrets: [googlePlaySaJson, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+  enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+}, async (request) => {
+  await recordAppCheckCallable(request, "verifyGooglePlayPurchase");
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+
+  const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
+  if (!saJson.trim()) {
+    throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+  }
+
+  const raw = Array.isArray(request.data?.purchases) ? request.data.purchases : [];
+  const purchases = raw
+      .map((p) => ({
+        purchaseToken: String(p?.purchaseToken || "").slice(0, 2000),
+        productId: String(p?.productId || "").slice(0, 200),
+      }))
+      .filter((p) => p.purchaseToken);
+  if (!purchases.length || purchases.length > 10) {
+    throw new HttpsError("invalid-argument", "Send between 1 and 10 purchases to verify.");
+  }
+  const source = request.data?.source === "restore" ? "restore" : "purchase";
+
+  const play = require("./googlePlayBilling");
+  let accessToken;
+  try {
+    accessToken = await play.getAccessToken(saJson);
+  } catch (err) {
+    console.error("[verifyGooglePlayPurchase] token error", err);
+    throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+  }
+
+  const results = [];
+  for (const p of purchases) {
+    try {
+      const r = await play.verifyAndApplyPurchase({
+        uid,
+        purchaseToken: p.purchaseToken,
+        accessToken,
+        emailSecrets: lencoEmailSecrets(),
+      });
+      results.push(r);
+    } catch (err) {
+      if (err instanceof play.PlayConfigError) {
+        console.error("[verifyGooglePlayPurchase] config error", err);
+        throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+      }
+      // Per-token failures (Google 5xx, transient network) become result
+      // statuses so one bad token can't abort a multi-token restore.
+      console.error("[verifyGooglePlayPurchase] verify failed", err);
+      results.push({status: "error", productId: p.productId || null});
+    }
+  }
+  console.log(`[verifyGooglePlayPurchase] uid=${uid} source=${source} ` +
+    `results=${results.map((r) => r.status).join(",")}`);
+
+  // Every result failed with a transient error → tell the client to retry
+  // rather than pretending the verification concluded.
+  if (results.length && results.every((r) => r.status === "error")) {
+    throw new HttpsError("unavailable", "Could not reach Google Play. Please try again.");
+  }
+
+  return {results, verifiedAt: new Date().toISOString()};
 });
 
 // Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a

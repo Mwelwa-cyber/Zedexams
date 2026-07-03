@@ -16,9 +16,11 @@ vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('./UpgradeModal', () => ({ default: () => null }))
+vi.mock('../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
 
 import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
 import { useAuth } from '../../contexts/AuthContext'
+import { isNativePlatform } from '../../utils/runtime'
 import MySubscriptionPage from './MySubscriptionPage.jsx'
 
 const BASE = {
@@ -98,5 +100,44 @@ describe('Pro → Max upsell', () => {
     setView({ audience: 'teacher', status: 'free', isPro: false, planType: 'free' })
     render(<MySubscriptionPage />)
     expect(screen.queryByRole('button', { name: 'Upgrade to Max' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Manage Google Play Subscription button', () => {
+  const playProfile = {
+    subscriptionProvider: 'google_play',
+    googlePlayProductId: 'learner_premium_monthly',
+  }
+
+  it('shows on Android for a Play-billed subscription', () => {
+    isNativePlatform.mockReturnValue(true)
+    useAuth.mockReturnValue({ userProfile: playProfile })
+    setView({ expiry: new Date('2026-08-01T00:00:00Z'), daysLeft: 29 })
+    render(<MySubscriptionPage />)
+    expect(screen.getByRole('button', { name: 'Manage Google Play Subscription' })).toBeInTheDocument()
+  })
+
+  it('hidden on the web even for a Play-billed subscription', () => {
+    isNativePlatform.mockReturnValue(false)
+    useAuth.mockReturnValue({ userProfile: playProfile })
+    setView({ expiry: new Date('2026-08-01T00:00:00Z'), daysLeft: 29 })
+    render(<MySubscriptionPage />)
+    expect(screen.queryByRole('button', { name: 'Manage Google Play Subscription' })).not.toBeInTheDocument()
+  })
+
+  it('hidden on Android for a web (Lenco) subscription — never steer web billing to Play', () => {
+    isNativePlatform.mockReturnValue(true)
+    useAuth.mockReturnValue({ userProfile: { subscriptionProvider: 'lenco' } })
+    setView({ expiry: new Date('2026-08-01T00:00:00Z'), daysLeft: 29 })
+    render(<MySubscriptionPage />)
+    expect(screen.queryByRole('button', { name: 'Manage Google Play Subscription' })).not.toBeInTheDocument()
+  })
+
+  it('hidden for a null/absent provider (fresh signups, manual grants)', () => {
+    isNativePlatform.mockReturnValue(true)
+    useAuth.mockReturnValue({ userProfile: {} })
+    setView({})
+    render(<MySubscriptionPage />)
+    expect(screen.queryByRole('button', { name: 'Manage Google Play Subscription' })).not.toBeInTheDocument()
   })
 })

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Loader2, Sparkles, X } from '../ui/icons'
+import { isNativePlatform } from '../../utils/runtime'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS } from '../../utils/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
@@ -53,8 +54,29 @@ const PORTAL_COPY = {
   },
 }
 
+// Android (Capacitor) builds sell through Google Play Billing ONLY — Play
+// policy forbids alternative payment flows for digital goods in the app, so
+// the Lenco mobile-money checkout below must never render natively. This
+// dispatcher is the single seam: every one of the ~11 open-sites of
+// <UpgradeModal /> gets the right checkout with zero call-site edits.
+// The internal <Suspense> is load-bearing: most call sites render this
+// component with no local boundary, so without it the native branch would
+// suspend all the way up to the route-level fallback and blank the page.
+const PlayUpgradePanel = lazy(() => import('./PlayUpgradePanel'))
+
+export default function UpgradeModal(props) {
+  if (isNativePlatform()) {
+    return (
+      <Suspense fallback={null}>
+        <PlayUpgradePanel {...props} />
+      </Suspense>
+    )
+  }
+  return <LencoUpgradeModal {...props} />
+}
+
 // payState machine: idle → starting → (otp | processing) → success | failed
-export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
+function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
   const { userProfile, currentUser } = useAuth()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)

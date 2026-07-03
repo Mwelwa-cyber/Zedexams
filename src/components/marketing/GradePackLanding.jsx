@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
 import { captureReferralFromUrl } from '../../utils/referrals'
+import { isNativePlatform } from '../../utils/runtime'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -99,6 +100,24 @@ const FAQ = [
   },
 ]
 
+// Android (Google Play) build: payment answers become Play equivalents —
+// the app must not describe mobile-money/WhatsApp payment flows (Play policy).
+const FAQ_NATIVE = FAQ.map((item) => {
+  if (item.q === 'How do I pay?') {
+    return {
+      q: 'How do I pay in the app?',
+      a: 'Pick a plan and confirm in the Google Play purchase sheet — your account unlocks instantly. Manage or cancel anytime from the Play Store.',
+    }
+  }
+  if (item.q === 'What happens after 30 days?') {
+    return {
+      ...item,
+      a: 'Your subscription renews through Google Play unless you cancel. You can manage or cancel it anytime in the Play Store and keep access until the end of the period you paid for.',
+    }
+  }
+  return item
+})
+
 function Section({ children, className = '' }) {
   return (
     <section className={`mx-auto w-full max-w-4xl px-5 sm:px-8 ${className}`}>
@@ -151,6 +170,10 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [showUpgrade, setShowUpgrade] = useState(false)
+  // Android shell: grade packs have no Google Play product (v1) — the CTA
+  // opens the Play subscription panel (learner weekly/monthly fallback), so
+  // ZMW pack prices and the mobile-money/WhatsApp flow stay off-screen.
+  const native = isNativePlatform()
 
   // Capture ?ref=ABC12345 → localStorage so the eventual /register
   // flow writes user.referredBy. Same helper the /register page
@@ -211,39 +234,55 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
           </p>
 
           {/* Price cards */}
-          <div className={`grid gap-4 ${termly ? 'sm:grid-cols-2' : ''}`}>
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-[#B8860B] transition-colors">
-              <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">{monthly.tagline}</p>
-              <p className="text-4xl font-black text-gray-800 mt-1">K{monthly.priceZMW}<span className="text-base font-bold text-gray-500"> / 30 days</span></p>
-              <p className="text-sm text-gray-600 mt-2">Pay once. No auto-renewal. Cancel just by not topping up.</p>
+          {native ? (
+            // Android: one CTA card, priced by Google Play at checkout.
+            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6">
+              <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">Premium access</p>
+              <p className="text-2xl font-black text-gray-800 mt-1">Billed through Google Play</p>
+              <p className="text-sm text-gray-600 mt-2">Choose a plan on the next screen — manage or cancel anytime in the Play Store.</p>
               <Button variant="primary" size="lg" fullWidth className="mt-4" onClick={() => handleStart(pack.monthlyPlanId)}>
-                Get the pack · K{monthly.priceZMW}
+                Get started
               </Button>
             </div>
-            {termly && (
-              <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-2xl p-6 relative">
-                <span className="absolute -top-2 right-4 bg-[#F4E4BC] text-[#0B1A2C] text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                  Save K{(monthly.priceZMW * 3) - termly.priceZMW}
-                </span>
-                <p className="text-xs uppercase tracking-wider text-white/70 font-bold">{termly.tagline}</p>
-                <p className="text-4xl font-black mt-1">K{termly.priceZMW}<span className="text-base font-bold text-white/70"> / 90 days</span></p>
-                <p className="text-sm text-white/80 mt-2">Locks in the full exam run-up. Best for parents who want to pay once and forget.</p>
-                <Button variant="primary" size="lg" fullWidth className="mt-4 bg-white !text-[#0B1A2C] hover:bg-white" onClick={() => handleStart(pack.termlyPlanId)}>
-                  Get the term · K{termly.priceZMW}
-                </Button>
+          ) : (
+            <>
+              <div className={`grid gap-4 ${termly ? 'sm:grid-cols-2' : ''}`}>
+                <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-[#B8860B] transition-colors">
+                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold">{monthly.tagline}</p>
+                  <p className="text-4xl font-black text-gray-800 mt-1">K{monthly.priceZMW}<span className="text-base font-bold text-gray-500"> / 30 days</span></p>
+                  <p className="text-sm text-gray-600 mt-2">Pay once. No auto-renewal. Cancel just by not topping up.</p>
+                  <Button variant="primary" size="lg" fullWidth className="mt-4" onClick={() => handleStart(pack.monthlyPlanId)}>
+                    Get the pack · K{monthly.priceZMW}
+                  </Button>
+                </div>
+                {termly && (
+                  <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-2xl p-6 relative">
+                    <span className="absolute -top-2 right-4 bg-[#F4E4BC] text-[#0B1A2C] text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                      Save K{(monthly.priceZMW * 3) - termly.priceZMW}
+                    </span>
+                    <p className="text-xs uppercase tracking-wider text-white/70 font-bold">{termly.tagline}</p>
+                    <p className="text-4xl font-black mt-1">K{termly.priceZMW}<span className="text-base font-bold text-white/70"> / 90 days</span></p>
+                    <p className="text-sm text-white/80 mt-2">Locks in the full exam run-up. Best for parents who want to pay once and forget.</p>
+                    <Button variant="primary" size="lg" fullWidth className="mt-4 bg-white !text-[#0B1A2C] hover:bg-white" onClick={() => handleStart(pack.termlyPlanId)}>
+                      Get the term · K{termly.priceZMW}
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mt-4 text-center">
-            Pay via Airtel Money or MTN MoMo · Confirm on WhatsApp · Activated in 30 minutes
-          </p>
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                Pay via Airtel Money or MTN MoMo · Confirm on WhatsApp · Activated in 30 minutes
+              </p>
+            </>
+          )}
         </Section>
 
         {/* What's inside */}
         <Section className="py-12">
           <h2 className="font-display font-black text-3xl sm:text-4xl mb-2">What's inside</h2>
           <p className="theme-text-muted mb-8 max-w-xl">
-            Four things, all included at the K{monthly.priceZMW} price — no add-ons, no upsells.
+            {native
+              ? 'Four things, all included — no add-ons, no upsells.'
+              : `Four things, all included at the K${monthly.priceZMW} price — no add-ons, no upsells.`}
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {WHAT_YOU_GET.map((item) => (
@@ -273,12 +312,19 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
         <Section className="py-12">
           <h2 className="font-display font-black text-3xl sm:text-4xl mb-6">How it works</h2>
           <div className="space-y-4">
-            {[
-              { n: 1, h: 'Pick a plan', b: `K${monthly.priceZMW} monthly or K${termly?.priceZMW || ''} for a whole term.` },
-              { n: 2, h: 'Pay via Mobile Money', b: 'Airtel Money or MTN MoMo to our number. Use your email as the reference.' },
-              { n: 3, h: 'Confirm on WhatsApp', b: 'Tap the button, send us the confirmation. Takes 30 seconds.' },
-              { n: 4, h: 'Start studying', b: 'We activate within 30 minutes. Login at zedexams.com and the pack is unlocked.' },
-            ].map((step) => (
+            {(native
+              ? [
+                  { n: 1, h: 'Pick a plan', b: 'Choose the plan that fits — Google Play shows the price before you confirm.' },
+                  { n: 2, h: 'Subscribe with Google Play', b: 'Confirm in the Google Play purchase sheet. Secure, instant, no forms.' },
+                  { n: 3, h: 'Start studying', b: 'Your account unlocks immediately — notes, quizzes and past papers are ready.' },
+                ]
+              : [
+                  { n: 1, h: 'Pick a plan', b: `K${monthly.priceZMW} monthly or K${termly?.priceZMW || ''} for a whole term.` },
+                  { n: 2, h: 'Pay via Mobile Money', b: 'Airtel Money or MTN MoMo to our number. Use your email as the reference.' },
+                  { n: 3, h: 'Confirm on WhatsApp', b: 'Tap the button, send us the confirmation. Takes 30 seconds.' },
+                  { n: 4, h: 'Start studying', b: 'We activate within 30 minutes. Login at zedexams.com and the pack is unlocked.' },
+                ]
+            ).map((step) => (
               <div key={step.n} className="bg-white border theme-border rounded-2xl p-4 flex gap-4 items-start">
                 <span className="flex-shrink-0 grid place-items-center w-10 h-10 rounded-full bg-[#B8860B] text-white font-black">
                   {step.n}
@@ -296,7 +342,7 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
         <Section className="py-12">
           <h2 className="font-display font-black text-3xl sm:text-4xl mb-6">Common questions</h2>
           <div className="space-y-3">
-            {FAQ.map((item) => (
+            {(native ? FAQ_NATIVE : FAQ).map((item) => (
               <details key={item.q} className="bg-white border theme-border rounded-2xl px-5 py-4 [&[open]]:border-[#B8860B]">
                 <summary className="cursor-pointer list-none font-bold text-base flex items-center justify-between gap-4">
                   <span>{item.q}</span>
@@ -315,10 +361,12 @@ export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
           <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-3xl p-8 text-center">
             <h3 className="font-display font-black text-3xl mb-2">Ready to start?</h3>
             <p className="text-white/80 mb-6 max-w-md mx-auto">
-              K{monthly.priceZMW}, paid once, 30 days of unlimited access. No card needed.
+              {native
+                ? 'Unlimited access while you’re subscribed — billed securely through Google Play.'
+                : `K${monthly.priceZMW}, paid once, 30 days of unlimited access. No card needed.`}
             </p>
             <Button variant="primary" size="lg" className="bg-[#F4E4BC] !text-[#0B1A2C] hover:bg-white" onClick={() => handleStart(pack.monthlyPlanId)}>
-              Get the {pack.title} → K{monthly.priceZMW}
+              {native ? 'Get started' : `Get the ${pack.title} → K${monthly.priceZMW}`}
             </Button>
           </div>
         </Section>

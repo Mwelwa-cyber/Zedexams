@@ -221,6 +221,15 @@ service cloud.firestore {
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
         && incoming().get('subscriptionPhoneNumber', null) == null
+        // Google Play billing linkage + teacher studio tier — server-only
+        // (Cloud Functions admin SDK / admin grant flows). The teacherPlan*
+        // pins close a gap where a crafted signup setDoc could mint pro/max
+        // studio quotas (usageMeter.js trusts users.teacherPlan).
+        && incoming().get('googlePlayPurchaseToken', null) == null
+        && incoming().get('googlePlayProductId', null) == null
+        && incoming().get('teacherPlan', null) == null
+        && incoming().get('teacherPlanExpiresAt', null) == null
+        && incoming().get('teacherPlanActivatedAt', null) == null
         // Audit (fresh pass) — the self-update blocklist below was solid
         // but the create rule never pinned these, so a signup setDoc could
         // mint a paid learner-portal grant or free referral credit by
@@ -265,6 +274,13 @@ service cloud.firestore {
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
           'subscriptionPhoneNumber',
+          // Google Play billing linkage — written only by the
+          // verifyGooglePlayPurchase Cloud Function (admin SDK).
+          'googlePlayPurchaseToken', 'googlePlayProductId',
+          // Teacher studio tier — admin/Cloud Function only (admin grant
+          // flows pass the isAdmin() branch below, so this blocklist entry
+          // breaks no legitimate writer; usageMeter.js trusts these fields).
+          'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
           'learnerPortalActive', 'learnerPortalPlan', 'learnerPortalProvider',
           'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
           'learnerPortalActivatedAt', 'learnerPortalExpiry',

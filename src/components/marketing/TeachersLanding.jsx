@@ -16,6 +16,7 @@ import Button from '../ui/Button'
 import Card from '../ui/Card'
 import SeoHelmet from '../seo/SeoHelmet'
 import { PLAN_PRICES } from '../../config/teacherPlanPricing'
+import { isNativePlatform } from '../../utils/runtime'
 import { TEACHER_SAMPLES } from '../../data/teacherSamples'
 import LessonPlanView from '../teacher/views/LessonPlanView'
 import LessonPlanOfficialTable from './LessonPlanOfficialTable'
@@ -78,6 +79,17 @@ const TEACHER_FAQ = [
     a: 'Nothing — the Free plan needs no card and gives you real generations every day to try the studios properly. Paid plans are activated with Airtel Money or MTN MoMo and confirmed on WhatsApp, usually within 30 minutes.',
   },
 ]
+
+// Android (Google Play) build: no mobile-money/WhatsApp payment copy (Play
+// policy — in-app digital purchases run through Google Play Billing only).
+const TEACHER_FAQ_NATIVE = TEACHER_FAQ.map((item) =>
+  item.q === 'What does it cost to start?'
+    ? {
+        ...item,
+        a: 'Nothing — the Free plan needs no card and gives you real generations every day to try the studios properly. Paid plans are billed securely through Google Play and unlock instantly.',
+      }
+    : item
+)
 
 function SampleRenderer({ sample, showAnswers, planLayout, testVariant, scheduleMode }) {
   switch (sample.tool) {
@@ -334,8 +346,13 @@ function PricingStrip() {
             <div>
               <p className={`font-display font-black text-xl ${tier.popular ? '' : 'theme-text'}`}>{tier.name}</p>
               <p className={`text-sm font-black ${tier.popular ? 'text-white/90' : 'theme-text'}`}>
-                {PLAN_PRICES[key].monthly === 0 ? 'K0' : `K${PLAN_PRICES[key].monthly}`}
-                <span className={`font-bold text-xs ml-1 ${tier.popular ? 'text-white/70' : 'theme-text-muted'}`}>/ month</span>
+                {/* Android: web ZMW prices stay off — Google Play prices at checkout. */}
+                {isNativePlatform()
+                  ? (PLAN_PRICES[key].monthly === 0 ? 'Free' : 'Via Google Play')
+                  : <>
+                      {PLAN_PRICES[key].monthly === 0 ? 'K0' : `K${PLAN_PRICES[key].monthly}`}
+                      <span className={`font-bold text-xs ml-1 ${tier.popular ? 'text-white/70' : 'theme-text-muted'}`}>/ month</span>
+                    </>}
               </p>
             </div>
           </div>
@@ -406,7 +423,9 @@ export default function TeachersLanding() {
               </Button>
             </div>
             <p className="mt-4 text-sm text-white/70">
-              No card required · free generations every day · pay with Airtel Money or MTN MoMo when you upgrade
+              {isNativePlatform()
+                ? 'No card required · free generations every day · upgrade anytime via Google Play'
+                : 'No card required · free generations every day · pay with Airtel Money or MTN MoMo when you upgrade'}
             </p>
           </Card>
         </Section>
@@ -464,7 +483,7 @@ export default function TeachersLanding() {
         <Section className="py-10 sm:py-14">
           <SectionTag>Questions</SectionTag>
           <div className="space-y-3 max-w-3xl">
-            {TEACHER_FAQ.map((item) => (
+            {(isNativePlatform() ? TEACHER_FAQ_NATIVE : TEACHER_FAQ).map((item) => (
               <details key={item.q} className="theme-card border theme-border rounded-2xl px-5 py-4 group">
                 <summary className="cursor-pointer font-black theme-text text-sm sm:text-base list-none flex items-center justify-between gap-3">
                   {item.q}

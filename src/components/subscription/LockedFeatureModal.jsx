@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { lockedFeature } from '../../utils/lockedFeature'
+import { isNativePlatform } from '../../utils/runtime'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   PRO_BENEFITS,
@@ -115,7 +116,9 @@ export default function LockedFeatureModal() {
             </Button>
           </div>
           <p className="mt-3 text-center text-xs theme-text-muted">
-            Pay with MTN MoMo or Airtel · Cancel anytime
+            {isNativePlatform()
+              ? 'Billed securely through Google Play · Cancel anytime'
+              : 'Pay with MTN MoMo or Airtel · Cancel anytime'}
           </p>
         </div>
       </div>

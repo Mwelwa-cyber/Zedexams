@@ -39,4 +39,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Google Play Billing (subscriptions). The Play Billing Library AAR merges
+         this in anyway; declared explicitly so Play Console billing detection and
+         reviewers can see it in the source manifest. -->
+    <uses-permission android:name="com.android.vending.BILLING" />
 </manifest>

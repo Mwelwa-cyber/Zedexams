@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
 import { upgradePortal, SUB_STATUS } from '../../utils/subscriptionStatus'
+import { isNativePlatform } from '../../utils/runtime'
 import UpgradeModal from './UpgradeModal'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
@@ -144,6 +145,22 @@ export default function MySubscriptionPage() {
             <div className="mt-4">
               <Button variant="primary" size="lg" onClick={() => setShowUpgrade(true)}>
                 Upgrade
+              </Button>
+            </div>
+          )}
+          {/* Android + Play-billed subscription: renewal/cancellation lives in
+              the Play Store, so link straight there. Web/manual grants keep the
+              in-app renew flow above. */}
+          {isNativePlatform() && userProfile?.subscriptionProvider === 'google_play' && (
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() =>
+                  import('../../utils/playBilling').then((m) =>
+                    m.openPlaySubscriptionManagement(userProfile?.googlePlayProductId))}
+              >
+                Manage Google Play Subscription
               </Button>
             </div>
           )}

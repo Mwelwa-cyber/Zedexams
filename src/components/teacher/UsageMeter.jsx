@@ -4,6 +4,7 @@ import { useTeacherUsage, TOOL_TO_FEATURE, FEATURE_LABELS } from '../../hooks/us
 import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { recoverMyPendingPayments } from '../../utils/lenco'
+import { isNativePlatform } from '../../utils/runtime'
 import { MAX_ONLY_TOOLS } from '../../utils/teacherPlans'
 import { ensureProFonts } from '../../utils/proFonts'
 import { useEffect, useState } from 'react'
@@ -90,6 +91,9 @@ function MeterRow({ feature, used, cap, plan, onUnlockClick }) {
 export default function UsageMeter() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  // Android shell: hide the K25 Lenco one-off + mobile-money recovery link
+  // (Play policy — in-app purchases go through Google Play Billing only).
+  const native = isNativePlatform()
   const { loading, data } = useTeacherUsage(currentUser?.uid)
   const [recovering, setRecovering] = useState(false)
   const [recoverMsg, setRecoverMsg] = useState('')
@@ -223,8 +227,8 @@ export default function UsageMeter() {
               <div className="zum-limit-msg">
                 <strong>You have {data.credits} extra generation{data.credits === 1 ? '' : 's'} ready.</strong><br />
                 {cappedFeature
-                  ? <>Open the {FEATURE_LABELS[cappedFeature.key]} studio and press <strong>Generate</strong> — your K25 credit is applied automatically.</>
-                  : <>Open any studio and press <strong>Generate</strong> — your K25 credit is applied automatically, on any tool.</>}
+                  ? <>Open the {FEATURE_LABELS[cappedFeature.key]} studio and press <strong>Generate</strong> — your {native ? '' : 'K25 '}credit is applied automatically.</>
+                  : <>Open any studio and press <strong>Generate</strong> — your {native ? '' : 'K25 '}credit is applied automatically, on any tool.</>}
               </div>
               {cappedFeature && FEATURE_ROUTE[cappedFeature.key] && (
                 <button type="button" className="zum-credit-go"
@@ -240,23 +244,31 @@ export default function UsageMeter() {
           <div className="zum-limit-banner">
             <div className="zum-limit-msg">
               <strong>You've hit your {FEATURE_LABELS[cappedFeature.key]} limit for this month.</strong><br />
-              Upgrade to keep working, or pay K25 for one extra now.
+              {native
+                ? 'Upgrade to keep working.'
+                : 'Upgrade to keep working, or pay K25 for one extra now.'}
             </div>
             <div className="zum-limit-actions">
-              <button type="button" className="zum-limit-pay"
-                onClick={() => topup.show({ feature: FEATURE_LABELS[cappedFeature.key] })}>
-                Pay K25
-              </button>
+              {/* Android: no K25 one-off — it's a Lenco mobile-money product.
+                  Upgrades run through Google Play Billing instead. */}
+              {!native && (
+                <button type="button" className="zum-limit-pay"
+                  onClick={() => topup.show({ feature: FEATURE_LABELS[cappedFeature.key] })}>
+                  Pay K25
+                </button>
+              )}
               <button type="button" onClick={() => openMonthlyLimit(cappedFeature.key)}>
                 Upgrade
               </button>
             </div>
-            <div className="zum-recover">
-              <button type="button" className="zum-recover-link" onClick={handleRecover} disabled={recovering}>
-                {recovering ? 'Checking your payment…' : 'Already paid? Restore my credit'}
-              </button>
-              {recoverMsg && <p className="zum-recover-msg">{recoverMsg}</p>}
-            </div>
+            {!native && (
+              <div className="zum-recover">
+                <button type="button" className="zum-recover-link" onClick={handleRecover} disabled={recovering}>
+                  {recovering ? 'Checking your payment…' : 'Already paid? Restore my credit'}
+                </button>
+                {recoverMsg && <p className="zum-recover-msg">{recoverMsg}</p>}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
 import { PLAN_PRICES } from '../../config/teacherPlanPricing'
+import { isNativePlatform } from '../../utils/runtime'
 
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
 
@@ -44,6 +45,31 @@ const PAYMENT_METHODS = [
   { label: 'WhatsApp confirm', swatch: '#25D366' },
 ]
 
+// Android (Google Play) build: billing runs through Google Play only, so the
+// mobile-money/K25 answers are swapped for Play equivalents. Play policy —
+// the app must not describe or point at alternative payment methods.
+const FAQ_NATIVE = FAQ.map((item) => {
+  if (item.q === 'What happens when I hit my monthly limit?') {
+    return {
+      ...item,
+      a: "Your plan keeps everything you've already made — nothing gets locked. You can either wait for the reset on the 1st of next month, or upgrade for instant unlock.",
+    }
+  }
+  if (item.q === 'Can I pay with Mobile Money?') {
+    return {
+      q: 'How do I pay in the app?',
+      a: 'Subscriptions in the Android app are billed securely through Google Play. Choose a plan, confirm in the Google Play purchase sheet, and your account unlocks instantly.',
+    }
+  }
+  if (item.q === 'Can I cancel anytime?') {
+    return {
+      ...item,
+      a: 'Anytime. Manage or cancel from the Play Store and you keep Pro access until the end of your billing period. After that you fall back to Free — your saved work stays.',
+    }
+  }
+  return item
+})
+
 function Section({ children, className = '' }) {
   return (
     <section className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
@@ -52,9 +78,20 @@ function Section({ children, className = '' }) {
   )
 }
 
-function Price({ planKey, billing, onDark }) {
+function Price({ planKey, billing, onDark, native }) {
   const value = PLAN_PRICES[planKey][billing]
   const muted = onDark ? 'text-white/70' : 'theme-text-muted'
+  // Android: ZMW web prices stay off-screen — Google Play's purchase sheet
+  // shows the authoritative localized price for the paid tiers.
+  if (native) {
+    return (
+      <div className="flex items-baseline gap-1.5 mb-1.5">
+        <span className="font-display font-black text-3xl tracking-tight leading-none">
+          {value > 0 ? 'Via Google Play' : 'Free'}
+        </span>
+      </div>
+    )
+  }
   return (
     <div className="flex items-baseline gap-1.5 mb-1.5">
       <span className={`text-base font-bold ${muted}`}>K</span>
@@ -101,7 +138,9 @@ function Row({ label, cells }) {
   )
 }
 
-function PlanCard({ plan, billing, popular = false, onCta }) {
+function PlanCard({ plan, billing, popular = false, onCta, native }) {
+  // Native: the "Or K590 / year" style notes carry ZMW literals.
+  const note = native ? String(plan.note || '').replace(/Or K[\d,]+ \/ year/, 'Yearly plan available') : plan.note
   return (
     <Card
       variant={popular ? 'hero' : 'elevated'}
@@ -121,8 +160,8 @@ function PlanCard({ plan, billing, popular = false, onCta }) {
       >{plan.mascot}</div>
       <div className="font-display font-black text-2xl mt-4">{plan.name}</div>
       <div className={`text-sm mt-1 mb-5 ${popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.meta}</div>
-      <Price planKey={plan.key} billing={billing} onDark={popular} />
-      <div className={`text-xs mb-6 min-h-[18px] ${popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.note}</div>
+      <Price planKey={plan.key} billing={billing} onDark={popular} native={native} />
+      <div className={`text-xs mb-6 min-h-[18px] ${popular ? 'text-white/70' : 'theme-text-muted'}`}>{note}</div>
       <Button
         variant={popular ? 'primary' : 'secondary'}
         size="lg"
@@ -202,6 +241,10 @@ export default function Plans() {
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
+  // Android shell: Google Play Billing only — no mobile-money copy, no ZMW
+  // price literals, no payment-method badges (Play policy).
+  const native = isNativePlatform()
+  const faqItems = native ? FAQ_NATIVE : FAQ
 
   function handleFreeCta() {
     navigate(currentUser ? '/' : '/register')
@@ -267,7 +310,9 @@ export default function Plans() {
               Plans that grow with your classroom.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              Start free. Upgrade when your week gets busy. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes.
+              {native
+                ? 'Start free. Upgrade when your week gets busy — billed securely through Google Play, active in seconds.'
+                : "Start free. Upgrade when your week gets busy. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes."}
             </p>
           </Card>
         </Section>
@@ -313,6 +358,7 @@ export default function Plans() {
                 billing={billing}
                 popular={plan.popular}
                 onCta={ctaFor(plan.key)}
+                native={native}
               />
             ))}
           </div>
@@ -367,8 +413,9 @@ export default function Plans() {
           </Card>
         </Section>
 
-        {/* Payment methods */}
-        <Section className="pb-16">
+        {/* Payment methods — web only; the Android app bills through Google
+            Play and must not advertise other payment methods. */}
+        {!native && <Section className="pb-16">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <span className="text-sm theme-text-muted">We accept</span>
             {PAYMENT_METHODS.map((m) => (
@@ -385,7 +432,7 @@ export default function Plans() {
               </span>
             ))}
           </div>
-        </Section>
+        </Section>}
 
         {/* FAQ */}
         <Section className="pb-16 sm:pb-20">
@@ -394,7 +441,7 @@ export default function Plans() {
             The honest answers.
           </h2>
           <div className="grid gap-3.5 md:grid-cols-2">
-            {FAQ.map((item) => (
+            {faqItems.map((item) => (
               <details
                 key={item.q}
                 className="group theme-card border theme-border rounded-2xl px-5 py-5 [&[open]]:border-[color:var(--accent)] transition-colors"

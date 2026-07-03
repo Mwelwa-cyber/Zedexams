@@ -5,6 +5,7 @@ import { useTeacherUsage } from '../../../hooks/useTeacherUsage'
 import { resolveTeacherPlan, PLAN_LABELS, DAILY_LIMITS } from '../../../utils/teacherPlans'
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
 import { upgradePortal } from '../../../utils/subscriptionStatus'
+import { isNativePlatform } from '../../../utils/runtime'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
 import InvoicesCard from '../../../components/dashboard/InvoicesCard'
 import PaymentHistoryCard from '../../../components/dashboard/PaymentHistoryCard'
@@ -29,6 +30,9 @@ export default function SubscriptionPanel() {
   const plan = resolveTeacherPlan(userProfile)
   const planLabel = PLAN_LABELS[plan] || 'Free'
   const price = PLAN_PRICES[plan]
+  // Android: no ZMW price literals (Google Play shows its own price) and a
+  // direct link to Play subscription management for Play-billed plans.
+  const native = isNativePlatform()
   const expiryLabel = formatDate(expiry)
   const portal = upgradePortal(audience)
   const data = usage?.data
@@ -42,7 +46,7 @@ export default function SubscriptionPanel() {
           <p className="tset-usage-row__label">Plan</p>
           <p className="tset-usage-row__value">
             {planLabel}
-            {plan !== 'free' && price?.monthly > 0 && <small> · K{price.monthly}/month</small>}
+            {!native && plan !== 'free' && price?.monthly > 0 && <small> · K{price.monthly}/month</small>}
           </p>
         </div>
         {expiryLabel && (
@@ -54,10 +58,21 @@ export default function SubscriptionPanel() {
             </p>
           </div>
         )}
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className="tset-btn" onClick={() => setShowUpgrade(true)}>
             {plan === 'free' ? 'Upgrade' : plan === 'pro' ? 'Upgrade to Max' : 'Manage plan'}
           </button>
+          {native && userProfile?.subscriptionProvider === 'google_play' && (
+            <button
+              type="button"
+              className="tset-btn"
+              onClick={() =>
+                import('../../../utils/playBilling').then((m) =>
+                  m.openPlaySubscriptionManagement(userProfile?.googlePlayProductId))}
+            >
+              Manage Google Play Subscription
+            </button>
+          )}
         </div>
       </section>
 
