@@ -79,6 +79,33 @@ jobs:
           # `git rev-list --count HEAD`.
           fetch-depth: 0
 
+      # Guard against shipping a STALE / OFF-main build to testers. The app
+      # bundles dist/ at build time, so whatever commit is built is exactly
+      # what testers run. A tag cut from an old local checkout or a
+      # feature branch (not on main) silently ships old code — that's how
+      # v1.2.2 pushed a July-2 build to the closed track. Fail fast unless the
+      # build commit is on origin/main's history, and warn if it isn't the tip.
+      - name: Guard — release commit must be current main
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # origin/main isn't fetched by a tag checkout — pull it so we can test ancestry.
+          git fetch --no-tags origin main
+          if git merge-base --is-ancestor "$SHA" origin/main; then
+            behind=$(git rev-list --count "${SHA}..origin/main")
+            if [ "$behind" -gt 0 ]; then
+              echo "::warning::Release commit $SHA is on main but $behind commit(s) behind origin/main. If you meant the latest code, re-tag origin/main's HEAD (git checkout main && git pull && git tag <v> && git push origin <v>)."
+            fi
+            echo "✓ Release commit $SHA is on main (origin/main is $behind commit(s) ahead)."
+          else
+            echo "::error::Release ref '$REF_NAME' ($SHA) is NOT on main's history — refusing to build."
+            echo "::error::This prevents a stale/off-main tag from shipping old code to testers. Cut the tag from an up-to-date main: git checkout main && git pull && git tag <version> && git push origin <version>."
+            exit 1
+          fi
+
       - name: Verify required secrets
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
