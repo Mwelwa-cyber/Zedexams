@@ -229,6 +229,11 @@
    R/100)^T) break instead of pushing the table wide. */
 .lp-table,.stage-table{table-layout:fixed}
 .lp-table th,.lp-table td,.stage-table th,.stage-table td{overflow-wrap:break-word;word-break:break-word}
+/* Stage names ("INTRODUCTION", "DEVELOPMENT", …) are single long words. The
+   aggressive word-break above chops them mid-word ("INTR ODUC TION") in a
+   narrow STAGE/TIME column. Restrict the stage cell to break only between
+   words; overflow-wrap still rescues a word too long to fit at all. */
+.lp-table td.stage,.stage-table td.stage{word-break:normal}
 .idc-table{width:calc(100% - 16px);margin:6px 0 10px 16px;border-collapse:collapse;font-size:10pt}
 .idc-table th,.idc-table td{padding:6px 9px;text-align:left;vertical-align:top;border:1px solid var(--line)}
 .idc-table thead th{background:var(--paper-2);font:700 9.5pt/1.2 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
