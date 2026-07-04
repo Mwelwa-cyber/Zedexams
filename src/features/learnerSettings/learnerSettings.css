@@ -515,6 +515,93 @@
   line-height: 1.05;
 }
 .lset-stat__label { margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+/* Subscription plan cards — mirror the teacher upgrade modal's polished
+   pricing cards (icon chip, price, feature list, "Most popular" ribbon,
+   selected/current highlight) inside the learner settings design system. */
+.lset-plans {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 560px) {
+  .lset-plans { grid-template-columns: repeat(3, 1fr); }
+}
+.lset-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 15px 15px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.lset-plan:hover:not(:disabled) { border-color: var(--lset-accent); transform: translateY(-2px); }
+.lset-plan:disabled { cursor: default; }
+.lset-plan--on {
+  border-color: var(--lset-accent);
+  background: color-mix(in srgb, var(--lset-accent) 8%, var(--card));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lset-accent) 20%, transparent);
+}
+.lset-plan__ribbon {
+  position: absolute;
+  top: -11px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  box-shadow: 0 4px 10px color-mix(in srgb, #6366f1 40%, transparent);
+}
+.lset-plan__head { display: flex; align-items: center; gap: 10px; }
+.lset-plan__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--lset-accent) 14%, var(--card));
+  font-size: 19px;
+}
+.lset-plan--popular { border-color: color-mix(in srgb, var(--lset-accent) 55%, var(--border)); }
+.lset-plan__name {
+  display: block;
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text);
+}
+.lset-plan__tagline { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+.lset-plan__price {
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+.lset-plan__unit { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 2px; }
+.lset-plan__feats { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lset-plan__feat { display: flex; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.35; }
+.lset-plan__feat::before { content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0; }
+.lset-plan__current {
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--lset-accent);
+}
 .lset-progress-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
 .lset-pring { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .lset-pring svg { transform: rotate(-90deg); }
