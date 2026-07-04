@@ -36,6 +36,11 @@ import { useLiveReveal } from '../../hooks/useLiveReveal'
  *   emptyState      — node shown when idle.
  *   errorMessage    — shown in the error state.
  *   progress        — optional SSE progress ({ phase, approxOutputTokens, elapsedMs }).
+ *   livePreview     — optional node rendered in the preview area in place of the
+ *                     generic section reveal, so a studio can show its own real
+ *                     document preview (e.g. the printed scheme-of-work page)
+ *                     building live. When set, the generic section reveal + its
+ *                     per-section regenerate controls are not shown.
  *   sectionConfig   — override for TOOL_SECTION_CONFIG[tool].
  *   savedToLibrary  — reflect the saved-to-library state on the Save button.
  *   saving          — Save button busy state.
@@ -60,6 +65,7 @@ export default function LiveGenerationCanvas({
   emptyState = null,
   errorMessage = '',
   progress = null,
+  livePreview = null,
   sectionConfig,
   savedToLibrary = false,
   saving = false,
@@ -179,8 +185,12 @@ export default function LiveGenerationCanvas({
           {/* Timeline */}
           <Timeline items={timelineItems} compact={phase !== 'preparing'} />
 
-          {/* Live preview */}
-          {sections.length > 0 && (
+          {/* Live preview — a studio-supplied document preview (e.g. the real
+              printed scheme-of-work page) takes over from the generic reveal
+              when provided, so teachers watch their actual document build. */}
+          {livePreview ? (
+            <div className="flex-1 min-w-0">{livePreview}</div>
+          ) : sections.length > 0 && (
             <div className="flex-1">
               <div className="space-y-4">
                 {sections.slice(0, Math.max(revealedCount, complete ? sections.length : revealedCount)).map((s) => (

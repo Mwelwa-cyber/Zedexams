@@ -562,7 +562,7 @@ export default function SchemeOfWorkGenerator() {
                 <AdvisoryPanel advisories={advisories} curriculumSource={curriculumSource} />
                 <SchemeEditableTable scheme={scheme} onChange={setScheme} />
                 <div className="mt-6">
-                  <details>
+                  <details open>
                     <summary className="text-xs font-bold cursor-pointer" style={{ color: '#566f76' }}>
                       Preview the printed page
                     </summary>
@@ -585,6 +585,7 @@ export default function SchemeOfWorkGenerator() {
               result={scheme}
               docTitle={scheme?.header ? `Scheme of Work — Term ${scheme.header.term || ''}`.trim() : undefined}
               title="Mapping your scheme of work…"
+              livePreview={<LiveSchemeReveal scheme={scheme} status={status} />}
               emptyState={<EmptyState />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
@@ -663,6 +664,73 @@ function EmptyState() {
         Pick curriculum, grade, subject and term. You'll get a full week-by-week
         scheme of work, paced to the calendar — ready to edit and print.
       </p>
+    </div>
+  )
+}
+
+/* ── Live printed-page preview ──────────────────────────────────────
+ * Shows the REAL scheme-of-work document (the exact printed page) inside the
+ * generation canvas. While the model is still working it shows a page skeleton;
+ * once the scheme lands, the weeks reveal row by row so the teacher watches the
+ * document being built — an honest, paced unveiling of the real result (the
+ * generator returns the whole scheme at once). Respects reduced-motion. */
+function LiveSchemeReveal({ scheme, status }) {
+  const total = Array.isArray(scheme?.weeks) ? scheme.weeks.length : 0
+  const [shown, setShown] = useState(0)
+
+  useEffect(() => {
+    if (status !== 'success' || total === 0) {
+      setShown(0)
+      return undefined
+    }
+    const reduce = typeof window !== 'undefined' && window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      setShown(total)
+      return undefined
+    }
+    setShown(1)
+    let i = 1
+    const id = setInterval(() => {
+      i += 1
+      setShown((s) => Math.min(total, Math.max(s, i)))
+      if (i >= total) clearInterval(id)
+    }, 180)
+    return () => clearInterval(id)
+  }, [scheme, status, total])
+
+  if (status === 'generating' || !scheme || total === 0) {
+    return <SchemeSkeleton />
+  }
+
+  const visible = shown === 0 ? total : shown
+  const partial = { ...scheme, weeks: scheme.weeks.slice(0, visible) }
+  return (
+    <div>
+      <SchemeOfWorkView scheme={partial} />
+      {visible < total && (
+        <p className="mt-2 text-center text-xs animate-pulse" style={{ color: '#566f76' }}>
+          Writing week {visible + 1} of {total}…
+        </p>
+      )}
+    </div>
+  )
+}
+
+function SchemeSkeleton() {
+  return (
+    <div className="rounded-xl border theme-border bg-white p-5" aria-hidden="true">
+      <div className="mx-auto h-4 w-2/3 rounded bg-slate-200 animate-pulse" />
+      <div className="mx-auto mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+      <div className="mt-5 space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex gap-2">
+            <div className="h-3 w-8 rounded bg-slate-200 animate-pulse" />
+            <div className="h-3 flex-1 rounded bg-slate-100 animate-pulse" />
+            <div className="h-3 w-1/4 rounded bg-slate-100 animate-pulse" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

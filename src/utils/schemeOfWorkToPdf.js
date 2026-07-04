@@ -11,10 +11,10 @@
  */
 import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
 import { isOfficialScheme } from './weeklyForecast.js'
-import { schemeColumns, schemeCurriculum } from './schemeFormat.js'
+import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from './schemeFormat.js'
 
 const cellBullets = (items) => {
-  const list = (items || []).filter(Boolean)
+  const list = cleanCellList(items)
   if (!list.length) return '<span class="empty">&mdash;</span>'
   return `<ul>${list.map((i) => `<li>${safe(i)}</li>`).join('')}</ul>`
 }
@@ -33,10 +33,10 @@ function officialBody(scheme) {
 
   const cellFor = (w, col) => {
     if (col.type === 'week') return `<td class="wk"><strong>${safe(w.week ?? '')}</strong></td>`
-    if (col.key === 'topic') return `<td><strong>${safe(w.topic || '—')}</strong></td>`
+    if (col.key === 'topic') return `<td><strong>${safe(cleanCellText(w.topic) || '—')}</strong></td>`
     if (col.type === 'list') return `<td>${cellBullets(w[col.key])}</td>`
-    if (col.key === 'references') return `<td class="ref">${safe(w.references || '—')}</td>`
-    return `<td>${safe(w[col.key] || '—')}</td>`
+    if (col.key === 'references') return `<td class="ref">${safe(cleanCellText(w.references) || '—')}</td>`
+    return `<td>${safe(cleanCellText(w[col.key]) || '—')}</td>`
   }
 
   const rows = (scheme.weeks || []).map((w) =>

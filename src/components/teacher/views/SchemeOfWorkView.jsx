@@ -15,7 +15,13 @@
 
 import { renderText } from '../../../utils/mathRender'
 import { isOfficialScheme } from '../../../utils/weeklyForecast'
-import { schemeColumns, schemeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+import {
+  schemeColumns,
+  schemeCurriculum,
+  curriculumLabel,
+  cleanCellText,
+  cleanCellList,
+} from '../../../utils/schemeFormat'
 
 export default function SchemeOfWorkView({ scheme }) {
   if (!scheme) return null
@@ -26,10 +32,16 @@ export default function SchemeOfWorkView({ scheme }) {
 
 /* ── Official 9-column CDC format ───────────────────────────── */
 
-const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
-const TD = 'border border-black p-1.5 align-top text-left'
+// Times New Roman is the standard for official Zambian scheme-of-work
+// documents and matches the .pdf export, so the on-screen preview reads as the
+// real printed page. One consistent size across the whole grid — no cell is
+// bigger or smaller than another.
+const DOC_FONT = { fontFamily: "'Times New Roman', Georgia, 'Nimbus Roman', serif" }
+const TD = 'border border-black px-2 py-1.5 align-top text-left text-[12px] leading-snug'
 
-/* Provenance of a scheme's topics — "show where the info came from". */
+/* Provenance of a scheme's topics. The source badges/legend were removed from
+ * the printed page so it reads as a clean official document; SOURCE_META stays
+ * exported for the studio's advisory panel (curriculum-source note). */
 export const SOURCE_META = {
   syllabi_studio: { label: 'Syllabi Studio', short: 'Syllabi', bg: '#dcfce7', fg: '#166534' },
   uploaded_module: { label: 'Uploaded module', short: 'Module', bg: '#dbeafe', fg: '#1e40af' },
@@ -37,53 +49,8 @@ export const SOURCE_META = {
   teacher: { label: 'Teacher', short: 'Teacher', bg: '#f3e8ff', fg: '#6b21a8' },
 }
 
-function SourceTag({ source }) {
-  const meta = SOURCE_META[source]
-  if (!meta) return null
-  return (
-    <span
-      className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide leading-none"
-      style={{ background: meta.bg, color: meta.fg, fontFamily: 'system-ui, sans-serif' }}
-      title={`Source: ${meta.label}`}
-    >
-      {meta.short}
-    </span>
-  )
-}
-
-function ProvenanceLegend({ scheme }) {
-  const weeks = Array.isArray(scheme.weeks) ? scheme.weeks : []
-  const present = new Set(weeks.map((w) => w.source).filter((s) => SOURCE_META[s]))
-  if (scheme.curriculumSource && SOURCE_META[scheme.curriculumSource]) {
-    present.add(scheme.curriculumSource)
-  }
-  if (present.size === 0) return null
-  const overall = SOURCE_META[scheme.curriculumSource]
-  return (
-    <div
-      className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]"
-      style={{ fontFamily: 'system-ui, sans-serif', color: '#566f76' }}
-    >
-      <span className="font-bold uppercase tracking-wide">Sources:</span>
-      {overall && (
-        <span>
-          Topics mainly from <strong style={{ color: overall.fg }}>{overall.label}</strong>.
-        </span>
-      )}
-      <span className="flex flex-wrap items-center gap-2">
-        {Array.from(present).map((s) => (
-          <span key={s} className="inline-flex items-center gap-1">
-            <SourceTag source={s} />
-            <span>{SOURCE_META[s].label}</span>
-          </span>
-        ))}
-      </span>
-    </div>
-  )
-}
-
 function DocCellList({ items }) {
-  const list = Array.isArray(items) ? items.filter(Boolean) : (items ? [items] : [])
+  const list = cleanCellList(items)
   if (list.length === 0) return <>—</>
   if (list.length === 1) return <>{list[0]}</>
   return (
@@ -99,18 +66,12 @@ function OfficialCell({ week, col }) {
     return <td className={`${TD} font-bold text-center`}>{week.week}</td>
   }
   if (col.key === 'topic') {
-    return (
-      <td className={`${TD} font-bold`}>
-        {week.topic}
-        {week.source && <div><SourceTag source={week.source} /></div>}
-      </td>
-    )
+    return <td className={`${TD} font-bold`}>{cleanCellText(week.topic) || '—'}</td>
   }
   if (col.type === 'list') {
     return <td className={TD}><DocCellList items={week[col.key]} /></td>
   }
-  const cls = col.key === 'references' ? `${TD} text-[11px]` : TD
-  return <td className={cls}>{week[col.key] || '—'}</td>
+  return <td className={TD}>{cleanCellText(week[col.key]) || '—'}</td>
 }
 
 function OfficialScheme({ scheme }) {
@@ -126,19 +87,19 @@ function OfficialScheme({ scheme }) {
 
   return (
     <article
-      className="bg-white text-black rounded-xl border theme-border px-4 py-5 sm:px-6 text-[12px]"
+      className="bg-white text-black rounded-xl border theme-border px-4 py-5 sm:px-6 text-[12px] leading-snug"
       style={DOC_FONT}
     >
       {/* Document head */}
       <div className="text-center">
-        <div className="text-base font-bold tracking-[0.08em] uppercase">
+        <div className="text-[18px] font-bold tracking-[0.06em] uppercase">
           {subject} Schemes of Work
         </div>
-        <div className="mt-1 text-[12px] font-bold">
+        <div className="mt-1.5 text-[13px] font-bold tracking-[0.01em]">
           GRADE: {gradeLabel} &nbsp;·&nbsp; TERM {h.term} &nbsp; {h.year}
           {h.periodsPerWeek ? <> &nbsp;·&nbsp; PERIODS PER WEEK: {h.periodsPerWeek}</> : null}
         </div>
-        <div className="mt-0.5 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: '#555' }}>
+        <div className="mt-1 text-[11px] font-bold tracking-[0.14em] uppercase" style={{ color: '#555' }}>
           {curriculumLabel(curriculum)} · {curriculum === 'obc' ? 'Outcome-Based' : 'Competency-Based'} Curriculum
         </div>
       </div>
@@ -146,19 +107,14 @@ function OfficialScheme({ scheme }) {
       {/* School / teacher line — generated schemes carry these; the
           marketing sample doesn't, so the line only prints when present. */}
       {(h.school || h.teacherName) && (
-        <div className="mt-3 border-y-[1.5px] border-black py-2 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+        <div className="mt-3.5 border-y-[1.5px] border-black py-2 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-[12.5px]">
           <div><strong className="font-bold">NAME OF SCHOOL:</strong> {h.school || '_______________________'}</div>
           <div><strong className="font-bold">TEACHER&#x2019;S NAME:</strong> {h.teacherName || '_______________________'}</div>
         </div>
       )}
 
-      {/* Provenance legend — where the topics came from */}
-      <div className="mt-3">
-        <ProvenanceLegend scheme={scheme} />
-      </div>
-
       {/* Scheme grid */}
-      <div className="mt-1 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto">
         <table className="w-full border-collapse border border-black" style={{ minWidth }}>
           <thead>
             <tr className="align-bottom">

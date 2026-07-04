@@ -227,6 +227,7 @@ function buildUserPrompt(inputs) {
       "- Set header.periodsPerWeek to the standard CDC allocation for this " +
       "grade+subject.",
     "- Set each week's \"source\" honestly per the rule in the instructions.",
+    "- Never write filler like \"I don't know\", \"N/A\", \"unknown\" or \"TBD\" in any field. Always give the real CDC-appropriate value; if a reference page is genuinely uncertain, cite the grade+subject syllabus and module generically instead.",
     "- Use Zambian English spelling.",
     "- Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");
