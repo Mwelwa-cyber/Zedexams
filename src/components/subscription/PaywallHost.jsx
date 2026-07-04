@@ -44,15 +44,8 @@ const SCENARIOS = {
     secondaryAction: 'one-off',
     compare: 'free-vs-pro',
   },
-  'quiz-preview-limit': {
-    tag: '🔒 Free preview ended',
-    title: (ctx) => `You've previewed ${ctx.limit || 30} questions on ${ctx.paperTitle || 'this paper'}`,
-    sub: () => 'Upgrade to keep going on this paper and unlock every past-paper quiz, the full library, daily exams, and Ask Zed AI study help.',
-    mascot: '🐢',
-    primary: 'Upgrade to Pro · K59/mo',
-    primaryAction: 'upgrade',
-    compare: 'free-vs-pro',
-  },
+  // NOTE: the learner past-paper 'quiz-preview-limit' reason is handled by the
+  // dedicated, celebratory QuizLimitPopup (mounted separately), not here.
   // Assessment + Exam Paper studios are reserved for Max — the most powerful
   // (and expensive) generations. Free/Pro get one taster a month; the next
   // one lands here. Routes to the Max plans, not Pro.
@@ -127,7 +120,6 @@ const COMPARE = {
 // Max upsell (max-feature) can be measured separately from the Pro paywalls
 // and the learner Grade-7 pack. Mirrors the UpgradeModal routing below.
 function paywallPlanTarget(reason) {
-  if (reason === 'quiz-preview-limit') return 'grade7'
   if (reason === 'max-feature') return 'max'
   return 'pro'
 }
@@ -295,14 +287,7 @@ export default function PaywallHost() {
       )}
       {showUpgrade && (
         <Suspense fallback={null}>
-          {upgradeReason === 'quiz-preview-limit' ? (
-            <UpgradeModal
-              portal="learner"
-              planIds={['weekly', 'monthly']}
-              defaultPlanId="monthly"
-              onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
-            />
-          ) : upgradeReason === 'max-feature' ? (
+          {upgradeReason === 'max-feature' ? (
             <UpgradeModal
               portal="teacher"
               planIds={['max_monthly', 'max_yearly']}

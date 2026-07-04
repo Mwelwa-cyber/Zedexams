@@ -4055,6 +4055,18 @@ body.data-saver [data-bg-gradient] {
 .animate-press        { animation: press 180ms var(--ease-out); }
 .animate-slide-in-soft { animation: slide-in-soft 0.4s var(--ease-out) both; }
 
+/* Premium upgrade popups — soft pulsing glow on the "Upgrade" CTA so it
+   gently draws the eye every few seconds without shouting. */
+@keyframes premium-glow {
+  0%,100% { box-shadow: 0 8px 20px rgba(124,58,237,0.35) }
+  50%     { box-shadow: 0 10px 34px rgba(124,58,237,0.66) }
+}
+.animate-premium-glow { animation: premium-glow 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-premium-glow,
+  .animate-float { animation: none; }
+}
+
 /* Phase 0 — stagger helpers: give each child an animation-delay by
    nth-child index. Pair with `.animate-slide-in-soft` on the child. */
 .stagger > *:nth-child(1)  { animation-delay:  40ms; }

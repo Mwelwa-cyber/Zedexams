@@ -106,6 +106,7 @@ const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSet
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
+const QuizLimitPopup = lazy(() => import('./components/subscription/QuizLimitPopup'))
 const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
 const MySubscriptionPage = lazy(() => import('./components/subscription/MySubscriptionPage'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
@@ -744,9 +745,11 @@ export default function App() {
           {/* Android only: restore/verify Google Play subscriptions on open.
               Gated so the web bundle never loads the billing chunk. */}
           {isNativePlatform() && <NativePlayBillingSync />}
-          {/* Locked-feature modal — listens for lockedFeature.show({feature,audience}) */}
+          {/* Popup #1 — Feature Locked; listens for lockedFeature.show({feature,audience}) */}
           <LockedFeatureModal />
-          {/* Once-a-day upgrade/renew popup for Free & Expired users */}
+          {/* Popup #2 — Quiz Limit Reached; listens for paywall.show('quiz-preview-limit') */}
+          <QuizLimitPopup />
+          {/* Popup #3 — Welcome Back upgrade nudge for Free & Expired users (every few days) */}
           <SubscriptionReminderPopup />
         </Suspense>
       </div>

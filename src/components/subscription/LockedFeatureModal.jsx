@@ -1,29 +1,49 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { lockedFeature } from '../../utils/lockedFeature'
 import { isNativePlatform } from '../../utils/runtime'
 import { useAuth } from '../../contexts/AuthContext'
 import {
-  PRO_BENEFITS,
   audienceForProfile,
   resolveSubscriptionStatus,
+  upgradePortal,
 } from '../../utils/subscriptionStatus'
-import Button from '../ui/Button'
+import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
-import { Lock, Sparkles, CheckCircleIcon, X } from '../ui/icons'
+import { ArrowRight, Lock, X } from '../ui/icons'
+import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
+
+const UpgradeModal = lazy(() => import('./UpgradeModal'))
+
+// Benefit checklist per audience — the "✓ AI-powered tools" strip on the
+// Feature Locked popup.
+const LEARNER_BENEFITS = [
+  'AI-powered learning tools',
+  'Unlimited quizzes',
+  'Full Past Papers',
+  'Notes Library',
+  'Progress Tracking',
+]
+const TEACHER_BENEFITS = [
+  'AI lesson plans & schemes',
+  'Assessments & exam papers',
+  'Every teacher studio tool',
+  'DOCX & PDF export',
+]
 
 /**
- * Locked-feature modal — shown whenever a Free / Expired user tries to open a
- * Pro feature. Driven by the lockedFeature singleton bus so any component can
- * trigger it with lockedFeature.show({ feature, audience }).
+ * Popup #1 — "Feature Locked". Shown the moment a Free / Expired user taps a
+ * Premium feature (Exam mode, Weakness analysis, a locked studio, …). Driven by
+ * the lockedFeature singleton bus so any component can trigger it with
+ * lockedFeature.show({ feature, audience }).
  *
- * Mounted once at the app root. Self-hides for Pro / Trial users (their access
- * is live, so a stray trigger should never nag them).
+ * Mounted once at the app root. Self-hides for users who already have access so
+ * a stray trigger never nags a paying member.
  */
 export default function LockedFeatureModal() {
   const { userProfile } = useAuth()
-  const navigate = useNavigate()
   const [state, setState] = useState(null)
+  // Preselected plan for the checkout; null falls back to the popular default.
+  const [upgradePlanId, setUpgradePlanId] = useState(null)
 
   useEffect(() => lockedFeature.subscribe(setState), [])
 
@@ -42,84 +62,116 @@ export default function LockedFeatureModal() {
 
   if (!state) return null
 
+  // The upgrade step reuses `state`: once a plan is chosen we stash it in
+  // upgradePlanId and swap the popup for <UpgradeModal>.
   const audience = state.audience || audienceForProfile(userProfile)
   // If the user actually has access (Pro / Trial / admin), never block them —
   // close silently. Guards against a stale trigger after an upgrade.
   const { shouldRemind } = resolveSubscriptionStatus(userProfile, { audience })
   if (!shouldRemind) return null
 
-  const benefits = PRO_BENEFITS[audience] || PRO_BENEFITS.learner
-  const featureName = state.feature ? `${state.feature}` : 'This feature'
+  const isTeacher = audience === 'teacher'
+  const native = isNativePlatform()
+  const portal = upgradePortal(audience)
+  const pricingPlanIds = isTeacher ? ['pro_monthly', 'max_monthly'] : ['weekly', 'monthly']
+  const popularPlanId = isTeacher ? 'pro_monthly' : 'monthly'
+  const benefits = isTeacher ? TEACHER_BENEFITS : LEARNER_BENEFITS
+  const featureName = state.feature || null
 
-  function handleUpgrade() {
-    lockedFeature.hide()
-    navigate('/my-subscription')
+  function openUpgrade(planId) {
+    capture('paywall_upgrade_clicked', {
+      reason: 'feature-locked',
+      feature: featureName,
+      plan_target: audience,
+      via: planId ? 'plan-card' : 'primary',
+    })
+    setUpgradePlanId(planId || popularPlanId)
+  }
+
+  // ── Upgrade checkout ────────────────────────────────────────────────────
+  if (upgradePlanId) {
+    return (
+      <Suspense fallback={null}>
+        <UpgradeModal
+          portal={portal.portal}
+          planIds={portal.planIds}
+          defaultPlanId={upgradePlanId}
+          onClose={() => { setUpgradePlanId(null); lockedFeature.hide() }}
+        />
+      </Suspense>
+    )
   }
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[9999] flex items-end justify-center p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="locked-feature-title"
     >
       <div
-        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={() => lockedFeature.hide()}
         aria-hidden="true"
       />
-      <div className="relative theme-card w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border theme-border shadow-2xl animate-scale-in overflow-hidden">
+      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={() => lockedFeature.hide()}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 theme-text-muted hover:theme-text bg-transparent shadow-none min-h-0 p-1.5 rounded-full"
+          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 p-0 text-white shadow-none hover:bg-white/30"
         >
-          <Icon as={X} size="md" />
+          <Icon as={X} size="sm" />
         </button>
 
         {/* Hero */}
-        <div className="theme-accent-fill theme-on-accent px-6 pt-7 pb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
-            <Icon as={Lock} size="xl" strokeWidth={2.1} />
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
+          <span className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
+          <span className="pointer-events-none absolute left-4 top-3 text-sm text-white/40" aria-hidden="true">✦</span>
+          <span className="pointer-events-none absolute right-5 bottom-4 text-xs text-white/30" aria-hidden="true">✦</span>
+          <div className="relative mx-auto mb-2 flex h-11 w-11 animate-float items-center justify-center rounded-xl bg-white/15 shadow-lg shadow-black/10 backdrop-blur">
+            <Icon as={Lock} size="md" strokeWidth={2.1} />
           </div>
-          <p className="text-xs font-black uppercase tracking-widest opacity-90">✦ Pro feature</p>
-          <h2 id="locked-feature-title" className="mt-1 text-xl font-black leading-tight">
-            {featureName} is part of ZedExams Pro
+          <h2 id="locked-feature-title" className="relative text-lg font-black leading-tight tracking-tight">
+            🔒 Premium Feature
           </h2>
-          <p className="mt-1.5 text-sm font-bold opacity-90">
-            Upgrade to continue — no break in your studying.
+          <p className="relative mx-auto mt-1 max-w-[15rem] text-xs font-medium text-white/85">
+            {featureName
+              ? `${featureName} is part of Premium — unlock unlimited AI learning tools.`
+              : 'Unlock unlimited access to powerful AI learning tools.'}
           </p>
         </div>
 
-        {/* Benefits */}
-        <div className="px-6 py-5">
-          <p className="mb-3 flex items-center gap-1.5 text-sm font-black theme-text">
-            <Icon as={Sparkles} size="sm" strokeWidth={2.1} className="theme-accent-text" />
-            {audience === 'teacher' ? 'Your Pro toolkit includes' : 'Pro unlocks'}
-          </p>
-          <ul className="space-y-2">
-            {benefits.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-sm font-bold theme-text">
-                <Icon as={CheckCircleIcon} size="sm" strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-green-500" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
+        {/* Body */}
+        <div className="px-5 py-4">
+          <BenefitChecklist items={benefits} className="mb-3.5" />
 
-          <div className="mt-5 flex flex-col gap-2">
-            <Button variant="primary" size="lg" onClick={handleUpgrade}>
-              Upgrade to Pro
-            </Button>
-            <Button variant="ghost" size="md" onClick={() => lockedFeature.hide()}>
-              Maybe later
-            </Button>
+          <PlanPricingCards
+            planIds={pricingPlanIds}
+            popularPlanId={popularPlanId}
+            selectedPlanId={popularPlanId}
+            onSelect={openUpgrade}
+            hidePrices={native}
+          />
+
+          <div className="mt-4 flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => openUpgrade(null)}
+              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02] active:scale-95"
+            >
+              🚀 Upgrade to Premium
+              <Icon as={ArrowRight} size="xs" />
+            </button>
+            <button
+              type="button"
+              onClick={() => lockedFeature.hide()}
+              className="w-full rounded-xl bg-transparent px-4 py-1.5 text-[13px] font-bold text-gray-500 shadow-none hover:text-gray-700"
+            >
+              Maybe Later
+            </button>
           </div>
-          <p className="mt-3 text-center text-xs theme-text-muted">
-            {isNativePlatform()
-              ? 'Billed securely through Google Play · Cancel anytime'
-              : 'Pay with MTN MoMo or Airtel · Cancel anytime'}
-          </p>
+          <TrustRow native={native} />
         </div>
       </div>
     </div>
