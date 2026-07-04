@@ -26,11 +26,13 @@ const {
 } = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV8");
+  require("./assessmentPromptV9");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {sourceAssessmentFromBank} = require("./masterBankSourcing");
 const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
+const {checkAssessmentQuality, interleaveSections} =
+  require("./assessmentQualityCheck");
 
 // The assessment types the Master Bank can supply (the rest — structured,
 // calculation, essay, matching — stay AI-only).
@@ -247,8 +249,28 @@ async function runAssessment({uid, rawInputs, apiKey}) {
   const mergedParsed = (parsed && typeof parsed === "object") ? {...parsed} : {};
   mergedParsed.sections = mergeSourcedIntoSections(mergedParsed.sections, sourced.questions);
 
+  // Assessment Quality Checker (deterministic, no LLM). If the model grouped a
+  // topic into a worksheet-style block AND the questions carry topic tags,
+  // re-order them so topics rotate through the paper — BEFORE validation, so
+  // validateAssessment renumbers the mixed sequence cleanly. Advisory only:
+  // the remaining findings surface as non-blocking warnings, never a block.
+  const requestedTopics = String(inputs.topic || "")
+      .split(/[;\n]+/).map((t) => t.trim()).filter(Boolean);
+  const preCheck = checkAssessmentQuality(mergedParsed,
+      {grade: inputs.grade, topics: requestedTopics});
+  let didReorder = false;
+  if (preCheck.clustered && preCheck.topicsTagged) {
+    mergedParsed.sections = interleaveSections(mergedParsed.sections);
+    didReorder = true;
+  }
+
   const validation = validateAssessment(mergedParsed);
   const assessment = validation.value;
+  // Final report on the validated paper (post-reorder), persisted + returned so
+  // the studio can surface the quality summary to the teacher.
+  const quality = checkAssessmentQuality(assessment,
+      {grade: inputs.grade, topics: requestedTopics});
+  quality.reordered = didReorder;
   const totalQuestions = assessment.sections
       .reduce((sum, s) => sum + (s.questions ? s.questions.length : 0), 0);
   const sourcing = {
@@ -277,6 +299,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       costUsdCents,
       modelUsed,
       sourcing,
+      quality,
     });
     return {
       generationId: genRef.id,
@@ -288,6 +311,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       ].filter(Boolean).join(" "),
       kbGrounded: Boolean(kbMatch),
       sourcing,
+      quality,
     };
   }
 
@@ -300,6 +324,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     costUsdCents,
     modelUsed,
     sourcing,
+    quality,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -310,6 +335,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch),
     sourcing,
+    quality,
   };
 }
 

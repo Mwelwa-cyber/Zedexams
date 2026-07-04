@@ -310,6 +310,13 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     warnings.push(...reviewNotes)
   }
 
+  // Carry the assessment v1.5 cognitive/coverage tags through so the studio can
+  // display + re-check them (they're advisory metadata, absent on older papers).
+  const topicTag = String(q?.topic || '').trim()
+  if (topicTag) overrides.topic = topicTag.slice(0, 120)
+  const bloomTag = String(q?.bloomLevel || '').trim()
+  if (bloomTag) overrides.bloomLevel = bloomTag
+
   return { overrides, warnings }
 }
 

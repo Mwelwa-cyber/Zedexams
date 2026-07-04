@@ -126,4 +126,55 @@ function build(overrides = {}) {
       value.header.instructions === "Answer ALL questions. Show your working.");
 }
 
+// ── v1.5 topic + bloomLevel tags ────────────────────────────────────────
+{
+  const {value} = build({
+    sections: [
+      {
+        title: "Questions",
+        questions: [
+          {
+            number: 1, type: "short_answer", prompt: "Name two bones.",
+            marks: 1, topic: "Human Body", bloomLevel: "Knowledge",
+          },
+          {
+            number: 2, type: "short_answer", prompt: "Explain photosynthesis.",
+            marks: 2, topic: "Plants", bloomLevel: "understand",
+          },
+          {
+            number: 3, type: "short_answer", prompt: "Untagged.", marks: 1,
+          },
+        ],
+      },
+    ],
+  });
+  const qs = value.sections[0].questions;
+  ok("carries the question topic through", qs[0].topic === "Human Body");
+  ok("normalises bloomLevel 'Knowledge' → 'remember'",
+      qs[0].bloomLevel === "remember");
+  ok("normalises bloomLevel 'understand' → 'understand'",
+      qs[1].bloomLevel === "understand");
+  ok("leaves topic null when omitted", qs[2].topic === null);
+  ok("leaves bloomLevel null when omitted", qs[2].bloomLevel === null);
+  ok("schema version is 1.5", value.schemaVersion === "1.5");
+}
+
+// Junk tags degrade to null rather than corrupting the paper.
+{
+  const {value} = build({
+    sections: [
+      {
+        title: "Questions",
+        questions: [{
+          number: 1, type: "short_answer", prompt: "Q", marks: 1,
+          topic: 12345, bloomLevel: "wisdom",
+        }],
+      },
+    ],
+  });
+  const q = value.sections[0].questions[0];
+  ok("non-string topic degrades to null", q.topic === null);
+  ok("unknown bloomLevel degrades to null", q.bloomLevel === null);
+}
+
 console.log(`\nassessmentSchema: ${passed} assertions passed`);
