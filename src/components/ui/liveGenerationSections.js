@@ -321,4 +321,22 @@ export const TOOL_SECTION_CONFIG = {
     labels: { days: 'Daily Focus', lessons: 'Planned Lessons' },
     icons: { days: '🗓️', focus: '🎯' },
   },
+  sba: {
+    // The learner-facing paper reveals first (instructions → stimulus →
+    // questions), then the teacher-only administration + marking scheme. The
+    // stimulus diagram is a `{libraryKey}` reference, not something to reveal.
+    order: ['instructions', 'stimulus', 'questions', 'administration', 'markingScheme'],
+    skip: ['stimulusDiagram'],
+    labels: {
+      instructions: 'Task Instructions',
+      stimulus: 'Stimulus / Source',
+      questions: 'Task Questions',
+      administration: 'Teacher Administration',
+      markingScheme: 'Marking Scheme',
+    },
+    icons: {
+      instructions: '📋', stimulus: '📖', questions: '❓',
+      administration: '🧑🏽‍🏫', markingScheme: '🗝️',
+    },
+  },
 }

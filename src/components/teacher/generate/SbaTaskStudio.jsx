@@ -40,7 +40,7 @@ import { sbaTaskInputDescriptor } from '../../../hooks/draft/descriptors'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import SbaTaskView from '../views/SbaTaskView'
 import SbaWorkflowNote from '../SbaWorkflowNote'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
@@ -76,6 +76,9 @@ export default function SbaTaskStudio() {
   const [usage, setUsage] = useState(null)
   const [warning, setWarning] = useState('')
   const [showAnswers, setShowAnswers] = useState(true)
+  // Live Generation Canvas hand-off: watch the task build section by section,
+  // then click through to the full editable/export view (see HomeworkStudio).
+  const [handedOff, setHandedOff] = useState(false)
   // School name on the task banner — pre-filled from the teacher's registration
   // profile, but editable in case they set tasks for more than one school.
   const [schoolName, setSchoolName] = useState(
@@ -134,9 +137,35 @@ export default function SbaTaskStudio() {
     }
   }, [needsComponent, form.component])
 
+  const sbaLibraryMeta = () => ({
+    libraryType: LIBRARY_TYPES.SBA_TASKS,
+    syllabusHint: 'OBC',
+    grade: form.grade,
+    subject: form.subject,
+    term: form.term ? Number(form.term.replace(/\D/g, '')) : null,
+  })
+
+  // Regenerate a single revealed section: re-run the generator and swap only
+  // that key on the current task, leaving the rest of the reveal in place.
+  async function regenerateSection(sectionId) {
+    const res = await generateSbaTask(form)
+    if (res.ok && res.data?.task) {
+      const fresh = res.data.task
+      setTask((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
+      return fresh
+    }
+    return null
+  }
+
+  function saveToLibrary() {
+    if (!generationId) return
+    attachLibraryToGeneration(generationId, sbaLibraryMeta()).catch(() => {})
+  }
+
   async function onGenerate(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
     if (!ensureCanGenerate('sba_task')) return
+    setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
     setErrorDetail('')
@@ -161,13 +190,7 @@ export default function SbaTaskStudio() {
     setStatus('success')
     draft.clear().catch(() => {})
     if (res.data.generationId) {
-      attachLibraryToGeneration(res.data.generationId, {
-        libraryType: LIBRARY_TYPES.SBA_TASKS,
-        syllabusHint: 'OBC',
-        grade: form.grade,
-        subject: form.subject,
-        term: form.term ? Number(form.term.replace(/\D/g, '')) : null,
-      }).catch(() => {})
+      attachLibraryToGeneration(res.data.generationId, sbaLibraryMeta()).catch(() => {})
     }
   }
 
@@ -348,23 +371,9 @@ export default function SbaTaskStudio() {
 
           {/* ── Result ── */}
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
-          <div className="lg:col-span-3 studio-card p-5">
-            {status === 'generating' && (
-              <AiGenerationProgress variant="card" preset="assessment" running title="Setting your SBA task and its marking scheme…" />
-            )}
-
-            {status === 'error' && (
-              <ErrorState message={errorMessage} detail={errorDetail} onDismiss={() => setStatus('idle')} />
-            )}
-
-            {status !== 'generating' && status !== 'error' && !task && (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-16 text-center text-sm" style={{ color: '#566f76' }}>
-                Choose a subject and task type, then generate. Your ECZ-compliant SBA task appears here.
-              </div>
-            )}
-
-            {task && (
-              <div className="space-y-4">
+          <div className="lg:col-span-3">
+            {handedOff && status === 'success' && task ? (
+              <div className="studio-card p-5 space-y-4">
                 <div>
                   <label className="studio-label">School name</label>
                   <input
@@ -411,29 +420,34 @@ export default function SbaTaskStudio() {
                 )}
                 <SbaTaskView task={task} showAnswers={showAnswers} schoolName={schoolName} />
               </div>
+            ) : (
+              <LiveGenerationCanvas
+                tool="sba"
+                status={status}
+                result={task}
+                docTitle={task?.header?.title || currentTaskType?.label}
+                title="Setting your SBA task…"
+                subtitle="Task, stimulus and marking scheme, the ECZ way."
+                emptyState={
+                  <div className="rounded-xl border border-dashed theme-border bg-white/60 py-16 text-center text-sm" style={{ color: '#566f76' }}>
+                    Choose a subject and task type, then generate. Your ECZ-compliant SBA task appears here.
+                  </div>
+                }
+                errorMessage={[errorMessage, errorDetail].filter(Boolean).join(' — ')}
+                savedToLibrary={Boolean(generationId)}
+                onStop={() => setStatus('idle')}
+                onRegenerate={() => onGenerate()}
+                onRegenerateSection={regenerateSection}
+                onSaveToLibrary={saveToLibrary}
+                onContinueEditing={() => setHandedOff(true)}
+                onRetry={() => setStatus('idle')}
+                continueLabel="Continue to editing & export"
+              />
             )}
           </div>
           </StudioOutputBoundary>
         </div>
       </div>
-    </div>
-  )
-}
-
-function ErrorState({ message, detail, onDismiss }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3">⚠️</div>
-      <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
-      <p className="text-sm max-w-md mb-3 mt-1" style={{ color: '#566f76' }}>{message}</p>
-      {detail && (
-        <p className="text-xs max-w-md mb-4 font-mono break-all px-3 py-2 rounded-lg" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>
-          {detail}
-        </p>
-      )}
-      <button onClick={onDismiss} className="studio-btn-ghost">
-        Try again
-      </button>
     </div>
   )
 }

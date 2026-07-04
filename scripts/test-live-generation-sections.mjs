@@ -86,6 +86,28 @@ eq(classifyValue({ a: null, b: '' }), 'empty', 'object of only-empty values is e
   eq(buildSections(doc, { keepAnswerKey: true }).some((s) => s.id === 'answerKey'), true, 'answerKey kept on request')
 }
 
+{
+  // SBA config: learner paper reveals before the teacher-only marking scheme,
+  // and the stimulus-diagram reference is never shown.
+  const task = {
+    header: { taskType: 'reading_comprehension' },
+    title: 'Reading task',
+    administration: 'Hand out one sheet per learner.',
+    instructions: 'Answer all the questions in the spaces provided.',
+    stimulus: 'The environment refers to all the natural things around us.',
+    stimulusDiagram: { libraryKey: 'animalcell' },
+    questions: [{ prompt: 'What is the environment?', marks: 2 }],
+    markingScheme: { style: 'answer_key', notes: 'Accept any valid example.' },
+  }
+  const secs = buildSections(task, TOOL_SECTION_CONFIG.sba)
+  const ids = secs.map((s) => s.id)
+  assert(!ids.includes('stimulusDiagram'), 'sba: stimulus diagram reference skipped')
+  assert(!ids.includes('header') && !ids.includes('title'), 'sba: header/title skipped')
+  eq(ids[0], 'instructions', 'sba: learner instructions revealed first')
+  assert(ids.indexOf('questions') < ids.indexOf('markingScheme'), 'sba: questions before marking scheme')
+  eq(secs.find((s) => s.id === 'markingScheme').title, 'Marking Scheme', 'sba: marking scheme labelled')
+}
+
 /* ── buildTimeline ─────────────────────────────────────────────── */
 {
   const sections = [
