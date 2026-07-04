@@ -123,6 +123,7 @@ const AUDIENCES = [
       'Daily CBC exams and curriculum-mapped quizzes',
       'Lessons, games, and Ask Zed AI study help',
       'Badges, streaks, and friendly leaderboards',
+      'Personalise it — themes, language and data-saver, right on your dashboard',
     ],
     cta: { label: 'Start learning free', to: '/register' },
   },
@@ -186,7 +187,7 @@ const FAQ = [
   },
   {
     q: 'Does it work on slow internet or basic phones?',
-    a: 'Yes. Pages are light, there is a data-saver mode in your profile, and most things still work on slower 3G. We test on common Zambian network conditions.',
+    a: 'Yes. Pages are light, there is a data-saver mode in your dashboard settings, and most things still work on slower 3G. We test on common Zambian network conditions.',
   },
   {
     q: 'Can I print worksheets and lesson plans?',
