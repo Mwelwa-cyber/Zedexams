@@ -320,3 +320,149 @@
     transform: none !important;
   }
 }
+
+/* ============ LIVE LESSON-PLAN PREVIEW ("writing itself") ============
+   Renders the real lesson-plan document (via renderPlanHtml + lesson.css) and
+   builds it up section by section. The chrome below wraps that document with a
+   live status bar, a progress track and a blinking caret so the teacher watches
+   the plan being written from the very first frame — no bare spinner. */
+.lp-live {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.lp-live-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px 8px 2px;
+}
+.lp-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.lp-live-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff7a2e;
+  box-shadow: 0 0 0 0 rgba(255, 122, 46, 0.55);
+  animation: lp-live-pulse 1.4s ease-out infinite;
+}
+.lp-live-label {
+  font: 700 13px/1.2 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #0f1b2d;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Animated "…" that reads as active typing. */
+.lp-live-ellipsis::after {
+  content: '';
+  animation: lp-live-dots 1.4s steps(1, end) infinite;
+}
+.lp-live-stop {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border: 1.5px solid #0f1b2d;
+  border-radius: 9px;
+  background: #fff;
+  color: #0f1b2d;
+  font: 700 12px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.lp-live-stop:hover {
+  background: #0f1b2d;
+  color: #fff;
+}
+.lp-live-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #e3dccb;
+  overflow: hidden;
+  margin: 0 2px 12px;
+}
+.lp-live-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0a5454 0%, #c89a3a 55%, #ff7a2e 100%);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Contained scroll on desktop so the growing document follows itself; on mobile
+   the page scroll owns it. max-height keeps the panel from ballooning. */
+.lp-live-scroller {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 62vh;
+  border-radius: 16px;
+}
+@media (min-width: 768px) {
+  .lp-live-scroller {
+    max-height: 68vh;
+  }
+}
+.lp-live-doc-wrap {
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(28, 22, 18, 0.04), 0 14px 40px -12px rgba(28, 22, 18, 0.22);
+}
+.lp-live-doc {
+  position: relative;
+  min-height: 0;
+  animation: lp-live-fade 0.28s ease-out;
+}
+/* Blinking caret that trails the last-written content. */
+.lp-live-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #ff7a2e;
+  animation: lp-live-blink 1s steps(1, end) infinite;
+}
+.lp-live-foot {
+  margin: 10px 2px 0;
+  text-align: center;
+  font: 500 12px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #7a6d5d;
+}
+@keyframes lp-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 122, 46, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(255, 122, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 122, 46, 0); }
+}
+@keyframes lp-live-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+@keyframes lp-live-fade {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+@keyframes lp-live-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-live-dot,
+  .lp-live-caret,
+  .lp-live-doc,
+  .lp-live-ellipsis::after {
+    animation: none !important;
+  }
+  .lp-live-fill {
+    transition: none !important;
+  }
+  .lp-live-scroller {
+    scroll-behavior: auto !important;
+  }
+}

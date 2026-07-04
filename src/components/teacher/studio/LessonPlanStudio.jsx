@@ -258,6 +258,11 @@ export default function LessonPlanStudio() {
   const [kit, setKit] = useState(null)
   const [lastPlanJson, setLastPlanJson] = useState(null)
   const [lastMeta, setLastMeta] = useState(null)
+  // Render meta built from the form the instant Generate is clicked — passed to
+  // the canvas so the live "writing itself" preview can type the document header
+  // (school, teacher, class, subject, topic, date, duration) in from the very
+  // first frame, before the model has replied.
+  const [liveMeta, setLiveMeta] = useState(null)
 
   // Canvas view mode: 'preview' (formatted document) | 'edit' (manual + AI
   // section editor). Session-only, resets to preview on each new generation.
@@ -647,6 +652,32 @@ export default function LessonPlanStudio() {
       ? STUDIO_SYSTEM_PROMPT_PREVIOUS
       : STUDIO_SYSTEM_PROMPT_CBC
 
+    // Build the render meta from the form NOW (every field is already known) so
+    // the live canvas can start typing the document header the instant we flip
+    // into the loading state — before the model replies. The same object is
+    // reused to render the finished plan, so the header the teacher watches fill
+    // in is byte-for-byte the header of the final document.
+    const meta = {
+      format: formatOptions.format || 'modern',
+      showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
+      showEnrolment: formatOptions.advanced?.includeEnrolment ?? false,
+      showAttendance: formatOptions.advanced?.includeAttendance ?? false,
+      compactMeta: formatOptions.advanced?.compactMetadata ?? false,
+      teacherName: lessonDetails.teacherName || '',
+      school: lessonDetails.school || '',
+      date: lessonDetails.date || '',
+      time: lessonDetails.time || '',
+      grade: lessonDetails.grade || '',
+      subject: subjectName || '',
+      topic: topicData.topic || '',
+      subtopic: topicData.subtopic || '',
+      duration: lessonDetails.duration || 40,
+      medium: lessonDetails.medium || 'English',
+      lessonNumber,
+      totalLessons,
+    }
+    setLiveMeta(meta)
+
     // Mark the generation as critical work so a service-worker update that
     // lands mid-stream (registerType 'autoUpdate') defers its reload instead of
     // wiping the in-progress plan, and a stray unload is guarded. Released in
@@ -686,26 +717,8 @@ export default function LessonPlanStudio() {
       // the editor all read consistent data — see utils/planShape.js.
       const planJson = normalizePlanShape(JSON.parse(raw))
 
-      const meta = {
-        format: formatOptions.format || 'modern',
-        showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
-        showEnrolment: formatOptions.advanced?.includeEnrolment ?? false,
-        showAttendance: formatOptions.advanced?.includeAttendance ?? false,
-        compactMeta: formatOptions.advanced?.compactMetadata ?? false,
-        teacherName: lessonDetails.teacherName || '',
-        school: lessonDetails.school || '',
-        date: lessonDetails.date || '',
-        time: lessonDetails.time || '',
-        grade: lessonDetails.grade || '',
-        subject: subjectName || '',
-        topic: topicData.topic || '',
-        subtopic: topicData.subtopic || '',
-        duration: lessonDetails.duration || 40,
-        medium: lessonDetails.medium || 'English',
-        lessonNumber,
-        totalLessons,
-      }
-
+      // `meta` was built from the form before the call (and already drove the
+      // live header animation); reuse it verbatim for the finished document.
       const html = renderPlanHtml(planJson, meta, curriculumMode)
       current.setGeneratedPlan(html)
       current.setGenerationStatus('done')
@@ -1242,6 +1255,7 @@ export default function LessonPlanStudio() {
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             planJson={lastPlanJson}
+            liveMeta={lastMeta || liveMeta}
             curriculumMode={studioState.curriculumMode}
             lessonContext={{
               grade: studioState.lessonDetails.grade || '',

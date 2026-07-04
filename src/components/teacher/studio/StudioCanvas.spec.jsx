@@ -2,18 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StudioCanvas } from './StudioCanvas'
 
-// ── Mock LiveGenerationCanvas ─────────────────────────────────────────────────
-// The loading state (and the post-generation reveal) now render the shared
-// LiveGenerationCanvas instead of the old AiGenerationProgress.
-vi.mock('../../ui/LiveGenerationCanvas', () => ({
-  default: ({ title, status, tool, variant }) => (
+// ── Mock LiveLessonPlanPreview ────────────────────────────────────────────────
+// The loading state (and the post-generation reveal) render the live
+// "writing itself" document preview. Stub it so this suite stays focused on the
+// canvas states/toolbar; the preview has its own spec (LiveLessonPlanPreview.spec).
+vi.mock('./LiveLessonPlanPreview', () => ({
+  default: ({ planJson, onStop }) => (
     <div
-      data-testid="live-generation-canvas"
-      data-title={title}
-      data-status={status}
-      data-tool={tool}
-      data-variant={variant}
-    />
+      data-testid="live-lesson-preview"
+      data-phase={planJson ? 'revealing' : 'generating'}
+    >
+      {typeof onStop === 'function' && <button type="button" onClick={onStop}>Stop</button>}
+    </div>
   ),
 }))
 
@@ -83,27 +83,32 @@ describe('StudioCanvas — idle state', () => {
     expect(screen.getByText(/fill in your details on the left/i)).toBeInTheDocument()
   })
 
-  it('does NOT render the live generation canvas', () => {
+  it('does NOT render the live lesson preview', () => {
     renderCanvas({ generationStatus: 'idle' })
-    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-lesson-preview')).not.toBeInTheDocument()
   })
 })
 
 // ── Loading state ─────────────────────────────────────────────────────────────
 
 describe('StudioCanvas — loading state', () => {
-  it('renders the live generation canvas when loading', () => {
+  it('renders the live lesson preview when loading', () => {
     renderCanvas({ generationStatus: 'loading' })
-    expect(screen.getByTestId('live-generation-canvas')).toBeInTheDocument()
+    expect(screen.getByTestId('live-lesson-preview')).toBeInTheDocument()
   })
 
-  it('passes correct props to the live generation canvas', () => {
-    renderCanvas({ generationStatus: 'loading' })
-    const el = screen.getByTestId('live-generation-canvas')
-    expect(el).toHaveAttribute('data-variant', 'embedded')
-    expect(el).toHaveAttribute('data-tool', 'lessonPlan')
-    expect(el).toHaveAttribute('data-status', 'generating')
-    expect(el).toHaveAttribute('data-title', 'Composing your lesson plan…')
+  it('renders the live preview in its "generating" phase (no plan yet)', () => {
+    renderCanvas({ generationStatus: 'loading', planJson: { lessonGoal: 'x' } })
+    const el = screen.getByTestId('live-lesson-preview')
+    // While loading, the preview is fed planJson=null so it types the header in.
+    expect(el).toHaveAttribute('data-phase', 'generating')
+  })
+
+  it('wires the Stop control through to onStop', () => {
+    const onStop = vi.fn()
+    renderCanvas({ generationStatus: 'loading', onStop })
+    fireEvent.click(screen.getByRole('button', { name: /stop/i }))
+    expect(onStop).toHaveBeenCalledTimes(1)
   })
 
   it('does NOT show the empty-state heading', () => {
@@ -131,7 +136,7 @@ describe('StudioCanvas — done state', () => {
 
   it('does NOT render the live generation canvas', () => {
     renderCanvas({ generationStatus: 'done', generatedPlan: HTML })
-    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-lesson-preview')).not.toBeInTheDocument()
   })
 
   it('does NOT show the empty-state heading', () => {
@@ -217,7 +222,7 @@ describe('StudioCanvas — error state', () => {
 
   it('does NOT render the live generation canvas', () => {
     renderCanvas({ generationStatus: 'error' })
-    expect(screen.queryByTestId('live-generation-canvas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('live-lesson-preview')).not.toBeInTheDocument()
   })
 })
 

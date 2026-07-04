@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import LiveLessonPlanPreview from './LiveLessonPlanPreview'
 import LessonPlanEditor from './LessonPlanEditor'
 
 /**
@@ -71,6 +71,10 @@ export function StudioCanvas({
   viewMode = 'preview',
   onViewModeChange,
   planJson = null,
+  // Render meta (school, teacher, grade, subject, topic, …) built from the form
+  // at generate time. Drives the live "writing itself" preview's document header
+  // so the plan is being built on screen from the very first frame.
+  liveMeta = null,
   curriculumMode = 'cbc',
   lessonContext = {},
   onPlanChange,
@@ -400,31 +404,20 @@ export function StudioCanvas({
           </div>
         )}
 
-        {/* 2. Loading state — live generation timeline */}
-        {isLoading && (
-          <div className="w-full max-w-xl pt-6">
-            <LiveGenerationCanvas
-              variant="embedded"
-              tool="lessonPlan"
-              status="generating"
-              title="Composing your lesson plan…"
+        {/* 2. Live "writing itself" preview — a single continuous instance that
+             spans the whole generation. While loading it types the document
+             header in from the form (planJson=null); the moment the plan lands
+             it reveals the body section by section, then hands off (onComplete)
+             to the full print-ready preview below. Keeping ONE mounted instance
+             across loading→reveal means the header never flickers. */}
+        {(isLoading || (isDone && !isEditing && !revealDone && planJson)) && (
+          <div className="w-full max-w-[820px] pt-1">
+            <LiveLessonPlanPreview
+              meta={liveMeta || {}}
+              curriculumMode={curriculumMode}
+              planJson={isLoading ? null : planJson}
               onStop={typeof onStop === 'function' ? onStop : undefined}
-            />
-          </div>
-        )}
-
-        {/* 2b. Fresh generation just finished — reveal it section by section
-             before dropping into the full print-ready preview. */}
-        {isDone && !isEditing && !revealDone && planJson && (
-          <div className="w-full max-w-xl pt-2">
-            <LiveGenerationCanvas
-              variant="embedded"
-              tool="lessonPlan"
-              status="success"
-              result={planJson}
-              docTitle={planJson.lessonTitle || planJson.title}
-              onContinueEditing={() => setRevealDone(true)}
-              continueLabel="View the full lesson plan"
+              onComplete={() => setRevealDone(true)}
             />
           </div>
         )}
