@@ -140,11 +140,22 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
       setError({ kind: 'verify', message: '' })
       setPhase('error')
       capture('play_verify_failed', { planId: selectedPlanId, status: result.status || 'unknown' })
-    } catch {
+    } catch (err) {
       if (!mountedRef.current) return
       setError({ kind: 'verify', message: '' })
       setPhase('error')
-      capture('play_verify_failed', { planId: selectedPlanId, status: 'request-error' })
+      // Record the callable's HttpsError code/message, not just a bare
+      // 'request-error'. A thrown verification failure (bad/absent SA secret,
+      // Play Developer API 401/403, or App Check rejection) is otherwise
+      // indistinguishable in analytics from a transient network blip — every
+      // cause collapses to the same 'request-error' with no way to tell them
+      // apart without a server-log dive.
+      capture('play_verify_failed', {
+        planId: selectedPlanId,
+        status: 'request-error',
+        errorCode: err?.code || '',
+        errorMessage: String(err?.message || '').slice(0, 300),
+      })
     }
   }
 
