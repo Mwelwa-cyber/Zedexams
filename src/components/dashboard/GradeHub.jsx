@@ -58,6 +58,9 @@ import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
 import ThemeSelector            from '../ui/ThemeSelector'
+import LanguageToggle           from '../ui/LanguageToggle'
+import AnalyticsConsentToggle   from '../ui/AnalyticsConsentToggle'
+import ReplayTourCard           from '../ui/ReplayTourCard'
 import MobileBottomNav          from '../layout/MobileBottomNav'
 import SuggestionNudge          from '../feedback/SuggestionNudge'
 import { useSubscription }      from '../../hooks/useSubscription'
@@ -1744,6 +1747,77 @@ export default function GradeHub() {
               )}
             </div>
           )}
+        </section>
+
+        {/* ── SETTINGS ────────────────────────────────────────────
+              Learner settings used to live only inside /profile, where
+              they were easy to miss. Surfaced here, right under the
+              badges shelf, so appearance + language + privacy controls
+              are one tap from the dashboard. Sign Out closes the group.
+              The /profile page keeps the same controls for teachers and
+              admins, whose dashboards don't render this hub.
+        ──────────────────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="learner-page-heading text-display-md flex items-center gap-2">
+              <Icon as={Settings} size="lg" strokeWidth={2.1} /> Settings
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {/* Appearance & preferences */}
+            <div className="zx-card theme-card rounded-2xl border theme-border divide-y divide-current/10">
+              <div className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="theme-text font-black text-sm flex items-center gap-2">
+                    <span aria-hidden="true">🎨</span> Theme
+                  </p>
+                  <p className="theme-text-muted text-xs mt-0.5">Pick the colours you like best.</p>
+                </div>
+                <ThemeSelector />
+              </div>
+              <div className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="theme-text font-black text-sm flex items-center gap-2">
+                    <span aria-hidden="true">🔋</span> Data saver
+                  </p>
+                  <p className="theme-text-muted text-xs mt-0.5">Use less mobile data by trimming images and motion.</p>
+                </div>
+                <DataSaverToggle showLabel />
+              </div>
+              <div className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="theme-text font-black text-sm flex items-center gap-2">
+                    <span aria-hidden="true">🌍</span> Language
+                  </p>
+                  <p className="theme-text-muted text-xs mt-0.5">Choose the language for menus and buttons.</p>
+                </div>
+                <LanguageToggle compact />
+              </div>
+            </div>
+
+            {/* Product analytics consent — reflects the localStorage
+                decision and flips analytics on/off without a reload. */}
+            <AnalyticsConsentToggle />
+
+            {/* Replay any first-session tour the learner dismissed. */}
+            <ReplayTourCard />
+
+            {/* Sign out — mirrors the account-menu action so learners can
+                leave straight from the dashboard. */}
+            <button
+              type="button"
+              aria-label="Sign out of your account"
+              onClick={() => {
+                logout()
+                  .then(() => navigate('/login'))
+                  .catch(err => console.error('GradeHub settings logout:', err))
+              }}
+              className="zx-card w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-600 shadow-sm transition-colors hover:bg-red-100 min-h-0"
+            >
+              <Icon as={LogOut} size="sm" strokeWidth={2.1} /> Sign Out
+            </button>
+          </div>
         </section>
 
         {/* ── DATA SAVER INFO BANNER (only shown when on) ─────── */}
