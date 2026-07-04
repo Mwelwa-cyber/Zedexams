@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, Loader2, Sparkles, X } from '../ui/icons'
+import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Sparkles, X } from '../ui/icons'
 import { isNativePlatform } from '../../utils/runtime'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDataSaver } from '../../contexts/DataSaverContext'
 import { PLANS } from '../../utils/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
@@ -15,7 +16,6 @@ import {
 } from '../../utils/lenco'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
-import MobileMoneyBrands from './MobileMoneyBrands'
 import NetworkField from './NetworkField'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
@@ -23,35 +23,63 @@ const DEFAULT_PLAN_ORDER_BY_PORTAL = {
   teacher: ['pro_monthly', 'pro_yearly'],
   generic: ['weekly', 'monthly'],
 }
-const PLAN_BORDER = {
-  grade7_monthly: 'border-amber-400 bg-amber-50',
-  grade7_termly:  'border-emerald-400 bg-emerald-50',
-  weekly:         'border-amber-400 bg-amber-50',
-  monthly:        'border-green-400 bg-green-50',
-  pro_monthly:    'border-orange-400 bg-orange-50',
-  pro_yearly:     'border-orange-400 bg-orange-50',
-  max_monthly:    'border-blue-500 bg-blue-50',
-  max_yearly:     'border-blue-500 bg-blue-50',
-}
-const FALLBACK_BORDER = 'border-orange-400 bg-orange-50'
 
+// Per-portal presentation. `emblem` is the badge glyph in the header circle,
+// `chips` is the optional feature-strip under the subtitle, and `popularPlanId`
+// flags the plan that gets the "Most popular" ribbon. Everything else about a
+// plan (price, features, tagline) still comes from PLANS — this is chrome only.
 const PORTAL_COPY = {
   learner: {
+    emblem: '✨',
     title: 'Unlock Premium Learning',
     subtitle: 'Unlimited quizzes · exam mode · weakness analysis',
+    popularPlanId: 'monthly',
   },
   teacher: {
+    emblem: '🦊',
     title: 'Subscribe to Teacher Portal',
     subtitle: 'Unlock premium teacher tools',
+    popularPlanId: 'pro_monthly',
   },
   maxUpgrade: {
+    emblem: '👑',
     title: 'Upgrade to Max',
-    subtitle: 'Unlimited generations · bulk export · priority queue',
+    subtitle: 'Unlock unlimited power for serious teaching',
+    popularPlanId: 'max_monthly',
+    chips: [
+      { emoji: '🔥', label: 'Unlimited generations' },
+      { emoji: '📦', label: 'Bulk export' },
+      { emoji: '⚡', label: 'Priority queue' },
+      { emoji: '💬', label: '24/7 support' },
+    ],
   },
   generic: {
+    emblem: '✨',
     title: 'Upgrade to Premium',
     subtitle: 'Unlock unlimited learning',
   },
+}
+
+// Percentage a yearly plan saves against paying its own monthly sibling for the
+// same span — i.e. the "N months free" deal — computed from config so the badge
+// tracks real pricing and matches the plan's "Save ~17%" copy. Null for
+// anything that isn't an annual plan with a monthly sibling.
+function yearlySavingsPct(item) {
+  if (item?.billing !== 'yearly' || !item?.priceZMW || !item?.durationDays) return null
+  const monthly = Object.values(PLANS).find((p) => p.tier === item.tier && p.billing === 'monthly')
+  if (!monthly?.priceZMW) return null
+  const months = Math.round(item.durationDays / 30)      // 12 for a year
+  const paidMonths = item.priceZMW / monthly.priceZMW    // e.g. 1490 / 149 = 10
+  if (months <= 0) return null
+  const pct = Math.round((1 - paidMonths / months) * 100)
+  return pct > 0 ? pct : null
+}
+
+function billingUnit(item) {
+  if (item?.billing === 'yearly') return '/ year'
+  if (item?.billing === 'monthly') return '/ month'
+  if (item?.durationDays) return `/ ${item.durationDays} days`
+  return ''
 }
 
 // Android (Capacitor) builds sell through Google Play Billing ONLY — Play
@@ -79,12 +107,16 @@ export default function UpgradeModal(props) {
 function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
   const { userProfile, currentUser } = useAuth()
+  const { dataSaver } = useDataSaver()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
 
   const defaultOrder =
     DEFAULT_PLAN_ORDER_BY_PORTAL[portal] || DEFAULT_PLAN_ORDER_BY_PORTAL.generic
   const visiblePlanIds = (planIds && planIds.length ? planIds : defaultOrder)
     .filter((id) => PLANS[id])
+  const popularPlanId = copy.popularPlanId && visiblePlanIds.includes(copy.popularPlanId)
+    ? copy.popularPlanId
+    : null
   const [step, setStep] = useState('plans')
   const [selectedPlanId, setSelectedPlanId] = useState(
     defaultPlanId && visiblePlanIds.includes(defaultPlanId) ? defaultPlanId : null
@@ -124,6 +156,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const phoneValid = looksLikeZambianPhone(phone)
   const detectedOperator = resolveOperator({ phone, operator, operatorTouched })
   const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
+  const isYearly = plan?.billing === 'yearly'
 
   function handleContinue() {
     if (!plan) return
@@ -223,256 +256,413 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-4 max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center relative shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close upgrade dialog"
-            className="absolute top-3 right-4 text-white/80 hover:text-white min-h-0 p-1 bg-transparent shadow-none"
-          >
-            <Icon as={X} size="md" />
-          </button>
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white">
-            <Icon as={Sparkles} size="lg" strokeWidth={2.1} />
-          </div>
-          <h2 className="text-2xl font-black text-white">{copy.title}</h2>
-          <p className="text-white/90 text-sm mt-1">{copy.subtitle}</p>
-        </div>
-
-        <div className="p-5 overflow-y-auto flex-1">
-          {step === 'plans' && <>
-            {pendingReferralCredits > 0 && (
-              <div
-                className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
-                role="status"
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl my-4 max-h-[92vh] flex flex-col overflow-hidden animate-scale-in">
+        {step === 'plans' && (
+          <>
+            {/* ── Header ─────────────────────────────────────────── */}
+            <div className="relative shrink-0 bg-gradient-to-b from-orange-100 via-orange-50 to-white px-6 pt-6 pb-5 text-center">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close upgrade dialog"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 min-h-0 p-1 bg-transparent shadow-none"
               >
-                <p className="font-bold">
-                  🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals
-                </p>
-                <p className="text-xs mt-1 text-emerald-800/90">
-                  We add {pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} automatically
-                  when your payment completes.
-                </p>
+                <Icon as={X} size="md" />
+              </button>
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-2xl shadow-lg shadow-orange-500/30">
+                {copy.emblem
+                  ? <span aria-hidden="true">{copy.emblem}</span>
+                  : <Icon as={Sparkles} size="lg" className="text-white" />}
               </div>
-            )}
-            <div className="grid gap-3 mb-4">
-              {visiblePlanIds.map((planId) => {
-                const item = PLANS[planId]
-                const active = selectedPlanId === planId
-                const activeBorder = PLAN_BORDER[planId] || FALLBACK_BORDER
-                const cardQuote = getUpgradeQuoteForProfile(userProfile, planId)
-                const cardPrice = cardQuote.isUpgrade ? cardQuote.amountZMW : item.priceZMW
-                return (
-                  <button
-                    key={planId}
-                    onClick={() => setSelectedPlanId(planId)}
-                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all min-h-0 ${active ? activeBorder + ' ring-2 ring-offset-1 ring-current' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-black text-gray-800 text-lg">{item.badge} {item.name}</span>
-                        <span className="ml-2 text-gray-500 text-sm">{item.tagline}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-black text-2xl text-gray-800">K{cardPrice}</div>
-                        <div className="text-xs text-gray-500">
-                          {cardQuote.isUpgrade ? <s>K{item.priceZMW}</s> : 'ZMW'}
+              <h2 className="text-2xl font-black text-gray-900">{copy.title}</h2>
+              <p className="text-sm text-gray-500 mt-1">{copy.subtitle}</p>
+              {copy.chips?.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+                  {copy.chips.map((c) => (
+                    <span key={c.label} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600">
+                      <span aria-hidden="true">{c.emoji}</span>{c.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Plan picker ────────────────────────────────────── */}
+            <div className="px-6 pb-6 overflow-y-auto flex-1">
+              {pendingReferralCredits > 0 && (
+                <div
+                  className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+                  role="status"
+                >
+                  <p className="font-bold">
+                    🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals
+                  </p>
+                  <p className="text-xs mt-1 text-emerald-800/90">
+                    We add {pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} automatically
+                    when your payment completes.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-3 mb-4">
+                {visiblePlanIds.map((planId) => {
+                  const item = PLANS[planId]
+                  const active = selectedPlanId === planId
+                  const isPopular = planId === popularPlanId
+                  const cardQuote = getUpgradeQuoteForProfile(userProfile, planId)
+                  const cardPrice = cardQuote.isUpgrade ? cardQuote.amountZMW : item.priceZMW
+                  const savings = yearlySavingsPct(item)
+                  const showCalendar = isYearlyCard(item) && !dataSaver
+                  return (
+                    <button
+                      key={planId}
+                      onClick={() => setSelectedPlanId(planId)}
+                      aria-pressed={active}
+                      className={`relative w-full text-left p-4 pt-5 rounded-2xl border-2 transition-all min-h-0 ${
+                        active
+                          ? 'border-orange-400 bg-orange-50/50 ring-2 ring-orange-200'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      {isPopular && (
+                        <span className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-full bg-indigo-500 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm">
+                          <Icon as={Sparkles} size="xs" className="text-white" strokeWidth={2.2} />
+                          Most popular
+                        </span>
+                      )}
+
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-lg"
+                            aria-hidden="true"
+                          >
+                            {item.badge || '⭐'}
+                          </span>
+                          <span>
+                            <span className="block font-black text-gray-900 text-base leading-tight">{item.name}</span>
+                            <span className="block text-gray-500 text-xs">{item.tagline}</span>
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-black text-2xl text-gray-900 leading-none">K{cardPrice}</div>
+                          <div className="mt-0.5 text-xs text-gray-400">
+                            {cardQuote.isUpgrade ? <s>K{item.priceZMW}</s> : billingUnit(item) || 'ZMW'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    {cardQuote.isUpgrade && (
-                      <p className="mt-2 text-xs font-bold text-emerald-700">
-                        Upgrade price — pay only the difference for your {cardQuote.daysRemaining} remaining day
-                        {cardQuote.daysRemaining === 1 ? '' : 's'}. Your renewal date stays the same.
-                      </p>
-                    )}
-                    {item.features?.length > 0 && (
-                      <ul className="mt-3 space-y-1">
-                        {item.features.map((feature) => (
-                          <li key={feature} className="text-sm text-gray-700 flex items-center gap-2">
-                            <Icon as={Check} size="sm" strokeWidth={2.1} className="text-green-500" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">
-              Pay instantly with Mobile Money. Access unlocks the moment your payment confirms.
-            </div>
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              disabled={!selectedPlanId}
-              onClick={handleContinue}
-            >
-              {selectedPlanId ? `Continue → Pay K${effectivePrice}` : 'Select a Plan'}
-            </Button>
-          </>}
 
-          {step === 'checkout' && plan && <>
-            <Button
-              variant="ghost"
-              size="sm"
-              leadingIcon={<Icon as={ArrowLeft} size="xs" />}
-              onClick={() => { if (!busy) { resetCheckout(); setStep('plans') } }}
-              className="mb-4 -ml-2"
-              disabled={busy}
-            >
-              Back
-            </Button>
+                      {cardQuote.isUpgrade && (
+                        <p className="mt-2.5 text-xs text-gray-500">
+                          Upgrade now — pay only the difference for your {cardQuote.daysRemaining} remaining day
+                          {cardQuote.daysRemaining === 1 ? '' : 's'}.{' '}
+                          <span className="font-semibold text-gray-600">Your renewal date stays the same.</span>
+                        </p>
+                      )}
 
-            <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-2xl p-5 mb-5">
-              <p className="text-sm text-white/80">
-                {isUpgrade ? `Upgrade to ${plan.name}` : `${plan.name} · ${plan.durationDays} days`}
-              </p>
-              <p className="font-black text-4xl mt-1 text-[#F4E4BC]">
-                K{effectivePrice}
-                {isUpgrade && <span className="ml-2 align-middle text-base font-bold text-white/50 line-through">K{plan.priceZMW}</span>}
-              </p>
-              <p className="text-xs text-white/70 mt-1">
-                {isUpgrade && renewalDateLabel
-                  ? `One-off charge for the ${upgradeQuote.daysRemaining} day${upgradeQuote.daysRemaining === 1 ? '' : 's'} left — renews ${renewalDateLabel}, no extra days added.`
-                  : plan.tagline}
-              </p>
-            </div>
+                      <div className="relative mt-3">
+                        {item.features?.length > 0 && (
+                          <ul
+                            className={`grid gap-x-4 gap-y-1.5 ${
+                              showCalendar
+                                ? 'grid-cols-1 sm:pr-28'
+                                : 'grid-cols-1 sm:grid-cols-2'
+                            }`}
+                          >
+                            {item.features.map((feature) => (
+                              <li key={feature} className="flex items-start gap-1.5 text-xs text-gray-700">
+                                <Icon as={Check} size="xs" strokeWidth={2.4} className="mt-0.5 shrink-0 text-green-500" />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
 
-            {/* ── Success ─────────────────────────────────────────── */}
-            {payState === 'success' && (
-              <div className="text-center py-4">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
-                  <Icon as={Check} size="lg" strokeWidth={2.6} />
-                </div>
-                <h3 className="text-xl font-black text-gray-800">Payment confirmed 🎉</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {isUpgrade
-                    ? `You're now on ${plan.name}${renewalDateLabel ? `, renewing ${renewalDateLabel} as before` : ''}. A receipt is on its way to your email.`
-                    : `Your ${plan.name} plan is active for ${plan.durationDays} days. A receipt is on its way to your email.`}
-                </p>
-                <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={onClose}>
-                  Start learning
-                </Button>
+                        {/* Calendar illustration + savings ribbon on annual plans */}
+                        {showCalendar && (
+                          <div className="pointer-events-none absolute -bottom-1 right-1 hidden sm:block">
+                            <div className="relative">
+                              <img
+                                src="/images/upgrade-calendar.webp"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-14 w-auto drop-shadow-sm"
+                                loading="lazy"
+                              />
+                              {savings != null && (
+                                <span className="absolute -bottom-1 -left-3 flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-[11px] font-black text-white shadow-md">
+                                  −{savings}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
-            )}
 
-            {/* ── Processing / waiting ────────────────────────────── */}
-            {payState === 'processing' && (
-              <div className="text-center py-6">
-                <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-[#B8860B]" />
-                <h3 className="text-base font-black text-gray-800 mt-3">Approve the prompt on your phone</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute —
-                  keep this page open and your access unlocks automatically.
+              <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-gray-50 px-4 py-3 text-center">
+                <Icon as={Lock} size="sm" className="shrink-0 text-gray-400" />
+                <p className="text-xs text-gray-500 text-left">
+                  <span className="font-semibold text-gray-600">Secure payments with Lenco Mobile Money.</span>{' '}
+                  You&apos;ll receive a receipt after payment.
                 </p>
-                {timedOut && (
-                  <p className="text-xs text-gray-500 mt-3">
-                    Still waiting… you can safely close this — we’ll unlock your access and email a receipt as soon as
-                    the payment confirms.
-                  </p>
-                )}
               </div>
-            )}
 
-            {/* ── OTP entry ───────────────────────────────────────── */}
-            {payState === 'otp' && (
-              <div>
-                <h3 className="text-base font-black text-gray-800 mb-2">Enter the verification code</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  We sent a one-time code to your phone. Enter it to authorise the payment.
-                </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ''))}
-                  placeholder="123456"
-                  className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-lg tracking-widest text-center focus:outline-none mb-3"
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                disabled={!selectedPlanId}
+                onClick={handleContinue}
+                trailingIcon={selectedPlanId ? <Icon as={ArrowRight} size="sm" /> : undefined}
+              >
+                {selectedPlanId ? 'Continue to Payment' : 'Select a plan'}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === 'checkout' && plan && (
+          <>
+            {/* ── Header with wallet illustration ────────────────── */}
+            <div className="relative shrink-0 bg-gradient-to-b from-orange-100 via-orange-50 to-white px-6 pt-4 pb-5 text-center">
+              <button
+                type="button"
+                onClick={() => { if (!busy) { resetCheckout(); setStep('plans') } }}
+                disabled={busy}
+                className="absolute top-4 left-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 min-h-0 p-1 bg-transparent shadow-none"
+              >
+                <Icon as={ArrowLeft} size="xs" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close upgrade dialog"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 min-h-0 p-1 bg-transparent shadow-none"
+              >
+                <Icon as={X} size="md" />
+              </button>
+
+              {!dataSaver && (
+                <img
+                  src="/images/upgrade-wallet.webp"
+                  alt=""
+                  aria-hidden="true"
+                  className="mx-auto mt-2 h-24 w-auto drop-shadow-sm"
+                  loading="lazy"
                 />
-                {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-                <Button variant="primary" size="lg" fullWidth disabled={!otp.trim()} onClick={handleSubmitOtp}>
-                  Verify & pay K{effectivePrice}
-                </Button>
-              </div>
-            )}
+              )}
+              <h2 className="mt-2 text-2xl font-black text-gray-900">
+                {isUpgrade ? 'Complete your upgrade' : 'Complete your payment'}
+              </h2>
+              <p className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+                <span>{isUpgrade ? "You're upgrading to" : "You're subscribing to"} <span className="font-semibold text-gray-700">{plan.name}</span></span>
+                {isYearly && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                    <Icon as={Sparkles} size="xs" strokeWidth={2.2} /> 2 months free
+                  </span>
+                )}
+              </p>
+            </div>
 
-            {payState === 'verifying' && (
-              <div className="text-center py-6">
-                <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-[#B8860B]" />
-                <p className="text-sm text-gray-600 mt-3">Verifying your code…</p>
-              </div>
-            )}
+            <div className="px-6 pb-6 overflow-y-auto flex-1">
+              {/* ── Amount summary card ──────────────────────────── */}
+              <div className="rounded-2xl bg-gradient-to-br from-[#0d1526] to-[#1c2c48] text-white p-5 mb-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/60">Amount to pay</p>
+                    <p className="mt-1 font-black text-4xl leading-none text-[#F6E7C1]">
+                      K{effectivePrice}
+                      {isUpgrade && (
+                        <span className="ml-2 align-middle text-base font-bold text-white/40 line-through">K{plan.priceZMW}</span>
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs text-white/70">
+                      {isUpgrade && renewalDateLabel
+                        ? `One-off charge for the ${upgradeQuote.daysRemaining} day${upgradeQuote.daysRemaining === 1 ? '' : 's'} left. Renews on ${renewalDateLabel}.`
+                        : `${plan.durationDays} days of full access. ${plan.tagline}`}
+                    </p>
+                  </div>
 
-            {/* ── Failed ──────────────────────────────────────────── */}
-            {payState === 'failed' && (
-              <div className="text-center py-4">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
-                  <Icon as={X} size="lg" strokeWidth={2.4} />
+                  {isUpgrade && renewalDateLabel && (
+                    <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4 sm:block sm:shrink-0 sm:border-0 sm:pt-0 sm:text-right">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/80">
+                        <Icon as={Lock} size="xs" /> No extra days added
+                      </span>
+                      <div className="text-right sm:mt-3">
+                        <p className="text-[11px] uppercase tracking-wider text-white/50">Your renewal date</p>
+                        <p className="text-sm font-bold text-white">{renewalDateLabel}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-lg font-black text-gray-800">Payment not completed</h3>
-                <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
-                <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={resetCheckout}>
-                  Try again
-                </Button>
               </div>
-            )}
 
-            {/* ── Payment form (idle / starting) ──────────────────── */}
-            {(payState === 'idle' || payState === 'starting') && (
-              <>
-                <div className="space-y-3">
-                  <MobileMoneyBrands className="rounded-2xl bg-white border border-gray-100 p-3" />
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                      Mobile money number
+              {/* ── Success ─────────────────────────────────────── */}
+              {payState === 'success' && (
+                <div className="text-center py-4">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+                    <Icon as={Check} size="lg" strokeWidth={2.6} />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-800">Payment confirmed 🎉</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {isUpgrade
+                      ? `You're now on ${plan.name}${renewalDateLabel ? `, renewing ${renewalDateLabel} as before` : ''}. A receipt is on its way to your email.`
+                      : `Your ${plan.name} plan is active for ${plan.durationDays} days. A receipt is on its way to your email.`}
+                  </p>
+                  <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={onClose}>
+                    Start learning
+                  </Button>
+                </div>
+              )}
+
+              {/* ── Processing / waiting ────────────────────────── */}
+              {payState === 'processing' && (
+                <div className="text-center py-6">
+                  <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-orange-500" />
+                  <h3 className="text-base font-black text-gray-800 mt-3">Approve the prompt on your phone</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute —
+                    keep this page open and your access unlocks automatically.
+                  </p>
+                  {timedOut && (
+                    <p className="text-xs text-gray-500 mt-3">
+                      Still waiting… you can safely close this — we&apos;ll unlock your access and email a receipt as soon as
+                      the payment confirms.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── OTP entry ───────────────────────────────────── */}
+              {payState === 'otp' && (
+                <div>
+                  <h3 className="text-base font-black text-gray-800 mb-2">Enter the verification code</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    We sent a one-time code to your phone. Enter it to authorise the payment.
+                  </p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="123456"
+                    className="w-full border-2 border-gray-200 focus:border-orange-400 rounded-xl px-3 py-2.5 text-lg tracking-widest text-center focus:outline-none mb-3"
+                  />
+                  {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+                  <Button variant="primary" size="lg" fullWidth disabled={!otp.trim()} onClick={handleSubmitOtp}>
+                    Verify &amp; pay K{effectivePrice}
+                  </Button>
+                </div>
+              )}
+
+              {payState === 'verifying' && (
+                <div className="text-center py-6">
+                  <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-orange-500" />
+                  <p className="text-sm text-gray-600 mt-3">Verifying your code…</p>
+                </div>
+              )}
+
+              {/* ── Failed ──────────────────────────────────────── */}
+              {payState === 'failed' && (
+                <div className="text-center py-4">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+                    <Icon as={X} size="lg" strokeWidth={2.4} />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-800">Payment not completed</h3>
+                  <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
+                  <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={resetCheckout}>
+                    Try again
+                  </Button>
+                </div>
+              )}
+
+              {/* ── Payment form (idle / starting) ──────────────── */}
+              {(payState === 'idle' || payState === 'starting') && (
+                <>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <label htmlFor="mm-number" className="text-sm font-bold text-gray-800">
+                      Pay with your mobile money
                     </label>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0977 740 465"
-                      className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
-                        phone === '' || phoneValid ? 'border-gray-200 focus:border-[#B8860B]' : 'border-red-300 focus:border-red-500'
-                      }`}
+                    <img
+                      src="/images/mobile-money-networks.jpg"
+                      alt="Airtel Money, MTN Mobile Money and Zamtel Money accepted"
+                      className="h-6 w-auto object-contain"
+                      loading="lazy"
                     />
                   </div>
-                  <NetworkField
-                    phone={phone}
-                    operator={operator}
-                    operatorTouched={operatorTouched}
-                    onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
-                  />
-                </div>
 
-                {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                        Mobile money number
+                      </label>
+                      <div className="relative">
+                        <span
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base"
+                          aria-hidden="true"
+                        >
+                          📱
+                        </span>
+                        <input
+                          id="mm-number"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="0977 740 465"
+                          className={`w-full border-2 rounded-xl pl-9 pr-3 py-2.5 text-base focus:outline-none ${
+                            phone === '' || phoneValid ? 'border-gray-200 focus:border-orange-400' : 'border-red-300 focus:border-red-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                    <NetworkField
+                      phone={phone}
+                      operator={operator}
+                      operatorTouched={operatorTouched}
+                      onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
+                    />
+                  </div>
 
-                <Button
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  className="mt-4"
-                  disabled={busy}
-                  onClick={handlePay}
-                >
-                  {payState === 'starting'
-                    ? <span className="flex items-center justify-center gap-2"><Icon as={Loader2} size="sm" className="animate-spin" /> Starting…</span>
-                    : `Pay K${effectivePrice}`}
-                </Button>
-                <p className="text-center text-[11px] text-gray-400 mt-3">
-                  Secured by Lenco · {userEmail || 'your account'} will receive a receipt
-                </p>
-              </>
-            )}
-          </>}
-        </div>
+                  <p className="mt-3 text-sm text-gray-500">
+                    You will receive a prompt on your phone to approve this payment.
+                  </p>
+
+                  {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    className="mt-4"
+                    disabled={busy}
+                    onClick={handlePay}
+                  >
+                    {payState === 'starting'
+                      ? <span className="flex items-center justify-center gap-2"><Icon as={Loader2} size="sm" className="animate-spin" /> Starting…</span>
+                      : `Pay K${effectivePrice}`}
+                  </Button>
+                  <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-gray-400">
+                    <Icon as={Lock} size="xs" />
+                    Secured by Lenco · {userEmail || 'your account'} will receive a receipt
+                  </p>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
+}
+
+// Annual plans carry the calendar illustration + savings ribbon.
+function isYearlyCard(item) {
+  return item?.billing === 'yearly'
 }
