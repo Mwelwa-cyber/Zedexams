@@ -21,6 +21,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { siteOrigin } from './runtime.js'
 
 /**
  * Publish a snapshot of a generation. Returns { token, url, shareId }.
@@ -47,7 +48,9 @@ export async function publishShare({ tool, ownerUid, title, plan, subject, grade
     createdAt: serverTimestamp(),
   })
   const token = ref.id
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  // siteOrigin() (not window.location.origin) so a link created inside the
+  // native app points at zedexams.com, not the WebView's https://localhost.
+  const origin = siteOrigin()
   return {
     token,
     shareId: ref.id,
@@ -66,7 +69,7 @@ export async function listSharesForGeneration(ownerUid, generationId) {
   if (!ownerUid || !generationId) return []
   try {
     const snap = await getDocs(query(collection(db, 'shares'), where('ownerUid', '==', ownerUid)))
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const origin = siteOrigin()
     return snap.docs
       .map((d) => ({ token: d.id, ...d.data() }))
       .filter((s) => s.generationId === generationId && !s.revokedAt)

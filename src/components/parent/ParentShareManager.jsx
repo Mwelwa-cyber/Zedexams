@@ -26,10 +26,11 @@ import {
   listMyProgressShares,
   revokeProgressShare,
 } from '../../utils/parentShares'
+import { siteOrigin } from '../../utils/runtime.js'
 
-const SITE = typeof window !== 'undefined' && window.location?.origin
-  ? window.location.origin
-  : 'https://zedexams.com'
+// Canonical origin so a link created inside the native app resolves — the
+// WebView's window.location.origin is https://localhost, which is dead off-device.
+const SITE = siteOrigin()
 
 function formatDate(ts) {
   if (!ts) return '—'

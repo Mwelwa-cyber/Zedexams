@@ -53,4 +53,22 @@ describe('saveBlobNative', () => {
     await expect(saveBlobNative(new Blob(['x']), 'x.docx')).rejects.toThrow('disk full')
     expect(share).not.toHaveBeenCalled()
   })
+
+  it('resolves (does NOT throw) when the user dismisses the share sheet', async () => {
+    // The file is already on disk; a dismissed sheet is a deliberate "no". If we
+    // threw, saveBlob would fall through to the data: URL route and dump a
+    // truncated .docx the user never asked for — the "unreadable content" bug.
+    share.mockRejectedValueOnce(new Error('Share canceled'))
+    await expect(
+      saveBlobNative(new Blob(['x'], { type: 'application/octet-stream' }), 'x.docx'),
+    ).resolves.toBe(true)
+    expect(writeFile).toHaveBeenCalledOnce()
+  })
+
+  it('propagates a genuine share failure so the caller can fall back', async () => {
+    // Not a cancel — the file sits in unreachable app-private cache, so saveBlob
+    // must still get a chance to hand the user the bytes via the data: URL.
+    share.mockRejectedValueOnce(new Error('No Activity found to handle Intent'))
+    await expect(saveBlobNative(new Blob(['x']), 'x.docx')).rejects.toThrow(/No Activity/)
+  })
 })

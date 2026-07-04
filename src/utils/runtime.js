@@ -4,8 +4,10 @@ import { Capacitor } from '@capacitor/core'
 // Capacitor wrapper. The WebView serves files from `https://localhost`, which
 // has no Firebase Hosting rewrites — so a relative `/api/...` fetch 404s.
 // Calling the live origin lets the same Hosting rewrites resolve to the
-// underlying Cloud Functions.
-const NATIVE_API_BASE = 'https://zedexams.com'
+// underlying Cloud Functions. This is also the canonical origin for any URL
+// meant to leave the device (share links) — see siteOrigin().
+export const SITE_ORIGIN = 'https://zedexams.com'
+const NATIVE_API_BASE = SITE_ORIGIN
 
 export function isNativePlatform() {
   try {
@@ -36,6 +38,25 @@ export function isMobileBrowser() {
     return true
   }
   return false
+}
+
+/**
+ * The origin to use when building a URL that will be handed to someone else —
+ * a share link, an invite, anything copied out of the app.
+ *
+ * On the web this is just `window.location.origin` (works, and keeps staging /
+ * preview deploys self-referential). In the native Capacitor shell the WebView
+ * serves from `https://localhost`, so `window.location.origin` is
+ * `https://localhost` — a link built from it (`https://localhost/share/…`) is
+ * dead the moment it leaves the phone. Native therefore always uses the
+ * canonical production origin so shared links actually resolve.
+ */
+export function siteOrigin() {
+  if (isNativePlatform()) return SITE_ORIGIN
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.origin
+  }
+  return SITE_ORIGIN
 }
 
 /**

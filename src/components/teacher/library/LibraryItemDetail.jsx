@@ -279,6 +279,7 @@ export default function LibraryItemDetail() {
       ext,
     })
 
+    try {
     if (item.tool === 'lesson_plan') {
       // Prefer the server-generated download: it streams from zedexams.com with
       // the correct filename (no Firebase, no upload) and works on browsers that
@@ -350,6 +351,14 @@ export default function LibraryItemDetail() {
         await downloadSbaPlannerDocx({ ...plan, statuses: item.output?.statuses || {} }, h, name())
         recordExport(item.id, 'docx')
       }
+    }
+    } catch (err) {
+      // A silent failure here is the "Word download does nothing" bug: the
+      // export threw (native file-save unavailable, image build error, …) and
+      // without this the user saw nothing at all. Surface it so they know to
+      // retry / update the app, and so it lands in error reporting.
+      console.error('[LibraryItemDetail] docx export failed', err)
+      toast.error('Could not create the Word file. Please try again, or update the app if this keeps happening.')
     }
   }
 

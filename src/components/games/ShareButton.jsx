@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CheckIcon, ShareIcon } from '@heroicons/react/24/solid'
+import { siteOrigin } from '../../utils/runtime.js'
 
 /**
  * One-tap share button for the game-finish screen.
@@ -12,9 +13,9 @@ export default function ShareButton({ game, score, accuracy, bestStreak }) {
   const [copied, setCopied] = useState(false)
 
   const shareText = buildShareText({ game, score, accuracy, bestStreak })
-  const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/games/play/${game.id}`
-    : ''
+  // siteOrigin() so a link shared from the native app points at zedexams.com,
+  // not the WebView's https://localhost (which is dead off-device).
+  const shareUrl = `${siteOrigin()}/games/play/${game.id}`
 
   async function handleShare() {
     const payload = {

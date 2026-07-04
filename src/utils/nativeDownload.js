@@ -46,6 +46,8 @@ export async function saveBlobNative(blob, filename) {
 
   // Cache dir: app-private, needs no storage permission and is cleaned by the
   // OS. We share the file straight away, so durability here doesn't matter.
+  // If THIS throws, the plugin genuinely isn't available (or the disk is full)
+  // — we let it propagate so saveBlob can fall back to the data: URL route.
   const written = await Filesystem.writeFile({
     path: filename,
     data: base64,
@@ -55,11 +57,33 @@ export async function saveBlobNative(blob, filename) {
 
   // `files` is the documented way to share a local file — the plugin exposes it
   // through a FileProvider content URI so Word / Files can read it.
-  await Share.share({
-    title: filename,
-    files: [written.uri],
-    dialogTitle: 'Save or open',
-  })
+  try {
+    await Share.share({
+      title: filename,
+      files: [written.uri],
+      dialogTitle: 'Save or open',
+    })
+  } catch (err) {
+    // The user dismissing the share sheet is a deliberate "no", not a failure.
+    // Resolve so saveBlob does NOT fall through to the data: URL route, which
+    // would dump a misnamed (and, for large .docx, truncated) copy the user
+    // never asked for. A genuine share error still propagates: the written file
+    // lives in app-private cache the user can't reach, so the data: URL is then
+    // their only way to get the document.
+    if (isShareCancellation(err)) return true
+    throw err
+  }
 
   return true
+}
+
+/**
+ * Did the share sheet reject because the user dismissed it (vs. a real error)?
+ * @capacitor/share reports cancellation inconsistently across versions/OEMs —
+ * sometimes an explicit "canceled" message, sometimes a bare rejection — so we
+ * match defensively on the message text.
+ */
+function isShareCancellation(err) {
+  const msg = String((err && (err.message || err)) || '').toLowerCase()
+  return /cancel|dismiss|abort/.test(msg)
 }
