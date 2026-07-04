@@ -2,17 +2,6 @@ import { Link } from 'react-router-dom'
 import LegalLayout from './LegalLayout'
 import SeoHelmet from '../seo/SeoHelmet'
 
-/*
- * NOTE TO MAINTAINERS
- * --------------------
- * This is a starter Privacy Policy template tailored to what ZedExams
- * actually does today (Firebase Auth + Firestore, AI providers, WhatsApp
- * support). Before going live, have a Zambian lawyer review it,
- * especially the children's-data section — the Zambia Data Protection
- * Act (2021) imposes specific requirements when processing data of
- * minors. Update the "Last updated" date when content changes.
- */
-
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
 const CONTACT_EMAIL = 'support@zedexams.com'
 const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`

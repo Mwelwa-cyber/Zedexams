@@ -1,17 +1,6 @@
 import LegalLayout from './LegalLayout'
 import SeoHelmet from '../seo/SeoHelmet'
 
-/*
- * NOTE TO MAINTAINERS
- * --------------------
- * Starter Terms & Conditions template for ZedExams. Have a Zambian
- * lawyer review before relying on these in a dispute. Particular care:
- * the AI-output disclaimer, the children/guardian language, the
- * limitation of liability, and the governing-law clause should reflect
- * how you actually want to be bound. Update "Last updated" when the
- * substance changes.
- */
-
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
 const CONTACT_EMAIL = 'support@zedexams.com'
 const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
