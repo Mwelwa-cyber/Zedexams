@@ -28,6 +28,12 @@ console.log('recordOfWorkDescriptor')
   assert(!('junk' in s), 'non-whitelisted state dropped')
   assert(recordOfWorkDescriptor.isNonEmpty({ weeks: [{ topic: 'x' }] }) === true, 'a typed topic counts as work')
   assert(recordOfWorkDescriptor.isNonEmpty({ weeks: [{ topic: '' }] }) === false, 'blank weeks are empty')
+  // workDone is an ARRAY (blankRecordWeek → workDone: []); the real studio state
+  // always carries it. The check must read its length, not call String.trim on
+  // it — the array shape once threw "workDone.trim is not a function" and
+  // crashed the studio on mount.
+  assert(recordOfWorkDescriptor.isNonEmpty({ weeks: [{ topic: '', workDone: [] }] }) === false, 'a blank week with an empty workDone array is empty (no throw)')
+  assert(recordOfWorkDescriptor.isNonEmpty({ weeks: [{ topic: '', workDone: ['Solved fractions'] }] }) === true, 'logged work-done lines count even with no topic')
 }
 
 console.log('\nmarkScheduleDescriptor')

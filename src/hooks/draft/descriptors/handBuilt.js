@@ -26,7 +26,10 @@ export const recordOfWorkDescriptor = {
   ttl: 30 * DAY,
   serialize: (s) => ({ header: s.header, weeks: s.weeks, generationId: s.generationId }),
   hydrate: identity,
-  isNonEmpty: (p) => (p?.weeks || []).some((w) => w?.topic?.trim() || w?.workDone?.trim()),
+  // workDone is an array of "work done" lines (never a string), so length —
+  // not .trim() — is the real "has work" signal. Calling .trim() on the array
+  // threw and crashed the studio on mount.
+  isNonEmpty: (p) => (p?.weeks || []).some((w) => w?.topic?.trim() || (w?.workDone || []).length),
 }
 
 export const markScheduleDescriptor = {
