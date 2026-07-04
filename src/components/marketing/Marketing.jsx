@@ -496,65 +496,82 @@ export default function Marketing() {
         </Section>
       </header>
 
-      {/* Hero */}
-      <section className="marketing-hero">
-        <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
-            <div className="max-w-2xl">
-              <div className="marketing-kicker">
-                <span aria-hidden="true" />
-                Built in Zambia, for the Zambian CBC
-              </div>
-              <h1
-                className="marketing-hero-title"
-                style={{ maxWidth: '15ch', fontSize: 'clamp(2.5rem, 4.8vw, 4.25rem)' }}
-              >
-                The AI partner for{' '}
-                <span style={{ color: '#66BB6A' }}>Teachers</span>{' '}
-                &amp;{' '}
-                <span style={{ color: '#F9A825' }}>Learners</span>
-              </h1>
-              <p className="marketing-hero-copy">
-                AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
-                exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
-                and OBC (2013) curricula.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button as={Link} to="/register" variant="primary" size="lg">
-                  Get started free
-                </Button>
-                <Button as="a" href="#what-you-can-make" variant="secondary" size="lg" trailingIcon={<Icon as={ChevronRight} size="sm" />}>
-                  See how it works
-                </Button>
-              </div>
-              <p className="mt-3 text-sm text-white/60">No card needed to start.</p>
-              <div className="mt-8 flex flex-wrap gap-2.5" aria-label="ZedExams highlights">
-                {HERO_CHIPS.map(({ icon, label, sub }) => (
-                  <div
-                    key={label}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
-                  >
-                    <Icon as={icon} size="sm" className="text-[#F9A825]" />
-                    <span className="text-sm font-black text-white">{label}</span>
-                    <span className="hidden text-xs text-white/60 sm:inline">{sub}</span>
-                  </div>
-                ))}
-              </div>
+      {/* Hero — full-bleed illustration, text overlaid on the left */}
+      <section className="marketing-hero relative overflow-hidden">
+        {/* Desktop: illustration bleeds to the right edge, blended into the band */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-[64%] lg:block" aria-hidden="true">
+          <img
+            src="/images/characters/zed-hero-team.webp"
+            alt=""
+            className="h-full w-full object-cover object-center"
+            width="1536"
+            height="1024"
+            fetchPriority="high"
+            loading="eager"
+            decoding="async"
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(90deg, #0F1B2D 0%, rgba(15,27,45,0.92) 16%, rgba(15,27,45,0.45) 38%, rgba(15,27,45,0) 60%)',
+            }}
+          />
+        </div>
+        <Section className="relative z-10 pt-14 pb-16 sm:pt-20 sm:pb-24 lg:pt-28 lg:pb-32">
+          <div className="lg:max-w-[46%]">
+            <div className="marketing-kicker">
+              <span aria-hidden="true" />
+              Built in Zambia, for the Zambian CBC
             </div>
+            <h1
+              className="marketing-hero-title"
+              style={{ maxWidth: '15ch', fontSize: 'clamp(2.5rem, 4.8vw, 4.25rem)' }}
+            >
+              The AI partner for{' '}
+              <span style={{ color: '#66BB6A' }}>Teachers</span>{' '}
+              &amp;{' '}
+              <span style={{ color: '#F9A825' }}>Learners</span>
+            </h1>
+            <p className="marketing-hero-copy">
+              AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
+              exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
+              and OBC (2013) curricula.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button as={Link} to="/register" variant="primary" size="lg">
+                Get started free
+              </Button>
+              <Button as="a" href="#what-you-can-make" variant="secondary" size="lg" trailingIcon={<Icon as={ChevronRight} size="sm" />}>
+                See how it works
+              </Button>
+            </div>
+            <p className="mt-3 text-sm text-white/60">No card needed to start.</p>
+            <div className="mt-8 flex flex-wrap gap-2.5" aria-label="ZedExams highlights">
+              {HERO_CHIPS.map(({ icon, label, sub }) => (
+                <div
+                  key={label}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
+                >
+                  <Icon as={icon} size="sm" className="text-[#F9A825]" />
+                  <span className="text-sm font-black text-white">{label}</span>
+                  <span className="hidden text-xs text-white/60 sm:inline">{sub}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* Hero illustration — teacher + Zed + learner, feature cards baked in */}
-            <div className="relative">
-              <img
-                src="/images/characters/zed-hero-team.webp"
-                alt="A ZedExams teacher and a Grade 4–7 learner studying together with the Zed AI assistant"
-                className="w-full rounded-3xl shadow-elev-lg ring-1 ring-white/15"
-                width="1400"
-                height="933"
-                fetchPriority="high"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
+          {/* Mobile/tablet: stacked illustration under the text */}
+          <div className="mt-10 lg:hidden">
+            <img
+              src="/images/characters/zed-hero-team.webp"
+              alt="A ZedExams teacher and a Grade 4–7 learner studying together with the Zed AI assistant"
+              className="w-full rounded-3xl shadow-elev-lg ring-1 ring-white/15"
+              width="1536"
+              height="1024"
+              loading="eager"
+              decoding="async"
+            />
           </div>
         </Section>
       </section>
