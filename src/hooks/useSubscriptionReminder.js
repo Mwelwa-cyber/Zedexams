@@ -2,11 +2,11 @@ import { useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { resolveSubscriptionStatus } from '../utils/subscriptionStatus'
 
-// How long a dismissed popup stays snoozed. ~20h (not a flat 24h) so a learner
-// who studies at the same time each evening still sees the nudge the next day,
-// but never twice in one sitting. Persisted to Firestore (reminderDismissedUntil)
-// so the "once per day" promise holds across devices.
-const SNOOZE_HOURS = 20
+// How long the Welcome-Back popup stays snoozed after a dismissal. ~60h (2.5
+// days) so a Free user is nudged every few days rather than every login —
+// contextual, not nagging. Persisted to Firestore (reminderDismissedUntil) so
+// the cadence holds across sessions and devices.
+const SNOOZE_HOURS = 60
 
 function toDate(value) {
   if (!value) return null

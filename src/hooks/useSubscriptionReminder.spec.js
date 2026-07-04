@@ -95,7 +95,7 @@ describe('audience override', () => {
 })
 
 describe('snoozeReminders', () => {
-  it('writes a ~20h dismissal window plus the shown timestamp', async () => {
+  it('writes a ~60h dismissal window plus the shown timestamp', async () => {
     setAuth({ role: 'learner', subscriptionPlan: 'free' })
     const { result } = renderHook(() => useSubscriptionReminder())
 
@@ -106,9 +106,9 @@ describe('snoozeReminders', () => {
     expect(updateProfileFields).toHaveBeenCalledTimes(1)
     const fields = updateProfileFields.mock.calls[0][0]
     const until = fields.reminderDismissedUntil.getTime()
-    // 20h ahead, allowing for the elapsed test time.
-    expect(until).toBeGreaterThanOrEqual(before + 20 * HOUR - 1000)
-    expect(until).toBeLessThanOrEqual(after + 20 * HOUR + 1000)
+    // ~60h (2.5 days) ahead, allowing for the elapsed test time.
+    expect(until).toBeGreaterThanOrEqual(before + 60 * HOUR - 1000)
+    expect(until).toBeLessThanOrEqual(after + 60 * HOUR + 1000)
     expect(fields.lastPaymentReminderShownAt).toBeInstanceOf(Date)
   })
 

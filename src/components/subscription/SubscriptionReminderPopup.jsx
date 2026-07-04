@@ -1,16 +1,25 @@
-import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
-import { reminderCopy } from '../../utils/subscriptionStatus'
+import { upgradePortal } from '../../utils/subscriptionStatus'
 import { isReminderSuppressedPath } from '../../utils/reminderVisibility'
-import Button from '../ui/Button'
+import { isNativePlatform } from '../../utils/runtime'
+import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
-import { Sparkles, CheckCircleIcon, X } from '../ui/icons'
+import { ArrowRight, X } from '../ui/icons'
+import {
+  BenefitPills,
+  LEARNER_PILLS,
+  PlanPricingCards,
+  TEACHER_PILLS,
+} from './PremiumUpgradeUI'
+
+const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
 // In-session guard: once the popup has appeared this visit it never reopens,
 // even before the Firestore snooze write lands. The Firestore
-// reminderDismissedUntil field carries the "once per day" promise across
+// reminderDismissedUntil field carries the "every 2–3 days" promise across
 // sessions and devices.
 const SESSION_SHOWN_KEY = 'zedexams.subReminderPopup.shown'
 
@@ -22,21 +31,22 @@ function markShownThisSession() {
 }
 
 /**
- * Once-a-day upgrade/renew popup shown after login for Free and Expired users.
- * Eligibility (status + Firestore snooze) lives in useSubscriptionReminder;
- * this component owns presentation and the session guard. Pro / Trial users
- * never see it, so upgrading removes it automatically.
+ * Popup #3 — "Welcome Back". A gentle upgrade nudge shown to Free (and Expired)
+ * users after they log in, capped to once every 2–3 days by the Firestore
+ * snooze in useSubscriptionReminder. Pro / Trial users never see it, so
+ * upgrading removes it automatically.
  */
 export default function SubscriptionReminderPopup() {
   const { userProfile } = useAuth()
   const { pathname } = useLocation()
-  const navigate = useNavigate()
   const {
-    status, audience, benefits, popupEligible,
+    status, audience, popupEligible,
     snoozeReminders, recordReminderShown,
   } = useSubscriptionReminder()
 
   const [open, setOpen] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [upgradePlanId, setUpgradePlanId] = useState(null)
 
   useEffect(() => {
     if (open) return undefined
@@ -52,6 +62,7 @@ export default function SubscriptionReminderPopup() {
       markShownThisSession()
       setOpen(true)
       recordReminderShown()
+      capture('paywall_shown', { reason: 'welcome-back', plan_target: audience })
     }, 900)
     return () => clearTimeout(t)
     // recordReminderShown is intentionally omitted: it derives from a
@@ -77,18 +88,41 @@ export default function SubscriptionReminderPopup() {
 
   if (!open) return null
 
-  const copy = reminderCopy(status, audience)
-  const expired = copy.tone === 'expired'
+  const expired = status === 'expired'
+  const isTeacher = audience === 'teacher'
+  const native = isNativePlatform()
+  const portal = upgradePortal(audience)
+  const pills = isTeacher ? TEACHER_PILLS : LEARNER_PILLS
+  const pricingPlanIds = isTeacher ? ['pro_monthly', 'max_monthly'] : ['weekly', 'monthly']
+  const popularPlanId = isTeacher ? 'pro_monthly' : 'monthly'
 
   function handleDismiss() {
     setOpen(false)
     snoozeReminders()
   }
 
-  function handleUpgrade() {
-    setOpen(false)
+  function handleUpgrade(planId) {
+    capture('paywall_upgrade_clicked', {
+      reason: 'welcome-back',
+      plan_target: audience,
+      via: planId ? 'plan-card' : 'primary',
+    })
     snoozeReminders()
-    navigate('/my-subscription')
+    setUpgradePlanId(planId || popularPlanId)
+    setShowUpgrade(true)
+  }
+
+  if (showUpgrade) {
+    return (
+      <Suspense fallback={null}>
+        <UpgradeModal
+          portal={portal.portal}
+          planIds={portal.planIds}
+          defaultPlanId={upgradePlanId}
+          onClose={() => { setShowUpgrade(false); setOpen(false) }}
+        />
+      </Suspense>
+    )
   }
 
   return (
@@ -99,59 +133,69 @@ export default function SubscriptionReminderPopup() {
       aria-labelledby="sub-reminder-popup-title"
     >
       <div
-        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={handleDismiss}
         aria-hidden="true"
       />
-      <div className="relative theme-card w-full rounded-t-3xl border theme-border shadow-2xl animate-scale-in overflow-hidden sm:max-w-md sm:rounded-3xl">
+      <div className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
         <button
           type="button"
           onClick={handleDismiss}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 min-h-0 rounded-full bg-transparent p-1.5 theme-text-muted shadow-none hover:theme-text"
+          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 p-0 text-white shadow-none hover:bg-white/30"
         >
           <Icon as={X} size="md" />
         </button>
 
-        <div
-          className={`px-6 pt-7 pb-6 text-center text-white ${
-            expired ? 'bg-red-500' : 'theme-accent-fill theme-on-accent'
-          }`}
-        >
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl">
-            <span aria-hidden="true">{copy.emoji}</span>
+        {/* Hero with a floating student + books + trophy illustration */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-6 pt-8 pb-6 text-center text-white">
+          <div className="relative mx-auto mb-3 h-20 w-20 animate-float">
+            <span className="absolute inset-0 flex items-center justify-center text-5xl" aria-hidden="true">🎓</span>
+            <span className="absolute -left-2 top-1 text-2xl" aria-hidden="true">📚</span>
+            <span className="absolute -right-2 -top-1 text-2xl" aria-hidden="true">🏆</span>
           </div>
-          <p className="text-xs font-black uppercase tracking-widest opacity-90">{copy.badge}</p>
-          <h2 id="sub-reminder-popup-title" className="mt-1 text-xl font-black leading-tight">
-            {copy.title}
+          <h2 id="sub-reminder-popup-title" className="text-2xl font-black leading-tight">
+            {expired ? '⏳ Your Premium has ended' : '🌟 Welcome Back!'}
           </h2>
-          <p className="mt-1.5 text-sm font-bold opacity-90">{copy.body}</p>
+          <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-white/90">
+            {expired
+              ? 'Renew Premium and pick up right where you left off — everything ZedExams has to offer.'
+              : 'Upgrade to Premium and unlock everything ZedExams has to offer.'}
+          </p>
         </div>
 
+        {/* Body */}
         <div className="px-6 py-5">
-          <p className="mb-3 flex items-center gap-1.5 text-sm font-black theme-text">
-            <Icon as={Sparkles} size="sm" strokeWidth={2.1} className="theme-accent-text" />
-            {audience === 'teacher' ? 'Pro unlocks for teachers' : 'Pro unlocks for learners'}
-          </p>
-          <ul className="space-y-2">
-            {benefits.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-sm font-bold theme-text">
-                <Icon as={CheckCircleIcon} size="sm" strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-green-500" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="mb-5">
+            <BenefitPills items={pills} />
+          </div>
+
+          <PlanPricingCards
+            planIds={pricingPlanIds}
+            popularPlanId={popularPlanId}
+            onSelect={handleUpgrade}
+            hidePrices={native}
+          />
 
           <div className="mt-5 flex flex-col gap-2">
-            <Button variant="primary" size="lg" onClick={handleUpgrade}>
-              {copy.cta}
-            </Button>
-            <Button variant="ghost" size="md" onClick={handleDismiss}>
-              Maybe later
-            </Button>
+            <button
+              type="button"
+              onClick={() => handleUpgrade(null)}
+              className="animate-premium-glow flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3.5 text-base font-black text-white transition-transform hover:scale-[1.02]"
+            >
+              {expired ? '🚀 Renew Premium' : '🚀 Upgrade Now'}
+              <Icon as={ArrowRight} size="sm" />
+            </button>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="w-full rounded-2xl bg-transparent px-4 py-2.5 text-sm font-bold text-gray-500 shadow-none hover:text-gray-700"
+            >
+              Continue with Free Version
+            </button>
           </div>
-          <p className="mt-3 text-center text-xs theme-text-muted">
-            We&apos;ll only remind you once a day.
+          <p className="mt-3 text-center text-xs text-gray-400">
+            We&apos;ll only remind you every few days.
           </p>
         </div>
       </div>
