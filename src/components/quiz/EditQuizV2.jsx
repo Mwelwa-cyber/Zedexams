@@ -247,6 +247,14 @@ export default function EditQuizV2() {
   // Clear-whole-quiz waits on ConfirmDialog approval (distinct from
   // pendingImport, which drives the import-diff modal below).
   const [pendingClearQuiz, setPendingClearQuiz] = useState(false)
+  // Set when the questions subcollection came back EMPTY but the quiz doc's
+  // own counters say it should have content (questionCount / reviewCount /
+  // passages). getQuestions() swallows a failed read and returns [] — without
+  // this guard the editor would hydrate an "empty" quiz and the 25 s autosave
+  // would then overwrite questionCount → 0 and blank passages[], silently
+  // destroying a populated past paper. When true we block autosave and warn
+  // the admin to reload instead of saving over real data. See the load effect.
+  const [suspectEmptyLoad, setSuspectEmptyLoad] = useState(false)
   // Imported-image upload progress. Set to { completed, total } while a
   // save flushes the Storage uploads for blob-backed import assets, so
   // the action bar can show "Uploading images… 4 / 32" instead of
@@ -502,6 +510,18 @@ export default function EditQuizV2() {
       setParts(hydrated.parts)
       setDeletedIds([])
       setDirty(false)
+      // Detect a failed/partial questions read: the subcollection came back
+      // empty, yet the doc's own counters insist it has content. getQuestions()
+      // returns [] on a read error just as it does for a genuinely empty quiz,
+      // so we can't tell them apart from the array alone — but a doc that
+      // claims questionCount/reviewCount/passages while presenting zero loaded
+      // questions is almost certainly a failed load, not an empty paper.
+      // Flag it so autosave can't overwrite the real data with this empty view.
+      const docClaimsContent =
+        (Number(quiz.questionCount) || 0) > 0 ||
+        (Number(quiz.reviewCount) || 0) > 0 ||
+        (Array.isArray(quiz.passages) && quiz.passages.length > 0)
+      setSuspectEmptyLoad(questions.length === 0 && docClaimsContent)
       setLoading(false)
     }
 
@@ -1356,6 +1376,11 @@ export default function EditQuizV2() {
       setParts(mergedParts)
     }
 
+    // An explicit import deliberately repopulates the editor, so the
+    // "questions failed to load" guard no longer applies — the admin is
+    // intentionally supplying fresh content to save. Unlock saving.
+    setSuspectEmptyLoad(false)
+
     setImportSummary({
       ...imported.summary,
       fileName: file.name,
@@ -1528,6 +1553,11 @@ export default function EditQuizV2() {
   async function performAutoSave() {
     if (autoSavingRef.current || saving) return
     if (anyUploading) return
+    // The questions subcollection failed to load (empty view over a doc that
+    // claims content). Saving now would persist that empty view and wipe the
+    // real questions/passages. Never autosave in this state — the admin must
+    // reload. See suspectEmptyLoad in the load effect.
+    if (suspectEmptyLoad) return
     // After a fresh document import the editor holds image blobs that
     // must be uploaded before the quiz is persisted. Pushing 30+
     // extracted images on the background timer would block typing for
@@ -1668,6 +1698,13 @@ export default function EditQuizV2() {
   }
 
   async function handleSave(mode = 'draft') {
+    // Same protection as autosave: if the questions failed to load, an explicit
+    // save would still overwrite the real questions/passages with the empty
+    // view. Refuse and tell the admin to reload rather than lose the paper.
+    if (suspectEmptyLoad) {
+      show('This quiz\'s questions didn\'t load — reload the page before saving so you don\'t overwrite them.', true)
+      return
+    }
     // Publishing triggers the full pre-publish checklist; lower-trust
     // modes (draft / pending) keep the legacy toast-on-first-error flow.
     if (mode === 'published') {
@@ -1758,6 +1795,13 @@ export default function EditQuizV2() {
 
   async function handleTogglePublish() {
     if (!isAdmin) return
+    // Guard against persisting an empty-view over a quiz whose questions never
+    // loaded (see suspectEmptyLoad). Publishing/unpublishing rewrites the
+    // questions + passages too, so it would clobber the same way a save does.
+    if (suspectEmptyLoad) {
+      show('This quiz\'s questions didn\'t load — reload the page before changing its status.', true)
+      return
+    }
     setSaving(true)
     try {
       const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
@@ -1938,6 +1982,28 @@ export default function EditQuizV2() {
           list view (Phase 7) is enough of an info-only signal. */}
       <PastPaperReferenceBanner quiz={form} />
       <ImportReviewBanner record={form} onMarkReviewed={handleMarkImportReviewed} busy={saving} />
+
+      {suspectEmptyLoad && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          <strong className="block font-black">This quiz’s questions didn’t load.</strong>
+          The editor is showing an empty view, but this paper still has questions and
+          passages saved. Editing has been locked so an accidental save can’t overwrite
+          them.{' '}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="font-bold underline underline-offset-2"
+          >
+            Reload the page
+          </button>{' '}
+          to try again. If it keeps happening, run{' '}
+          <code className="rounded bg-red-100 px-1">scripts/repair-quiz-passages-and-counts.mjs</code>{' '}
+          to repair the paper’s counts and restore its passages.
+        </div>
+      )}
 
       {wizardStep === 'create' && (
         <>

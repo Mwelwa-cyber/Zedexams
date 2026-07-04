@@ -122,6 +122,7 @@
     "test:secret-hygiene": "node scripts/test-secret-hygiene.mjs",
     "test:image-providers-decommissioned": "node scripts/test-image-providers-decommissioned.mjs",
     "test:question-consistency": "node scripts/test-question-consistency.mjs",
+    "test:repair-quiz-passages": "node scripts/test-repair-quiz-passages.mjs",
     "test:question-type": "node src/utils/questionType.test.js",
     "test:mark-schedule": "node scripts/test-mark-schedule.mjs",
     "test:class-timetable": "node scripts/test-class-timetable.mjs",
