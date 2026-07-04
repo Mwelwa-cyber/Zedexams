@@ -1,4 +1,4 @@
-import { SafeArea, SystemBarsStyle } from '@capacitor-community/safe-area'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import { isNativePlatform } from './runtime'
 import {
   parseCssColor,
@@ -150,9 +150,20 @@ function readIconsDark() {
 function commit(iconsDark) {
   if (iconsDark === currentIconsDark) return
   currentIconsDark = iconsDark
-  // SystemBarsStyle.Light = dark icons (for a light page); .Dark = light icons.
-  const style = iconsDark ? SystemBarsStyle.Light : SystemBarsStyle.Dark
-  SafeArea.setSystemBarsStyle({ style }).catch(() => {})
+  setIconStyle(iconsDark)
+}
+
+// Set ONLY the status-bar icon appearance and never a background. We use
+// @capacitor/status-bar's setStyle (which just flips
+// WindowInsetsController.setAppearanceLightStatusBars) rather than
+// @capacitor-community/safe-area's setSystemBarsStyle, because that one *also*
+// paints the window decor view solid white/black — which shows through the
+// transparent (edge-to-edge) status bar and kills the transparency. SafeArea
+// stays responsible only for bridging the bar insets into env(safe-area-*).
+// Style.Light = dark icons (for a light page); Style.Dark = light icons.
+function setIconStyle(iconsDark) {
+  const style = iconsDark ? Style.Light : Style.Dark
+  StatusBar.setStyle({ style }).catch(() => {})
 }
 
 /**
@@ -205,8 +216,7 @@ export function initAdaptiveStatusBar() {
   // First paint: commit immediately (no settle) so the icons are right before
   // the first scroll.
   currentIconsDark = readIconsDark()
-  const initialStyle = currentIconsDark ? SystemBarsStyle.Light : SystemBarsStyle.Dark
-  SafeArea.setSystemBarsStyle({ style: initialStyle }).catch(() => {})
+  setIconStyle(currentIconsDark)
 
   // Re-sample as content moves behind the bar.
   window.addEventListener('scroll', scheduleEvaluate, { passive: true })
