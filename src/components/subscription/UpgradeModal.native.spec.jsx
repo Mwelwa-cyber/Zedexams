@@ -37,7 +37,7 @@ describe('UpgradeModal platform dispatcher', () => {
     isNativePlatform.mockReturnValue(false)
     render(<UpgradeModal onClose={() => {}} portal="learner" planIds={['weekly', 'monthly']} />)
     // Plans step of the Lenco flow, with its mobile-money promise + ZMW price.
-    expect(await screen.findByText(/Pay instantly with Mobile Money/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Secure payments with Lenco Mobile Money/i)).toBeInTheDocument()
     expect(screen.getByText('K50')).toBeInTheDocument()
     expect(screen.queryByTestId('play-upgrade-panel')).toBeNull()
   })
