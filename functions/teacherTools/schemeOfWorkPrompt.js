@@ -105,6 +105,39 @@ function buildWeekPlanLine(weekPlan) {
 }
 
 /**
+ * Render a teacher-approved topic backbone (the reviewed & edited term plan
+ * from the studio's preview step) as an authoritative ordered sequence. When
+ * present it OVERRIDES the breadth of <curriculum_outline>: the model must
+ * sequence exactly these topics, in this order, across the teaching weeks —
+ * nothing added, nothing dropped. Returns "" when the teacher approved no
+ * explicit plan (the model then paces the <curriculum_outline> itself).
+ */
+function buildTopicSelectionBlock(topicSelection, term) {
+  if (!Array.isArray(topicSelection) || topicSelection.length === 0) return "";
+  const rows = topicSelection.map((t, i) => {
+    const subs = Array.isArray(t.subtopics) && t.subtopics.length ?
+      ` — sub-topics: ${t.subtopics.join("; ")}` : "";
+    const wk = Number(t.weeks) > 0 ? ` [~${Number(t.weeks)} week${Number(t.weeks) === 1 ? "" : "s"}]` : "";
+    const rev = t.isRevision ? " (REVISION)" : "";
+    return `  ${i + 1}. ${t.topic}${wk}${rev}${subs}`;
+  });
+  return [
+    `<approved_term_plan term="${term}">`,
+    "The teacher has REVIEWED and APPROVED this exact ordered list of topics " +
+    "for THIS term (Term " + term + "). It is authoritative: sequence THESE " +
+    "topics across the teaching weeks in THIS order, honouring the suggested " +
+    "week span for each. Do NOT add topics that are not in this list, do NOT " +
+    "drop any, and do NOT restart with topics from an earlier term. A topic " +
+    "whose span is more than one week continues across consecutive weeks " +
+    "(mark the later week's sub-topic \"(cont.)\"). Combine short one-week " +
+    "topics only if needed to fit the calendar. Topics flagged (REVISION) are " +
+    "deliberate revision of earlier material.",
+    ...rows,
+    "</approved_term_plan>",
+  ].join("\n");
+}
+
+/**
  * @param {object} inputs
  *   grade, subject, term (1|2|3), numberOfWeeks, school, teacherName,
  *   language, instructions, curriculum, framework
@@ -124,12 +157,14 @@ function buildUserPrompt(inputs) {
     hasOutline = false,
     hasModuleOutline = false,
     weekPlan = [],
+    topicSelection = [],
   } = inputs;
 
   const previous = isPreviousCurriculum(inputs);
   const daysLine = Array.isArray(teachingDays) && teachingDays.length ?
     teachingDays.join(", ") : "";
   const planLine = buildWeekPlanLine(weekPlan);
+  const approvedPlanBlock = buildTopicSelectionBlock(topicSelection, term);
 
   return [
     previous ?
@@ -158,7 +193,13 @@ function buildUserPrompt(inputs) {
     school ? `- School: ${school}` : "",
     instructions ? `- Teacher's additional instructions: ${instructions}` : "",
     "",
-    hasOutline ?
+    approvedPlanBlock,
+    approvedPlanBlock ?
+      "Follow the <approved_term_plan> above EXACTLY — it is the teacher's " +
+      "reviewed sequence for this term. Sequence its topics in order across " +
+      "the teaching weeks, honouring each topic's week span; do not add, drop, " +
+      "reorder, or restart with an earlier term's topics." :
+      (hasOutline ?
       "Use the <curriculum_outline> block above as the authoritative topic " +
       "list — sequence its topics across the weeks; do not invent topics " +
       "outside it." :
@@ -169,7 +210,7 @@ function buildUserPrompt(inputs) {
         "\"uploaded_module\"." :
         "No official curriculum outline was found for this grade+subject — " +
         "use your expert knowledge of the Zambian CBC syllabus for it, and " +
-        "tag those weeks' source as \"ai_inferred\"."),
+        "tag those weeks' source as \"ai_inferred\".")),
     "",
     "Produce the scheme of work as a single JSON object with EXACTLY these keys:",
     "",
@@ -240,4 +281,5 @@ module.exports = {
   pickSystemPrompt,
   isPreviousCurriculum,
   buildUserPrompt,
+  buildTopicSelectionBlock,
 };

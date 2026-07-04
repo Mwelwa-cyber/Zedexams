@@ -180,8 +180,17 @@ function renderOutlineBlock(outline, meta = {}) {
 /**
  * Async wrapper: read the merged topic set and build the outline. `deps`
  * lets tests inject a getAllTopics stub; production passes the real one.
+ *
+ * The full grade+subject outline is then SLICED to the requested term (unless
+ * `divideByTerm` is false) so the prompt only ever sees this term's topics —
+ * this is what stops Term 2 and Term 3 restarting from the first topic. The
+ * unsliced outline is preserved on `outline.fullTopics` for callers that need
+ * the whole-year context (e.g. an "all terms" plan). `weeksByTerm` lets the
+ * caller pass the real per-term teaching-week counts so the division matches
+ * the client preview; it defaults to a sensible 12/12/11 split otherwise.
  */
-async function resolveSchemeOutline({grade, subject, term, framework}, deps) {
+async function resolveSchemeOutline(
+    {grade, subject, term, framework, weeksByTerm, divideByTerm = true}, deps) {
   const {getAllTopics, normalizeGrade} = deps ||
     require("./cbcKnowledge");
   let topics = [];
@@ -191,9 +200,17 @@ async function resolveSchemeOutline({grade, subject, term, framework}, deps) {
     console.error("resolveSchemeOutline: getAllTopics failed", err);
     topics = [];
   }
-  const outline = buildOutlineFromTopics(topics, {
-    grade, subject, normalizeGrade,
-  });
+  const full = buildOutlineFromTopics(topics, {grade, subject, normalizeGrade});
+
+  // Slice the year outline down to the requested term so the model continues
+  // the syllabus instead of restarting it every term.
+  const {sliceOutlineToTerm} = require("./schemeTermDivision");
+  const outline = divideByTerm && term ?
+    sliceOutlineToTerm(full, term, {weeksByTerm}) : full;
+
+  // Keep the whole-year topics reachable for provenance / all-terms planning.
+  outline.fullTopics = full.topics;
+  outline.fullTopicCount = full.topicCount;
   outline.block = renderOutlineBlock(outline, {grade, subject, term});
   return outline;
 }

@@ -44,8 +44,11 @@ import {
 } from '../../../utils/schemeTermPlan'
 import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../../../utils/schemeReadiness'
-import { normalizeCurriculum } from '../../../utils/schemeFormat'
+import { normalizeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'
+import { useSubjectTopics } from '../studio/hooks/useSubjectTopics'
+import SchemeTermPreview from './SchemeTermPreview'
+import { toTopicSelectionPayload } from '../../../utils/schemeTermDivision'
 
 const CALENDAR_YEARS = getCalendarYears()
 
@@ -100,6 +103,14 @@ export default function SchemeOfWorkGenerator() {
   const [handedOff, setHandedOff] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  // Step flow: 'form' (settings) → 'preview' (review & edit term topics) →
+  // generated output. planScope decides whether the preview shows one term or
+  // all three of the divided syllabus.
+  const [step, setStep] = useState('form')
+  const [planScope, setPlanScope] = useState('single')
+  // The approved overrides (term + topicSelection) for the current generation,
+  // kept so "Regenerate" reruns the same approved plan.
+  const [genOverrides, setGenOverrides] = useState({})
 
   // Universal Draft Manager: auto-save the scheme-of-work inputs.
   const draft = useStudioInputDraft({
@@ -183,6 +194,42 @@ export default function SchemeOfWorkGenerator() {
     periodsPerWeek: periodsCount,
   }), [curr.curriculumMode, curriculum, curr.grade, curr.subject, form.term, effectiveWeeks, periodsCount])
 
+  // ── Intelligent term division (client preview) ────────────────────────────
+  // The full grade+subject syllabus outline, from the SAME data layer the
+  // curriculum selector uses. Divided across the three terms so the preview can
+  // show this term's slice (and Term 2/3 continue where the prior term ended).
+  const { topics: syllabusTopics, loading: topicsLoading } = useSubjectTopics(
+    curr.subjectKey, curr.gradeLabel, curr.curriculumMode,
+  )
+  const hasSyllabusTopics = Array.isArray(syllabusTopics) && syllabusTopics.length > 0
+
+  // Per-term calendar meta (teaching weeks after reserving the exam week) so the
+  // division is weighted by each term's real length and the preview can show it.
+  const termCalendars = useMemo(() => {
+    const out = {}
+    for (const t of [1, 2, 3]) {
+      const plan = buildTermPlan({ year: form.year, term: t })
+      if (!plan) {
+        out[t] = { totalWeeks: 0, deliveryWeeks: 0, hasExam: false, hasRevision: false }
+        continue
+      }
+      const total = plan.weeks.length
+      const reserved = reserveWeeks(plan, { examWeeks: [total] })
+      out[t] = {
+        totalWeeks: total,
+        deliveryWeeks: deliveryWeekCount(reserved),
+        hasExam: true,
+        hasRevision: false,
+      }
+    }
+    return out
+  }, [form.year])
+  const weeksByTerm = useMemo(() => {
+    const w = {}
+    for (const t of [1, 2, 3]) w[t] = termCalendars[t]?.deliveryWeeks || 0
+    return w
+  }, [termCalendars])
+
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
   }
@@ -200,24 +247,40 @@ export default function SchemeOfWorkGenerator() {
     }
   }
 
-  function buildInputs() {
+  function buildInputs(overrides = {}) {
+    const term = overrides.term || form.term
+    // For a term other than the one the form is focused on (all-terms mode),
+    // derive that term's own calendar reservation so its weekPlan is correct.
+    let weekPlanForTerm = reservedPlan
+    let weeksForTerm = effectiveWeeks
+    if (term !== form.term) {
+      const plan = buildTermPlan({ year: form.year, term })
+      if (plan) {
+        const total = plan.weeks.length
+        weekPlanForTerm = reserveWeeks(plan, { examWeeks: [total] })
+        weeksForTerm = total
+      }
+    }
     return {
       ...form,
+      term,
       grade: curr.grade,
       subject: curr.subject,
       curriculum: curr.curriculum,
       framework: curr.framework,
       year: form.year,
-      numberOfWeeks: effectiveWeeks || 12,
+      numberOfWeeks: weeksForTerm || 12,
       periodsPerWeek: periodsPerWeekStr,
       timePerWeek: timePerWeekStr,
-      weekPlan: reservedPlan ? toWeekPlanPayload(reservedPlan) : [],
+      weekPlan: weekPlanForTerm ? toWeekPlanPayload(weekPlanForTerm) : [],
       timetable: selectedTimetablePayload(),
+      weeksByTerm,
+      topicSelection: Array.isArray(overrides.topicSelection) ? overrides.topicSelection : [],
     }
   }
 
   async function regenerateSection(sectionId) {
-    const res = await generateSchemeOfWork(buildInputs())
+    const res = await generateSchemeOfWork(buildInputs(genOverrides))
     if (res.ok && res.data?.schemeOfWork) {
       const fresh = res.data.schemeOfWork
       setScheme((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -254,7 +317,8 @@ export default function SchemeOfWorkGenerator() {
     setSavingEdit(false)
   }
 
-  async function onGenerate(e) {
+  /** Validate the settings, then either open the term preview or generate. */
+  function onGenerate(e) {
     e?.preventDefault?.()
     if (!curr.curriculumMode) {
       setErrorMessage('Please choose a curriculum.')
@@ -271,7 +335,26 @@ export default function SchemeOfWorkGenerator() {
       setStatus('error')
       return
     }
+    setErrorMessage('')
+    // When we have real syllabus topics, route through the review-and-approve
+    // step so the teacher confirms the term's plan. With no syllabus data (the
+    // AI-inferred path) there is nothing to preview — generate directly.
+    if (hasSyllabusTopics) {
+      setStep('preview')
+      return
+    }
+    runGenerate({})
+  }
+
+  /** Approve handler from the preview — generate with the edited term plan. */
+  function onApproveTermPlan(term, items) {
+    runGenerate({ term, topicSelection: toTopicSelectionPayload(items) })
+  }
+
+  async function runGenerate(overrides = {}) {
     if (!ensureCanGenerate('scheme_of_work')) return
+    setGenOverrides(overrides)
+    if (overrides.term) updateField('term', overrides.term)
     setHandedOff(false)
     setSaveMsg('')
     setStatus('generating')
@@ -280,8 +363,10 @@ export default function SchemeOfWorkGenerator() {
     setAdvisories([])
     setCurriculumSource('')
     setScheme(null)
+    setStep('form')
 
-    const res = await generateSchemeOfWork(buildInputs())
+    const genTerm = overrides.term || form.term
+    const res = await generateSchemeOfWork(buildInputs(overrides))
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -301,7 +386,7 @@ export default function SchemeOfWorkGenerator() {
       attachLibraryToGeneration(res.data.generationId, {
         libraryType: LIBRARY_TYPES.SCHEMES_OF_WORK,
         grade:       curr.grade,
-        term:        form.term,
+        term:        genTerm,
         subject:     curr.subject,
         syllabusHint: curriculum === 'obc' ? 'OBC' : 'CBC',
       }).catch(() => { /* non-fatal — doc still readable via legacy path */ })
@@ -512,8 +597,17 @@ export default function SchemeOfWorkGenerator() {
               disabled={status === 'generating' || !readiness.ready}
               className="studio-btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {status === 'generating' ? 'Generating…' : '▶ Generate Scheme of Work'}
+              {status === 'generating'
+                ? 'Generating…'
+                : hasSyllabusTopics
+                  ? '🦁 Review term topics →'
+                  : '▶ Generate Scheme of Work'}
             </button>
+            {hasSyllabusTopics && (
+              <p className="text-xs text-center" style={{ color: '#566f76' }}>
+                We'll divide the syllabus across the terms and let you review Term {form.term}'s topics before generating.
+              </p>
+            )}
 
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
@@ -523,6 +617,25 @@ export default function SchemeOfWorkGenerator() {
             )}
           </form>
 
+          {step === 'preview' ? (
+            <StudioOutputBoundary onRetry={() => setStep('form')}>
+              <SchemeTermPreview
+                topics={syllabusTopics}
+                focusTerm={form.term}
+                scope={planScope}
+                onScopeChange={setPlanScope}
+                weeksByTerm={weeksByTerm}
+                termMeta={termCalendars}
+                gradeLabel={gradeLabel}
+                subjectLabel={subjectLabel}
+                curriculumLabel={curriculumLabel(curriculum)}
+                loading={topicsLoading}
+                busy={status === 'generating'}
+                onApprove={onApproveTermPlan}
+                onBack={() => setStep('form')}
+              />
+            </StudioOutputBoundary>
+          ) : (
           <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           {handedOff && status === 'success' && scheme ? (
           <section className="studio-card p-5 min-h-[400px]">
@@ -589,7 +702,7 @@ export default function SchemeOfWorkGenerator() {
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
               onStop={() => setStatus('idle')}
-              onRegenerate={() => onGenerate()}
+              onRegenerate={() => runGenerate(genOverrides)}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}
               onContinueEditing={() => setHandedOff(true)}
@@ -598,6 +711,7 @@ export default function SchemeOfWorkGenerator() {
             />
           )}
           </StudioOutputBoundary>
+          )}
         </div>
       </div>
     </div>
