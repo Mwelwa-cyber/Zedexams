@@ -432,7 +432,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // Ready-made paper templates (common Zambian formats) — the picker seeds the
   // builder with empty-but-typed sections instead of a blank canvas.
   const [templateOpen, setTemplateOpen] = useState(false)
-  const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
+  // Quick-questions generator form. `topics` / `subtopics` are arrays so the
+  // teacher can cover several topics + sub-topics in one generation (the same
+  // multi-select flow as the full "Create paper with AI" modal), not one topic
+  // at a time. `topic` is kept for back-compat with any override callers.
+  const [aiForm, setAiForm] = useState({ topics: [], subtopics: [], topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
   const [diagramFixOpen, setDiagramFixOpen] = useState(false)
@@ -1478,17 +1482,28 @@ export default function AssessmentStudio({ variant = 'test' }) {
 
   /* ------------ AI generation ------------ */
   async function handleGenerateQuestions(topicOverride) {
-    const topic = (topicOverride || aiForm.topic || form.topic || '').trim()
+    // Multi-topic: the picker collects an array of topics + sub-topics. Join
+    // them for the generator (which grounds on the joined string + spreads the
+    // questions across every listed topic), mirroring the full-paper modal.
+    const topicsList = Array.isArray(aiForm.topics) ? aiForm.topics.filter(Boolean) : []
+    const subtopicsList = Array.isArray(aiForm.subtopics) ? aiForm.subtopics.filter(Boolean) : []
+    const topic = (topicOverride
+      ? String(topicOverride)
+      : (topicsList.join('; ') || aiForm.topic || form.topic || '')).trim().slice(0, 240)
     if (!topic) {
-      showToast('Add a topic so Zed can generate questions.', true)
+      showToast('Add at least one topic so Zed can generate questions.', true)
       return
     }
+    // A readable title falls back to the first topic rather than the whole
+    // '; '-joined list, which would run long across several topics.
+    const titleTopic = topicsList[0] || topic
     setAiGenerating(true)
     try {
       const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
         subject: form.subject,
         grade: form.grade,
         topic,
+        subtopic: subtopicsList.join('; ').slice(0, 300),
         count: aiForm.count,
         type: aiForm.type,
         framework: aiForm.framework,
@@ -1518,7 +1533,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       setSections(prev => hasOnlyEmptyStarterSection(prev)
         ? nextSections
         : [...prev, ...nextSections])
-      if (!form.title.trim()) setF('title', `Grade ${form.grade} ${form.subject} - ${topic}`)
+      if (!form.title.trim()) setF('title', `Grade ${form.grade} ${form.subject} - ${titleTopic}`)
       const skipped = generatedList.length - nextSections.length
       showToast(skipped
         ? `Zed returned ${skipped} incomplete; ${nextSections.length} kept. Review before saving.`
