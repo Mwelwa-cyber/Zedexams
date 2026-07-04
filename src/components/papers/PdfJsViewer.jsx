@@ -60,6 +60,7 @@ export default function PdfJsViewer({ url, blob, title }) {
   const [pdf, setPdf] = useState(null)
   const [pageIndex, setPageIndex] = useState(0) // 0-based
   const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX)
+  const [rotation, setRotation] = useState(0) // 0 / 90 / 180 / 270
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -126,7 +127,7 @@ export default function PdfJsViewer({ url, blob, title }) {
         const fitScale = containerWidth / baseViewport.width
         const userScale = ZOOM_LEVELS[zoomIndex]
         const finalScale = Math.max(0.4, Math.min(6, fitScale * userScale))
-        const viewport = page.getViewport({ scale: finalScale * dpr })
+        const viewport = page.getViewport({ scale: finalScale * dpr, rotation })
 
         canvas.width = viewport.width
         canvas.height = viewport.height
@@ -156,7 +157,7 @@ export default function PdfJsViewer({ url, blob, title }) {
         renderTaskRef.current = null
       }
     }
-  }, [pdf, pageIndex, zoomIndex])
+  }, [pdf, pageIndex, zoomIndex, rotation])
 
   // Re-render on container resize — page width follows the column.
   useEffect(() => {
@@ -188,6 +189,13 @@ export default function PdfJsViewer({ url, blob, title }) {
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goPrev() }
     else if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goNext() }
   }, [goPrev, goNext])
+
+  const rotate = useCallback(() => setRotation((r) => (r + 90) % 360), [])
+  const handlePrint = useCallback(() => {
+    // Native browser viewers print multi-page PDFs reliably; open the
+    // source in a new tab where the reader can Ctrl/⌘-P the full paper.
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  }, [url])
 
   return (
     <div
@@ -242,6 +250,27 @@ export default function PdfJsViewer({ url, blob, title }) {
           >
             +
           </button>
+          <button
+            type="button"
+            onClick={rotate}
+            disabled={!pdf}
+            aria-label="Rotate page"
+            title="Rotate"
+            className="rounded-full theme-card border-2 theme-border theme-text-muted hover:theme-text px-2.5 py-1 text-xs font-bold disabled:opacity-40"
+          >
+            ⟳
+          </button>
+          {url && (
+            <button
+              type="button"
+              onClick={handlePrint}
+              aria-label="Print paper"
+              title="Print"
+              className="rounded-full theme-card border-2 theme-border theme-text-muted hover:theme-text px-2.5 py-1 text-xs font-bold"
+            >
+              🖨
+            </button>
+          )}
         </div>
       </div>
 
