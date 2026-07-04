@@ -10,7 +10,7 @@ import {
 import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
 import { ArrowRight, Lock, X } from '../ui/icons'
-import { BenefitChecklist, PlanPricingCards } from './PremiumUpgradeUI'
+import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
@@ -125,14 +125,17 @@ export default function LockedFeatureModal() {
         </button>
 
         {/* Hero */}
-        <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
-          <div className="mx-auto mb-2 flex h-11 w-11 animate-float items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
+          <span className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
+          <span className="pointer-events-none absolute left-4 top-3 text-sm text-white/40" aria-hidden="true">✦</span>
+          <span className="pointer-events-none absolute right-5 bottom-4 text-xs text-white/30" aria-hidden="true">✦</span>
+          <div className="relative mx-auto mb-2 flex h-11 w-11 animate-float items-center justify-center rounded-xl bg-white/15 shadow-lg shadow-black/10 backdrop-blur">
             <Icon as={Lock} size="md" strokeWidth={2.1} />
           </div>
-          <h2 id="locked-feature-title" className="text-lg font-black leading-tight">
+          <h2 id="locked-feature-title" className="relative text-lg font-black leading-tight tracking-tight">
             🔒 Premium Feature
           </h2>
-          <p className="mx-auto mt-1 max-w-[15rem] text-xs font-medium text-white/90">
+          <p className="relative mx-auto mt-1 max-w-[15rem] text-xs font-medium text-white/85">
             {featureName
               ? `${featureName} is part of Premium — unlock unlimited AI learning tools.`
               : 'Unlock unlimited access to powerful AI learning tools.'}
@@ -146,15 +149,16 @@ export default function LockedFeatureModal() {
           <PlanPricingCards
             planIds={pricingPlanIds}
             popularPlanId={popularPlanId}
+            selectedPlanId={popularPlanId}
             onSelect={openUpgrade}
             hidePrices={native}
           />
 
-          <div className="mt-3.5 flex flex-col gap-1.5">
+          <div className="mt-4 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => openUpgrade(null)}
-              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02]"
+              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02] active:scale-95"
             >
               🚀 Upgrade to Premium
               <Icon as={ArrowRight} size="xs" />
@@ -167,11 +171,7 @@ export default function LockedFeatureModal() {
               Maybe Later
             </button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-gray-400">
-            {native
-              ? 'Billed securely through Google Play · Cancel anytime'
-              : 'Pay with MTN, Airtel or Zamtel · Cancel anytime'}
-          </p>
+          <TrustRow native={native} />
         </div>
       </div>
     </div>

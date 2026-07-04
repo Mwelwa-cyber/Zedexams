@@ -13,6 +13,7 @@ import {
   LEARNER_PILLS,
   PlanPricingCards,
   TEACHER_PILLS,
+  TrustRow,
 } from './PremiumUpgradeUI'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
@@ -149,15 +150,18 @@ export default function SubscriptionReminderPopup() {
 
         {/* Hero with a floating student + books + trophy illustration */}
         <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
+          <span className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl" aria-hidden="true" />
+          <span className="pointer-events-none absolute left-4 top-3 text-sm text-white/40" aria-hidden="true">✦</span>
+          <span className="pointer-events-none absolute right-5 bottom-4 text-xs text-white/30" aria-hidden="true">✦</span>
           <div className="relative mx-auto mb-2 h-14 w-14 animate-float">
-            <span className="absolute inset-0 flex items-center justify-center text-4xl" aria-hidden="true">🎓</span>
+            <span className="absolute inset-0 flex items-center justify-center text-4xl drop-shadow" aria-hidden="true">🎓</span>
             <span className="absolute -left-1.5 top-1 text-lg" aria-hidden="true">📚</span>
             <span className="absolute -right-1.5 -top-1 text-lg" aria-hidden="true">🏆</span>
           </div>
-          <h2 id="sub-reminder-popup-title" className="text-lg font-black leading-tight">
+          <h2 id="sub-reminder-popup-title" className="relative text-lg font-black leading-tight tracking-tight">
             {expired ? '⏳ Your Premium has ended' : '🌟 Welcome Back!'}
           </h2>
-          <p className="mx-auto mt-1 max-w-[16rem] text-xs font-medium text-white/90">
+          <p className="relative mx-auto mt-1 max-w-[16rem] text-xs font-medium text-white/85">
             {expired
               ? 'Renew Premium and pick up right where you left off.'
               : 'Upgrade to Premium and unlock everything ZedExams offers.'}
@@ -173,15 +177,16 @@ export default function SubscriptionReminderPopup() {
           <PlanPricingCards
             planIds={pricingPlanIds}
             popularPlanId={popularPlanId}
+            selectedPlanId={popularPlanId}
             onSelect={handleUpgrade}
             hidePrices={native}
           />
 
-          <div className="mt-3.5 flex flex-col gap-1.5">
+          <div className="mt-4 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => handleUpgrade(null)}
-              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02]"
+              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02] active:scale-95"
             >
               {expired ? '🚀 Renew Premium' : '🚀 Upgrade Now'}
               <Icon as={ArrowRight} size="xs" />
@@ -194,9 +199,7 @@ export default function SubscriptionReminderPopup() {
               Continue with Free Version
             </button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-gray-400">
-            We&apos;ll only remind you every few days.
-          </p>
+          <TrustRow native={native} />
         </div>
       </div>
     </div>

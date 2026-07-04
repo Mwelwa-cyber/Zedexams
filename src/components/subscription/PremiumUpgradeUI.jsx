@@ -11,7 +11,7 @@
 
 import { PLANS } from '../../utils/subscriptionConfig'
 import Icon from '../ui/Icon'
-import { Check } from '../ui/icons'
+import { Check, Lock, RefreshCw } from '../ui/icons'
 
 // Colour-coded benefit pills. The spec calls these out as "much easier to read
 // on phones" than a plain icon row.
@@ -79,6 +79,27 @@ function unitLabel(plan) {
   return ''
 }
 
+// Human "Billed weekly / monthly / yearly" cadence for the pricing-card
+// subline.
+function billedLabel(plan) {
+  if (plan.durationDays === 7 || plan.billing === 'weekly') return 'Billed weekly'
+  if (plan.durationDays === 30 || plan.billing === 'monthly') return 'Billed monthly'
+  if (plan.billing === 'yearly') return 'Billed yearly'
+  if (plan.durationDays) return `Every ${plan.durationDays} days`
+  return ''
+}
+
+// Whole-kwacha saving from paying monthly instead of four weekly renewals —
+// only meaningful for the learner weekly+monthly pair, so we compute it lazily
+// and return null for any other combination.
+function monthlySaving(ids) {
+  const weekly = PLANS.weekly
+  const monthly = PLANS.monthly
+  if (!ids.includes('weekly') || !ids.includes('monthly') || !weekly || !monthly) return null
+  const saving = weekly.priceZMW * 4 - monthly.priceZMW
+  return saving > 0 ? saving : null
+}
+
 /**
  * Weekly / Monthly pricing cards with a "⭐ Most Popular" ribbon on the
  * recommended plan. Clicking a card selects it (so the checkout opens on that
@@ -93,29 +114,36 @@ export function PlanPricingCards({
   hidePrices = false,
 }) {
   const ids = planIds.filter((id) => PLANS[id])
+  const saving = hidePrices ? null : monthlySaving(ids)
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 pt-1.5">
       {ids.map((id) => {
         const plan = PLANS[id]
         const popular = id === popularPlanId
         const active = selectedPlanId === id
+        const showSaving = saving && id === 'monthly'
         return (
           <button
             key={id}
             type="button"
             onClick={() => onSelect?.(id)}
             aria-pressed={active}
-            className={`relative rounded-xl border-2 p-2.5 text-left transition-all ${
+            className={`relative rounded-xl border-2 p-2.5 text-left transition-all duration-150 ${
               active
                 ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200'
                 : popular
-                  ? 'border-purple-300 bg-white hover:border-purple-400'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-purple-300 bg-white hover:border-purple-400 hover:-translate-y-0.5'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:-translate-y-0.5'
             }`}
           >
             {popular && (
               <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm">
                 ⭐ Most Popular
+              </span>
+            )}
+            {active && (
+              <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-purple-600 text-white">
+                <Icon as={Check} size="xs" strokeWidth={3.2} />
               </span>
             )}
             <p className="text-[10px] font-black uppercase tracking-wide text-gray-500">{plan.name}</p>
@@ -127,9 +155,38 @@ export function PlanPricingCards({
                 <span className="text-[11px] font-bold text-gray-400"> {unitLabel(plan)}</span>
               </p>
             )}
+            {showSaving ? (
+              <p className="mt-1 text-[10px] font-bold text-green-600">Save K{saving} vs weekly</p>
+            ) : (
+              !hidePrices && <p className="mt-1 text-[10px] font-medium text-gray-400">{billedLabel(plan)}</p>
+            )}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// Compact trust strip — small icons under the CTA. Mirrors the reference
+// mock's "Secure payments · Cancel anytime" reassurance without adding height.
+export function TrustRow({ native = false }) {
+  return (
+    <div className="mt-2.5 flex items-center justify-center gap-3 text-[10.5px] font-semibold text-gray-400">
+      <span className="inline-flex items-center gap-1">
+        <Icon as={Lock} size="xs" strokeWidth={2.2} className="text-gray-400" />
+        Secure payment
+      </span>
+      <span className="h-2.5 w-px bg-gray-200" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1">
+        <Icon as={RefreshCw} size="xs" strokeWidth={2.2} className="text-gray-400" />
+        Cancel anytime
+      </span>
+      {!native && (
+        <>
+          <span className="h-2.5 w-px bg-gray-200" aria-hidden="true" />
+          <span>MTN · Airtel · Zamtel</span>
+        </>
+      )}
     </div>
   )
 }
