@@ -48,6 +48,7 @@
     "test:draft-core": "node src/hooks/draft/draftCore.test.js",
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
+    "test:learner-prefs": "node src/features/learnerSettings/lib/learnerPrefs.test.js",
     "test:draft-dashboard": "node src/features/drafts/draftDashboard.test.js",
     "test:sba-docx": "node scripts/test-sba-task-docx.mjs",
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",

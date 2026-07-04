@@ -4847,3 +4847,21 @@ body[data-a11y-contrast="high"] select,
 body[data-a11y-contrast="high"] textarea {
   border-color: #0F1B2D !important;
 }
+
+/* Dyslexia-friendly reading mode (accessibility panel). No bundled font file,
+   so we lean on a legible sans stack plus the spacing/weight cues that most
+   help dyslexic readers — genuinely applied, not a placeholder. */
+body[data-a11y-dyslexia="on"] {
+  font-family: 'Atkinson Hyperlegible', 'Comic Sans MS', 'Trebuchet MS', Verdana, system-ui, sans-serif !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+  line-height: 1.7;
+}
+body[data-a11y-dyslexia="on"] p,
+body[data-a11y-dyslexia="on"] li { max-width: 66ch; }
+
+/* Colour-blind-friendly modes — daltonisation filters injected by
+   src/utils/accessibility.js are referenced here on the app root. */
+body[data-a11y-colorblind="protanopia"]   #root { filter: url(#cb-protanopia); }
+body[data-a11y-colorblind="deuteranopia"] #root { filter: url(#cb-deuteranopia); }
+body[data-a11y-colorblind="tritanopia"]   #root { filter: url(#cb-tritanopia); }
