@@ -415,7 +415,13 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       setError('The AI returned no usable questions — try again or adjust the topics.')
       return
     }
-    setResult({ assessment, blocks, warning: res.data?.warning || '', sourcing: res.data?.sourcing || null })
+    setResult({
+      assessment,
+      blocks,
+      warning: res.data?.warning || '',
+      sourcing: res.data?.sourcing || null,
+      quality: res.data?.quality || null,
+    })
     setStatus('done')
   }
 
@@ -746,6 +752,28 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                 <div style={{ fontSize: 12, color: '#065f46', marginTop: 6, fontWeight: 700 }}>
                   ♻️ Reused {result.sourcing.fromBank} approved question{result.sourcing.fromBank === 1 ? '' : 's'} from the Master Bank
                   {result.sourcing.generated > 0 ? ` · AI wrote the other ${result.sourcing.generated}` : ''}.
+                </div>
+              )}
+              {result.quality && (
+                <div style={{ marginTop: 6 }}>
+                  {result.quality.reordered && (
+                    <div style={{ fontSize: 12, color: '#065f46', fontWeight: 700 }}>
+                      🔀 Mixed the topics through the paper so it reads like a real test, not a worksheet.
+                    </div>
+                  )}
+                  {result.quality.verdict === 'pass' ? (
+                    <div style={{ fontSize: 12, color: '#065f46', fontWeight: 700 }}>
+                      ✓ Quality checks passed — topics mixed, thinking skills varied, coverage balanced.
+                    </div>
+                  ) : (
+                    Array.isArray(result.quality.warnings) && result.quality.warnings.length > 0 && (
+                      <ul style={{ margin: '2px 0 0', paddingLeft: 18, fontSize: 12, color: '#92400e' }}>
+                        {result.quality.warnings.slice(0, 4).map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    )
+                  )}
                 </div>
               )}
               {result.warning && (

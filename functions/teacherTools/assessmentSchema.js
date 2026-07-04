@@ -4,7 +4,14 @@
  * key. Heavier than a worksheet (marks, marking guide per question).
  */
 
-const SCHEMA_VERSION = "1.4";
+const {normalizeBloom} = require("./bloomTaxonomy");
+
+// v1.4 → v1.5: each question carries two OPTIONAL tags — `topic` (the
+// curriculum topic it assesses) and `bloomLevel` (its cognitive demand). They
+// let a multi-topic paper be verified for topic mixing + Bloom variety and
+// let the deterministic quality checker re-order clustered papers. Both
+// default to null so pre-1.5 payloads and clients are unaffected.
+const SCHEMA_VERSION = "1.5";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -291,6 +298,11 @@ function validateAssessment(input) {
                     visual: normalizeVisual(q),
                     answer: str(q.answer, 2000),
                     markingGuide: str(q.markingGuide, 2000),
+                    // Cognitive/coverage tags (v1.5). Optional metadata used to
+                    // verify topic mixing + Bloom variety and to drive the
+                    // interleave re-order; null when the model omits them.
+                    topic: str(q.topic, 120) || null,
+                    bloomLevel: normalizeBloom(q.bloomLevel),
                     // [] for single-answer questions; populated for "(a)(b)(c)".
                     parts,
                   };
