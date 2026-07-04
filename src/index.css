@@ -4284,51 +4284,68 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 }
 
 /* ── Learner dashboard welcome card art ──────────────────────────────────
-   The character art used to be a half-card background illustration anchored to
-   the bottom-right, which squeezed the welcome copy into a narrow left column
-   and made the hero very tall. It's now a compact thumbnail that floats at the
-   top-right of the card, letting the stats/buttons/pills use the full width and
-   sit on far fewer rows. The card's own themed background/border are untouched,
-   so every theme is honoured. */
+   The character art is a right-anchored background layer that bleeds to the
+   card's bottom-right edge and sits behind the z-10 content. This lets the
+   illustration be large and immersive without pushing the card taller: the
+   card height is driven by the (compact) welcome copy + stats + buttons + pills
+   on the left, and the art scales to fill the empty right band that a smaller
+   inline thumbnail used to leave blank. The content column (.zx-hero-body)
+   reserves right padding at each breakpoint so text never lands on the busy
+   part of the art. The card's own themed background/border are untouched, so
+   every theme is honoured. */
 .zx-hero-art {
-  flex: none;
-  /* Kept compact on phones so the welcome copy ("Welcome back" + name +
-     tagline) keeps enough width to sit on single lines instead of
-     double-wrapping next to the art. Steps up at sm/md below. */
-  width: 150px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1; /* behind the z-10 content */
+  /* Wide enough to read as the card's illustration rather than a thumbnail.
+     Bounded by max-width so it never dominates the copy. Steps up at sm/md. */
+  width: 42%;
+  max-width: 190px;
   height: auto;
   object-fit: contain;
-  border-radius: 1rem;
-  opacity: 0.98;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
+/* Keep the left-hand copy/stats/buttons clear of the art. Scoped to the
+   adjacent-sibling selector so the padding only applies when the art is
+   actually rendered — in data-saver mode the <img> is dropped and the copy
+   uses the full width. */
+.zx-hero-art + .zx-hero-body {
+  padding-right: 40%;
+}
+
 @media (min-width: 640px) {
   .zx-hero-art {
-    width: 264px;
+    width: 38%;
+    max-width: 300px;
+  }
+  .zx-hero-art + .zx-hero-body {
+    padding-right: 36%;
   }
 }
 
 @media (min-width: 768px) {
   .zx-hero-art {
-    width: 300px;
+    width: 40%;
+    max-width: 360px;
+  }
+  .zx-hero-art + .zx-hero-body {
+    padding-right: 38%;
   }
 }
 
-/* On wide desktop the hero card is roomy and a 300px illustration left a
-   large empty band between the left-aligned copy and the far-right art.
-   Growing the art on lg/xl anchors that space and balances the banner. */
+/* On wide desktop the hero card is roomy; let the art grow to anchor the
+   right band and balance the banner. */
 @media (min-width: 1024px) {
   .zx-hero-art {
-    width: 360px;
+    width: 42%;
+    max-width: 440px;
   }
-}
-
-@media (min-width: 1280px) {
-  .zx-hero-art {
-    width: 420px;
+  .zx-hero-art + .zx-hero-body {
+    padding-right: 40%;
   }
 }
 

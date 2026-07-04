@@ -1166,7 +1166,7 @@ export default function GradeHub() {
           className={`zx-card relative overflow-hidden rounded-3xl ${
             dataSaver
               ? 'theme-accent-fill p-5'
-              : 'theme-hero p-5 sm:p-6'
+              : 'theme-hero p-4 sm:p-5'
           }`}
           data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
@@ -1188,27 +1188,31 @@ export default function GradeHub() {
             </>
           )}
 
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="mb-1 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                  Welcome back
-                </p>
-                <h1 className="text-display-xl text-white">{firstName}!</h1>
-                <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
-              </div>
-              {!dataSaver && (
-                <img
-                  src={DASHBOARD_CHARACTERS.hero.src}
-                  alt=""
-                  aria-hidden="true"
-                  width={DASHBOARD_CHARACTERS.hero.width}
-                  height={DASHBOARD_CHARACTERS.hero.height}
-                  loading="eager"
-                  decoding="async"
-                  className="zx-hero-art"
-                />
-              )}
+          {/* Character art as a right-anchored background layer. It bleeds to
+              the card edge and sits behind the z-10 content (the welcome copy,
+              stats, buttons and pills all read on the left), so the art can be
+              large and immersive without forcing the card taller or squeezing
+              the copy into a narrow column. Skipped in data-saver. */}
+          {!dataSaver && (
+            <img
+              src={DASHBOARD_CHARACTERS.hero.src}
+              alt=""
+              aria-hidden="true"
+              width={DASHBOARD_CHARACTERS.hero.width}
+              height={DASHBOARD_CHARACTERS.hero.height}
+              loading="eager"
+              decoding="async"
+              className="zx-hero-art"
+            />
+          )}
+
+          <div className="relative z-10 zx-hero-body">
+            <div className="min-w-0">
+              <p className="mb-1 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                Welcome back
+              </p>
+              <h1 className="text-display-xl text-white">{firstName}!</h1>
+              <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-4">
