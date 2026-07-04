@@ -8,7 +8,7 @@
  * pattern as metaWhatsAppCore.js. See functions/recaptchaAssessment.test.js.
  *
  * WHAT THIS IS: the app already attests all backend traffic with Firebase App
- * Check (reCAPTCHA v3 on web, Play Integrity on native — see
+ * Check (reCAPTCHA Enterprise on web, Play Integrity on native — see
  * src/firebase/config.js). This is a SEPARATE, action-level signal: the native
  * Android reCAPTCHA Enterprise SDK mints a per-action token (login / signup /
  * …) that this server scores. App Check answers "is this a real ZedExams
