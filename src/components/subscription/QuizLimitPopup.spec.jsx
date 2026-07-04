@@ -31,7 +31,7 @@ describe('QuizLimitPopup', () => {
     act(() => paywall.show('quiz-preview-limit', { paperId: 'p1', paperTitle: 'ECZ 2023', limit: 30 }))
 
     expect(screen.getByText('🎉 Great Job!')).toBeInTheDocument()
-    expect(screen.getByText(/30 FREE quiz questions/i)).toBeInTheDocument()
+    expect(screen.getByText(/30 FREE questions/i)).toBeInTheDocument()
     // Full progress ring label.
     expect(screen.getByText('30/30')).toBeInTheDocument()
     // Weekly + Monthly plan cards read live prices from config.

@@ -137,36 +137,36 @@ export default function SubscriptionReminderPopup() {
         onClick={handleDismiss}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={handleDismiss}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 p-0 text-white shadow-none hover:bg-white/30"
+          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 p-0 text-white shadow-none hover:bg-white/30"
         >
-          <Icon as={X} size="md" />
+          <Icon as={X} size="sm" />
         </button>
 
         {/* Hero with a floating student + books + trophy illustration */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-6 pt-8 pb-6 text-center text-white">
-          <div className="relative mx-auto mb-3 h-20 w-20 animate-float">
-            <span className="absolute inset-0 flex items-center justify-center text-5xl" aria-hidden="true">🎓</span>
-            <span className="absolute -left-2 top-1 text-2xl" aria-hidden="true">📚</span>
-            <span className="absolute -right-2 -top-1 text-2xl" aria-hidden="true">🏆</span>
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
+          <div className="relative mx-auto mb-2 h-14 w-14 animate-float">
+            <span className="absolute inset-0 flex items-center justify-center text-4xl" aria-hidden="true">🎓</span>
+            <span className="absolute -left-1.5 top-1 text-lg" aria-hidden="true">📚</span>
+            <span className="absolute -right-1.5 -top-1 text-lg" aria-hidden="true">🏆</span>
           </div>
-          <h2 id="sub-reminder-popup-title" className="text-2xl font-black leading-tight">
+          <h2 id="sub-reminder-popup-title" className="text-lg font-black leading-tight">
             {expired ? '⏳ Your Premium has ended' : '🌟 Welcome Back!'}
           </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-white/90">
+          <p className="mx-auto mt-1 max-w-[16rem] text-xs font-medium text-white/90">
             {expired
-              ? 'Renew Premium and pick up right where you left off — everything ZedExams has to offer.'
-              : 'Upgrade to Premium and unlock everything ZedExams has to offer.'}
+              ? 'Renew Premium and pick up right where you left off.'
+              : 'Upgrade to Premium and unlock everything ZedExams offers.'}
           </p>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">
-          <div className="mb-5">
+        <div className="px-5 py-4">
+          <div className="mb-3.5">
             <BenefitPills items={pills} />
           </div>
 
@@ -177,24 +177,24 @@ export default function SubscriptionReminderPopup() {
             hidePrices={native}
           />
 
-          <div className="mt-5 flex flex-col gap-2">
+          <div className="mt-3.5 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => handleUpgrade(null)}
-              className="animate-premium-glow flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3.5 text-base font-black text-white transition-transform hover:scale-[1.02]"
+              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02]"
             >
               {expired ? '🚀 Renew Premium' : '🚀 Upgrade Now'}
-              <Icon as={ArrowRight} size="sm" />
+              <Icon as={ArrowRight} size="xs" />
             </button>
             <button
               type="button"
               onClick={handleDismiss}
-              className="w-full rounded-2xl bg-transparent px-4 py-2.5 text-sm font-bold text-gray-500 shadow-none hover:text-gray-700"
+              className="w-full rounded-xl bg-transparent px-4 py-1.5 text-[13px] font-bold text-gray-500 shadow-none hover:text-gray-700"
             >
               Continue with Free Version
             </button>
           </div>
-          <p className="mt-3 text-center text-xs text-gray-400">
+          <p className="mt-2 text-center text-[11px] text-gray-400">
             We&apos;ll only remind you every few days.
           </p>
         </div>

@@ -10,12 +10,7 @@ import {
 import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
 import { ArrowRight, Lock, X } from '../ui/icons'
-import {
-  BenefitChecklist,
-  LEARNER_PILLS,
-  PlanPricingCards,
-  TEACHER_PILLS,
-} from './PremiumUpgradeUI'
+import { BenefitChecklist, PlanPricingCards } from './PremiumUpgradeUI'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
@@ -81,7 +76,6 @@ export default function LockedFeatureModal() {
   const pricingPlanIds = isTeacher ? ['pro_monthly', 'max_monthly'] : ['weekly', 'monthly']
   const popularPlanId = isTeacher ? 'pro_monthly' : 'monthly'
   const benefits = isTeacher ? TEACHER_BENEFITS : LEARNER_BENEFITS
-  const pills = isTeacher ? TEACHER_PILLS : LEARNER_PILLS
   const featureName = state.feature || null
 
   function openUpgrade(planId) {
@@ -120,40 +114,34 @@ export default function LockedFeatureModal() {
         onClick={() => lockedFeature.hide()}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={() => lockedFeature.hide()}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/5 p-0 text-gray-500 shadow-none hover:bg-black/10 hover:text-gray-700"
+          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 p-0 text-white shadow-none hover:bg-white/30"
         >
-          <Icon as={X} size="md" />
+          <Icon as={X} size="sm" />
         </button>
 
         {/* Hero */}
-        <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-6 pt-8 pb-6 text-center text-white">
-          <div className="mx-auto mb-3 flex h-16 w-16 animate-float items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-            <Icon as={Lock} size="xl" strokeWidth={2.1} />
+        <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 px-5 pt-5 pb-4 text-center text-white">
+          <div className="mx-auto mb-2 flex h-11 w-11 animate-float items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+            <Icon as={Lock} size="md" strokeWidth={2.1} />
           </div>
-          <h2 id="locked-feature-title" className="text-2xl font-black leading-tight">
-            🔒 This is a Premium Feature
+          <h2 id="locked-feature-title" className="text-lg font-black leading-tight">
+            🔒 Premium Feature
           </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-white/90">
+          <p className="mx-auto mt-1 max-w-[15rem] text-xs font-medium text-white/90">
             {featureName
-              ? `${featureName} is part of Premium. Upgrade and unlock unlimited access to powerful AI learning tools.`
-              : 'Upgrade to Premium and unlock unlimited access to powerful AI learning tools.'}
+              ? `${featureName} is part of Premium — unlock unlimited AI learning tools.`
+              : 'Unlock unlimited access to powerful AI learning tools.'}
           </p>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">
-          <BenefitChecklist items={benefits} className="mb-5" />
-
-          <div className="mb-2 flex flex-wrap justify-center gap-1.5">
-            {pills.slice(0, 4).map((p) => (
-              <span key={p.label} className="text-xs" aria-hidden="true">{p.emoji}</span>
-            ))}
-          </div>
+        <div className="px-5 py-4">
+          <BenefitChecklist items={benefits} className="mb-3.5" />
 
           <PlanPricingCards
             planIds={pricingPlanIds}
@@ -162,24 +150,24 @@ export default function LockedFeatureModal() {
             hidePrices={native}
           />
 
-          <div className="mt-5 flex flex-col gap-2">
+          <div className="mt-3.5 flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => openUpgrade(null)}
-              className="animate-premium-glow flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3.5 text-base font-black text-white transition-transform hover:scale-[1.02]"
+              className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02]"
             >
               🚀 Upgrade to Premium
-              <Icon as={ArrowRight} size="sm" />
+              <Icon as={ArrowRight} size="xs" />
             </button>
             <button
               type="button"
               onClick={() => lockedFeature.hide()}
-              className="w-full rounded-2xl bg-transparent px-4 py-2.5 text-sm font-bold text-gray-500 shadow-none hover:text-gray-700"
+              className="w-full rounded-xl bg-transparent px-4 py-1.5 text-[13px] font-bold text-gray-500 shadow-none hover:text-gray-700"
             >
               Maybe Later
             </button>
           </div>
-          <p className="mt-3 text-center text-xs text-gray-400">
+          <p className="mt-2 text-center text-[11px] text-gray-400">
             {native
               ? 'Billed securely through Google Play · Cancel anytime'
               : 'Pay with MTN, Airtel or Zamtel · Cancel anytime'}

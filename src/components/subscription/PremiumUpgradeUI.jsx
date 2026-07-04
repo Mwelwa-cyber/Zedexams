@@ -40,11 +40,11 @@ const TINT = {
 
 export function BenefitPills({ items }) {
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="flex flex-wrap justify-center gap-1.5">
       {items.map((it) => (
         <span
           key={it.label}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${TINT[it.tint] || TINT.purple}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${TINT[it.tint] || TINT.purple}`}
         >
           <span aria-hidden="true">{it.emoji}</span>
           {it.label}
@@ -58,10 +58,10 @@ export function BenefitPills({ items }) {
 // Locked and Quiz Limit popups).
 export function BenefitChecklist({ items, className = '' }) {
   return (
-    <ul className={`space-y-2 ${className}`}>
+    <ul className={`space-y-1.5 ${className}`}>
       {items.map((b) => (
-        <li key={b} className="flex items-center gap-2.5 text-sm font-semibold text-gray-700">
-          <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+        <li key={b} className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
             <Icon as={Check} size="xs" strokeWidth={3} />
           </span>
           {b}
@@ -94,7 +94,7 @@ export function PlanPricingCards({
 }) {
   const ids = planIds.filter((id) => PLANS[id])
   return (
-    <div className="grid grid-cols-2 gap-2.5">
+    <div className="grid grid-cols-2 gap-2">
       {ids.map((id) => {
         const plan = PLANS[id]
         const popular = id === popularPlanId
@@ -105,7 +105,7 @@ export function PlanPricingCards({
             type="button"
             onClick={() => onSelect?.(id)}
             aria-pressed={active}
-            className={`relative rounded-2xl border-2 p-3.5 text-left transition-all ${
+            className={`relative rounded-xl border-2 p-2.5 text-left transition-all ${
               active
                 ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200'
                 : popular
@@ -114,17 +114,17 @@ export function PlanPricingCards({
             }`}
           >
             {popular && (
-              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm">
                 ⭐ Most Popular
               </span>
             )}
-            <p className="text-[11px] font-black uppercase tracking-wide text-gray-500">{plan.name}</p>
+            <p className="text-[10px] font-black uppercase tracking-wide text-gray-500">{plan.name}</p>
             {hidePrices ? (
-              <p className="mt-1 text-lg font-black text-gray-900">Premium</p>
+              <p className="mt-0.5 text-base font-black text-gray-900">Premium</p>
             ) : (
               <p className="mt-0.5 leading-none">
-                <span className="text-2xl font-black text-gray-900">K{plan.priceZMW}</span>
-                <span className="text-xs font-bold text-gray-400"> {unitLabel(plan)}</span>
+                <span className="text-xl font-black text-gray-900">K{plan.priceZMW}</span>
+                <span className="text-[11px] font-bold text-gray-400"> {unitLabel(plan)}</span>
               </p>
             )}
           </button>
