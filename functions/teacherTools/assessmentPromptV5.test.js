@@ -105,7 +105,9 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
 }
 
 {
-  ok("schema version bumped to 1.4", SCHEMA_VERSION === "1.4");
+  // v5 relies on the visual field added at schema v1.4; assert the live schema
+  // is at least there (later bumps — v1.5 added topic/bloomLevel — are fine).
+  ok("schema version is v1.4 or later", parseFloat(SCHEMA_VERSION) >= 1.4);
 
   const withPassage = validateAssessment(goodAssessment({
     passage: {title: "Warthog and Lion", text: "A warthog went into a cave to keep warm. ".repeat(4)},
