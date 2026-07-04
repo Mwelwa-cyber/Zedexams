@@ -1,39 +1,38 @@
 /**
- * /papers — public ECZ past-paper archive (audit A2), 2026 mobile-first
- * redesign.
+ * /papers — public ECZ past-paper archive, guided-navigation redesign.
  *
  * The audit calls this "the largest organic-demand gap in the Zambian
  * market" — ECZ past papers drive significant SEO traffic and are
  * typically the #1 reason a learner lands on a revision site. Grade 9
- * was phased out by ECZ, so the archive now covers Grade 7 and Grade
- * 12 only.
+ * was phased out by ECZ, so the archive covers Grade 7 and Grade 12.
  *
  * Routing is open (no auth required) so search engines can index the
  * list and signed-out visitors browse before signing up. The actual
  * PDF viewer / download is auth-gated by Storage rules — that's the
  * incentive to register.
  *
- * Redesign goals (premium, low-clutter, phone-first):
- *   - Compact title block ("Past Papers" + a one-line subtitle), minimal
- *     top chrome — no stat chips, no heavy app-bar.
- *   - Search first: one big rounded search field with a Filters button
- *     tucked inside it on the right.
- *   - Filters are hidden by default — the Filters button opens a bottom
- *     sheet with pill chips (Grade / Subject / Year + sort).
- *   - "Recommended" is a single compact card (badges + title, actions
- *     on their own row so nothing collides on narrow phones).
- *   - Papers render as compact one-row list cards so several fit on a
- *     phone screen at once.
- *   - "Browse by year" is a single-open accordion — tapping a year
- *     collapses the others, so the page never feels long.
- *   - Soft shadows, generous whitespace, almost no borders, 16–24px
- *     rounded corners, orange accent on a warm off-white background.
- *   - A floating glassmorphism bottom navigation bar.
+ * Navigation model (premium, phone-first): a guided drill-down
  *
- * Data: live Firestore (`listPublishedPapers`) is the source of truth.
- * If the archive is empty or the read fails we fall back to a small
- * curated sample set so the surface is never blank — the upload state
- * is still surfaced via the gentle banner above the sample.
+ *     Grade → Year → Subject → Paper (viewer) → Quiz
+ *
+ *   - Screen 1 (years): a grid of beautiful year cards for the selected
+ *     grade. Calendar tile + big year + "Past Papers" + arrow.
+ *   - Screen 2 (subjects): tap a year → a grid of colourful subject
+ *     cards for that grade+year, each with a "Paper Available" badge.
+ *   - A Grade 7/12 toggle, a search field, and quick filters sit above.
+ *     Searching or picking a quick filter drops into a flat results
+ *     list that spans every year.
+ *
+ * The step + grade + year are mirrored into the URL query (?grade=7&
+ * year=2025) so the browser back button and shared links restore the
+ * exact view. The single load-bearing quiz link is always
+ * `/papers/:paperId/quiz` (resolved through `paper.quizId`) — never a
+ * direct `/quiz/:id` — so existing quizzes keep working.
+ *
+ * Data: live Firestore (`loadPublishedPapers`) is the source of truth,
+ * seeded from a per-tab cache for an instant paint. If the archive is
+ * empty or the read fails we fall back to a small curated sample set so
+ * the surface is never blank.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -44,20 +43,28 @@ import {
   getCachedPublishedPapers,
   loadPublishedPapers,
 } from '../../utils/pastPapers'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
+import {
+  deriveYears,
+  filterPapers,
+  isSpecimen,
+  subjectsForYear,
+  viewPath,
+} from './paperNav'
+import { subjectMeta } from './paperVisuals'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import {
+  ArrowRight,
   BookOpen,
   BookmarkSquareIcon,
-  Calculator,
+  CalendarDays,
   Check,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
-  ComputerDesktop,
   FileText,
-  Globe,
+  GraduationCap,
   Home,
   PencilLine,
   Search,
@@ -67,46 +74,6 @@ import {
   User,
   X,
 } from '../ui/icons'
-
-const ANY = 'any'
-
-// ── Subject presentation ────────────────────────────────────────────
-// A lucide-named icon + a soft tint per subject so cards scan fast and
-// feel warm without shouting. Falls back to a neutral document tile.
-const SUBJECT_VISUALS = {
-  english:                       { Icon: BookOpen,        tile: 'bg-amber-100 text-amber-700' },
-  mathematics:                   { Icon: Calculator,      tile: 'bg-blue-100 text-blue-700' },
-  'social-studies':              { Icon: Globe,           tile: 'bg-emerald-100 text-emerald-700' },
-  'creative-technology-studies': { Icon: ComputerDesktop, tile: 'bg-violet-100 text-violet-700' },
-  'home-economics':              { Icon: Sparkles,        tile: 'bg-rose-100 text-rose-700' },
-  'special-paper-1':             { Icon: FileText,        tile: 'bg-indigo-100 text-indigo-700' },
-}
-
-// Short, learner-friendly labels for the filter chips. Real papers
-// prefer the curriculum label.
-const SUBJECT_FILTERS = [
-  { id: 'english',                       label: 'English' },
-  { id: 'mathematics',                   label: 'Maths' },
-  { id: 'social-studies',                label: 'Social Studies' },
-  { id: 'creative-technology-studies',   label: 'Technology' },
-  { id: 'home-economics',                label: 'Home Ec.' },
-  { id: 'special-paper-1',               label: 'Special Paper 1' },
-]
-
-const SUBJECT_LABEL = Object.fromEntries(SUBJECT_FILTERS.map((s) => [s.id, s.label]))
-
-function subjectMeta(id) {
-  const curriculum = PAPER_SUBJECTS.find((s) => s.id === id)
-  return {
-    label: SUBJECT_LABEL[id] || curriculum?.shortLabel || curriculum?.label || 'Paper',
-    Icon: SUBJECT_VISUALS[id]?.Icon || FileText,
-    tile: SUBJECT_VISUALS[id]?.tile || 'bg-orange-100 text-orange-700',
-  }
-}
-
-function isSpecimen(paper) {
-  return Boolean(paper.specimen) || /specimen/i.test(paper.title || '')
-}
 
 // ── Sample fallback (only shown when Firestore is empty / errors) ────
 const SAMPLE_PAPERS = [
@@ -125,6 +92,17 @@ const SORTS = [
   { id: 'oldest', label: 'Oldest' },
   { id: 'az',     label: 'A–Z' },
 ]
+
+// Quick filters — a flat browse override on top of the guided flow.
+const QUICK_FILTERS = [
+  { id: 'all',        label: 'All Papers' },
+  { id: 'quiz',       label: 'Quiz Available' },
+  { id: 'recent',     label: 'Recently Added' },
+  { id: 'bookmarked', label: 'Bookmarked' },
+]
+
+// Fallback years shown before any live data has loaded.
+const FALLBACK_YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016]
 
 // ── localStorage helpers (bookmarks + recently opened) ──────────────
 const BOOKMARK_KEY = 'zx_paper_bookmarks'
@@ -150,8 +128,7 @@ function writeStored(key, value) {
 
 // ── Small building blocks ───────────────────────────────────────────
 
-// Quiz availability badge — a tiny dot pill that scans instantly in a
-// dense list. Two variants: ready (green) vs coming soon (muted).
+// Quiz availability badge — a tiny dot pill that scans instantly.
 function QuizBadge({ available, compact = false }) {
   if (available) {
     return (
@@ -170,7 +147,17 @@ function QuizBadge({ available, compact = false }) {
   )
 }
 
-// A pill chip used inside the filter sheet. Active = orange fill.
+// "Paper Available" badge for the subject cards (Screen 2).
+function AvailableBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-[11px] font-black">
+      <Check size={12} strokeWidth={3} />
+      Paper Available
+    </span>
+  )
+}
+
+// A pill chip used inside the filter sheet. Active = accent fill.
 function Chip({ active, onClick, children }) {
   return (
     <button
@@ -188,8 +175,7 @@ function Chip({ active, onClick, children }) {
   )
 }
 
-// Bottom sheet — slides up from the bottom on a dimmed, blurred
-// backdrop. Used for the hidden filters panel.
+// Bottom sheet — slides up on a dimmed, blurred backdrop.
 function BottomSheet({ open, onClose, title, children, footer }) {
   if (!open) return null
   return (
@@ -222,67 +208,117 @@ function BottomSheet({ open, onClose, title, children, footer }) {
   )
 }
 
-// ── Recommended (compact card: badges + full title, actions below) ──
-// Stacked on purpose: on a 360px phone a single row can't fit the badge
-// pair, the title, AND two buttons — the title truncated to a few words
-// and the chips collided with the buttons. Two short rows read cleanly.
-function RecommendedCard({ paper, onOpen }) {
-  const { label, Icon, tile } = subjectMeta(paper.subject)
-  const hasQuiz = Boolean(paper.quizId)
-  const viewTo = paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
+// ── Screen 1 — Year card ────────────────────────────────────────────
+// A beautiful, tappable card: calendar tile, big year, "Past Papers",
+// arrow. Soft shadow, rounded, hover lift, tap press (ripple feel).
+function YearCard({ year, count, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(year)}
+      className="group text-left theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-elev-lg active:scale-[0.98] animate-press"
+    >
+      <div className="flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center bg-orange-100 text-orange-700 group-hover:bg-orange-200 transition-colors">
+        <CalendarDays size={26} strokeWidth={2.2} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-black text-2xl theme-text leading-none">{year}</p>
+        <p className="theme-text-muted text-xs font-bold mt-1">
+          Past Papers{count ? ` · ${count}` : ''}
+        </p>
+      </div>
+      <ArrowRight
+        size={20}
+        strokeWidth={2.4}
+        className="theme-text-muted group-hover:theme-accent-text group-hover:translate-x-0.5 transition-all flex-shrink-0"
+      />
+    </button>
+  )
+}
+
+// ── Screen 2 — Subject card ─────────────────────────────────────────
+// Large colourful icon, subject name, "Paper Available" badge, arrow.
+// One paper → links straight to the viewer. Several papers (Paper 1 /
+// Paper 2) → expands to an inline list.
+function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
+  const [expanded, setExpanded] = useState(false)
+  const { fullLabel, Icon, tile } = subjectMeta(subject)
+  const single = papers.length === 1
+  const anyQuiz = papers.some((p) => p.quizId)
+  const first = papers[0]
+
+  const CardInner = (
+    <div className="flex items-start gap-3.5">
+      <div className={`flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center ${tile}`}>
+        <Icon size={28} strokeWidth={2.1} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="theme-text font-black text-base leading-snug">{fullLabel}</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <AvailableBadge />
+          {anyQuiz && <QuizBadge available />}
+          {papers.length > 1 && (
+            <span className="text-[11px] font-bold theme-text-muted">{papers.length} papers</span>
+          )}
+        </div>
+      </div>
+      <ArrowRight
+        size={20}
+        strokeWidth={2.4}
+        className="theme-text-muted group-hover:theme-accent-text group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1"
+      />
+    </div>
+  )
+
+  if (single) {
+    return (
+      <Link
+        to={viewPath(first)}
+        onClick={() => onOpen(first.id)}
+        className="group theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4 transition-all hover:-translate-y-0.5 hover:shadow-elev-lg active:scale-[0.99] animate-press block"
+      >
+        {CardInner}
+      </Link>
+    )
+  }
 
   return (
-    <div className="theme-card rounded-radius-lg shadow-elev-md p-3.5 ring-1 ring-orange-200">
-      <div className="flex items-start gap-3">
-        <div className={`flex-shrink-0 w-12 h-12 rounded-2xl grid place-items-center ${tile}`}>
-          <Icon size={24} strokeWidth={2.2} />
+    <div className="theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="group w-full text-left"
+      >
+        {CardInner}
+      </button>
+      {expanded && (
+        <div className="mt-3 pt-3 border-t theme-border space-y-2">
+          {papers.map((p) => (
+            <PaperRow
+              key={p.id}
+              paper={p}
+              saved={saved.has(p.id)}
+              onToggleSave={() => onToggleSave(p.id)}
+              onOpen={onOpen}
+            />
+          ))}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {hasQuiz && <QuizBadge available />}
-            <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide truncate">{label}</span>
-          </div>
-          <h3 className="theme-text font-black text-sm leading-snug line-clamp-2 mt-1">{paper.title}</h3>
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-2">
-        {hasQuiz && (
-          <Link
-            to={`/papers/${paper.id}/quiz`}
-            onClick={() => onOpen(paper.id)}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-4 py-2.5 active:scale-95 transition"
-          >
-            <PencilLine size={14} strokeWidth={2.4} />
-            Take quiz
-          </Link>
-        )}
-        <Link
-          to={viewTo}
-          onClick={() => onOpen(paper.id)}
-          className="flex-1 inline-flex items-center justify-center rounded-full theme-bg-subtle theme-text text-xs font-bold px-4 py-2.5 active:scale-95 transition"
-        >
-          View paper
-        </Link>
-      </div>
+      )}
     </div>
   )
 }
 
-// ── Compact list-style paper card (one short row) ───────────────────
+// ── Compact list-style paper row (search results + subject expansion) ─
 function PaperRow({ paper, saved, onToggleSave, onOpen }) {
-  const { Icon, tile } = subjectMeta(paper.subject)
+  const { Icon, tile, label } = subjectMeta(paper.subject)
   const hasQuiz = Boolean(paper.quizId)
   const specimen = isSpecimen(paper)
-  const viewTo = paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
 
   return (
-    // min-w-0 matters: as a grid item, without it the nowrap (truncate)
-    // title sets a min-content wider than a phone screen, the track
-    // overflows, and the accordion's overflow-hidden clips the quiz +
-    // bookmark buttons off the right edge.
-    <div className="group min-w-0 theme-card rounded-radius-md shadow-elev-sm hover:shadow-elev-md transition-shadow flex items-center gap-3 p-2.5 pr-3">
+    <div className="group min-w-0 theme-card rounded-radius-md shadow-elev-sm ring-1 ring-black/5 hover:shadow-elev-md transition-shadow flex items-center gap-3 p-2.5 pr-3">
       <Link
-        to={viewTo}
+        to={viewPath(paper)}
         onClick={() => onOpen(paper.id)}
         className="flex items-center gap-3 flex-1 min-w-0"
       >
@@ -295,6 +331,8 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
             <span className="text-[11px] font-bold theme-text-muted whitespace-nowrap">Grade {paper.grade}</span>
             <span className="text-[11px] theme-text-muted" aria-hidden="true">·</span>
             <span className="text-[11px] font-bold theme-text-muted">{paper.year}</span>
+            <span className="text-[11px] theme-text-muted" aria-hidden="true">·</span>
+            <span className="text-[11px] font-bold theme-text-muted">{label}</span>
             {specimen && <StarIcon size={12} strokeWidth={2.6} className="theme-accent-text" />}
             <QuizBadge available={hasQuiz} compact />
           </div>
@@ -328,45 +366,27 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
   )
 }
 
-// ── Year accordion (single-open) ────────────────────────────────────
-function YearAccordion({ year, papers, open, onToggle, savedIds, onToggleSave, onOpen }) {
-  const quizzes = papers.filter((p) => p.quizId).length
+// ── Segmented grade toggle (7 / 12) ─────────────────────────────────
+function GradeToggle({ grade, onChange }) {
   return (
-    <div className="theme-card rounded-radius-md shadow-elev-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 hover:theme-bg-subtle transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <span className="theme-text font-black text-base">{year}</span>
-          <span className="rounded-full theme-bg-subtle theme-text-muted text-[11px] font-black px-2 py-0.5">
-            {papers.length}
-          </span>
-          {quizzes > 0 && (
-            <span className="hidden sm:inline text-[11px] font-bold text-emerald-600">{quizzes} with quiz</span>
-          )}
-        </div>
-        <ChevronDown
-          size={20}
-          strokeWidth={2.4}
-          className={`theme-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && (
-        <div className="px-2.5 pb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {papers.map((paper) => (
-            <PaperRow
-              key={paper.id}
-              paper={paper}
-              saved={savedIds.has(paper.id)}
-              onToggleSave={() => onToggleSave(paper.id)}
-              onOpen={onOpen}
-            />
-          ))}
-        </div>
-      )}
+    <div className="inline-flex items-center gap-1 rounded-full theme-bg-subtle p-1" role="tablist" aria-label="Grade">
+      {PAPER_GRADES.map((g) => {
+        const active = grade === g
+        return (
+          <button
+            key={g}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(g)}
+            className={`rounded-full px-4 py-1.5 text-sm font-black transition active:scale-95 ${
+              active ? 'theme-accent-fill theme-on-accent shadow-elev-sm' : 'theme-text-muted hover:theme-text'
+            }`}
+          >
+            Grade {g}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -406,15 +426,27 @@ function BottomNav() {
   )
 }
 
+// ── Decorative books / graduation-cap cluster (header illustration) ──
+function HeaderArt() {
+  return (
+    <div aria-hidden="true" className="relative flex-shrink-0 w-24 h-24 hidden sm:grid place-items-center">
+      <div className="absolute inset-2 rounded-[28px] bg-gradient-to-br from-orange-200 to-amber-100 rotate-6" />
+      <div className="absolute inset-3 rounded-[24px] bg-gradient-to-br from-violet-200 to-orange-100 -rotate-6" />
+      <div className="relative grid place-items-center w-16 h-16 rounded-2xl theme-card shadow-elev-md">
+        <GraduationCap size={30} strokeWidth={2} className="theme-accent-text" />
+      </div>
+      <Sparkles size={16} strokeWidth={2.4} className="absolute -top-0.5 right-1 text-amber-400" />
+    </div>
+  )
+}
+
 // ── Page ────────────────────────────────────────────────────────────
 
 export default function PastPapersHub() {
   const { currentUser } = useAuth()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const searchRef = useRef(null)
 
-  // Seed from the per-tab / sessionStorage cache so a revisit to /papers
-  // paints instantly instead of waiting on a cold full-archive read.
   const cachedOnMount = getCachedPublishedPapers()
   const [loaded, setLoaded] = useState(() =>
     cachedOnMount ? cachedOnMount.filter((p) => PAPER_GRADES.includes(String(p.grade))) : [],
@@ -422,30 +454,46 @@ export default function PastPapersHub() {
   const [loading, setLoading] = useState(() => !cachedOnMount)
   const [usingSample, setUsingSample] = useState(false)
 
+  // Grade defaults to 7 (the mockup's focus); ?grade=12 deep-links G12.
+  const initialGrade = searchParams.get('grade')
+  const [grade, setGrade] = useState(
+    initialGrade && PAPER_GRADES.includes(initialGrade) ? initialGrade : '7',
+  )
+  const initialYear = searchParams.get('year')
+  const [year, setYearState] = useState(
+    initialYear && /^\d{4}$/.test(initialYear) ? Number(initialYear) : null,
+  )
   const [query, setQuery] = useState('')
-  const [grade, setGrade] = useState(() => {
-    const g = searchParams.get('grade')
-    return g && PAPER_GRADES.includes(g) ? g : ANY
-  })
-  // ?subject= mirrors the ?grade= seeding above — deep links from the exam
-  // timetable's quick actions land pre-filtered on the right subject.
-  const [subject, setSubject] = useState(() => {
-    const s = searchParams.get('subject')
-    return s && PAPER_SUBJECTS.some((p) => p.id === s) ? s : ANY
-  })
-  const [year, setYear] = useState(ANY)
   const [sort, setSort] = useState('newest')
+  const [quickFilter, setQuickFilter] = useState('all')
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const [savedIds, setSavedIds] = useState(() => new Set(readStored(BOOKMARK_KEY)))
-  const [recentIds, setRecentIds] = useState(() => readStored(RECENT_KEY))
-  // Single-open accordion: only one year expanded at a time.
-  const [openYear, setOpenYear] = useState(null)
+  const [, setRecentIds] = useState(() => readStored(RECENT_KEY))
 
-  // Revalidate against live Firestore. When the cache already painted
-  // a list we refresh in the background (no spinner, and a transient
-  // failure keeps the cached rows on screen). Fall back to the curated
-  // sample only when there's nothing cached to show.
+  // Keep the URL query in sync so back / share restore the exact view.
+  const syncParams = (nextGrade, nextYear) => {
+    const params = {}
+    if (nextGrade) params.grade = nextGrade
+    if (nextYear) params.year = String(nextYear)
+    setSearchParams(params, { replace: false })
+  }
+
+  const chooseGrade = (g) => {
+    setGrade(g)
+    setYearState(null) // years differ per grade — reset the drill-down
+    setQuickFilter('all')
+    syncParams(g, null)
+  }
+  const chooseYear = (y) => {
+    setYearState(y)
+    syncParams(grade, y)
+  }
+  const backToYears = () => {
+    setYearState(null)
+    syncParams(grade, null)
+  }
+
   useEffect(() => {
     let cancelled = false
     const hadCache = Boolean(getCachedPublishedPapers())
@@ -493,99 +541,59 @@ export default function PastPapersHub() {
     })
   }
 
-  // Build the year filter universe from the active dataset.
-  const availableYears = useMemo(() => {
-    const years = new Set()
-    for (const p of loaded) if (typeof p.year === 'number') years.add(p.year)
-    return [...years].sort((a, b) => b - a)
-  }, [loaded])
+  // Papers for the currently selected grade.
+  const gradePapers = useMemo(
+    () => loaded.filter((p) => String(p.grade) === grade),
+    [loaded, grade],
+  )
 
-  // Apply search + filters + sort.
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const rows = loaded.filter((p) => {
-      if (grade !== ANY && String(p.grade) !== grade) return false
-      if (subject !== ANY && p.subject !== subject) return false
-      if (year !== ANY && p.year !== Number(year)) return false
-      if (q) {
-        const hay = `${p.title} ${subjectMeta(p.subject).label} ${p.year} grade ${p.grade}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      return true
-    })
-    const sorted = [...rows]
-    if (sort === 'az') sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
-    else if (sort === 'oldest') sorted.sort((a, b) => (a.year || 0) - (b.year || 0))
-    else sorted.sort((a, b) => (b.year || 0) - (a.year || 0))
-    return sorted
-  }, [loaded, query, grade, subject, year, sort])
+  // Screen 1 — the year universe for this grade.
+  const years = useMemo(() => deriveYears(gradePapers), [gradePapers])
+  const yearOptions = years.length ? years : FALLBACK_YEARS
+  const yearCounts = useMemo(() => {
+    const counts = {}
+    for (const p of gradePapers) if (typeof p.year === 'number') counts[p.year] = (counts[p.year] || 0) + 1
+    return counts
+  }, [gradePapers])
 
-  // Group filtered papers by year (newest first).
-  const grouped = useMemo(() => {
-    const byYear = new Map()
-    for (const p of filtered) {
-      const key = p.year || 'Undated'
-      if (!byYear.has(key)) byYear.set(key, [])
-      byYear.get(key).push(p)
-    }
-    return [...byYear.entries()]
-      .sort((a, b) => (Number(b[0]) || 0) - (Number(a[0]) || 0))
-      .map(([y, list]) => ({ year: y, papers: list }))
-  }, [filtered])
+  // Screen 2 — subjects for grade+year.
+  const subjectGroups = useMemo(
+    () => (year ? subjectsForYear(loaded, grade, year) : []),
+    [loaded, grade, year],
+  )
 
-  // Default-open the first (newest) year group whenever the grouping
-  // changes so the page is never empty, without clobbering a manual tap.
-  useEffect(() => {
-    if (grouped.length) setOpenYear(String(grouped[0].year))
-    else setOpenYear(null)
-  }, [grouped.length, sort, grade, subject, year, query]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Determine the active mode. Search or a quick filter drops into a
+  // flat results list; otherwise the guided year → subject flow.
+  const searching = query.trim().length > 0
+  const filtering = quickFilter !== 'all'
+  const mode = searching || filtering ? 'results' : year ? 'subjects' : 'years'
 
-  // Single-open accordion: tapping the open year closes it, tapping any
-  // other year switches to it (collapsing the previous one).
-  const toggleYear = (y) => {
-    const key = String(y)
-    setOpenYear((cur) => (cur === key ? null : key))
+  const results = useMemo(() => {
+    if (mode !== 'results') return []
+    return filterPapers(gradePapers, {
+      query,
+      quizOnly: quickFilter === 'quiz',
+      sort: quickFilter === 'recent' ? 'newest' : sort,
+      labelOf: (id) => subjectMeta(id).label,
+    }).filter((p) => (quickFilter === 'bookmarked' ? savedIds.has(p.id) : true))
+  }, [mode, gradePapers, query, quickFilter, sort, savedIds])
+
+  const clearBrowse = () => {
+    setQuery('')
+    setQuickFilter('all')
   }
-
-  // "Recommended for you" — prefer a specimen, else the newest paper
-  // that has a quiz, else the newest paper overall.
-  const recommended = useMemo(() => {
-    if (!loaded.length) return null
-    return (
-      loaded.find((p) => isSpecimen(p))
-      || [...loaded].filter((p) => p.quizId).sort((a, b) => (b.year || 0) - (a.year || 0))[0]
-      || [...loaded].sort((a, b) => (b.year || 0) - (a.year || 0))[0]
-      || null
-    )
-  }, [loaded])
-
-  // "Recently opened" — map stored ids back to live papers (cap 4).
-  const recentlyOpened = useMemo(() => {
-    const byId = new Map(loaded.map((p) => [p.id, p]))
-    return recentIds.map((id) => byId.get(id)).filter(Boolean).slice(0, 4)
-  }, [recentIds, loaded])
-
-  const activeFilterCount =
-    (grade !== ANY ? 1 : 0) + (subject !== ANY ? 1 : 0) + (year !== ANY ? 1 : 0)
-  const hasActiveFilter = activeFilterCount > 0 || Boolean(query.trim())
-  const clearFilters = () => {
-    setGrade(ANY); setSubject(ANY); setYear(ANY); setQuery('')
-  }
-
-  const yearOptions = availableYears.length ? availableYears : [2025, 2024, 2023, 2022]
 
   return (
     <div className="admin-game-theme min-h-screen theme-bg theme-text pb-28">
       <SeoHelmet
         title="ECZ Past Papers — Grade 7 & Grade 12 archive"
-        description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Sign in to download papers and take linked quizzes."
+        description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Choose a year, pick a subject, read the paper and take the linked quiz."
         path="/papers"
       />
 
-      {/* Slim top bar — brand + "My runs". Primary nav lives in the
-          floating bottom bar, so the header stays minimal. */}
+      {/* Slim top bar — brand + "My runs". */}
       <header className="sticky top-0 z-30 theme-bg">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <Logo variant="icon" size="sm" className="!h-8 !w-8" />
             <span className="rounded-full bg-orange-100 theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
@@ -602,15 +610,34 @@ export default function PastPapersHub() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4">
-        {/* 1 — Compact title block */}
-        <div className="pt-3 pb-4">
-          <h1 className="font-display font-black text-2xl theme-text leading-tight">Past Papers</h1>
-          <p className="theme-text-muted text-sm mt-0.5">Grade 7 &amp; Grade 12 ECZ Papers</p>
+      <main className="max-w-5xl mx-auto px-4">
+        {/* Title block — dynamic to the selected grade + step */}
+        <div className="pt-4 pb-4 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {mode === 'subjects' && (
+              <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs font-bold theme-text-muted mb-1.5">
+                <button type="button" onClick={backToYears} className="hover:theme-text">Grade {grade}</button>
+                <ChevronRight size={13} strokeWidth={2.6} />
+                <span className="theme-text">{year}</span>
+              </nav>
+            )}
+            <h1 className="font-display font-black text-2xl sm:text-3xl theme-text leading-tight">
+              {mode === 'subjects' ? `${year} Grade ${grade} Past Papers` : `Grade ${grade} Past Papers`}
+            </h1>
+            <p className="theme-text-muted text-sm mt-1">
+              {mode === 'subjects'
+                ? 'Choose a subject to view past papers and take quizzes.'
+                : 'Choose a year to explore ECZ past papers and quizzes.'}
+            </p>
+          </div>
+          <HeaderArt />
         </div>
 
-        {/* 2 — Search first, with a Filters button inside on the right */}
-        <div className="relative">
+        {/* Grade toggle */}
+        <GradeToggle grade={grade} onChange={chooseGrade} />
+
+        {/* Search first, with a Filters button inside on the right */}
+        <div className="relative mt-4">
           <Search
             size={20}
             strokeWidth={2.2}
@@ -621,48 +648,41 @@ export default function PastPapersHub() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search papers, subjects, or year"
-            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm focus:outline-none focus:ring-2 focus:ring-orange-300 transition"
-            aria-label="Search papers, subjects, or year"
+            placeholder="Search years, subjects, or papers"
+            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-orange-300 transition"
+            aria-label="Search years, subjects, or papers"
           />
           <button
             type="button"
             onClick={() => setFiltersOpen(true)}
-            aria-label="Filters"
+            aria-label="Sort options"
             className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-10 h-10 rounded-full theme-accent-fill theme-on-accent active:scale-90 transition"
           >
             <SlidersHorizontal size={18} strokeWidth={2.2} />
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-white text-orange-600 text-[10px] font-black shadow-elev-sm">
-                {activeFilterCount}
-              </span>
-            )}
           </button>
         </div>
 
-        {/* Active-filter summary chips (only when something is set) */}
-        {hasActiveFilter && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {grade !== ANY && (
-              <button type="button" onClick={() => setGrade(ANY)} className="inline-flex items-center gap-1 rounded-full theme-accent-fill theme-on-accent text-xs font-bold px-3 py-1.5 active:scale-95">
-                Grade {grade} <X size={13} strokeWidth={2.6} />
+        {/* Quick filters */}
+        <div className="mt-3 -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {QUICK_FILTERS.map((f) => {
+            const active = quickFilter === f.id && !searching
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => { setQuery(''); setQuickFilter(f.id) }}
+                aria-pressed={active}
+                className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-black transition active:scale-95 ${
+                  active
+                    ? 'theme-accent-fill theme-on-accent shadow-elev-sm'
+                    : 'theme-card theme-text-muted ring-1 ring-black/5 hover:theme-text'
+                }`}
+              >
+                {f.label}
               </button>
-            )}
-            {subject !== ANY && (
-              <button type="button" onClick={() => setSubject(ANY)} className="inline-flex items-center gap-1 rounded-full theme-accent-fill theme-on-accent text-xs font-bold px-3 py-1.5 active:scale-95">
-                {SUBJECT_LABEL[subject] || 'Subject'} <X size={13} strokeWidth={2.6} />
-              </button>
-            )}
-            {year !== ANY && (
-              <button type="button" onClick={() => setYear(ANY)} className="inline-flex items-center gap-1 rounded-full theme-accent-fill theme-on-accent text-xs font-bold px-3 py-1.5 active:scale-95">
-                {year} <X size={13} strokeWidth={2.6} />
-              </button>
-            )}
-            <button type="button" onClick={clearFilters} className="text-xs font-black theme-accent-text hover:underline px-1">
-              Clear all
-            </button>
-          </div>
-        )}
+            )
+          })}
+        </div>
 
         {usingSample && !loading && (
           <div className="mt-3 flex items-start gap-2 rounded-radius-md bg-orange-50 px-3 py-2.5 text-xs theme-text">
@@ -678,172 +698,144 @@ export default function PastPapersHub() {
         )}
 
         {loading ? (
-          <div className="mt-6 space-y-2.5">
-            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-radius-md" />)}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20 rounded-radius-lg" />)}
           </div>
-        ) : (
-          <>
-            {/* 4 — Recommended (single slim horizontal card) */}
-            {recommended && !hasActiveFilter && (
-              <section className="mt-5">
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  <Sparkles size={16} strokeWidth={2.4} className="theme-accent-text" />
-                  <h2 className="font-display font-black text-sm theme-text uppercase tracking-wide">Recommended</h2>
-                </div>
-                <RecommendedCard paper={recommended} onOpen={recordOpen} />
-              </section>
-            )}
-
-            {/* Recently opened — compact horizontal scroll rail */}
-            {recentlyOpened.length > 0 && (
-              <section className="mt-5">
-                <div className="flex items-center justify-between gap-2 mb-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={16} strokeWidth={2.4} className="theme-accent-text" />
-                    <h2 className="font-display font-black text-sm theme-text uppercase tracking-wide">Recently opened</h2>
-                  </div>
-                  <Link to={currentUser ? '/my-papers' : '/login'} className="text-xs font-black theme-accent-text hover:underline">
-                    View all
-                  </Link>
-                </div>
-                <div className="-mx-4 px-4 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
-                  {recentlyOpened.map((paper) => {
-                    const { Icon, tile, label } = subjectMeta(paper.subject)
-                    const viewTo = paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
-                    return (
-                      <Link
-                        key={paper.id}
-                        to={viewTo}
-                        onClick={() => recordOpen(paper.id)}
-                        className="flex-shrink-0 w-40 theme-card rounded-radius-md shadow-elev-sm p-3 active:scale-95 transition"
-                      >
-                        <div className={`w-9 h-9 rounded-xl grid place-items-center ${tile}`}>
-                          <Icon size={18} strokeWidth={2.2} />
-                        </div>
-                        <p className="text-[11px] font-bold theme-text-muted mt-2">{label} · {paper.year}</p>
-                        <p className="text-xs font-bold theme-text leading-snug line-clamp-2 mt-0.5">{paper.title}</p>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* 5 + 6 — Browse by year (single-open accordion of compact rows) */}
-            <section className="mt-5">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <h2 className="font-display font-black text-sm theme-text uppercase tracking-wide">Browse by year</h2>
-                <span className="text-xs font-bold theme-text-muted">
-                  {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
-                </span>
+        ) : mode === 'results' ? (
+          /* ── Flat results (search / quick filter) ── */
+          <section className="mt-5">
+            <div className="flex items-center justify-between gap-2 mb-2.5">
+              <h2 className="font-display font-black text-sm theme-text uppercase tracking-wide">
+                {searching ? 'Search results' : QUICK_FILTERS.find((f) => f.id === quickFilter)?.label}
+              </h2>
+              <button type="button" onClick={clearBrowse} className="text-xs font-black theme-accent-text hover:underline">
+                {searching ? 'Clear search' : 'Back to years'}
+              </button>
+            </div>
+            {results.length === 0 ? (
+              <EmptyResults onClear={clearBrowse} />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                {results.map((paper) => (
+                  <PaperRow
+                    key={paper.id}
+                    paper={paper}
+                    saved={savedIds.has(paper.id)}
+                    onToggleSave={() => toggleSave(paper.id)}
+                    onOpen={recordOpen}
+                  />
+                ))}
               </div>
-
-              {grouped.length === 0 ? (
-                <div className="theme-card rounded-radius-md p-8 text-center shadow-elev-sm">
-                  <div className="mx-auto w-12 h-12 rounded-2xl theme-bg-subtle grid place-items-center mb-3">
-                    <Search size={24} strokeWidth={2} className="theme-text-muted" />
-                  </div>
-                  <h3 className="theme-text font-black">No papers match your filters</h3>
-                  <p className="theme-text-muted text-sm mt-1">Try a different grade, subject, or year.</p>
-                  {hasActiveFilter && (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-4 py-2"
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {grouped.map(({ year: y, papers: list }) => (
-                    <YearAccordion
-                      key={String(y)}
-                      year={y}
-                      papers={list}
-                      open={openYear === String(y)}
-                      onToggle={() => toggleYear(y)}
-                      savedIds={savedIds}
-                      onToggleSave={toggleSave}
-                      onOpen={recordOpen}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
+            )}
+          </section>
+        ) : mode === 'years' ? (
+          /* ── Screen 1 — Year cards ── */
+          <section className="mt-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {yearOptions.map((y) => (
+                <YearCard key={y} year={y} count={yearCounts[y]} onSelect={chooseYear} />
+              ))}
+            </div>
+          </section>
+        ) : (
+          /* ── Screen 2 — Subject cards ── */
+          <section className="mt-5">
+            <button
+              type="button"
+              onClick={backToYears}
+              className="inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text text-xs font-black px-3 py-2 mb-4 active:scale-95 transition"
+            >
+              <ChevronLeft size={15} strokeWidth={2.6} />
+              Back to years
+            </button>
+            {subjectGroups.length === 0 ? (
+              <EmptyResults
+                title="No papers for this year yet"
+                subtitle="We're still uploading this year's papers. Try another year."
+                onClear={backToYears}
+                clearLabel="Choose another year"
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {subjectGroups.map(({ subject, papers }) => (
+                  <SubjectCard
+                    key={subject}
+                    subject={subject}
+                    papers={papers}
+                    saved={savedIds}
+                    onToggleSave={toggleSave}
+                    onOpen={recordOpen}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </main>
 
-      {/* 3 — Hidden filters in a bottom sheet */}
+      {/* Sort options in a bottom sheet */}
       <BottomSheet
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
-        title="Filters"
+        title="Sort papers"
         footer={
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => { clearFilters(); }}
-              className="flex-1 rounded-full theme-bg-subtle theme-text text-sm font-black py-3 active:scale-95 transition"
-            >
-              Clear all
-            </button>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(false)}
-              className="flex-1 rounded-full theme-accent-fill theme-on-accent text-sm font-black py-3 active:scale-95 transition"
-            >
-              Show {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            className="w-full rounded-full theme-accent-fill theme-on-accent text-sm font-black py-3 active:scale-95 transition"
+          >
+            Done
+          </button>
         }
       >
         <div className="space-y-5 pb-2">
           <div>
-            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Grade</p>
-            <div className="flex flex-wrap gap-2">
-              <Chip active={grade === ANY} onClick={() => setGrade(ANY)}>All</Chip>
-              {PAPER_GRADES.map((g) => (
-                <Chip key={g} active={grade === g} onClick={() => setGrade(g)}>Grade {g}</Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Subject</p>
-            <div className="flex flex-wrap gap-2">
-              <Chip active={subject === ANY} onClick={() => setSubject(ANY)}>All</Chip>
-              {SUBJECT_FILTERS.map((s) => (
-                <Chip key={s.id} active={subject === s.id} onClick={() => setSubject(s.id)}>{s.label}</Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Year</p>
-            <div className="flex flex-wrap gap-2">
-              <Chip active={year === ANY} onClick={() => setYear(ANY)}>All</Chip>
-              {yearOptions.map((y) => (
-                <Chip key={y} active={year === String(y)} onClick={() => setYear(String(y))}>{y}</Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Sort by</p>
+            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Sort results by</p>
             <div className="flex flex-wrap gap-2">
               {SORTS.map((s) => (
                 <Chip key={s.id} active={sort === s.id} onClick={() => setSort(s.id)}>{s.label}</Chip>
               ))}
             </div>
           </div>
+          <div>
+            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Grade</p>
+            <div className="flex flex-wrap gap-2">
+              {PAPER_GRADES.map((g) => (
+                <Chip key={g} active={grade === g} onClick={() => chooseGrade(g)}>Grade {g}</Chip>
+              ))}
+            </div>
+          </div>
         </div>
       </BottomSheet>
 
-      {/* Floating glassmorphism bottom navigation */}
       <BottomNav />
+    </div>
+  )
+}
+
+// ── Empty state ─────────────────────────────────────────────────────
+function EmptyResults({
+  title = 'No papers match your search',
+  subtitle = 'Try a different subject, year, or keyword.',
+  onClear,
+  clearLabel = 'Clear',
+}) {
+  return (
+    <div className="theme-card rounded-radius-lg p-8 text-center shadow-elev-sm ring-1 ring-black/5">
+      <div className="mx-auto w-12 h-12 rounded-2xl theme-bg-subtle grid place-items-center mb-3">
+        <Search size={24} strokeWidth={2} className="theme-text-muted" />
+      </div>
+      <h3 className="theme-text font-black">{title}</h3>
+      <p className="theme-text-muted text-sm mt-1">{subtitle}</p>
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-4 py-2"
+        >
+          {clearLabel}
+        </button>
+      )}
     </div>
   )
 }

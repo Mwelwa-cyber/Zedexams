@@ -13,11 +13,33 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
-import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
+import {
+  getPaper,
+  getLinkedQuizMeta,
+  listMyPaperAttempts,
+  listPublishedPapers,
+  recordPaperEvent,
+  resolvePaperUrl,
+} from '../../utils/pastPapers'
+import { siblingPapers, viewPath } from './paperNav'
+import { subjectMeta } from './paperVisuals'
 import SeoHelmet from '../seo/SeoHelmet'
-import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
+import {
+  ArrowLeft,
+  BookmarkSquareIcon,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  Info,
+  Layers,
+  Maximize2,
+  PencilLine,
+  TrophyIcon,
+  Upload,
+} from '../ui/icons'
 
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
 const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
@@ -31,9 +53,13 @@ const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
  * horizontal scrollbar.
  */
 function FullBleed({ children }) {
+  // Break out to the full viewport on phone / tablet so a scanned page
+  // fills the screen; on desktop (lg+) the viewer lives inside its
+  // three-pane column, so the breakout is disabled to leave room for
+  // the right rail.
   return (
-    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
-      <div className="mx-auto max-w-[1400px] px-1 sm:px-3">{children}</div>
+    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 lg:left-auto lg:right-auto lg:mx-0 lg:w-full lg:translate-x-0">
+      <div className="mx-auto max-w-[1400px] px-1 sm:px-3 lg:px-0">{children}</div>
     </div>
   )
 }
@@ -287,6 +313,100 @@ export default function PastPaperViewer() {
       .sort((a, b) => a.pageNumber - b.pageNumber)
   }, [previewSource, imageAssetUrls])
 
+  // ── Redesign state: bookmark, siblings, quiz meta, attempts, chrome ─
+  const viewerShellRef = useRef(null)
+  const [bookmarked, setBookmarked] = useState(false)
+  const [siblings, setSiblings] = useState([])
+  const [quizMeta, setQuizMeta] = useState(null)
+  const [attempts, setAttempts] = useState([])
+  const [shareNote, setShareNote] = useState('')
+
+  // Bookmark state mirrors the hub's `zx_paper_bookmarks` list so a save
+  // here shows up as saved back on /papers.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('zx_paper_bookmarks')
+      const ids = raw ? JSON.parse(raw) : []
+      setBookmarked(Array.isArray(ids) && ids.includes(paperId))
+    } catch { /* private mode — bookmarks are best-effort */ }
+  }, [paperId])
+
+  const toggleBookmark = useCallback(() => {
+    setBookmarked((prev) => {
+      const next = !prev
+      try {
+        const raw = localStorage.getItem('zx_paper_bookmarks')
+        const ids = new Set(Array.isArray(JSON.parse(raw || '[]')) ? JSON.parse(raw || '[]') : [])
+        if (next) ids.add(paperId)
+        else ids.delete(paperId)
+        localStorage.setItem('zx_paper_bookmarks', JSON.stringify([...ids]))
+      } catch { /* ignore quota / private mode */ }
+      return next
+    })
+  }, [paperId])
+
+  // Sibling subjects for the same grade+year → prev/next subject nav.
+  useEffect(() => {
+    if (!paper?.grade || !paper?.year) return
+    let cancelled = false
+    listPublishedPapers({ grade: paper.grade, year: paper.year })
+      .then((rows) => { if (!cancelled) setSiblings(siblingPapers(rows, paper.grade, paper.year)) })
+      .catch((err) => console.warn('[PastPaperViewer] siblings failed', err))
+    return () => { cancelled = true }
+  }, [paper?.grade, paper?.year])
+
+  // Linked-quiz metadata (question count / difficulty) for the panel.
+  useEffect(() => {
+    if (!paper?.quizId) { setQuizMeta(null); return }
+    let cancelled = false
+    getLinkedQuizMeta(paper.quizId)
+      .then((meta) => { if (!cancelled) setQuizMeta(meta) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [paper?.quizId])
+
+  // This learner's timed-practice attempts on this paper (progress panel).
+  useEffect(() => {
+    if (!currentUser || !paperId) { setAttempts([]); return }
+    let cancelled = false
+    listMyPaperAttempts(currentUser.uid, { limit: 60 })
+      .then((rows) => {
+        if (cancelled) return
+        setAttempts(rows.filter((a) => a.paperId === paperId && a.status === 'submitted'))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [currentUser, paperId])
+
+  const handleShare = useCallback(async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : `https://zedexams.com/papers/${paperId}`
+    const shareData = { title: paper?.title || 'ECZ Past Paper', text: paper?.title, url }
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        return
+      }
+    } catch { /* user cancelled or share unsupported — fall through to copy */ }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareNote('Link copied')
+      setTimeout(() => setShareNote(''), 2000)
+    } catch {
+      setShareNote('Could not copy link')
+      setTimeout(() => setShareNote(''), 2000)
+    }
+  }, [paper, paperId])
+
+  const toggleFullscreen = useCallback(() => {
+    const el = viewerShellRef.current
+    if (!el || typeof document === 'undefined') return
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {})
+    } else {
+      el.requestFullscreen?.().catch(() => {})
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="min-h-screen theme-bg p-6 max-w-4xl mx-auto space-y-4">
@@ -316,47 +436,41 @@ export default function PastPaperViewer() {
     )
   }
 
-  const subjectMeta = PAPER_SUBJECTS.find((s) => s.id === paper.subject)
-  const subjectLabel = subjectMeta?.label || paper.subject
+  const subjectInfo = subjectMeta(paper.subject)
+  const subjectLabel = subjectInfo.fullLabel
+  const SubjectIcon = subjectInfo.Icon
   const quizAvailable = Boolean(paper.quizId)
   const timedExamAvailable = Boolean(currentUser)
   const answersAvailable = Boolean(markSchemeSource)
 
-  const renderActionButtons = (variant) => (
-    <div className={`flex flex-col sm:flex-row gap-2 ${variant === 'footer' ? 'mt-6' : ''}`}>
-      {quizAvailable ? (
-        <Link
-          to={`/papers/${paperId}/quiz`}
-          className="theme-accent-fill theme-on-accent rounded-full px-5 py-3 text-sm font-black text-center hover:opacity-90 min-h-[48px] flex items-center justify-center"
-        >
-          ✏️ Take the quiz
-        </Link>
-      ) : (
-        <button
-          type="button"
-          disabled
-          className="theme-accent-fill theme-on-accent rounded-full px-5 py-3 text-sm font-black opacity-55 cursor-not-allowed min-h-[48px]"
-        >
-          ✏️ Quiz coming soon
-        </button>
-      )}
-      {timedExamAvailable ? (
-        <Link
-          to={`/papers/${paperId}/practice`}
-          className="theme-card border theme-border rounded-full px-5 py-3 text-sm font-black text-center hover:theme-bg-subtle min-h-[48px] flex items-center justify-center"
-        >
-          🎯 Practise as timed exam{paper.durationMinutes ? ` (${paper.durationMinutes} min)` : ''}
-        </Link>
-      ) : (
-        <Link
-          to={`/login?next=/papers/${paperId}`}
-          className="theme-card border theme-border rounded-full px-5 py-3 text-sm font-black text-center hover:theme-bg-subtle min-h-[48px] flex items-center justify-center"
-        >
-          🎯 Sign in to practise as timed exam
-        </Link>
-      )}
-    </div>
-  )
+  // Total page count for the info card — image papers count assets, PDF
+  // papers fall back to a stored value when present.
+  const totalPages = previewSource?.kind === 'images'
+    ? previewSource.assets.length
+    : (paper.totalPages || null)
+
+  // Prev / next subject within the same grade + year.
+  const siblingIndex = siblings.findIndex((s) => s.id === paperId)
+  const prevSibling = siblingIndex > 0 ? siblings[siblingIndex - 1] : null
+  const nextSibling = siblingIndex >= 0 && siblingIndex < siblings.length - 1 ? siblings[siblingIndex + 1] : null
+  const subjectsBackTo = `/papers?grade=${paper.grade}&year=${paper.year}`
+
+  // Progress stats from timed-practice attempts (existing paperAttempts).
+  const attemptCount = attempts.length
+  const bestTime = attempts.reduce((min, a) => {
+    const s = Number(a.elapsedSeconds)
+    return Number.isFinite(s) && (min == null || s < min) ? s : min
+  }, null)
+  const avgTime = attemptCount
+    ? Math.round(attempts.reduce((sum, a) => sum + (Number(a.elapsedSeconds) || 0), 0) / attemptCount)
+    : null
+  let quizTaken = false
+  try { quizTaken = typeof window !== 'undefined' && window.localStorage?.getItem(`paper-answer-revealed:${paperId}`) === '1' } catch { /* ignore */ }
+
+  // Primary file path used by the sticky-bar Download button.
+  const downloadPath = previewSource?.kind === 'pdf'
+    ? previewSource.path
+    : (previewSource?.assets?.[0]?.path || null)
 
   return (
     <div className="min-h-screen theme-bg flex flex-col overflow-x-clip">
@@ -382,52 +496,106 @@ export default function PastPaperViewer() {
         }}
       />
 
-      {/* Header — back button on mobile, breadcrumb on desktop */}
-      <header className="theme-card border-b theme-border px-3 sm:px-4 py-2.5 sm:py-3">
-        <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-3 text-xs font-bold theme-text-muted">
-          <Link
-            to="/papers"
-            aria-label="Back to papers"
-            className="sm:hidden inline-flex items-center justify-center w-9 h-9 rounded-full hover:theme-bg-subtle theme-text"
-          >
-            ←
-          </Link>
-          <div className="hidden sm:flex items-center gap-3">
-            <Link to="/" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
-            <span aria-hidden="true">/</span>
-            <Link to="/papers" className="hover:theme-text">Papers</Link>
-            <span aria-hidden="true">/</span>
-            <span className="theme-text truncate">{paper.title}</span>
+      {/* Sticky top: back + breadcrumb, then a persistent action bar */}
+      <div className="sticky top-0 z-20 theme-card border-b theme-border">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4">
+          <div className="flex items-center gap-1.5 h-12 text-xs font-bold theme-text-muted">
+            <Link
+              to={subjectsBackTo}
+              aria-label="Back to subjects"
+              className="inline-flex items-center justify-center w-9 h-9 -ml-1.5 rounded-full hover:theme-bg-subtle theme-text"
+            >
+              <ArrowLeft size={18} strokeWidth={2.4} />
+            </Link>
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 min-w-0">
+              <Link to="/papers" className="hover:theme-text whitespace-nowrap">Grade {paper.grade}</Link>
+              <ChevronRight size={12} strokeWidth={2.8} className="flex-shrink-0" />
+              <Link to={subjectsBackTo} className="hover:theme-text whitespace-nowrap">{paper.year}</Link>
+              <ChevronRight size={12} strokeWidth={2.8} className="flex-shrink-0" />
+              <span className="theme-text truncate">{subjectLabel}</span>
+            </nav>
           </div>
-          <span className="sm:hidden theme-text font-black text-sm truncate">{paper.title}</span>
-        </div>
-      </header>
 
-      <div className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
-        {/* Title — shown once at the top only */}
-        <section>
-          <p className="theme-text-muted text-xs font-black uppercase tracking-widest">
-            {paper.examBoard || 'ECZ'} · Grade {paper.grade} · {paper.year}
-          </p>
-          <h1 className="theme-text font-display font-black text-xl sm:text-3xl mt-1 leading-snug">{paper.title}</h1>
-          <p className="theme-text-muted text-sm mt-1">
-            {subjectLabel}
-            {paper.paperNumber ? ` · Paper ${paper.paperNumber}` : ''}
-            {paper.durationMinutes ? ` · ${paper.durationMinutes} minutes` : ''}
-            {paper.totalMarks ? ` · ${paper.totalMarks} marks` : ''}
-          </p>
-          {paper.description && (
-            <p className="theme-text text-sm mt-3 leading-relaxed max-w-3xl">{paper.description}</p>
-          )}
+          {/* Sticky action bar — stays visible while scrolling */}
+          <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar">
+            {quizAvailable ? (
+              <Link
+                to={`/papers/${paperId}/quiz`}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-accent-fill theme-on-accent px-4 py-2 text-xs font-black active:scale-95 transition"
+              >
+                <PencilLine size={15} strokeWidth={2.4} /> Quiz
+              </Link>
+            ) : (
+              <span className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text-muted px-4 py-2 text-xs font-black">
+                <Clock size={15} strokeWidth={2.4} /> Quiz soon
+              </span>
+            )}
+            {downloadPath && (
+              <button
+                type="button"
+                onClick={() => handleDownload(downloadPath, 'paper')}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
+              >
+                <Download size={15} strokeWidth={2.4} /> Download
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleBookmark}
+              aria-pressed={bookmarked}
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black active:scale-95 transition ${
+                bookmarked ? 'theme-accent-text bg-orange-50' : 'theme-bg-subtle theme-text hover:theme-card'
+              }`}
+            >
+              <BookmarkSquareIcon size={15} strokeWidth={bookmarked ? 2.6 : 2.2} /> {bookmarked ? 'Saved' : 'Bookmark'}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
+            >
+              <Upload size={15} strokeWidth={2.4} /> {shareNote || 'Share'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
+            >
+              <Maximize2 size={15} strokeWidth={2.4} /> Fullscreen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div ref={viewerShellRef} className="flex-1 theme-bg max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        {/* Title block */}
+        <section className="mb-4">
+          <div className="flex items-start gap-3">
+            <div className={`hidden sm:grid flex-shrink-0 w-14 h-14 rounded-2xl place-items-center ${subjectInfo.tile}`}>
+              <SubjectIcon size={28} strokeWidth={2.1} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="theme-text font-display font-black text-2xl sm:text-3xl leading-tight">
+                Grade {paper.grade} {subjectLabel}
+              </h1>
+              <p className="theme-text-muted text-sm mt-1 font-bold">
+                {paper.year} {paper.examBoard || 'ECZ'} Past Paper
+                {paper.paperNumber ? ` · Paper ${paper.paperNumber}` : ''}
+              </p>
+              {paper.description && (
+                <p className="theme-text text-sm mt-3 leading-relaxed max-w-3xl">{paper.description}</p>
+              )}
+            </div>
+          </div>
         </section>
 
-        {/* Top action buttons */}
-        {renderActionButtons('header')}
-
         {downloadError && (
-          <p role="alert" className="text-sm font-bold text-rose-700">{downloadError}</p>
+          <p role="alert" className="text-sm font-bold text-rose-700 mb-3">{downloadError}</p>
         )}
 
+        {/* Three-pane on desktop: viewer ~70% + right rail */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
+          <div className="min-w-0 space-y-4">
         {!currentUser ? (
           <section className="theme-card border theme-border rounded-radius-md p-6 text-center">
             <h2 className="theme-text font-black text-base">Sign in to read the paper here</h2>
@@ -577,15 +745,260 @@ export default function PastPaperViewer() {
               </section>
             )}
 
-            {/* Bottom action buttons */}
-            {renderActionButtons('footer')}
           </>
         )}
+          </div>
+
+          {/* Right rail — desktop only, sticky */}
+          <aside className="hidden lg:block lg:sticky lg:top-28 space-y-4">
+            <PaperPanels
+              paper={paper}
+              paperId={paperId}
+              quizAvailable={quizAvailable}
+              quizMeta={quizMeta}
+              subjectLabel={subjectLabel}
+              totalPages={totalPages}
+              timedExamAvailable={timedExamAvailable}
+              attemptCount={attemptCount}
+              bestTime={bestTime}
+              avgTime={avgTime}
+              quizTaken={quizTaken}
+            />
+          </aside>
+        </div>
+
+        {/* Panels stacked below the viewer on phone / tablet */}
+        <div className="lg:hidden mt-5 space-y-4">
+          <PaperPanels
+            paper={paper}
+            paperId={paperId}
+            quizAvailable={quizAvailable}
+            quizMeta={quizMeta}
+            subjectLabel={subjectLabel}
+            totalPages={totalPages}
+            timedExamAvailable={timedExamAvailable}
+            attemptCount={attemptCount}
+            bestTime={bestTime}
+            avgTime={avgTime}
+            quizTaken={quizTaken}
+          />
+        </div>
+
+        {/* Subject navigation — Prev / Back to subjects / Next */}
+        <SubjectNav prev={prevSibling} next={nextSibling} backTo={subjectsBackTo} />
       </div>
 
+      <MobileQuizFab paperId={paperId} available={quizAvailable} />
       <BackToTopFab />
     </div>
   )
+}
+
+/**
+ * Right-rail panels (also stacked below the viewer on mobile): the quiz
+ * launcher, the paper-information card, and the learner's practice
+ * progress. All data comes from existing reads — no new writes.
+ */
+function PaperPanels({
+  paper, paperId, quizAvailable, quizMeta, subjectLabel, totalPages,
+  timedExamAvailable, attemptCount, bestTime, avgTime, quizTaken,
+}) {
+  const questionCount = quizMeta?.questionCount || null
+  const estMinutes = paper.durationMinutes || (questionCount ? Math.max(5, Math.round(questionCount * 1)) : null)
+  return (
+    <>
+      {/* Quiz panel */}
+      <div className="theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4">
+        {quizAvailable ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="grid place-items-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700">
+                <Check size={16} strokeWidth={3} />
+              </span>
+              <h2 className="theme-text font-black text-base">Quiz Available</h2>
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Questions</dt>
+                <dd className="theme-text font-black text-lg">{questionCount ?? '—'}</dd>
+              </div>
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Est. time</dt>
+                <dd className="theme-text font-black text-lg">{estMinutes ? `${estMinutes}m` : '—'}</dd>
+              </div>
+            </dl>
+            <Link
+              to={`/papers/${paperId}/quiz`}
+              className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-sm font-black py-3 active:scale-[0.98] transition"
+            >
+              <PencilLine size={16} strokeWidth={2.4} /> Start Quiz
+            </Link>
+          </>
+        ) : (
+          <div className="text-center py-2">
+            <span className="mx-auto grid place-items-center w-10 h-10 rounded-full theme-bg-subtle theme-text-muted mb-2">
+              <Clock size={20} strokeWidth={2.2} />
+            </span>
+            <h2 className="theme-text font-black text-base">Quiz Coming Soon</h2>
+            <p className="theme-text-muted text-sm mt-1">
+              We're preparing an interactive quiz for this paper. Read it now and check back soon.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Paper information */}
+      <div className="theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Info size={16} strokeWidth={2.4} className="theme-accent-text" />
+          <h2 className="theme-text font-black text-sm uppercase tracking-wide">Paper Information</h2>
+        </div>
+        <dl className="space-y-2 text-sm">
+          <InfoRow label="Year" value={paper.year} />
+          <InfoRow label="Subject" value={subjectLabel} />
+          <InfoRow label="Grade" value={paper.grade} />
+          <InfoRow label="Paper Type" value={paper.paperNumber ? `Paper ${paper.paperNumber}` : 'National Examination'} />
+          <InfoRow label="Language" value="English" />
+          {totalPages ? <InfoRow label="Total Pages" value={totalPages} /> : null}
+          <InfoRow label="Exam Board" value={paper.examBoard || 'ECZ'} />
+          <InfoRow label="Last Updated" value={formatUpdated(paper.updatedAt)} />
+        </dl>
+      </div>
+
+      {/* Progress (from timed-practice attempts) */}
+      <div className="theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <TrophyIcon size={16} strokeWidth={2.4} className="theme-accent-text" />
+          <h2 className="theme-text font-black text-sm uppercase tracking-wide">Your Progress</h2>
+        </div>
+        {attemptCount > 0 || quizTaken ? (
+          <>
+            {quizTaken && (
+              <p className="inline-flex items-center gap-1.5 text-sm font-black text-emerald-700 mb-3">
+                <Check size={15} strokeWidth={3} /> Quiz completed
+              </p>
+            )}
+            <dl className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase">Attempts</dt>
+                <dd className="theme-text font-black text-lg">{attemptCount}</dd>
+              </div>
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase">Best</dt>
+                <dd className="theme-text font-black text-lg">{formatDuration(bestTime)}</dd>
+              </div>
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase">Avg</dt>
+                <dd className="theme-text font-black text-lg">{formatDuration(avgTime)}</dd>
+              </div>
+            </dl>
+          </>
+        ) : (
+          <p className="theme-text-muted text-sm">
+            Practise this paper as a timed exam to start tracking your progress.
+          </p>
+        )}
+        {timedExamAvailable ? (
+          <Link
+            to={`/papers/${paperId}/practice`}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-full theme-card border theme-border text-sm font-black py-2.5 hover:theme-bg-subtle transition"
+          >
+            {attemptCount > 0 ? 'Continue Practice' : 'Start timed practice'}
+          </Link>
+        ) : (
+          <Link
+            to={`/login?next=/papers/${paperId}`}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-full theme-card border theme-border text-sm font-black py-2.5 hover:theme-bg-subtle transition"
+          >
+            Sign in to practise
+          </Link>
+        )}
+      </div>
+    </>
+  )
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="theme-text-muted font-bold">{label}</dt>
+      <dd className="theme-text font-black text-right truncate">{value ?? '—'}</dd>
+    </div>
+  )
+}
+
+/** ← Previous Subject · Back to Subjects · Next Subject → */
+function SubjectNav({ prev, next, backTo }) {
+  if (!prev && !next) {
+    return (
+      <div className="mt-6 flex justify-center">
+        <Link
+          to={backTo}
+          className="inline-flex items-center gap-1.5 rounded-full theme-card border theme-border px-5 py-2.5 text-sm font-black hover:theme-bg-subtle transition"
+        >
+          <Layers size={15} strokeWidth={2.4} /> Back to Subjects
+        </Link>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-2 items-center">
+      {prev ? (
+        <Link
+          to={viewPath(prev)}
+          className="inline-flex items-center gap-1.5 rounded-full theme-card border theme-border px-4 py-2.5 text-xs sm:text-sm font-black hover:theme-bg-subtle transition min-w-0"
+        >
+          <ChevronLeft size={15} strokeWidth={2.6} className="flex-shrink-0" />
+          <span className="truncate">{subjectMeta(prev.subject).label}</span>
+        </Link>
+      ) : <span className="hidden sm:block" />}
+      <Link
+        to={backTo}
+        className="hidden sm:inline-flex items-center justify-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2.5 text-xs sm:text-sm font-black hover:theme-card transition"
+      >
+        <Layers size={15} strokeWidth={2.4} /> Subjects
+      </Link>
+      {next ? (
+        <Link
+          to={viewPath(next)}
+          className="inline-flex items-center justify-end gap-1.5 rounded-full theme-card border theme-border px-4 py-2.5 text-xs sm:text-sm font-black hover:theme-bg-subtle transition min-w-0 col-start-2 sm:col-start-3"
+        >
+          <span className="truncate">{subjectMeta(next.subject).label}</span>
+          <ChevronRight size={15} strokeWidth={2.6} className="flex-shrink-0" />
+        </Link>
+      ) : <span className="hidden sm:block" />}
+    </div>
+  )
+}
+
+/** Floating "Take Quiz" pill on phones (desktop uses the sticky bar + rail). */
+function MobileQuizFab({ paperId, available }) {
+  if (!available) return null
+  return (
+    <Link
+      to={`/papers/${paperId}/quiz`}
+      className="lg:hidden fixed bottom-5 left-5 z-20 inline-flex items-center gap-2 rounded-full theme-accent-fill theme-on-accent px-5 py-3 text-sm font-black shadow-elev-lg active:scale-95 transition"
+    >
+      <PencilLine size={17} strokeWidth={2.4} /> Take Quiz
+    </Link>
+  )
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds == null) return '—'
+  const m = Math.floor(seconds / 60)
+  const s = Math.round(seconds % 60)
+  return m ? `${m}m ${s}s` : `${s}s`
+}
+
+function formatUpdated(ts) {
+  try {
+    const date = ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : null)
+    if (!date) return '—'
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch {
+    return '—'
+  }
 }
 
 /**

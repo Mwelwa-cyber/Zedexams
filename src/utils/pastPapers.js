@@ -235,6 +235,31 @@ export async function getPaper(paperId) {
 export const getPaperById = getPaper
 
 /**
+ * Read-only peek at the lightweight metadata of a paper's linked quiz —
+ * used by the viewer's quiz panel to show "N questions" / difficulty
+ * without loading the whole question set. Never writes; returns null if
+ * the id is missing or the quiz doc can't be read (best-effort, the
+ * panel degrades to "Quiz Available" without the count).
+ */
+export async function getLinkedQuizMeta(quizId) {
+  if (!quizId) return null
+  try {
+    const snap = await getDoc(doc(db, 'quizzes', quizId))
+    if (!snap.exists()) return null
+    const data = snap.data() || {}
+    return {
+      questionCount: Number.isFinite(data.questionCount) ? data.questionCount : null,
+      difficulty: data.difficulty || null,
+      isPublished: Boolean(data.isPublished),
+      publicAccess: Boolean(data.publicAccess),
+    }
+  } catch (err) {
+    console.warn('[pastPapers] getLinkedQuizMeta failed', err)
+    return null
+  }
+}
+
+/**
  * Like listPublishedPapers but restricted to papers that have a linked
  * quiz (i.e. learners can press "Quiz" on them). The marketing page +
  * the hub's quiz tab both call into this.

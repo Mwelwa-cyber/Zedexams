@@ -1,0 +1,111 @@
+/**
+ * paperNav — pure navigation/derivation helpers for the guided
+ * past-paper flow (Grade → Year → Subject → Paper → Quiz).
+ *
+ * Deliberately free of React, Firebase, and icon imports so the logic
+ * can be unit-tested under plain `node` (see
+ * scripts/test-past-paper-nav.test.mjs). Presentation lives in
+ * paperVisuals.js; data access lives in src/utils/pastPapers.js.
+ */
+
+// Sentinel used by the hub for "no filter selected".
+export const ANY = 'any'
+
+/**
+ * Distinct numeric years present in a paper list, newest first.
+ * Non-numeric / missing years are ignored so a malformed doc can't
+ * inject an empty year card.
+ */
+export function deriveYears(papers) {
+  const years = new Set()
+  for (const p of Array.isArray(papers) ? papers : []) {
+    if (typeof p?.year === 'number' && Number.isFinite(p.year)) years.add(p.year)
+  }
+  return [...years].sort((a, b) => b - a)
+}
+
+/** Papers matching a grade token ('7' / '12'); ANY / falsy returns all. */
+export function filterByGrade(papers, grade) {
+  const list = Array.isArray(papers) ? papers : []
+  if (!grade || grade === ANY) return list
+  return list.filter((p) => String(p.grade) === String(grade))
+}
+
+/**
+ * Group the papers for one grade+year by subject, returning one entry
+ * per subject (sorted by subject id for a stable card order) with the
+ * matching papers sorted by paper number then title. Powers Screen 2.
+ */
+export function subjectsForYear(papers, grade, year) {
+  const list = filterByGrade(papers, grade).filter(
+    (p) => year != null && year !== ANY && Number(p.year) === Number(year),
+  )
+  const bySubject = new Map()
+  for (const p of list) {
+    const key = p.subject || 'other'
+    if (!bySubject.has(key)) bySubject.set(key, [])
+    bySubject.get(key).push(p)
+  }
+  return [...bySubject.entries()]
+    .map(([subject, group]) => ({
+      subject,
+      papers: [...group].sort(
+        (a, b) =>
+          (a.paperNumber || 0) - (b.paperNumber || 0) ||
+          (a.title || '').localeCompare(b.title || ''),
+      ),
+    }))
+    .sort((a, b) => a.subject.localeCompare(b.subject))
+}
+
+/**
+ * Ordered list of sibling papers for the same grade+year (one per
+ * subject when a subject has several papers, its first). Drives the
+ * viewer's ← Previous / Next Subject → navigation. Ordered by subject
+ * id so prev/next is deterministic.
+ */
+export function siblingPapers(papers, grade, year) {
+  return subjectsForYear(papers, grade, year).map((s) => s.papers[0]).filter(Boolean)
+}
+
+/** Route to the public quiz runner for a paper (never changes — quiz-link contract). */
+export function quizPath(paperId) {
+  return `/papers/${paperId}/quiz`
+}
+
+/** Route to the paper viewer, preferring the SEO slug alias when present. */
+export function viewPath(paper) {
+  if (!paper?.id) return '/papers'
+  return paper.slug ? `/papers/${paper.id}/${paper.slug}` : `/papers/${paper.id}`
+}
+
+/** True when a paper is an ECZ specimen (flag or title match). */
+export function isSpecimen(paper) {
+  return Boolean(paper?.specimen) || /specimen/i.test(paper?.title || '')
+}
+
+/**
+ * Search + filter + sort a paper list. `labelOf(subjectId)` is an
+ * optional resolver so the search haystack can include the friendly
+ * subject label; when omitted the raw subject id is used.
+ */
+export function filterPapers(papers, { grade, subject, year, query, quizOnly, sort, labelOf } = {}) {
+  const q = (query || '').trim().toLowerCase()
+  const rows = (Array.isArray(papers) ? papers : []).filter((p) => {
+    if (grade && grade !== ANY && String(p.grade) !== String(grade)) return false
+    if (subject && subject !== ANY && p.subject !== subject) return false
+    if (year && year !== ANY && Number(p.year) !== Number(year)) return false
+    if (quizOnly && !p.quizId) return false
+    if (q) {
+      const label = labelOf ? labelOf(p.subject) : p.subject
+      const hay = `${p.title || ''} ${label || ''} ${p.year || ''} grade ${p.grade || ''}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
+  const sorted = [...rows]
+  if (sort === 'az') sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+  else if (sort === 'oldest') sorted.sort((a, b) => (a.year || 0) - (b.year || 0))
+  else sorted.sort((a, b) => (b.year || 0) - (a.year || 0))
+  return sorted
+}
