@@ -30,6 +30,7 @@ const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 const {resolveSchemeOutline} = require("./schemeCurriculumOutline");
+const {sliceOutlineToTerm} = require("./schemeTermDivision");
 const {
   sanitizeTimetableInput,
   summarizeTimetableForSubject,
@@ -111,6 +112,13 @@ function sanitizeInputs(raw = {}) {
     // Optional calendar week plan (School Calendar) — reserved exam/revision
     // weeks + dates the model paces around. Empty when the studio didn't send one.
     weekPlan: sanitizeWeekPlan(raw.weekPlan),
+    // Optional teacher-approved topic backbone for THIS term (the reviewed &
+    // edited plan from the studio's preview step). When present it drives the
+    // sequencing directly; empty when the teacher generated without previewing.
+    topicSelection: sanitizeTopicSelection(raw.topicSelection),
+    // Teaching (delivery) weeks available per term — lets the server slice the
+    // outline the same way the client preview did. Defaults applied downstream.
+    weeksByTerm: sanitizeWeeksByTerm(raw.weeksByTerm),
     // Explicit curriculum chosen by the teacher — drives CBC vs Previous
     // prompt/terminology + framework-aware KB grounding. A whole-term scheme
     // has no single topic, but still branches on curriculum/framework.
@@ -137,6 +145,41 @@ function sanitizeWeekPlan(raw) {
         w.holidays.filter((h) => typeof h === "string").slice(0, 5).map((h) => str(h, 40)) : [],
     };
   });
+}
+
+/**
+ * Trim a client-sent teacher-approved topic selection to the fields the prompt
+ * trusts. Caps the list length and each topic's sub-topics so a hostile client
+ * can't balloon the prompt.
+ */
+function sanitizeTopicSelection(raw) {
+  if (!Array.isArray(raw)) return [];
+  const str = (v, max) => (typeof v === "string" ?
+    v.replace(/\u0000/g, "").trim().slice(0, max) : "");
+  return raw.slice(0, 40).map((t) => ({
+    topic: str(t && t.topic, 160),
+    subtopics: Array.isArray(t && t.subtopics) ?
+      t.subtopics.filter((s) => typeof s === "string")
+          .slice(0, 12).map((s) => str(s, 160)) : [],
+    weeks: Math.min(6, Math.max(1,
+        Number.isFinite(Number(t && t.weeks)) ? Math.round(Number(t.weeks)) : 1)),
+    isRevision: Boolean(t && t.isRevision),
+  })).filter((t) => t.topic);
+}
+
+/** Trim the per-term teaching-week counts to a sane {1,2,3} map or null. */
+function sanitizeWeeksByTerm(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const val = (t) => {
+    const n = Number(raw[t]);
+    return Number.isFinite(n) && n > 0 ? Math.min(20, Math.round(n)) : undefined;
+  };
+  const out = {};
+  for (const t of [1, 2, 3]) {
+    const v = val(t);
+    if (v !== undefined) out[t] = v;
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function validateInputs(inputs) {
@@ -176,6 +219,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         subject: inputs.subject,
         term: inputs.term,
         framework: inputs.framework,
+        weeksByTerm: inputs.weeksByTerm,
       }),
       // Uploaded curriculum modules arranged at term level — the backup
       // source. The per-sub-topic module lookup can't fire for a whole-term
