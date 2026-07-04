@@ -84,15 +84,6 @@ const HERO_CHIPS = [
   { icon: ShieldCheck, label: 'Secure & private', sub: 'learner data never sold' },
 ]
 
-// Floating product cards over the hero art (lg+ only; hero clips overflow).
-const HERO_FLOATERS = [
-  { icon: BookOpen, title: 'CBC + OBC', sub: 'Nursery–Form 4', pos: 'top-[8%] right-[4%]' },
-  { icon: FileText, title: 'Lesson Plan', sub: 'Generated in 10s', pos: 'top-[21%] right-[25%]' },
-  { icon: Printer, title: 'Worksheet', sub: 'Ready to print', pos: 'top-[35%] right-[3%]' },
-  { icon: CheckCircleIcon, title: 'Quiz', sub: 'Auto-marked', pos: 'top-[51%] right-[19%]' },
-  { icon: TrendingUp, title: 'Progress', sub: '85%', pos: 'top-[67%] right-[6%]' },
-]
-
 // Teacher generation studios, grouped for the "what you can make" grid.
 // Counts are the real AI-studio totals per bucket (5 / 5 / 7 / 1 = 18),
 // verified against the teacher routes in App.jsx + TeacherDashboard groups.
@@ -233,23 +224,6 @@ function Section({ children, className = '', id }) {
     <section id={id} className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
       {children}
     </section>
-  )
-}
-
-// One floating product card overlaid on the hero art (decorative).
-function HeroFloatCard({ icon, title, sub, pos }) {
-  return (
-    <div
-      className={`absolute ${pos} flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-[0_10px_28px_-8px_rgba(0,0,0,0.45)] ring-1 ring-black/5`}
-    >
-      <span className="grid h-8 w-8 place-items-center rounded-xl bg-[color:var(--accent-bg)] theme-accent-text">
-        <Icon as={icon} size="sm" />
-      </span>
-      <span className="leading-tight">
-        <span className="block text-[13px] font-black text-slate-800">{title}</span>
-        <span className="block text-[11px] text-slate-500">{sub}</span>
-      </span>
-    </div>
   )
 }
 
@@ -524,60 +498,62 @@ export default function Marketing() {
 
       {/* Hero */}
       <section className="marketing-hero">
-        <img
-          src="/images/characters/zed-zara-reading.webp?v=2"
-          alt=""
-          className="marketing-hero-art"
-          aria-hidden="true"
-          width="1402"
-          height="1122"
-          fetchPriority="high"
-          loading="eager"
-          decoding="async"
-        />
-        {/* Floating product cards over the art (decorative, lg+ only) */}
-        <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block" aria-hidden="true">
-          {HERO_FLOATERS.map((f) => (
-            <HeroFloatCard key={f.title} icon={f.icon} title={f.title} sub={f.sub} pos={f.pos} />
-          ))}
-        </div>
         <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
-          <div className="max-w-3xl">
-            <div className="marketing-kicker">
-              <span aria-hidden="true" />
-              Built in Zambia, for the Zambian CBC
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
+            <div className="max-w-2xl">
+              <div className="marketing-kicker">
+                <span aria-hidden="true" />
+                Built in Zambia, for the Zambian CBC
+              </div>
+              <h1
+                className="marketing-hero-title"
+                style={{ maxWidth: '15ch', fontSize: 'clamp(2.5rem, 4.8vw, 4.25rem)' }}
+              >
+                The AI partner for{' '}
+                <span style={{ color: '#66BB6A' }}>Teachers</span>{' '}
+                &amp;{' '}
+                <span style={{ color: '#F9A825' }}>Learners</span>
+              </h1>
+              <p className="marketing-hero-copy">
+                AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
+                exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
+                and OBC (2013) curricula.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button as={Link} to="/register" variant="primary" size="lg">
+                  Get started free
+                </Button>
+                <Button as="a" href="#what-you-can-make" variant="secondary" size="lg" trailingIcon={<Icon as={ChevronRight} size="sm" />}>
+                  See how it works
+                </Button>
+              </div>
+              <p className="mt-3 text-sm text-white/60">No card needed to start.</p>
+              <div className="mt-8 flex flex-wrap gap-2.5" aria-label="ZedExams highlights">
+                {HERO_CHIPS.map(({ icon, label, sub }) => (
+                  <div
+                    key={label}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
+                  >
+                    <Icon as={icon} size="sm" className="text-[#F9A825]" />
+                    <span className="text-sm font-black text-white">{label}</span>
+                    <span className="hidden text-xs text-white/60 sm:inline">{sub}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h1 className="marketing-hero-title" style={{ maxWidth: '20ch' }}>
-              The AI partner for{' '}
-              <span style={{ color: '#66BB6A' }}>Teachers</span>{' '}
-              &amp;{' '}
-              <span style={{ color: '#F9A825' }}>Learners</span>
-            </h1>
-            <p className="marketing-hero-copy">
-              AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
-              exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
-              and OBC (2013) curricula.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button as={Link} to="/register" variant="primary" size="lg">
-                Get started free
-              </Button>
-              <Button as="a" href="#what-you-can-make" variant="secondary" size="lg" trailingIcon={<Icon as={ChevronRight} size="sm" />}>
-                See how it works
-              </Button>
-            </div>
-            <p className="mt-3 text-sm text-white/60">No card needed to start.</p>
-            <div className="mt-8 flex flex-wrap gap-2.5" aria-label="ZedExams highlights">
-              {HERO_CHIPS.map(({ icon, label, sub }) => (
-                <div
-                  key={label}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
-                >
-                  <Icon as={icon} size="sm" className="text-[#F9A825]" />
-                  <span className="text-sm font-black text-white">{label}</span>
-                  <span className="hidden text-xs text-white/60 sm:inline">{sub}</span>
-                </div>
-              ))}
+
+            {/* Hero illustration — teacher + Zed + learner, feature cards baked in */}
+            <div className="relative">
+              <img
+                src="/images/characters/zed-hero-team.webp"
+                alt="A ZedExams teacher and a Grade 4–7 learner studying together with the Zed AI assistant"
+                className="w-full rounded-3xl shadow-elev-lg ring-1 ring-white/15"
+                width="1400"
+                height="933"
+                fetchPriority="high"
+                loading="eager"
+                decoding="async"
+              />
             </div>
           </div>
         </Section>
