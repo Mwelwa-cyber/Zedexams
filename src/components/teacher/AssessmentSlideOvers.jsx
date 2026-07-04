@@ -300,17 +300,188 @@ function AiTopicModeToggle({ value, onChange, pickDisabled = false }) {
   )
 }
 
-export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
-  const docInputRef = useRef(null)
-  const [customCount, setCustomCount] = useState(false)
-  // 'pick' = choose from the syllabus drop-down, 'write' = free text.
+// A scrollable list of tickable options — lets the teacher pick several
+// topics / sub-topics at once (mirrors the full-paper modal's CheckboxList).
+function CheckboxList({ options, selected, onToggle }) {
+  return (
+    <div className="sv-cpm-checklist" role="group">
+      {options.map((opt) => {
+        const checked = selected.includes(opt)
+        return (
+          <label key={opt} className="sv-cpm-checkrow" style={{ cursor: 'pointer' }}>
+            <input type="checkbox" checked={checked}
+              onChange={() => onToggle(opt)}
+              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
+            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
+// Removable chips showing the currently-selected topics / sub-topics.
+function SelectedChips({ values, onRemove }) {
+  if (!values.length) return null
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+      {values.map((v) => (
+        <span key={v} className="sv-cpm-chip">
+          {v}
+          <button type="button" aria-label={`Remove ${v}`}
+            onClick={() => onRemove(v)}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// Multi-topic + multi-sub-topic picker for the quick-questions generator.
+// Same syllabus source + "From syllabus / Write my own" UX as the full
+// "Create paper with AI" modal, so a teacher can spread one generation across
+// several topics and sub-topics instead of a single topic at a time.
+function AiTopicSubtopicPicker({ grade, subject, framework, topics, subtopics, onChangeTopics, onChangeSubtopics }) {
+  const { topics: topicOptions, subtopics: subtopicOptions, loading } =
+    useSyllabusTopicOptions(grade, subject, topics, framework)
   const [topicMode, setTopicMode] = useState('pick')
-  const { topics: topicOptions, loading: topicsLoading } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
-  const topicPickEmpty = !topicsLoading && topicOptions.length === 0
+  const [subtopicMode, setSubtopicMode] = useState('pick')
+  const [topicInput, setTopicInput] = useState('')
+  const [subtopicInput, setSubtopicInput] = useState('')
+
+  const topicPickEmpty = !loading && topicOptions.length === 0
+
   // No syllabus rows for this grade/subject → free text is the only option.
   useEffect(() => {
     if (topicPickEmpty && topicMode === 'pick') setTopicMode('write')
   }, [topicPickEmpty, topicMode])
+
+  // Grade/subject/framework change re-scopes the syllabus page. The parent
+  // already clears the selected topics/subtopics on those changes; reset the
+  // local mode + typed inputs so a half-typed value can't leak across pages.
+  const key = `${grade}|${subject}|${framework}`
+  const lastKey = useRef(key)
+  useEffect(() => {
+    if (lastKey.current === key) return
+    lastKey.current = key
+    setTopicMode('pick'); setSubtopicMode('pick')
+    setTopicInput(''); setSubtopicInput('')
+  }, [key])
+
+  function toggleTopic(value) {
+    const t = String(value || '').trim()
+    if (!t) return
+    onChangeTopics(topics.includes(t) ? topics.filter((x) => x !== t) : [...topics, t])
+  }
+  function addTopicInput() {
+    const t = topicInput.trim().slice(0, 80)
+    if (!t || topics.includes(t)) { setTopicInput(''); return }
+    onChangeTopics([...topics, t])
+    setTopicInput('')
+  }
+  function toggleSubtopic(value) {
+    const s = String(value || '').trim()
+    if (!s) return
+    onChangeSubtopics(subtopics.includes(s) ? subtopics.filter((x) => x !== s) : [...subtopics, s])
+  }
+  function addSubtopicInput() {
+    const s = subtopicInput.trim().slice(0, 80)
+    if (!s || subtopics.includes(s)) { setSubtopicInput(''); return }
+    onChangeSubtopics([...subtopics, s])
+    setSubtopicInput('')
+  }
+
+  return (
+    <>
+      <div className="sv-field" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <label style={{ marginBottom: 0 }}>Topics</label>
+          <AiTopicModeToggle
+            value={topicMode}
+            onChange={(mode) => { if (mode === 'pick') setTopicInput(''); setTopicMode(mode) }}
+            pickDisabled={topicPickEmpty}
+          />
+        </div>
+        <SelectedChips values={topics} onRemove={(t) => onChangeTopics(topics.filter((x) => x !== t))} />
+        {topicMode === 'pick' ? (
+          loading ? (
+            <p className="sv-cpm-hint">Loading syllabus topics…</p>
+          ) : topicOptions.length === 0 ? (
+            <p className="sv-cpm-hint">No syllabus topics on file — switch to “Write my own”.</p>
+          ) : (
+            <>
+              <CheckboxList options={topicOptions} selected={topics} onToggle={toggleTopic} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                {topics.length > 0 && (
+                  <button type="button" className="sv-btn" onClick={() => onChangeTopics([])}>Clear</button>
+                )}
+                <span className="sv-cpm-hint" style={{ margin: 0, marginLeft: 'auto' }}>
+                  {topics.length} selected
+                </span>
+              </div>
+            </>
+          )
+        ) : (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text" style={{ flex: 1 }} list="ai-slide-topic-options"
+              value={topicInput}
+              onChange={e => setTopicInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTopicInput() } }}
+              placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
+            />
+            <button type="button" className="sv-btn" onClick={addTopicInput} disabled={!topicInput.trim()}>+ Add</button>
+            <datalist id="ai-slide-topic-options">
+              {topicOptions.map(t => <option key={t} value={t} />)}
+            </datalist>
+          </div>
+        )}
+      </div>
+
+      <div className="sv-field" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <label style={{ marginBottom: 0 }}>Sub-topics (optional)</label>
+          <AiTopicModeToggle
+            value={subtopicMode}
+            onChange={(mode) => { if (mode === 'pick') setSubtopicInput(''); setSubtopicMode(mode) }}
+            pickDisabled={subtopicOptions.length === 0}
+          />
+        </div>
+        <SelectedChips values={subtopics} onRemove={(s) => onChangeSubtopics(subtopics.filter((x) => x !== s))} />
+        {subtopicMode === 'pick' ? (
+          subtopicOptions.length === 0 ? (
+            <p className="sv-cpm-hint">Pick a topic first to see its sub-topics.</p>
+          ) : (
+            <>
+              <CheckboxList options={subtopicOptions} selected={subtopics} onToggle={toggleSubtopic} />
+              {subtopics.length > 0 && (
+                <button type="button" className="sv-btn" style={{ marginTop: 6 }} onClick={() => onChangeSubtopics([])}>Clear</button>
+              )}
+            </>
+          )
+        ) : (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text" style={{ flex: 1 }} list="ai-slide-subtopic-options"
+              value={subtopicInput}
+              onChange={e => setSubtopicInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtopicInput() } }}
+              placeholder="Type a sub-topic"
+            />
+            <button type="button" className="sv-btn" onClick={addSubtopicInput} disabled={!subtopicInput.trim()}>+ Add</button>
+            <datalist id="ai-slide-subtopic-options">
+              {subtopicOptions.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
+  const docInputRef = useRef(null)
+  const [customCount, setCustomCount] = useState(false)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -333,8 +504,8 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
 
         <div className="sv-block-cat">Quick questions</div>
         <div className="sv-ai-msg">
-          <strong>Generate questions on a CBC topic</strong>
-          Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
+          <strong>Generate questions on CBC topics</strong>
+          Pick one or more topics and sub-topics, a count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
         </div>
 
         <div className="sv-field-grid two" style={{ marginBottom: 12 }}>
@@ -342,7 +513,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             <label>Grade</label>
             <select
               value={form.grade}
-              onChange={e => { onUpdatePaperMeta?.('grade', e.target.value); setAiForm(prev => ({ ...prev, topic: '' })) }}
+              onChange={e => { onUpdatePaperMeta?.('grade', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
               {STUDIO_GRADES.map(g => (
                 <option key={g} value={g}>Grade {g}</option>
@@ -353,7 +524,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             <label>Subject</label>
             <select
               value={form.subject}
-              onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topic: '' })) }}
+              onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
               {STUDIO_SUBJECTS.map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -364,51 +535,18 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
         <div style={{ marginBottom: 12 }}>
           <CurriculumPicker
             curriculumMode={aiForm.framework === '2013' ? 'previous' : 'cbc'}
-            onSelect={(mode) => setAiForm(prev => ({ ...prev, framework: mode === 'previous' ? '2013' : '2023', topic: '' }))}
+            onSelect={(mode) => setAiForm(prev => ({ ...prev, framework: mode === 'previous' ? '2013' : '2023', topics: [], subtopics: [], topic: '' }))}
           />
         </div>
-        <div className="sv-field" style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <label style={{ marginBottom: 0 }}>Topic</label>
-            <AiTopicModeToggle
-              value={topicMode}
-              onChange={(mode) => {
-                // Drop a custom topic the syllabus doesn't list when switching
-                // to the drop-down, so what's shown is what's sent.
-                if (mode === 'pick' && aiForm.topic && !topicOptions.includes(aiForm.topic)) {
-                  setAiForm(prev => ({ ...prev, topic: '' }))
-                }
-                setTopicMode(mode)
-              }}
-              pickDisabled={topicPickEmpty}
-            />
-          </div>
-          {topicMode === 'pick' ? (
-            <select
-              value={topicOptions.includes(aiForm.topic) ? aiForm.topic : ''}
-              disabled={topicsLoading}
-              onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
-            >
-              <option value="">
-                {topicsLoading ? 'Loading syllabus topics…' : 'Choose a topic from the syllabus…'}
-              </option>
-              {topicOptions.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          ) : (
-            <>
-              <input
-                type="text"
-                list="ai-slide-topic-options"
-                value={aiForm.topic}
-                onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
-                placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
-              />
-              <datalist id="ai-slide-topic-options">
-                {topicOptions.map(t => <option key={t} value={t} />)}
-              </datalist>
-            </>
-          )}
-        </div>
+        <AiTopicSubtopicPicker
+          grade={form.grade}
+          subject={form.subject}
+          framework={aiForm.framework}
+          topics={aiForm.topics || []}
+          subtopics={aiForm.subtopics || []}
+          onChangeTopics={(next) => setAiForm(prev => ({ ...prev, topics: next }))}
+          onChangeSubtopics={(next) => setAiForm(prev => ({ ...prev, subtopics: next }))}
+        />
         <div className="sv-field-grid two">
           <div className="sv-field">
             <label>How many questions</label>
