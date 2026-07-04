@@ -96,7 +96,7 @@ ZedExams ships via GitHub Actions. As of 2026-05-14 the project owner delegated 
 src/
   App.jsx                       — router; nearly every route is React.lazy(); ThemeApplicator pins public routes to brand default
   main.jsx                      — entry; wraps <App /> in ErrorBoundary + AuthProvider + ThemeProvider + DataSaverProvider + PlatformSettingsProvider
-  firebase/config.js            — Firebase init; sets auth persistence, App Check (reCAPTCHA v3 on web, Play Integrity on Android via Capacitor plugin), multi-tab IndexedDB persistence, FCM (web-push only)
+  firebase/config.js            — Firebase init; sets auth persistence, App Check (reCAPTCHA Enterprise on web, Play Integrity on Android via Capacitor plugin), multi-tab IndexedDB persistence, FCM (web-push only)
   firebase/ai.js                — Firebase AI Logic (Gemini) client; src/utils/aiLogic.js wraps generateText/streamText/generateJSON
   contexts/                     — AuthContext, ThemeContext, DataSaverContext, PlatformSettingsContext
   components/
@@ -208,7 +208,7 @@ VitePWA `generateSW` with `registerType: 'autoUpdate'` — the new SW activates 
 
 ### App Check
 
-Web uses reCAPTCHA v3 (silent unless score is low). Android uses Play Integrity via `@capacitor-firebase/app-check`, looked up at runtime through `Capacitor.Plugins.FirebaseAppCheck` rather than `await import(...)` so the web build stays package-agnostic. Without `VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY` the web init silently no-ops — fine for lint-only builds, dangerous for a real deploy.
+Web uses reCAPTCHA Enterprise (via `ReCaptchaEnterpriseProvider`, silent unless score is low; migrated from reCAPTCHA v3). Android uses Play Integrity via `@capacitor-firebase/app-check`, looked up at runtime through `Capacitor.Plugins.FirebaseAppCheck` rather than `await import(...)` so the web build stays package-agnostic. Without `VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY` (the reCAPTCHA Enterprise App Check key, distinct from the Android action-scoring key) the web init silently no-ops — fine for lint-only builds, dangerous for a real deploy.
 
 ### Capacitor wrapper caveats
 

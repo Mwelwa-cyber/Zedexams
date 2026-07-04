@@ -13,7 +13,7 @@ import { isNativePlatform } from './runtime'
 //
 // FAIL-OPEN by design. Tokens are only minted on native Android; on web this
 // returns null and callers proceed (browser traffic is already covered by App
-// Check reCAPTCHA v3). If the native plugin isn't registered, the SDK isn't
+// Check reCAPTCHA Enterprise). If the native plugin isn't registered, the SDK isn't
 // warmed up yet, or the backend assessment errors, the result is 'skip' and
 // the action proceeds. The ONLY verdict that should stop a flow is 'block'.
 

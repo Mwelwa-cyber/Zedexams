@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider, getToken } from 'firebase/app-check'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
 import { resilientGetToken } from './appCheckResilient'
 import {
   getAuth,
@@ -91,10 +91,10 @@ applyAuthPersistence()
 // rejects (or, for now, just logs) calls without one — closes the
 // scraping vector on AI endpoints that cost real money.
 //
-// Web: reCAPTCHA v3 with a public site key. Silent — no checkbox or
-// challenge — unless the score drops below the configured threshold,
-// at which point the token mint fails and the gated call falls back
-// to whatever the server's enforce mode is.
+// Web: reCAPTCHA Enterprise with a public site key. Silent — no
+// checkbox or challenge — unless the score drops below the configured
+// threshold, at which point the token mint fails and the gated call
+// falls back to whatever the server's enforce mode is.
 //
 // Native (Capacitor / Android, audit B3 follow-up): Play Integrity via
 // `@capacitor-firebase/app-check` (a project dependency since 2026-07).
@@ -224,8 +224,8 @@ async function initAppCheck() {
     return
   }
 
-  // Web path — reCAPTCHA v3. Gated on the public site key being set
-  // so a build that hasn't been configured silently no-ops rather
+  // Web path — reCAPTCHA Enterprise. Gated on the public site key being
+  // set so a build that hasn't been configured silently no-ops rather
   // than crashing on init.
   if (!APPCHECK_RECAPTCHA_KEY) return
   if (import.meta.env.DEV) {
@@ -234,21 +234,23 @@ async function initAppCheck() {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
   }
   try {
-    // Fail-open reCAPTCHA (fixes the 2026-07-01 sign-in outage). The SDK
-    // attaches an App Check token to EVERY Auth + Firestore request even in
-    // Monitoring mode, so when reCAPTCHA crashes ("placeholder element must be
-    // empty") or hangs ("reCAPTCHA Timeout") the token never resolves and the
-    // request stalls — surfacing as auth/network-request-failed and Firestore
-    // "backend didn't respond within 10s" for many users at once. We wrap the
-    // reCAPTCHA v3 provider in a CustomProvider whose getToken races the real
-    // fetch against a short timeout and NEVER rejects (see appCheckResilient.js):
-    // a stuck reCAPTCHA yields a short-lived placeholder so sign-in proceeds,
-    // while a healthy reCAPTCHA passes its real token through untouched.
+    // Fail-open reCAPTCHA (fixes the 2026-07-01 sign-in outage, originally on
+    // the reCAPTCHA v3 provider; the wrapper is provider-agnostic and now guards
+    // Enterprise the same way). The SDK attaches an App Check token to EVERY
+    // Auth + Firestore request even in Monitoring mode, so when reCAPTCHA crashes
+    // ("placeholder element must be empty") or hangs ("reCAPTCHA Timeout") the
+    // token never resolves and the request stalls — surfacing as
+    // auth/network-request-failed and Firestore "backend didn't respond within
+    // 10s" for many users at once. We wrap the reCAPTCHA Enterprise provider in a
+    // CustomProvider whose getToken races the real fetch against a short timeout
+    // and NEVER rejects (see appCheckResilient.js): a stuck reCAPTCHA yields a
+    // short-lived placeholder so sign-in proceeds, while a healthy reCAPTCHA
+    // passes its real token through untouched.
     //
     // CustomProvider does not forward initialize() to the wrapped provider, so
-    // we initialize the ReCaptchaV3Provider ourselves, lazily on first token
-    // request and guarded against a synchronous throw.
-    const recaptcha = new ReCaptchaV3Provider(APPCHECK_RECAPTCHA_KEY)
+    // we initialize the ReCaptchaEnterpriseProvider ourselves, lazily on first
+    // token request and guarded against a synchronous throw.
+    const recaptcha = new ReCaptchaEnterpriseProvider(APPCHECK_RECAPTCHA_KEY)
     let recaptchaInitialized = false
     const provider = new CustomProvider({
       getToken: () => {
@@ -314,8 +316,8 @@ export function getAppCheckClientState() {
 }
 
 // Defer App Check off the cold-start critical path. On web, initAppCheck()
-// downloads + runs Google's reCAPTCHA v3 script (recaptcha/api.js), whose
-// main-thread work was competing with React's first mount and inflating real-
+// downloads + runs Google's reCAPTCHA Enterprise script (recaptcha/enterprise.js),
+// whose main-thread work was competing with React's first mount and inflating real-
 // user FCP/LCP on cold mobile loads (p75 LCP ~10s on /login). Scheduling it for
 // the first idle slot after paint frees the main thread for the app to render
 // first, then attestation initialises a beat later.

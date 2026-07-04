@@ -10,8 +10,10 @@
 
 ## What this is (and how it differs from App Check)
 
-The app already has **Firebase App Check** (reCAPTCHA v3 on web, Play Integrity
-on native — see `src/firebase/config.js` and `docs/B3-PLAY-INTEGRITY-SETUP.md`).
+The app already has **Firebase App Check** (reCAPTCHA Enterprise on web, Play
+Integrity on native — see `src/firebase/config.js` and
+`docs/B3-PLAY-INTEGRITY-SETUP.md`). Note App Check's web key is a *separate*
+reCAPTCHA Enterprise key from the Android action-scoring key documented here.
 App Check attests *"this request comes from a genuine ZedExams client"* on
 **every** backend call.
 

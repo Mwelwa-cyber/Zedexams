@@ -15,7 +15,8 @@
 > unattested — the plugin initialises but has no provider to attest with.
 > Use the "This device" self-test on `/admin/app-check` to verify each stage.
 
-The web App Check shipped via PR #317 protects browser traffic with reCAPTCHA v3.
+The web App Check shipped via PR #317 protects browser traffic with reCAPTCHA
+(originally v3, now migrated to reCAPTCHA Enterprise via `ReCaptchaEnterpriseProvider`).
 The Capacitor Android wrapper currently bypasses that — every Firestore /
 Storage / Cloud Function callable from the WebView lands at the server
 without an attestation token. This doc walks through activating

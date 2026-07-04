@@ -8,8 +8,8 @@
  * WHY THIS EXISTS — the sign-in outage of 2026-07-01:
  * Firebase attaches an App Check token to EVERY Auth + Firestore request, even
  * when App Check is only in **Monitoring** mode (the token is collected and
- * logged server-side, never used to reject). The reCAPTCHA v3 provider that
- * mints those tokens can:
+ * logged server-side, never used to reject). The reCAPTCHA provider that
+ * mints those tokens (v3 at the time of the outage, now reCAPTCHA Enterprise) can:
  *   • crash — "reCAPTCHA placeholder element must be empty" on a redundant
  *     render (bfcache restore / a second render), or
  *   • hang — "reCAPTCHA Timeout" on a flaky connection to Google's reCAPTCHA.

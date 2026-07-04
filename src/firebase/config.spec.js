@@ -26,7 +26,7 @@ vi.mock('firebase/app', () => ({
 }))
 vi.mock('firebase/app-check', () => ({
   initializeAppCheck: (...args) => initializeAppCheck(...args),
-  ReCaptchaV3Provider: class ReCaptchaV3Provider {
+  ReCaptchaEnterpriseProvider: class ReCaptchaEnterpriseProvider {
     initialize() {}
     async getToken() { return { token: 'tok', expireTimeMillis: 0 } }
   },
