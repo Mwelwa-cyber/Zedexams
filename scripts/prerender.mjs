@@ -202,6 +202,17 @@ async function main() {
               if (lastByKey.get(keyOf(m)) !== m) m.remove()
             }
 
+            // Deduplicate <title> elements. React 19's mountHoistable inserts
+            // the per-route <title> BEFORE any existing static shell title via
+            // head.insertBefore(newTitle, head.querySelector("head > title")),
+            // leaving the static shell title as an orphaned second element.
+            // Keep the FIRST (the per-route one); remove any later twins.
+            // Logic mirrors scripts/prerenderHeadDedup.mjs dedupTitleTags().
+            const titles = [...document.head.querySelectorAll('title')]
+            if (titles.length > 1) {
+              titles.slice(1).forEach((t) => t.remove())
+            }
+
             const root = document.getElementById('root')
             const link = document.querySelector('link[rel="canonical"]')
             return {

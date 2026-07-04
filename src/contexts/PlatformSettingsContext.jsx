@@ -47,12 +47,6 @@ export function PlatformSettingsProvider({ children }) {
     return () => unsub()
   }, [])
 
-  // Reflect site name in the tab title so admins see a rename instantly.
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    document.title = settings.siteName ? `${settings.siteName}` : 'ZedExams'
-  }, [settings.siteName])
-
   return (
     <PlatformSettingsContext.Provider value={{ settings, loaded }}>
       {children}
