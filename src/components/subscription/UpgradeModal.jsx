@@ -288,7 +288,9 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
             </div>
 
             {/* ── Plan picker ────────────────────────────────────── */}
-            <div className="px-6 pb-6 overflow-y-auto flex-1">
+            {/* pt-4 keeps the "Most popular" ribbon (which pokes -top-2.5 above
+                its card) clear of this scroll container's overflow clip. */}
+            <div className="px-6 pt-4 pb-6 overflow-y-auto flex-1">
               {pendingReferralCredits > 0 && (
                 <div
                   className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"

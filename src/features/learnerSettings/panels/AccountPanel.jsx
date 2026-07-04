@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { deleteMyAccount } from '../../../utils/accountService'
+import { PLANS } from '../../../utils/subscriptionConfig'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
 import InvoicesCard from '../../../components/dashboard/InvoicesCard'
 import PaymentHistoryCard from '../../../components/dashboard/PaymentHistoryCard'
@@ -20,23 +21,64 @@ function fmtDate(ts) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Polished pricing cards that mirror the teacher upgrade modal — icon chip,
+// price, a couple of headline features and a "Most popular" ribbon. Paid cards
+// open the same Lenco checkout modal, pre-selected to that plan. Prices +
+// features come straight from PLANS so the cards never drift from checkout.
 const PLAN_CARDS = [
-  { id: 'free', name: 'Free', tagline: 'The basics to get going', accent: 'var(--text-muted)' },
-  { id: 'pro', name: 'Pro', tagline: 'More quizzes & exam mode', accent: '#0ea5e9' },
-  { id: 'max', name: 'Premium', tagline: 'Everything, unlocked', accent: '#f59e0b' },
+  {
+    id: 'free',
+    planId: null,
+    icon: '🐢',
+    name: 'Free',
+    tagline: 'The basics to get going',
+    priceLabel: 'K0',
+    unit: 'forever',
+    feats: ['Demo quizzes (one per subject)', 'Basic results', 'Practice mode only'],
+  },
+  {
+    id: 'weekly',
+    planId: 'weekly',
+    icon: PLANS.weekly.badge,
+    name: PLANS.weekly.name,
+    tagline: PLANS.weekly.tagline,
+    priceLabel: `K${PLANS.weekly.priceZMW}`,
+    unit: '/ week',
+    feats: PLANS.weekly.features.slice(0, 3),
+  },
+  {
+    id: 'monthly',
+    planId: 'monthly',
+    icon: PLANS.monthly.badge,
+    name: PLANS.monthly.name,
+    tagline: PLANS.monthly.tagline,
+    priceLabel: `K${PLANS.monthly.priceZMW}`,
+    unit: '/ month',
+    feats: PLANS.monthly.features.slice(0, 3),
+    popular: true,
+  },
 ]
 
 export default function AccountPanel({ section, pushToast }) {
   const { userProfile, currentUser } = useAuth()
-  const { tierLabel, isPremium, planTier } = useSubscription()
+  const { tierLabel, isPremium } = useSubscription()
   const navigate = useNavigate()
 
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [upgradePlanId, setUpgradePlanId] = useState(null)
   const [confirming, setConfirming] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  const currentPlan = planTier === 'pro' ? 'pro' : planTier === 'max' ? 'max' : 'free'
+  // Highlight the card that matches the learner's live plan. Non-premium →
+  // Free; premium learners on a plan outside these three (e.g. a grade pack)
+  // still see them, just without a "current" flag.
+  const currentPlan = !isPremium ? 'free' : (userProfile?.subscriptionPlan || 'monthly')
+
+  const openUpgrade = (planId) => {
+    setUpgradePlanId(planId || null)
+    setShowUpgrade(true)
+  }
 
   // Rough storage figure from the one learner-controlled blob we store.
   const storageKb = useMemo(() => {
@@ -84,23 +126,40 @@ export default function AccountPanel({ section, pushToast }) {
     <Panel section={section}>
       {/* Subscription */}
       <Section title="Your subscription" hint="Pick the plan that fits how you study.">
-        <div className="lset-stats" style={{ marginBottom: 14 }}>
+        <div className="lset-plans" style={{ marginBottom: 14 }}>
           {PLAN_CARDS.map((p) => {
             const on = currentPlan === p.id
+            const clickable = !!p.planId && !on
             return (
-              <div
+              <button
                 key={p.id}
-                className="lset-stat"
-                style={{ borderColor: on ? p.accent : 'var(--border)', borderWidth: on ? 2 : 1.5 }}
+                type="button"
+                className={`lset-plan${on ? ' lset-plan--on' : ''}${p.popular ? ' lset-plan--popular' : ''}`}
+                disabled={!clickable}
+                aria-pressed={on}
+                onClick={clickable ? () => openUpgrade(p.planId) : undefined}
               >
-                <div className="lset-stat__value" style={{ color: p.accent }}>{p.name}</div>
-                <div className="lset-stat__label">{p.tagline}</div>
-                {on && <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: p.accent }}>✓ Current plan</div>}
-              </div>
+                {p.popular && <span className="lset-plan__ribbon">✦ Most popular</span>}
+                <div className="lset-plan__head">
+                  <span className="lset-plan__icon" aria-hidden="true">{p.icon}</span>
+                  <span>
+                    <span className="lset-plan__name">{p.name}</span>
+                    <span className="lset-plan__tagline">{p.tagline}</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="lset-plan__price">{p.priceLabel}</span>
+                  <span className="lset-plan__unit">{p.unit}</span>
+                </div>
+                <ul className="lset-plan__feats">
+                  {p.feats.map((f) => <li key={f} className="lset-plan__feat">{f}</li>)}
+                </ul>
+                {on && <div className="lset-plan__current">✓ Current plan</div>}
+              </button>
             )
           })}
         </div>
-        {!isPremium && <Btn onClick={() => setShowUpgrade(true)}>Upgrade to unlock everything</Btn>}
+        {!isPremium && <Btn onClick={() => openUpgrade('monthly')}>Upgrade to unlock everything</Btn>}
         {isPremium && (
           <Note tone="accent">You're on <strong>{tierLabel}</strong>. Manage renewal and receipts below.</Note>
         )}
@@ -153,7 +212,11 @@ export default function AccountPanel({ section, pushToast }) {
       </Section>
 
       {showUpgrade && (
-        <UpgradeModal portal="learner" defaultPlanId={userProfile?.subscriptionPlan} onClose={() => setShowUpgrade(false)} />
+        <UpgradeModal
+          portal="learner"
+          defaultPlanId={upgradePlanId || userProfile?.subscriptionPlan}
+          onClose={() => { setShowUpgrade(false); setUpgradePlanId(null) }}
+        />
       )}
     </Panel>
   )
