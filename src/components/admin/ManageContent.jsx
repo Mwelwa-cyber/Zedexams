@@ -152,8 +152,8 @@ function sortItems(items, sortBy, tab) {
 }
 
 // ── primitives ─────────────────────────────────────────────────────────────
-function Pill({ children, color }) {
-  return <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${color}`}>{children}</span>
+function Pill({ children, color, title }) {
+  return <span title={title} className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${color}`}>{children}</span>
 }
 
 function StatusPill({ status }) {
@@ -329,11 +329,29 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
     const examOnly = isExamOnly(item)
     const qCount = item.questionCount ?? '?'
     const duration = item.durationMinutes || item.duration || '?'
+    // The card reads the denormalised questionCount off the quiz doc, which can
+    // drift to 0 while the questions subcollection (and passages) still hold
+    // real content — a paper then looks empty and deletable when it isn't. When
+    // the count is 0 but other signals say there IS content (a nonzero review
+    // count, or embedded passages), flag it as "out of sync" instead of showing
+    // a bare "0 Q", and point the admin at the repair script. See
+    // scripts/repair-quiz-passages-and-counts.mjs.
+    const reviewSignal = Number(item.reviewCount) || 0
+    const passageSignal = Number(item.passageCount) || 0
+    const countOutOfSync =
+      (Number(item.questionCount) || 0) === 0 && (reviewSignal > 0 || passageSignal > 0)
     editTo = id ? `/admin/quizzes/${id}/edit` : '/admin/content'
     preview = id ? { href: `/quiz/${id}`, label: item.isPublished ? 'Preview' : 'Test draft' } : null
-    meta = `${qCount} Q · ${duration}m`
+    meta = countOutOfSync
+      ? `⚠ Count out of sync · ${duration}m`
+      : `${qCount} Q · ${duration}m`
     badges = (
       <>
+        {countOutOfSync && (
+          <Pill color="bg-red-100 text-red-700" title="questionCount is 0 but this paper still has questions/passages saved. Run scripts/repair-quiz-passages-and-counts.mjs to fix the counts and restore passages — it never deletes anything.">
+            Needs repair
+          </Pill>
+        )}
         {quizType === 'daily_exam' && <Pill color="bg-amber-100 text-amber-700">🏆 Daily · {item.dailyExamDate}</Pill>}
         {quizType !== 'daily_exam' && examOnly && item.isPublished && <Pill color="bg-amber-100 text-amber-700">Exam-only</Pill>}
         {quizType === 'practice' && !examOnly && <Pill color="bg-green-100 text-green-700">Practice</Pill>}
