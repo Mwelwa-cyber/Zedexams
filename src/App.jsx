@@ -102,6 +102,7 @@ const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
+const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
@@ -290,6 +291,16 @@ function SettingsPage() {
       <TeacherLayout>
         <TeacherSettings />
       </TeacherLayout>
+    )
+  }
+  // Learners get the redesigned, mobile-first Learner Settings experience;
+  // admins keep the shared account-preferences page under the global Navbar.
+  if (role === 'learner') {
+    return (
+      <>
+        <Navbar />
+        <LearnerSettings />
+      </>
     )
   }
   return (
