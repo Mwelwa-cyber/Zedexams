@@ -13,6 +13,8 @@ import {
   isOutcomeBased,
   forecastColumns,
   forecastCurriculum,
+  cleanCellText,
+  cleanCellList,
 } from './schemeFormat.js'
 
 let failures = 0
@@ -102,6 +104,34 @@ console.log('forecastColumns — CBC vs OBC')
   assert(!obc.some((c) => c.label === 'EXPECTED STANDARD'), 'OBC forecast drops Expected Standard')
   assert(obc.some((c) => c.label === 'SPECIFIC OUTCOME'), 'OBC forecast labels Specific Outcome')
   assert(forecastCurriculum({ header: { curriculum: 'obc' } }) === 'obc', 'forecastCurriculum reads header')
+}
+
+console.log('cleanCellText — strips filler, keeps real values')
+{
+  assert(cleanCellText("I don't know") === '', "\"I don't know\" → ''")
+  assert(cleanCellText('I do not know') === '', "'I do not know' → ''")
+  assert(cleanCellText('  I DON’T KNOW ') === '', 'uppercase + curly apostrophe filler → \'\'')
+  assert(cleanCellText('N/A') === '', "'N/A' → ''")
+  assert(cleanCellText('n / a') === '', "'n / a' → ''")
+  assert(cleanCellText('unknown') === '', "'unknown' → ''")
+  assert(cleanCellText('TBD') === '', "'TBD' → ''")
+  assert(cleanCellText('to be decided') === '', "'to be decided' → ''")
+  assert(cleanCellText(null) === '', 'null → \'\'')
+  assert(cleanCellText(undefined) === '', 'undefined → \'\'')
+  assert(cleanCellText('  4.1 THE HUMAN BODY  ') === '4.1 THE HUMAN BODY', 'real value trimmed + kept')
+  assert(cleanCellText('Describe the structure of the heart.') === 'Describe the structure of the heart.', 'real sentence kept')
+  // Must not over-match: real content that merely contains the words stays.
+  assert(cleanCellText('State what pupils know about the heart') === 'State what pupils know about the heart', 'does not strip content containing "know"')
+}
+
+console.log('cleanCellList — drops filler + empties, keeps order')
+{
+  const out = cleanCellList(['Exposition', "I don't know", '', 'Q & A', 'N/A', 'Discussion'])
+  assert(out.length === 3, 'three real items remain')
+  assert(out[0] === 'Exposition' && out[1] === 'Q & A' && out[2] === 'Discussion', 'order preserved')
+  assert(cleanCellList(null).length === 0, 'null → []')
+  assert(cleanCellList('single real').length === 1, 'string coerced to one-item list')
+  assert(cleanCellList("I don't know").length === 0, 'filler string → []')
 }
 
 if (failures > 0) {

@@ -122,6 +122,32 @@ export function isOutcomeBased(curriculum) {
   return normalizeCurriculum(curriculum) === 'obc'
 }
 
+/* ── Cell value hygiene ───────────────────────────────────────────────────
+ * A generator occasionally leaks a filler phrase ("I don't know", "N/A", …)
+ * into a cell when it can't source a value. On an official printed scheme of
+ * work that reads as an error, so the view + both exporters run every cell
+ * through these helpers and render an em-dash instead. Kept here (dependency-
+ * free) so the on-screen view, the DOCX and the PDF all strip the same set.
+ */
+const FILLER_CELL = /^\s*(i\s*(do\s*not|don'?t|dont)\s*know|i'?m\s*not\s*sure|not\s*sure|unknown|not\s*applicable|n\s*\/?\s*a|tbd|to\s*be\s*(decided|determined|confirmed))\s*[.!]?\s*$/i
+
+/** Trim a single cell string; blank out obvious filler ("I don't know"). */
+export function cleanCellText(value) {
+  if (value === null || value === undefined) return ''
+  const s = String(value).trim()
+  if (!s) return ''
+  // Match against a copy with curly apostrophes normalised, but return the
+  // original text so real content keeps its typography.
+  if (FILLER_CELL.test(s.replace(/[’‘`]/g, "'"))) return ''
+  return s
+}
+
+/** Clean a list cell: drop empties + filler entries, keep real ones in order. */
+export function cleanCellList(items) {
+  const list = Array.isArray(items) ? items : (items === null || items === undefined || items === '' ? [] : [items])
+  return list.map((i) => cleanCellText(i)).filter(Boolean)
+}
+
 /* ── Weekly Forecast columns ──────────────────────────────────────────────
  * The forecast repeats a scheme week across the teaching DAYS, so it carries a
  * DAY column and singular field names (specificCompetence, not the array). It
