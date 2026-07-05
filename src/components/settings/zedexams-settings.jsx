@@ -1020,6 +1020,9 @@ function NotificationsPanel({ pushToast }) {
     setPushState(result);
     if (result === 'granted') pushToast('success', 'Push notifications enabled on this device.');
     else if (result === 'denied') pushToast('error', 'Push is blocked. Allow notifications in your browser settings.');
+    // 'error' = permission granted but no FCM token could be minted (e.g. web
+    // push not configured for this deploy). Permission wasn't the blocker.
+    else if (result === 'error') pushToast('error', "Couldn't enable push on this device right now. Please try again later.");
   };
 
   const muteActive = prefs.muteUntil && prefs.muteUntil > Date.now();

@@ -36,10 +36,21 @@ export default function NotificationsPanel({ section, pushToast }) {
       const result = await requestPushPermission(currentUser?.uid)
       if (result === 'granted') {
         pushToast?.('success', 'Push notifications enabled on this device.')
-      } else {
+        return
+      }
+      // Enabling didn't actually take (blocked, unsupported, or granted-but-no-
+      // token) — flip the stored pref back off so it doesn't claim to be on when
+      // the server has nowhere to deliver.
+      setChannel('push', false)
+      if (result === 'denied') {
         pushToast?.('error', 'Push permission was blocked. Enable it in your browser settings.')
+      } else {
+        // 'error' (granted but no token) / 'unsupported' — permission wasn't the
+        // blocker, so don't tell the learner to change browser settings.
+        pushToast?.('error', "Couldn't enable push on this device right now. Please try again later.")
       }
     } catch {
+      setChannel('push', false)
       pushToast?.('error', "Couldn't enable push notifications right now.")
     }
   }

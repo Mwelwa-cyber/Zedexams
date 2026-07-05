@@ -30,6 +30,10 @@ import {
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY
 
+// One-shot guard so the "VAPID key missing" diagnostic logs once, not on every
+// sign-in / settings toggle.
+let warnedNoVapid = false
+
 /**
  * True if this device can mint FCM tokens. On native (Capacitor) that means the
  * @capacitor-firebase/messaging plugin is registered; on the web it means the
@@ -64,7 +68,21 @@ export function pushPermission() {
  * Cloud Function prunes any token that returns NotRegistered when sent.
  */
 export async function registerToken(uid) {
-  if (!isPushSupported() || !VAPID_KEY || !uid) return null
+  if (!isPushSupported() || !uid) return null
+  if (!VAPID_KEY) {
+    // The single most common reason web push is silently dead in production:
+    // the VAPID public key isn't configured, so no FCM token can ever be
+    // minted. Warn once so it's diagnosable from the console instead of a
+    // no-op. Fix: set VITE_FIREBASE_VAPID_KEY (Firebase Console → Cloud
+    // Messaging → Web Push certificates → Generate key pair) and rebuild.
+    if (!warnedNoVapid) {
+      warnedNoVapid = true
+      console.warn(
+        '[push] VITE_FIREBASE_VAPID_KEY is not set — web push is disabled and no FCM token can be minted.',
+      )
+    }
+    return null
+  }
   try {
     const token = await getToken(messaging, { vapidKey: VAPID_KEY })
     if (!token) return null
@@ -83,10 +101,14 @@ export async function registerToken(uid) {
 }
 
 /**
- * Ask the OS for notification permission and, on grant, register the
- * FCM token. Returns the resulting permission state. Caller is
- * responsible for any UX (success toast, etc.) — the existing
- * <PushPermissionPrompt /> wraps this call.
+ * Ask the OS for notification permission and, on grant, register the FCM token.
+ *
+ * Returns 'granted' | 'denied' | 'unsupported' | 'error'. Note 'error':
+ * permission was granted but no FCM token could actually be minted (almost
+ * always a missing VITE_FIREBASE_VAPID_KEY, sometimes an unreachable service
+ * worker). Enabling push is only real once a token exists — otherwise the
+ * server has nowhere to deliver — so we must NOT report success in that case.
+ * Callers key their success/error UX on the exact return value.
  */
 export async function requestPushPermission(uid) {
   if (isNativePlatform()) return requestNativePushPermission(uid)
@@ -100,7 +122,10 @@ export async function requestPushPermission(uid) {
     result = Notification.permission
   }
   if (result === 'granted') {
-    await registerToken(uid)
+    const token = await registerToken(uid)
+    // Granted but token-mint failed → surface as 'error' so the UI doesn't
+    // claim push is on when nothing will ever arrive.
+    if (!token) return 'error'
   }
   return result
 }
