@@ -14,9 +14,17 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { emptyQuestion } from '../../utils/quizSections.js'
 
 // Heavy per-card leaves — stub so the editor mounts fast and self-contained.
+// Editable stub: a textarea keyed by placeholder so the card-editing tests
+// below can type into a question stem / option and see the card's onChange
+// fire. The rich editor's real onChange hands back its value; we forward the
+// textarea value, which is all the card's setOption/set() paths need.
 vi.mock('./QuizRichField', () => ({
-  default: ({ value, placeholder }) => (
-    <div>{typeof value === 'string' && value ? value : (placeholder || '')}</div>
+  default: ({ value, placeholder, onChange }) => (
+    <textarea
+      placeholder={placeholder || ''}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(event) => onChange?.(event.target.value)}
+    />
   ),
 }))
 vi.mock('./QuestionAiAssistant.jsx', () => ({ default: () => null }))
@@ -121,5 +129,60 @@ describe('QuizSectionsEditor — shuffle confirm flow', () => {
       onShuffleSections: vi.fn(),
     })
     expect(screen.queryByRole('button', { name: /Shuffle questions/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('QuizSectionsEditor — editing a question card', () => {
+  // A ready-to-edit standalone MCQ: four filled options, A currently correct.
+  function mcqSection(id = 'a') {
+    return standaloneSection(id, {
+      type: 'mcq',
+      options: ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'],
+      correctAnswer: 0,
+    })
+  }
+
+  it('marks a different option as correct via onStandaloneChange', () => {
+    const onStandaloneChange = vi.fn()
+    renderEditor({ sections: [mcqSection()], totalQuestions: 1, onStandaloneChange })
+    // Option C (index 2) — the radio is labelled by its letter.
+    fireEvent.click(screen.getByLabelText('Mark option C as correct'))
+    expect(onStandaloneChange).toHaveBeenCalledWith(0, 'correctAnswer', 2)
+  })
+
+  it('edits an option\'s text via onStandaloneChange', () => {
+    const onStandaloneChange = vi.fn()
+    renderEditor({ sections: [mcqSection()], totalQuestions: 1, onStandaloneChange })
+    fireEvent.change(screen.getByPlaceholderText('Option B'), { target: { value: 'Kabwe' } })
+    // setOption rebuilds the options array with B replaced.
+    expect(onStandaloneChange).toHaveBeenCalledWith(
+      0,
+      'options',
+      ['Lusaka', 'Kabwe', 'Kitwe', 'Livingstone'],
+    )
+  })
+
+  it('removes a question via onStandaloneRemove', () => {
+    const onStandaloneRemove = vi.fn()
+    renderEditor({ sections: [mcqSection()], totalQuestions: 1, onStandaloneRemove })
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(onStandaloneRemove).toHaveBeenCalledWith(0)
+  })
+
+  it('bulk-deletes selected questions behind a confirm dialog', () => {
+    const onStandaloneRemove = vi.fn()
+    renderEditor({
+      sections: [mcqSection('a'), mcqSection('b')],
+      totalQuestions: 2,
+      onStandaloneRemove,
+    })
+    // Select the first question, then hit the bulk Delete affordance.
+    fireEvent.click(screen.getByLabelText('Select question 1'))
+    fireEvent.click(screen.getByRole('button', { name: /Delete 1/ }))
+    // Nothing deleted until the confirm dialog is accepted.
+    expect(onStandaloneRemove).not.toHaveBeenCalled()
+    expect(screen.getByText('Delete 1 selected question?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onStandaloneRemove).toHaveBeenCalledWith(0)
   })
 })
