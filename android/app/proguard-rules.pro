@@ -77,3 +77,19 @@
 -dontwarn io.capawesome.capacitorjs.plugins.firebase.appcheck.**
 -keep class io.capawesome.capacitorjs.plugins.firebase.authentication.** { *; }
 -dontwarn io.capawesome.capacitorjs.plugins.firebase.authentication.**
+
+# Keep the Capacitor runtime intact (belt-and-suspenders with
+# android.enableR8.fullMode=false in ../gradle.properties).
+#
+# Capacitor invokes plugin methods reflectively (Bridge -> Method.invoke on the
+# "CapacitorPlugins" thread), so R8 cannot trace reads of base-class fields like
+# com.getcapacitor.Plugin.bridge. Under R8 full mode that let the field WRITE be
+# optimized away — `bridge` was then null and Plugin.getPermissionStates()
+# (`return bridge.getPermissionStates(this)`) threw NullPointerException on the
+# first plugin permission call after sign-in (FirebaseMessagingPlugin
+# .checkPermissions). Turning full mode off is the primary fix; keeping the whole
+# com.getcapacitor package (fields + methods) hardens the reflective surface
+# regardless of future optimizer changes. *Annotation* is kept so the
+# @CapacitorPlugin permission metadata each plugin declares survives as well.
+-keep class com.getcapacitor.** { *; }
+-keepattributes *Annotation*, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
