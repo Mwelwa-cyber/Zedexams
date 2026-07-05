@@ -169,6 +169,13 @@ async function main() {
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
+    // Owner-private branding + tmp-download fixtures for the read tests.
+    await uploadBytes(ref(st, `user-branding/${TEACHER_A}/school-logo.png`), PNG_BYTES, {
+      contentType: 'image/png',
+    })
+    await uploadBytes(ref(st, `tmp-downloads/${TEACHER_A}/export.pdf`), PDF_BYTES, {
+      contentType: 'application/pdf',
+    })
   })
 
   // ── /syllabi/{fileName=**} — world-readable, admin-write ──────
@@ -495,6 +502,76 @@ async function main() {
   await test('PDF rejected at /syllabus-uploads/ (xlsx-only validator)', async () => {
     await assertFails(uploadBytes(
       ref(adminStorage, 'syllabus-uploads/v2/wrong-type.pdf'),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  // ── user-branding/{ownerUid}/ — owner-private branding assets ─
+  section('user-branding/{ownerUid}/ — owner-only read, owner-teacher write')
+
+  await test('owner can read their own branding asset', async () => {
+    await assertSucceeds(getBytes(ref(teacherAStorage, `user-branding/${TEACHER_A}/school-logo.png`)))
+  })
+
+  await test('admin can read any branding asset', async () => {
+    await assertSucceeds(getBytes(ref(adminStorage, `user-branding/${TEACHER_A}/school-logo.png`)))
+  })
+
+  await test('another teacher CANNOT read someone else’s branding (owner-only)', async () => {
+    await assertFails(getBytes(ref(teacherBStorage, `user-branding/${TEACHER_A}/school-logo.png`)))
+  })
+
+  await test('learner CANNOT read a teacher’s branding', async () => {
+    await assertFails(getBytes(ref(learnerAStorage, `user-branding/${TEACHER_A}/school-logo.png`)))
+  })
+
+  await test('teacher can upload their own branding image', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(teacherAStorage, `user-branding/${TEACHER_A}/school-logo-2.png`),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('teacher CANNOT upload into another teacher’s branding path (cross-tenant)', async () => {
+    await assertFails(uploadBytes(
+      ref(teacherAStorage, `user-branding/${TEACHER_B}/school-logo.png`),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('non-image branding upload rejected (PDF masquerading)', async () => {
+    await assertFails(uploadBytes(
+      ref(teacherAStorage, `user-branding/${TEACHER_A}/logo.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  // ── tmp-downloads/{ownerUid}/ — owner-scoped export scratch ───
+  section('tmp-downloads/{ownerUid}/ — owner-only read + create')
+
+  await test('owner can read their own tmp-download', async () => {
+    await assertSucceeds(getBytes(ref(teacherAStorage, `tmp-downloads/${TEACHER_A}/export.pdf`)))
+  })
+
+  await test('another user CANNOT read someone else’s tmp-download', async () => {
+    await assertFails(getBytes(ref(teacherBStorage, `tmp-downloads/${TEACHER_A}/export.pdf`)))
+  })
+
+  await test('owner can create a tmp-download under their own path', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(teacherAStorage, `tmp-downloads/${TEACHER_A}/new-export.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('a user CANNOT write a tmp-download under another user’s path', async () => {
+    await assertFails(uploadBytes(
+      ref(teacherAStorage, `tmp-downloads/${TEACHER_B}/sneaky.pdf`),
       PDF_BYTES,
       { contentType: 'application/pdf' },
     ))
