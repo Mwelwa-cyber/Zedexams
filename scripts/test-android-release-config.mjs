@@ -192,6 +192,43 @@ test('@capacitor-firebase/messaging package has -dontwarn', () => {
   )
 })
 
+test('@capacitor-firebase/app-check + authentication packages are fully kept', () => {
+  // Same launch-crash class as messaging, and the reason a messaging-only keep
+  // was an incomplete fix (#1603). Both plugins instantiate a same-package
+  // helper during Bridge.init() — app-check via a field initializer
+  // (`new FirebaseAppCheck(this)` in the constructor), authentication in
+  // `load()` (`new FirebaseAuthentication(this, config)`). R8 strips the
+  // helper, construction/load() raises NoClassDefFoundError (an Error, not an
+  // Exception) → launch crash on the signed release build. The messaging crash
+  // fired first and masked these; keep both packages so R8 can't strip them.
+  assert(
+    /-keep class io\.capawesome\.capacitorjs\.plugins\.firebase\.appcheck\.\*\*/.test(proguard),
+    'proguard-rules.pro no longer keeps io.capawesome.capacitorjs.plugins.firebase.appcheck.** — ' +
+    '@capacitor-firebase/app-check helper (FirebaseAppCheck) is instantiated in the plugin ' +
+    'constructor and will be stripped by R8 → NoClassDefFoundError → launch crash on release'
+  )
+  assert(
+    /-keep class io\.capawesome\.capacitorjs\.plugins\.firebase\.authentication\.\*\*/.test(proguard),
+    'proguard-rules.pro no longer keeps io.capawesome.capacitorjs.plugins.firebase.authentication.** — ' +
+    '@capacitor-firebase/authentication helper (FirebaseAuthentication) is instantiated in load() ' +
+    'and will be stripped by R8 → NoClassDefFoundError → launch crash on release'
+  )
+})
+
+test('@capacitor-firebase/app-check + authentication packages have -dontwarn', () => {
+  // Paired with the -keep rules above; keeps the release build clean of R8
+  // "can't find referenced class" warnings for conditional imports in these
+  // packages so they can't be promoted to build-failing errors.
+  assert(
+    /-dontwarn io\.capawesome\.capacitorjs\.plugins\.firebase\.appcheck\.\*\*/.test(proguard),
+    'proguard-rules.pro dropped -dontwarn io.capawesome.capacitorjs.plugins.firebase.appcheck.**'
+  )
+  assert(
+    /-dontwarn io\.capawesome\.capacitorjs\.plugins\.firebase\.authentication\.\*\*/.test(proguard),
+    'proguard-rules.pro dropped -dontwarn io.capawesome.capacitorjs.plugins.firebase.authentication.**'
+  )
+})
+
 test('source-file line info is kept + renamed for retraceable stack traces', () => {
   assert(
     /-keepattributes\s+SourceFile,\s*LineNumberTable/.test(proguard),
