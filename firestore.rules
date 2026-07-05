@@ -281,6 +281,12 @@ service cloud.firestore {
           // flows pass the isAdmin() branch below, so this blocklist entry
           // breaks no legitimate writer; usageMeter.js trusts these fields).
           'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
+          // Paid generation top-up credits (K25 each). Granted ONLY by the
+          // Lenco activation path (admin SDK); usageMeter.js spends one to
+          // bypass the plan/daily cap. Client is read-only. Without this
+          // entry a teacher could setDoc { generationCredits: 999999 } and
+          // mint unlimited paid AI generations (paywall + denial-of-wallet).
+          'generationCredits', 'generationCreditsUpdatedAt',
           'learnerPortalActive', 'learnerPortalPlan', 'learnerPortalProvider',
           'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
           'learnerPortalActivatedAt', 'learnerPortalExpiry',
@@ -1391,10 +1397,21 @@ service cloud.firestore {
     // Document shape:
     //   { tool, ownerUid, title, plan, subject, grade, topic, createdAt, revokedAt? }
     match /shares/{token} {
-      // Always readable — the token IS the permission. Client checks
-      // `revokedAt` and shows the appropriate "revoked" / "not found"
-      // state instead of the read failing with permission-denied.
-      allow read: if true;
+      // The token IS the permission — a `get` by the unguessable doc id
+      // is public so the share URL resolves. A bare `allow read: if true`
+      // would also authorise a full-collection scan, leaking every shared
+      // teacher plan + its author uid. Client checks `revokedAt` and shows
+      // the appropriate "revoked" / "not found" state instead of the read
+      // failing with permission-denied.
+      //
+      // `list` is owner-scoped, not open: the rule requires the query to be
+      // filtered to the caller's own ownerUid (Firestore rejects any list
+      // whose results aren't guaranteed to satisfy this), so the Library's
+      // "my share links" query (shareService.listSharesForGeneration) works
+      // while an unfiltered getDocs(collection('shares')) enumeration is
+      // still denied.
+      allow get: if true;
+      allow list: if isAdmin() || (isAuthed() && resource.data.ownerUid == request.auth.uid);
       allow create: if isAuthed()
         && incoming().ownerUid == request.auth.uid
         && incoming().keys().hasAll(['tool', 'ownerUid', 'title', 'plan', 'createdAt'])
@@ -1594,10 +1611,16 @@ service cloud.firestore {
     }
 
     match /progressShares/{token} {
-      // Token IS the permission — anyone with the link can read.
-      // Client + Cloud Function check revokedAt / expiresAt and show
-      // the "revoked" / "expired" state rather than 404.
-      allow read: if true;
+      // Token IS the permission — anyone with the link can read a SINGLE
+      // doc by its unguessable id. `get` stays public so the share link
+      // works; `list` is admin-only so the token secrecy can't be defeated
+      // by a collection scan. Without this split, `allow read: if true`
+      // also authorises `getDocs(collection('progressShares'))`, which
+      // would let anyone enumerate every parent email + phone on the
+      // platform. Client + Cloud Function check revokedAt / expiresAt and
+      // show the "revoked" / "expired" state rather than 404.
+      allow get: if true;
+      allow list: if isAdmin();
       allow create: if isAuthed()
         && validProgressShareFields()
         && incoming().learnerUid == request.auth.uid

@@ -134,9 +134,41 @@ test('user self-update blocks all subscription fields', () => {
     // be a straight paid-features escalation).
     'googlePlayPurchaseToken', 'googlePlayProductId',
     'teacherPlan', 'teacherPlanExpiresAt',
+    // Paid generation top-up credits. usageMeter.js spends one to bypass
+    // the plan/daily cap, so self-writable = unlimited paid AI generations
+    // (paywall + denial-of-wallet). Client is read-only.
+    'generationCredits', 'generationCreditsUpdatedAt',
   ]
   for (const f of SUBSCRIPTION_FIELDS) {
     assert(rules.includes(`'${f}'`), `user self-update no longer blocks '${f}' — possible privilege escalation`)
+  }
+})
+
+test('token-capability collections split get from list (no enumeration)', () => {
+  // progressShares + shares use "the token IS the permission": a `get` by
+  // the unguessable doc id is public, but a bare `allow read: if true`
+  // ALSO authorises `list` (a full-collection scan), defeating the token
+  // secrecy. progressShares leaks every parent email/phone; shares leaks
+  // every teacher plan + author uid. These must stay split so enumeration
+  // is admin-only.
+  for (const coll of ['progressShares', 'shares']) {
+    const block = rules.match(new RegExp(`match /${coll}/\\{[^}]+\\}\\s*\\{([\\s\\S]*?)\\n    \\}`))
+    assert(block, `${coll} match block not found`)
+    // Strip `//` comment tails so the negative assertion below doesn't trip
+    // on the explanatory comment (which quotes `allow read: if true`).
+    const body = block[1].replace(/\/\/.*$/gm, '')
+    assert(
+      /allow get:\s*if true/.test(body),
+      `${coll} must expose 'allow get: if true' so share links resolve`,
+    )
+    assert(
+      /allow list:\s*if isAdmin\(\)/.test(body),
+      `${coll} must restrict 'list' to isAdmin() — a full-collection scan would enumerate PII`,
+    )
+    assert(
+      !/allow read:\s*if true/.test(body),
+      `${coll} still has 'allow read: if true' — that authorises enumeration; split into get + list`,
+    )
   }
 })
 
