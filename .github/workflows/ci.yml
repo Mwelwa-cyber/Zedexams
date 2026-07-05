@@ -62,6 +62,31 @@ jobs:
       - name: Tests
         run: npm run test:all
 
+  functions-coverage:
+    # Backend (functions/) coverage report. The plain-node backend tests are
+    # root-install-safe (they never require firebase-admin/firebase-functions
+    # at load time), so this needs only `npm ci` at the root — no functions/
+    # install and no emulator, same as the `tests` job. c8 (`.c8rc.json`,
+    # `all: true`) instruments EVERY functions/ source file, so the number
+    # reflects the true backend gap — including the untested onCall/onRequest
+    # handlers in index.js. Thresholds in .c8rc.json are a ratchet: raise them
+    # as coverage improves so the backend number can only go up.
+    name: Tests (Functions coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Functions coverage
+        run: npm run functions:coverage
+
   unit:
     # Vitest (jsdom) component/hook/behaviour specs — the `*.spec.{js,jsx}`
     # files under src/. Separate from `tests` (the plain-node `*.test.js`
