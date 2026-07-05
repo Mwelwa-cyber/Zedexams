@@ -387,7 +387,6 @@
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.0",
-    "@capawesome/capacitor-android-edge-to-edge-support": "^8.0.8",
     "@capgo/native-purchases": "^8.6.2",
     "@heroicons/react": "^2.2.0",
     "@sentry/react": "^10.52.0",

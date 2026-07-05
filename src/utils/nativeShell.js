@@ -6,9 +6,12 @@ let initialized = false
 
 /**
  * Initialise the Capacitor wrapper-only behaviours (adaptive system-bar icon
- * colour, hardware back button). Edge-to-edge + inset handling is owned
- * natively by MainActivity + the SafeArea plugin. No-ops on the web. Safe to
- * call multiple times.
+ * colour, hardware back button). True edge-to-edge (WebView drawn under fully
+ * transparent bars) is owned natively by MainActivity's androidx EdgeToEdge +
+ * the @capacitor-community/safe-area plugin, which passes the real bar insets
+ * through to CSS env(safe-area-inset-*) so `.safe-top` / safe-area-bottom
+ * chrome stays clear of the icons. No-ops on the web. Safe to call multiple
+ * times.
  */
 export function initNativeShell() {
   if (initialized) return

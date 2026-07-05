@@ -481,7 +481,7 @@ export default function Marketing() {
         path="/"
       />
       {/* Top nav */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
+      <header className="safe-top sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
         <Section className="flex items-center justify-between py-3">
           <Link to="/" aria-label="ZedExams home" className="flex items-center">
             <Logo size="sm" />
