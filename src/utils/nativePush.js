@@ -123,6 +123,17 @@ export async function requestNativePushPermission(uid) {
 }
 
 /**
+ * Clear the uid the tokenReceived listener persists against. Called on sign-out
+ * so that, on a shared device, an FCM token that rotates during the signed-out
+ * window is NOT re-attributed to the user who just left — the listener becomes a
+ * no-op until the next sign-in sets a fresh uid. Closes a cross-user delivery
+ * gap (rotated token written to the previous user's fcmTokens).
+ */
+export function clearNativePushUser() {
+  currentUid = null
+}
+
+/**
  * Silent re-register on sign-in: if the user already granted permission in a
  * previous session, fetch a fresh token and persist it. Never prompts. Mirrors
  * fcm.refreshTokenIfGranted for the native platform.

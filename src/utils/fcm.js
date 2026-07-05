@@ -25,6 +25,7 @@ import {
   nativePushPermissionSync,
   requestNativePushPermission,
   refreshNativeTokenIfGranted,
+  clearNativePushUser,
 } from './nativePush'
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY
@@ -114,6 +115,16 @@ export async function refreshTokenIfGranted(uid) {
   if (isNativePlatform()) return refreshNativeTokenIfGranted(uid)
   if (pushPermission() !== 'granted' || !uid) return null
   return registerToken(uid)
+}
+
+/**
+ * Called on sign-out. On native, forgets the uid the FCM token-rotation
+ * listener persists against so a token that rotates while signed out (shared
+ * device) isn't re-attributed to the user who just left. No-op on the web,
+ * which has no persistent rotation listener.
+ */
+export function clearPushUser() {
+  if (isNativePlatform()) clearNativePushUser()
 }
 
 /**

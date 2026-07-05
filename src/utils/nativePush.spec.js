@@ -106,6 +106,25 @@ describe('nativePush', () => {
     expect(nativePushPermissionSync()).toBe('unsupported')
   })
 
+  it('does not re-attribute a rotated token after sign-out (shared device)', async () => {
+    const plugin = makePlugin({ receiveOnRequest: 'granted', token: 'tok-initial' })
+    h.state.plugin = plugin
+    const mod = await load()
+
+    // User A grants + registers; this binds the tokenReceived listener.
+    await mod.requestNativePushPermission('userA')
+    expect(h.updateDocMock).toHaveBeenCalledTimes(1)
+    // Capture the rotation callback the module registered.
+    const onTokenReceived = plugin.addListener.mock.calls.find((c) => c[0] === 'tokenReceived')[1]
+
+    // User A signs out.
+    mod.clearNativePushUser()
+
+    // FCM rotates the token while nobody is signed in — must NOT persist to A.
+    onTokenReceived({ token: 'tok-rotated-while-signed-out' })
+    expect(h.updateDocMock).toHaveBeenCalledTimes(1) // still just the initial grant
+  })
+
   it('primes the sync permission cache the UI reads (default → granted)', async () => {
     h.state.plugin = makePlugin({ receiveOnRequest: 'granted' })
     const mod = await load()

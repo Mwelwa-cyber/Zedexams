@@ -61,7 +61,7 @@ vi.mock('firebase/functions', () => ({
 vi.mock('../utils/runtime', () => ({ isNativePlatform: () => false }))
 vi.mock('../utils/sentry', () => ({ setSentryUser: vi.fn(), clearSentryUser: vi.fn() }))
 vi.mock('../utils/analytics', () => ({ capture: vi.fn(), identifyUser: vi.fn(), resetAnalytics: vi.fn() }))
-vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve() }))
+vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
 vi.mock('../utils/referrals', () => ({
   mintAndPersistReferralCode: vi.fn(() => Promise.resolve(null)),
   readPendingReferral: () => null,
