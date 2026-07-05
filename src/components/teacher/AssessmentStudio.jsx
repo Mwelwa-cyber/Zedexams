@@ -48,8 +48,11 @@ import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentA
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import QuestionBankPicker from './QuestionBankPicker'
-import { saveQuestionToBank, captureQuestionsToBank } from '../../utils/questionBankService'
+import QuestionBankPanel from './QuestionBankPanel'
+import {
+  saveQuestionToBank, captureQuestionsToBank, bumpQuestionUsage, searchQuestionBank,
+} from '../../utils/questionBankService'
+import { countTopicMatches } from '../../utils/questionBankPanel'
 import CreatePaperModal from './CreatePaperModal'
 import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
 import { assessmentDefaultsFromParams } from './assessmentDeepLink'
@@ -335,9 +338,15 @@ export default function AssessmentStudio({ variant = 'test' }) {
   const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
   const [editorTargetKey, setEditorTargetKey] = useState(null)
   const [insertAfterIndex, setInsertAfterIndex] = useState(null) // for block picker
-  // Question-bank insert modal. afterIndex is captured when the block picker
+  // Question-bank side panel. afterIndex is captured when the block picker
   // hands off, because closeSlide() resets insertAfterIndex.
   const [bankPicker, setBankPicker] = useState({ open: false, afterIndex: null })
+  // Passive nudge: "N bank questions match <topic> — insert?". A quiet
+  // suggestion, never a modal. `nudgeDismissedFor` remembers the topic string
+  // the teacher dismissed so a new topic re-offers.
+  const [bankNudge, setBankNudge] = useState(null) // { count } | null
+  const [nudgeDismissedFor, setNudgeDismissedFor] = useState('')
+  const bankRowsRef = useRef(null) // cached bank rows for the nudge count
   const [pasteSlide, setPasteSlide] = useState({ open: false, afterIndex: null })
   const [toast, setToast] = useState(null)
 
@@ -2370,14 +2379,55 @@ export default function AssessmentStudio({ variant = 'test' }) {
     showToast(`${parsedQuestions.length} question${parsedQuestions.length === 1 ? '' : 's'} inserted.`)
   }
 
-  // Insert a fresh copy of a banked question at the captured position.
-  function handleInsertBankQuestion(question) {
-    const section = buildStandaloneSection(question)
-    insertSectionAfter(bankPicker.afterIndex, section)
-    setBankPicker({ open: false, afterIndex: null })
+  // Insert a fresh, fully-isolated copy of a banked question into the paper.
+  // The panel stays open so the teacher can insert several in a row.
+  function handleInsertBankQuestion(bankQuestion, row) {
+    // Deep-clone so the copy shares NO nested references (diagram params,
+    // options, answer key) with the bank original — editing either must never
+    // bleed across. structuredClone over a shallow spread for exactly this.
+    const cloned = structuredClone(bankQuestion)
+    // Lineage: record which bank question this copy came from.
+    if (row?.id) cloned.sourceBankId = row.id
+    const section = buildStandaloneSection(cloned)
+    // Land at the end of the paper by default; the teacher can drag it into
+    // place. Appending (rather than reusing a captured index) keeps a run of
+    // inserts in the order they were clicked.
+    insertSectionAfter(null, section)
     if (view !== 'builder') changeView('builder')
-    showToast('Question inserted from your bank.')
+    // Bookkeeping only — atomic increment, fire-and-forget. Insert success is
+    // defined solely by the local-state insert above; a failed counter update
+    // is swallowed by bumpQuestionUsage and never surfaces to the teacher.
+    if (row?.id) bumpQuestionUsage(row.id)
+    showToast('Question inserted — edit it anywhere in the paper.')
   }
+
+  // Passive nudge — count bank questions matching the paper's topic. Fetches
+  // the (bounded) bank once, caches it, and recomputes the count as the paper's
+  // grade/subject/topic change. Read-only + best-effort: searchQuestionBank
+  // swallows its own errors, so this can never break the studio.
+  useEffect(() => {
+    if (view !== 'builder' || !currentUser?.uid || bankPicker.open) return undefined
+    let alive = true
+    async function run() {
+      let rows = bankRowsRef.current
+      if (!rows) {
+        const res = await searchQuestionBank(currentUser.uid, { scope: 'all', sort: 'newest' })
+        if (!alive) return
+        rows = res.rows || []
+        // Idempotent one-time cache of the bounded bank read; a concurrent set
+        // would write the same rows, so the atomic-update lint is a false
+        // positive here.
+        // eslint-disable-next-line require-atomic-updates
+        bankRowsRef.current = rows
+      }
+      const count = countTopicMatches(rows, {
+        grade: form.grade, subject: form.subject, topic: form.topic,
+      })
+      if (alive) setBankNudge(count > 0 ? { count } : null)
+    }
+    run()
+    return () => { alive = false }
+  }, [view, currentUser?.uid, bankPicker.open, form.grade, form.subject, form.topic])
 
   /* ------------ render ------------ */
   // Edit mode: hold the builder behind a loader until the saved paper is
@@ -2457,6 +2507,32 @@ export default function AssessmentStudio({ variant = 'test' }) {
         />
       )}
 
+      {view === 'builder' && bankNudge && !bankPicker.open && nudgeDismissedFor !== (form.topic || '') && (
+        <div className="studio-v2">
+          <div className="mx-auto max-w-3xl mt-3 flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-2 text-[13px] text-orange-900">
+            <span className="flex-1">
+              <strong>{bankNudge.count}</strong> bank question{bankNudge.count === 1 ? '' : 's'} match
+              {form.topic ? <> <strong>{form.topic}</strong></> : ' your paper'} — insert instead of rewriting?
+            </span>
+            <button
+              type="button"
+              className="rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold px-3 py-1"
+              onClick={() => setBankPicker({ open: true, afterIndex: null })}
+            >
+              Open bank
+            </button>
+            <button
+              type="button"
+              className="text-orange-400 hover:text-orange-700 text-lg leading-none"
+              aria-label="Dismiss suggestion"
+              onClick={() => setNudgeDismissedFor(form.topic || '')}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {view === 'builder' && (
         <BuilderView
           form={form}
@@ -2473,6 +2549,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           warnings={warnings}
           changeView={changeView}
           onAddBlock={(afterIndex) => openSlide('blocks', { insertAfter: afterIndex })}
+          onOpenBank={() => setBankPicker({ open: true, afterIndex: null })}
           onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
           onMoveSection={moveSection}
           onMoveGroup={moveSectionGroup}
@@ -2676,13 +2753,13 @@ export default function AssessmentStudio({ variant = 'test' }) {
         questionNumbers={questionNumbers}
       />
 
-      {bankPicker.open && (
-        <QuestionBankPicker
-          uid={currentUser?.uid}
-          onInsert={handleInsertBankQuestion}
-          onClose={() => setBankPicker({ open: false, afterIndex: null })}
-        />
-      )}
+      <QuestionBankPanel
+        open={bankPicker.open}
+        uid={currentUser?.uid}
+        context={{ grade: form.grade, subject: form.subject, topic: form.topic }}
+        onInsert={handleInsertBankQuestion}
+        onClose={() => setBankPicker({ open: false, afterIndex: null })}
+      />
 
       <PasteImportSlide
         open={pasteSlide.open}

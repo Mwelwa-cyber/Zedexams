@@ -387,6 +387,10 @@ async function normalizeQuestionPayload(q, order) {
       const n = Number(q.sourceQuestionNumber)
       return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null
     })(),
+    // Bank lineage — only written when the question was inserted from the
+    // Central Question Bank (keeps the .strict() schema lean for every other
+    // question). See questionWriteSchema.sourceBankId.
+    ...(q.sourceBankId ? { sourceBankId: String(q.sourceBankId).slice(0, 64) } : {}),
     // CBC curriculum tagging + import provenance. Always written (the schema
     // defaults them) so a teacher-cleared field actually clears in Firestore.
     subtopic:        String(q.subtopic ?? '').trim().slice(0, 200),
