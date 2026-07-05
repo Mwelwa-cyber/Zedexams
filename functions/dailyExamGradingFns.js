@@ -203,12 +203,35 @@ exports.submitDailyExam = onCall(
         nowMs: Date.now(),
       });
 
+      // Privacy split: the top-level attempt doc is readable by any signed-in
+      // user (it powers the daily leaderboard + activity feeds, which need
+      // score/percentage/name). So it must carry ONLY leaderboard-safe fields.
+      // The learner's raw `answers` (a top scorer's answers ARE the daily
+      // answer key) and their personal analytics live in an owner-only
+      // subcollection instead. See exam_attempts/private/{docId} in
+      // firestore.rules and getExamAttempt() which re-merges them for the owner.
+      const {
+        topicBreakdown, strengths, weaknesses, performanceLevel, feedback,
+        ...publicResult
+      } = result;
+
       tx.update(attemptRef, {
         status: "submitted",
-        answers,
         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
-        ...result,
+        ...publicResult, // score, totalMarks, totalQuestions, percentage, timeTakenSeconds
       });
+      tx.set(
+        attemptRef.collection("private").doc("detail"),
+        {
+          // userId lets the Firestore rule authorise the owner's read without
+          // a get() on the parent doc.
+          userId: uid,
+          answers,
+          topicBreakdown, strengths, weaknesses, performanceLevel, feedback,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
       return result;
     });
 

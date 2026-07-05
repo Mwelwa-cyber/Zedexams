@@ -356,8 +356,15 @@ service cloud.firestore {
     }
 
     // ── exam_attempts (daily exam sessions) ──────────────────────
-    // Submitted attempts are readable by all signed-in users (powers leaderboard).
-    // In-progress attempts are private to the owner + admin.
+    // Submitted attempts are readable by all signed-in users (powers the
+    // leaderboard + activity feeds). Those cross-user readers only need
+    // leaderboard-safe fields (name / score / percentage / subject), so the
+    // grader keeps ONLY those on the top-level doc. The learner's raw
+    // `answers` (a top scorer's answers are effectively the daily answer key)
+    // and their personal analytics (topic breakdown, weaknesses, feedback)
+    // live in the owner-only `private/{docId}` subcollection below — otherwise
+    // any signed-in learner could read a high scorer's submitted attempt and
+    // lift the answer key mid-exam. In-progress attempts are owner + admin.
     match /exam_attempts/{attemptId} {
       allow read:   if isAuthed() && (
         resource.data.status == 'submitted'
@@ -365,6 +372,15 @@ service cloud.firestore {
         || isAdmin()
       );
       allow create: if isAuthed() && incoming().userId == request.auth.uid;
+
+      // Private per-attempt detail (answers + personal analytics). Written
+      // only by the grader / backfill (admin SDK, which bypasses rules), so
+      // client writes are denied. Readable only by the attempt owner (the
+      // doc stores userId so no parent get() is needed) or an admin.
+      match /private/{docId} {
+        allow read:  if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow write: if false;
+      }
       // Grading is server-authoritative: the submitDailyExam Cloud Function
       // writes the in_progress → submitted transition (score, percentage,
       // etc.) with the admin SDK, which bypasses these rules entirely.

@@ -144,6 +144,13 @@ async function main() {
       status: 'submitted',
       score: 7,
     })
+    // Owner-only per-attempt detail (answers + analytics). userId is stored
+    // so the rule can authorise the owner's read without a parent get().
+    await setDoc(doc(db, 'exam_attempts', 'attempt_submitted', 'private', 'detail'), {
+      userId: LEARNER_A,
+      answers: { q1: 2, q2: 0 },
+      weaknesses: ['Fractions'],
+    })
     await setDoc(doc(db, 'exam_attempts', 'attempt_in_progress'), {
       userId: LEARNER_A,
       status: 'in_progress',
@@ -367,6 +374,26 @@ async function main() {
 
   await test('owner can read own in-progress attempt', async () => {
     await assertSucceeds(getDoc(doc(learnerA, 'exam_attempts', 'attempt_in_progress')))
+  })
+
+  await test('owner can read their own private attempt detail (answers)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('another learner cannot read a submitted attempt’s private detail', async () => {
+    // The critical fix: a top scorer's `answers` are the daily answer key.
+    // A non-owner may read the leaderboard-safe top-level doc but NOT this.
+    await assertFails(getDoc(doc(learnerB, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('admin can read a private attempt detail', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('client cannot write a private attempt detail (server-only)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'exam_attempts', 'attempt_submitted', 'private', 'detail'), {
+      userId: LEARNER_A, answers: { q1: 9 },
+    }))
   })
 
   await test('client UPDATE on exam_attempts is denied even for admin (server-only)', async () => {
