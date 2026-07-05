@@ -49,6 +49,7 @@ const {runScannedQuizImport} = require("./scannedQuizImport");
 // so the editor can fill blank answer keys in a single pass.
 const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
+const {resolveAppCheckEnforcement} = require("./appCheckEnforcement");
 const {
   assertHttpRateLimit,
   assertCallableRateLimit,
@@ -430,7 +431,7 @@ async function softVerifyAppCheckHttp(req, label) {
   } catch (err) {
     console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
   }
-  if (process.env.APPCHECK_ENFORCE === "1" && !verified) {
+  if (shouldEnforceAppCheck(label) && !verified) {
     throw new HttpsError("permission-denied", "App Check verification failed.");
   }
   return verified;
@@ -438,10 +439,21 @@ async function softVerifyAppCheckHttp(req, label) {
 
 // Audit B3 follow-up — App Check coverage on AI callables.
 //
-// Read once at module load. Toggling enforcement is a redeploy with
-// APPCHECK_ENFORCE=1 set; no code change needed. Defaults OFF so the
-// next deploy doesn't break existing clients before they propagate
-// the App Check init from #317.
+// Enforcement is resolved once at module load from env, and is GRADUATED so
+// the rollout doesn't have to be all-or-nothing (a single global flip would
+// 401 every AI endpoint at once, locking out any client whose attestation
+// isn't propagating yet — Safari, stale bundles, WebViews, Play Integrity):
+//
+//   APPCHECK_ENFORCE=1                              → enforce every endpoint
+//   APPCHECK_ENFORCE_LABELS="generateQuizQuestions,…" → enforce only those
+//   (neither)                                       → observe-only (default)
+//
+// So the safe path is: pick one low-legit-traffic / high-cost endpoint, add
+// its label to APPCHECK_ENFORCE_LABELS, redeploy, watch appCheckHealth/{date}
+// for that label's valid/missing ratio, then widen. shouldEnforceAppCheck()
+// is passed the SAME label already used for the health counters, so the
+// telemetry and the enforcement decision always line up. No code change to
+// flip — only the env var. See functions/appCheckEnforcement.js.
 //
 // NOTE: none of the callables set `consumeAppCheckToken: true` any more
 // (removed 2026-07). Consuming requires every client call site to opt in
@@ -451,8 +463,11 @@ async function softVerifyAppCheckHttp(req, label) {
 // every later call in the window verified as already-consumed → recorded
 // "missing" on /admin/app-check even for perfectly-attesting clients.
 // Reintroduce replay protection together with client-side limited-use
-// support when flipping APPCHECK_ENFORCE=1.
-const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+// support when flipping to broad enforcement.
+const APPCHECK_ENFORCEMENT = resolveAppCheckEnforcement(process.env);
+function shouldEnforceAppCheck(label) {
+  return APPCHECK_ENFORCEMENT.enforces(label);
+}
 
 /**
  * Mirror of softVerifyAppCheckHttp for v2 onCall handlers — bumps
@@ -968,7 +983,7 @@ exports.aiChat = onCall(
     secrets: [openaiApiKey],
     region: "us-central1",
     timeoutSeconds: 30,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("aiChat"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1012,7 +1027,7 @@ exports.aiChat = onCall(
 );
 
 exports.generateStudyPlan = createGenerateStudyPlan(anthropicApiKey, {
-  enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+  enforceAppCheck: shouldEnforceAppCheck("generateStudyPlan"),
   recordAppCheckCallable,
 });
 
@@ -1444,7 +1459,7 @@ exports.explainAnswer = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 30,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("explainAnswer"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1494,7 +1509,7 @@ exports.generateNoteInsights = onCall(
     region: "us-central1",
     timeoutSeconds: 45,
     memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("generateNoteInsights"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1528,7 +1543,7 @@ exports.generateNoteSmart = onCall(
     region: "us-central1",
     timeoutSeconds: 90,
     memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("generateNoteSmart"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1568,7 +1583,7 @@ exports.editQuizQuestion = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 45,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("editQuizQuestion"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1636,7 +1651,7 @@ exports.generateQuizQuestions = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 45,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("generateQuizQuestions"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1812,7 +1827,7 @@ exports.structureImportedQuiz = onCall(
     secrets: [anthropicApiKey, geminiApiKey],
     region: "us-central1",
     timeoutSeconds: 90, // pipeline calls two models; allow extra headroom
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("structureImportedQuiz"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1951,7 +1966,7 @@ exports.structureScannedQuiz = onCall(
     region: "us-central1",
     timeoutSeconds: 240,
     memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("structureScannedQuiz"),
   },
   async (request) => {
     if (!request.auth) {
@@ -1997,7 +2012,7 @@ exports.structureImportedNote = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 120,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("structureImportedNote"),
   },
   async (request) => {
     if (!request.auth) {
@@ -2041,7 +2056,7 @@ exports.ocrNotePages = onCall(
     region: "us-central1",
     timeoutSeconds: 240,
     memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("ocrNotePages"),
   },
   async (request) => {
     if (!request.auth) {
@@ -2081,7 +2096,7 @@ exports.suggestQuizAnswers = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 120,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("suggestQuizAnswers"),
   },
   async (request) => {
     if (!request.auth) {
@@ -2124,7 +2139,7 @@ exports.checkShortAnswer = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 30,
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("checkShortAnswer"),
   },
   async (request) => {
     if (!request.auth) {
@@ -2765,7 +2780,7 @@ exports.retryAgentJob = onCall(
     region: "us-central1",
     timeoutSeconds: 300,
     memory: "512MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("retryAgentJob"),
   },
   async (request) => {
     if (!request.auth) {
@@ -3377,7 +3392,7 @@ exports.verifyGooglePlayPurchase = onCall({
   region: "us-central1",
   timeoutSeconds: 60,
   memory: "256MiB",
-  enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+  enforceAppCheck: shouldEnforceAppCheck("verifyGooglePlayPurchase"),
 }, async (request) => {
   await recordAppCheckCallable(request, "verifyGooglePlayPurchase");
   const uid = request.auth?.uid;
