@@ -20,6 +20,7 @@ import { getToken, onMessage } from 'firebase/messaging'
 import { arrayUnion, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db, messaging } from '../firebase/config'
 import { isNativePlatform } from './runtime'
+import { capture } from './analytics'
 import {
   isNativePushSupported,
   nativePushPermissionSync,
@@ -81,21 +82,31 @@ export async function registerToken(uid) {
         '[push] VITE_FIREBASE_VAPID_KEY is not set — web push is disabled and no FCM token can be minted.',
       )
     }
+    // Observability: lets /admin PostHog see *why* web push isn't working in
+    // production (no token can mint without the key) rather than silence.
+    capture('push_token_failed', { platform: 'web', reason: 'no_vapid_key' })
     return null
   }
   try {
     const token = await getToken(messaging, { vapidKey: VAPID_KEY })
-    if (!token) return null
+    if (!token) {
+      capture('push_token_failed', { platform: 'web', reason: 'no_token' })
+      return null
+    }
     await updateDoc(doc(db, 'users', uid), {
       fcmTokens: arrayUnion(token),
       fcmTokensUpdatedAt: serverTimestamp(),
     })
+    // The key "web push is actually working" signal — fires once per successful
+    // mint (sign-in / opt-in). No token value is sent, only the platform.
+    capture('push_token_registered', { platform: 'web' })
     return token
   } catch (err) {
     // Common causes: SW not yet registered, VAPID mismatch, browser
     // blocked the request. None warrant a UI error — we silently
     // degrade and try again on the next sign-in via refreshTokenIfGranted.
     console.warn('[push] getToken failed:', err)
+    capture('push_token_failed', { platform: 'web', reason: 'exception' })
     return null
   }
 }
@@ -126,6 +137,9 @@ export async function requestPushPermission(uid) {
     // Granted but token-mint failed → surface as 'error' so the UI doesn't
     // claim push is on when nothing will ever arrive.
     if (!token) return 'error'
+  } else if (result === 'denied') {
+    // Distinguishes "user declined" from "config broken" in the PostHog funnel.
+    capture('push_permission_denied', { platform: 'web' })
   }
   return result
 }

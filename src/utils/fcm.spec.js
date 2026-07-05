@@ -14,9 +14,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 const h = vi.hoisted(() => ({
   getTokenMock: vi.fn(),
   updateDocMock: vi.fn(),
+  captureMock: vi.fn(),
 }))
 
 vi.mock('./runtime', () => ({ isNativePlatform: () => false }))
+vi.mock('./analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
 vi.mock('./nativePush', () => ({
   isNativePushSupported: () => false,
   nativePushPermissionSync: () => 'unsupported',
@@ -60,6 +62,7 @@ describe('fcm.requestPushPermission (web)', () => {
   beforeEach(() => {
     h.getTokenMock.mockReset()
     h.updateDocMock.mockReset().mockResolvedValue(undefined)
+    h.captureMock.mockReset()
     installPushApis()
   })
 
@@ -77,6 +80,7 @@ describe('fcm.requestPushPermission (web)', () => {
     expect(h.updateDocMock).toHaveBeenCalledTimes(1)
     const [, data] = h.updateDocMock.mock.calls[0]
     expect(data.fcmTokens).toEqual({ __arrayUnion: 'web-token-1' })
+    expect(h.captureMock).toHaveBeenCalledWith('push_token_registered', { platform: 'web' })
   })
 
   it('returns error (NOT granted) when permission is granted but no token mints', async () => {
@@ -88,6 +92,7 @@ describe('fcm.requestPushPermission (web)', () => {
 
     expect(result).toBe('error')
     expect(h.updateDocMock).not.toHaveBeenCalled()
+    expect(h.captureMock).toHaveBeenCalledWith('push_token_failed', { platform: 'web', reason: 'no_token' })
   })
 
   it('returns error and never calls getToken when the VAPID key is not configured', async () => {
@@ -98,9 +103,10 @@ describe('fcm.requestPushPermission (web)', () => {
     expect(result).toBe('error')
     expect(h.getTokenMock).not.toHaveBeenCalled()
     expect(h.updateDocMock).not.toHaveBeenCalled()
+    expect(h.captureMock).toHaveBeenCalledWith('push_token_failed', { platform: 'web', reason: 'no_vapid_key' })
   })
 
-  it('returns denied and mints nothing when the user blocks permission', async () => {
+  it('returns denied, mints nothing, and reports the declined permission', async () => {
     installPushApis({ requestResult: 'denied' })
     const { requestPushPermission } = await loadFcm('vapid-key')
 
@@ -109,5 +115,6 @@ describe('fcm.requestPushPermission (web)', () => {
     expect(result).toBe('denied')
     expect(h.getTokenMock).not.toHaveBeenCalled()
     expect(h.updateDocMock).not.toHaveBeenCalled()
+    expect(h.captureMock).toHaveBeenCalledWith('push_permission_denied', { platform: 'web' })
   })
 })

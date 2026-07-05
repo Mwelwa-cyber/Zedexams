@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const h = vi.hoisted(() => ({
   updateDocMock: vi.fn(async () => {}),
+  captureMock: vi.fn(),
   state: { plugin: null },
 }))
 
@@ -22,6 +23,7 @@ vi.mock('./runtime', () => ({
   isNativePlatform: () => true,
   nativePlugin: (name) => (name === 'FirebaseMessaging' ? h.state.plugin : null),
 }))
+vi.mock('./analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
 vi.mock('firebase/firestore', () => ({
   doc: (...args) => ({ __doc: args }),
   arrayUnion: (value) => ({ __arrayUnion: value }),
@@ -53,6 +55,7 @@ async function load() {
 describe('nativePush', () => {
   beforeEach(() => {
     h.updateDocMock.mockClear()
+    h.captureMock.mockClear()
     h.state.plugin = null
   })
 
@@ -66,6 +69,7 @@ describe('nativePush', () => {
     expect(h.updateDocMock).toHaveBeenCalledTimes(1)
     const [, data] = h.updateDocMock.mock.calls[0]
     expect(data.fcmTokens).toEqual({ __arrayUnion: 'tok-A' })
+    expect(h.captureMock).toHaveBeenCalledWith('push_token_registered', { platform: 'native' })
   })
 
   it('does NOT register a token when permission is denied', async () => {
@@ -76,6 +80,7 @@ describe('nativePush', () => {
 
     expect(result).toBe('denied')
     expect(h.updateDocMock).not.toHaveBeenCalled()
+    expect(h.captureMock).toHaveBeenCalledWith('push_permission_denied', { platform: 'native' })
   })
 
   it('silently re-registers on sign-in when already granted', async () => {
