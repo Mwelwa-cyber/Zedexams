@@ -61,23 +61,29 @@ console.log("\nclassifyDuplicate — legacy rows without tokens are skipped");
   assert(!r.isDuplicate, "rows missing fingerprint/tokens never spuriously match");
 }
 
-console.log("\nrecommendationToStatus — fail-closed mapping");
+console.log("\nrecommendationToStatus — fail-closed mapping (autoApprove OFF)");
 {
-  assert(recommendationToStatus("approve").reviewStatus === "approved" && recommendationToStatus("approve").masterEligible === true, "approve → approved + master eligible");
+  // Without the admin opt-in, NOTHING the model says reaches the Master Bank —
+  // not even a confident "approve" (a prompt-injected question could earn one).
+  // It queues for a human as needs_admin instead.
+  const ap = recommendationToStatus("approve");
+  assert(ap.reviewStatus === "needs_admin" && ap.masterEligible === false, "approve (no opt-in) → needs_admin, NOT master eligible");
   assert(recommendationToStatus("reject").reviewStatus === "rejected" && recommendationToStatus("reject").masterEligible === false, "reject → rejected, not eligible");
-  assert(recommendationToStatus("needs_admin").reviewStatus === "needs_admin", "needs_admin → needs_admin");
+  const na = recommendationToStatus("needs_admin");
+  assert(na.reviewStatus === "needs_admin" && na.masterEligible === false, "needs_admin → needs_admin, not eligible");
   assert(recommendationToStatus("garbage").reviewStatus === "needs_admin" && recommendationToStatus("garbage").masterEligible === false, "unknown verdict fails closed to needs_admin");
 }
 
-console.log("\nrecommendationToStatus — auto-approve mode");
+console.log("\nrecommendationToStatus — auto-approve mode (admin opted in)");
 {
-  // needs_admin is promoted to approved when the admin opted in...
+  // With the opt-in, both approve and needs_admin promote to the Master Bank...
+  const ap = recommendationToStatus("approve", true);
+  assert(ap.reviewStatus === "approved" && ap.masterEligible === true, "autoApprove: approve → approved + master eligible");
   const na = recommendationToStatus("needs_admin", true);
   assert(na.reviewStatus === "approved" && na.masterEligible === true, "autoApprove: needs_admin → approved + master eligible");
   // ...but reject and unknown still fail closed — broken questions never slip through.
-  assert(recommendationToStatus("reject", true).reviewStatus === "rejected", "autoApprove: reject still rejected");
-  assert(recommendationToStatus("garbage", true).reviewStatus === "needs_admin", "autoApprove: unknown verdict still fails closed");
-  assert(recommendationToStatus("approve", true).reviewStatus === "approved", "autoApprove: approve stays approved");
+  assert(recommendationToStatus("reject", true).reviewStatus === "rejected" && recommendationToStatus("reject", true).masterEligible === false, "autoApprove: reject still rejected, not eligible");
+  assert(recommendationToStatus("garbage", true).reviewStatus === "needs_admin" && recommendationToStatus("garbage", true).masterEligible === false, "autoApprove: unknown verdict still fails closed");
 }
 
 if (failures > 0) {
