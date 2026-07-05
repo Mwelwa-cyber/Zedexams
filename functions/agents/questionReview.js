@@ -160,30 +160,10 @@ function metaField(value, max = 120) {
 }
 
 // Image URLs are sent to Anthropic's vision API, which fetches them
-// server-side. Restrict to Firebase Storage hosts so a crafted question can't
-// turn Qix into an SSRF probe against internal endpoints (e.g. cloud metadata
-// at 169.254.169.254). Anything else is reviewed text-only.
-const TRUSTED_IMAGE_HOSTS = [
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-];
-const TRUSTED_IMAGE_HOST_SUFFIXES = [
-  ".firebasestorage.app",
-  ".appspot.com",
-];
-
-function isTrustedImageUrl(url) {
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-  if (parsed.protocol !== "https:") return false;
-  const host = parsed.hostname.toLowerCase();
-  if (TRUSTED_IMAGE_HOSTS.includes(host)) return true;
-  return TRUSTED_IMAGE_HOST_SUFFIXES.some((sfx) => host.endsWith(sfx));
-}
+// server-side. The allow-list (shared with Vex) restricts to our Firebase
+// Storage hosts so a crafted question can't turn Qix into an SSRF probe
+// against internal endpoints. Anything else is reviewed text-only.
+const {isTrustedImageUrl} = require("./trustedImageHost");
 
 function safeParseJson(raw) {
   if (raw == null) return null;
