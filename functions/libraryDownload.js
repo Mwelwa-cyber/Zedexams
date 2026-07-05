@@ -140,7 +140,12 @@ const apiLibraryDownload = onRequest(
         res.status(403).send("Forbidden.");
         return;
       }
-      const plan = gen.output;
+      // The server pipeline stores the plan under `output`; the Lesson Plan
+      // Studio stores it under `data` (Firestore rules forbid the studio
+      // writing `output`). Both are the same validated lesson-plan JSON that
+      // generateLessonPlanDocxBuffer consumes, so fall back to `data` —
+      // otherwise studio-saved plans 422 here and the Word download fails.
+      const plan = gen.output || gen.data;
       if (!plan || typeof plan !== "object") {
         res.status(422).send("This document can't be exported.");
         return;

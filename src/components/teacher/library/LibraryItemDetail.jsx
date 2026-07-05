@@ -61,6 +61,7 @@ import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
 import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
 import { buildSbaPlan } from '../../../utils/sbaPlanner'
 import { buildDownloadName } from '../../../utils/downloadFilename'
+import { resolvePlanPayload } from './planPayload'
 import SchemeEditableTable from '../generate/SchemeEditableTable'
 import WeeklyForecastEditableTable from '../generate/WeeklyForecastEditableTable'
 import { stampEditHistory, lastEditedAt, editHistoryOf } from '../../../utils/schemeEditHistory'
@@ -154,7 +155,25 @@ export default function LibraryItemDetail() {
   })
 
   async function onShare() {
-    if (!item?.output || !currentUser?.uid) return
+    // The Lesson Plan Studio saves its plan JSON under `data` (Firestore rules
+    // forbid the studio writing `output`), so a studio-saved lesson plan has
+    // `data` but no `output`. Resolve the shareable payload the same way the
+    // PDF export does (`output || data`) — otherwise Share silently no-ops on
+    // every lesson plan while PDF works, which is the reported bug.
+    const shareable = resolvePlanPayload(item)
+    // Both guards must show a visible error — a silent return here is the
+    // "Share link button does nothing" bug (both content-missing and signed-out
+    // cases look identical to the teacher if we just return quietly).
+    if (!shareable) {
+      setShareError(
+        'This document has no content to share. It may be a legacy format — please generate a new copy to get a shareable link.',
+      )
+      return
+    }
+    if (!currentUser?.uid) {
+      setShareError('You must be signed in to create a share link.')
+      return
+    }
     setSharing(true)
     setShareError('')
     try {
@@ -164,10 +183,10 @@ export default function LibraryItemDetail() {
         tool: item.tool,
         ownerUid: currentUser.uid,
         title: titleForGeneration(item).slice(0, 200),
-        plan: item.output,
-        subject: item.inputs?.subject || item.output?.header?.subject || null,
-        grade: item.inputs?.grade || item.output?.header?.class || null,
-        topic: item.inputs?.topic || item.output?.header?.topic || null,
+        plan: shareable,
+        subject: item.inputs?.subject || shareable?.header?.subject || null,
+        grade: item.inputs?.grade || shareable?.header?.class || null,
+        topic: item.inputs?.topic || shareable?.header?.topic || null,
         generationId: item.id,
       })
       setActiveShares((prev) => [{ token: result.token, url: result.url, createdAt: null }, ...prev])
@@ -258,7 +277,20 @@ export default function LibraryItemDetail() {
   }
 
   async function onExport() {
-    if (!item?.output) return
+    // Studio-saved lesson plans keep their JSON under `data`, not `output`
+    // (see resolvePlanPayload / onShare). Resolve the exportable payload the
+    // same way so Word export works for them — a bare `!item.output` guard
+    // silently no-ops the Export button on every lesson plan (Word + Share
+    // broken together while PDF, which already falls back to `data`, works).
+    const exportable = resolvePlanPayload(item)
+    // A silent return here is the "Export button does nothing" bug: no toast,
+    // no console output — the teacher has no idea why the click was ignored.
+    if (!exportable) {
+      toast.error(
+        'This document has no exportable content. It may be a legacy format — please generate a new copy to download it.',
+      )
+      return
+    }
     if (!permissions.canDownload) {
       toast.error(
         permissions.level === LIBRARY_ACCESS.PRO
@@ -269,13 +301,13 @@ export default function LibraryItemDetail() {
     }
     const name = (ext = 'docx') => buildDownloadName({
       docType: TOOL_DOC_TYPES[item.tool] || TOOL_META[item.tool]?.label || 'Document',
-      grade: item.inputs?.grade || item.output?.header?.grade,
-      subject: item.inputs?.subject || item.output?.header?.subject,
-      topic: item.inputs?.topic || item.output?.header?.topic,
-      term: item.inputs?.term ?? item.output?.header?.term,
-      year: item.inputs?.year ?? item.output?.header?.year,
-      week: item.inputs?.weekNumber ?? item.output?.header?.weekNumber,
-      extra: item.output?.header?.className,
+      grade: item.inputs?.grade || exportable?.header?.grade,
+      subject: item.inputs?.subject || exportable?.header?.subject,
+      topic: item.inputs?.topic || exportable?.header?.topic,
+      term: item.inputs?.term ?? exportable?.header?.term,
+      year: item.inputs?.year ?? exportable?.header?.year,
+      week: item.inputs?.weekNumber ?? exportable?.header?.weekNumber,
+      extra: exportable?.header?.className,
       ext,
     })
 
@@ -284,9 +316,10 @@ export default function LibraryItemDetail() {
       // Prefer the server-generated download: it streams from zedexams.com with
       // the correct filename (no Firebase, no upload) and works on browsers that
       // mangle in-page blob: download names. Falls back to the in-app generator
-      // if the server path isn't available (unsaved item, native shell, error).
+      // if the server path isn't available (unsaved item, native shell, error,
+      // or a studio-saved plan the server can't rebuild yet).
       const served = await downloadLibraryItemViaServer({ generationId: item.id, filename: name() })
-      if (!served) await downloadLessonPlanDocx(item.output, name())
+      if (!served) await downloadLessonPlanDocx(exportable, name())
       recordExport(item.id, 'docx')
     } else if (item.tool === 'worksheet') {
       await downloadWorksheetDocx(item.output, name(), { mode: 'worksheet' })
