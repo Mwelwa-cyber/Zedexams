@@ -10,7 +10,8 @@
  * previewed (ok / warning / error) before anything is written.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import useFocusTrap from '../../../hooks/useFocusTrap'
 import {
   parseRosterText,
   buildRosterCsvTemplate,
@@ -79,6 +80,12 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
   // Accounts mode
   const [accounts, setAccounts] = useState(null) // null = not loaded
   const [selected, setSelected] = useState(() => new Set())
+
+  const panelRef = useRef(null)
+  // Escape closes, Tab stays inside, focus returns to the opener on close.
+  // Hold Escape while an import is committing so a stray key can't drop the
+  // modal mid-write.
+  useFocusTrap(panelRef, { onEscape: () => { if (!busy) onClose?.() } })
 
   useEffect(() => {
     if (mode !== 'accounts' || accounts !== null) return
@@ -149,10 +156,16 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true">
-      <div className="theme-card border theme-border rounded-t-2xl sm:rounded-radius-md w-full sm:max-w-lg max-h-[90vh] overflow-y-auto p-5 space-y-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="roster-import-modal-title"
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose?.() }}
+    >
+      <div ref={panelRef} className="theme-card border theme-border rounded-t-2xl sm:rounded-radius-md w-full sm:max-w-lg max-h-[90vh] overflow-y-auto p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="theme-text font-display font-black text-lg">Import learners</h2>
+          <h2 id="roster-import-modal-title" className="theme-text font-display font-black text-lg">Import learners</h2>
           <button type="button" onClick={onClose} className="theme-text-muted hover:theme-text text-xl leading-none px-2" aria-label="Close">×</button>
         </div>
 

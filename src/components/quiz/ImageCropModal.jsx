@@ -28,6 +28,7 @@ import {
   resizeCropRect,
 } from './cropGeometry'
 import { loadCorsImage } from './cropImageLoad'
+import useFocusTrap from '../../hooks/useFocusTrap'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
@@ -85,6 +86,7 @@ function sharpenCanvas(ctx, w, h, amount = 0.4) {
 export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
   const imgRef = useRef(null)
   const scrollRef = useRef(null)
+  const panelRef = useRef(null)
   // Active drag: { mode: 'draw'|'move'|'resize', handle?, startPoint, startRect }.
   const drag = useRef(null)
   // Default to a centred 70% box so there is always a valid crop.
@@ -96,6 +98,11 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
   // autosave). Surface it loudly instead of leaving a collapsed, empty box the
   // teacher can't crop and can't diagnose.
   const [loadFailed, setLoadFailed] = useState(false)
+
+  // Escape closes, Tab stays inside, focus returns to the opener on close.
+  // Guard Escape while a crop export is in flight so a stray key can't abandon
+  // the modal mid-operation.
+  useFocusTrap(panelRef, { onEscape: () => { if (!busy) onCancel?.() } })
 
   function pointFromEvent(event) {
     const box = imgRef.current?.getBoundingClientRect()
@@ -182,10 +189,16 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
   const pct = (n) => `${n * 100}%`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="theme-card theme-text w-full max-w-2xl space-y-4 rounded-2xl border theme-border p-5 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="image-crop-modal-title"
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel?.() }}
+    >
+      <div ref={panelRef} className="theme-card theme-text w-full max-w-2xl space-y-4 rounded-2xl border theme-border p-5 shadow-xl">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-black">✂️ Crop image</h3>
+          <h3 id="image-crop-modal-title" className="text-base font-black">✂️ Crop image</h3>
           <button type="button" onClick={onCancel} className="theme-text-muted text-sm font-bold hover:underline">Cancel</button>
         </div>
         <p className="theme-text-muted text-xs font-bold leading-relaxed">

@@ -25,6 +25,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Download, X } from '../ui/icons'
+import useFocusTrap from '../../hooks/useFocusTrap'
 
 export default function PaperReaderOverlay({
   title,
@@ -33,23 +34,25 @@ export default function PaperReaderOverlay({
   downloading = false,
   children,
 }) {
+  const overlayRef = useRef(null)
   const bodyRef = useRef(null)
 
-  // Lock body scroll, close on Escape, and hook the back button — all torn
-  // down together. `closedByPop` distinguishes "user pressed back" (history
-  // already unwound) from "user tapped Exit / Esc" (we must unwind it).
+  // Escape-to-close, Tab-trap, and focus restore live in the shared hook.
+  // Initial focus goes to the scroll surface (tabIndex=-1) so keyboard
+  // page-nav (arrows / space / PageDown) works the moment the reader opens.
+  useFocusTrap(overlayRef, { onEscape: () => onClose(), initialFocusRef: bodyRef })
+
+  // Lock body scroll and hook the back button — torn down together.
+  // `closedByPop` distinguishes "user pressed back" (history already unwound)
+  // from "user tapped Exit / Esc" (we must unwind it).
   useEffect(() => {
     const closedByPop = { current: false }
 
-    function onKey(event) {
-      if (event.key === 'Escape') onClose()
-    }
     function onPop() {
       closedByPop.current = true
       onClose()
     }
 
-    document.addEventListener('keydown', onKey)
     window.addEventListener('popstate', onPop)
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -57,11 +60,7 @@ export default function PaperReaderOverlay({
       window.history.pushState({ paperReader: true }, '')
     } catch { /* history blocked (rare) — Esc/Exit still close */ }
 
-    // Move focus into the scroll surface so keyboard page-nav works at once.
-    bodyRef.current?.focus?.()
-
     return () => {
-      document.removeEventListener('keydown', onKey)
       window.removeEventListener('popstate', onPop)
       document.body.style.overflow = previousOverflow
       // Remove the history entry we added, unless back already consumed it.
@@ -75,6 +74,7 @@ export default function PaperReaderOverlay({
 
   return (
     <div
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-label={title ? `${title} — reading mode` : 'Reading mode'}

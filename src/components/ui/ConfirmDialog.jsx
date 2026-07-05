@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { AlertTriangle } from './icons'
 import Button from './Button'
 import Icon from './Icon'
+import useFocusTrap from '../../hooks/useFocusTrap'
 
 /**
  * ConfirmDialog — modal used in place of window.confirm() for destructive
@@ -41,46 +42,16 @@ export default function ConfirmDialog({
   onCancel,
 }) {
   const panelRef = useRef(null)
-  const previouslyFocused = useRef(null)
   const cancelRef = useRef(null)
 
-  // Move focus into the dialog when it opens, restore it when it closes.
-  useEffect(() => {
-    if (!open) return
-    previouslyFocused.current = document.activeElement
-    // Cancel button is the safer default focus target for destructive dialogs
-    requestAnimationFrame(() => cancelRef.current?.focus())
-    return () => {
-      if (previouslyFocused.current instanceof HTMLElement) {
-        previouslyFocused.current.focus()
-      }
-    }
-  }, [open])
-
-  // Escape closes; Tab is trapped inside the panel.
-  useEffect(() => {
-    if (!open) return
-    function onKey(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (!loading) onCancel?.()
-      } else if (event.key === 'Tab' && panelRef.current) {
-        const focusables = panelRef.current.querySelectorAll(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        )
-        if (!focusables.length) return
-        const first = focusables[0]
-        const last = focusables[focusables.length - 1]
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault(); last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault(); first.focus()
-        }
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, loading, onCancel])
+  // Focus management (move-in / trap / restore) + Escape now live in the
+  // shared useFocusTrap hook. The Cancel button is the safer default focus
+  // target for a destructive dialog, and Escape is held while `loading`.
+  useFocusTrap(panelRef, {
+    active: open,
+    initialFocusRef: cancelRef,
+    onEscape: () => { if (!loading) onCancel?.() },
+  })
 
   if (!open) return null
 
