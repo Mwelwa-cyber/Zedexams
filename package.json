@@ -204,6 +204,7 @@
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
     "test:cors": "node functions/cors.test.js",
     "test:rate-limit": "node functions/rateLimitCore.test.js",
+    "test:trusted-image": "node functions/agents/trustedImageHost.test.js",
     "test:appcheck-enforce": "node functions/appCheckEnforcement.test.js",
     "test:admin-payments": "node functions/adminPaymentsCore.test.js",
     "test:recaptcha": "node functions/recaptchaAssessment.test.js",

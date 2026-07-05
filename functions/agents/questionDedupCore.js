@@ -64,23 +64,35 @@ function classifyDuplicate(candidate, existing, opts = {}) {
  * anything unexpected — an unknown verdict must never auto-approve into the
  * Master Bank.
  *
+ * Auto-promotion into the shared Master Bank NEVER rests on the model's
+ * verdict alone. Reaching the Master Bank means the content is served to
+ * every learner, and a prompt-injected question (e.g. an adversarial
+ * past-paper PDF via importPastPaperQuestions) could talk the reviewer into
+ * "approve". So both 'approve' and 'needs_admin' promote to the Master Bank
+ * ONLY when an admin has explicitly opted in via autoApprove
+ * (agentControl/qix.autoApprove); otherwise they queue as 'needs_admin' for a
+ * human. This keeps Master-Bank auto-approval opt-in — consistent with the
+ * review UI and the content-line Gate, both of which default OFF. 'reject'
+ * and unknown verdicts always fail closed. The model's raw recommendation is
+ * still stored on the doc, so the review queue can surface "Qix: approve" vs
+ * "Qix: needs_admin" as a hint to the human reviewer.
+ *
  * @param {string} recommendation  'approve' | 'needs_admin' | 'reject'
- * @param {boolean} [autoApprove]   when true (admin opted in), a 'needs_admin'
- *   verdict is promoted straight to approved — the reviewer didn't reject it,
- *   it just wasn't fully confident. 'reject' and unknown verdicts still fail
- *   closed, so clearly-broken questions never reach the Master Bank.
+ * @param {boolean} [autoApprove]   admin opt-in; gates BOTH 'approve' and
+ *   'needs_admin' into the Master Bank. Off by default (fail-closed).
  * @returns {{reviewStatus:string, masterEligible:boolean}}
  */
 function recommendationToStatus(recommendation, autoApprove = false) {
   switch (recommendation) {
     case "approve":
-      return {reviewStatus: "approved", masterEligible: true};
-    case "reject":
-      return {reviewStatus: "rejected", masterEligible: false};
     case "needs_admin":
+      // A model verdict alone (even a confident "approve") does not reach the
+      // Master Bank — only an admin's autoApprove opt-in promotes it.
       return autoApprove ?
         {reviewStatus: "approved", masterEligible: true} :
         {reviewStatus: "needs_admin", masterEligible: false};
+    case "reject":
+      return {reviewStatus: "rejected", masterEligible: false};
     default:
       // Unknown verdict — always fail closed, even with auto-approve on.
       return {reviewStatus: "needs_admin", masterEligible: false};

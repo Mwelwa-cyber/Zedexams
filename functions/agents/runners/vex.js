@@ -20,6 +20,10 @@
 // their unit tests — can require this module without pulling in the
 // firebase-functions runtime, which isn't installed in the root test env.
 
+// Pure, dependency-free SSRF allow-list (shared with Qix). Safe to require at
+// top level — it pulls in no firebase runtime, so the node-only tests still load.
+const {isTrustedImageUrl} = require("../trustedImageHost");
+
 const MODEL = "claude-haiku-4-5-20251001";
 
 const SYSTEM_PROMPT = [
@@ -393,7 +397,9 @@ function buildUserContent({input}) {
   passages.forEach((p) => {
     if (imageCount >= MAX_IMAGES) return;
     const url = typeof p?.imageUrl === "string" ? p.imageUrl.trim() : "";
-    if (!/^https:\/\//i.test(url)) return;
+    // Only hand Firebase-Storage-hosted images to Anthropic's server-side
+    // vision fetcher; an off-list URL would make Vex an SSRF probe.
+    if (!isTrustedImageUrl(url)) return;
     blocks.push({
       type: "text",
       text: `The next image belongs to passage id="${p.id}" ` +
@@ -415,7 +421,7 @@ function buildUserContent({input}) {
     if (imageCount >= MAX_IMAGES) return;
     if (q?.passageId) return; // image is already attached via the passage
     const url = typeof q?.imageUrl === "string" ? q.imageUrl.trim() : "";
-    if (!/^https:\/\//i.test(url)) return;
+    if (!isTrustedImageUrl(url)) return;
     blocks.push({
       type: "text",
       text: `The next image belongs to question index ${idx} ` +
@@ -440,7 +446,7 @@ function buildUserContent({input}) {
     media.forEach((m, optIdx) => {
       if (imageCount >= MAX_IMAGES) return;
       const url = typeof m?.imageUrl === "string" ? m.imageUrl.trim() : "";
-      if (!/^https:\/\//i.test(url)) return;
+      if (!isTrustedImageUrl(url)) return;
       const letter = OPTION_LETTERS[optIdx] || `#${optIdx + 1}`;
       blocks.push({
         type: "text",
@@ -464,7 +470,7 @@ function buildUserContent({input}) {
     passageText: clampStr(extractPlainText(p.passageText), 4000),
     hasImage: Boolean(p.imageUrl &&
       typeof p.imageUrl === "string" &&
-      /^https:\/\//i.test(p.imageUrl)),
+      isTrustedImageUrl(p.imageUrl.trim())),
   }));
 
   const textPrompt = [
