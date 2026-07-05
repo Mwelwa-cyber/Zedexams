@@ -178,32 +178,22 @@ async function main() {
     })
   })
 
-  // ── /syllabi/{fileName=**} — world-readable, admin-write ──────
-  section('syllabi — world-readable, admin-write')
+  // ── /syllabi/ — DECOMMISSIONED (no rule matches it anymore) ───
+  // The bare /syllabi/ path was retired from storage.rules; anything under it
+  // now falls through to the catch-all deny. These previously asserted the old
+  // "world-readable, admin-write" contract and had been failing silently since
+  // the path was removed, because this suite ran in no CI job (this PR wires it
+  // up). Reframed as a regression guard: the retired path must stay CLOSED —
+  // in particular it must not be quietly re-opened as a public-read bucket path.
+  section('syllabi — decommissioned, must stay closed')
 
-  await test('guest can read a syllabus PDF (viewer iframe is tokenless)', async () => {
-    await assertSucceeds(getBytes(ref(guestStorage, 'syllabi/seed-syllabus.pdf')))
+  await test('retired /syllabi/ path denies reads (even to a guest)', async () => {
+    await assertFails(getBytes(ref(guestStorage, 'syllabi/seed-syllabus.pdf')))
   })
 
-  await test('admin can upload a syllabus PDF', async () => {
-    await assertSucceeds(uploadBytes(
+  await test('retired /syllabi/ path denies writes (even to an admin)', async () => {
+    await assertFails(uploadBytes(
       ref(adminStorage, 'syllabi/new-syllabus.pdf'),
-      PDF_BYTES,
-      { contentType: 'application/pdf' },
-    ))
-  })
-
-  await test('teacher cannot upload a syllabus PDF', async () => {
-    await assertFails(uploadBytes(
-      ref(teacherAStorage, 'syllabi/teacher-attempt.pdf'),
-      PDF_BYTES,
-      { contentType: 'application/pdf' },
-    ))
-  })
-
-  await test('learner cannot upload anything to /syllabi/', async () => {
-    await assertFails(uploadBytes(
-      ref(learnerAStorage, 'syllabi/learner-attempt.pdf'),
       PDF_BYTES,
       { contentType: 'application/pdf' },
     ))
@@ -244,11 +234,15 @@ async function main() {
     ))
   })
 
-  await test('non-PDF content-type rejected on /papers/ (e.g. PNG masquerading)', async () => {
+  await test('disallowed content-type rejected on /papers/ (GIF not in the allowlist)', async () => {
+    // validPaperUpload() accepts PDF / Word / jpeg / png / webp — scanned past
+    // papers can be images now — so the old "PNG rejected" assertion was stale.
+    // GIF is a genuinely-disallowed type: this still guards that the allowlist
+    // is enforced (a random type can't ride in on the papers path).
     await assertFails(uploadBytes(
-      ref(teacherAStorage, `papers/${TEACHER_A}/sneaky.png`),
+      ref(teacherAStorage, `papers/${TEACHER_A}/sneaky.gif`),
       PNG_BYTES,
-      { contentType: 'image/png' },
+      { contentType: 'image/gif' },
     ))
   })
 
