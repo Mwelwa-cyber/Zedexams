@@ -487,7 +487,7 @@ export default function Marketing() {
             <Logo size="sm" />
           </Link>
           <nav className="flex min-w-0 items-center gap-1 sm:gap-3">
-            <Button as={Link} to="/login" variant="ghost" size="sm" className="max-[420px]:hidden">
+            <Button as={Link} to="/login" variant="ghost" size="sm" className="shrink-0">
               Sign in
             </Button>
             <Button as={Link} to="/register" variant="primary" size="sm" className="shrink-0">
