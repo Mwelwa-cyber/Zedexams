@@ -21,9 +21,20 @@
  * touch, and pen, and so it behaves in the Capacitor WebView. The
  * surface uses `touch-action: none` to stop the WebView hijacking the
  * gesture for native scroll/zoom.
+ *
+ * The whole overlay is rendered through a portal into <body>. It's a
+ * `position: fixed` full-viewport layer, but the past-paper viewer mounts
+ * it deep inside the `FullBleed` wrapper whose mobile `-translate-x-1/2`
+ * is a CSS transform — and a transformed ancestor becomes the containing
+ * block for `fixed`, so without the portal the overlay was trapped inside
+ * the (very tall) page-list box: the toolbar showed but the image sat
+ * thousands of pixels down, leaving the visible area all black. Portaling
+ * to <body> escapes any transformed ancestor so `fixed` anchors to the
+ * viewport as intended.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const MIN_SCALE = 1
 const MAX_SCALE = 6
@@ -186,7 +197,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
 
   const zoomed = transform.scale > 1
 
-  return (
+  const overlay = (
     <div
       role="dialog"
       aria-modal="true"
@@ -276,4 +287,9 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
       </p>
     </div>
   )
+
+  // Portal to <body> so `position: fixed` anchors to the viewport rather
+  // than the transformed FullBleed ancestor (see the file header note).
+  if (typeof document === 'undefined') return overlay
+  return createPortal(overlay, document.body)
 }
