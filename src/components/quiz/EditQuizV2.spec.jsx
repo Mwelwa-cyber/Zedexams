@@ -14,7 +14,7 @@
  * section hydration runs so the happy-path load exercises genuine wiring.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
@@ -26,12 +26,17 @@ vi.mock('firebase/storage', () => ({
 
 const mockGetQuizById = vi.fn()
 const mockGetQuestions = vi.fn()
+// Captured at module level (not inline vi.fn()s) so the editing tests below can
+// assert on the actual save round-trip — clicking "Save draft" must call through
+// to updateQuizWithQuestions with the quiz id.
+const mockUpdateQuiz = vi.fn()
+const mockUpdateQuizWithQuestions = vi.fn()
 vi.mock('../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getQuizById: mockGetQuizById,
     getQuestions: mockGetQuestions,
-    updateQuiz: vi.fn(),
-    updateQuizWithQuestions: vi.fn(),
+    updateQuiz: mockUpdateQuiz,
+    updateQuizWithQuestions: mockUpdateQuizWithQuestions,
   }),
 }))
 
@@ -90,6 +95,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockAuth = { currentUser: { uid: 'owner-1' }, isAdmin: false }
   mockGetQuestions.mockResolvedValue([])
+  // Default the write paths to resolve so a save that reaches Firestore doesn't
+  // hang on an undefined promise; the empty id-map is the "no new docs created"
+  // shape applyAssignedIds expects.
+  mockUpdateQuizWithQuestions.mockResolvedValue([])
+  mockUpdateQuiz.mockResolvedValue(undefined)
 })
 
 describe('EditQuizV2 — load states', () => {
@@ -138,5 +148,105 @@ describe('EditQuizV2 — happy path', () => {
     renderEditor()
     expect(await screen.findByText('Edit quiz')).toBeInTheDocument()
     expect(screen.getByText(/Fractions Practice/)).toBeInTheDocument()
+  })
+})
+
+/**
+ * Interaction-path coverage for the controls EditQuizV2 renders in its OWN
+ * markup — not inside the stubbed child panels. These exercise the real dirty
+ * flag, the wizard stepper, and both branches of the manual "Save draft" path
+ * (validation gate vs. genuine Firestore write).
+ */
+describe('EditQuizV2 — editing', () => {
+  // A minimally-valid MCQ so the load hydrates one complete, save-passing
+  // question (non-empty stem, four filled options, an in-range correct index).
+  const validQuestion = {
+    id: 'q-1',
+    type: 'mcq',
+    text: 'What is 2 + 2?',
+    options: ['3', '4', '5', '6'],
+    correctAnswer: 1,
+    marks: 1,
+    order: 0,
+  }
+
+  function loadOwnerQuiz(extra = {}) {
+    mockGetQuizById.mockResolvedValue({
+      id: 'quiz-1', title: 'Fractions Practice', createdBy: 'owner-1',
+      subject: 'Mathematics', grade: '5', status: 'draft', ...extra,
+    })
+  }
+
+  it('flips the "Unsaved changes" badge on once the title is edited', async () => {
+    loadOwnerQuiz()
+    renderEditor()
+    await screen.findByText('Edit quiz')
+
+    // Freshly loaded quizzes are clean: no dirty pill, the footer reads saved.
+    expect(screen.queryByText('● Unsaved changes')).not.toBeInTheDocument()
+    expect(screen.getByText('✓ All changes saved')).toBeInTheDocument()
+
+    // Typing into the title input (a directly-rendered field) calls setF, which
+    // flips `dirty` — the pill and the footer warning both appear.
+    fireEvent.change(screen.getByPlaceholderText(/Quiz title/), {
+      target: { value: 'Fractions Practice v2' },
+    })
+
+    expect(await screen.findByText('● Unsaved changes')).toBeInTheDocument()
+    expect(screen.getByText('⚠️ Unsaved changes')).toBeInTheDocument()
+  })
+
+  it('advances to the Preview step via the "Continue" nav button and back again', async () => {
+    loadOwnerQuiz()
+    renderEditor()
+    await screen.findByText('Edit quiz')
+
+    // The create step shows the import panel; the preview heading isn't mounted.
+    expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument()
+
+    // "Continue →" is owned by EditQuizV2's footer nav (QuizWizardSteps is
+    // stubbed), and drives setWizardStep('preview').
+    fireEvent.click(screen.getByRole('button', { name: /Continue/ }))
+    expect(await screen.findByText('Step 2 of 4')).toBeInTheDocument()
+    expect(screen.getByText(/Preview quiz/)).toBeInTheDocument()
+
+    // "← Back" walks the same order array back to the create step. (Exact
+    // label so it doesn't also match the header's aria-label="Back" arrow.)
+    fireEvent.click(screen.getByRole('button', { name: '← Back' }))
+    await waitFor(() =>
+      expect(screen.queryByText('Step 2 of 4')).not.toBeInTheDocument())
+  })
+
+  it('blocks the save and toasts when a question is incomplete', async () => {
+    // No questions from Firestore ⇒ hydrate seeds a single blank starter
+    // question. It counts toward questionCount but fails the per-question
+    // content check, so validate() rejects before any write.
+    loadOwnerQuiz()
+    renderEditor()
+    await screen.findByText('Edit quiz')
+
+    fireEvent.click(screen.getByRole('button', { name: /Save draft/ }))
+
+    expect(await screen.findByText('Question 1 is missing question text.')).toBeInTheDocument()
+    expect(mockUpdateQuizWithQuestions).not.toHaveBeenCalled()
+  })
+
+  it('writes through updateQuizWithQuestions when a valid quiz is saved as draft', async () => {
+    loadOwnerQuiz()
+    mockGetQuestions.mockResolvedValue([validQuestion])
+    renderEditor()
+    await screen.findByText('Edit quiz')
+    // The loaded question is reflected in the header count.
+    expect(screen.getByText(/· 1 questions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Save draft/ }))
+
+    // The manual save reaches Firestore with the routed quiz id and a
+    // draft status, and the success toast confirms the write completed.
+    await waitFor(() => expect(mockUpdateQuizWithQuestions).toHaveBeenCalled())
+    const [savedId, payload] = mockUpdateQuizWithQuestions.mock.calls[0]
+    expect(savedId).toBe('quiz-1')
+    expect(payload.status).toBe('draft')
+    expect(await screen.findByText('Changes saved as draft.')).toBeInTheDocument()
   })
 })

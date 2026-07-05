@@ -211,6 +211,144 @@ describe('QuizRunnerV2 — pre-quiz start card', () => {
   })
 })
 
+describe('QuizRunnerV2 — answering', () => {
+  // The runner renders its MCQ options as <button className="zx-opt"> with
+  // data-selected / data-correct / data-wrong attributes (the OptionButton
+  // component). We drive those buttons directly to exercise the real
+  // pick → reveal → grade path rather than any mock.
+
+  // Helper: grab the option buttons in on-screen order (A, B, C, D → indices).
+  function optionButtons(container) {
+    return Array.from(container.querySelectorAll('.zx-opt'))
+  }
+
+  it('marks the clicked option as selected in exam mode', async () => {
+    // Exam mode is the only mode where data-selected stays true after a tap:
+    // in practice, pick() reveals immediately so selected flips back to false
+    // and data-correct/data-wrong take over. We resume straight into an exam
+    // session (no endTime → the countdown effect early-returns, so nothing
+    // auto-submits) to land on the running question without the pre-quiz card.
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()])
+    mockLoadQuizSession.mockReturnValue({
+      mode: 'exam',
+      answers: {},
+      flagged: {},
+      revealed: {},
+      shortText: {},
+      aiResults: {},
+      activeSectionIndex: 0,
+      startTime: 1,
+    })
+    const { container } = renderRunner()
+
+    await screen.findByText('What is 2 + 2?')
+    const opts = optionButtons(container)
+    expect(opts).toHaveLength(4)
+
+    // Tap option A ('3'); exam mode records the choice without revealing.
+    fireEvent.click(opts[0])
+    expect(opts[0]).toHaveAttribute('data-selected', 'true')
+    // A sibling stays unselected, and nothing is revealed yet.
+    expect(opts[1]).toHaveAttribute('data-selected', 'false')
+    expect(opts[0]).toHaveAttribute('data-correct', 'false')
+    expect(opts[1]).toHaveAttribute('data-wrong', 'false')
+  })
+
+  it('reveals the correct option when a learner picks it in practice mode', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()]) // correctAnswer: 1 → option B ('4')
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    // Click the correct option (index 1). Practice mode reveals instantly.
+    fireEvent.click(optionButtons(container)[1])
+    expect(optionButtons(container)[1]).toHaveAttribute('data-correct', 'true')
+    // The celebratory reveal panel confirms the correct answer to the learner.
+    expect(await screen.findByText(/Excellent! Well done!/i)).toBeInTheDocument()
+  })
+
+  it('flags a wrong pick and still highlights the correct option in practice mode', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()]) // correctAnswer: 1
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    // Click a wrong option (index 0 = 'A'/'3'). Reveal marks it wrong AND
+    // points the learner at the correct option (index 1).
+    fireEvent.click(optionButtons(container)[0])
+    const revealed = optionButtons(container)
+    expect(revealed[0]).toHaveAttribute('data-wrong', 'true')
+    expect(revealed[1]).toHaveAttribute('data-correct', 'true')
+    expect(await screen.findByText(/Not quite/i)).toBeInTheDocument()
+  })
+
+  it('advances through a two-question quiz with Next and reaches the submit modal', async () => {
+    // Two single-MCQ sections so a Next control exists (a one-question quiz
+    // jumps straight to Submit). Each is answered before advancing, matching
+    // the runner's "answer before you move on" guard.
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([
+      mcq({ id: 'q1', order: 0, text: 'What is 2 + 2?' }),
+      mcq({ id: 'q2', order: 1, text: 'What is 3 + 3?', options: ['5', '6', '7', '8'], correctAnswer: 1 }),
+    ])
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    // Answer Q1, then advance.
+    fireEvent.click(optionButtons(container)[1])
+    fireEvent.click(screen.getByRole('button', { name: /Next →/ }))
+
+    // Q2 is now on screen; being the last section, the nav shows Submit 🏁.
+    expect(await screen.findByText('What is 3 + 3?')).toBeInTheDocument()
+    fireEvent.click(optionButtons(container)[1])
+    const submitBtn = screen.getByRole('button', { name: /Submit 🏁/ })
+    fireEvent.click(submitBtn)
+
+    // The confirm modal appears rather than submitting straight away.
+    expect(await screen.findByText('Submit Quiz?')).toBeInTheDocument()
+  })
+
+  it('submits the quiz — saveResult is called with a sensible payload and the app navigates to results', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()]) // single question → Submit 🏁 directly
+    mockSaveResult.mockResolvedValue('result-99')
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    // Answer the only question correctly, then open + confirm the submit modal.
+    fireEvent.click(optionButtons(container)[1])
+    fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Submit ✓/ }))
+
+    // saveResult receives the graded payload (server-authoritative scoring
+    // re-grades from the question key, so a correct MCQ → 100%).
+    await waitFor(() =>
+      expect(mockSaveResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'learner-1',
+          quizId: 'quiz-1',
+          quizTitle: 'Addition Basics',
+          mode: 'practice',
+          score: 1,
+          totalMarks: 1,
+          percentage: 100,
+        }),
+      ),
+    )
+    // …and we route to the results page for the returned id.
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results/result-99'))
+  })
+})
+
 describe('QuizRunnerV2 — session resume', () => {
   it('auto-resumes an in-progress saved session straight into the running view', async () => {
     mockGetQuizById.mockResolvedValue(quizDoc())
