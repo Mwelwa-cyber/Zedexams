@@ -1589,6 +1589,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── rateLimits (per-user / per-IP burst throttle) ────────────────
+    // Fixed-window counter docs ("{scope}_{windowStart}") written
+    // exclusively by functions/rateLimit.js (Cloud Functions, admin SDK)
+    // to cap short-window request bursts on the AI + TTS surfaces. Docs
+    // carry an `expireAt` field for a Firestore TTL policy to reap.
+    // Internal rate-limit bookkeeping — no client read or write.
+    match /rateLimits/{id} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,
