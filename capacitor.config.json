@@ -13,10 +13,6 @@
     "SystemBars": {
       "insetsHandling": "disable"
     },
-    "EdgeToEdge": {
-      "statusBarColor": "#00000000",
-      "navigationBarColor": "#00000000"
-    },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
       "providers": ["google.com"]
