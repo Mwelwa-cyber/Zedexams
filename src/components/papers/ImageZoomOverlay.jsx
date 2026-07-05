@@ -35,6 +35,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import useFocusTrap from '../../hooks/useFocusTrap'
 
 const MIN_SCALE = 1
 const MAX_SCALE = 6
@@ -46,6 +47,8 @@ function clamp(value, min, max) {
 
 export default function ImageZoomOverlay({ src, alt, onClose }) {
   const surfaceRef = useRef(null)
+  const overlayRef = useRef(null)
+  const closeRef = useRef(null)
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 })
   // Track load state so a slow or failed image shows a message instead of
   // a mysterious all-black screen.
@@ -61,19 +64,16 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
   const lastTapRef = useRef(0)
   const movedRef = useRef(false)
 
-  // Lock body scroll + close on Escape while the overlay is open.
+  // Escape-to-close + Tab-trap + focus restore live in the shared hook; the
+  // Close button is the natural first focus target for a viewer overlay.
+  useFocusTrap(overlayRef, { onEscape: () => onClose(), initialFocusRef: closeRef })
+
+  // Lock body scroll while the overlay is open.
   useEffect(() => {
-    function onKey(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previousOverflow
-    }
-  }, [onClose])
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [])
 
   // Apply a new scale anchored on a point in surface coordinates, keeping
   // the content under (anchorX, anchorY) visually fixed.
@@ -199,6 +199,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
 
   const overlay = (
     <div
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-label={alt || 'Zoom image'}
@@ -272,6 +273,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
             Reset
           </button>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Close"
