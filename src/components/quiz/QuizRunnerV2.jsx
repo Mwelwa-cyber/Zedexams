@@ -586,6 +586,23 @@ export default function QuizRunnerV2() {
   }
 
   if (!started) {
+    // The paywall redirect (navigate → /quizzes) leaves this effect via an
+    // early return, but the `finally` above still flips `loading` off while
+    // `quiz` is still null. React Router usually unmounts us before this
+    // paints, but if navigation is deferred we'd render PreQuizCard against a
+    // null quiz and crash on `quiz.subject`. Hold the loading visual until a
+    // quiz is actually present.
+    if (!quiz) {
+      return (
+        <div className="theme-bg flex min-h-screen items-center justify-center">
+          <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
+          <div className="text-center">
+            <div className="mb-3 text-5xl animate-bounce">📝</div>
+            <p className="theme-accent-text text-lg font-bold">Loading quiz...</p>
+          </div>
+        </div>
+      )
+    }
     return (
       <>
         <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
