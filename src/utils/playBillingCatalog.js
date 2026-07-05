@@ -26,6 +26,26 @@ export const PLAY_SUBS = {
   max_yearly:  { productId: 'teacher_max_yearly',      basePlanId: 'yearly'  },
 }
 
+// Google Play's ObfuscatedAccountId / Apple's appAccountToken cap: 64 chars.
+export const OBFUSCATED_ACCOUNT_ID_MAX = 64
+
+/**
+ * The obfuscated account id to bind a purchase to for a ZedExams uid
+ * (issue #1596). A Firebase uid is already an opaque, non-PII token, so it's
+ * bound verbatim; the server re-derives the same value to verify the purchase
+ * belongs to the signed-in account. Returns '' (→ binding skipped) for an
+ * unusable uid or one over Play's 64-char cap (Firebase Auth uids are 28
+ * chars, so the cap only guards custom-token uids).
+ *
+ * KEEP IN SYNC with functions/googlePlayBillingCore.js's obfuscatedAccountIdForUid
+ * (asserted by scripts/test-play-catalog-mirror.mjs).
+ */
+export function obfuscatedAccountIdForUid(uid) {
+  const s = typeof uid === 'string' ? uid : ''
+  if (!s || s.length > OBFUSCATED_ACCOUNT_ID_MAX) return ''
+  return s
+}
+
 export function playProductForPlan(planId) {
   return PLAY_SUBS[planId] || null
 }

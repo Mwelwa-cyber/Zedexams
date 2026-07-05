@@ -1545,6 +1545,16 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ── playBindingHealth (issue #1596 — Play account-binding rollout) ─
+    // Per-day rollups of Google Play purchase account-binding outcomes.
+    // Schema: playBindingHealth/{YYYY-MM-DD}: {
+    //   date, total, match, absent, mismatch, rejected, updatedAt
+    // }. Admin-read only; server-only writes (verifyGooglePlayPurchase).
+    match /playBindingHealth/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     // ── invoices (audit D3 — MoMo receipts / accounting) ──────────────
     // Server-issued receipts for successful payments. Schema:
     //   paymentId, userId, number ('ZE-YYYYMMDD-XXXXXX'),

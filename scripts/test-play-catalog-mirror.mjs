@@ -14,8 +14,12 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 
-const { PLAY_SUBS } = await import('../src/utils/playBillingCatalog.js')
-const { PLAY_PRODUCT_TO_PLAN } = require('../functions/googlePlayBillingCore.js')
+const { PLAY_SUBS, obfuscatedAccountIdForUid: clientObfId } =
+  await import('../src/utils/playBillingCatalog.js')
+const {
+  PLAY_PRODUCT_TO_PLAN,
+  obfuscatedAccountIdForUid: serverObfId,
+} = require('../functions/googlePlayBillingCore.js')
 
 let passed = 0
 function ok(name, cond) {
@@ -45,6 +49,15 @@ for (const [planId, entry] of Object.entries(PLAY_SUBS)) {
 for (const [productId, planId] of Object.entries(PLAY_PRODUCT_TO_PLAN)) {
   ok(`server ${productId} → ${planId} maps back on the client`,
     PLAY_SUBS[planId] && PLAY_SUBS[planId].productId === productId)
+}
+
+// obfuscatedAccountIdForUid must be identical on both sides (issue #1596):
+// the client stamps it at purchase time, the server re-derives it to verify.
+const OBF_CASES = ['firebaseUid28chars0000000000', '', 'a'.repeat(64), 'a'.repeat(65), 'x']
+for (const uid of OBF_CASES) {
+  const label = uid.length > 12 ? `${uid.slice(0, 8)}…(${uid.length})` : JSON.stringify(uid)
+  ok(`obfuscatedAccountIdForUid(${label}) matches client↔server`,
+    clientObfId(uid) === serverObfId(uid))
 }
 
 console.log(`\n${passed} passed`)

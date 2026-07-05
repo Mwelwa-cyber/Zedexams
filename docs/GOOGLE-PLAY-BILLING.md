@@ -1,6 +1,6 @@
 # Google Play Billing — Android subscriptions
 
-> Snapshot as of 2026-07-03 — verify before acting.
+> Snapshot as of 2026-07-05 — verify before acting.
 
 The Android (Capacitor) app sells digital subscriptions through **Google Play
 Billing only** (Play policy). The website keeps the Lenco mobile-money flow
@@ -35,6 +35,31 @@ Android app (@capgo/native-purchases, Play Billing 7.x)
 - The app purchases with `autoAcknowledgePurchases: false`; the server
   acknowledges after verification. If verification never succeeds within 3
   days, Google refunds automatically — the correct failure mode.
+
+## Account binding (issue #1596)
+
+Each purchase is bound to the buyer's ZedExams `uid` so a leaked/stolen
+purchase token can't be claimed by another account:
+
+- **Client:** `purchasePlaySubscription(planId, uid)` passes the uid as
+  `appAccountToken` (→ Google Play's `ObfuscatedAccountId` on Android, via
+  `@capgo/native-purchases`). The uid is an opaque, non-PII Firebase token
+  under Play's 64-char cap, so it's bound verbatim —
+  `obfuscatedAccountIdForUid()` (mirrored in `playBillingCatalog.js` ↔
+  `googlePlayBillingCore.js`) returns `''` (binding skipped) only for a uid
+  over the cap, which Firebase Auth uids (28 chars) never hit.
+- **Server:** `parseSubscriptionV2` reads it back from
+  `externalAccountIdentifiers.obfuscatedExternalAccountId`;
+  `evaluateAccountBinding` compares it to the authenticated caller's derived
+  id (`request.auth.uid`, never client-supplied).
+- **Rollout (graduated, like App Check):** observe-only by default — every
+  purchase's outcome (match / absent / mismatch) is counted in
+  `playBindingHealth/{YYYY-MM-DD}` but nothing is rejected. Set
+  `PLAY_ENFORCE_ACCOUNT_BINDING=1` on the Functions deploy to hard-reject a
+  **present-but-mismatched** id (`{status: "account_mismatch"}`) once the
+  counters show new purchases reliably carry a matching id. **Absent** ids
+  (legacy / pre-update clients) are never rejected, so old tokens and
+  in-flight purchases keep working through the transition.
 
 ## Play Console setup (owner runbook, in order)
 

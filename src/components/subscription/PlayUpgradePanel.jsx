@@ -63,7 +63,7 @@ function formatExpiry(value) {
 
 export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
-  const { userProfile } = useAuth()
+  const { currentUser, userProfile } = useAuth()
 
   const subStatus = resolveSubscriptionStatus(userProfile)
   const alreadyActive = subStatus.isPro
@@ -129,7 +129,10 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
         capture('play_purchase_succeeded', { planId: result.planId || selectedPlanId })
         return
       }
-      if (result.status === 'wrong_user') {
+      // wrong_user: token already granted to another account (replay guard).
+      // account_mismatch: the purchase was stamped with a different account's
+      // id (issue #1596 enforcement). Both mean "not this account" — same UX.
+      if (result.status === 'wrong_user' || result.status === 'account_mismatch') {
         setError({
           kind: 'wrong_user',
           message: 'This purchase is linked to a different ZedExams account. Sign in with the account that made it, or contact support.',
@@ -166,7 +169,7 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
     setPhase('purchasing')
     capture('play_purchase_initiated', { planId: selectedPlanId })
     try {
-      const purchase = await purchasePlaySubscription(selectedPlanId)
+      const purchase = await purchasePlaySubscription(selectedPlanId, currentUser?.uid)
       purchaseRef.current = purchase
       await runVerify('purchase')
     } catch (err) {

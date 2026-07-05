@@ -74,12 +74,15 @@ const PAST = NOW - 3 * 24 * 3600 * 1000;
 const TOKEN = "play-token-1";
 
 function playBody({productId = "teacher_pro_monthly", state = "SUBSCRIPTION_STATE_ACTIVE",
-  expiryMs = FUT, acked = false, orderId = "GPA.1111-2222"} = {}) {
+  expiryMs = FUT, acked = false, orderId = "GPA.1111-2222", obfAccountId} = {}) {
   return {
     subscriptionState: state,
     acknowledgementState: acked ?
       "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED" : "ACKNOWLEDGEMENT_STATE_PENDING",
     latestOrderId: orderId,
+    ...(obfAccountId === undefined ? {} : {
+      externalAccountIdentifiers: {obfuscatedExternalAccountId: obfAccountId},
+    }),
     lineItems: [{productId, expiryTime: new Date(expiryMs).toISOString(),
       offerDetails: {basePlanId: "monthly"}}],
   };
@@ -239,6 +242,62 @@ function reset() {
     acknowledge: async () => { throw new Error("ack 500"); },
   });
   ok("acknowledge throwing does not fail the grant", r.status === "active" && r.activated === true);
+
+  // ── Account binding (issue #1596) ────────────────────────────────────
+  // Helper: run with a captured recordBinding + an explicit enforce flag.
+  const bindingCalls = [];
+  async function runBind({uid = "u1", body, token = TOKEN, enforce = false} = {}) {
+    bindingCalls.length = 0;
+    return verifyAndApplyPurchase({
+      uid, purchaseToken: token, db, nowMs: NOW,
+      enforceAccountBinding: enforce,
+      recordBinding: async (args) => { bindingCalls.push(args); },
+      activate: async (args) => {
+        activateCalls.push(args);
+        const key = `payments/${args.paymentId}`;
+        if (store[key]) store[key] = {...store[key], status: "successful"};
+        return {ok: true, activated: true};
+      },
+      fetchSubscription: async () => body,
+      acknowledge: async () => {},
+    });
+  }
+
+  // Matching id → activates, telemetry records "match".
+  reset();
+  store["users/u1"] = {};
+  r = await runBind({body: playBody({obfAccountId: "u1"})});
+  ok("matching bound id → active", r.status === "active");
+  ok("matching id → binding recorded as match", bindingCalls[0]?.kind === "match");
+
+  // Absent id (legacy client) under enforce → still activates.
+  reset();
+  store["users/u1"] = {};
+  r = await runBind({body: playBody({obfAccountId: undefined}), enforce: true});
+  ok("absent id under enforce → still active (legacy tokens keep working)",
+      r.status === "active");
+  ok("absent id → binding recorded as absent", bindingCalls[0]?.kind === "absent");
+
+  // Mismatched id, observe mode → activates but records the mismatch.
+  reset();
+  store["users/u1"] = {};
+  r = await runBind({body: playBody({obfAccountId: "someone-else"}), enforce: false});
+  ok("mismatched id in observe mode → still active (no behaviour change)",
+      r.status === "active");
+  ok("mismatched id (observe) → binding recorded as mismatch",
+      bindingCalls[0]?.kind === "mismatch");
+
+  // Mismatched id, enforce mode → rejected before any entitlement work.
+  reset();
+  store["users/u1"] = {};
+  const activationsBefore = activateCalls.length;
+  r = await runBind({body: playBody({obfAccountId: "someone-else"}), enforce: true});
+  ok("mismatched id under enforce → account_mismatch", r.status === "account_mismatch");
+  ok("account_mismatch → carries productId + planId",
+      r.productId === "teacher_pro_monthly" && r.planId === "pro_monthly");
+  ok("account_mismatch → zero activations", activateCalls.length === activationsBefore);
+  ok("account_mismatch → no payment doc created",
+      Object.keys(store).filter((key) => key.startsWith("payments/")).length === 0);
 
   console.log(`\n${passed} passed`);
 })().catch((err) => {
