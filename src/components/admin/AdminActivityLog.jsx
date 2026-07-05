@@ -17,6 +17,8 @@ const ACTION_TYPES = [
   'content.reject',
   'payment.confirm',
   'payment.reject',
+  'payment.grant',
+  'payment.revoke',
   'settings.update',
   'announcement.publish',
   'announcement.update',
