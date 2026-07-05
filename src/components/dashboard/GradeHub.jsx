@@ -1161,7 +1161,14 @@ export default function GradeHub() {
       </header>
 
       {/* ──────────── MAIN CONTENT ───────────────────────────── */}
-      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-3 sm:px-4 py-5 pb-28 space-y-4 theme-text">
+      <main
+        className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-3 sm:px-4 py-5 space-y-4 theme-text"
+        // Clear the fixed bottom nav AND the transparent Android system nav bar
+        // (edge-to-edge): the bar's own safe-area padding makes it taller by
+        // env(safe-area-inset-bottom), so the scroll content needs the same
+        // extra room or the last section tucks under the nav buttons.
+        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}
+      >
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section

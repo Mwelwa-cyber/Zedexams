@@ -483,7 +483,12 @@ export default function SubjectDrillDown() {
       </header>
 
       {/* ──────────── MAIN CONTENT ───────────────────────────── */}
-      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-6 theme-text">
+      <main
+        className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-4 py-5 space-y-6 theme-text"
+        // Clear the fixed bottom nav + the transparent Android system nav bar
+        // (edge-to-edge); see GradeHub for the rationale.
+        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}
+      >
 
         {/* ── Subject hero ─────────────────────────────────── */}
         <section className={`zx-card relative overflow-hidden rounded-3xl ${tone.bg} ring-1 ${tone.ring} p-5 sm:p-6`}>
