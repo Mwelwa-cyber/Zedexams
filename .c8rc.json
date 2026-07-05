@@ -1,0 +1,19 @@
+{
+  "//": "Coverage config for the backend (functions/) node suite, driven by `npm run functions:coverage` (c8 wrapping scripts/run-functions-tests.mjs). The frontend (src/) is measured separately by Vitest — see vitest.config.js, which excludes functions/. `all: true` instruments every functions/ source file, including ones never loaded by a test (e.g. the onCall/onRequest handlers in index.js), so the number reflects the true backend gap rather than only the files a test happened to require. Thresholds are a RATCHET set just under the current baseline: raise them as backend coverage improves so it can only go up.",
+  "all": true,
+  "include": ["functions/**"],
+  "exclude": [
+    "functions/**/*.test.js",
+    "functions/scripts/**",
+    "functions/node_modules/**",
+    "functions/.eslintrc.js"
+  ],
+  "reporter": ["text-summary", "json-summary", "html"],
+  "reports-dir": "coverage-functions",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 38,
+  "statements": 38,
+  "functions": 70,
+  "branches": 72
+}
