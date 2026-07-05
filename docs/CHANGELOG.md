@@ -5,6 +5,48 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-07-05 — Android closed testing (v1.3.0)
+
+Features bundled into the Android closed-testing App Bundle. Short
+tester-facing blurb lives in `distribution/whatsnew/whatsnew-en-US`.
+
+### Added
+- **Central Question Bank + Qix AI reviewer.** Every question a teacher
+  creates or imports lands in the bank and is reviewed in the background by
+  Qix — deterministic exact/near-text dedup plus embedding-based semantic
+  duplicate detection, then an AI quality + grade-fit review. Clean passes
+  flow into the shared Master Bank. (#1375, #1386)
+- **Smart generation reuses the Master Bank first.** Quiz, assessment, and
+  exam-paper generation now source vetted questions from the Master Bank
+  before calling the model, and auto-capture newly generated questions back
+  into the bank. (#1377, #1379, #1382, #1383, #1384, #1388)
+- **AI Lesson Plan Studio.** Generate, then manually or AI-edit plans, save
+  them to the teacher library, reuse them as templates via the Template Bank,
+  preview output formats, and ground plans on the teacher's own past plans.
+  Auto-fills teacher name and school. (#1369, #1370, #1374, #1385)
+- **Redesigned teacher dashboard** as an intelligent AI workspace. (#1394)
+- **Admin question import** into the Question Bank, with one-click
+  "Import existing questions" and "Approve all into the Master Bank", plus
+  backfill tooling that regrades existing quiz + exam questions by syllabus.
+  (#1389, #1395, #1400, #1402)
+- **Test Paper Import improvements**: rebuild a scanned table as an editable
+  typed table, keep and render every detected figure on multi-figure
+  questions, and per-item status chips (Ready / Needs review / Failed) with a
+  confidence score. (#1372, #1390, #1393)
+- **Play Store release notes** wired into the closed-testing AAB workflow via
+  `distribution/whatsnew/`.
+
+### Fixed
+- Re-grade imported quiz and exam-paper questions to their true grade, fixing
+  mixed-grade imports. (#1404, #1408)
+- Numerous Lesson Plan Studio fixes: curriculum coverage, mobile layout,
+  downloads/print, class picker (ECE Nursery & Reception), and empty-output
+  schema alignment. (#1373, #1378, #1401, #1403, #1405, #1406)
+- Bound diagram image-generation network calls so a hung provider can't hang
+  the function. (#1387)
+- Scanned-paper diagram cleaning hardened against CORS canvas taint, with a
+  same-origin image-proxy fallback. (#1376, #1380)
+
 ## 2026-06-13
 
 ### Added

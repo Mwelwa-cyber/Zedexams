@@ -36,10 +36,19 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ANDROID = join(__dirname, '..', 'android', 'app')
+const ROOT = join(__dirname, '..')
+const ANDROID = join(ROOT, 'android', 'app')
 const manifest = readFileSync(join(ANDROID, 'src', 'main', 'AndroidManifest.xml'), 'utf8')
 const gradle = readFileSync(join(ANDROID, 'build.gradle'), 'utf8')
 const proguard = readFileSync(join(ANDROID, 'proguard-rules.pro'), 'utf8')
+const playWorkflow = readFileSync(
+  join(ROOT, '.github', 'workflows', 'android-play-release.yml'),
+  'utf8'
+)
+const whatsNewEnUs = readFileSync(
+  join(ROOT, 'distribution', 'whatsnew', 'whatsnew-en-US'),
+  'utf8'
+)
 
 let pass = 0
 let fail = 0
@@ -158,6 +167,37 @@ test('source-file line info is kept + renamed for retraceable stack traces', () 
   assert(
     /-renamesourcefileattribute\s+SourceFile/.test(proguard),
     'proguard-rules.pro no longer renames the source-file attribute'
+  )
+})
+
+// ── Play "What's new" release notes wiring ──────────────────────
+//
+// The closed-testing AAB (android-play-release.yml) publishes to the Play
+// `alpha` track. Without a whatsNewDirectory, testers see an empty "What's
+// new" panel. These assertions keep the notes wired in and inside Play's
+// per-language 500-character limit (the API rejects longer notes, failing
+// the whole publish step).
+
+console.log('\nandroid-play-release.yml — release-notes wiring')
+
+test('publish step points at distribution/whatsnew', () => {
+  assert(
+    /whatsNewDirectory:\s*distribution\/whatsnew/.test(playWorkflow),
+    'android-play-release.yml no longer passes whatsNewDirectory — testers get an empty "What\'s new" panel'
+  )
+})
+
+test('en-US release notes are within Play\'s 500-char limit', () => {
+  // Play caps release notes at 500 characters per language; a longer file
+  // makes the upload-google-play step reject the release.
+  const len = whatsNewEnUs.length
+  assert(
+    len > 0,
+    'distribution/whatsnew/whatsnew-en-US is empty — write the tester-facing notes'
+  )
+  assert(
+    len <= 500,
+    `distribution/whatsnew/whatsnew-en-US is ${len} chars — Play rejects release notes over 500`
   )
 })
 

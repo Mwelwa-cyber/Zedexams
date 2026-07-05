@@ -340,3 +340,10 @@ jobs:
           track: ${{ steps.cfg.outputs.track }}
           status: ${{ steps.cfg.outputs.status }}
           userFraction: ${{ steps.cfg.outputs.user_fraction }}
+          # Release notes shown to testers in the Play Store "What's new"
+          # panel. One file per listing language: distribution/whatsnew/
+          # whatsnew-<lang> (<= 500 chars each). en-US is the store's default
+          # listing language — add more files here to localise. If the notes'
+          # language isn't an active listing language the Play API rejects the
+          # upload, so keep this in sync with the Play Console listing.
+          whatsNewDirectory: distribution/whatsnew
