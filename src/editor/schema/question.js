@@ -450,6 +450,11 @@ export const questionSchema = z
     // duplicate / out-of-order) in the editor — including after a reload.
     // null for hand-authored questions and papers with no usable numbering.
     sourceQuestionNumber: z.number().int().min(1).max(9999).nullable().default(null),
+    // Lineage for a question inserted from the Central Question Bank: the
+    // questionBank doc id it was deep-cloned from. Present only on bank-sourced
+    // copies (hand-authored / imported / AI questions omit it). Lets the bank's
+    // usage analytics and future de-dup trace a paper question back to its source.
+    sourceBankId: z.string().max(64).optional(),
 
     // ── Versioning ──
     contentVersion: z.literal(3),

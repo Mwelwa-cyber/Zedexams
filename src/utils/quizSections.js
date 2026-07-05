@@ -56,6 +56,9 @@ export function emptyQuestion(overrides = {}) {
     // Printed source-paper question number (importer-set; null when
     // hand-authored). Distinct from sourcePage — see the question schema.
     sourceQuestionNumber: null,
+    // questionBank doc id when this question was inserted from the Central
+    // Question Bank; null for hand-authored / imported / AI questions.
+    sourceBankId: null,
     // CBC curriculum tagging + import provenance (mirrors the question
     // schema). Editable on the card footer; defaults keep legacy docs and
     // hand-authored questions neutral.

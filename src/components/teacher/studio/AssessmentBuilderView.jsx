@@ -18,7 +18,7 @@ export function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
     estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
-    onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
@@ -72,6 +72,9 @@ export function BuilderView(props) {
       <div className="sv-builder-bar sv-builder-tools">
         <button className="sv-chip" onClick={onShowTemplates}><Icon name="sections" size={14} /> Templates</button>
         <button className="sv-chip" onClick={onCreatePaper}><Icon name="ai" size={14} /> Create with AI</button>
+        {onOpenBank && (
+          <button className="sv-chip" onClick={onOpenBank}><Icon name="bank" size={14} /> Question bank</button>
+        )}
         <button className="sv-chip" onClick={() => importInputRef.current?.click()} disabled={importing}>
           <Icon name={importing ? 'spinner' : 'import'} size={14} spin={importing} /> {importing ? 'Importing…' : 'Import paper'}
         </button>
