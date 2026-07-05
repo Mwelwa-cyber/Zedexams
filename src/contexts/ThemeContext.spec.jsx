@@ -1,0 +1,126 @@
+/**
+ * Behavioural tests for ThemeContext.
+ *
+ * The theme layer wraps the whole app: a regression in id normalisation or
+ * persistence flips every visitor's palette or throws away a saved choice.
+ * This locks down the pure helpers (normalizeThemeId / applyThemeToBody) and
+ * the provider's persistence + initial-theme resolution. No Firebase — the
+ * module only touches localStorage + document.body.
+ */
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import {
+  THEMES,
+  DEFAULT_THEME,
+  normalizeThemeId,
+  applyThemeToBody,
+  ThemeProvider,
+  useTheme,
+} from './ThemeContext'
+
+const LS_KEY = 'examprep:theme'
+
+beforeEach(() => {
+  localStorage.clear()
+  document.body.className = ''
+})
+
+describe('normalizeThemeId', () => {
+  it('passes through a known theme id', () => {
+    expect(normalizeThemeId('sky')).toBe('sky')
+    expect(normalizeThemeId('midnight')).toBe('midnight')
+  })
+
+  it('maps legacy aliases to their modern id', () => {
+    expect(normalizeThemeId('light')).toBe('sky')
+    expect(normalizeThemeId('warm')).toBe('oatmeal')
+    expect(normalizeThemeId('dark')).toBe('midnight')
+  })
+
+  it('falls back to the default for anything unknown', () => {
+    expect(normalizeThemeId('neon')).toBe(DEFAULT_THEME)
+    expect(normalizeThemeId(undefined)).toBe(DEFAULT_THEME)
+    expect(normalizeThemeId('')).toBe(DEFAULT_THEME)
+  })
+})
+
+describe('applyThemeToBody', () => {
+  it('adds the theme-<id> class', () => {
+    applyThemeToBody('sky')
+    expect(document.body.classList.contains('theme-sky')).toBe(true)
+  })
+
+  it('removes the previous theme class when switching', () => {
+    applyThemeToBody('sky')
+    applyThemeToBody('midnight')
+    expect(document.body.classList.contains('theme-sky')).toBe(false)
+    expect(document.body.classList.contains('theme-midnight')).toBe(true)
+  })
+
+  it('normalises a legacy id before applying', () => {
+    applyThemeToBody('dark')
+    expect(document.body.classList.contains('theme-midnight')).toBe(true)
+  })
+
+  it('applies the default class for an unknown id', () => {
+    applyThemeToBody('bogus')
+    expect(document.body.classList.contains(`theme-${DEFAULT_THEME}`)).toBe(true)
+  })
+})
+
+// Small consumer to observe + drive the provider.
+function ThemeProbe() {
+  const { theme, setTheme, themes } = useTheme()
+  return (
+    <div>
+      <span data-testid="theme">{theme}</span>
+      <span data-testid="count">{themes.length}</span>
+      <button onClick={() => setTheme('midnight')}>midnight</button>
+      <button onClick={() => setTheme('dark')}>legacy-dark</button>
+    </div>
+  )
+}
+
+describe('ThemeProvider', () => {
+  it('defaults a fresh visitor to the brand default theme', () => {
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    expect(screen.getByTestId('theme').textContent).toBe(DEFAULT_THEME)
+    expect(screen.getByTestId('count').textContent).toBe(String(THEMES.length))
+  })
+
+  it('restores a saved theme from localStorage', () => {
+    localStorage.setItem(LS_KEY, 'lavender')
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    expect(screen.getByTestId('theme').textContent).toBe('lavender')
+  })
+
+  it('normalises a legacy saved theme on load', () => {
+    localStorage.setItem(LS_KEY, 'warm')
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    expect(screen.getByTestId('theme').textContent).toBe('oatmeal')
+  })
+
+  it('setTheme updates state and persists to localStorage', () => {
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    act(() => { screen.getByText('midnight').click() })
+    expect(screen.getByTestId('theme').textContent).toBe('midnight')
+    expect(localStorage.getItem(LS_KEY)).toBe('midnight')
+  })
+
+  it('setTheme normalises a legacy id before storing', () => {
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    act(() => { screen.getByText('legacy-dark').click() })
+    expect(screen.getByTestId('theme').textContent).toBe('midnight')
+    expect(localStorage.getItem(LS_KEY)).toBe('midnight')
+  })
+})
+
+describe('useTheme', () => {
+  it('throws when used outside a ThemeProvider', () => {
+    // Silence the expected React error boundary console noise.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Bare() { useTheme(); return null }
+    expect(() => render(<Bare />)).toThrow(/must be used inside ThemeProvider/)
+    spy.mockRestore()
+  })
+})
