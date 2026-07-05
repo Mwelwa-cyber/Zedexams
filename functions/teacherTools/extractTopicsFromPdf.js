@@ -38,7 +38,14 @@ const {
   isStaffRole,
 } = require("../aiService");
 
-const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+const {resolveAppCheckEnforcement} = require("../appCheckEnforcement");
+// Graduated App Check enforcement — see functions/appCheckEnforcement.js.
+// APPCHECK_ENFORCE=1 enforces every endpoint; APPCHECK_ENFORCE_LABELS="<label>,…"
+// enforces only the named ones (canary); neither = observe-only (default).
+const APPCHECK_ENFORCEMENT = resolveAppCheckEnforcement(process.env);
+function shouldEnforceAppCheck(label) {
+  return APPCHECK_ENFORCEMENT.enforces(label);
+}
 const PDF_TEXT_LIMIT = 50_000;
 const MAX_TOPICS = 40;
 
@@ -161,7 +168,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     region: "us-central1",
     timeoutSeconds: 540,
     memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("extractTopicsFromPdf"),
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");

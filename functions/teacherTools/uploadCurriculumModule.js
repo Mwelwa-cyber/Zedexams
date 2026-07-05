@@ -75,7 +75,14 @@ const {
   MAX_CHUNKS,
 } = require("./uploadCurriculumModuleHelpers");
 
-const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+const {resolveAppCheckEnforcement} = require("../appCheckEnforcement");
+// Graduated App Check enforcement — see functions/appCheckEnforcement.js.
+// APPCHECK_ENFORCE=1 enforces every endpoint; APPCHECK_ENFORCE_LABELS="<label>,…"
+// enforces only the named ones (canary); neither = observe-only (default).
+const APPCHECK_ENFORCEMENT = resolveAppCheckEnforcement(process.env);
+function shouldEnforceAppCheck(label) {
+  return APPCHECK_ENFORCEMENT.enforces(label);
+}
 
 async function parseByKind(buffer, kind) {
   if (kind === "xlsx") return parseXlsx(buffer);
@@ -90,7 +97,7 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
     region: "us-central1",
     timeoutSeconds: 540,
     memory: "1GiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("uploadCurriculumModule"),
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -274,7 +281,7 @@ function createDeleteCurriculumUpload() {
     region: "us-central1",
     timeoutSeconds: 120,
     memory: "512MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("deleteCurriculumUpload"),
   }, async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");

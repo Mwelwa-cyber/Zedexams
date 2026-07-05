@@ -24,7 +24,14 @@ const {
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+const {resolveAppCheckEnforcement} = require("../appCheckEnforcement");
+// Graduated App Check enforcement — see functions/appCheckEnforcement.js.
+// APPCHECK_ENFORCE=1 enforces every endpoint; APPCHECK_ENFORCE_LABELS="<label>,…"
+// enforces only the named ones (canary); neither = observe-only (default).
+const APPCHECK_ENFORCEMENT = resolveAppCheckEnforcement(process.env);
+function shouldEnforceAppCheck(label) {
+  return APPCHECK_ENFORCEMENT.enforces(label);
+}
 
 const AGENT_IDS = ["aria", "cala", "reva", "pubo", "quill", "vex"];
 
@@ -185,7 +192,7 @@ function createGetPlatformHealth(anthropicApiKeySecret) {
     region: "us-central1",
     timeoutSeconds: 30,
     memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("getPlatformHealth"),
   }, async (request) => {
     await requireAdmin(request);
     const [anthropic, agentControl, kb, recentJobs] = await Promise.all([
@@ -213,7 +220,7 @@ function createInitializeAgentPipeline() {
     region: "us-central1",
     timeoutSeconds: 30,
     memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("initializeAgentPipeline"),
   }, async (request) => {
     const uid = await requireAdmin(request);
     const db = admin.firestore();
@@ -245,7 +252,7 @@ function createRunSampleAgentJob() {
     region: "us-central1",
     timeoutSeconds: 30,
     memory: "256MiB",
-    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    enforceAppCheck: shouldEnforceAppCheck("runSampleAgentJob"),
   }, async (request) => {
     const uid = await requireAdmin(request);
     const db = admin.firestore();

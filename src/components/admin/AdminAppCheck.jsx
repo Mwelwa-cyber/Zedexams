@@ -233,11 +233,15 @@ export default function AdminAppCheck() {
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">App Check readiness</h1>
           <p className="theme-text-muted text-sm mt-1 max-w-prose">
             App Check runs in soft-verify mode: tokens are checked and
-            counted but nothing is blocked. Enforcing
-            (<code className="font-mono text-xs">APPCHECK_ENFORCE=1</code> in{' '}
-            <code className="font-mono text-xs">functions/.env.examsprepzambia</code>)
-            hard-denies every call below — only safe once
-            missing + invalid from real clients is ~0.
+            counted but nothing is blocked. Enforcing hard-denies calls
+            with a missing/invalid token — only safe once an endpoint&rsquo;s
+            missing + invalid from real clients is ~0. Roll out
+            incrementally: enforce the already-clean endpoints first with{' '}
+            <code className="font-mono text-xs">APPCHECK_ENFORCE_LABELS=&quot;label1,label2&quot;</code>{' '}
+            (the per-endpoint labels in the table below), watch this page,
+            then widen — or flip everything at once with{' '}
+            <code className="font-mono text-xs">APPCHECK_ENFORCE=1</code>. Both live in{' '}
+            <code className="font-mono text-xs">functions/.env.examsprepzambia</code>.
           </p>
         </div>
       </div>
