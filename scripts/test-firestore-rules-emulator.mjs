@@ -35,6 +35,7 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore'
 
@@ -164,6 +165,22 @@ async function main() {
       plan: { x: 1 },
       createdAt: new Date(),
     })
+
+    // Payment record owned by LEARNER_A. Revenue-critical: clients must
+    // never be able to read someone else's payment or forge/alter one
+    // (that would mint free premium) — only the Admin SDK grant flow writes.
+    await setDoc(doc(db, 'payments', 'pay_learner_a'), {
+      userId: LEARNER_A,
+      amount: 50,
+      currency: 'ZMW',
+      provider: 'MTN MoMo',
+      status: 'success',
+    })
+
+    // Agent circuit-breaker doc. Only admins may write it; a non-admin who
+    // could flip `paused` or `autoPublish` would disable a kill-switch or
+    // turn on unattended auto-publishing.
+    await setDoc(doc(db, 'agentControl', 'bonga'), { paused: true })
 
     // Class Register owned by TEACHER_A, with an EMPTY roster/records — the
     // first-learner case that exposed the unconstrained-list rule bug.
@@ -493,6 +510,66 @@ async function main() {
 
   await test('admin can list any roster', async () => {
     await assertSucceeds(getDocs(collection(admin, 'classRegisters', 'reg_teacher_a', 'roster')))
+  })
+
+  // ── payments/{paymentId} — revenue integrity ─────────────────
+  section('payments/{paymentId} — owner-read, admin-only write')
+
+  await test('owner can read their own payment', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'payments', 'pay_learner_a')))
+  })
+
+  await test('another learner cannot read someone else’s payment', async () => {
+    await assertFails(getDoc(doc(learnerB, 'payments', 'pay_learner_a')))
+  })
+
+  await test('admin can read any payment', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'payments', 'pay_learner_a')))
+  })
+
+  await test('learner CANNOT forge a payment for themselves (no free premium)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'payments', 'forged_a'), {
+      userId: LEARNER_A,
+      amount: 50,
+      currency: 'ZMW',
+      status: 'success',
+    }))
+  })
+
+  await test('learner CANNOT alter an existing payment', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'payments', 'pay_learner_a'), { amount: 0 }))
+  })
+
+  await test('learner CANNOT delete a payment', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'payments', 'pay_learner_a')))
+  })
+
+  await test('admin CAN create a payment record (grant flow)', async () => {
+    await assertSucceeds(setDoc(doc(admin, 'payments', 'pay_admin_grant'), {
+      userId: LEARNER_B,
+      amount: 75,
+      currency: 'ZMW',
+      status: 'success',
+    }))
+  })
+
+  // ── agentControl/{agentId} — kill-switch integrity ───────────
+  section('agentControl/{agentId} — authed read, admin-only write')
+
+  await test('an authed user can read an agent control doc', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'agentControl', 'bonga')))
+  })
+
+  await test('a learner CANNOT un-pause an agent (disable the kill-switch)', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'agentControl', 'bonga'), { paused: false }))
+  })
+
+  await test('a teacher CANNOT turn on content auto-publish', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentControl', 'content'), { autoPublish: true }))
+  })
+
+  await test('admin CAN write an agent control doc', async () => {
+    await assertSucceeds(updateDoc(doc(admin, 'agentControl', 'bonga'), { paused: false }))
   })
 
   await testEnv.cleanup()
