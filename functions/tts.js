@@ -3,6 +3,7 @@ const admin         = require('firebase-admin');
 const textToSpeech  = require('@google-cloud/text-to-speech');
 const { getUserRole, assertDailyLimit } = require('./aiService');
 const { applyCors } = require('./cors');
+const { guardHttpRateLimit } = require('./rateLimit');
 
 const client = new textToSpeech.TextToSpeechClient();
 
@@ -52,6 +53,14 @@ exports.apiTextToSpeech = onRequest(
       return res.status(400).json({ error: `Text too long (max ${MAX_CHARS} chars)` });
     if (!ALLOWED_VOICES.has(voice))
       return res.status(400).json({ error: `Voice '${voice}' not allowed` });
+
+    // Per-user + per-IP burst cap (fail-open). Studio TTS is the priciest
+    // per-call surface, so hold the per-user window tighter than the shared
+    // default. Sits in front of the daily quota so a loop is rejected with a
+    // 429 before we call Google TTS.
+    if (await guardHttpRateLimit(req, res, {
+      action: 'tts', uid: decoded.uid, userPerMin: 10,
+    })) return;
 
     // Per-user daily quota. Auth alone is not enough — a signed-in user
     // could otherwise call Studio TTS (~$160/1M chars, 3000/req) in an

@@ -49,6 +49,10 @@ const {runScannedQuizImport} = require("./scannedQuizImport");
 // so the editor can fill blank answer keys in a single pass.
 const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
+const {
+  assertHttpRateLimit,
+  assertCallableRateLimit,
+} = require("./rateLimit");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
 const {
@@ -980,6 +984,10 @@ exports.aiChat = onCall(
       );
     }
 
+    // Per-user + per-IP burst cap (fail-open), mirroring apiAiChat so the
+    // callable path is throttled the same as the SSE HTTP path.
+    await assertCallableRateLimit(request, {action: "aiChat"});
+
     const role = await getUserRole(request.auth.uid);
     await assertDailyLimit(request.auth.uid, role, "chat");
 
@@ -1356,6 +1364,10 @@ exports.apiAiChat = onRequest(
       // Audit B3 — observability + opt-in enforcement gate. Throws
       // permission-denied only when APPCHECK_ENFORCE=1 is set.
       await softVerifyAppCheckHttp(req, "apiAiChat");
+      // Per-user + per-IP burst cap (fail-open). Sits in front of the daily
+      // quota so a hammering client is rejected cheaply before we build the
+      // prompt or touch the model.
+      await assertHttpRateLimit(req, res, {action: "aiChat", uid: decoded.uid});
 
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
@@ -2225,6 +2237,9 @@ function makeStreamingEndpoint({tool, runCore}) {
         // permission-denied only when APPCHECK_ENFORCE=1). Mirrors apiAiChat so
         // the teacher streams show up in appCheckHealth alongside it.
         await softVerifyAppCheckHttp(req, `api${tool}`);
+        // Per-user + per-IP burst cap (fail-open), before the role check and
+        // any model work.
+        await assertHttpRateLimit(req, res, {action: `stream_${tool}`, uid});
         const {getUserRole, isStaffRole} = require("./aiService");
         const role = await getUserRole(uid);
         if (!isStaffRole(role)) {
