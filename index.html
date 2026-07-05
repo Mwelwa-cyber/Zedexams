@@ -119,12 +119,15 @@
       immediately in a fallback face and swaps when the webfont arrives.
 
       Loaded NON-render-blocking: the Google Fonts stylesheet was the top
-      render-blocking request in PageSpeed (≈310ms added to FCP/LCP). The
-      media="print" + onload swap trick fetches it at a low priority without
-      blocking first paint, then promotes it to all media once it loads. The
-      <noscript> copy keeps the fonts for the (rare) no-JS path. Because every
-      face uses display=swap, deferring the CSS never hides text — the fallback
-      shows instantly and the webfont swaps in with no layout shift.
+      render-blocking request in PageSpeed (≈310ms added to FCP/LCP). Serving it
+      as media="print" fetches it at a low priority without blocking first
+      paint; /public/boot.js then promotes #zed-fonts to media="all" once it
+      loads (an addEventListener('load') swap — this used to be an inline
+      onload="this.media='all'" attribute, moved out so the CSP script-src can
+      drop 'unsafe-inline'). The <noscript> copy keeps the fonts for the (rare)
+      no-JS path. Because every face uses display=swap, deferring the CSS never
+      hides text — the fallback shows instantly and the webfont swaps in with no
+      layout shift.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
