@@ -21,7 +21,8 @@
  * This component is presentation-only.
  */
 
-import { useEffect } from 'react'
+import { useRef } from 'react'
+import useFocusTrap from '../../hooks/useFocusTrap'
 
 export default function ReimportDiffModal({
   open,
@@ -31,18 +32,10 @@ export default function ReimportDiffModal({
   onReplace,
   onCancel,
 }) {
-  // Standard dialog affordance — Escape closes (treated as cancel).
-  useEffect(() => {
-    if (!open) return undefined
-    function handleKey(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onCancel?.()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [open, onCancel])
+  const panelRef = useRef(null)
+  // Escape (treated as cancel) + Tab-trap + focus restore, shared with the
+  // other modals. Only active while the dialog is open.
+  useFocusTrap(panelRef, { active: open, onEscape: () => onCancel?.() })
 
   if (!open || !diff) return null
 
@@ -80,7 +73,7 @@ export default function ReimportDiffModal({
       aria-label="Re-import comparison"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel?.() }}
     >
-      <div className="w-full max-w-2xl rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
+      <div ref={panelRef} className="w-full max-w-2xl rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <div className="border-b border-slate-200 px-5 py-3">
           <h3 className="text-base font-black text-slate-900">Re-import this document?</h3>
           <p className="mt-1 text-xs text-slate-500">

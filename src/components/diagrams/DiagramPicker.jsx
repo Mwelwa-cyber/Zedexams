@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import {
   DIAGRAM_CATALOG,
   getCategories,
@@ -44,15 +45,9 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
     }
   }, [open, initial])
 
-  // Close on Escape — matches ConfirmDialog convention.
-  useEffect(() => {
-    if (!open) return
-    function onKey(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  // Escape-to-close + Tab-trap + focus restore, shared with the other modals.
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, { active: open, onEscape: () => onClose() })
 
   if (!open) return null
 
@@ -87,7 +82,7 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-3 py-6"
       onClick={event => { if (event.target === event.currentTarget) onClose() }}
     >
-      <div className="theme-card theme-border flex h-full max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-2 shadow-xl">
+      <div ref={panelRef} className="theme-card theme-border flex h-full max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-2 shadow-xl">
         <div className="theme-border flex items-center justify-between gap-3 border-b-2 px-5 py-3">
           <div>
             <p className="theme-text text-sm font-black uppercase tracking-wide">Diagram library</p>
