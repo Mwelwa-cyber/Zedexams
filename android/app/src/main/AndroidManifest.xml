@@ -41,11 +41,25 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- FCM push notifications. The small icon Firebase uses when it renders
+             a `notification` message in the system tray while the app is
+             backgrounded/killed. Points at the launcher icon so the build never
+             references a missing drawable (a dedicated monochrome status icon
+             can be swapped in later). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ (API 33) requires this runtime permission before any
+         notification is shown. The @capacitor-firebase/messaging plugin's
+         requestPermissions() prompts for it; declaring it here is what makes
+         that prompt (and all FCM push delivery) possible. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Google Play Billing (subscriptions). The Play Billing Library AAR merges
          this in anyway; declared explicitly so Play Console billing detection and
          reviewers can see it in the source manifest. -->

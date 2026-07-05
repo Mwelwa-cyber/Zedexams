@@ -143,6 +143,18 @@ function lusakaTime(hh, mm = 0) {
   ok("payload notification title", payload.notification.title === "Hi");
   ok("payload webpush link", payload.webpush.fcmOptions.link === "https://zedexams.com/dashboard");
   ok("payload webpush icon", payload.webpush.notification.icon.startsWith("/zedexams-logo"));
+  // Native (Android) delivery fields — the plugin renders `notification` from
+  // the system tray and needs `android`/`data` present. `data` values must be
+  // strings for the Admin SDK, and the tap target rides along as `data.link`.
+  ok("payload android priority high", payload.android && payload.android.priority === "high");
+  ok("payload data link (native tap target)", payload.data.link === "https://zedexams.com/dashboard");
+  ok("payload data title/body strings",
+      typeof payload.data.title === "string" && typeof payload.data.body === "string");
+  ok("payload data all-string values (Admin SDK requirement)",
+      Object.values(payload.data).every((v) => typeof v === "string"));
+  const emptyPayload = buildFcmPayload({});
+  ok("payload default title without input", emptyPayload.notification.title === "ZedExams");
+  ok("payload default data body is empty string not undefined", emptyPayload.data.body === "");
 
   console.log(`\n${passed} passed`);
 })().catch((err) => {

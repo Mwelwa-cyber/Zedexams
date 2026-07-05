@@ -41,6 +41,28 @@ export function isMobileBrowser() {
 }
 
 /**
+ * Look up a Capacitor plugin from the runtime `Plugins` registry by name,
+ * returning `null` when not on native or the plugin isn't registered.
+ *
+ * We resolve plugins this way (rather than `await import('@capacitor-firebase/…')`)
+ * so the web build stays package-agnostic — the specifier never has to resolve
+ * in a browser bundle, and the plugin's web-shim module-load code never runs.
+ * `npx cap sync android` auto-registers the native plugin into
+ * `Capacitor.Plugins` when the package is installed; the registry is
+ * undefined-safe when it isn't. Mirrors the App Check native lookup in
+ * src/firebase/config.js. Synchronous: `@capacitor/core` is already imported
+ * above, so no extra bundle cost on the web.
+ */
+export function nativePlugin(name) {
+  if (!isNativePlatform()) return null
+  try {
+    return (Capacitor && Capacitor.Plugins && Capacitor.Plugins[name]) || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * The origin to use when building a URL that will be handed to someone else —
  * a share link, an invite, anything copied out of the app.
  *

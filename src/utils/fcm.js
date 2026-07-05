@@ -20,12 +20,24 @@ import { getToken, onMessage } from 'firebase/messaging'
 import { arrayUnion, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db, messaging } from '../firebase/config'
 import { isNativePlatform } from './runtime'
+import {
+  isNativePushSupported,
+  nativePushPermissionSync,
+  requestNativePushPermission,
+  refreshNativeTokenIfGranted,
+  clearNativePushUser,
+} from './nativePush'
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY
 
-/** True if the browser can mint FCM tokens. */
+/**
+ * True if this device can mint FCM tokens. On native (Capacitor) that means the
+ * @capacitor-firebase/messaging plugin is registered; on the web it means the
+ * browser exposes the Notification + Service Worker + PushManager APIs and the
+ * Firebase Messaging SDK initialised.
+ */
 export function isPushSupported() {
-  if (isNativePlatform()) return false
+  if (isNativePlatform()) return isNativePushSupported()
   if (typeof window === 'undefined') return false
   if (!('Notification' in window)) return false
   if (!('serviceWorker' in navigator)) return false
@@ -36,9 +48,11 @@ export function isPushSupported() {
 /**
  * Current permission state — extends the Notification API's tri-state
  * with 'unsupported' so callers can distinguish "the user can choose"
- * from "the platform won't even let us ask".
+ * from "the platform won't even let us ask". On native this reads the cached
+ * plugin permission (primed on sign-in by refreshTokenIfGranted).
  */
 export function pushPermission() {
+  if (isNativePlatform()) return nativePushPermissionSync()
   if (!isPushSupported()) return 'unsupported'
   return Notification.permission // 'default' | 'granted' | 'denied'
 }
@@ -75,6 +89,7 @@ export async function registerToken(uid) {
  * <PushPermissionPrompt /> wraps this call.
  */
 export async function requestPushPermission(uid) {
+  if (isNativePlatform()) return requestNativePushPermission(uid)
   if (!isPushSupported()) return 'unsupported'
   let result = 'denied'
   try {
@@ -97,8 +112,19 @@ export async function requestPushPermission(uid) {
  * Called by AuthContext on every sign-in.
  */
 export async function refreshTokenIfGranted(uid) {
+  if (isNativePlatform()) return refreshNativeTokenIfGranted(uid)
   if (pushPermission() !== 'granted' || !uid) return null
   return registerToken(uid)
+}
+
+/**
+ * Called on sign-out. On native, forgets the uid the FCM token-rotation
+ * listener persists against so a token that rotates while signed out (shared
+ * device) isn't re-attributed to the user who just left. No-op on the web,
+ * which has no persistent rotation listener.
+ */
+export function clearPushUser() {
+  if (isNativePlatform()) clearNativePushUser()
 }
 
 /**
@@ -107,6 +133,11 @@ export async function refreshTokenIfGranted(uid) {
  * which arrives in A5.3. Returns an unsubscribe function.
  */
 export function onForegroundMessage(handler) {
+  // Native foreground display is owned by the OS / plugin, and there is no web
+  // `messaging` instance to subscribe to inside the Capacitor WebView — the
+  // in-app bell still updates live from the Firestore feed listener. Bail here
+  // so we never call onMessage() with a null messaging instance.
+  if (isNativePlatform()) return () => {}
   if (!isPushSupported()) return () => {}
   return onMessage(messaging, handler)
 }

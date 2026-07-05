@@ -187,17 +187,32 @@ function shouldSendPush(prefs, category, now = new Date()) {
  */
 function buildFcmPayload({ title, body, action } = {}, origin = "https://zedexams.com") {
   const link = resolveActionLink(action, origin);
+  const safeTitle = String(title || "ZedExams");
+  const safeBody = String(body || "");
   return {
     notification: {
-      title: String(title || "ZedExams"),
-      body: String(body || ""),
+      title: safeTitle,
+      body: safeBody,
     },
+    // Web (service-worker) delivery: link + icon/badge for the rendered toast.
     webpush: {
       fcmOptions: { link },
       notification: {
         icon: "/zedexams-logo.png?v=4",
         badge: "/zedexams-logo.png?v=4",
       },
+    },
+    // Native (Android) delivery. `data` values MUST be strings for the Admin
+    // SDK; the tap target rides along as `link` so a native tap can deep-link
+    // (the OS renders the `notification` block above automatically when the app
+    // is backgrounded/killed). `priority: high` keeps reminders timely.
+    android: {
+      priority: "high",
+    },
+    data: {
+      link,
+      title: safeTitle,
+      body: safeBody,
     },
   };
 }

@@ -19,7 +19,7 @@ import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscr
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
-import { refreshTokenIfGranted } from '../utils/fcm'
+import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 
@@ -557,6 +557,10 @@ export function AuthProvider({ children }) {
         // Audit B2 — clear analytics identity so the next user (e.g.
         // shared phone) doesn't inherit the previous distinct_id.
         resetAnalytics()
+        // Forget the uid the native FCM token-rotation listener persists
+        // against, so a token that rotates while signed out on a shared
+        // device isn't re-attributed to the user who just left.
+        clearPushUser()
       }
       if (user) {
         setLoading(true)
