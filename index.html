@@ -119,12 +119,15 @@
       immediately in a fallback face and swaps when the webfont arrives.
 
       Loaded NON-render-blocking: the Google Fonts stylesheet was the top
-      render-blocking request in PageSpeed (≈310ms added to FCP/LCP). The
-      media="print" + onload swap trick fetches it at a low priority without
-      blocking first paint, then promotes it to all media once it loads. The
-      <noscript> copy keeps the fonts for the (rare) no-JS path. Because every
-      face uses display=swap, deferring the CSS never hides text — the fallback
-      shows instantly and the webfont swaps in with no layout shift.
+      render-blocking request in PageSpeed (≈310ms added to FCP/LCP). Serving it
+      as media="print" fetches it at a low priority without blocking first
+      paint; /public/boot.js then promotes #zed-fonts to media="all" once it
+      loads (an addEventListener('load') swap — this used to be an inline
+      onload="this.media='all'" attribute, moved out so the CSP script-src can
+      drop 'unsafe-inline'). The <noscript> copy keeps the fonts for the (rare)
+      no-JS path. Because every face uses display=swap, deferring the CSS never
+      hides text — the fallback shows instantly and the webfont swaps in with no
+      layout shift.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -134,10 +137,10 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     />
     <link
+      id="zed-fonts"
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Lora:wght@600;700&family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       media="print"
-      onload="this.media='all'"
     />
     <noscript>
       <link
@@ -162,6 +165,15 @@
     <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
 
     <!--
+      Boot scripts (theme guard + font promotion + white-screen watchdog) live
+      in /public/boot.js rather than inline so the CSP can drop 'unsafe-inline'
+      from script-src. Preloaded here so it downloads during head parse and the
+      render-blocking <script src="/boot.js"> at the top of <body> resolves
+      near-instantly — the boot skeleton still paints fast.
+    -->
+    <link rel="preload" href="/boot.js" as="script" />
+
+    <!--
       Analytics (inactive by default).
       When ready to track launch traffic, uncomment ONE of these blocks:
 
@@ -179,25 +191,14 @@
     -->
   </head>
   <body>
-    <script>
-      // Pre-paint theme guard. CSS :root defaults to the Sky palette, so
-      // without this the body would flash blue before React mounts and
-      // applies the saved/brand-default theme. Mirror ThemeContext: use
-      // the saved choice, else the 'oatmeal' brand default.
-      (function () {
-        try {
-          var legacy = { light: 'sky', warm: 'oatmeal', dark: 'midnight' };
-          var ids = ['sky', 'lavender', 'midnight', 'oatmeal', 'solar', 'vivid'];
-          var saved = localStorage.getItem('examprep:theme');
-          saved = legacy[saved] || saved;
-          document.body.classList.add(
-            'theme-' + (ids.indexOf(saved) !== -1 ? saved : 'oatmeal')
-          );
-        } catch (e) {
-          document.body.classList.add('theme-oatmeal');
-        }
-      })();
-    </script>
+    <!--
+      Boot scripts — theme guard (pre-paint, avoids a palette flash), Google
+      Fonts promotion, and the white-screen watchdog. Externalised to
+      /public/boot.js so the CSP script-src can stay free of 'unsafe-inline';
+      preloaded in <head> so this render-blocking fetch resolves near-instantly.
+      Runs first so its error listeners are registered before the app boots.
+    -->
+    <script src="/boot.js"></script>
     <div id="root">
       <!--
         Inline boot skeleton — paints in the first frame with no JS/CSS bundle,
@@ -216,99 +217,6 @@
         </style>
       </div>
     </div>
-    <!--
-      Boot watchdog (white-screen guard).
-
-      If anything throws while the app is *starting up* — before React's
-      <ErrorBoundary> has mounted — the user is left staring at a blank
-      #root with no message and no way out. Real-world causes:
-        • a Firebase config value missing/invalid in the deploy, which makes
-          getAuth() throw synchronously at module load (src/firebase/config.js);
-        • a stale service-worker serving a cached index.html that points at
-          hashed chunks a newer deploy has already removed (ChunkLoadError);
-        • any other module-eval throw on the critical path.
-      None of these are catchable by the React ErrorBoundary, so without this
-      net they render as a permanent white screen.
-
-      This inline, dependency-free script watches #root. If the app hasn't
-      painted shortly after a boot error (or after a hard timeout on a silent
-      hang), it replaces the blank page with a recoverable message. The
-      "Clear cache & reload" button unregisters service workers and clears
-      Cache Storage, which is the actual cure for the stale-SW case. The app
-      sets window.__ZED_APP_MOUNTED__ once it renders (src/main.jsx), so a
-      successful boot — even a slow one on a poor connection — never trips it.
-    -->
-    <script>
-      (function () {
-        var HARD_TIMEOUT = 12000; // silent-hang backstop (slow ZM mobile networks)
-        var ERROR_GRACE = 2000;   // wait after a boot error in case React still recovers
-        var shown = false;
-        function appMounted() {
-          if (window.__ZED_APP_MOUNTED__) return true;
-          var root = document.getElementById('root');
-          if (!root) return false;
-          // The inline boot skeleton lives inside #root before React mounts; it
-          // must NOT count as "mounted" or the white-screen guard would never
-          // fire on a genuine hang. Any other child means React has rendered.
-          for (var i = 0; i < root.children.length; i++) {
-            if (root.children[i].id !== 'zed-boot-skeleton') return true;
-          }
-          return false;
-        }
-        window.zedClearCacheReload = function () {
-          var done = function () { location.reload(); };
-          try {
-            var jobs = [];
-            if ('serviceWorker' in navigator) {
-              jobs.push(
-                navigator.serviceWorker.getRegistrations()
-                  .then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })
-                  .catch(function () {})
-              );
-            }
-            if (window.caches && caches.keys) {
-              jobs.push(
-                caches.keys()
-                  .then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })
-                  .catch(function () {})
-              );
-            }
-            Promise.all(jobs).then(done, done);
-          } catch (e) { done(); }
-        };
-        function showFallback() {
-          if (shown || appMounted()) return;
-          shown = true;
-          var root = document.getElementById('root');
-          if (!root) return;
-          root.innerHTML =
-            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#FDF6EC;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1A1F2E;text-align:center;">' +
-              '<div style="max-width:480px;">' +
-                '<h1 style="font-size:1.5rem;font-weight:800;margin:0 0 0.5rem;">We could not finish loading ZedExams</h1>' +
-                '<p style="margin:0 0 1.25rem;line-height:1.5;color:#4B6280;">This is usually a temporary loading or cached-version problem. Reloading the page fixes it most of the time.</p>' +
-                '<div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.25rem;">' +
-                  '<button type="button" onclick="location.reload()" style="cursor:pointer;border:0;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#fff;background:#EA580C;">Reload</button>' +
-                  '<button type="button" onclick="window.zedClearCacheReload()" style="cursor:pointer;border:1px solid #CBD5E1;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#1A1F2E;background:#fff;">Clear cache &amp; reload</button>' +
-                '</div>' +
-                '<p style="margin:0;font-size:0.875rem;color:#4B6280;">Still stuck? Email <a href="mailto:support@zedexams.com" style="color:#EA580C;font-weight:700;">support@zedexams.com</a> or WhatsApp <a href="https://wa.me/260977740465" style="color:#EA580C;font-weight:700;">+260 977 740 465</a>.</p>' +
-              '</div>' +
-            '</div>';
-        }
-        function onBootError() {
-          if (appMounted()) return;
-          setTimeout(function () { if (!appMounted()) showFallback(); }, ERROR_GRACE);
-        }
-        // Capture-phase catches failed <script>/<link> loads (e.g. a stale-SW
-        // ChunkLoadError) as well as thrown errors. The appMounted() recheck
-        // after the grace window means a benign resource 404 that fires while
-        // the app is still painting never shows the fallback.
-        window.addEventListener('error', onBootError, true);
-        window.addEventListener('unhandledrejection', onBootError);
-        window.addEventListener('load', function () {
-          setTimeout(function () { if (!appMounted()) showFallback(); }, HARD_TIMEOUT);
-        });
-      })();
-    </script>
     <noscript>
       <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#FDF6EC;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1A1F2E;text-align:center;">
         <div style="max-width:480px;">
