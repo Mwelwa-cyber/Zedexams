@@ -7,6 +7,7 @@ import LessonCompleteScreen from './LessonCompleteScreen'
 import PowerPointViewerPlayer from './PowerPointViewerPlayer'
 import { convertQuickLessonToSlides } from './quickLessonConverter'
 import { ensureEndSlide, getSlideAnswers } from './lessonConstants'
+import { slideToSpeechText } from './slideSpeech'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
@@ -53,6 +54,10 @@ export default function LessonPlayer() {
   const [complete, setComplete] = useState(false)
   const [showAnswers, setShowAnswers] = useState(false)
   const [teacherMode, setTeacherMode] = useState(false)
+  // Read-aloud (Web Speech API). Feature-detected so the button degrades
+  // gracefully on browsers without SpeechSynthesis (e.g. some WebViews).
+  const [speaking, setSpeaking] = useState(false)
+  const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   useEffect(() => {
     let cancelled = false
@@ -95,6 +100,46 @@ export default function LessonPlayer() {
     // the keydown listener only when the navigable state actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete, index, slides.length])
+
+  function stopSpeaking() {
+    window.speechSynthesis?.cancel()
+    setSpeaking(false)
+  }
+
+  // Stop narration whenever the learner leaves the current slide (navigate or
+  // finish) and when the player unmounts, so a voice never keeps reading a
+  // slide that's no longer on screen.
+  useEffect(() => {
+    window.speechSynthesis?.cancel()
+    setSpeaking(false)
+  }, [index, complete])
+
+  useEffect(() => () => {
+    window.speechSynthesis?.cancel()
+  }, [])
+
+  function handleReadAloud() {
+    if (!speechSupported) {
+      toast.info('Read-aloud is not supported on this browser.')
+      return
+    }
+    const synth = window.speechSynthesis
+    if (speaking) {
+      stopSpeaking()
+      return
+    }
+    const text = slideToSpeechText(activeSlide)
+    if (!text) {
+      toast.info('There is nothing to read on this slide.')
+      return
+    }
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.onend = () => setSpeaking(false)
+    utterance.onerror = () => setSpeaking(false)
+    synth.speak(utterance)
+    setSpeaking(true)
+  }
 
   function goNext() {
     setShowAnswers(false)
@@ -205,10 +250,11 @@ export default function LessonPlayer() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => toast.info('Read-aloud support is coming soon.')}
+              onClick={handleReadAloud}
+              aria-pressed={speaking}
               leadingIcon={<Icon as={Volume2} size="sm" />}
             >
-              Read Aloud
+              {speaking ? 'Stop' : 'Read Aloud'}
             </Button>
             <Button
               variant="secondary"
