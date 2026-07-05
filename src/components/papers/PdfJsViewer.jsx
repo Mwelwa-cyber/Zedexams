@@ -53,7 +53,7 @@ async function fetchPdfBuffer(url, { retries = 1 } = {}) {
   throw lastErr || new Error('PDF fetch failed')
 }
 
-export default function PdfJsViewer({ url, blob, title }) {
+export default function PdfJsViewer({ url, blob, title, fill = false, storageKey = null }) {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const renderTaskRef = useRef(null)
@@ -89,6 +89,17 @@ export default function PdfJsViewer({ url, blob, title }) {
           return
         }
         setPdf(doc)
+        // Resume where the reader left off — a stored 1-based page number,
+        // clamped to the document so a shorter re-upload can't land off-end.
+        if (storageKey) {
+          try {
+            const stored = window.localStorage?.getItem(storageKey)
+            const parsed = stored ? parseInt(stored, 10) : NaN
+            if (Number.isInteger(parsed) && parsed >= 1 && parsed <= doc.numPages) {
+              setPageIndex(parsed - 1)
+            }
+          } catch { /* private mode / quota — start at page 1 */ }
+        }
       } catch (err) {
         console.warn('[PdfJsViewer] load failed', err)
         if (!cancelled) setError(friendlyMessage(err, 'Could not open this paper.'))
@@ -99,7 +110,7 @@ export default function PdfJsViewer({ url, blob, title }) {
     return () => {
       cancelled = true
     }
-  }, [url, blob])
+  }, [url, blob, storageKey])
 
   // Render the current page when pdf / pageIndex / zoom change.
   useEffect(() => {
@@ -179,6 +190,14 @@ export default function PdfJsViewer({ url, blob, title }) {
     }
   }, [pdf])
 
+  // Persist the current page (1-based) so reopening this paper resumes here.
+  useEffect(() => {
+    if (!pdf || !storageKey) return
+    try {
+      window.localStorage?.setItem(storageKey, String(pageIndex + 1))
+    } catch { /* quota / private mode — resume is best-effort */ }
+  }, [pdf, pageIndex, storageKey])
+
   const goPrev = useCallback(() => setPageIndex((i) => Math.max(0, i - 1)), [])
   const goNext = useCallback(() => {
     if (!pdf) return
@@ -199,7 +218,9 @@ export default function PdfJsViewer({ url, blob, title }) {
 
   return (
     <div
-      className="theme-card border theme-border rounded-radius-md overflow-hidden flex flex-col"
+      className={`theme-card border theme-border overflow-hidden flex flex-col ${
+        fill ? 'h-full rounded-none' : 'rounded-radius-md'
+      }`}
       role="region"
       aria-label={title ? `${title} viewer` : 'PDF viewer'}
     >
@@ -279,8 +300,10 @@ export default function PdfJsViewer({ url, blob, title }) {
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKey}
-        className="w-full overflow-auto theme-bg flex p-3"
-        style={{ minHeight: '60vh', maxHeight: '85vh', touchAction: 'pinch-zoom' }}
+        className={`w-full overflow-auto theme-bg flex p-3 ${fill ? 'flex-1 min-h-0' : ''}`}
+        style={fill
+          ? { touchAction: 'pinch-zoom' }
+          : { minHeight: '60vh', maxHeight: '85vh', touchAction: 'pinch-zoom' }}
       >
         {loading && (
           <p className="theme-text-muted text-sm py-12 m-auto">Loading paper…</p>
