@@ -428,7 +428,17 @@ export async function getExamAttempt(attemptId) {
   try {
     const snap = await getDoc(doc(db, 'exam_attempts', attemptId))
     if (!snap.exists()) return null
-    return coerceAttempt({ id: snap.id, ...snap.data() })
+    // The learner's answers + personal analytics live in an owner-only
+    // subcollection (so a top scorer's submitted attempt can't leak the daily
+    // answer key to other learners). Re-merge them for the owner/admin viewing
+    // their own results; the read is denied for anyone else, so we fall back
+    // to the leaderboard-safe top-level fields on error.
+    let detail = {}
+    try {
+      const dSnap = await getDoc(doc(db, 'exam_attempts', attemptId, 'private', 'detail'))
+      if (dSnap.exists()) detail = dSnap.data()
+    } catch {}
+    return coerceAttempt({ id: snap.id, ...snap.data(), ...detail })
   } catch (e) {
     console.error('getExamAttempt:', e)
     return null

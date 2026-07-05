@@ -37,6 +37,8 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  query,
+  where,
 } from 'firebase/firestore'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -142,6 +144,13 @@ async function main() {
       status: 'submitted',
       score: 7,
     })
+    // Owner-only per-attempt detail (answers + analytics). userId is stored
+    // so the rule can authorise the owner's read without a parent get().
+    await setDoc(doc(db, 'exam_attempts', 'attempt_submitted', 'private', 'detail'), {
+      userId: LEARNER_A,
+      answers: { q1: 2, q2: 0 },
+      weaknesses: ['Fractions'],
+    })
     await setDoc(doc(db, 'exam_attempts', 'attempt_in_progress'), {
       userId: LEARNER_A,
       status: 'in_progress',
@@ -164,6 +173,15 @@ async function main() {
       title: 'Original title',
       plan: { x: 1 },
       createdAt: new Date(),
+    })
+
+    // progressShares — token-as-permission, but the doc carries parent PII.
+    // A `get` by token is public; enumeration must be admin-only.
+    await setDoc(doc(db, 'progressShares', 'progress_token'), {
+      learnerUid: LEARNER_A,
+      createdBy: LEARNER_A,
+      parentEmail: 'parent@example.com',
+      parentPhone: '260970000000',
     })
 
     // Payment record owned by LEARNER_A. Revenue-critical: clients must
@@ -298,6 +316,14 @@ async function main() {
     }))
   })
 
+  await test('self-update cannot mint paid generation credits', async () => {
+    // usageMeter.js spends generationCredits to bypass the plan/daily cap.
+    // If the client could write it, any teacher gets unlimited paid AI runs.
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), {
+      generationCredits: 999999,
+    }))
+  })
+
   await test('self-update of safe profile field (displayName) succeeds', async () => {
     await assertSucceeds(updateDoc(doc(learnerA, 'users', LEARNER_A), { displayName: 'Alice' }))
   })
@@ -377,6 +403,26 @@ async function main() {
     await assertSucceeds(getDoc(doc(learnerA, 'exam_attempts', 'attempt_in_progress')))
   })
 
+  await test('owner can read their own private attempt detail (answers)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('another learner cannot read a submitted attempt’s private detail', async () => {
+    // The critical fix: a top scorer's `answers` are the daily answer key.
+    // A non-owner may read the leaderboard-safe top-level doc but NOT this.
+    await assertFails(getDoc(doc(learnerB, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('admin can read a private attempt detail', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'exam_attempts', 'attempt_submitted', 'private', 'detail')))
+  })
+
+  await test('client cannot write a private attempt detail (server-only)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'exam_attempts', 'attempt_submitted', 'private', 'detail'), {
+      userId: LEARNER_A, answers: { q1: 9 },
+    }))
+  })
+
   await test('client UPDATE on exam_attempts is denied even for admin (server-only)', async () => {
     // Rule is `allow update: if false` — closes the "rogue admin token
     // patches a learner's score" vector. submitDailyExam writes via the
@@ -423,6 +469,45 @@ async function main() {
 
   await test('owner can update share title', async () => {
     await assertSucceeds(updateDoc(doc(teacherA, 'shares', 'share_token'), { title: 'Updated title' }))
+  })
+
+  await test('unfiltered collection scan of shares is denied (no enumeration)', async () => {
+    // The whole point of token-as-permission: knowing one token must not
+    // let you dump every share (owner uids + titles). Before the get/list
+    // split, `allow read: if true` authorised this.
+    await assertFails(getDocs(collection(guest, 'shares')))
+    await assertFails(getDocs(collection(teacherB, 'shares')))
+  })
+
+  await test('owner-scoped list of own shares succeeds', async () => {
+    // The Library's "my share links" query (listSharesForGeneration) must
+    // still work: a list filtered to the caller's own ownerUid is allowed.
+    await assertSucceeds(
+      getDocs(query(collection(teacherA, 'shares'), where('ownerUid', '==', TEACHER_A))),
+    )
+  })
+
+  await test('list of another owner’s shares is denied', async () => {
+    await assertFails(
+      getDocs(query(collection(teacherB, 'shares'), where('ownerUid', '==', TEACHER_A))),
+    )
+  })
+
+  // ── progressShares (token-as-permission over parent PII) ─────
+  section('progressShares — get by token public, enumeration denied')
+
+  await test('anyone can read a progress share by its token', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'progressShares', 'progress_token')))
+  })
+
+  await test('enumerating progressShares is denied for a signed-in user', async () => {
+    // The critical fix: `getDocs(collection('progressShares'))` would have
+    // dumped every parent email + phone on the platform.
+    await assertFails(getDocs(collection(learnerA, 'progressShares')))
+  })
+
+  await test('enumerating progressShares is denied for an unauthenticated client', async () => {
+    await assertFails(getDocs(collection(guest, 'progressShares')))
   })
 
   // ── generatedContent ─────────────────────────────────────────
