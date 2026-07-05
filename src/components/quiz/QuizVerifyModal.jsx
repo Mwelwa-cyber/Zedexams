@@ -252,11 +252,6 @@ export default function QuizVerifyModal({
                   <p className="theme-text break-words font-semibold leading-snug">
                     {result.summary || 'No summary returned.'}
                   </p>
-                  {result.modelUsed ? (
-                    <p className="theme-text-muted mt-1 break-words text-xs">
-                      Model: {result.modelUsed}
-                    </p>
-                  ) : null}
                 </div>
               </div>
 
