@@ -16,6 +16,7 @@ const {
   classifyInbound,
   buildAnthropicMessages,
   templateReply,
+  assertsAccountState,
   MAX_REPLY_CHARS,
 } = require("./runners/bonga");
 
@@ -112,6 +113,23 @@ ok("sales beats study", classifyInbound("what is the price to learn science?") =
   ok("over-long reply capped", r5.reply.length <= MAX_REPLY_CHARS);
   ok("capped reply ends with ellipsis", r5.reply.endsWith("…"));
 
+  // A jailbroken/hallucinated reply that fabricates account state is blocked
+  // pre-send and replaced by the safe template — never auto-sent to the user.
+  const r6 = await runBongaReply({
+    inbound: {text: "did my payment go through?", name: "Mwila"},
+    draftReply: async () => "Great news — your payment went through and you now have premium! 🎉",
+  });
+  ok("fabricated payment reply blocked", r6.blockedUnsafe === true);
+  ok("blocked reply falls back to template", r6.usedFallback === true);
+  ok("blocked reply does not contain the fabrication", !/went through|you now have premium/i.test(r6.reply));
+
+  // A legitimate sales reply (an OFFER, not a done-state claim) is NOT blocked.
+  const r7 = await runBongaReply({
+    inbound: {text: "how do I get premium?", name: "Mwila"},
+    draftReply: async () => "You can upgrade to premium at zedexams.com/pricing with MTN, Airtel or Zamtel.",
+  });
+  ok("legit sales offer not blocked", r7.blockedUnsafe === false && r7.usedFallback === false);
+
   runWebhookHelperTests();
   console.log(`bonga.test.js: ${passed} assertions passed`);
 })().catch((err) => {
@@ -127,6 +145,37 @@ for (const kind of ["greeting", "study", "support", "sales"]) {
   ok(`templateReply(${kind}) non-empty`, typeof t === "string" && t.length > 0);
   ok(`templateReply(${kind}) signed`, /ZedExams/.test(t));
 }
+
+// ---------------------------------------------------------------------------
+// assertsAccountState — blocks fabricated done-state, allows offers/instructions
+// ---------------------------------------------------------------------------
+// Fabrications Bonga must never auto-send (has no tools to know/do these):
+for (const bad of [
+  "Your payment went through, thank you!",
+  "I've confirmed your payment was successful.",
+  "Good news, you now have premium access.",
+  "You're now subscribed to the Pro plan.",
+  "Your subscription is now active.",
+  "Your account has been upgraded.",
+  "I have upgraded your account to Max.",
+  "I've cancelled your subscription as requested.",
+  "Your refund has been processed.",
+]) {
+  ok(`blocks: "${bad.slice(0, 32)}…"`, assertsAccountState(bad) === true);
+}
+// Legitimate replies (offers / instructions / study) must NOT be blocked:
+for (const good of [
+  "You can upgrade to premium at zedexams.com/pricing.",
+  "To get premium, visit zedexams.com/pricing and pay with MTN, Airtel or Zamtel.",
+  "Our plans start affordably — see the pricing page to subscribe.",
+  "If your payment didn't go through, please try again or a teammate can help.",
+  "I can't see your account, but a teammate will check your subscription for you.",
+  "Photosynthesis is how green plants make food using sunlight.",
+  "Please reset your password at zedexams.com if you can't log in.",
+]) {
+  ok(`allows: "${good.slice(0, 32)}…"`, assertsAccountState(good) === false);
+}
+ok("assertsAccountState tolerates empty/null", assertsAccountState("") === false && assertsAccountState(null) === false);
 
 // ---------------------------------------------------------------------------
 // Webhook helpers — run after the async block so output ordering is stable.
