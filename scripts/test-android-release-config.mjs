@@ -40,6 +40,7 @@ const ROOT = join(__dirname, '..')
 const ANDROID = join(ROOT, 'android', 'app')
 const manifest = readFileSync(join(ANDROID, 'src', 'main', 'AndroidManifest.xml'), 'utf8')
 const gradle = readFileSync(join(ANDROID, 'build.gradle'), 'utf8')
+const gradleProps = readFileSync(join(ROOT, 'android', 'gradle.properties'), 'utf8')
 const proguard = readFileSync(join(ANDROID, 'proguard-rules.pro'), 'utf8')
 const playWorkflow = readFileSync(
   join(ROOT, '.github', 'workflows', 'android-play-release.yml'),
@@ -237,6 +238,46 @@ test('source-file line info is kept + renamed for retraceable stack traces', () 
   assert(
     /-renamesourcefileattribute\s+SourceFile/.test(proguard),
     'proguard-rules.pro no longer renames the source-file attribute'
+  )
+})
+
+// ── R8: compat mode + Capacitor runtime keep (post-login crash) ──
+//
+// v1.2.5/v1.2.6 crashed with a NullPointerException immediately after sign-in:
+//   FirebaseMessagingPlugin.checkPermissions()
+//     -> Plugin.checkPermissions() -> Plugin.getPermissionStates()
+//     -> `return bridge.getPermissionStates(this)`   // bridge == null
+// AGP 8's default R8 FULL mode can't see Capacitor's reflective plugin dispatch
+// (Method.invoke), so it eliminated the write to Plugin.bridge. The app calls
+// the FCM plugin's checkPermissions() on sign-in, so the null bridge crashed
+// every logged-in session (logged-out was fine). These pin the two fixes.
+
+console.log('\ngradle.properties / proguard — R8 must not null out Plugin.bridge')
+
+test('R8 full mode is disabled (compat mode)', () => {
+  // Full mode is the AGP-8 default; it must stay OFF or the reflective
+  // Capacitor plugin surface breaks (null bridge → post-login crash).
+  assert(
+    /^\s*android\.enableR8\.fullMode\s*=\s*false\s*$/m.test(gradleProps),
+    'android/gradle.properties must set android.enableR8.fullMode=false — ' +
+    'R8 full mode nulls com.getcapacitor.Plugin.bridge (reflective dispatch is opaque to it), ' +
+    'crashing the app on sign-in with an NPE in getPermissionStates'
+  )
+  assert(
+    !/^\s*android\.enableR8\.fullMode\s*=\s*true\s*$/m.test(gradleProps),
+    'android.enableR8.fullMode=true is back — it re-introduces the post-login NPE crash'
+  )
+})
+
+test('Capacitor runtime is fully kept', () => {
+  assert(
+    /-keep class com\.getcapacitor\.\*\*\s*\{\s*\*;\s*\}/.test(proguard),
+    'proguard-rules.pro must keep com.getcapacitor.** { *; } so R8 cannot drop ' +
+    'reflectively-used base-class fields (e.g. Plugin.bridge)'
+  )
+  assert(
+    /-keepattributes[^\n]*\*Annotation\*/.test(proguard),
+    'proguard-rules.pro must keep *Annotation* so @CapacitorPlugin permission metadata survives R8'
   )
 })
 
