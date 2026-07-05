@@ -185,6 +185,7 @@
     "test:assessment-quality": "node functions/teacherTools/assessmentQualityCheck.test.js",
     "test:assessment-prompt-v9": "node functions/teacherTools/assessmentPromptV9.test.js",
     "test:ai-prompt-policy": "node functions/aiPromptPolicy.test.js",
+    "test:ai-service": "node functions/aiService.test.js",
     "test:ops-alert": "node functions/opsAlert.test.js",
     "test:circuit-breaker": "node functions/agents/circuitBreaker.test.js",
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
