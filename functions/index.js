@@ -3191,7 +3191,10 @@ exports.initiateLencoPayment = onCall({
 
     if (lencoStatus === "successful") {
       const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
-      await activateSubscriptionFromPayment({paymentId: reference, lencoStatus, emailSecrets: lencoEmailSecrets()})
+      // Forward Lenco's reported collected amount so activation verifies it
+      // against the charged amount (same guard as the webhook + Till paths;
+      // undefined here just skips the check, so no regression).
+      await activateSubscriptionFromPayment({paymentId: reference, lencoStatus, collectedAmount: data.amount, collectedCurrency: data.currency, emailSecrets: lencoEmailSecrets()})
           .catch((err) => console.error("[initiateLencoPayment] activation failed", err));
     } else if (lencoStatus === "failed") {
       const {markPaymentFailed} = require("./subscriptionActivation");
@@ -3266,7 +3269,7 @@ exports.submitLencoOtp = onCall({
 
   if (lencoStatus === "successful") {
     const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
-    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, collectedAmount: data.amount, collectedCurrency: data.currency, emailSecrets: lencoEmailSecrets()})
         .catch((err) => console.error("[submitLencoOtp] activation failed", err));
   } else if (lencoStatus === "failed") {
     const {markPaymentFailed} = require("./subscriptionActivation");
@@ -3325,7 +3328,7 @@ exports.getLencoPaymentStatus = onCall({
 
   if (lencoStatus === "successful") {
     const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
-    await activateSubscriptionFromPayment({paymentId, lencoStatus, emailSecrets: lencoEmailSecrets()})
+    await activateSubscriptionFromPayment({paymentId, lencoStatus, collectedAmount: data.amount, collectedCurrency: data.currency, emailSecrets: lencoEmailSecrets()})
         .catch((err) => console.error("[getLencoPaymentStatus] activation failed", err));
     return {status: "successful"};
   }
@@ -3636,12 +3639,14 @@ exports.apiWhatsAppWebhook = onRequest({
   }
 
   // Authenticate the payload. Fail-closed in both directions:
-  //   • secret set + bad signature → 403
-  //   • secret unset → 403, UNLESS WHATSAPP_ALLOW_UNVERIFIED=1 is explicitly
-  //     set for a staged rollout before the secret is bound.
-  // Without this, an unset META_WHATSAPP_APP_SECRET would let any caller forge
-  // a payload that triggers Anthropic spend, auto-replies, and Firestore
-  // writes — the public webhook must not default to accepting unverified data.
+  //   • secret set + bad signature   → 403
+  //   • secret unset (cannot verify) → 403, unconditionally
+  // An unset META_WHATSAPP_APP_SECRET would otherwise let any caller forge a
+  // payload that triggers Anthropic spend, auto-sent WhatsApp replies, and
+  // Firestore writes — the public webhook must never accept unverified data.
+  // (The WHATSAPP_ALLOW_UNVERIFIED staged-rollout escape hatch was removed: the
+  // secret is bound in production, and a "trust everyone" mode on a webhook
+  // that can emit outbound sends should not exist to be left on by accident.)
   const auth = meta.verifyInboundSignature({
     rawBody: req.rawBody,
     signature: req.get("x-hub-signature-256") || req.get("X-Hub-Signature-256"),
@@ -3652,13 +3657,9 @@ exports.apiWhatsAppWebhook = onRequest({
     return;
   }
   if (!auth.configured) {
-    if (process.env.WHATSAPP_ALLOW_UNVERIFIED === "1") {
-      console.warn("[whatsappWebhook] app secret unset — accepting unverified payload (WHATSAPP_ALLOW_UNVERIFIED=1, staged rollout)");
-    } else {
-      console.error("[whatsappWebhook] rejected: META_WHATSAPP_APP_SECRET unset and WHATSAPP_ALLOW_UNVERIFIED!=1 — refusing unverified payload");
-      res.status(403).send("signature verification not configured");
-      return;
-    }
+    console.error("[whatsappWebhook] rejected: META_WHATSAPP_APP_SECRET unset — refusing unverified payload");
+    res.status(403).send("signature verification not configured");
+    return;
   }
 
   // Always ack Meta with 200 at the end so it doesn't retry a payload we've
