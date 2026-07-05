@@ -29,6 +29,54 @@ function planIdForPlayProduct(productId) {
   return PLAY_PRODUCT_TO_PLAN[productId] || null;
 }
 
+// Google Play's ObfuscatedAccountId (and Apple's appAccountToken) are capped
+// at 64 chars, so this is the ceiling we can bind to a purchase.
+const OBFUSCATED_ACCOUNT_ID_MAX = 64;
+
+/**
+ * The obfuscated account id we bind a purchase to for a given ZedExams uid.
+ * A Firebase uid is already an opaque, non-PII token (no email/name), so we
+ * bind it verbatim — which makes the server-side check a clean equality
+ * (issue #1596). MUST match src/utils/playBillingCatalog.js's copy exactly
+ * (asserted by scripts/test-play-catalog-mirror.mjs) since the client sets
+ * this at purchase time and the server re-derives it to compare.
+ *
+ * Returns "" (→ binding skipped / treated as absent, never rejected) when
+ * there's no usable uid or it would exceed Play's 64-char cap. In practice
+ * Firebase Auth uids are 28 chars, so the cap only guards custom-token uids.
+ */
+function obfuscatedAccountIdForUid(uid) {
+  const s = typeof uid === "string" ? uid : "";
+  if (!s || s.length > OBFUSCATED_ACCOUNT_ID_MAX) return "";
+  return s;
+}
+
+/**
+ * Compare the obfuscated account id Google recorded against the purchase
+ * (from externalAccountIdentifiers) with the one we'd derive for the
+ * authenticated caller. Pure so the rollout policy is unit-testable.
+ *
+ *  - "match":    present AND equals our derived id → the legitimate buyer.
+ *  - "absent":   no id on the purchase (legacy/in-flight client, or a uid we
+ *                can't bind) → unverifiable; NEVER rejected, so old tokens
+ *                and mid-rollout purchases keep working.
+ *  - "mismatch": present but does NOT equal our derived id → a token being
+ *                claimed by the wrong account. Rejected only under enforce.
+ *
+ * @returns {{kind: "match"|"absent"|"mismatch", reject: boolean}}
+ */
+function evaluateAccountBinding({obfuscatedAccountId, uid, enforce}) {
+  const expected = obfuscatedAccountIdForUid(uid);
+  const present = typeof obfuscatedAccountId === "string" && obfuscatedAccountId.length > 0;
+  let kind;
+  if (!present || !expected) {
+    kind = "absent";
+  } else {
+    kind = obfuscatedAccountId === expected ? "match" : "mismatch";
+  }
+  return {kind, reject: !!enforce && kind === "mismatch"};
+}
+
 /**
  * Deterministic payments/{id} for a Play purchase. Keyed on
  * (purchaseToken, expiryTimeMillis) — NOT the token alone — because a
@@ -67,6 +115,12 @@ function parseSubscriptionV2(body) {
     if (Number.isFinite(t) && t > expiryTimeMs) expiryTimeMs = t;
   }
   if (!productId) return null;
+  // The obfuscated account id the buyer's client bound at purchase time
+  // (BillingFlowParams.setObfuscatedAccountId → Play records it here). Used
+  // to verify the purchase belongs to the authenticated ZedExams uid.
+  const ext = body.externalAccountIdentifiers || {};
+  const obfuscatedAccountId = ext.obfuscatedExternalAccountId ?
+    String(ext.obfuscatedExternalAccountId) : "";
   return {
     productId,
     basePlanId,
@@ -76,6 +130,7 @@ function parseSubscriptionV2(body) {
       String(body.acknowledgementState || "") ===
       "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
     orderId: body.latestOrderId ? String(body.latestOrderId) : null,
+    obfuscatedAccountId,
   };
 }
 
@@ -131,6 +186,9 @@ function decideEntitlementUpdate({state, expiryTimeMs, nowMs, user, purchaseToke
 module.exports = {
   PLAY_PRODUCT_TO_PLAN,
   planIdForPlayProduct,
+  obfuscatedAccountIdForUid,
+  evaluateAccountBinding,
+  OBFUSCATED_ACCOUNT_ID_MAX,
   derivePaymentId,
   parseSubscriptionV2,
   ACTIVE_STATES,

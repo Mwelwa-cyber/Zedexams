@@ -30,6 +30,7 @@ const {
   derivePaymentId,
   parseSubscriptionV2,
   decideEntitlementUpdate,
+  evaluateAccountBinding,
 } = require("./googlePlayBillingCore");
 
 const PLAY_PACKAGE = "com.zedexams.android";
@@ -118,6 +119,46 @@ function toMillis(value) {
 }
 
 /**
+ * Whether to HARD-reject a present-but-mismatched obfuscated account id.
+ * Off by default: the rollout ships observe-only (telemetry, no rejection)
+ * until the counters show new purchases reliably carry a matching id, then
+ * flips on via `PLAY_ENFORCE_ACCOUNT_BINDING=1` on the deploy — the same
+ * graduated pattern as App Check (see softVerifyAppCheckHttp). Absent ids are
+ * NEVER rejected regardless (evaluateAccountBinding never sets reject on
+ * "absent"), so legacy/in-flight purchases keep working.
+ */
+function enforceAccountBindingFromEnv() {
+  return process.env.PLAY_ENFORCE_ACCOUNT_BINDING === "1";
+}
+
+/**
+ * Best-effort per-day rollup of account-binding outcomes (issue #1596), the
+ * playBindingHealth mirror of appCheckHealth. Lets the rollout be observed
+ * (how many purchases carry a matching / mismatched / absent id) before
+ * enforcement is switched on. Never throws — telemetry must not fail a grant.
+ * `date` is derived from the injected clock so it's deterministic under test.
+ */
+async function recordAccountBinding({firestore, kind, enforce, dateMs}) {
+  try {
+    const date = new Date(dateMs).toISOString().slice(0, 10);
+    const ref = firestore.collection("playBindingHealth").doc(date);
+    // Defensive: the in-memory test stub has no set()/increment(); skip
+    // rather than throw so existing verify tests stay quiet.
+    if (typeof ref.set !== "function") return;
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    await ref.set({
+      date,
+      total: inc(1),
+      [`${kind}`]: inc(1),
+      ...(enforce && kind === "mismatch" ? {rejected: inc(1)} : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn("[googlePlayBilling] binding health write failed", err?.message || err);
+  }
+}
+
+/**
  * Verify one purchase token for one signed-in user and apply the result.
  * Injectable deps (all optional): db, activate, fetchSubscription,
  * acknowledge, nowMs — production wiring passes accessToken/emailSecrets
@@ -139,6 +180,8 @@ async function verifyAndApplyPurchase({
   acknowledge = null,
   fetchImpl = fetch,
   nowMs = Date.now(),
+  enforceAccountBinding = enforceAccountBindingFromEnv(),
+  recordBinding = null,
 }) {
   if (!uid || !purchaseToken) return {status: "not_found"};
 
@@ -160,6 +203,24 @@ async function verifyAndApplyPurchase({
     console.error(
         `[googlePlayBilling] purchase for unmapped Play product "${parsed.productId}" (uid ${uid})`);
     return {status: "unknown_product", productId: parsed.productId};
+  }
+
+  // Account binding (issue #1596): the buyer's client stamps its ZedExams uid
+  // as the obfuscated account id at purchase time; Google echoes it back here.
+  // Observe by default, reject a present-but-mismatched id only under enforce.
+  // Absent ids (legacy / pre-update clients) always fall through.
+  const binding = evaluateAccountBinding({
+    obfuscatedAccountId: parsed.obfuscatedAccountId,
+    uid,
+    enforce: enforceAccountBinding,
+  });
+  const recordBindingImpl = recordBinding ||
+    ((args) => recordAccountBinding({firestore, dateMs: nowMs, ...args}));
+  await recordBindingImpl({kind: binding.kind, enforce: enforceAccountBinding});
+  if (binding.reject) {
+    console.warn(
+        `[googlePlayBilling] account-binding mismatch, rejected under enforce (uid ${uid})`);
+    return {status: "account_mismatch", productId: parsed.productId, planId};
   }
 
   const userRef = firestore.collection("users").doc(uid);

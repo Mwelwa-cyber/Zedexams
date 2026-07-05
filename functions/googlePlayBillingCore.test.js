@@ -14,6 +14,9 @@ const assert = require("node:assert");
 const {
   PLAY_PRODUCT_TO_PLAN,
   planIdForPlayProduct,
+  obfuscatedAccountIdForUid,
+  evaluateAccountBinding,
+  OBFUSCATED_ACCOUNT_ID_MAX,
   derivePaymentId,
   parseSubscriptionV2,
   ACTIVE_STATES,
@@ -93,6 +96,48 @@ ok("null body → null", parseSubscriptionV2(null) === null);
 ok("body without line items → null", parseSubscriptionV2({subscriptionState: "X"}) === null);
 ok("line items without productId → null",
     parseSubscriptionV2({lineItems: [{expiryTime: FUTURE}]}) === null);
+
+// obfuscated account id (issue #1596) — read from externalAccountIdentifiers.
+ok("no externalAccountIdentifiers → obfuscatedAccountId ''",
+    parsedActive.obfuscatedAccountId === "");
+const boundBody = {
+  ...activeBody,
+  externalAccountIdentifiers: {obfuscatedExternalAccountId: "uid-abc-123"},
+};
+ok("parses obfuscatedExternalAccountId",
+    parseSubscriptionV2(boundBody).obfuscatedAccountId === "uid-abc-123");
+ok("empty externalAccountIdentifiers → ''",
+    parseSubscriptionV2({...activeBody, externalAccountIdentifiers: {}})
+        .obfuscatedAccountId === "");
+
+// ── obfuscatedAccountIdForUid ─────────────────────────────────────────────
+ok("uid is bound verbatim (opaque, non-PII)",
+    obfuscatedAccountIdForUid("firebaseUid28chars0000000000") === "firebaseUid28chars0000000000");
+ok("empty uid → '' (binding skipped)", obfuscatedAccountIdForUid("") === "");
+ok("non-string uid → ''", obfuscatedAccountIdForUid(null) === "" &&
+    obfuscatedAccountIdForUid(undefined) === "" && obfuscatedAccountIdForUid(123) === "");
+ok("uid at the 64-char cap is bound",
+    obfuscatedAccountIdForUid("a".repeat(OBFUSCATED_ACCOUNT_ID_MAX)).length === OBFUSCATED_ACCOUNT_ID_MAX);
+ok("uid over the 64-char cap → '' (can't bind, degrades to absent)",
+    obfuscatedAccountIdForUid("a".repeat(OBFUSCATED_ACCOUNT_ID_MAX + 1)) === "");
+
+// ── evaluateAccountBinding: the rollout policy ────────────────────────────
+const UID = "buyer-uid-1";
+const bind = (obfuscatedAccountId, enforce) =>
+  evaluateAccountBinding({obfuscatedAccountId, uid: UID, enforce});
+
+ok("matching id → match, never rejected",
+    bind(UID, true).kind === "match" && bind(UID, true).reject === false);
+ok("absent id (observe) → absent, not rejected",
+    bind("", false).kind === "absent" && bind("", false).reject === false);
+ok("absent id (enforce) → absent, STILL not rejected (legacy tokens keep working)",
+    bind("", true).kind === "absent" && bind("", true).reject === false);
+ok("mismatched id (observe) → mismatch but not rejected",
+    bind("someone-else", false).kind === "mismatch" && bind("someone-else", false).reject === false);
+ok("mismatched id (enforce) → mismatch AND rejected",
+    bind("someone-else", true).kind === "mismatch" && bind("someone-else", true).reject === true);
+ok("un-bindable uid (>64) with a present id → absent, not rejected",
+    evaluateAccountBinding({obfuscatedAccountId: "x", uid: "a".repeat(65), enforce: true}).kind === "absent");
 
 // ── decideEntitlementUpdate: the never-downgrade matrix ───────────────────
 const NOW = Date.parse("2026-07-03T12:00:00Z");

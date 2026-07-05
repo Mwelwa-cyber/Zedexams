@@ -97,7 +97,8 @@ describe('PlayUpgradePanel', () => {
     renderPanel()
     await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
     expect(await screen.findByText(/Subscription active/i)).toBeInTheDocument()
-    expect(purchasePlaySubscription).toHaveBeenCalledWith('monthly')
+    // uid is threaded through so it's stamped as the obfuscated account id.
+    expect(purchasePlaySubscription).toHaveBeenCalledWith('monthly', 'u1')
     expect(verifyPlayPurchases).toHaveBeenCalledWith({
       purchases: [{ productId: 'learner_premium_monthly', purchaseToken: 'tok-1' }],
       source: 'purchase',

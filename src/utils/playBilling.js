@@ -28,7 +28,7 @@
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
-import { PLAY_SUBS, playProductForPlan, planIdForPlayProduct } from './playBillingCatalog'
+import { PLAY_SUBS, playProductForPlan, planIdForPlayProduct, obfuscatedAccountIdForUid } from './playBillingCatalog'
 
 const fns = getFunctions(app, 'us-central1')
 const verifyCallable = httpsCallable(fns, 'verifyGooglePlayPurchase')
@@ -80,14 +80,23 @@ export async function fetchPlayProducts(planIds) {
  * Launch the Play purchase sheet for a plan. Resolves with the purchase
  * token the backend needs. Rejects on cancel/failure — classify with
  * classifyPurchaseError().
+ *
+ * `uid` (the signed-in ZedExams uid) is stamped as the obfuscated account id
+ * so Google records the purchase against this account — the server later
+ * re-derives and verifies it (issue #1596). On @capgo/native-purchases,
+ * `appAccountToken` maps to Play's ObfuscatedAccountId on Android.
  */
-export async function purchasePlaySubscription(planId) {
+export async function purchasePlaySubscription(planId, uid) {
   const entry = playProductForPlan(planId)
   if (!entry) throw new Error(`No Google Play product mapped for plan "${planId}"`)
+  const appAccountToken = obfuscatedAccountIdForUid(uid)
   const transaction = await NativePurchases.purchaseProduct({
     productIdentifier: entry.productId,
     planIdentifier: entry.basePlanId,
     productType: PURCHASE_TYPE.SUBS,
+    // Bind the purchase to this account (empty → omitted, so legacy callers
+    // and unusable uids fall back to the server's first-writer guard).
+    ...(appAccountToken ? { appAccountToken } : {}),
     // Acknowledge server-side after verification (see module header).
     autoAcknowledgePurchases: false,
   })
