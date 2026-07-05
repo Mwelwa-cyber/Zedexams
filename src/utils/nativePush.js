@@ -27,6 +27,7 @@
 import { arrayUnion, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { nativePlugin } from './runtime'
+import { capture } from './analytics'
 
 // Cache of the last-known native permission, mapped to the web tri-state that
 // the shared UI (PushPermissionPrompt, settings panels) reads synchronously via
@@ -69,11 +70,15 @@ async function persistToken(uid, token) {
       fcmTokens: arrayUnion(token),
       fcmTokensUpdatedAt: serverTimestamp(),
     })
+    // The "native push is actually working" signal — mirrors the web path in
+    // fcm.js. No token value is sent, only the platform.
+    capture('push_token_registered', { platform: 'native' })
     return token
   } catch (err) {
     // Same rationale as the web path: a failed persist is non-fatal, we retry
     // on the next sign-in via refreshNativeTokenIfGranted.
     console.warn('[nativePush] persist token failed:', (err && err.message) || err)
+    capture('push_token_failed', { platform: 'native', reason: 'persist_failed' })
     return null
   }
 }
@@ -117,7 +122,10 @@ export async function requestNativePushPermission(uid) {
       await persistToken(uid, res && res.token)
     } catch (err) {
       console.warn('[nativePush] getToken failed:', (err && err.message) || err)
+      capture('push_token_failed', { platform: 'native', reason: 'get_token_failed' })
     }
+  } else if (cachedPermission === 'denied') {
+    capture('push_permission_denied', { platform: 'native' })
   }
   return cachedPermission
 }
@@ -155,6 +163,7 @@ export async function refreshNativeTokenIfGranted(uid) {
     return persistToken(uid, res && res.token)
   } catch (err) {
     console.warn('[nativePush] refresh getToken failed:', (err && err.message) || err)
+    capture('push_token_failed', { platform: 'native', reason: 'get_token_failed' })
     return null
   }
 }
