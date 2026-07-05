@@ -24,6 +24,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
+import PushPermissionPrompt from '../ui/PushPermissionPrompt'
 import Icon from '../ui/Icon'
 import {
   ArrowRight,
@@ -808,6 +809,10 @@ export default function TeacherDashboard() {
           <span className="teacher-celebrate__text">{celebration.text}</span>
         </div>
       )}
+
+      {/* Audit A5.1 — push opt-in for teachers (self-gates on push support +
+          unasked + permission 'default', so it renders nothing once handled). */}
+      <PushPermissionPrompt variant="teacher" />
 
       {/* ── AI Workspace hero ─────────────────────────────────────── */}
       <section className={`teacher-hero teacher-hero--${greeting.part}`}>

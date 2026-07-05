@@ -1292,7 +1292,7 @@ export default function GradeHub() {
           aiNotesOn={aiNotesOn}
         />
         {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
-            with streak ≥ 2; renders nothing otherwise. */}
+            with streak ≥ 1; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
 
         {/* TEMPORARY (2026 exams) — Grade-7 PSLE timetable, shown to every
