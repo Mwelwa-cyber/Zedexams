@@ -159,6 +159,39 @@ test('facebook classes are -dontwarn (disabled provider)', () => {
   )
 })
 
+test('@capacitor-firebase/messaging plugin package is fully kept', () => {
+  // Root cause of the v1.2.5 launch crash (release-only, not debug):
+  //   • CI runs `npx cap sync android` before bundleRelease, which adds
+  //     @capacitor-firebase/messaging's Android AAR to the build.
+  //   • Capacitor's consumer rules keep the @CapacitorPlugin-annotated
+  //     FirebaseMessagingPlugin class but NOT the internal helper/model
+  //     classes in the same package.
+  //   • R8 strips those helpers; load() triggers NoClassDefFoundError
+  //     (an Error, not Exception) which propagates through super.onCreate()
+  //     → launch crash on the signed release APK.
+  //   • Debug builds use D8 (no shrinking) so they never reproduce it.
+  // Pinning this rule here prevents a future cap sync / proguard-rules.pro
+  // regeneration from silently dropping the keep and re-introducing the crash.
+  assert(
+    /-keep class io\.capawesome\.capacitorjs\.plugins\.firebase\.messaging\.\*\*/.test(proguard),
+    'proguard-rules.pro no longer keeps io.capawesome.capacitorjs.plugins.firebase.messaging.** — ' +
+    '@capacitor-firebase/messaging helper classes will be stripped by R8 during bridge-init → ' +
+    'NoClassDefFoundError → launch crash on the signed release build (v1.2.5 regression)'
+  )
+})
+
+test('@capacitor-firebase/messaging package has -dontwarn', () => {
+  // Paired with the -keep above: suppresses any R8 "can\'t find referenced class"
+  // warnings for conditional imports in the plugin package. Keeps the release
+  // build clean and prevents warnings from being promoted to errors via
+  // -warningsarerrors in future AGP versions.
+  assert(
+    /-dontwarn io\.capawesome\.capacitorjs\.plugins\.firebase\.messaging\.\*\*/.test(proguard),
+    'proguard-rules.pro dropped -dontwarn io.capawesome.capacitorjs.plugins.firebase.messaging.** — ' +
+    'R8 may warn or error on conditional imports in the FCM plugin package'
+  )
+})
+
 test('source-file line info is kept + renamed for retraceable stack traces', () => {
   assert(
     /-keepattributes\s+SourceFile,\s*LineNumberTable/.test(proguard),

@@ -49,19 +49,33 @@ public class MainActivity extends BridgeActivity {
         // finished loading (index.html parsed + boot skeleton painted). This
         // fires on WebViewClient.onPageFinished — after the client-side SPA has
         // its first real frame, not on later in-app route changes.
-        getBridge().addWebViewListener(new WebViewListener() {
-            @Override
-            public void onPageLoaded(WebView webView) {
-                dismissSplash();
-            }
+        //
+        // Null-guard: getBridge() returns null when Bridge.init() failed silently
+        // (e.g. a plugin's load() threw a Throwable that Capacitor swallowed).
+        // In that case the splash falls back to the 5 s SPLASH_TIMEOUT_MS backstop
+        // already registered below — still a visible app, just without the
+        // WebView-paint trigger. Without this guard the NPE would itself crash the
+        // app on launch, masking the underlying plugin-init failure.
+        com.getcapacitor.Bridge bridgeRef = getBridge();
+        if (bridgeRef != null) {
+            bridgeRef.addWebViewListener(new WebViewListener() {
+                @Override
+                public void onPageLoaded(WebView webView) {
+                    dismissSplash();
+                }
 
-            @Override
-            public void onReceivedError(WebView webView) {
-                // A load error would otherwise hold the splash until the
-                // timeout; drop it now so the WebView's own error state shows.
-                dismissSplash();
-            }
-        });
+                @Override
+                public void onReceivedError(WebView webView) {
+                    // A load error would otherwise hold the splash until the
+                    // timeout; drop it now so the WebView's own error state shows.
+                    dismissSplash();
+                }
+            });
+        } else {
+            android.util.Log.e("ZedExams",
+                "Bridge is null after super.onCreate() — a plugin may have failed to load. " +
+                "Splash will dismiss after SPLASH_TIMEOUT_MS. Check logcat for NoClassDefFoundError.");
+        }
 
         new Handler(Looper.getMainLooper()).postDelayed(this::dismissSplash, SPLASH_TIMEOUT_MS);
     }

@@ -30,3 +30,22 @@
 # never taken. (The Google provider's classes are real dependencies via
 # rgcfaIncludeGoogle in ../variables.gradle, not -dontwarn'd away.)
 -dontwarn com.facebook.**
+
+# @capacitor-firebase/messaging (io.capawesome.capacitorjs.plugins.firebase.messaging)
+#
+# The CI workflow runs `npx cap sync android` before bundleRelease, which
+# regenerates capacitor.settings.gradle / capacitor.build.gradle to include
+# this plugin. Capacitor's consumer ProGuard rules (shipped in @capacitor/android)
+# keep classes annotated with @CapacitorPlugin — so FirebaseMessagingPlugin
+# itself is kept — but they do NOT keep the internal helper and model classes
+# in the same package that the plugin's load() method instantiates. R8 strips
+# those helpers (they are unreachable from any @CapacitorPlugin keep root), and
+# when Bridge.init() calls load(), the missing class triggers NoClassDefFoundError.
+# That is an Error, not an Exception, so Capacitor's internal try/catch does not
+# catch it; the error propagates through super.onCreate() and the app crashes on
+# launch. Debug builds are unaffected because D8 (debug) never strips classes.
+#
+# Keep the full plugin package — plugin class, helpers, models, callbacks — so
+# R8 has no reachable entry to strip any of them.
+-keep class io.capawesome.capacitorjs.plugins.firebase.messaging.** { *; }
+-dontwarn io.capawesome.capacitorjs.plugins.firebase.messaging.**
