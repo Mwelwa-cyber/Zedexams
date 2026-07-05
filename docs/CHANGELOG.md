@@ -5,7 +5,7 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
-## 2026-07-05 — Android closed testing (v1.3.0)
+## 2026-07-05 — Android closed testing (v1.2.5)
 
 Features bundled into the Android closed-testing App Bundle. Short
 tester-facing blurb lives in `distribution/whatsnew/whatsnew-en-US`.
