@@ -4,6 +4,13 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../utils/subscriptionConfig'
 import { resendInvoiceEmail } from '../../utils/invoices'
 import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/whatsapp'
+import { adminSetUserRole } from '../../utils/adminUsersService'
+import {
+  adminConfirmPayment,
+  adminRejectPayment,
+  adminGrantPremium,
+  adminRevokePremium,
+} from '../../utils/adminPaymentsService'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -47,7 +54,7 @@ export default function PaymentsPanel() {
   const { currentUser } = useAuth()
   const {
     getPendingPayments, getAllPayments, confirmPayment, rejectPayment,
-    grantPremium, revokePremium, getAllUsers, updateUserRole,
+    grantPremium, revokePremium, getAllUsers,
     grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount,
     getRecentConfirmedPayments, findUserByEmail, getMyPayments,
   } = useFirestore()
@@ -306,7 +313,12 @@ export default function PaymentsPanel() {
     try {
       const planId = p.planId ?? p.plan
       const plan = PLANS[planId]
-      await confirmPayment(p.id, p.userId, planId, plan?.durationDays ?? 30, currentUser.uid)
+      // Audited server callable; falls back to the direct client write
+      // only if the function isn't deployed yet (functions/not-found).
+      await adminConfirmPayment(
+        { paymentId: p.id },
+        () => confirmPayment(p.id, p.userId, planId, plan?.durationDays ?? 30, currentUser.uid),
+      )
       show(`✅ Activated ${plan?.name} for ${p.displayName}`)
       load()
     } catch (e) { show('❌ ' + e.message) }
@@ -325,8 +337,10 @@ export default function PaymentsPanel() {
 
   async function doReject(p) {
     setActionId(p.id)
-    try { await rejectPayment(p.id, currentUser.uid); show('Rejected.'); load() }
-    catch (e) { show('❌ ' + e.message) }
+    try {
+      await adminRejectPayment({ paymentId: p.id }, () => rejectPayment(p.id, currentUser.uid))
+      show('Rejected.'); load()
+    } catch (e) { show('❌ ' + e.message) }
     setActionId(null)
   }
 
@@ -351,7 +365,10 @@ export default function PaymentsPanel() {
   }
 
   async function applyRoleChange(uid, role) {
-    try { await updateUserRole(uid, role); setUsers(u => u.map(x => x.id === uid ? { ...x, role } : x)); show('Role updated.') }
+    // Route through the audited callable so the role change lands in the
+    // activity log (adminSetUserRole falls back to a direct write when the
+    // function isn't deployed).
+    try { await adminSetUserRole({ uid, role }); setUsers(u => u.map(x => x.id === uid ? { ...x, role } : x)); show('Role updated.') }
     catch (e) { show('❌ ' + e.message) }
   }
 
@@ -376,7 +393,11 @@ export default function PaymentsPanel() {
     setGranting(true)
     try {
       const days = (+grantDays) || PLANS[grantPlan]?.durationDays || 30
-      await grantPremium(grantUid.trim(), grantPlan, days, currentUser.uid)
+      const uid = grantUid.trim()
+      await adminGrantPremium(
+        { uid, planId: grantPlan, durationDays: days },
+        () => grantPremium(uid, grantPlan, days, currentUser.uid),
+      )
       show('Premium granted!')
       setGrantUid('')
     }
@@ -390,7 +411,10 @@ export default function PaymentsPanel() {
     setRowActionUid(u.id)
     try {
       const days = (+grantDays) || PLANS[grantPlan]?.durationDays || 30
-      await grantPremium(u.id, grantPlan, days, currentUser.uid)
+      await adminGrantPremium(
+        { uid: u.id, planId: grantPlan, durationDays: days },
+        () => grantPremium(u.id, grantPlan, days, currentUser.uid),
+      )
       const planName = PLANS[grantPlan]?.name ?? grantPlan
       setUsers(list => list.map(x => x.id === u.id
         ? { ...x, premium: true, isPremium: true, paymentStatus: 'active', subscriptionStatus: 'active', subscriptionPlan: grantPlan }
@@ -413,7 +437,7 @@ export default function PaymentsPanel() {
   async function doRowRevoke(u) {
     setRowActionUid(u.id)
     try {
-      await revokePremium(u.id)
+      await adminRevokePremium({ uid: u.id }, () => revokePremium(u.id))
       setUsers(list => list.map(x => x.id === u.id
         ? { ...x, premium: false, isPremium: false, paymentStatus: 'inactive', subscriptionStatus: 'inactive', subscriptionPlan: 'free' }
         : x))

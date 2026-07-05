@@ -3762,20 +3762,28 @@ exports.apiImageProxy = imageProxy.apiImageProxy;
 
 // Admin dashboard overhaul — user lifecycle callables.
 //
-// TEMPORARILY DISABLED to unblock the Deploy Firebase workflow that
-// failed after PR #417 merged (run #118). The admin UI keeps working
-// because src/utils/adminUsersService.js already falls back to a
-// direct Firestore write when the callable is unavailable — only the
-// server-stamped audit-log entries from these two callables are
-// missed in the meantime. The agent dispatcher audit hook is
-// independent and stays enabled.
-//
-// Re-enable in a follow-up once we've inspected the deploy log tail
-// and confirmed which side (project IAM vs. these specific callables)
-// owns the failure.
-//
-// exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
-// exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
+// These write the server-stamped audit-log entries (adminAuditLogs →
+// the /admin/activity page) for role changes and suspend/delete. They
+// were temporarily disabled after PR #417 because the Deploy Firebase
+// workflow false-failed on the cosmetic "HTTP Error: 409, unable to
+// queue the operation" race — setUserRole surfaced it as a bare gen1
+// failure with no 409 detail line, so the parser treated it as fatal.
+// deploy-firebase.yml now classifies exactly that case (a bare failure
+// during a demonstrable 409 race) as cosmetic/non-fatal, so re-enabling
+// no longer blocks the deploy. src/utils/adminUsersService.js still
+// falls back to a direct write if a callable is momentarily undeployed.
+exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
+exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
+
+// Admin payment/subscription callables — audited server-side confirm /
+// reject / grant / revoke. Mirror the client writes they replace (see
+// functions/adminPayments.js) so dashboards keep working, and land an
+// adminAuditLogs entry for each money action.
+const adminPayments = require("./adminPayments");
+exports.adminConfirmPayment = adminPayments.adminConfirmPayment;
+exports.adminRejectPayment = adminPayments.adminRejectPayment;
+exports.adminGrantPremium = adminPayments.adminGrantPremium;
+exports.adminRevokePremium = adminPayments.adminRevokePremium;
 
 // Admin-only callable that bulk-creates demo learner accounts with a
 // trial Premium subscription. Mirrors the layout the admin UI's
