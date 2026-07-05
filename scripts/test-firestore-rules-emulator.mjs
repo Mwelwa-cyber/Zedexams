@@ -182,6 +182,33 @@ async function main() {
     // turn on unattended auto-publishing.
     await setDoc(doc(db, 'agentControl', 'bonga'), { paused: true })
 
+    // aiGeneration owned by TEACHER_A. Clients may only read their own (or
+    // admin), may create ONLY a fixed set of pure-client tools with a locked
+    // field set, and may update only whitelisted keys — never the structural
+    // tool/ownerUid or the server-only cost/token fields.
+    await setDoc(doc(db, 'aiGenerations', 'gen_teacher_a'), {
+      ownerUid: TEACHER_A,
+      tool: 'mark_schedule',
+      status: 'complete',
+      visibility: 'private',
+      tokens: 1234, // server-only field present on the seeded (Cloud-Function) doc
+    })
+
+    // Assessment owned by TEACHER_A — owner/admin read only, teacher-or-above
+    // create/update scoped to their own createdBy.
+    await setDoc(doc(db, 'assessments', 'assess_teacher_a'), {
+      createdBy: TEACHER_A,
+      title: 'Term 2 Maths test',
+      grade: '7',
+      subject: 'Mathematics',
+    })
+
+    // Usage meter period for TEACHER_A — owner-readable, but client-unwritable
+    // (writing it would let a user reset their own AI usage to dodge caps).
+    await setDoc(doc(db, 'usageMeters', TEACHER_A, 'periods', '202607'), {
+      counters: { assessment: 3 },
+    })
+
     // Class Register owned by TEACHER_A, with an EMPTY roster/records — the
     // first-learner case that exposed the unconstrained-list rule bug.
     await setDoc(doc(db, 'classRegisters', 'reg_teacher_a'), {
@@ -570,6 +597,137 @@ async function main() {
 
   await test('admin CAN write an agent control doc', async () => {
     await assertSucceeds(updateDoc(doc(admin, 'agentControl', 'bonga'), { paused: false }))
+  })
+
+  // ── aiGenerations/{genId} — owner scope + create allowlist ───
+  section('aiGenerations/{genId} — owner read, constrained client writes')
+
+  await test('owner can read their own generation', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'aiGenerations', 'gen_teacher_a')))
+  })
+
+  await test('another teacher cannot read someone else’s generation', async () => {
+    await assertFails(getDoc(doc(teacherB, 'aiGenerations', 'gen_teacher_a')))
+  })
+
+  await test('a client CANNOT create a server-only tool generation (e.g. assessment)', async () => {
+    // `assessment` is a real AI tool — its docs are Cloud-Function-only. Only
+    // the fixed pure-client tools are creatable from the browser.
+    await assertFails(setDoc(doc(teacherA, 'aiGenerations', 'gen_forge_tool'), {
+      ownerUid: TEACHER_A,
+      tool: 'assessment',
+      status: 'complete',
+      visibility: 'private',
+      createdAt: serverTimestamp(),
+      inputs: {},
+      output: {},
+    }))
+  })
+
+  await test('a client CANNOT smuggle a server-only field (tokens) into a create', async () => {
+    // Even with an allowed tool, the hasOnly() allowlist blocks the cost/token
+    // fields the billing rollup trusts.
+    await assertFails(setDoc(doc(teacherA, 'aiGenerations', 'gen_forge_tokens'), {
+      ownerUid: TEACHER_A,
+      tool: 'mark_schedule',
+      status: 'complete',
+      visibility: 'private',
+      createdAt: serverTimestamp(),
+      inputs: {},
+      output: {},
+      tokens: 999,
+    }))
+  })
+
+  await test('a client CANNOT create a generation owned by another user', async () => {
+    await assertFails(setDoc(doc(teacherA, 'aiGenerations', 'gen_spoof_owner'), {
+      ownerUid: TEACHER_B,
+      tool: 'mark_schedule',
+      status: 'complete',
+      visibility: 'private',
+      createdAt: serverTimestamp(),
+      inputs: {},
+      output: {},
+    }))
+  })
+
+  await test('a client CAN create a valid pure-client-tool generation it owns', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'aiGenerations', 'gen_valid_client'), {
+      ownerUid: TEACHER_A,
+      tool: 'mark_schedule',
+      status: 'complete',
+      visibility: 'private',
+      createdAt: serverTimestamp(),
+      inputs: {},
+      output: {},
+    }))
+  })
+
+  await test('owner CAN update a whitelisted field (visibility)', async () => {
+    await assertSucceeds(updateDoc(doc(teacherA, 'aiGenerations', 'gen_teacher_a'), {
+      visibility: 'public',
+    }))
+  })
+
+  await test('owner CANNOT mutate the structural tool field', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'aiGenerations', 'gen_teacher_a'), {
+      tool: 'assessment',
+    }))
+  })
+
+  // ── assessments/{assessmentId} — teacher tenant isolation ────
+  section('assessments/{assessmentId} — owner-scoped, teacher-or-above')
+
+  await test('owner can read their own assessment', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'assessments', 'assess_teacher_a')))
+  })
+
+  await test('another teacher cannot read it (tenant isolation)', async () => {
+    await assertFails(getDoc(doc(teacherB, 'assessments', 'assess_teacher_a')))
+  })
+
+  await test('admin can read any assessment', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'assessments', 'assess_teacher_a')))
+  })
+
+  await test('a learner CANNOT create an assessment (teacher-or-above only)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'assessments', 'assess_learner'), {
+      createdBy: LEARNER_A,
+      title: 'Sneaky',
+      grade: '7',
+      subject: 'Mathematics',
+    }))
+  })
+
+  await test('a teacher CANNOT create an assessment under another teacher’s name', async () => {
+    await assertFails(setDoc(doc(teacherA, 'assessments', 'assess_spoof'), {
+      createdBy: TEACHER_B,
+      title: 'Spoofed',
+      grade: '7',
+      subject: 'Mathematics',
+    }))
+  })
+
+  await test('a teacher CAN create their own valid assessment', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'assessments', 'assess_new'), {
+      createdBy: TEACHER_A,
+      title: 'New test',
+      grade: '7',
+      subject: 'Mathematics',
+    }))
+  })
+
+  // ── usageMeters/{uid}/periods — client-unwritable cost meter ─
+  section('usageMeters — owner read, no client writes')
+
+  await test('owner can read their own usage-meter period', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'usageMeters', TEACHER_A, 'periods', '202607')))
+  })
+
+  await test('a user CANNOT write their own usage meter (dodge AI caps)', async () => {
+    await assertFails(setDoc(doc(teacherA, 'usageMeters', TEACHER_A, 'periods', '202607'), {
+      counters: { assessment: 0 },
+    }))
   })
 
   await testEnv.cleanup()
