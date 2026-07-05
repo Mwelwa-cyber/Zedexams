@@ -144,3 +144,30 @@ jobs:
         run: npm ci
       - name: Firestore rules tests
         run: npm run test:rules-emulator
+
+  storage-rules-emulator:
+    # Behavioural Storage-rules tests. Like the Firestore job above, these
+    # need the emulator (JVM) so they can't sit inside `test:all`. The suite
+    # existed but ran nowhere in CI until now — this wires it up so the
+    # per-path ownership / content-type / cross-tenant guards actually gate
+    # merges. It boots BOTH firestore + storage emulators because
+    # storage.rules reads the caller's role from users/{uid} in Firestore.
+    name: Tests (Storage rules emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install dependencies
+        run: npm ci
+      - name: Storage rules tests
+        run: npm run test:storage-rules-emulator
