@@ -21,6 +21,8 @@ import {
   recordPaperEvent,
   resolvePaperUrl,
 } from '../../utils/pastPapers'
+import { saveBlob } from '../../utils/saveBlob'
+import { buildDownloadName } from '../../utils/downloadFilename'
 import { siblingPapers, viewPath } from './paperNav'
 import { subjectMeta } from './paperVisuals'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -43,6 +45,21 @@ import {
 
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
 const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
+const PaperReaderOverlay = lazy(() => import('./PaperReaderOverlay'))
+
+/** Best-effort file extension from a Storage path (drops any query string). */
+function extFromPath(path) {
+  const match = /\.([a-z0-9]+)(?:\?|$)/i.exec(String(path || ''))
+  return match ? match[1].toLowerCase() : null
+}
+
+/** Fetch a Storage URL as a Blob. Storage CORS is configured (see CLAUDE.md
+ *  `npm run storage:cors`), so cross-origin reads of the bytes succeed. */
+async function fetchAsBlob(url) {
+  const res = await fetch(url, { mode: 'cors' })
+  if (!res.ok) throw new Error(`Download fetch failed: ${res.status}`)
+  return res.blob()
+}
 
 /**
  * Breaks a child out of its max-width column to span the full viewport
@@ -81,6 +98,9 @@ export default function PastPaperViewer() {
   const [paperUrl, setPaperUrl] = useState(null)
   const [paperUrlLoading, setPaperUrlLoading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
+  const [downloadFallbackUrl, setDownloadFallbackUrl] = useState('')
+  const [downloading, setDownloading] = useState(false)
+  const [immersive, setImmersive] = useState(false)
   const [activeTab, setActiveTab] = useState('questionPaper')
   const [answersConfirmOpen, setAnswersConfirmOpen] = useState(false)
   const answersConfirmedRef = useRef(false)
@@ -283,18 +303,71 @@ export default function PastPaperViewer() {
     setActiveTab('answers')
   }, [paperId])
 
-  const handleDownload = useCallback(async (path, kind) => {
-    if (!path) return
+  // Human filename for a saved paper, e.g. "Grade 7 Mathematics Paper 1 -
+  // 2023.pdf" (mark scheme → "… (Mark Scheme).pdf"). Uses the shared builder
+  // so the name is consistent with every other download in the app.
+  const buildPaperFilename = useCallback((kind, ext) => buildDownloadName({
+    docType: paper?.paperNumber ? `Paper ${paper.paperNumber}` : 'Past Paper',
+    grade: paper?.grade,
+    subject: paper?.subject,
+    year: paper?.year,
+    variant: kind === 'mark-scheme' ? 'Mark Scheme' : null,
+    ext,
+  }), [paper])
+
+  // Save a paper/mark-scheme as a real file. Unlike the old `window.open`
+  // (blocked by mobile popup blockers after the `await`, and never an actual
+  // download), this fetches the bytes and hands them to the shared saveBlob
+  // helper — which works on desktop, mobile browsers, and the Capacitor app.
+  // A multi-page scanned paper is zipped so the learner gets every page, not
+  // just page 1.
+  const downloadSource = useCallback(async (source, kind) => {
+    if (!source || downloading) return
     setDownloadError('')
+    setDownloadFallbackUrl('')
+    setDownloading(true)
     try {
-      const url = await resolvePaperUrl(path)
-      window.open(url, '_blank', 'noopener,noreferrer')
+      if (source.kind === 'pdf') {
+        const url = await resolvePaperUrl(source.path)
+        const blob = await fetchAsBlob(url)
+        await saveBlob(blob, buildPaperFilename(kind, extFromPath(source.path) || 'pdf'))
+      } else if (source.kind === 'images' && Array.isArray(source.assets) && source.assets.length) {
+        if (source.assets.length === 1) {
+          const url = await resolvePaperUrl(source.assets[0].path)
+          const blob = await fetchAsBlob(url)
+          await saveBlob(blob, buildPaperFilename(kind, extFromPath(source.assets[0].path) || 'jpg'))
+        } else {
+          const { default: JSZip } = await import('jszip')
+          const zip = new JSZip()
+          const files = await Promise.all(source.assets.map(async (asset, idx) => {
+            const url = await resolvePaperUrl(asset.path)
+            const blob = await fetchAsBlob(url)
+            return { idx, blob, ext: extFromPath(asset.path) || 'jpg' }
+          }))
+          files
+            .sort((a, b) => a.idx - b.idx)
+            .forEach(({ idx, blob, ext }) => {
+              zip.file(`page-${String(idx + 1).padStart(2, '0')}.${ext}`, blob)
+            })
+          const zipBlob = await zip.generateAsync({ type: 'blob' })
+          await saveBlob(zipBlob, buildPaperFilename(kind, 'zip'))
+        }
+      } else {
+        throw new Error('No downloadable file for this paper.')
+      }
       recordPaperEvent(paperId, 'download').catch(() => {})
     } catch (err) {
       console.warn('[PastPaperViewer] download failed', { kind, err })
-      setDownloadError('Download failed — please try again.')
+      setDownloadError('Could not save the file automatically.')
+      // Give the learner a direct link as a fallback (CORS / offline case).
+      try {
+        const firstPath = source.kind === 'pdf' ? source.path : source.assets?.[0]?.path
+        if (firstPath) setDownloadFallbackUrl(await resolvePaperUrl(firstPath))
+      } catch { /* nothing more we can do */ }
+    } finally {
+      setDownloading(false)
     }
-  }, [paperId])
+  }, [paperId, downloading, buildPaperFilename])
 
   // Build a clean, validated list of pages for the image renderer.
   // Filters empty/invalid URLs and sorts deterministically by page index.
@@ -314,7 +387,6 @@ export default function PastPaperViewer() {
   }, [previewSource, imageAssetUrls])
 
   // ── Redesign state: bookmark, siblings, quiz meta, attempts, chrome ─
-  const viewerShellRef = useRef(null)
   const [bookmarked, setBookmarked] = useState(false)
   const [siblings, setSiblings] = useState([])
   const [quizMeta, setQuizMeta] = useState(null)
@@ -397,15 +469,12 @@ export default function PastPaperViewer() {
     }
   }, [paper, paperId])
 
-  const toggleFullscreen = useCallback(() => {
-    const el = viewerShellRef.current
-    if (!el || typeof document === 'undefined') return
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch(() => {})
-    } else {
-      el.requestFullscreen?.().catch(() => {})
-    }
-  }, [])
+  // Immersive reading mode is a CSS overlay (see PaperReaderOverlay), not the
+  // native Fullscreen API — reliable on iOS Safari + the Capacitor WebView,
+  // where element.requestFullscreen() is unsupported or leaves the content
+  // frozen and unscrollable.
+  const openReader = useCallback(() => setImmersive(true), [])
+  const closeReader = useCallback(() => setImmersive(false), [])
 
   if (loading) {
     return (
@@ -467,10 +536,9 @@ export default function PastPaperViewer() {
   let quizTaken = false
   try { quizTaken = typeof window !== 'undefined' && window.localStorage?.getItem(`paper-answer-revealed:${paperId}`) === '1' } catch { /* ignore */ }
 
-  // Primary file path used by the sticky-bar Download button.
-  const downloadPath = previewSource?.kind === 'pdf'
-    ? previewSource.path
-    : (previewSource?.assets?.[0]?.path || null)
+  // Whether the sticky-bar / tab Download buttons have a file to save.
+  const canDownloadPaper = previewSource?.kind === 'pdf'
+    || (previewSource?.kind === 'images' && (previewSource.assets?.length || 0) > 0)
 
   return (
     <div className="min-h-screen theme-bg flex flex-col overflow-x-clip">
@@ -530,13 +598,14 @@ export default function PastPaperViewer() {
                 <Clock size={15} strokeWidth={2.4} /> Quiz soon
               </span>
             )}
-            {downloadPath && (
+            {canDownloadPaper && (
               <button
                 type="button"
-                onClick={() => handleDownload(downloadPath, 'paper')}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
+                onClick={() => downloadSource(previewSource, 'paper')}
+                disabled={downloading}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card disabled:opacity-60"
               >
-                <Download size={15} strokeWidth={2.4} /> Download
+                <Download size={15} strokeWidth={2.4} /> {downloading ? 'Preparing…' : 'Download'}
               </button>
             )}
             <button
@@ -556,18 +625,20 @@ export default function PastPaperViewer() {
             >
               <Upload size={15} strokeWidth={2.4} /> {shareNote || 'Share'}
             </button>
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
-            >
-              <Maximize2 size={15} strokeWidth={2.4} /> Fullscreen
-            </button>
+            {previewSource && (
+              <button
+                type="button"
+                onClick={openReader}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-4 py-2 text-xs font-black active:scale-95 transition hover:theme-card"
+              >
+                <Maximize2 size={15} strokeWidth={2.4} /> Fullscreen
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div ref={viewerShellRef} className="flex-1 theme-bg max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="flex-1 theme-bg max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Title block */}
         <section className="mb-4">
           <div className="flex items-start gap-3">
@@ -590,7 +661,23 @@ export default function PastPaperViewer() {
         </section>
 
         {downloadError && (
-          <p role="alert" className="text-sm font-bold text-rose-700 mb-3">{downloadError}</p>
+          <p role="alert" className="text-sm font-bold text-rose-700 mb-3">
+            {downloadError}
+            {downloadFallbackUrl && (
+              <>
+                {' '}
+                <a
+                  href={downloadFallbackUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline theme-accent-text"
+                >
+                  Open it in a new tab
+                </a>
+                {' '}instead.
+              </>
+            )}
+          </p>
         )}
 
         {/* Three-pane on desktop: viewer ~70% + right rail */}
@@ -686,10 +773,18 @@ export default function PastPaperViewer() {
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => handleDownload(previewSource.path, 'paper')}
-                          className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+                          onClick={openReader}
+                          className="inline-flex items-center gap-1.5 theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
                         >
-                          ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
+                          <Maximize2 size={14} strokeWidth={2.4} /> Read fullscreen
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadSource(previewSource, 'paper')}
+                          disabled={downloading}
+                          className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle disabled:opacity-60"
+                        >
+                          {downloading ? '⏳ Preparing…' : `⬇️ Download paper${previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}`}
                         </button>
                       </div>
                       <FullBleed>
@@ -698,7 +793,7 @@ export default function PastPaperViewer() {
                             Loading paper…
                           </div>
                         }>
-                          <PdfJsViewer url={paperUrl} title={paper.title} />
+                          <PdfJsViewer url={paperUrl} title={paper.title} storageKey={`paper-pdf-page:${paperId}`} />
                         </Suspense>
                       </FullBleed>
                     </div>
@@ -732,7 +827,8 @@ export default function PastPaperViewer() {
                   <AnswersPanel
                     source={markSchemeSource}
                     paperTitle={paper.title}
-                    onDownload={handleDownload}
+                    onDownload={downloadSource}
+                    downloading={downloading}
                   />
                 ) : (
                   <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
@@ -790,6 +886,47 @@ export default function PastPaperViewer() {
 
       <MobileQuizFab paperId={paperId} available={quizAvailable} />
       <BackToTopFab />
+
+      {/* Immersive reading mode — a CSS overlay (not the native Fullscreen
+          API) so it scrolls + exits reliably on iOS and the Capacitor app.
+          Shows the question paper, whose URLs are already resolved above. */}
+      {immersive && previewSource && (
+        <Suspense fallback={null}>
+          <PaperReaderOverlay
+            title={`Grade ${paper.grade} ${subjectLabel} · ${paper.year}`}
+            onClose={closeReader}
+            onDownload={canDownloadPaper ? () => downloadSource(previewSource, 'paper') : null}
+            downloading={downloading}
+          >
+            {previewSource.kind === 'pdf' && (
+              paperUrl ? (
+                <div className="h-full p-2 sm:p-3">
+                  <PdfJsViewer url={paperUrl} title={paper.title} fill storageKey={`paper-pdf-page:${paperId}`} />
+                </div>
+              ) : (
+                <p className="theme-text-muted text-sm py-12 text-center">Loading paper…</p>
+              )
+            )}
+            {previewSource.kind === 'images' && (
+              <div className="mx-auto max-w-[1100px] w-full px-1 sm:px-3 py-4">
+                <PageImageList
+                  pages={validImagePages}
+                  totalPages={previewSource.assets.length}
+                  loading={imageAssetsLoading}
+                  loadedPages={loadedPages}
+                  failedPages={failedPages}
+                  retryNonces={retryNonces}
+                  dataSaver={dataSaver}
+                  progressKey={`paper-progress:${paperId}`}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  onRetry={handleRetryPage}
+                />
+              </div>
+            )}
+          </PaperReaderOverlay>
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -1362,7 +1499,7 @@ function AnswersConfirmDialog({ onCancel, onConfirm }) {
  * canvas viewer; image-based answers stack vertically like the question
  * paper, with the same clean error handling per page.
  */
-function AnswersPanel({ source, paperTitle, onDownload }) {
+function AnswersPanel({ source, paperTitle, onDownload, downloading = false }) {
   const [url, setUrl] = useState(null)
   const [imageUrls, setImageUrls] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1426,10 +1563,11 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => onDownload(source.path, 'mark-scheme')}
-            className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+            onClick={() => onDownload(source, 'mark-scheme')}
+            disabled={downloading}
+            className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle disabled:opacity-60"
           >
-            ⬇️ Download answers
+            {downloading ? '⏳ Preparing…' : '⬇️ Download answers'}
           </button>
         </div>
         <FullBleed>
@@ -1447,6 +1585,17 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
 
   if (source.kind === 'images') {
     return (
+      <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => onDownload(source, 'mark-scheme')}
+          disabled={downloading}
+          className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle disabled:opacity-60"
+        >
+          {downloading ? '⏳ Preparing…' : '⬇️ Download answers'}
+        </button>
+      </div>
       <FullBleed>
       <PageImageList
         pages={validPages}
@@ -1480,6 +1629,7 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
         }}
       />
       </FullBleed>
+      </div>
     )
   }
 
