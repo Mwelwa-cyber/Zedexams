@@ -145,18 +145,25 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
       capture('play_verify_failed', { planId: selectedPlanId, status: result.status || 'unknown' })
     } catch (err) {
       if (!mountedRef.current) return
-      setError({ kind: 'verify', message: '' })
+      // failed-precondition = the server said OUR config is broken (bad SA
+      // secret / Play Console linkage) — retrying can't succeed until an
+      // admin fixes it, so the dialog must not pretend a retry will.
+      const config = err?.code === 'functions/failed-precondition'
+      setError({ kind: 'verify', config, message: '' })
       setPhase('error')
-      // Record the callable's HttpsError code/message, not just a bare
+      // Record the callable's HttpsError code/message/reason, not just a bare
       // 'request-error'. A thrown verification failure (bad/absent SA secret,
       // Play Developer API 401/403, or App Check rejection) is otherwise
       // indistinguishable in analytics from a transient network blip — every
       // cause collapses to the same 'request-error' with no way to tell them
-      // apart without a server-log dive.
+      // apart without a server-log dive. `errorReason` carries the config
+      // stage (sa-json-missing / token-fetch-failed / play-api-rejected / …)
+      // the server pins in HttpsError details.
       capture('play_verify_failed', {
         planId: selectedPlanId,
         status: 'request-error',
         errorCode: err?.code || '',
+        errorReason: err?.details?.reason || '',
         errorMessage: String(err?.message || '').slice(0, 300),
       })
     }
@@ -409,11 +416,15 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
                 <Icon as={X} size="lg" strokeWidth={2.4} />
               </div>
               <h3 className="text-lg font-black text-gray-800">
-                {error?.kind === 'verify' ? 'Payment received — verification pending' : 'Something went wrong'}
+                {error?.kind === 'verify'
+                  ? (error?.config ? 'Payment received — we’re on it' : 'Payment received — verification pending')
+                  : 'Something went wrong'}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {error?.kind === 'verify'
-                  ? 'Google Play confirmed your payment but we couldn’t verify it with our server. Tap retry — you won’t be charged again. It also completes automatically next time you open the app.'
+                  ? (error?.config
+                    ? 'Google Play confirmed your payment, but a problem on our side is stopping us from confirming it. Our team has been alerted automatically. You won’t be charged twice — your access unlocks on its own once this is fixed, and if we can’t confirm within 3 days Google refunds you automatically.'
+                    : 'Google Play confirmed your payment but we couldn’t verify it with our server. Tap retry — you won’t be charged again. It also completes automatically next time you open the app.')
                   : (error?.message || 'Please try again.')}
               </p>
               {error?.kind !== 'wrong_user' && (
