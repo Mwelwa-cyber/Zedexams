@@ -9,7 +9,8 @@ import { Panel, Section, Field, TextInput, SelectField, Note } from '../componen
 import ParentShareManager from '../../../components/parent/ParentShareManager'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
-export default function ParentPanel({ section }) {
+// Headerless body — composed by MyAccountPanel; default keeps the Panel wrapper.
+export function ParentBody() {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
 
@@ -39,7 +40,7 @@ export default function ParentPanel({ section }) {
   }
 
   return (
-    <Panel section={section}>
+    <>
       <Section title="Parent details" hint="Who should we reach if you need help — or to share your progress.">
         <div className="lset-grid">
           <Field label="Parent / guardian name" htmlFor="lset-parent-name">
@@ -88,6 +89,14 @@ export default function ParentPanel({ section }) {
         </Note>
         <ParentShareManager />
       </Section>
+    </>
+  )
+}
+
+export default function ParentPanel({ section }) {
+  return (
+    <Panel section={section}>
+      <ParentBody />
     </Panel>
   )
 }

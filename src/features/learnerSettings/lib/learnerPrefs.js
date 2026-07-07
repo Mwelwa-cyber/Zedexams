@@ -172,8 +172,21 @@ export const PLAYBACK_SPEED_OPTIONS = Object.freeze([
   { value: '1.5', label: '1.5×' },
 ])
 
+// Daily study-goal presets (minutes/day) surfaced as chip buttons on the
+// Learning Preferences card, mirroring the mockup (10 / 20 / 30 / 45 / 60).
+export const DAILY_GOAL_OPTIONS = Object.freeze([
+  { value: 10, label: '10 min' },
+  { value: 20, label: '20 min' },
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '1 hour' },
+])
+
+const DAILY_GOAL_VALUES = DAILY_GOAL_OPTIONS.map((o) => o.value)
+
 export function normalizeLearningPrefs(input) {
   const p = input && typeof input === 'object' ? input : {}
+  const goal = Number(p.dailyGoal)
   return {
     // Original three (kept for backwards compatibility with the old page).
     soundEffects: bool(p.soundEffects, dflt(true)),
@@ -183,6 +196,7 @@ export function normalizeLearningPrefs(input) {
     curriculum: str(p.curriculum, ['cbc'], 'cbc'),
     quizDifficulty: str(p.quizDifficulty, ['easy', 'medium', 'hard', 'adaptive'], 'medium'),
     defaultQuizMode: str(p.defaultQuizMode, ['practice', 'timed', 'exam'], 'practice'),
+    dailyGoal: DAILY_GOAL_VALUES.includes(goal) ? goal : 20,
     timedQuizzes: bool(p.timedQuizzes, dflt(false)),
     autoSubmitTimer: bool(p.autoSubmitTimer, dflt(true)),
     textToSpeech: bool(p.textToSpeech, dflt(false)),
@@ -285,6 +299,49 @@ export const ZED_AVATARS = Object.freeze([
   { id: 'rocket', label: 'Rocket', emoji: '🚀' },
   { id: 'brain', label: 'Brain', emoji: '🧠' },
 ])
+
+/* ── AI Learning Assistant (personalisation the assistant learns from) ─────── */
+//
+// These prefs steer how the AI tailors practice — they persist under
+// learnerSettings.aiAssistant and are read by the AI card + detail panel. They
+// are declarations of intent (a learning goal, subjects to improve, whether to
+// let AI pick practice / focus weak topics); the generators that consume them
+// are entry-point cards, so nothing here fabricates a result.
+
+export const AI_GOAL_OPTIONS = Object.freeze([
+  { value: 'pass_exams', label: 'Pass my exams', emoji: '🎯' },
+  { value: 'top_marks', label: 'Get top marks', emoji: '🏆' },
+  { value: 'keep_streak', label: 'Study every day', emoji: '🔥' },
+  { value: 'catch_up', label: 'Catch up on weak areas', emoji: '📈' },
+  { value: 'stay_ahead', label: 'Stay ahead of class', emoji: '🚀' },
+])
+
+// Core CBC subjects a learner may want to prioritise. Kept as a static list so
+// this module stays pure + unit-testable (no curriculum import).
+export const IMPROVE_SUBJECT_OPTIONS = Object.freeze([
+  { value: 'mathematics', label: 'Mathematics' },
+  { value: 'english', label: 'English' },
+  { value: 'science', label: 'Science' },
+  { value: 'social_studies', label: 'Social Studies' },
+  { value: 'ict', label: 'ICT' },
+  { value: 'creative_technology', label: 'Creative & Technology' },
+  { value: 'zambian_languages', label: 'Zambian Languages' },
+])
+
+const IMPROVE_SUBJECT_VALUES = IMPROVE_SUBJECT_OPTIONS.map((o) => o.value)
+
+export function normalizeAiAssistantPrefs(input) {
+  const p = input && typeof input === 'object' ? input : {}
+  const subjects = Array.isArray(p.improveSubjects)
+    ? p.improveSubjects.filter((s) => IMPROVE_SUBJECT_VALUES.includes(s))
+    : []
+  return {
+    learningGoal: str(p.learningGoal, AI_GOAL_OPTIONS.map((o) => o.value), 'pass_exams'),
+    improveSubjects: Array.from(new Set(subjects)),
+    autoPickPractice: bool(p.autoPickPractice, dflt(true)),
+    focusWeakTopics: bool(p.focusWeakTopics, dflt(true)),
+  }
+}
 
 /* ── Privacy ──────────────────────────────────────────────────────────────── */
 
@@ -407,6 +464,7 @@ export function normalizeLearnerSettings(input) {
     security: normalizeSecurityPrefs(p.security),
     personalisation: normalizePersonalisation(p.personalisation),
     zedAi: normalizeZedAiPrefs(p.zedAi),
+    aiAssistant: normalizeAiAssistantPrefs(p.aiAssistant),
     privacy: normalizePrivacy_(p.privacy),
   }
 }

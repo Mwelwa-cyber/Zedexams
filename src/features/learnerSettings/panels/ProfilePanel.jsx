@@ -14,7 +14,10 @@ import {
   COUNTRY_OPTIONS,
 } from '../lib/learnerPrefs'
 
-export default function ProfilePanel({ section, pushToast }) {
+// Headerless body — composed by MyAccountPanel (the "My Account" detail view)
+// alongside the parent + account bodies. The default export keeps the standalone
+// Panel wrapper for any direct use.
+export function ProfileBody({ pushToast }) {
   const { userProfile, currentUser } = useAuth()
   const { commit } = useSettingsSave()
 
@@ -42,7 +45,7 @@ export default function ProfilePanel({ section, pushToast }) {
   }
 
   return (
-    <Panel section={section}>
+    <>
       <AvatarStudio profile={userProfile} commit={commit} pushToast={pushToast} />
 
       <Section title="Personal details" hint="Used across your dashboard, results and the parent view.">
@@ -113,6 +116,14 @@ export default function ProfilePanel({ section, pushToast }) {
           </Field>
         </div>
       </Section>
+    </>
+  )
+}
+
+export default function ProfilePanel({ section, pushToast }) {
+  return (
+    <Panel section={section}>
+      <ProfileBody pushToast={pushToast} />
     </Panel>
   )
 }

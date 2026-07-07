@@ -12,13 +12,18 @@
  */
 
 .lset {
-  --lset-accent: var(--accent);
-  --lset-radius: 20px;
-  --lset-gap: clamp(14px, 3vw, 22px);
-  max-width: 1080px;
+  /* Brand blue is the default accent (theme-aware surfaces still apply: the
+     learner's chosen theme drives --bg / --card / --text / dark mode, while the
+     settings accent defaults to ZedExams blue and can be re-picked below). */
+  --lset-accent: #2563eb;
+  --lset-accent-2: #7c3aed;      /* secondary hue for premium gradients */
+  --lset-radius: 22px;
+  --lset-radius-lg: 26px;
+  --lset-gap: clamp(14px, 2.4vw, 22px);
+  max-width: 1180px;
   margin: 0 auto;
-  padding: clamp(12px, 3vw, 24px);
-  padding-bottom: 120px;
+  padding: clamp(12px, 3vw, 26px);
+  padding-bottom: 128px;
   box-sizing: border-box;
   color: var(--text);
 }
@@ -27,11 +32,12 @@
 .lset *::after { box-sizing: border-box; }
 
 /* Accent overrides from personalisation. */
+.lset[data-accent='default'] { --lset-accent: #2563eb; }
 .lset[data-accent='emerald'] { --lset-accent: #10b981; }
 .lset[data-accent='sky']     { --lset-accent: #0ea5e9; }
-.lset[data-accent='violet']  { --lset-accent: #8b5cf6; }
-.lset[data-accent='rose']    { --lset-accent: #f43f5e; }
-.lset[data-accent='amber']   { --lset-accent: #f59e0b; }
+.lset[data-accent='violet']  { --lset-accent: #8b5cf6; --lset-accent-2: #6366f1; }
+.lset[data-accent='rose']    { --lset-accent: #f43f5e; --lset-accent-2: #ec4899; }
+.lset[data-accent='amber']   { --lset-accent: #f59e0b; --lset-accent-2: #f97316; }
 
 /* Card-style variants (personalisation live preview). */
 .lset[data-card-style='sharp'] { --lset-radius: 10px; }
@@ -740,3 +746,492 @@
 body[data-a11y-motion='reduced'] .lset-panel,
 body[data-a11y-motion='reduced'] .lset-savebar,
 body[data-a11y-motion='reduced'] .lset-toast { animation: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OVERVIEW DASHBOARD  — the premium redesign (mockup-faithful).
+   A left rail (page title + descriptive nav + help card) beside a responsive
+   grid of summary cards. Everything below is theme-variable driven so dark mode
+   and the six themes still apply; only the decorative section-tone tiles carry
+   fixed pastels (they read as accents in either mode).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lset-dash {
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr);
+  gap: var(--lset-gap);
+  align-items: start;
+}
+.lset-main { min-width: 0; }
+
+/* ── Page heading ─────────────────────────────────────────────── */
+.lset-head { margin-bottom: clamp(14px, 2.4vw, 20px); }
+.lset-head__title {
+  margin: 0;
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: clamp(26px, 5vw, 36px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--text);
+}
+.lset-head__sub { margin: 6px 0 0; font-size: 14.5px; color: var(--text-muted); }
+
+/* ── Left rail ────────────────────────────────────────────────── */
+.lset-rail {
+  position: sticky;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Descriptive sidebar nav. */
+.lset-snav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: var(--lset-radius);
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-md, 0 8px 24px -14px rgba(14, 42, 50, .28));
+}
+.lset-snav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .12s ease;
+}
+.lset-snav__item:hover { background: var(--bg-subtle); }
+.lset-snav__item--on {
+  background: color-mix(in srgb, var(--lset-accent) 12%, transparent);
+  border-left-color: var(--lset-accent);
+}
+.lset-snav__tile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  transition: transform .16s ease;
+}
+.lset-snav__item--on .lset-snav__tile { transform: scale(1.06); }
+.lset-snav__text { min-width: 0; flex: 1 1 auto; }
+.lset-snav__row { display: flex; align-items: center; gap: 6px; }
+.lset-snav__label {
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--text);
+}
+.lset-snav__item--on .lset-snav__label { color: color-mix(in srgb, var(--lset-accent) 62%, var(--text)); }
+.lset-snav__desc {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lset-snav__pill {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: color-mix(in srgb, var(--lset-accent-2) 16%, var(--card));
+  color: var(--lset-accent-2);
+  border: 1px solid color-mix(in srgb, var(--lset-accent-2) 40%, transparent);
+}
+
+/* Need-help card. */
+.lset-help-card {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: var(--lset-radius);
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--lset-accent-2) 22%, transparent), transparent 60%),
+    color-mix(in srgb, var(--lset-accent) 10%, var(--card));
+  border: 1.5px solid color-mix(in srgb, var(--lset-accent) 26%, var(--border));
+}
+.lset-help-card__title { margin: 0; font-size: 14px; font-weight: 900; color: var(--text); }
+.lset-help-card__body { margin: 3px 0 12px; font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
+
+/* ── Right content grid (12-col) ──────────────────────────────── */
+.lset-dashgrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--lset-gap);
+  min-width: 0;
+}
+.lset-cardwrap { min-width: 0; scroll-margin-top: 16px; }
+.lset-cardwrap[data-span='12'] { grid-column: span 12; }
+.lset-cardwrap[data-span='6']  { grid-column: span 6; }
+.lset-cardwrap[data-span='3']  { grid-column: span 3; }
+
+/* Staggered entrance. */
+.lset-cardwrap { animation: lsetCardIn .5s cubic-bezier(.22, 1, .36, 1) both; }
+.lset-cardwrap:nth-child(2)  { animation-delay: .04s; }
+.lset-cardwrap:nth-child(3)  { animation-delay: .08s; }
+.lset-cardwrap:nth-child(4)  { animation-delay: .12s; }
+.lset-cardwrap:nth-child(5)  { animation-delay: .16s; }
+.lset-cardwrap:nth-child(6)  { animation-delay: .20s; }
+.lset-cardwrap:nth-child(7)  { animation-delay: .24s; }
+.lset-cardwrap:nth-child(n+8){ animation-delay: .28s; }
+@keyframes lsetCardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Section card shell ───────────────────────────────────────── */
+.lset-scard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: clamp(16px, 2.4vw, 22px);
+  border-radius: var(--lset-radius);
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-md, 0 10px 30px -18px rgba(14, 42, 50, .3));
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+.lset-scard:hover {
+  box-shadow: var(--shadow-lg, 0 18px 44px -20px rgba(14, 42, 50, .4));
+  transform: translateY(-2px);
+}
+.lset[data-card-style='glass'] .lset-scard {
+  background: color-mix(in srgb, var(--card) 74%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.lset[data-card-style='sharp'] .lset-scard { border-radius: 12px; }
+.lset-scard__head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.lset-scard__tile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+}
+.lset-scard__titles { min-width: 0; flex: 1 1 auto; }
+.lset-scard__title {
+  margin: 0;
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--text);
+}
+.lset-scard__sub { margin: 1px 0 0; font-size: 12px; color: var(--text-muted); }
+.lset-scard__body { flex: 1 1 auto; min-width: 0; }
+.lset-scard__foot {
+  margin-top: auto;
+  padding-top: 14px;
+}
+.lset-scard__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  justify-content: space-between;
+  background: none;
+  border-left: none; border-right: none; border-bottom: none;
+  color: var(--lset-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.lset-scard__more:hover { color: color-mix(in srgb, var(--lset-accent) 80%, var(--text)); }
+
+/* ── Profile summary (My Account) ─────────────────────────────── */
+.lset-profilecard { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.lset-profilecard__avatarwrap { position: relative; flex: 0 0 auto; }
+.lset-profilecard__avatar {
+  width: 92px; height: 92px;
+  border-radius: 24px;
+  overflow: hidden;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--lset-accent) 14%, var(--card));
+  border: 2px solid color-mix(in srgb, var(--lset-accent) 30%, var(--border));
+  font-weight: 900; font-size: 30px; color: var(--lset-accent);
+}
+.lset-profilecard__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.lset-profilecard__cam {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--lset-accent);
+  color: var(--accent-text, #fff);
+  border: 3px solid var(--card);
+  cursor: pointer;
+}
+.lset-profilecard__fields {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 20px;
+}
+.lset-kv__k { font-size: 11px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); }
+.lset-kv__v { margin-top: 2px; font-size: 14.5px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.lset-profilecard__action { flex: 0 0 auto; align-self: flex-start; }
+
+/* Change-password strip. */
+.lset-strip {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+.lset-strip__text { min-width: 0; }
+.lset-strip__title { margin: 0; font-size: 14px; font-weight: 800; color: var(--text); }
+.lset-strip__hint { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+/* ── Segmented control (goal / difficulty) ────────────────────── */
+.lset-fieldlabel { display: block; margin-bottom: 8px; font-size: 12.5px; font-weight: 800; color: var(--text); }
+.lset-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.lset-seg__btn {
+  flex: 1 1 auto;
+  min-width: 62px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color .14s ease, background .14s ease, color .14s ease, transform .12s ease;
+}
+.lset-seg__btn:hover { border-color: var(--lset-accent); transform: translateY(-1px); }
+.lset-seg__btn--on {
+  background: var(--lset-accent);
+  border-color: var(--lset-accent);
+  color: var(--accent-text, #fff);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--lset-accent) 70%, transparent);
+}
+
+/* ── Progress stat tiles ──────────────────────────────────────── */
+.lset-stattiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.lset-stattile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border-radius: 18px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tile, var(--lset-accent)) 10%, var(--card)), var(--card));
+  border: 1.5px solid color-mix(in srgb, var(--tile, var(--lset-accent)) 24%, var(--border));
+}
+.lset-stattile__ic {
+  display: grid; place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tile, var(--lset-accent)) 16%, var(--card));
+  color: var(--tile, var(--lset-accent));
+  font-size: 19px;
+}
+.lset-stattile__val {
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: clamp(20px, 3.4vw, 26px);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text);
+}
+.lset-stattile__lab { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+/* Insight cards (deterministic smart nudges). */
+.lset-insights { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.lset-insight {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tone, var(--lset-accent)) 9%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--tone, var(--lset-accent)) 30%, var(--border));
+  font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4;
+}
+.lset-insight__emoji { font-size: 17px; flex: 0 0 auto; }
+
+/* Action button row. */
+.lset-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.lset-actions .lset-btn { flex: 1 1 auto; }
+
+/* ── Link list (Security, Help) ───────────────────────────────── */
+.lset-linklist { display: flex; flex-direction: column; }
+.lset-linkrow {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 13px 4px;
+  border: none; border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+  transition: padding-left .14s ease;
+}
+.lset-linklist .lset-linkrow:first-child { border-top: none; }
+.lset-linkrow:hover { padding-left: 8px; }
+.lset-linkrow__ic {
+  display: grid; place-items: center;
+  width: 34px; height: 34px; flex: 0 0 auto;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+.lset-linkrow__text { flex: 1 1 auto; min-width: 0; }
+.lset-linkrow__title { font-size: 14px; font-weight: 800; color: var(--text); }
+.lset-linkrow__hint { margin-top: 1px; font-size: 11.5px; color: var(--text-muted); }
+.lset-linkrow__meta { flex: 0 0 auto; font-size: 11px; font-weight: 800; color: var(--text-muted); }
+.lset-linkrow__chev { flex: 0 0 auto; color: var(--text-muted); }
+
+/* ── Premium card ─────────────────────────────────────────────── */
+.lset-premium {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(130% 120% at 100% 0%, color-mix(in srgb, var(--lset-accent-2) 70%, transparent), transparent 55%),
+    linear-gradient(135deg, #1e293b, #0f172a);
+  border-color: transparent;
+}
+.lset-premium .lset-scard__title,
+.lset-premium .lset-scard__sub { color: #fff; }
+.lset-premium__crown {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #7c2d12;
+}
+.lset-premium__plan { margin: 4px 0 12px; }
+.lset-premium__planlabel { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.lset-premium__planname {
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: 26px; font-weight: 900; line-height: 1;
+}
+.lset-premium__benefits { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 7px; }
+.lset-premium__benefit { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.lset-premium__benefit::before { content: '✓'; color: #4ade80; font-weight: 900; }
+.lset-btn--gold {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #7c2d12;
+}
+.lset-btn--gold:hover:not(:disabled) { filter: brightness(1.04); }
+
+.lset-link { color: var(--lset-accent); font-weight: 800; text-decoration: underline; }
+
+/* AI feature link list. */
+.lset-ailist { display: grid; gap: 4px; }
+.lset-airow {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 9px 8px;
+  border: none; border-radius: 11px; background: none;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background .14s ease;
+}
+.lset-airow:hover { background: color-mix(in srgb, var(--lset-accent) 8%, transparent); }
+.lset-airow[disabled] { cursor: default; opacity: .72; }
+.lset-airow__emoji { font-size: 16px; flex: 0 0 auto; width: 22px; text-align: center; }
+.lset-airow__label { flex: 1 1 auto; font-size: 13.5px; font-weight: 700; }
+
+/* ── Floating AI assistant button ─────────────────────────────── */
+.lset-fab {
+  position: fixed;
+  right: calc(env(safe-area-inset-right, 0px) + 18px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 18px;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--lset-accent), var(--lset-accent-2));
+  box-shadow: 0 14px 32px -12px color-mix(in srgb, var(--lset-accent) 75%, transparent);
+  animation: lsetFabIn .4s cubic-bezier(.22, 1, .36, 1) both;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.lset-fab:hover { transform: translateY(-2px) scale(1.02); }
+.lset-fab__pulse { position: relative; display: inline-flex; }
+@keyframes lsetFabIn { from { opacity: 0; transform: translateY(20px) scale(.9); } to { opacity: 1; transform: none; } }
+
+/* ── Detail mode (a single focused panel) ─────────────────────── */
+.lset-detail { animation: lsetPanelIn .28s cubic-bezier(.22, 1, .36, 1); }
+.lset-detail__back {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 14px; padding: 8px 14px;
+  border: 1.5px solid var(--border); border-radius: 999px;
+  background: var(--card); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+  transition: background .14s ease;
+}
+.lset-detail__back:hover { background: var(--bg-subtle); }
+
+/* ── Confetti (badge unlock) ──────────────────────────────────── */
+.lset-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
+.lset-confetti span {
+  position: absolute;
+  top: -12px;
+  width: 9px; height: 14px;
+  border-radius: 2px;
+  opacity: .95;
+  animation: lsetConfetti 2.4s cubic-bezier(.2, .6, .3, 1) forwards;
+}
+@keyframes lsetConfetti {
+  to { transform: translateY(108vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .lset-cardwrap[data-span='3'] { grid-column: span 6; }
+}
+@media (max-width: 980px) {
+  .lset-dash { grid-template-columns: minmax(0, 1fr); }
+  .lset-rail { position: static; }
+  /* Rail nav becomes a horizontal scroll strip of compact chips on tablet/mobile. */
+  .lset-snav { flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .lset-snav::-webkit-scrollbar { display: none; }
+  .lset-snav__item { flex: 0 0 auto; border-left: none; border-bottom: 3px solid transparent; border-radius: 12px; }
+  .lset-snav__item--on { border-left-color: transparent; border-bottom-color: var(--lset-accent); }
+  .lset-snav__desc { display: none; }
+  .lset-help-card { display: none; }
+}
+@media (max-width: 720px) {
+  .lset-cardwrap[data-span='6'],
+  .lset-cardwrap[data-span='3'] { grid-column: span 12; }
+  .lset-profilecard__action { width: 100%; }
+  .lset-fab { right: 14px; bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); padding: 12px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lset-cardwrap, .lset-fab, .lset-detail, .lset-confetti span { animation: none; }
+  .lset-scard:hover { transform: none; }
+}
+body[data-a11y-motion='reduced'] .lset-cardwrap,
+body[data-a11y-motion='reduced'] .lset-fab,
+body[data-a11y-motion='reduced'] .lset-confetti span { animation: none; }
+body[data-a11y-motion='reduced'] .lset-scard:hover { transform: none; }

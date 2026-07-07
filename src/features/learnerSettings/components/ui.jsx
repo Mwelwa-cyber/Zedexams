@@ -5,7 +5,139 @@
 // all colour comes from CSS custom properties, so the components inherit the
 // learner's chosen ZedExams theme automatically).
 
+import { useEffect, useRef, useState } from 'react'
 import Icon from '../../../components/ui/Icon'
+import { ChevronRight as ChevronRightIcon } from '../../../components/ui/icons'
+
+/* True when the learner (or their OS) has asked to calm animation. Used to skip
+   the count-up animation and land straight on the final value. */
+function prefersReducedMotion() {
+  if (typeof window === 'undefined') return false
+  try {
+    if (document.body?.getAttribute('data-a11y-motion') === 'reduced') return true
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
+  } catch {
+    return false
+  }
+}
+
+/* ── Dashboard: section card shell ────────────────────────────── */
+// A titled card used across the overview dashboard. `tone` colours the header
+// icon tile via the shared .lset-badge--* palette. `more` renders a bottom
+// "Manage all / More" drill-in row.
+export function SectionCard({ id, tone = 'slate', icon, title, subtitle, className = '', headerRight, more, onMore, children }) {
+  return (
+    <section id={id} className={`lset-scard ${className}`.trim()}>
+      <header className="lset-scard__head">
+        {icon && (
+          <span className={`lset-scard__tile lset-badge lset-badge--${tone}`}>
+            <Icon as={icon} size="md" strokeWidth={2.1} />
+          </span>
+        )}
+        <div className="lset-scard__titles">
+          <h2 className="lset-scard__title">{title}</h2>
+          {subtitle && <p className="lset-scard__sub">{subtitle}</p>}
+        </div>
+        {headerRight}
+      </header>
+      <div className="lset-scard__body">{children}</div>
+      {more && (
+        <button type="button" className="lset-scard__more" onClick={onMore}>
+          <span>{more}</span>
+          <Icon as={ChevronRightIcon} size="sm" strokeWidth={2.4} />
+        </button>
+      )}
+    </section>
+  )
+}
+
+/* ── Count-up animated number ─────────────────────────────────── */
+// Animates from 0 to `value` on mount; honours reduced-motion by snapping.
+export function useCountUp(value, { duration = 900 } = {}) {
+  const target = Number(value) || 0
+  const [display, setDisplay] = useState(() => (prefersReducedMotion() ? target : 0))
+  const rafRef = useRef(0)
+  useEffect(() => {
+    if (prefersReducedMotion()) { setDisplay(target); return undefined }
+    let start = null
+    const from = 0
+    const step = (ts) => {
+      if (start == null) start = ts
+      const t = Math.min(1, (ts - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(from + (target - from) * eased)
+      if (t < 1) rafRef.current = requestAnimationFrame(step)
+      else setDisplay(target)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, duration])
+  return display
+}
+
+// A single dashboard stat tile (icon + animated value + label). `format` turns
+// the raw animated number into the shown string (e.g. add a % or thousands sep).
+export function StatTile({ icon, emoji, value, label, tone = '#2563eb', animate = true, format }) {
+  const animated = useCountUp(animate ? value : 0)
+  const shown = animate
+    ? (format ? format(animated) : Math.round(animated).toLocaleString())
+    : (format ? format(value) : value)
+  return (
+    <div className="lset-stattile" style={{ '--tile': tone }}>
+      <span className="lset-stattile__ic">
+        {icon ? <Icon as={icon} size="sm" strokeWidth={2.2} /> : <span aria-hidden="true">{emoji}</span>}
+      </span>
+      <span className="lset-stattile__val">{shown}</span>
+      <span className="lset-stattile__lab">{label}</span>
+    </div>
+  )
+}
+
+/* ── Segmented control (goal / difficulty pickers) ────────────── */
+export function Segmented({ label, options, value, onChange }) {
+  return (
+    <div>
+      {label && <span className="lset-fieldlabel">{label}</span>}
+      <div className="lset-seg" role="group" aria-label={label}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o
+          const l = typeof o === 'object' ? o.label : o
+          const on = value === v
+          return (
+            <button
+              key={String(v)}
+              type="button"
+              className={`lset-seg__btn${on ? ' lset-seg__btn--on' : ''}`}
+              aria-pressed={on}
+              onClick={() => onChange?.(v)}
+            >
+              {l}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── Link row (Security / Help drill-ins) ─────────────────────── */
+export function LinkRow({ icon, title, hint, meta, onClick, href }) {
+  const inner = (
+    <>
+      {icon && <span className="lset-linkrow__ic"><Icon as={icon} size="sm" strokeWidth={2.1} /></span>}
+      <span className="lset-linkrow__text">
+        <span className="lset-linkrow__title">{title}</span>
+        {hint && <span className="lset-linkrow__hint">{hint}</span>}
+      </span>
+      {meta && <span className="lset-linkrow__meta">{meta}</span>}
+      <Icon as={ChevronRightIcon} size="sm" strokeWidth={2.2} className="lset-linkrow__chev" />
+    </>
+  )
+  if (href) {
+    return <a className="lset-linkrow" href={href} target={href.startsWith('http') || href.startsWith('mailto:') ? '_blank' : undefined} rel="noreferrer">{inner}</a>
+  }
+  return <button type="button" className="lset-linkrow" onClick={onClick}>{inner}</button>
+}
 
 /* ── Panel scaffold ───────────────────────────────────────────── */
 
