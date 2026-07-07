@@ -18,7 +18,9 @@ import {
   LANGUAGE_OPTIONS,
 } from '../lib/learnerPrefs'
 
-export default function ZedAiPanel({ section, pushToast }) {
+// Headerless Zed-tuning body — composed by AiPanel (the AI Learning Assistant
+// detail view) below its goal/practice controls. Default keeps the Panel.
+export function ZedAiBody({ pushToast }) {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
   const [resetting, setResetting] = useState(false)
@@ -38,7 +40,7 @@ export default function ZedAiPanel({ section, pushToast }) {
   }
 
   return (
-    <Panel section={section}>
+    <>
       <Note tone="accent">These settings tune how Zed, your study assistant, talks with you.</Note>
 
       <Section title="Personality & style" hint="Pick the vibe and how much detail Zed gives.">
@@ -96,6 +98,14 @@ export default function ZedAiPanel({ section, pushToast }) {
         </Btn>
         <Note>Resetting clears Zed's chat history stored on this device. It won't affect your other settings.</Note>
       </Section>
+    </>
+  )
+}
+
+export default function ZedAiPanel({ section, pushToast }) {
+  return (
+    <Panel section={section}>
+      <ZedAiBody pushToast={pushToast} />
     </Panel>
   )
 }

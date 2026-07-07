@@ -29,7 +29,8 @@ const SOON_ROWS = [
   { key: 'signout-all', label: 'Log out of all devices' },
 ]
 
-export default function SecurityPanel({ section, pushToast }) {
+// Headerless body — composed by PrivacySecurityPanel; default keeps the Panel.
+export function SecurityBody({ pushToast }) {
   const { userProfile, currentUser, resetPassword } = useAuth()
   const { commit } = useSettingsSave()
 
@@ -77,7 +78,7 @@ export default function SecurityPanel({ section, pushToast }) {
   }
 
   return (
-    <Panel section={section}>
+    <>
       {/* Security strength */}
       <Section title="Security strength" hint="Based on your real account state — never a guess.">
         <div className="lset-meter" role="img" aria-label={`Security: ${strength.label}`}>
@@ -171,6 +172,14 @@ export default function SecurityPanel({ section, pushToast }) {
           </div>
         ))}
       </Section>
+    </>
+  )
+}
+
+export default function SecurityPanel({ section, pushToast }) {
+  return (
+    <Panel section={section}>
+      <SecurityBody pushToast={pushToast} />
     </Panel>
   )
 }

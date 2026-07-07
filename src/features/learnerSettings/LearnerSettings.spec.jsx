@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { searchSections, getSection, SECTION_IDS } from './sections'
 
@@ -9,20 +9,20 @@ describe('searchSections', () => {
     expect(searchSections('').length).toBe(SECTION_IDS.length)
   })
   it('matches by label', () => {
-    const r = searchSections('privacy')
-    expect(r.some((s) => s.id === 'privacy')).toBe(true)
+    const r = searchSections('security')
+    expect(r.some((s) => s.id === 'security')).toBe(true)
   })
   it('matches by keyword not in the label', () => {
-    // "dark mode" is a keyword of Personalisation, not in its label.
+    // "dark mode" is a keyword of Appearance, not in its label.
     const r = searchSections('dark mode')
-    expect(r.some((s) => s.id === 'personalisation')).toBe(true)
+    expect(r.some((s) => s.id === 'appearance')).toBe(true)
   })
   it('is case-insensitive and returns nothing for gibberish', () => {
     expect(searchSections('ZZnope').length).toBe(0)
     expect(searchSections('BADGES').some((s) => s.id === 'notifications')).toBe(true)
   })
   it('getSection resolves a known id and null otherwise', () => {
-    expect(getSection('profile')?.label).toBe('Profile')
+    expect(getSection('account')?.label).toBe('My Account')
     expect(getSection('nope')).toBeNull()
   })
 })
@@ -37,27 +37,41 @@ vi.mock('../../contexts/AuthContext', () => ({
     updateProfileFields,
   }),
 }))
-vi.mock('../../hooks/useSubscription', () => ({
-  useSubscription: () => ({ tierLabel: 'Free', isPremium: false }),
-}))
 vi.mock('../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../components/profile/CharacterAvatar', () => ({ default: () => <div /> }))
 vi.mock('../../components/ui/PageLoader', () => ({ default: () => <div>loading</div> }))
+vi.mock('./components/AiFab', () => ({ default: () => <div data-testid="ai-fab" /> }))
 
-// Stub every lazy panel so the shell spec only exercises the shell. Each mock
-// must be a static top-level call (vi.mock is hoisted — no loops) with a
-// self-contained factory (no outer-scope references).
-vi.mock('./panels/ProfilePanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/SecurityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/NotificationsPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+// Stub the overview cards so the shell spec only exercises the shell. Each stub
+// exposes a button that calls onOpen(id) to drill into the detail panel.
+vi.mock('./components/DashboardCards', () => {
+  const mk = (id) => function CardStub({ onOpen }) {
+    return <div data-testid={`card-${id}`}><button type="button" onClick={() => onOpen(id)}>open-{id}</button></div>
+  }
+  return {
+    MyAccountCard: mk('account'),
+    LearningCard: mk('learning'),
+    ProgressCard: mk('progress'),
+    NotificationsCard: mk('notifications'),
+    AppearanceCard: mk('appearance'),
+    AccessibilityCard: mk('accessibility'),
+    AiCard: mk('ai'),
+    PremiumCard: mk('premium'),
+    SecurityPrivacyCard: mk('security'),
+    HelpCard: mk('help'),
+  }
+})
+
+// Stub every lazy detail panel (vi.mock is hoisted — static factories only).
+vi.mock('./panels/MyAccountPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/LearningPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/AccessibilityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/ParentPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/AccountPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/DashboardPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/ProgressPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/NotificationsPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/PersonalisationPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/ZedAiPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/PrivacyPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/AccessibilityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/AiPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/PremiumPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/PrivacySecurityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
+vi.mock('./panels/HelpPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 
 import LearnerSettings from './LearnerSettings'
 
@@ -69,35 +83,35 @@ describe('LearnerSettings shell', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     try { window.localStorage.clear() } catch { /* noop */ }
+    global.IntersectionObserver = class {
+      observe() {} unobserve() {} disconnect() {}
+    }
+    window.scrollTo = vi.fn()
+    Element.prototype.scrollIntoView = vi.fn()
   })
 
-  it('renders the hero with the learner name and completion ring', async () => {
+  it('renders the page heading and profile-completion subtitle', () => {
     renderShell()
-    expect(screen.getByRole('heading', { name: 'Test Learner' })).toBeInTheDocument()
-    // A profile with only name+grade set is partially complete (not 0, not 100).
-    expect(screen.getByText(/%/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.getByText(/% complete/)).toBeInTheDocument()
   })
 
-  it('shows the profile panel first and switches section on nav click', async () => {
+  it('shows the overview grid and drills into a detail panel via a card', async () => {
     renderShell()
-    expect(await screen.findByTestId('panel-profile')).toBeInTheDocument()
-    // The desktop sidebar + mobile tabs both list every section; click a nav item.
-    const nav = document.querySelector('.lset-nav')
-    fireEvent.click(within(nav).getByText('Notifications'))
-    expect(await screen.findByTestId('panel-notifications')).toBeInTheDocument()
-  })
-
-  it('filters to a search-results list when typing a query', async () => {
-    renderShell()
-    fireEvent.change(screen.getByLabelText('Search settings'), { target: { value: 'privacy' } })
-    // Section content is replaced by the results list; Privacy should appear.
-    expect(screen.getByText('Data sharing and visibility')).toBeInTheDocument()
-    // A non-matching panel is no longer mounted.
-    expect(screen.queryByTestId('panel-profile')).not.toBeInTheDocument()
+    expect(screen.getByTestId('card-account')).toBeInTheDocument()
+    expect(screen.queryByTestId('panel-account')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('open-account'))
+    expect(await screen.findByTestId('panel-account')).toBeInTheDocument()
   })
 
   it('honours a ?section= deep link', async () => {
-    renderShell('/settings?section=account')
-    expect(await screen.findByTestId('panel-account')).toBeInTheDocument()
+    renderShell('/settings?section=progress')
+    expect(await screen.findByTestId('panel-progress')).toBeInTheDocument()
+  })
+
+  it('shows a no-match message when a search finds nothing', () => {
+    renderShell()
+    fireEvent.change(screen.getByLabelText('Search settings'), { target: { value: 'ZZnope' } })
+    expect(screen.getByText(/No settings match/)).toBeInTheDocument()
   })
 })

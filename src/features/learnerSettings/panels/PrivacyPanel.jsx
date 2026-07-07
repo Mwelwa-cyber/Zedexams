@@ -10,7 +10,8 @@ import { Panel, Section, Toggle, OptionCards, Note } from '../components/ui'
 import { normalizePrivacyPrefs, PROFILE_VISIBILITY_OPTIONS } from '../lib/learnerPrefs'
 import AnalyticsConsentToggle from '../../../components/ui/AnalyticsConsentToggle'
 
-export default function PrivacyPanel({ section }) {
+// Headerless body — composed by PrivacySecurityPanel; default keeps the Panel.
+export function PrivacyBody() {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
 
@@ -21,7 +22,7 @@ export default function PrivacyPanel({ section }) {
   }
 
   return (
-    <Panel section={section}>
+    <>
       <Note tone="accent">
         You're in control of what you share. These settings only affect your own
         account, and you can change them any time.
@@ -74,6 +75,14 @@ export default function PrivacyPanel({ section }) {
           help. These management screens are coming soon.
         </Note>
       </Section>
+    </>
+  )
+}
+
+export default function PrivacyPanel({ section }) {
+  return (
+    <Panel section={section}>
+      <PrivacyBody />
     </Panel>
   )
 }
