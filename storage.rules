@@ -44,7 +44,15 @@ service firebase.storage {
     }
 
     function validQuizImageUpload() {
-      return request.resource.size < 5 * 1024 * 1024
+      // 10 MB backstop (was 5 MB). Every quiz-image upload path compresses to a
+      // 1200px-wide JPEG first (compressImage / compressImportedImage → ~1-2 MB),
+      // so this is never hit in normal use — but a very detailed, very tall scan
+      // (kept at 1200px wide) can re-encode past 5 MB and used to be rejected
+      // here with an opaque "storage/unauthorized" instead of uploading. Matches
+      // the validVisualStudioUpload headroom for the same "detailed diagram"
+      // reason. The client still pre-checks the ORIGINAL file at 15 MB (canvas
+      // memory guard); this bounds the COMPRESSED artifact that actually lands.
+      return request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 

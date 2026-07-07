@@ -113,7 +113,7 @@ function withCurrentOption(options, currentValue) {
 // encoded as high-quality JPEG. The width cap is generous so fine detail and
 // text in figures survive. Returns a Blob whose `.type` tells the caller which
 // format/extension to store.
-function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
+function compressImage(file, { maxWidth = 1600, quality = 0.92, maxBytes = 9 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const objectUrl = URL.createObjectURL(file)
@@ -127,7 +127,6 @@ function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
       }
 
       const lossless = file.type === 'image/png'
-      const mime = lossless ? 'image/png' : 'image/jpeg'
       const canvas = document.createElement('canvas')
       canvas.width = width
       canvas.height = height
@@ -135,10 +134,28 @@ function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(image, 0, 0, width, height)
+
+      const fail = () => reject(new Error('Canvas compression failed'))
+      const encodeJpeg = (q) => canvas.toBlob(
+        blob => (blob ? resolve(blob) : fail()), 'image/jpeg', q,
+      )
+
+      if (!lossless) {
+        encodeJpeg(quality)
+        return
+      }
+      // PNG source: keep it lossless when it's a sane size (crisp line-art /
+      // text survives), but a dense photographic PNG can encode past the
+      // Storage size cap and get rejected with an opaque error. Fall back to
+      // JPEG only when the lossless blob is too big — so the upload never fails
+      // on size, while normal figures stay lossless.
       canvas.toBlob(
-        blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
-        mime,
-        lossless ? undefined : quality,
+        blob => {
+          if (!blob) { fail(); return }
+          if (blob.size > maxBytes) { encodeJpeg(0.9); return }
+          resolve(blob)
+        },
+        'image/png',
       )
     }
 
@@ -149,6 +166,23 @@ function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
 
     image.src = objectUrl
   })
+}
+
+// Turn a raw Storage/upload error into teacher-friendly copy. The most common
+// real failure is a write rejected by the validQuizImageUpload size cap, which
+// Firebase surfaces as `storage/unauthorized` — otherwise shown as an opaque
+// "Upload failed: Firebase Storage: User does not have permission to access…".
+function uploadErrorMessage(error) {
+  const code = error?.code || ''
+  const msg = String(error?.message || '')
+  if (code === 'storage/unauthorized' || (/storage/i.test(code) && /unauthorized|permission/i.test(msg))) {
+    return 'Upload failed — the image may be too large (10 MB max after compression). Try a smaller crop or a JPEG.'
+  }
+  if (code === 'storage/canceled') return 'Upload canceled.'
+  if (code === 'storage/retry-limit-exceeded' || /network|timeout|offline/i.test(msg)) {
+    return 'Upload failed — check your connection and try again.'
+  }
+  return `Upload failed: ${msg || 'please try again.'}`
 }
 
 // Derive the storage extension + contentType from a processed upload blob so
@@ -223,6 +257,11 @@ export default function EditQuizV2() {
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  // Set when the load() body throws (malformed/legacy question data, an
+  // unexpected passage shape, a hydrate error). Without this the editor would
+  // hang forever on the loading skeleton — load() would reject unhandled and
+  // `loading` would never flip false. Rendered as a recoverable error card.
+  const [loadError, setLoadError] = useState(false)
   const [form, setForm] = useState({
     title: '',
     subject: 'Mathematics',
@@ -458,16 +497,24 @@ export default function EditQuizV2() {
     async function load() {
       setLoading(true)
       setNotFound(false)
+      setLoadError(false)
+      try {
       const [quiz, questions] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
       if (cancelled) return
       if (!quiz) {
-        setNotFound(true)
-        setLoading(false)
+        // getQuizById returns null both for a genuinely-missing quiz AND for a
+        // swallowed read error (it catches internally). Don't tell a teacher
+        // their paper was "deleted" when the real cause is a dropped
+        // connection — show the recoverable "reload" card instead.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          setLoadError(true)
+        } else {
+          setNotFound(true)
+        }
         return
       }
       if (!isAdmin && quiz.createdBy !== currentUser.uid) {
         setNotFound(true)
-        setLoading(false)
         return
       }
 
@@ -522,7 +569,16 @@ export default function EditQuizV2() {
         (Number(quiz.reviewCount) || 0) > 0 ||
         (Array.isArray(quiz.passages) && quiz.passages.length > 0)
       setSuspectEmptyLoad(questions.length === 0 && docClaimsContent)
-      setLoading(false)
+      } catch (error) {
+        // Malformed/legacy data (bad passage shape, hydrate error) must not
+        // freeze the editor on the skeleton forever. Surface a recoverable
+        // error card instead of an unhandled rejection.
+        if (cancelled) return
+        console.error('[EditQuizV2] load failed', error)
+        setLoadError(true)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
 
     load()
@@ -593,6 +649,20 @@ export default function EditQuizV2() {
     setDirty(true)
   }, [])
 
+  // Address a section by its STABLE id, not its array position. In-flight image
+  // uploads capture the section they started on; if the teacher reorders,
+  // deletes, or merges sections while an upload is running, an index-based write
+  // would land on the wrong section — leaving the real section's
+  // `imageUploading` flag stuck true forever (Save disabled + autosave blocked).
+  // A no-op when the section was removed mid-upload, which is the safe outcome.
+  const updateSectionById = useCallback(function updateSectionById(sectionId, updater) {
+    if (!sectionId) return
+    setSections(currentSections => currentSections.map(section => (
+      section.id === sectionId ? updater(section) : section
+    )))
+    setDirty(true)
+  }, [])
+
   // Bulk answer-key entry. Applies a { localId: optionIndex } map across every
   // section in one pass (pure helper), addressing questions by stable localId
   // so nothing reorders and only matched questions change. Routes through the
@@ -640,10 +710,17 @@ export default function EditQuizV2() {
     if (!target || !blob) return
     // The crop modal returns a lossless PNG; keep it PNG through the upload path.
     const file = new File([blob], 'cropped.png', { type: blob.type || 'image/png' })
-    if (target.kind === 'standalone') {
-      await uploadStandaloneQuestionImage(target.sectionIndex, file)
-    } else if (target.kind === 'passage') {
-      await uploadPassageImage(target.sectionIndex, file)
+    // The upload helpers catch internally, but wrap defensively so a future
+    // refactor that lets one throw can't become an unhandled rejection with no
+    // feedback to the teacher.
+    try {
+      if (target.kind === 'standalone') {
+        await uploadStandaloneQuestionImage(target.sectionIndex, file)
+      } else if (target.kind === 'passage') {
+        await uploadPassageImage(target.sectionIndex, file)
+      }
+    } catch (error) {
+      show(uploadErrorMessage(error), true)
     }
   }
 
@@ -960,8 +1037,11 @@ export default function EditQuizV2() {
     const prevQuestion = sectionsRef.current?.[sectionIndex]?.question || {}
     const prevImageUrl = prevQuestion.imageUrl || ''
     const prevImageAssetId = prevQuestion.imageAssetId || ''
+    // Resolve the section by stable id so reordering/deleting a section mid
+    // upload can't strand its `imageUploading` flag on the wrong card.
+    const sectionId = sectionsRef.current?.[sectionIndex]?.id
 
-    updateSection(sectionIndex, section => ({
+    updateSectionById(sectionId, section => ({
       ...section,
       question: {
         ...section.question,
@@ -975,11 +1055,14 @@ export default function EditQuizV2() {
     try {
       const compressed = await compressImage(file)
       const { ext, contentType } = uploadFormat(compressed)
-      updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
+      updateSectionById(sectionId, section => ({
+        ...section,
+        question: { ...section.question, imageUploadStep: 'uploading' },
+      }))
       const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.${ext}`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         question: {
           ...section.question,
@@ -991,7 +1074,7 @@ export default function EditQuizV2() {
       }))
       show(`Image uploaded (${Math.round(compressed.size / 1024)} KB)`)
     } catch (error) {
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         question: {
           ...section.question,
@@ -1002,9 +1085,9 @@ export default function EditQuizV2() {
           imageUploadStep: '',
         },
       }))
-      show(`Upload failed: ${error.message}`, true)
+      show(uploadErrorMessage(error), true)
     }
-  }, [show, updateSection, updateStandaloneQuestion, currentUser])
+  }, [show, updateSectionById, currentUser])
 
   const removeStandaloneQuestionImage = useCallback(function removeStandaloneQuestionImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
@@ -1030,8 +1113,10 @@ export default function EditQuizV2() {
     // Preserve the existing passage image so a failed upload restores it
     // rather than dropping the diagram/map the teacher already attached.
     const prevPassageImageUrl = sectionsRef.current?.[sectionIndex]?.passage?.imageUrl || ''
+    // Resolve by stable id so a mid-upload reorder/delete can't strand the flag.
+    const sectionId = sectionsRef.current?.[sectionIndex]?.id
 
-    updateSection(sectionIndex, section => ({
+    updateSectionById(sectionId, section => ({
       ...section,
       passage: {
         ...section.passage,
@@ -1043,7 +1128,7 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         passage: {
           ...section.passage,
@@ -1054,7 +1139,7 @@ export default function EditQuizV2() {
       const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.${ext}`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         passage: {
           ...section.passage,
@@ -1065,7 +1150,7 @@ export default function EditQuizV2() {
       }))
       show(`Passage image uploaded (${Math.round(compressed.size / 1024)} KB)`)
     } catch (error) {
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         passage: {
           ...section.passage,
@@ -1075,9 +1160,9 @@ export default function EditQuizV2() {
           imageUploadStep: '',
         },
       }))
-      show(`Upload failed: ${error.message}`, true)
+      show(uploadErrorMessage(error), true)
     }
-  }, [show, updateSection, currentUser])
+  }, [show, updateSectionById, currentUser])
 
   const removePassageImage = useCallback(function removePassageImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
@@ -1105,7 +1190,10 @@ export default function EditQuizV2() {
       return
     }
 
-    updateSection(sectionIndex, section => ({
+    // Resolve by stable id so a mid-upload reorder/delete can't strand the flag.
+    const sectionId = sectionsRef.current?.[sectionIndex]?.id
+
+    updateSectionById(sectionId, section => ({
       ...section,
       question: {
         ...section.question,
@@ -1117,12 +1205,15 @@ export default function EditQuizV2() {
     try {
       const compressed = await compressImage(file)
       const { ext, contentType } = uploadFormat(compressed)
-      updateStandaloneQuestion(sectionIndex, 'optionImageUploadStep', 'uploading')
+      updateSectionById(sectionId, section => ({
+        ...section,
+        question: { ...section.question, optionImageUploadStep: 'uploading' },
+      }))
       const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.${ext}`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
-      updateSection(sectionIndex, section => {
+      updateSectionById(sectionId, section => {
         const next = buildOptionMediaSlots(section.question)
         const prevAlt = next[optionIndex]?.alt ?? ''
         next[optionIndex] = { imageUrl, alt: prevAlt }
@@ -1138,7 +1229,7 @@ export default function EditQuizV2() {
       })
       show(`Option image uploaded (${Math.round(compressed.size / 1024)} KB)`)
     } catch (error) {
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         question: {
           ...section.question,
@@ -1146,9 +1237,9 @@ export default function EditQuizV2() {
           optionImageUploadStep: '',
         },
       }))
-      show(`Upload failed: ${error.message}`, true)
+      show(uploadErrorMessage(error), true)
     }
-  }, [show, updateSection, updateStandaloneQuestion, currentUser])
+  }, [show, updateSectionById, currentUser])
 
   const removeStandaloneOptionImage = useCallback(function removeStandaloneOptionImage(sectionIndex, optionIndex) {
     updateSection(sectionIndex, section => {
@@ -1174,8 +1265,12 @@ export default function EditQuizV2() {
       return
     }
 
+    // Resolve the section by stable id so a mid-upload reorder/delete can't
+    // strand the flag on the wrong passage (the question is still addressed by
+    // its position within that passage).
+    const sectionId = sectionsRef.current?.[sectionIndex]?.id
     const patchQuestion = (patch) =>
-      updateSection(sectionIndex, section => ({
+      updateSectionById(sectionId, section => ({
         ...section,
         passage: {
           ...section.passage,
@@ -1215,9 +1310,9 @@ export default function EditQuizV2() {
         optionImageUploadingIndex: null,
         optionImageUploadStep: '',
       }))
-      show(`Upload failed: ${error.message}`, true)
+      show(uploadErrorMessage(error), true)
     }
-  }, [show, updateSection, currentUser])
+  }, [show, updateSectionById, currentUser])
 
   const removePassageQuestionOptionImage = useCallback(function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
     updateSection(sectionIndex, section => ({
@@ -1852,6 +1947,27 @@ export default function EditQuizV2() {
         {[1, 2, 3].map(item => (
           <Skeleton key={item} height={96} className="!rounded-2xl" />
         ))}
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="theme-text py-20 text-center">
+        <div className="mb-3 text-5xl" aria-hidden="true">⚠️</div>
+        <h2 className="text-display-xl theme-text mb-2">Couldn&apos;t open this quiz</h2>
+        <p className="theme-text-muted text-body mb-5">
+          Something went wrong loading it — this can happen with an older or
+          partly-imported quiz. Your saved work is safe; try reloading.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={() => window.location.reload()} className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md">
+            ↻ Reload
+          </button>
+          <button type="button" onClick={() => navigate(backPath)} className="theme-border theme-text rounded-xl border px-6 py-2.5 text-sm font-black">
+            ← Back to Content
+          </button>
+        </div>
       </div>
     )
   }

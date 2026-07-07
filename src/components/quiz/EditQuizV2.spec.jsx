@@ -117,6 +117,35 @@ describe('EditQuizV2 — load states', () => {
     renderEditor()
     expect(await screen.findByText('Quiz not found')).toBeInTheDocument()
   })
+
+  it('shows a recoverable error card (not a stuck skeleton) when the load throws', async () => {
+    // A rejecting read stands in for a hydrate error on malformed/legacy data.
+    // Before the load-effect try/catch, this left `loading` true forever — the
+    // editor froze on the skeleton. Now it must surface an actionable card.
+    mockGetQuizById.mockRejectedValue(new Error('boom'))
+    renderEditor()
+    expect(await screen.findByText(/Couldn't open this quiz/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reload/i })).toBeInTheDocument()
+    // Not stuck on the loading skeleton.
+    expect(document.querySelector('.space-y-4')).not.toBeInTheDocument()
+  })
+
+  it('offline: a null read shows the reload card, not "Quiz not found"', async () => {
+    // getQuizById swallows read errors and returns null, indistinguishable from
+    // a genuinely-deleted quiz. When the browser is offline we must NOT tell the
+    // teacher their paper was deleted.
+    const onLineDesc = Object.getOwnPropertyDescriptor(window.navigator, 'onLine')
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false })
+    try {
+      mockGetQuizById.mockResolvedValue(null)
+      renderEditor()
+      expect(await screen.findByText(/Couldn't open this quiz/i)).toBeInTheDocument()
+      expect(screen.queryByText('Quiz not found')).not.toBeInTheDocument()
+    } finally {
+      if (onLineDesc) Object.defineProperty(window.navigator, 'onLine', onLineDesc)
+      else Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true })
+    }
+  })
 })
 
 describe('EditQuizV2 — access control', () => {
