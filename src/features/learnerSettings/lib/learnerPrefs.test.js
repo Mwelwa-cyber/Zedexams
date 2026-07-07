@@ -13,6 +13,7 @@ import {
   normalizePrivacyPrefs,
   normalizeReminderPrefs,
   normalizeParentContact,
+  normalizeAiAssistantPrefs,
   normalizeLearnerSettings,
   REMINDER_GROUPS,
 } from './learnerPrefs.js'
@@ -106,6 +107,33 @@ test('normalizeLearningPrefs rejects an invalid enum value', () => {
   assert.equal(lp.audioSpeed, '1')
 })
 
+test('normalizeLearningPrefs coerces + validates the daily goal', () => {
+  assert.equal(normalizeLearningPrefs({}).dailyGoal, 20)
+  assert.equal(normalizeLearningPrefs({ dailyGoal: 45 }).dailyGoal, 45)
+  assert.equal(normalizeLearningPrefs({ dailyGoal: '30' }).dailyGoal, 30)
+  assert.equal(normalizeLearningPrefs({ dailyGoal: 999 }).dailyGoal, 20)
+})
+
+/* ── AI assistant ── */
+test('normalizeAiAssistantPrefs defaults', () => {
+  const a = normalizeAiAssistantPrefs(undefined)
+  assert.equal(a.learningGoal, 'pass_exams')
+  assert.deepEqual(a.improveSubjects, [])
+  assert.equal(a.autoPickPractice, true)
+  assert.equal(a.focusWeakTopics, true)
+})
+
+test('normalizeAiAssistantPrefs filters + dedupes improve subjects and enum-guards the goal', () => {
+  const a = normalizeAiAssistantPrefs({
+    learningGoal: 'nope',
+    improveSubjects: ['mathematics', 'mathematics', 'bogus', 'english'],
+    focusWeakTopics: false,
+  })
+  assert.equal(a.learningGoal, 'pass_exams')
+  assert.deepEqual(a.improveSubjects, ['mathematics', 'english'])
+  assert.equal(a.focusWeakTopics, false)
+})
+
 test('normalizePersonalisation defaults are theme-neutral', () => {
   const p = normalizePersonalisation(null)
   assert.equal(p.accent, 'default')
@@ -147,7 +175,7 @@ test('normalizeParentContact defaults relationship to parent', () => {
 
 test('normalizeLearnerSettings composes every sub-group', () => {
   const all = normalizeLearnerSettings({})
-  assert.ok(all.security && all.personalisation && all.zedAi && all.privacy)
+  assert.ok(all.security && all.personalisation && all.zedAi && all.aiAssistant && all.privacy)
 })
 
 console.log(`learnerPrefs.test.js — ${passed} passed`)
