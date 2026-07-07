@@ -1991,6 +1991,12 @@ exports.structureScannedQuiz = onCall(
     }
 
     // Counts as one AI action per page batch (same meter as smart import).
+    // Metering stays fully server-authoritative — never gate it on a
+    // client-supplied flag, or a modified client could send the flag to skip
+    // its own daily cap. A single scanned paper maxes at ~40 batches (the
+    // 120-page ceiling), comfortably under the 150/day staff limit, so one
+    // import never caps out on its own; the client-side per-batch resilience
+    // is what stops a mid-import failure from discarding the whole upload.
     await assertDailyLimit(request.auth.uid, role, "scannedImport");
 
     return runScannedQuizImport({
