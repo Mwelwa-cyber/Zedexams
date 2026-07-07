@@ -63,7 +63,8 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 
-const {verifyAndApplyPurchase} = require("./googlePlayBilling");
+const {verifyAndApplyPurchase, getAccessToken, probePlayConfig, PlayConfigError} =
+  require("./googlePlayBilling");
 const {derivePaymentId} = require("./googlePlayBillingCore");
 
 // ── Fixtures + injected deps ─────────────────────────────────────────────
@@ -298,6 +299,65 @@ function reset() {
   ok("account_mismatch → zero activations", activateCalls.length === activationsBefore);
   ok("account_mismatch → no payment doc created",
       Object.keys(store).filter((key) => key.startsWith("payments/")).length === 0);
+
+  // ── Config diagnosability: PlayConfigError reasons + probePlayConfig ──
+  // Every config-failure stage must carry a distinct machine-readable reason,
+  // so the callable's failed-precondition (and PostHog's play_verify_failed)
+  // says WHICH stage broke instead of one opaque "not configured yet".
+  // Both parse failures throw before google-auth-library is ever required.
+  let thrown = null;
+  await getAccessToken("not-json").catch((err) => { thrown = err; });
+  ok("invalid SA JSON → PlayConfigError reason sa-json-invalid",
+      thrown instanceof PlayConfigError && thrown.reason === "sa-json-invalid");
+  thrown = null;
+  await getAccessToken("{}").catch((err) => { thrown = err; });
+  ok("SA JSON missing fields → PlayConfigError reason sa-json-incomplete",
+      thrown instanceof PlayConfigError && thrown.reason === "sa-json-incomplete");
+
+  // probePlayConfig — the runbook's garbage-token sanity check as code
+  // (Vigil runs it hourly). It must never throw.
+  let probe = await probePlayConfig({saJson: "   "});
+  ok("probe: empty secret → sa-json-missing",
+      probe.ok === false && probe.reason === "sa-json-missing");
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => { throw new PlayConfigError("invalid_grant", "token-fetch-failed"); },
+  });
+  ok("probe: OAuth token failure → token-fetch-failed",
+      probe.ok === false && probe.reason === "token-fetch-failed");
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => ({status: 404}),
+  });
+  ok("probe: Google rejects only the garbage token (404) → wiring OK",
+      probe.ok === true);
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => ({status: 403}),
+  });
+  ok("probe: Play API 403 → play-api-rejected",
+      probe.ok === false && probe.reason === "play-api-rejected");
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => ({status: 500, ok: false}),
+  });
+  ok("probe: Play 5xx → transient (not a config verdict)",
+      probe.ok === false && probe.reason === "transient");
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => { throw new Error("socket hang up"); },
+  });
+  ok("probe: network error → transient, never throws",
+      probe.ok === false && probe.reason === "transient");
 
   console.log(`\n${passed} passed`);
 })().catch((err) => {

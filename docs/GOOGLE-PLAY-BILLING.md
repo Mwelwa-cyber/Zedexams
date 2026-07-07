@@ -1,6 +1,6 @@
 # Google Play Billing — Android subscriptions
 
-> Snapshot as of 2026-07-05 — verify before acting.
+> Snapshot as of 2026-07-07 — verify before acting.
 
 The Android (Capacitor) app sells digital subscriptions through **Google Play
 Billing only** (Play policy). The website keeps the Lenco mobile-money flow
@@ -112,7 +112,24 @@ purchase token can't be claimed by another account:
 6. **Sanity-check the backend without a device:** call
    `verifyGooglePlayPurchase` with a garbage token — expect a
    `results[0].status === "not_found"` response, which proves the secret +
-   SA + API wiring end to end.
+   SA + API wiring end to end. **Vigil now runs this probe hourly**
+   (`checkPlayBilling` in `functions/agents/runners/monitor.js` →
+   `googlePlayBilling.probePlayConfig`) and escalates a broken config as a
+   critical failure, so a misconfiguration is caught within an hour instead
+   of by a paying customer.
+
+## Config-failure diagnosability
+
+Every config-failure stage carries a machine-readable reason —
+`sa-json-missing` / `sa-json-invalid` / `sa-json-incomplete` /
+`token-fetch-failed` (OAuth, e.g. `invalid_grant` on a revoked key) /
+`play-api-rejected` (Play Developer API 401/403: SA not invited in Play
+Console or the API not enabled). The callable throws `failed-precondition`
+with the reason in `details.reason`, the client records it as `errorReason`
+on the `play_verify_failed` PostHog event, and a **throttled critical ops
+email** goes to `ADMIN_EMAILS` the moment a real purchase hits a config
+error (a buyer has paid and is not getting access — Google auto-refunds
+after 3 days, so an unfixed config loses the sale).
 
 ## Test surface
 

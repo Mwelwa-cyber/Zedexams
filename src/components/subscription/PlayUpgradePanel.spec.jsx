@@ -27,6 +27,7 @@ vi.mock('../../utils/playBilling', () => ({
   },
 }))
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+import { capture } from '../../utils/analytics'
 
 let mockProfile = null
 vi.mock('../../contexts/AuthContext', () => ({
@@ -134,6 +135,33 @@ describe('PlayUpgradePanel', () => {
     expect(purchasePlaySubscription).toHaveBeenCalledTimes(1)
     expect(verifyPlayPurchases).toHaveBeenCalledTimes(2)
     expect(verifyPlayPurchases.mock.calls[1][0].purchases[0].purchaseToken).toBe('tok-once')
+  })
+
+  it('a server CONFIG error is honest — "on our side" copy, reason captured, retry kept', async () => {
+    const user = userEvent.setup()
+    purchasePlaySubscription.mockResolvedValue({
+      productId: 'learner_premium_monthly',
+      purchaseToken: 'tok-cfg',
+    })
+    // What the callable throws when GOOGLE_PLAY_SA_JSON / Play Console
+    // linkage is broken — retrying cannot succeed until an admin fixes it.
+    const err = new Error('Purchase verification is not configured yet.')
+    err.code = 'functions/failed-precondition'
+    err.details = { reason: 'play-api-rejected' }
+    verifyPlayPurchases.mockRejectedValue(err)
+    renderPanel()
+    await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
+    expect(await screen.findByText(/we’re on it/i)).toBeInTheDocument()
+    expect(screen.getByText(/problem on our side/i)).toBeInTheDocument()
+    // no "tap retry and it'll work" promise for a config failure
+    expect(screen.queryByText(/Tap retry/i)).toBeNull()
+    // …but the button stays: it succeeds the moment the config is fixed
+    expect(screen.getByRole('button', { name: /Retry verification/i })).toBeInTheDocument()
+    // analytics can now tell config stages apart without a server-log dive
+    expect(capture).toHaveBeenCalledWith('play_verify_failed', expect.objectContaining({
+      errorCode: 'functions/failed-precondition',
+      errorReason: 'play-api-rejected',
+    }))
   })
 
   it('restore purchases verifies owned purchases', async () => {

@@ -2,7 +2,7 @@
  * Vigil — hourly site monitoring agent.
  *
  * Every hour a scheduled Cloud Function (functions/agents/cron.js
- * `hourlyMonitor`) calls runMonitorChecks() to sweep five surfaces:
+ * `hourlyMonitor`) calls runMonitorChecks() to sweep six surfaces:
  *
  *   - pages      : the public hosting origin + key routes respond (not 5xx)
  *   - firebase   : Firestore reads + the Storage bucket are reachable
@@ -15,6 +15,12 @@
  *                  then still reports a failure so the missed cron (failed
  *                  deploy, scheduler outage) gets investigated rather than
  *                  silently papered over every morning.
+ *   - playBilling: the Google Play purchase-verification wiring (SA secret →
+ *                  OAuth token → Play Developer API auth) answers a probe.
+ *                  A broken config here is REVENUE-CRITICAL: Android buyers
+ *                  pay, verifyGooglePlayPurchase throws, and Google refunds
+ *                  the unacknowledged purchase after 3 days — without this
+ *                  probe the first detector is a paying customer.
  *
  * On failure the cron asks Anthropic (Haiku) for likely causes + fixes
  * (suggestFixes), then notifyFailures() reports them — de-duplicated so an
@@ -433,20 +439,58 @@ async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
   }
 }
 
+/**
+ * Prove the Google Play purchase-verification wiring end-to-end without a
+ * real purchase (docs/GOOGLE-PLAY-BILLING.md runbook step 6, hourly): the
+ * probe asks the Play Developer API about a garbage token — a "token doesn't
+ * exist" answer means the credentials were accepted, i.e. the wiring works.
+ *
+ * `probe` is injectable for plain-node tests; the default lazy-requires
+ * googlePlayBilling so loading this module never drags in google-auth-library.
+ * Config failures are critical (buyers are paying and getting nothing);
+ * transient Play/network errors are warnings the next run retries.
+ */
+async function checkPlayBilling({saJson, probe} = {}) {
+  let result;
+  try {
+    const runProbe = probe || require("../../googlePlayBilling").probePlayConfig;
+    result = await runProbe({saJson});
+  } catch (err) {
+    result = {ok: false, reason: "transient", message: String(err?.message || err)};
+  }
+  if (result.ok) return {ok: true, status: "ok", failures: []};
+  if (result.reason === "transient") {
+    return {ok: false, status: result.reason, failures: [{
+      check: "playBilling", id: "probe", severity: "warning",
+      message: `Play verification probe hit a transient error (re-checked next run): ${result.message}.`,
+    }]};
+  }
+  return {ok: false, status: result.reason, failures: [{
+    check: "playBilling", id: result.reason, severity: "critical",
+    message: `Google Play purchase verification is BROKEN (${result.reason}): ${result.message}. ` +
+      "Android buyers pay, get no access, and Google auto-refunds after 3 days. " +
+      "Fix per docs/GOOGLE-PLAY-BILLING.md step 1: GOOGLE_PLAY_SA_JSON secret holds the full " +
+      "SA JSON (and is bound to hourlyMonitor + verifyGooglePlayPurchase), the SA is invited " +
+      "in Play Console with View financial data + Manage orders, and the Google Play Android " +
+      "Developer API is enabled on the Cloud project.",
+  }]};
+}
+
 // ── orchestration ────────────────────────────────────────────────────
 
-/** Run all five checks. Pure of secrets/Anthropic — safe to unit test. */
-async function runMonitorChecks(db) {
+/** Run all six checks. Pure of secrets/Anthropic — safe to unit test. */
+async function runMonitorChecks(db, {playSaJson, playProbe} = {}) {
   const ranAt = new Date().toISOString();
-  const [pages, firebase, images, quizzes, dailyExams] = await Promise.all([
+  const [pages, firebase, images, quizzes, dailyExams, playBilling] = await Promise.all([
     checkPages(),
     checkFirebase(db),
     checkImages(db),
     checkQuizzes(db),
     checkDailyExams(db),
+    checkPlayBilling({saJson: playSaJson, probe: playProbe}),
   ]);
 
-  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures, ...dailyExams.failures];
+  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures, ...dailyExams.failures, ...playBilling.failures];
   const critical = failures.filter((f) => f.severity === "critical");
 
   return {
@@ -464,6 +508,7 @@ async function runMonitorChecks(db) {
       images: {ok: images.ok, checked: images.checked},
       quizzes: {ok: quizzes.ok, checked: quizzes.checked},
       dailyExams: {ok: dailyExams.ok, skipped: dailyExams.skipped, scheduled: dailyExams.scheduled, healed: dailyExams.healed ?? 0},
+      playBilling: {ok: playBilling.ok, status: playBilling.status},
     },
     failures,
   };
@@ -475,8 +520,8 @@ async function suggestFixes(apiKey, report) {
   const failures = report.failures.slice(0, 30);
   const systemPrompt =
     "You are Vigil, ZedExams' site reliability engineer. You are handed a JSON " +
-    "list of failures from an hourly health check across five surfaces: pages, " +
-    "firebase, images, quizzes, dailyExams. Group your answer by surface. For each distinct " +
+    "list of failures from an hourly health check across six surfaces: pages, " +
+    "firebase, images, quizzes, dailyExams, playBilling. Group your answer by surface. For each distinct " +
     "problem give a one-line likely root cause and a concrete, minimal fix an " +
     "engineer can act on. Flag anything that looks transient (e.g. a single 5xx " +
     "or one slow image) as 'likely transient — re-check next run'. Be terse and " +
@@ -725,6 +770,7 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
 module.exports = {
   runMonitorChecks,
   checkDailyExams,
+  checkPlayBilling,
   dailyExamCheckWindow,
   runStructuralChecks,
   extractPlainText,

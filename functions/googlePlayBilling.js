@@ -39,8 +39,17 @@ const API_BASE =
 const SCOPE = "https://www.googleapis.com/auth/androidpublisher";
 
 /** Configuration problem (bad/missing service account, API not enabled) —
- * surfaced to the client as failed-precondition, not a payment failure. */
-class PlayConfigError extends Error {}
+ * surfaced to the client as failed-precondition, not a payment failure.
+ * `reason` pins WHICH config stage broke (sa-json-missing / sa-json-invalid /
+ * sa-json-incomplete / token-fetch-failed / play-api-rejected) so the failure
+ * is diagnosable from the thrown error alone — all stages otherwise collapse
+ * into one client-facing message and need a Cloud Logging dive to tell apart. */
+class PlayConfigError extends Error {
+  constructor(message, reason = "config") {
+    super(message);
+    this.reason = reason;
+  }
+}
 
 // One JWT client per service-account email; google-auth-library caches and
 // refreshes its own access tokens, so this doubles as the token cache.
@@ -52,18 +61,28 @@ async function getAccessToken(saJsonString) {
   try {
     sa = JSON.parse(String(saJsonString || ""));
   } catch {
-    throw new PlayConfigError("GOOGLE_PLAY_SA_JSON is not valid JSON");
+    throw new PlayConfigError("GOOGLE_PLAY_SA_JSON is not valid JSON", "sa-json-invalid");
   }
   if (!sa.client_email || !sa.private_key) {
-    throw new PlayConfigError("GOOGLE_PLAY_SA_JSON is missing client_email/private_key");
+    throw new PlayConfigError(
+        "GOOGLE_PLAY_SA_JSON is missing client_email/private_key", "sa-json-incomplete");
   }
   if (!cachedJwt || cachedJwtEmail !== sa.client_email) {
     const {JWT} = require("google-auth-library");
     cachedJwt = new JWT({email: sa.client_email, key: sa.private_key, scopes: [SCOPE]});
     cachedJwtEmail = sa.client_email;
   }
-  const {token} = await cachedJwt.getAccessToken();
-  if (!token) throw new PlayConfigError("could not obtain Play API access token");
+  let token;
+  try {
+    ({token} = await cachedJwt.getAccessToken());
+  } catch (err) {
+    // e.g. invalid_grant on a revoked/malformed key — a config problem, not
+    // a transient one, so it must carry a reason like the parse failures.
+    throw new PlayConfigError(
+        `could not obtain Play API access token: ${String(err?.message || err)}`,
+        "token-fetch-failed");
+  }
+  if (!token) throw new PlayConfigError("could not obtain Play API access token", "token-fetch-failed");
   return token;
 }
 
@@ -81,7 +100,8 @@ async function fetchSubscriptionV2({accessToken, purchaseToken, fetchImpl = fetc
   });
   if (res.status === 404 || res.status === 400) return null;
   if (res.status === 401 || res.status === 403) {
-    throw new PlayConfigError(`Play API rejected our credentials (${res.status})`);
+    throw new PlayConfigError(
+        `Play API rejected our credentials (${res.status})`, "play-api-rejected");
   }
   if (!res.ok) {
     throw new Error(`Play API error ${res.status}`);
@@ -108,6 +128,39 @@ async function acknowledgeSubscription({accessToken, productId, purchaseToken, f
     body: "{}",
   });
   if (!res.ok) throw new Error(`acknowledge failed (${res.status})`);
+}
+
+/**
+ * Prove the whole verification wiring (secret → SA JSON → OAuth token →
+ * Play Developer API auth) without a real purchase, by asking Google about a
+ * garbage token: a 400/404 ("token doesn't exist") means our credentials were
+ * ACCEPTED and only the token was rejected — end-to-end wiring OK. This is
+ * step 6 of the docs/GOOGLE-PLAY-BILLING.md runbook, as code, so Vigil can
+ * run it hourly instead of a paying customer discovering a broken config.
+ *
+ * Never throws. `reason` mirrors PlayConfigError reasons; "transient" marks
+ * a non-config failure (Play 5xx / network) the next run should retry.
+ *
+ * @returns {Promise<{ok: boolean, reason?: string, message?: string}>}
+ */
+async function probePlayConfig({saJson, fetchImpl = fetch, getToken = getAccessToken} = {}) {
+  if (!String(saJson || "").trim()) {
+    return {ok: false, reason: "sa-json-missing", message: "GOOGLE_PLAY_SA_JSON is empty"};
+  }
+  try {
+    const accessToken = await getToken(saJson);
+    await fetchSubscriptionV2({
+      accessToken,
+      purchaseToken: "zedexams-vigil-config-probe",
+      fetchImpl,
+    });
+    return {ok: true};
+  } catch (err) {
+    if (err instanceof PlayConfigError) {
+      return {ok: false, reason: err.reason, message: err.message};
+    }
+    return {ok: false, reason: "transient", message: String(err?.message || err)};
+  }
 }
 
 function toMillis(value) {
@@ -349,5 +402,6 @@ module.exports = {
   fetchSubscriptionV2,
   acknowledgeSubscription,
   verifyAndApplyPurchase,
+  probePlayConfig,
   PLAY_PACKAGE,
 };

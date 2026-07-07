@@ -10,7 +10,7 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkDailyExams, dailyExamCheckWindow} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkDailyExams, checkPlayBilling, dailyExamCheckWindow} = require("./monitor");
 const {lusakaDayString} = require("../../lusakaTime");
 
 let passed = 0;
@@ -425,6 +425,40 @@ test("checkDailyExams never throws — a query error becomes a critical failure"
 
 test("dailyExams failures are NOT routed to Mendi (ops/data, not code)", () => {
   assert.strictEqual(isMendiEligible({check: "dailyExams"}), false);
+});
+
+// ── checkPlayBilling ─────────────────────────────────────────────────
+test("checkPlayBilling passes when the probe proves the wiring", async () => {
+  const res = await checkPlayBilling({saJson: "x", probe: async () => ({ok: true})});
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(res.failures.length, 0);
+});
+
+test("checkPlayBilling escalates a config failure as critical with the stage + runbook", async () => {
+  const res = await checkPlayBilling({saJson: "", probe: async () => ({
+    ok: false, reason: "sa-json-missing", message: "GOOGLE_PLAY_SA_JSON is empty",
+  })});
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].check, "playBilling");
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.ok(res.failures[0].message.includes("sa-json-missing"));
+  assert.ok(res.failures[0].message.includes("GOOGLE-PLAY-BILLING.md"));
+});
+
+test("checkPlayBilling treats a transient probe failure as a warning, not critical", async () => {
+  const res = await checkPlayBilling({saJson: "x", probe: async () => ({
+    ok: false, reason: "transient", message: "Play API error 503",
+  })});
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.failures[0].severity, "warning");
+});
+
+test("checkPlayBilling never throws — a probe crash becomes a warning", async () => {
+  const res = await checkPlayBilling({saJson: "x", probe: async () => { throw new Error("boom"); }});
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.ok(res.failures[0].message.includes("boom"));
 });
 
 console.log(`\n✓ monitor.test.js — ${passed} checks passed`);

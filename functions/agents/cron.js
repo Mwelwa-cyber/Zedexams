@@ -10,10 +10,12 @@
  *     on each, and writes a summary `agentJobs` doc with aggregate
  *     alignment results. Catches drift if the KB or prompts change.
  *   - hourlyMonitor (Vigil) — every hour. Checks pages, Firebase, images,
- *     quizzes, and today's daily-exam picks (re-running the idempotent
- *     autoPickDailyExams picker when the 05:00 cron missed); on failure asks
- *     Haiku for fixes and escalates (email + GitHub bug issue → Mendi),
- *     de-duplicated to once per failure per 24h.
+ *     quizzes, today's daily-exam picks (re-running the idempotent
+ *     autoPickDailyExams picker when the 05:00 cron missed), and the Google
+ *     Play purchase-verification wiring (garbage-token probe against the
+ *     Play Developer API); on failure asks Haiku for fixes and escalates
+ *     (email + GitHub bug issue → Mendi), de-duplicated to once per failure
+ *     per 24h.
  *   - hourlyRevenueReconcile (Till) — every hour. Re-queries Lenco for
  *     stale "pending" payments and finishes what a dropped webhook missed:
  *     activates paid-but-stuck buyers, closes failed ones. All writes go
@@ -73,6 +75,12 @@ const githubAppInstallationId = defineSecret("GITHUB_APP_INSTALLATION_ID");
 // the SMTP secrets so a recovered activation can still send its receipt
 // (mirrors the secrets the Lenco webhook/poll already use in index.js).
 const lencoApiKey = defineSecret("LENCO_API_KEY");
+
+// Vigil's playBilling probe needs the same Play service-account JSON that
+// verifyGooglePlayPurchase uses (defineSecret is keyed by name — this IS that
+// secret), so it can prove the purchase-verification wiring hourly instead of
+// a paying customer discovering a broken config.
+const googlePlaySaJson = defineSecret("GOOGLE_PLAY_SA_JSON");
 
 // Recipients for ops alerts. Prefer the explicit ADMIN_EMAILS list; when it is
 // unset (the common case here — ADMIN_EMAILS has never been configured), fall
@@ -256,6 +264,7 @@ const HOURLY_MONITOR_OPTS = {
   secrets: [
     anthropicApiKey, emailSmtpUser, emailSmtpPassword,
     githubBotToken, githubAppId, githubAppPrivateKey, githubAppInstallationId,
+    googlePlaySaJson,
   ],
 };
 
@@ -265,7 +274,9 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
 
   let report;
   try {
-    report = await runMonitorChecks(db);
+    report = await runMonitorChecks(db, {
+      playSaJson: googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "",
+    });
   } catch (err) {
     console.error("Vigil failed", err);
     await db.collection("agentJobs").add({

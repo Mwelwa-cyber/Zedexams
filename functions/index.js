@@ -3396,6 +3396,46 @@ exports.recoverMyPendingPayments = onCall({
 // token(s) here; we verify against the Google Play Developer API and grant
 // through the same idempotent activation path as Lenco. See
 // functions/googlePlayBilling.js + docs/GOOGLE-PLAY-BILLING.md.
+
+// A Play *config* error during verification means a customer has PAID and we
+// can't grant — revenue-blocking, needs a human now, not a log dive. Email
+// ADMIN_EMAILS (throttled per-instance like the Lenco webhook alert so a
+// retry loop can't flood the inbox), then throw failed-precondition with the
+// stage in `details.reason` so client analytics can tell the stages apart.
+// Best-effort: an alerting failure never changes what the caller sees.
+const PLAY_CONFIG_ALERT_THROTTLE_MS = 15 * 60 * 1000;
+let lastPlayConfigAlertAt = 0;
+async function raisePlayConfigError({uid, reason, message}) {
+  const now = Date.now();
+  if (now - lastPlayConfigAlertAt >= PLAY_CONFIG_ALERT_THROTTLE_MS) {
+    lastPlayConfigAlertAt = now;
+    const {sendOpsAlert} = require("./opsAlert");
+    const {senderEmail, senderPassword} = lencoEmailSecrets();
+    await sendOpsAlert({
+      title: "Google Play purchase verification is broken (config)",
+      severity: "critical",
+      smtpUser: senderEmail,
+      smtpPassword: senderPassword,
+      adminEmails: process.env.ADMIN_EMAILS || senderEmail,
+      lines: [
+        "A Google Play purchase could not be verified because of a configuration",
+        "problem — the buyer has PAID and is not getting access. Google auto-refunds",
+        "unacknowledged purchases after 3 days, so this loses the sale if not fixed.",
+        "",
+        `Stage: ${reason}`,
+        `Detail: ${message}`,
+        `Buyer uid: ${uid}`,
+        "",
+        "Runbook: docs/GOOGLE-PLAY-BILLING.md — step 1 (GOOGLE_PLAY_SA_JSON secret,",
+        "SA invited in Play Console with View financial data + Manage orders,",
+        "Google Play Android Developer API enabled on the Cloud project).",
+      ],
+    });
+  }
+  throw new HttpsError("failed-precondition",
+      "Purchase verification is not configured yet.", {reason});
+}
+
 exports.verifyGooglePlayPurchase = onCall({
   secrets: [googlePlaySaJson, emailSmtpUser, emailSmtpPassword],
   region: "us-central1",
@@ -3409,7 +3449,9 @@ exports.verifyGooglePlayPurchase = onCall({
 
   const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
   if (!saJson.trim()) {
-    throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+    console.error("[verifyGooglePlayPurchase] GOOGLE_PLAY_SA_JSON is empty");
+    await raisePlayConfigError({uid, reason: "sa-json-missing",
+      message: "GOOGLE_PLAY_SA_JSON secret is empty"});
   }
 
   const raw = Array.isArray(request.data?.purchases) ? request.data.purchases : [];
@@ -3430,7 +3472,9 @@ exports.verifyGooglePlayPurchase = onCall({
     accessToken = await play.getAccessToken(saJson);
   } catch (err) {
     console.error("[verifyGooglePlayPurchase] token error", err);
-    throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+    await raisePlayConfigError({uid,
+      reason: err?.reason || "token-fetch-failed",
+      message: String(err?.message || err)});
   }
 
   const results = [];
@@ -3446,7 +3490,9 @@ exports.verifyGooglePlayPurchase = onCall({
     } catch (err) {
       if (err instanceof play.PlayConfigError) {
         console.error("[verifyGooglePlayPurchase] config error", err);
-        throw new HttpsError("failed-precondition", "Purchase verification is not configured yet.");
+        await raisePlayConfigError({uid,
+          reason: err.reason || "config",
+          message: String(err.message || err)});
       }
       // Per-token failures (Google 5xx, transient network) become result
       // statuses so one bad token can't abort a multi-token restore.
