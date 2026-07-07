@@ -1,160 +1,144 @@
 # Deploying zedexams.com
 
-Every change you make should reach production via **`git push`**. No more hunting for Netlify tokens or Firebase logins on your machine. This doc explains how the auto-deploy works, the one-time setup to finish wiring it, and an emergency escape hatch.
+> Last updated 2026-07-05. If the workflow files under `.github/workflows/`
+> disagree with anything here, the workflow files win — update this doc.
+
+Every change reaches production through **GitHub Actions**, triggered by a merge
+to `main`. There is no manual deploy step and no Netlify — production Hosting
+and Cloud Functions ship from CI only. This doc explains the pipeline, the
+day-to-day flow, and how to roll back.
 
 ---
 
 ## The big picture
 
-There are two independent pipelines. A single `git push` triggers both.
+Two independent workflows watch `main`. A single merge can trigger both.
 
-**1. Netlify (frontend — React app)**
-Netlify watches the `main` branch of `github.com/Mwelwa-cyber/Zedexams`. On every push it runs `npm run build` (defined in `netlify.toml`) and publishes the contents of `dist/` to zedexams.com. This is already set up and working — you don't need to do anything.
+**1. Hosting (the React frontend) — [`deploy-hosting.yml`](.github/workflows/deploy-hosting.yml)**
+On every push to `main` (except pure-docs / Firebase-only paths) it: verifies
+the required build secrets are set → `npm ci` → `npm run lint` → `npm run test:all`
+→ `npm run build` → prerenders the public SEO routes → deploys `dist/` to
+**Firebase Hosting** (`firebase deploy --only hosting`, project `examsprepzambia`).
+If the same commit also changed Firebase paths, it first waits for the Firebase
+workflow to go green before publishing, so Hosting never ships ahead of a failed
+rules/functions deploy.
 
-**2. Firebase (backend — Firestore rules + Cloud Functions)**
-A GitHub Actions workflow at `.github/workflows/deploy-firebase.yml` runs on every push that touches a Firebase-related file (`firestore.rules`, `firestore.indexes.json`, `storage.rules`, `functions/**`, `firebase.json`, `.firebaserc`). It deploys only what changed. This pipeline needs a one-time setup (next section) before it can authenticate.
+**2. Firebase backend — [`deploy-firebase.yml`](.github/workflows/deploy-firebase.yml)**
+Runs only when a push to `main` touches `firestore.rules`,
+`firestore.indexes.json`, `storage.rules`, `storage`, `functions/**`,
+`firebase.json`, or `.firebaserc`. It re-runs lint + `test:all`, then deploys
+**only the pieces that changed** (Firestore rules/indexes, Storage rules, Cloud
+Functions). Requires the `FIREBASE_TOKEN` repository secret.
+
+Both pipelines are the belt-and-braces layer. The pre-merge gate is
+[`ci.yml`](.github/workflows/ci.yml), which runs the same lint + tests + build +
+rules-emulator checks on every PR.
 
 ---
 
-## One-time setup (5 minutes, once forever)
+## Day-to-day: shipping a change
 
-### Step 1 — Generate a Firebase CI token
-
-On your laptop, in any directory:
+`main` is branch-protected (`enforce_admins` on) — you cannot push to it
+directly, and a merge is blocked until the required status checks pass. The flow
+is always a PR:
 
 ```bash
-npx firebase-tools@latest login:ci
+# 1. Verify locally first — the deploy re-runs these, so failing on CI wastes a slot.
+npm run lint && npm run build          # plus the relevant feature tests
+
+# 2. Push your branch.
+git push -u origin <branch>
+
+# 3. Open a PR (two identical remotes → -R is required).
+gh pr create -R Mwelwa-cyber/Zedexams --fill
+
+# 4. Queue the auto-merge. It fires the moment the required checks go green.
+gh pr merge <num> --auto --squash --delete-branch -R Mwelwa-cyber/Zedexams
 ```
 
-A browser opens, you sign in, then the terminal prints a long token starting with `1//...`. Copy the whole thing.
+Required checks on `main`: **`Lint`** + **`Tests (importer + sanitize + schema)`**.
+Do not wait for a human to merge — `--auto` is the merge gate.
 
-### Step 2 — Add the token as a GitHub secret
-
-1. Open <https://github.com/Mwelwa-cyber/Zedexams/settings/secrets/actions>
-2. Click **New repository secret**
-3. Name: `FIREBASE_TOKEN`
-4. Value: paste the token from step 1
-5. Click **Add secret**
-
-### Step 3 — Verify Netlify is connected to GitHub
-
-1. Open <https://app.netlify.com/sites/zedexams/configuration/deploys>
-2. Under **Build settings**, confirm the repository is `Mwelwa-cyber/Zedexams` and the branch is `main`.
-3. Under **Environment variables**, confirm the `VITE_FIREBASE_*` variables are present. If they aren't, copy them from your local `.env` file.
-
-That's it. From now on, every push deploys.
+Watch the deploy at
+<https://github.com/Mwelwa-cyber/Zedexams/actions>. When the Hosting run (and the
+Firebase run, if backend paths changed) go green, zedexams.com is updated.
 
 ---
 
-## How it feels, day to day
+## Allowed direct CLI (the exceptions)
+
+Almost everything ships via CI, but two commands are safe to run directly
+because they don't touch the hosted bundle:
+
+- **`npx firebase deploy --only firestore:indexes`** — deploy composite indexes.
+  Do this *before* merging code whose queries depend on them, or the queries
+  fail with "index building" until the index catches up.
+- **`npm run storage:cors`** — one-time (re-run if origins change) push of
+  [`cors.json`](cors.json) to the Storage bucket so cross-origin *reads* of
+  generated images work in the PDF/Word exporters.
+
+## Off-limits (CI only)
+
+- `firebase deploy --only hosting` — production Hosting goes through CI only
+  (also denied in [`.claude/settings.json`](.claude/settings.json)).
+- `firebase deploy --only functions` — same; CI ships Cloud Functions.
+- Direct pushes to `main` — always open a PR, even for a one-line change.
+
+---
+
+## One-time setup (already done — here for reference)
+
+The pipelines authenticate via a `FIREBASE_TOKEN` repo secret plus the
+`VITE_FIREBASE_*` build secrets. To rotate the token:
 
 ```bash
-git add .
-git commit -m "Add Grade 8 Mathematics lesson plan sample"
-git push
+npx firebase-tools@latest login:ci   # sign in, copy the 1//... token
 ```
 
-Open two tabs:
+Then replace it at
+<https://github.com/Mwelwa-cyber/Zedexams/settings/secrets/actions> →
+`FIREBASE_TOKEN`. The full list of build-time secrets (and which are optional)
+is documented at the top of `deploy-hosting.yml`.
 
-- <https://app.netlify.com/sites/zedexams/deploys> — watch the frontend build (usually 1–2 minutes)
-- <https://github.com/Mwelwa-cyber/Zedexams/actions> — watch the Firebase deploy run if any backend file changed
-
-If both go green, zedexams.com is updated.
-
-If your commit only touched Markdown or docs, the Firebase workflow does nothing (path filters) and Netlify still rebuilds the frontend anyway.
-
----
-
-## Manual escape hatch
-
-If you need to force a Firebase deploy without pushing code:
-
-1. Open <https://github.com/Mwelwa-cyber/Zedexams/actions/workflows/deploy-firebase.yml>
-2. Click **Run workflow** (top right)
-3. Pick what to deploy: `all`, `firestore`, `functions`, or `storage`
-4. Click the green **Run workflow** button
-
-This runs the same pipeline as a push but doesn't require any code change.
-
----
-
-## If a deploy fails
-
-### Firebase deploy in GitHub Actions fails with "FIREBASE_TOKEN secret is not set"
-
-You skipped Step 2 above. Go back and add the secret.
-
-### Firebase deploy fails with "token is invalid or expired"
-
-Rotate the token: run `firebase login:ci` again, copy the new token, replace the `FIREBASE_TOKEN` secret value in GitHub. CI tokens don't expire from inactivity, but they do expire if you revoke them, if Google rotates them, or if you signed in from a suspicious location.
-
-### Firebase functions deploy fails with "Secret Manager: ANTHROPIC_API_KEY not found"
-
-The Anthropic API key isn't configured in Google Cloud Secret Manager. From your laptop, run:
+Backend runtime secrets (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+`LENCO_API_KEY`, `GOOGLE_PLAY_SA_JSON`, `EMAIL_SMTP_*`, `META_WHATSAPP_*`) live
+in **Google Cloud Secret Manager**, bound to functions at deploy time:
 
 ```bash
-npx firebase-tools@latest functions:secrets:set ANTHROPIC_API_KEY
+npx firebase-tools@latest functions:secrets:set ANTHROPIC_API_KEY   # paste sk-ant-...
+npx firebase-tools@latest functions:secrets:access ANTHROPIC_API_KEY  # verify it's set
 ```
 
-Paste your `sk-ant-...` key when prompted. Then re-run the deploy from the Actions tab.
-
-### Netlify build fails with "vite: command not found" or similar
-
-Netlify isn't installing devDependencies. Check Netlify environment variables and confirm `NPM_FLAGS` is NOT set to `--production`. By default, Netlify installs everything including devDependencies, which is what you want.
-
-### Netlify build succeeds but the site looks broken
-
-The `VITE_FIREBASE_*` environment variables aren't set in Netlify. Without them the client can't reach Firebase. Copy them from your local `.env` into Netlify's environment variable panel.
-
-### A function deploys but teachers see "AI is not configured yet"
-
-The function ran but can't find `ANTHROPIC_API_KEY` at runtime. Check that the secret exists in Google Cloud Secret Manager with the value set, AND that the function is deployed **after** the secret was created (deploy binds secrets at deploy time).
-
-```bash
-npx firebase-tools@latest functions:secrets:access ANTHROPIC_API_KEY
-```
-
-If this prints your key, the secret is fine. Re-deploy functions to pick it up.
-
----
-
-## What I'll never do again
-
-- Run `npm run deploy` manually from Windows to push to Netlify.
-- Run `npm run deploy:firebase:*` from Windows.
-- Hunt for an expired Netlify personal access token.
-
-All of those were bridges to automation. The bridges are now crossed. Just push.
-
----
-
-## Smoke test after a deploy
-
-After any deploy that touches user-facing features, walk this 3-minute test:
-
-1. Open zedexams.com in an incognito window. Landing loads.
-2. Go to `/teachers`. Landing page renders.
-3. Click a sample at `/teachers/samples`. Sample detail renders, DOCX download works.
-4. Sign in with an admin account. Teacher dashboard shows the three AI tool cards.
-5. Generate a Grade 5 Maths Fractions lesson plan. Returns in under 30s.
-6. Download it as DOCX. Opens in Word.
-7. Open the library — the generation is listed. Click in. Re-export. Works.
-8. Open `/admin/waitlist`. Loads (may show "index building" if you changed that index).
-
-If all 8 pass, the deploy is healthy.
+A function only picks up a secret if it is deployed *after* the secret exists.
 
 ---
 
 ## Rolling back
 
-If a deploy breaks production:
+**Hosting (fastest — instant, zero downtime):**
+1. Firebase Console → **Hosting** → the `examsprepzambia` site → **Release history**.
+2. Find the last good release → **⋮** menu → **Rollback**.
 
-**Frontend (Netlify):**
-1. <https://app.netlify.com/sites/zedexams/deploys>
-2. Find the last green deploy
-3. Click the `...` menu → **Publish deploy**
+The previous build goes live in seconds; the broken one is preserved for
+diagnosis. Alternatively, `git revert <bad commit> && git push` (via a PR)
+re-runs the pipeline and re-publishes the prior code.
 
-Takes 5 seconds, zero downtime. The broken build is preserved so you can diagnose it later.
+**Firebase (rules / indexes / functions):**
+Less clean — there is no one-click rollback. `git revert` the offending commit
+and merge; `deploy-firebase.yml` re-deploys the previous state. For a rules
+emergency, you can also edit them directly in the Firebase Console as a hotfix,
+then reconcile in git afterward.
 
-**Firebase:**
-Rollback is less clean. Your fastest option is to `git revert` the offending commit and push — the workflow runs again and re-deploys the previous code. For rules specifically, you can also edit them directly in the Firebase console as an emergency hotfix, then fix them in git later.
+---
+
+## Smoke test after a user-facing deploy
+
+1. Open zedexams.com in an incognito window — landing loads.
+2. `/teachers` renders; a sample at `/teachers/samples` renders + DOCX downloads.
+3. Sign in as admin — teacher dashboard shows the AI tool cards.
+4. Generate a Grade 5 Maths Fractions lesson plan — returns in < 30s.
+5. Download it as DOCX — opens in Word. Library lists it; re-export works.
+
+The CI build already runs a headless mobile smoke over `/`, `/login`,
+`/register`, `/papers`, `/pricing`, so a broken public route is caught before
+merge — this manual pass covers the authed AI flow the smoke can't.
