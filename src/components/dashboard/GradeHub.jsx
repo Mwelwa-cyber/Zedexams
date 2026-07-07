@@ -1128,6 +1128,10 @@ export default function GradeHub() {
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={User} size="sm" strokeWidth={2.1} /> My Profile
                     </Link>
+                    <Link to="/settings" onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
+                      <Icon as={Settings} size="sm" strokeWidth={2.1} /> Settings
+                    </Link>
                     <Link to="/my-subscription" onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
                       <Icon as={Sparkles} size="sm" strokeWidth={2.1} /> My Subscription
