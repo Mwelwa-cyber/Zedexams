@@ -955,10 +955,8 @@ await testAsync('runVisionImport keeps successful batches when one reading batch
   // rather than the whole import being discarded (the reported "cut off").
   const page = (pageNumber) => ({ pageNumber, dataUrl: 'data:image/jpeg;base64,AAAA' })
   const q = (n) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: 1 }) })
-  const payloads = []
   let call = 0
-  const callVision = async (payload) => {
-    payloads.push(payload)
+  const callVision = async () => {
     call += 1
     if (call === 1) return { detectedCount: 3, sections: [q(1), q(2), q(3)] }
     throw new Error('Reading the scanned pages is taking too long.')
@@ -983,31 +981,6 @@ await testAsync('runVisionImport keeps successful batches when one reading batch
     out.warnings.some(w => /could not be read/i.test(w) && /taking too long/i.test(w)),
     'partial-failure warning surfaced with the real reason',
   )
-})
-
-await testAsync('runVisionImport meters only the first batch (countUsage flag)', async () => {
-  const page = (pageNumber) => ({ pageNumber, dataUrl: 'data:image/jpeg;base64,AAAA' })
-  const q = (n) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: 1 }) })
-  const payloads = []
-  const callVision = async (payload) => {
-    payloads.push(payload)
-    // Sequential complete numbering → no recovery pass, exactly 2 reading calls.
-    return payloads.length === 1
-      ? { detectedCount: 3, sections: [q(1), q(2), q(3)] }
-      : { detectedCount: 2, sections: [q(4), q(5)] }
-  }
-
-  await runVisionImport({
-    pageImages: [page(1), page(2), page(3), page(4), page(5), page(6), page(7)],
-    assetByPage: {},
-    file: { name: 'paper.pdf' },
-    callVision,
-    sourceNoun: 'scanned paper',
-  })
-
-  assert.equal(payloads.length, 2, 'two reading batches for a 7-page paper')
-  assert.equal(payloads[0].countUsage, true, 'first batch is billed against the daily meter')
-  assert.equal(payloads[1].countUsage, false, 'later batches are the same import — not billed again')
 })
 
 await testAsync('runVisionImport throws the real reason when every batch fails', async () => {

@@ -1179,7 +1179,7 @@ export async function runVisionImport({
     }
   }
 
-  const runBatch = async (pages, phase, current, total, countUsage = false) => {
+  const runBatch = async (pages, phase, current, total) => {
     onProgress?.({ phase, current, total })
     // Sequential: keeps us under the per-call daily AI meter and avoids
     // hammering the vision API with concurrent large requests.
@@ -1188,11 +1188,6 @@ export async function runVisionImport({
       pages,
       subjectHint,
       gradeHint,
-      // A paginated paper is ONE import, not one AI action per batch. Only the
-      // first reading batch is billed against the caller's daily AI meter; the
-      // rest (and every recovery batch) pass countUsage:false. Older servers
-      // ignore the flag and still meter per batch — harmless, just stricter.
-      countUsage,
     })
   }
 
@@ -1247,7 +1242,7 @@ export async function runVisionImport({
       for (let i = 0; i < retryBatches.length; i += 1) {
         try {
           batchResults.push(
-            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length, false),
+            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length),
           )
         } catch {
           // A failed recovery batch just means we keep the missing-number
