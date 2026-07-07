@@ -26,6 +26,7 @@ const {
   getOfficialSubjectsForGrade,
 } = require("./cbcKnowledge");
 const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
+const {buildSchemeQualityChecks} = require("./schemeQualityCheck");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
@@ -372,6 +373,10 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   }
   // Provenance the view + exporters surface ("From Syllabi Studio", etc.).
   scheme.curriculumSource = curriculumSource;
+  // Deterministic quality checklist (header/week numbering/filled cells/
+  // class tests/revision + exam placement/filler) — informational, surfaced
+  // as the studio's "Quality checks" panel so the teacher knows what to review.
+  const qualityChecks = buildSchemeQualityChecks(scheme);
   if (!validation.ok) {
     await genRef.update({
       status: "flagged",
@@ -382,6 +387,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       tokensIn: Number(usageInfo.inputTokens || 0),
       tokensOut: Number(usageInfo.outputTokens || 0),
       modelUsed,
+      qualityChecks,
     });
     return {
       generationId: genRef.id,
@@ -389,6 +395,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       usage,
       advisories,
       curriculumSource,
+      qualityChecks,
       warning: [
         "Some fields were incomplete — please review.",
         kbWarning,
@@ -411,6 +418,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     costUsdCents,
     modelUsed,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    qualityChecks,
   });
 
   return {
@@ -419,6 +427,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     usage,
     advisories,
     curriculumSource,
+    qualityChecks,
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch) || moduleGrounded,
   };

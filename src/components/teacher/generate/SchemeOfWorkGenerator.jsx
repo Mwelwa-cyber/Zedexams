@@ -41,6 +41,7 @@ import {
   toWeekPlanPayload,
   reservedWeekCount,
   deliveryWeekCount,
+  defaultRevisionWeeks,
 } from '../../../utils/schemeTermPlan'
 import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../../../utils/schemeReadiness'
@@ -100,6 +101,7 @@ export default function SchemeOfWorkGenerator() {
   const [warning, setWarning] = useState('')
   const [advisories, setAdvisories] = useState([])
   const [curriculumSource, setCurriculumSource] = useState('')
+  const [qualityChecks, setQualityChecks] = useState(null)
   const [handedOff, setHandedOff] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -164,15 +166,23 @@ export default function SchemeOfWorkGenerator() {
     : calendarWeeks
 
   // Teacher-marked exam / revision weeks (calendar reservation). Exam defaults
-  // to the last week when nothing is typed (how a term normally closes).
+  // to the last week when nothing is typed (how a term normally closes), and a
+  // blank revision field defaults to the standard term shape — 2 revision
+  // weeks before the exam, 3 in Term 3 (end-of-year exams revise the whole
+  // year). Typing anything (even "none") overrides the default.
   const examWeeksArr = parseWeeks(form.examWeeks, effectiveWeeks)
-  const revisionWeeksArr = parseWeeks(form.revisionWeeks, effectiveWeeks)
+  const effectiveExamWeeks = examWeeksArr.length
+    ? examWeeksArr
+    : (effectiveWeeks ? [effectiveWeeks] : [])
+  const revisionIsDefault = !String(form.revisionWeeks || '').trim()
+  const revisionWeeksArr = revisionIsDefault
+    ? defaultRevisionWeeks({ totalWeeks: effectiveWeeks, examWeeks: effectiveExamWeeks, term: form.term })
+    : parseWeeks(form.revisionWeeks, effectiveWeeks)
   const reservedPlan = useMemo(() => {
     if (!termPlan) return null
-    const exam = examWeeksArr.length ? examWeeksArr : (effectiveWeeks ? [effectiveWeeks] : [])
-    return reserveWeeks(termPlan, { examWeeks: exam, revisionWeeks: revisionWeeksArr })
+    return reserveWeeks(termPlan, { examWeeks: effectiveExamWeeks, revisionWeeks: revisionWeeksArr })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [termPlan, form.examWeeks, form.revisionWeeks, effectiveWeeks])
+  }, [termPlan, form.examWeeks, form.revisionWeeks, form.term, effectiveWeeks])
 
   // Curriculum Framework 2013/2023 → official periods + time per week.
   const frameworkMatch = useMemo(
@@ -214,12 +224,13 @@ export default function SchemeOfWorkGenerator() {
         continue
       }
       const total = plan.weeks.length
-      const reserved = reserveWeeks(plan, { examWeeks: [total] })
+      const revision = defaultRevisionWeeks({ totalWeeks: total, examWeeks: [total], term: t })
+      const reserved = reserveWeeks(plan, { examWeeks: [total], revisionWeeks: revision })
       out[t] = {
         totalWeeks: total,
         deliveryWeeks: deliveryWeekCount(reserved),
         hasExam: true,
-        hasRevision: false,
+        hasRevision: revision.length > 0,
       }
     }
     return out
@@ -257,7 +268,10 @@ export default function SchemeOfWorkGenerator() {
       const plan = buildTermPlan({ year: form.year, term })
       if (plan) {
         const total = plan.weeks.length
-        weekPlanForTerm = reserveWeeks(plan, { examWeeks: [total] })
+        weekPlanForTerm = reserveWeeks(plan, {
+          examWeeks: [total],
+          revisionWeeks: defaultRevisionWeeks({ totalWeeks: total, examWeeks: [total], term }),
+        })
         weeksForTerm = total
       }
     }
@@ -362,6 +376,7 @@ export default function SchemeOfWorkGenerator() {
     setWarning('')
     setAdvisories([])
     setCurriculumSource('')
+    setQualityChecks(null)
     setScheme(null)
     setStep('form')
 
@@ -379,6 +394,7 @@ export default function SchemeOfWorkGenerator() {
     setWarning(res.data.warning || '')
     setAdvisories(Array.isArray(res.data.advisories) ? res.data.advisories : [])
     setCurriculumSource(res.data.curriculumSource || '')
+    setQualityChecks(res.data.qualityChecks || null)
     setStatus('success')
     draft.clear().catch(() => {})
 
@@ -494,7 +510,9 @@ export default function SchemeOfWorkGenerator() {
                 />
                 <FieldText
                   label="Revision week(s)"
-                  placeholder="e.g. 11, 12"
+                  placeholder={revisionIsDefault && revisionWeeksArr.length > 0
+                    ? revisionWeeksArr.join(', ')
+                    : 'e.g. 11, 12'}
                   value={form.revisionWeeks}
                   onChange={(v) => updateField('revisionWeeks', v)}
                   maxLength={20}
@@ -504,6 +522,10 @@ export default function SchemeOfWorkGenerator() {
                 <p className="text-xs" style={{ color: '#566f76' }}>
                   {deliveryWeekCount(reservedPlan)} teaching weeks ·{' '}
                   {reservedWeekCount(reservedPlan)} reserved (exam/revision)
+                  {revisionIsDefault && revisionWeeksArr.length > 0 && (
+                    <> · revision suggested in week{revisionWeeksArr.length > 1 ? 's' : ''}{' '}
+                      {revisionWeeksArr.join(', ')} — type your own weeks (or &ldquo;none&rdquo;) to change</>
+                  )}
                   {holidayWeeks.length > 0 && (
                     <> · holidays in week{holidayWeeks.length > 1 ? 's' : ''}{' '}
                       {holidayWeeks.map((w) => w.weekNumber).join(', ')}</>
@@ -673,6 +695,7 @@ export default function SchemeOfWorkGenerator() {
                   </div>
                 )}
                 <AdvisoryPanel advisories={advisories} curriculumSource={curriculumSource} />
+                <QualityChecklist result={qualityChecks} />
                 <SchemeEditableTable scheme={scheme} onChange={setScheme} />
                 <div className="mt-6">
                   <details open>
@@ -762,6 +785,40 @@ function AdvisoryPanel({ advisories, curriculumSource }) {
         )
       })}
     </div>
+  )
+}
+
+/* ── Quality checklist (deterministic, from the server) ─────── */
+
+function QualityChecklist({ result }) {
+  const checks = Array.isArray(result?.checks) ? result.checks : []
+  if (checks.length === 0) return null
+  const failedCount = checks.filter((c) => !c.ok).length
+  const allOk = failedCount === 0
+  return (
+    <details
+      className="mb-5 rounded-xl border px-4 py-2.5 text-sm"
+      style={allOk
+        ? { background: '#f0fdf4', borderColor: '#bbf7d0', color: '#14532d' }
+        : { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }}
+      open={!allOk}
+    >
+      <summary className="cursor-pointer font-bold">
+        {allOk ? '✅' : '⚠️'} Quality checks — {checks.length - failedCount}/{checks.length} passed
+        {!allOk && ' · review the items below (every cell is editable)'}
+      </summary>
+      <ul className="mt-2 space-y-1">
+        {checks.map((c) => (
+          <li key={c.code} className="flex items-start gap-2">
+            <span aria-hidden="true">{c.ok ? '✓' : '✗'}</span>
+            <span>
+              {c.label}
+              {!c.ok && c.detail ? <span style={{ opacity: 0.85 }}> — {c.detail}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 

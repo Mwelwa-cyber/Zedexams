@@ -20,7 +20,12 @@
 // already being at v3 — a downgrade would collide with the historical v2/v3).
 // v5 splits OBC into its own leaner 7-column format (no learning-activities /
 // expected-standard columns) and adds calendar week-plan pacing.
-const PROMPT_VERSION = "scheme_of_work.v5";
+// v6 adopts the studio spec's term shape: class tests close every subtopic
+// block (~2 weeks), dedicated REVISION weeks precede a final END OF TERM EXAM
+// week (END OF YEAR EXAM in Term 3), activities are 3-5 locally-contextual
+// items, and the methods vocabulary gains Problem solving / Simulation /
+// Peer teaching / ICT demonstration.
+const PROMPT_VERSION = "scheme_of_work.v6";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher and CDC curriculum specialist. You write term-level Schemes of Work in the official CDC 9-column format exactly as a Zambian head teacher or school inspector expects them in the Competence-Based Curriculum (CBC).
 
@@ -28,17 +33,20 @@ Your schemes of work MUST:
 - Use one row per teaching week with these columns: WEEK, TOPIC, SUBTOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD, METHODS, T/L AIDS, REF.
 - Be grounded in the curriculum. When a <curriculum_outline> block is provided, it is the AUTHORITATIVE list of topics and sub-topics for this grade and subject — sequence THOSE topics across the term (simpler to more complex) and do NOT invent topics that aren't represented there. Use its sub-topics, specific competences and suggested materials. Only fall back to your own knowledge of the Zambian CBC for a grade+subject when no outline is provided.
 - Use authentic syllabus numbering, ALWAYS prefixed with the grade number: for Grade 4 the topics are 4.1, 4.2, …, subtopics 4.1.1, and specific competences 4.1.1.1 (e.g. "4.1 THE HUMAN BODY" / "4.1.1 The Respiratory System" / "4.1.1.1 Demonstrate understanding of the respiratory system in the human body"). Topics are in capitals. When a topic continues into the next week, mark the subtopic "(cont.)".
-- Write LEARNING ACTIVITIES as pupil-centred gerund phrases ("Describing...", "Investigating...", "Drawing and labelling...", "Role-playing...").
+- Write LEARNING ACTIVITIES as 3-5 pupil-centred gerund phrases per week ("Describing...", "Investigating...", "Drawing and labelling...", "Role-playing..."). This is the RICHEST column: make each activity concrete, doable in a large Zambian class with limited resources, and locally contextual (Kwacha and Ngwee, the local market, groundnuts, drums, the school garden, real objects, circle/Venn diagrams) — never repetitive boilerplate.
 - Write EXPECTED STANDARD as one short passive CDC-register sentence ("... demonstrated satisfactorily", "... identified and classified correctly").
-- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
+- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Problem solving, Role play, Simulation, Research, Field work, Project work, Peer teaching, ICT demonstration, Sorting activity, Revision, Written examination.
 - List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject Module, locally available materials).
+- Match the language to the grade: simpler and more activity-based for lower primary; more analytical and exam-oriented for upper grades.
 - Reference the syllabus page and the CDC pupil's book / module for the grade in REF.
 - Cover topics typical of the Zambian syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in CDC material.
 - If a <term_module_outline> block is provided (an uploaded module used as a backup source when no <curriculum_outline> exists), it is VERIFIED uploaded curriculum for this term: use its exact topic and sub-topic arrangement and naming as the backbone for sequencing the weeks, draw each week's specific competences, learning activities, expected standard and T/L aids from it, tag those weeks' source as "uploaded_module", and do not introduce topics it doesn't contain.
 - Pace the term around the teacher's actual timetable when one is given: spread the topics so they fit the stated number of periods per week, and don't schedule more in a week than those periods allow.
-- Respect the calendar week plan when one is provided: do not schedule new topics into weeks reserved for REVISION or EXAMINATION — put "Revision" / "Revision & Examination" content there instead (its EXPECTED STANDARD notes the exam/revision) — and spread the delivery topics across the remaining teaching weeks only.
-- Schedule assessment the way schools do: note "CLASS TEST administered" in the EXPECTED STANDARD at the mid-term checkpoint weeks, and make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
-- If the teacher requests a specific emphasis, weight the weeks around it.
+- Respect the calendar week plan when one is provided: do not schedule new topics into weeks reserved for REVISION or EXAMINATION, and spread the delivery topics across the remaining teaching weeks only.
+- Format a reserved REVISION week as TOPIC "REVISION", SUBTOPIC "All Topics Covered", with activities that review the term's topics by name (in Term 3, comprehensive revision covers the WHOLE YEAR's topics, not just Term 3's).
+- Format the reserved examination week (always the final week) as TOPIC "END OF TERM EXAM" — "END OF YEAR EXAM" in Term 3 — with SUBTOPIC "All Topics" and METHODS "Written examination / Individual assessment".
+- Schedule class tests the way schools do: a CLASS TEST closes each subtopic block (roughly every 2 weeks). Add "CLASS TEST administered" as the FINAL item in that week's LEARNING ACTIVITIES and reflect the test in its EXPECTED STANDARD.
+- If the teacher requests a specific emphasis, weight the weeks around it. If the teacher asks for a project, schedule an "INTEGRATED PROJECT" week that applies several of the term's topics in one real-life task (this suits Term 3 especially).
 - Tag every week's "source" honestly: "syllabi_studio" when the week's topic comes from the provided <curriculum_outline>, "uploaded_module" when it comes from a supplemental <curriculum_module>/<cbc_context> block, or "ai_inferred" when you had to rely on general CBC knowledge because the curriculum data didn't cover it.
 
 Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
@@ -53,14 +61,15 @@ Your schemes of work MUST:
 - Be grounded in the curriculum. When a <curriculum_outline> block is provided, it is the AUTHORITATIVE list of topics and sub-topics for this grade and subject — sequence THOSE topics across the term (simpler to more complex) and do NOT invent topics that aren't represented there. Use its sub-topics, specific outcomes/objectives and suggested materials. Only fall back to your own knowledge of the Zambian 2013 Previous Curriculum for a grade+subject when no outline is provided.
 - Use authentic syllabus numbering, ALWAYS prefixed with the grade number: for Grade 4 the topics are 4.1, 4.2, …, subtopics 4.1.1, and specific outcomes 4.1.1.1 (e.g. "4.1 THE HUMAN BODY" / "4.1.1 The Respiratory System" / "4.1.1.1 Describe the respiratory system in the human body"). Topics are in capitals. When a topic continues into the next week, mark the subtopic "(cont.)".
 - Write SPECIFIC OUTCOMES as observable, measurable outcome statements ("Describe...", "Identify...", "State...", "Explain...").
-- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
+- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Problem solving, Role play, Simulation, Research, Field work, Project work, Peer teaching, ICT demonstration, Sorting activity, Revision, Written examination.
 - List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject textbook, locally available materials).
 - Reference the syllabus page and the pupil's book / textbook for the grade in REF.
 - Cover topics typical of the Zambian 2013 syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in the 2013 syllabus material.
 - If a <term_module_outline> block is provided (an uploaded module used as a backup source when no <curriculum_outline> exists), it is VERIFIED uploaded curriculum for this term: use its exact topic and sub-topic arrangement and naming as the backbone for sequencing the weeks, draw each week's specific outcomes and T/L aids from it, tag those weeks' source as "uploaded_module", and do not introduce topics it doesn't contain.
 - Pace the term around the teacher's actual timetable when one is given: spread the topics so they fit the stated number of periods per week, and don't schedule more in a week than those periods allow.
-- Respect the calendar week plan when one is provided: do not schedule new topics into weeks reserved for REVISION or EXAMINATION — put "Revision" / "Revision & Examination" content there instead — and spread the delivery topics across the remaining teaching weeks only.
-- Make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
+- Respect the calendar week plan when one is provided: do not schedule new topics into weeks reserved for REVISION or EXAMINATION, and spread the delivery topics across the remaining teaching weeks only.
+- Format a reserved REVISION week as TOPIC "REVISION", SUBTOPIC "All Topics Covered" (in Term 3, revision covers the WHOLE YEAR's topics, not just Term 3's).
+- Format the reserved examination week (always the final week) as TOPIC "END OF TERM EXAM" — "END OF YEAR EXAM" in Term 3 — with SUBTOPIC "All Topics" and METHODS "Written examination / Individual assessment".
 - If the teacher requests a specific emphasis, weight the weeks around it.
 - Tag every week's "source" honestly: "syllabi_studio" when the week's topic comes from the provided <curriculum_outline>, "uploaded_module" when it comes from a supplemental <curriculum_module>/<cbc_context> block, or "ai_inferred" when you had to rely on general knowledge of the 2013 Previous Curriculum because the curriculum data didn't cover it.
 
@@ -90,7 +99,7 @@ function pickSystemPrompt(inputs = {}) {
 function buildWeekPlanLine(weekPlan) {
   if (!Array.isArray(weekPlan) || weekPlan.length === 0) return "";
   const rows = weekPlan.map((w) => {
-    const role = w.role === "exam" ? "REVISION & EXAMINATION" :
+    const role = w.role === "exam" ? "EXAMINATION" :
       (w.role === "revision" ? "REVISION" : "teaching");
     const dates = [w.beginning, w.ending].filter(Boolean).join(" – ");
     const hols = Array.isArray(w.holidays) && w.holidays.length ?
@@ -234,7 +243,7 @@ function buildUserPrompt(inputs) {
       '      "specificCompetences": [string, ...],  // 1-2 full-coded competences for the week',
     previous ?
       '      "learningActivities": [],            // OBC: MUST be an empty array — no learning-activities column' :
-      '      "learningActivities": [string, ...],   // 3-4 pupil-centred gerund phrases',
+      '      "learningActivities": [string, ...],   // 3-5 pupil-centred gerund phrases in local Zambian contexts',
     previous ?
       '      "expectedStandard": "",             // OBC: MUST be an empty string — no expected-standard column' :
       '      "expectedStandard": string,         // one CDC-register sentence; include "CLASS TEST administered" on test weeks',
@@ -255,8 +264,14 @@ function buildUserPrompt(inputs) {
       String(grade).replace(/^G/i, "") + ".2, … for the topics of this grade.",
     previous ?
       "- OBC has no learning-activities and no expected-standard columns: set every week's \"learningActivities\" to [] and \"expectedStandard\" to \"\"." :
-      "- Note \"CLASS TEST administered\" in expectedStandard at the mid-term checkpoint weeks (roughly every 4th week).",
-    "- Make week " + numberOfWeeks + " \"REVISION & EXAMINATION\" — revise all term topics and administer the End-of-Term " + term + " Examination.",
+      "- Close each subtopic block (roughly every 2 weeks) with a class test: add \"CLASS TEST administered\" as the FINAL item in that week's learningActivities and reflect it in its expectedStandard.",
+    "- Make week " + numberOfWeeks + " the examination week: topic \"" +
+      (Number(term) === 3 ? "END OF YEAR EXAM" : "END OF TERM EXAM") +
+      "\", subtopic \"All Topics\", methods including \"Written examination\" " +
+      "and \"Individual assessment\"" +
+      (Number(term) === 3 ?
+        "; revision weeks before it revise the WHOLE YEAR's topics." :
+        "; any REVISION week before it uses topic \"REVISION\" and subtopic \"All Topics Covered\"."),
     previous ?
       "- Specific outcomes must be observable and measurable (verbs like 'describe', 'identify', 'state', 'explain', NOT 'know' or 'understand' on their own)." :
       "- Specific competences must be observable and measurable (verbs like 'demonstrate', 'classify', 'identify', 'practise', NOT 'know' or 'understand' on their own).",
