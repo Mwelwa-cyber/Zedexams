@@ -115,6 +115,30 @@ export function reserveWeeks(plan, { examWeeks = [], revisionWeeks = [] } = {}) 
   }
 }
 
+/**
+ * The revision weeks a term normally reserves when the teacher hasn't marked
+ * any: the weeks immediately before the (first) exam week. Terms 1–2 take 2
+ * revision weeks, Term 3 takes 3 (end-of-year exams need comprehensive
+ * whole-year revision) — scaled down so a short term never spends more than
+ * about a quarter of its weeks revising. Returns [] for very short terms.
+ *
+ * @param {{totalWeeks:number, examWeeks?:number[], term?:number}} args
+ * @returns {number[]} ascending week numbers to reserve as revision
+ */
+export function defaultRevisionWeeks({ totalWeeks, examWeeks = [], term } = {}) {
+  const n = Math.round(Number(totalWeeks) || 0)
+  if (n < 6) return []
+  const exams = (examWeeks || []).map(Number).filter((w) => Number.isFinite(w) && w >= 1)
+  const firstExam = exams.length ? Math.min(...exams) : n
+  const want = Number(term) === 3 ? 3 : 2
+  const count = Math.min(want, Math.max(1, Math.floor((firstExam - 1) / 4)))
+  const out = []
+  for (let w = firstExam - count; w < firstExam; w += 1) {
+    if (w >= 1) out.push(w)
+  }
+  return out
+}
+
 /** How many weeks in the plan are reserved (exam or revision). */
 export function reservedWeekCount(plan) {
   if (!plan || !Array.isArray(plan.weeks)) return 0

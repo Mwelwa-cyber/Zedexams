@@ -232,6 +232,7 @@
     "test:scheme-outline": "node functions/teacherTools/schemeCurriculumOutline.test.js",
     "test:scheme-timetable": "node functions/teacherTools/schemeTimetable.test.js",
     "test:scheme-advisories": "node functions/teacherTools/schemeAdvisories.test.js",
+    "test:scheme-quality": "node functions/teacherTools/schemeQualityCheck.test.js",
     "test:scheme-term-division": "node functions/teacherTools/schemeTermDivision.test.js",
     "test:scheme-term-division-client": "node src/utils/schemeTermDivision.test.js",
     "test:teacher-plans": "node functions/teacherTools/teacherPlans.test.js",

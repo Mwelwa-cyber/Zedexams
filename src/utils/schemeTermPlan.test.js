@@ -8,6 +8,7 @@ import {
   reserveWeeks,
   reservedWeekCount,
   deliveryWeekCount,
+  defaultRevisionWeeks,
   toWeekPlanPayload,
   roleLabel,
 } from './schemeTermPlan.js'
@@ -95,6 +96,42 @@ console.log('toWeekPlanPayload — compact projection')
   assert(payload.every((p) => typeof p.week === 'number' && typeof p.role === 'string'), 'week + role are primitives')
   assert(payload.every((p) => Array.isArray(p.holidays)), 'holidays projected to name arrays')
   assert(toWeekPlanPayload(null).length === 0, 'null → []')
+}
+
+console.log('defaultRevisionWeeks — the spec term shape when nothing is typed')
+{
+  // 13-week Term 1 with the exam in the last week → 2 revision weeks before it.
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 13, examWeeks: [13], term: 1 })) === JSON.stringify([11, 12]),
+    'Term 1 (13 wks) → revision in weeks 11–12',
+  )
+  // 12-week Term 2 → content ~9 weeks, 2 revision, 1 exam (the spec's shape).
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 12, examWeeks: [12], term: 2 })) === JSON.stringify([10, 11]),
+    'Term 2 (12 wks) → revision in weeks 10–11',
+  )
+  // Term 3 revises the whole year → 3 revision weeks when the term is long enough.
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 13, examWeeks: [13], term: 3 })) === JSON.stringify([10, 11, 12]),
+    'Term 3 (13 wks) → revision in weeks 10–12',
+  )
+  // Revision sits before the FIRST exam week, not the end of the term.
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 13, examWeeks: [10, 13], term: 1 })) === JSON.stringify([8, 9]),
+    'revision precedes the first exam week',
+  )
+  // Short terms scale down; very short terms reserve nothing extra.
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 8, examWeeks: [8], term: 1 })) === JSON.stringify([7]),
+    'short term (8 wks) → a single revision week',
+  )
+  assert(defaultRevisionWeeks({ totalWeeks: 5, examWeeks: [5], term: 1 }).length === 0, 'tiny term → no default revision')
+  assert(defaultRevisionWeeks({}).length === 0, 'no inputs → no defaults')
+  // Missing exam list falls back to the final week.
+  assert(
+    JSON.stringify(defaultRevisionWeeks({ totalWeeks: 12, term: 1 })) === JSON.stringify([10, 11]),
+    'no exam weeks given → assumes the last week is the exam',
+  )
 }
 
 console.log('roleLabel')
