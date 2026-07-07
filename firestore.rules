@@ -1340,7 +1340,22 @@ service cloud.firestore {
         && (!('percent' in incoming())   || (incoming().percent is number && incoming().percent >= 0 && incoming().percent <= 100));
     }
     match /noteProgress/{progressId} {
-      allow read:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      // `get` must also succeed for a record the learner hasn't created yet:
+      // opening a note for the first time reads noteProgress/{uid}_{noteId}
+      // BEFORE any write exists, and a get() on a MISSING doc evaluates this
+      // rule with resource == null. The old `resource.data.uid == ...` form
+      // dereferenced that null and DENIED the read, so every first note-open
+      // threw permission-denied — surfacing as "Missing or insufficient
+      // permissions" on /notes/:id in Sentry. Allow the missing-doc get: it can
+      // only ever resolve to "not found" (no document data is exposed). Real
+      // docs stay owner-gated by their uid field, and `list`/enumeration stays
+      // owner-scoped below — so no one else's progress data is ever readable.
+      allow get:    if isAuthed() && (
+                      resource == null
+                      || resource.data.uid == request.auth.uid
+                      || isAdmin()
+                    );
+      allow list:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
       allow create: if isAuthed()
                     && incoming().uid == request.auth.uid
                     && incoming().keys().hasAll(['uid', 'noteId'])

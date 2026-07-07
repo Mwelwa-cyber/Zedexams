@@ -161,6 +161,16 @@ async function main() {
       score: 5,
       percentage: 50,
     })
+
+    // Existing note-reading progress for LEARNER_A (id `{uid}_{noteId}`). The
+    // FIRST open of a note reads a doc that does NOT exist yet — that missing-doc
+    // get() is exercised below without any seed.
+    await setDoc(doc(db, 'noteProgress', `${LEARNER_A}_note1`), {
+      uid: LEARNER_A,
+      noteId: 'note1',
+      status: 'in-progress',
+      percent: 40,
+    })
     await setDoc(doc(db, 'generatedContent', 'gc_teacher_a'), {
       ownerUid: TEACHER_A,
       contentType: 'lesson_plan',
@@ -454,6 +464,44 @@ async function main() {
 
   await test('learner cannot PATCH their own result percentage (anti-tamper)', async () => {
     await assertFails(updateDoc(doc(learnerA, 'results', 'result_a'), { percentage: 100 }))
+  })
+
+  // ── noteProgress — owner read incl. not-yet-created records ───
+  section('noteProgress — first-open get of a missing owner doc must succeed')
+
+  await test('learner can get their OWN existing progress doc', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'noteProgress', `${LEARNER_A}_note1`)))
+  })
+
+  // The regression: opening a note for the first time reads a doc that does
+  // not exist yet. The old rule dereferenced resource.data.uid on the null
+  // resource and denied it — the "/notes/:id Missing or insufficient
+  // permissions" Sentry issue. It must now resolve as a clean not-found.
+  await test('learner can get their OWN not-yet-created progress doc (first open)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'noteProgress', `${LEARNER_A}_note_never_opened`)))
+  })
+
+  // The real protection: another learner's EXISTING progress doc carries data
+  // and stays denied. (A MISSING doc resolves to a harmless not-found for any
+  // authed caller — no document data is exposed — which is what unblocks the
+  // owner's own first open above.)
+  await test('learner CANNOT get another learner\'s existing progress doc', async () => {
+    await assertFails(getDoc(doc(learnerB, 'noteProgress', `${LEARNER_A}_note1`)))
+  })
+
+  await test('cross-learner enumeration of progress is denied', async () => {
+    await assertFails(getDocs(query(
+      collection(learnerB, 'noteProgress'), where('uid', '==', LEARNER_A),
+    )))
+  })
+
+  await test('learner can create their own progress doc, not one keyed to another uid', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'noteProgress', `${LEARNER_A}_note2`), {
+      uid: LEARNER_A, noteId: 'note2', status: 'in-progress', percent: 10,
+    }))
+    await assertFails(setDoc(doc(learnerA, 'noteProgress', `${LEARNER_B}_note2`), {
+      uid: LEARNER_B, noteId: 'note2', status: 'in-progress', percent: 10,
+    }))
   })
 
   // ── shares (token-as-permission) ─────────────────────────────
