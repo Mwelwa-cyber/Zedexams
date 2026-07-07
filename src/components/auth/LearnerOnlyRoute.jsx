@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
-import PageLoader from '../ui/PageLoader'
+import FullScreenLoader from '../ui/FullScreenLoader'
 import { Sparkles, ArrowLeft } from '../ui/icons'
 
 export default function LearnerOnlyRoute({ children }) {
@@ -12,7 +12,7 @@ export default function LearnerOnlyRoute({ children }) {
   // Wait for the profile to load before evaluating role — otherwise a teacher
   // (or any non-learner) briefly renders the learner-only children while
   // userProfile is still null.
-  if (loading || !userProfile) return <PageLoader />
+  if (loading || !userProfile) return <FullScreenLoader label="Loading your dashboard…" />
 
   // Admins and learners always pass through.
   if (isAdmin || isLearner) return children

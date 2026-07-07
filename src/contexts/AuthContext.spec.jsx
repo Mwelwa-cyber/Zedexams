@@ -208,3 +208,61 @@ describe('AuthProvider role + access resolution', () => {
     expect(h.signOut).not.toHaveBeenCalled()
   })
 })
+
+// Regression: the profile-snapshot auth-error path must not sign users out on
+// a transient/offline forced-refresh failure. A stale ID token on reload shows
+// up as a permission-denied snapshot error; AuthProvider force-refreshes the
+// token, and the failure branch used to call expireSession() unconditionally —
+// which logged people out whenever that refresh hit a flaky Zambian mobile
+// link ("random signed out on reload"). It must now defer to shouldExpireSession
+// and only end the session on a genuinely terminal auth failure.
+describe('AuthProvider profile-snapshot auth-error recovery', () => {
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.snap.next = null
+    h.snap.error = null
+    h.signOut.mockClear()
+  })
+
+  async function driveSnapshotError({ code, refreshRejection }) {
+    const user = {
+      uid: 'u1',
+      getIdToken: vi.fn(() => Promise.reject(refreshRejection)),
+    }
+    render(<AuthProvider><Probe /></AuthProvider>)
+    act(() => { h.onAuthCb.current(user) })
+    await act(async () => { await h.snap.error({ code }) })
+    return user
+  }
+
+  it('keeps the session on a permission-denied whose forced refresh fails with a network error', async () => {
+    const user = await driveSnapshotError({
+      code: 'permission-denied',
+      refreshRejection: { code: 'auth/network-request-failed' },
+    })
+    expect(user.getIdToken).toHaveBeenCalledWith(true)
+    // Transient network failure → recoverable, NOT a logout.
+    expect(h.signOut).not.toHaveBeenCalled()
+    const flags = JSON.parse(screen.getByTestId('flags').textContent)
+    expect(flags.hasProfile).toBe(false)
+  })
+
+  it('ends the session when the forced refresh fails with a terminal auth error', async () => {
+    const user = await driveSnapshotError({
+      code: 'unauthenticated',
+      refreshRejection: { code: 'auth/user-token-expired' },
+    })
+    expect(user.getIdToken).toHaveBeenCalledWith(true)
+    // Genuinely dead token → expireSession → signOut.
+    expect(h.signOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not sign out when the forced refresh fails with an unclassifiable error', async () => {
+    await driveSnapshotError({
+      code: 'permission-denied',
+      refreshRejection: new Error('boom'),
+    })
+    // No auth/* code to classify → default to keeping the session.
+    expect(h.signOut).not.toHaveBeenCalled()
+  })
+})

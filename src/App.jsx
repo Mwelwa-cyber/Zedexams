@@ -13,6 +13,7 @@ import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import { isNativePlatform } from './utils/runtime'
 import PageLoader from './components/ui/PageLoader'
+import FullScreenLoader from './components/ui/FullScreenLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import { OfflineIndicator } from './offline'
 import UpdatePrompt from './components/ui/UpdatePrompt'
@@ -267,10 +268,10 @@ function RootRedirect() {
   // session, hold on the loader instead of flashing Marketing. A signed-out
   // visitor (no hint) still falls straight through to Marketing with no
   // spinner.
-  if (loading && !currentUser && hasAuthSessionHint()) return <PageLoader />
+  if (loading && !currentUser && hasAuthSessionHint()) return <FullScreenLoader label="Welcome back…" />
   if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
-  if (!userProfile) return <PageLoader />
+  if (!userProfile) return <FullScreenLoader label="Loading your workspace…" />
   return (
     <Navigate
       to={getRoleLandingPath({ role: userProfile.role, isAdmin, isTeacher })}
