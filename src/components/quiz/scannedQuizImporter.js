@@ -1179,7 +1179,7 @@ export async function runVisionImport({
     }
   }
 
-  const runBatch = async (pages, phase, current, total) => {
+  const runBatch = async (pages, phase, current, total, countUsage = false) => {
     onProgress?.({ phase, current, total })
     // Sequential: keeps us under the per-call daily AI meter and avoids
     // hammering the vision API with concurrent large requests.
@@ -1188,13 +1188,40 @@ export async function runVisionImport({
       pages,
       subjectHint,
       gradeHint,
+      // A paginated paper is ONE import, not one AI action per batch. Only the
+      // first reading batch is billed against the caller's daily AI meter; the
+      // rest (and every recovery batch) pass countUsage:false. Older servers
+      // ignore the flag and still meter per batch — harmless, just stricter.
+      countUsage,
     })
   }
 
   const batches = chunkPages(pageImages)
   const batchResults = []
+  // A single failed reading batch (timeout, network drop, daily-cap,
+  // rate-limit, App Check) must NOT discard the pages that read fine — that is
+  // the "import cuts off on its own and I lose everything" report. Catch each
+  // batch, keep the successful ones, and only hard-fail if EVERY batch failed
+  // (surfacing the real reason so a config problem is visible, not silent).
+  const batchErrors = []
   for (let i = 0; i < batches.length; i += 1) {
-    batchResults.push(await runBatch(batches[i], 'reading', i + 1, batches.length))
+    try {
+      batchResults.push(await runBatch(batches[i], 'reading', i + 1, batches.length, i === 0))
+    } catch (error) {
+      batchErrors.push({ batch: i + 1, message: error?.message || '' })
+    }
+  }
+
+  if (!batchResults.length) {
+    // Nothing to build from. Bubble up the first batch's real error (daily
+    // limit reached, App Check failed, permission denied, timeout) instead of
+    // a blank cutoff, so the teacher/admin knows what to fix.
+    const reason = batchErrors[0]?.message
+    throw new Error(
+      reason
+        ? `Could not read this ${sourceNoun}: ${reason}`
+        : `Could not read this ${sourceNoun}. Please try again.`,
+    )
   }
 
   let merged = mergeSectionBatches(batchResults)
@@ -1220,7 +1247,7 @@ export async function runVisionImport({
       for (let i = 0; i < retryBatches.length; i += 1) {
         try {
           batchResults.push(
-            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length),
+            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length, false),
           )
         } catch {
           // A failed recovery batch just means we keep the missing-number
@@ -1261,6 +1288,17 @@ export async function runVisionImport({
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
+  // Some page groups failed to read but others succeeded — surface a clear,
+  // honest partial-import notice instead of silently dropping their questions.
+  // (Recovery above may have back-filled gaps between captured numbers; this
+  // still flags that whole groups were skipped so the teacher can re-import.)
+  if (batchErrors.length) {
+    const groupLabel = batchErrors.length === 1 ? 'One group of pages' : `${batchErrors.length} groups of pages`
+    warnings.unshift(
+      `${groupLabel} could not be read (${batchErrors[0].message || 'the reader failed'}) — ` +
+      'questions on those pages may be missing. Re-import to try them again, or add them by hand.',
+    )
+  }
   // Layout-vs-extraction reconciliation: if the cheap layout pass saw more
   // tables/figures than we reconstructed, surface it so a missed table is
   // visible rather than silently dropped.

@@ -1990,8 +1990,16 @@ exports.structureScannedQuiz = onCall(
       );
     }
 
-    // Counts as one AI action per page batch (same meter as smart import).
-    await assertDailyLimit(request.auth.uid, role, "scannedImport");
+    // A paginated paper is ONE import, not one AI action per page batch.
+    // Charging the daily meter per batch used to burn a staff user's 150/day
+    // cap mid-paper — the import then threw resource-exhausted partway and,
+    // because the client discarded a partly-read import, it "cut off on its
+    // own" and every retry re-burned the remaining budget. The client now
+    // sends countUsage:true only on the FIRST batch (false on later + recovery
+    // batches); older clients omit the flag and still meter per batch.
+    if (request.data?.countUsage !== false) {
+      await assertDailyLimit(request.auth.uid, role, "scannedImport");
+    }
 
     return runScannedQuizImport({
       pages,
