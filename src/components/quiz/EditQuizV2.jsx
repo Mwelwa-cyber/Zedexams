@@ -27,7 +27,7 @@ import {
   validateStandaloneQuestion as sharedValidateStandaloneQuestion,
   collectQuizIssues,
 } from '../../utils/quizValidation.js'
-import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
+import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../utils/importedQuizAssets.js'
 import {
   assetsById,
   buildStandaloneSection,
@@ -1594,12 +1594,18 @@ export default function EditQuizV2() {
         }
       : undefined
 
+    // Accumulate every assetId→Storage-URL the upload resolves so the caller can
+    // rewrite the LIVE sections after save (see applyUploadedImageUrls) — without
+    // this, the on-screen imported figures keep pointing at blob: URLs the save
+    // revokes and render broken until a reload.
+    const uploadedById = new Map()
     const uploadCtx = {
       storage,
       uid: currentUser?.uid,
       assets: importedAssets,
       sourceFileName: form.sourceFileName || '',
       onProgress,
+      collect: uploadedById,
     }
     try {
       const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
@@ -1607,7 +1613,7 @@ export default function EditQuizV2() {
       // Defensive: any leftover blob: URL would persist to Firestore and
       // break for every learner on reload. Catch it here instead.
       assertNoBlobImageUrls(questions, passages)
-      return { ...serialized, questions, passages }
+      return { ...serialized, questions, passages, uploadedById }
     } finally {
       // Always clear so a save-failure doesn't leave the progress chip
       // stuck on the action bar. The catch in the calling save handler
@@ -1659,6 +1665,9 @@ export default function EditQuizV2() {
   async function performAutoSave() {
     if (autoSavingRef.current || saving) return
     if (anyUploading) return
+    // No signed-in session → the write would throw on updatedBy/uid mid-flight.
+    // Silently skip; the manual save surfaces a friendly prompt instead.
+    if (!currentUser?.uid) return
     // The questions subcollection failed to load (empty view over a doc that
     // claims content). Saving now would persist that empty view and wipe the
     // real questions/passages. Never autosave in this state — the admin must
@@ -1811,6 +1820,13 @@ export default function EditQuizV2() {
       show('This quiz\'s questions didn\'t load — reload the page before saving so you don\'t overwrite them.', true)
       return
     }
+    // Pre-check sign-in: the save writes updatedBy/approvedBy and uploads
+    // imported images (which throw "Please sign in…" mid-flight if the session
+    // dropped). Fail fast with a friendly toast instead of a mid-save throw.
+    if (!currentUser?.uid) {
+      show('Your session has expired. Please sign in again before saving.', true)
+      return
+    }
     // Publishing triggers the full pre-publish checklist; lower-trust
     // modes (draft / pending) keep the legacy toast-on-first-error flow.
     if (mode === 'published') {
@@ -1879,6 +1895,14 @@ export default function EditQuizV2() {
 
       setQuizStatus(mode)
       setDeletedIds([])
+      // Rewrite the LIVE sections' imported figures from their transient blob:
+      // URLs to the uploaded Storage URLs BEFORE releasing the blobs below —
+      // otherwise every imported figure on screen (and any that re-mounts, e.g.
+      // the crop modal) points at a revoked blob and renders broken until the
+      // navigate-away resolves. No-op when nothing was imported.
+      if (serializedSections.uploadedById?.size) {
+        setSections(prev => applyUploadedImageUrls(prev, serializedSections.uploadedById))
+      }
       // Imported image blobs are now persisted in Storage; release the
       // in-memory blob: URLs so unmount cleanup has nothing to do.
       setImportedAssets({})
