@@ -122,6 +122,12 @@ export async function uploadImportedAssets({
   sourceFileName = '',
   compressImage = compressImportedImage,
   onProgress,
+  // Optional Map the caller passes to accumulate every assetId→downloadUrl this
+  // call resolves, ACROSS several calls. Lets the editor rewrite its LIVE
+  // sections (via applyUploadedImageUrls) after the save uploads the imported
+  // figures — otherwise the on-screen figures keep pointing at blob: URLs that
+  // the save revokes, and re-render broken until a reload.
+  collect,
 }) {
   const uploadedById = new Map()
   if (!assetIds.length) return uploadedById
@@ -169,6 +175,9 @@ export async function uploadImportedAssets({
       ),
     ))
     throw error
+  }
+  if (collect && typeof collect.set === 'function') {
+    uploadedById.forEach((url, id) => collect.set(id, url))
   }
   return uploadedById
 }
