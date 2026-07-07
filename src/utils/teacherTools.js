@@ -249,8 +249,7 @@ function withTimeout(promise, ms, label = 'request') {
         `Client-side timeout: ${label} did not respond within ${Math.round(ms / 1000)}s. ` +
         `This usually means the Cloud Function is not deployed or not reachable. ` +
         `Check: (1) 'firebase functions:list' includes generateLessonPlan, ` +
-        `(2) ANTHROPIC_API_KEY secret is set, (3) you are signed in as a teacher/admin. ` +
-        `See DEBUG_LESSON_PLAN.md.`
+        `(2) ANTHROPIC_API_KEY secret is set, (3) you are signed in as a teacher/admin.`
       )
       err.code = 'client-timeout'
       reject(err)
