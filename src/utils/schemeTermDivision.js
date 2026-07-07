@@ -10,6 +10,12 @@
  * Term 2 ended. A topic is placed in exactly ONE term — it is never repeated
  * across terms (unless the teacher deliberately re-adds it as revision).
  *
+ * The split is BALANCED, not fill-first: each term aims for its proportional
+ * share of the syllabus's total estimated weeks. A light syllabus (few
+ * sub-topics) must still spread across all three terms — pouring everything
+ * into Term 1 until its calendar budget was full left Terms 2 and 3 empty,
+ * which is how real teachers never plan a year.
+ *
  * Everything here is PURE — no DOM, no Firestore, no network — so it runs both
  * in the browser (the live preview) and under plain `node` (its unit tests).
  * The server keeps a lock-step copy at
@@ -18,8 +24,12 @@
 
 export const TERMS = [1, 2, 3]
 
-const DEFAULT_SUBTOPICS_PER_WEEK = 2
-const MAX_WEEKS_PER_TOPIC = 4
+// CBC pacing: a sub-topic normally takes ~2 teaching weeks (teach → practise
+// → class test closes the block). Capped at 6 weeks per topic — the same
+// clamp the week stepper, toTopicSelectionPayload and the server enforce —
+// so one content-heavy topic never eats a whole term.
+const DEFAULT_WEEKS_PER_SUBTOPIC = 2
+const MAX_WEEKS_PER_TOPIC = 6
 
 /** A topic may arrive as `{topic}` (server outline) or `{label}` (client hook). */
 export function topicName(t) {
@@ -50,16 +60,19 @@ function cleanSubtopics(t) {
 }
 
 /**
- * Estimate how many teaching weeks a topic needs from its sub-topic count.
- * Short topics (0–1 sub-topics) fit in one week; content-heavy topics are
- * split across several weeks (capped so one topic never eats a whole term).
+ * Estimate how many teaching weeks a topic needs from its sub-topic count,
+ * at the CBC pace of ~2 weeks per sub-topic (a sub-topic is taught, practised
+ * and closed with a class test — not rushed through in half a week). A topic
+ * with no listed sub-topics gets one week; heavy topics are capped so one
+ * topic never eats a whole term. The teacher can still adjust per topic in
+ * the preview.
  */
 export function estimateTopicWeeks(topic, opts = {}) {
-  const per = Math.max(1, opts.subtopicsPerWeek || DEFAULT_SUBTOPICS_PER_WEEK)
+  const per = Math.max(1, opts.weeksPerSubtopic || DEFAULT_WEEKS_PER_SUBTOPIC)
   const cap = Math.max(1, opts.maxWeeksPerTopic || MAX_WEEKS_PER_TOPIC)
   const n = cleanSubtopics(topic).length
-  if (n <= 1) return 1
-  return Math.min(cap, Math.ceil(n / per))
+  if (n === 0) return 1
+  return Math.min(cap, Math.max(1, n * per))
 }
 
 /** Normalise a `{1,2,3}` weeks-per-term map, filling gaps with a sane default. */
@@ -93,13 +106,17 @@ export function toDivisionItems(topics, opts = {}) {
 /**
  * Divide an ordered topic list across Term 1, Term 2, Term 3.
  *
- * Greedy, order-preserving fill: pour topics into Term 1 until its teaching-week
- * budget is met, then Term 2, then Term 3. This guarantees each term simply
- * CONTINUES the syllabus — no topic is repeated, none is skipped, and the
- * sequence never restarts.
+ * Order-preserving BALANCED fill: each term targets its proportional share of
+ * the syllabus's total estimated weeks (share of the year's teaching-week
+ * budget), so a light syllabus still spreads across all three terms instead
+ * of pouring wholesale into Term 1. A topic joins the current term while that
+ * keeps the term at least as close to its target as stopping short would —
+ * and never past the term's physical teaching-week budget. This guarantees
+ * each term simply CONTINUES the syllabus — no topic is repeated, none is
+ * skipped, and the sequence never restarts.
  *
  * @param {Array} topics  ordered topics ([{topic|label, subtopics}])
- * @param {{weeksByTerm?:{1,2,3}, subtopicsPerWeek?:number, maxWeeksPerTopic?:number}} opts
+ * @param {{weeksByTerm?:{1,2,3}, weeksPerSubtopic?:number, maxWeeksPerTopic?:number}} opts
  * @returns {{ byTerm: {1:Item[],2:Item[],3:Item[]}, items: Item[], weeksByTerm }}
  */
 export function divideTopicsByTerm(topics, opts = {}) {
@@ -107,22 +124,39 @@ export function divideTopicsByTerm(topics, opts = {}) {
   const weeksByTerm = normalizeWeeksByTerm(opts.weeksByTerm)
   const byTerm = { 1: [], 2: [], 3: [] }
 
+  let remainingWeeks = items.reduce((n, it) => n + it.weeks, 0)
+
+  // The term's share of the not-yet-placed weeks, proportional to its slice
+  // of the remaining calendar budget — at least 1 (tiny syllabi still spread
+  // out), never above the term's own physical budget.
+  const termTarget = (index) => {
+    const budget = weeksByTerm[TERMS[index]]
+    const remainingBudget = TERMS.slice(index)
+      .reduce((n, t) => n + weeksByTerm[t], 0) || 1
+    return Math.max(1, Math.min(budget,
+      Math.round((remainingWeeks * budget) / remainingBudget)))
+  }
+
   let ti = 0
   let usedInTerm = 0
+  let target = termTarget(0)
   for (const item of items) {
-    // Advance to the next term once this one is full — but never leave a term
-    // completely empty (place at least one topic before moving on, so a single
-    // oversized topic can't skip a whole term).
+    // Advance once the term is at its balanced target (or physically full) —
+    // but never leave a term completely empty (place at least one topic
+    // before moving on, so a single oversized topic can't skip a whole term).
     while (
       ti < TERMS.length - 1 &&
       usedInTerm > 0 &&
-      usedInTerm + item.weeks > weeksByTerm[TERMS[ti]]
+      (usedInTerm + item.weeks > weeksByTerm[TERMS[ti]] ||
+        usedInTerm + item.weeks - target > target - usedInTerm)
     ) {
       ti += 1
       usedInTerm = 0
+      target = termTarget(ti)
     }
     byTerm[TERMS[ti]].push(item)
     usedInTerm += item.weeks
+    remainingWeeks -= item.weeks
   }
 
   return { byTerm, items, weeksByTerm }
@@ -200,14 +234,15 @@ export function validateTermSelection({
     }
   }
 
-  // Overloaded single topics (too much content for the weeks it was given).
+  // Overloaded single topics: more than one sub-topic per week is rushed
+  // against the ~2-weeks-per-sub-topic CBC pace.
   for (const it of list) {
     const subs = Array.isArray(it.subtopics) ? it.subtopics.length : 0
-    if (subs > (it.weeks || 1) * DEFAULT_SUBTOPICS_PER_WEEK + 2) {
+    if (subs > 0 && (it.weeks || 1) < subs) {
       out.push({
         code: 'topic-heavy',
         level: 'info',
-        message: `"${it.topic}" has ${subs} sub-topics — it will be spread across ${it.weeks} week${it.weeks === 1 ? '' : 's'}. Increase its weeks if that feels rushed.`,
+        message: `"${it.topic}" has ${subs} sub-topics in ${it.weeks || 1} week${(it.weeks || 1) === 1 ? '' : 's'} — the usual pace is about 2 weeks per sub-topic. Increase its weeks if that feels rushed.`,
       })
     }
   }

@@ -71,7 +71,38 @@ console.log("sliceOutlineToTerm — empty / AI-inferred outline passes through")
 console.log("estimateTopicWeeks parity");
 {
   assert(estimateTopicWeeks({subtopics: []}) === 1, "no sub-topics → 1 week");
-  assert(estimateTopicWeeks({subtopics: ["a", "b", "c", "d"]}) === 2, "four sub-topics → 2 weeks");
+  assert(estimateTopicWeeks({subtopics: ["a"]}) === 2, "one sub-topic → 2 weeks");
+  assert(estimateTopicWeeks({subtopics: ["a", "b"]}) === 4, "two sub-topics → 4 weeks");
+  assert(estimateTopicWeeks({subtopics: ["a", "b", "c", "d"]}) === 6, "four sub-topics → capped at 6 weeks");
+}
+
+console.log("divideTopicsByTerm — a light syllabus spreads across all three terms");
+{
+  // Grade 4 Maths regression: 8 light topics used to ALL land in Term 1
+  // (they fit its budget), leaving Terms 2 and 3 empty. The balanced
+  // division must reproduce the official split 4.1–4.3 / 4.4–4.6 / 4.7–4.8.
+  const maths = [
+    {topic: "4.1 SETS", subtopics: ["Operations on Sets"]},
+    {topic: "4.2 NUMBERS", subtopics: ["Numbers and Notation", "Factors and Multiples"]},
+    {topic: "4.3 FRACTIONS", subtopics: ["Common Fractions", "Decimal Fractions"]},
+    {topic: "4.4 FINANCIAL ARITHMETIC", subtopics: ["Money"]},
+    {topic: "4.5 ANGLES", subtopics: ["Types of Angles"]},
+    {topic: "4.6 SHAPES", subtopics: ["Plane Shapes", "Solid Shapes"]},
+    {topic: "4.7 MEASURES", subtopics: ["Time and Area"]},
+    {topic: "4.8 STATISTICS", subtopics: ["Bar Graphs and Line Graphs"]},
+  ];
+  const {byTerm} = divideTopicsByTerm(maths, {weeksByTerm: {1: 10, 2: 10, 3: 9}});
+  assert(byTerm[1].length > 0 && byTerm[2].length > 0 && byTerm[3].length > 0,
+      "no term is left empty");
+  assert(byTerm[1].map((t) => t.topic).join("|") ===
+      "4.1 SETS|4.2 NUMBERS|4.3 FRACTIONS",
+  "Term 1 = Sets, Numbers, Fractions (official split)");
+  assert(byTerm[2].map((t) => t.topic).join("|") ===
+      "4.4 FINANCIAL ARITHMETIC|4.5 ANGLES|4.6 SHAPES",
+  "Term 2 = Financial Arithmetic, Angles, Shapes (official split)");
+  assert(byTerm[3].map((t) => t.topic).join("|") ===
+      "4.7 MEASURES|4.8 STATISTICS",
+  "Term 3 = Measures, Statistics (official split)");
 }
 
 console.log(failures === 0 ?
