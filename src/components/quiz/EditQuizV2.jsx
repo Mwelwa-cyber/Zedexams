@@ -139,6 +139,17 @@ function compressImage(file, { maxWidth = 1600, quality = 0.92, maxBytes = 9 * 1
       const encodeJpeg = (q) => canvas.toBlob(
         blob => (blob ? resolve(blob) : fail()), 'image/jpeg', q,
       )
+      // JPEG has no alpha channel, so re-encoding a transparent canvas to JPEG
+      // composites transparent pixels onto BLACK. Paint white BEHIND the drawn
+      // image first (destination-over only fills the currently-transparent
+      // areas, never touching the figure) so a flattened PNG lands on white,
+      // not a black background that hides dark strokes/labels.
+      const flattenOntoWhite = () => {
+        ctx.globalCompositeOperation = 'destination-over'
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.globalCompositeOperation = 'source-over'
+      }
 
       if (!lossless) {
         encodeJpeg(quality)
@@ -152,7 +163,7 @@ function compressImage(file, { maxWidth = 1600, quality = 0.92, maxBytes = 9 * 1
       canvas.toBlob(
         blob => {
           if (!blob) { fail(); return }
-          if (blob.size > maxBytes) { encodeJpeg(0.9); return }
+          if (blob.size > maxBytes) { flattenOntoWhite(); encodeJpeg(0.9); return }
           resolve(blob)
         },
         'image/png',
