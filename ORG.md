@@ -52,10 +52,10 @@ HQ in `src/utils/companyOrg.js`):
 
 | Department | Agents | Trigger |
 |---|---|---|
-| **Content** | Aria, Cala, Reva, Pubo, Compass, Gate | agentJobs pipeline + cron |
+| **Content** | Aria, Cala, Reva, Pubo, Qix, Compass, Gate | agentJobs pipeline + cron + questionBank trigger |
 | **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI |
 | **Revenue** | Till | hourly cron (Lenco reconcile) |
-| **Support** | Echo | 2-hourly cron (feedback triage) |
+| **Support** | Echo, Bonga | 2-hourly cron (feedback triage) + WhatsApp webhook |
 | **Growth** | Anchor, Dawn | weekly cron / on-demand managed agent |
 
 Finance is not a department of agents but a *function*: the nightly
@@ -101,6 +101,20 @@ budget governor (below) is the company's CFO.
 - **Outputs:** `aiGenerations` doc + `agentJobs.publishedRefs`.
 - **Wraps:** the existing admin-SDK write path used by the teacher tool
   Cloud Functions. Pubo is the **only** agent with publish privileges.
+
+#### Qix — Question Bank Reviewer
+- **Mission:** Review every captured question for the Central Question Bank —
+  deterministic dedup (exact/near-text + semantic embedding) then a Haiku
+  quality + curriculum/grade-fit review — and gate it into the Master Bank.
+  Fail-closed to `needs_admin` on any error; a dedup hit short-circuits with
+  no model call.
+- **Inputs:** a `questionBank/{id}` doc at `reviewStatus: 'pending_review'`.
+- **Outputs:** `{ reviewStatus, masterEligible, duplicateOf, aiReview }`;
+  verdicts surface in `/admin/question-review`.
+- **Wraps:** `functions/agents/questionReview.js` + `questionDedupCore.js` +
+  `questionEmbeddingCore.js` (Anthropic Haiku). Runs off the `questionBank`
+  trigger, **not** `agentJobs` (per-question volume would drown the feed).
+  Circuit breaker: `agentControl/qix.paused`.
 
 ### QA / Engineering Department
 
@@ -268,6 +282,8 @@ teacher submits brief
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |
+| Qix | 200,000 / 40,000 tokens | One Haiku review per new question; dedup hits skip the call |
+| Bonga | 200,000 / 60,000 tokens | One Haiku reply per inbound WhatsApp message |
 
 Caps are enforced via `functions/teacherTools/usageMeter.js` keyed by a
 synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
