@@ -14,8 +14,11 @@
 
 const TERMS = [1, 2, 3];
 
-const DEFAULT_SUBTOPICS_PER_WEEK = 2;
-const MAX_WEEKS_PER_TOPIC = 4;
+// CBC pacing: a sub-topic normally takes ~2 teaching weeks; capped at 6 weeks
+// per topic (the same clamp sanitizeTopicSelection enforces) so one topic
+// never eats a whole term. Mirrors src/utils/schemeTermDivision.js.
+const DEFAULT_WEEKS_PER_SUBTOPIC = 2;
+const MAX_WEEKS_PER_TOPIC = 6;
 
 /** A topic may arrive as `{topic}` (outline) or `{label}` (client shape). */
 function topicName(t) {
@@ -45,13 +48,16 @@ function cleanSubtopics(t) {
   return out;
 }
 
-/** Estimate the teaching weeks a topic needs from its sub-topic count. */
+/**
+ * Estimate the teaching weeks a topic needs from its sub-topic count, at the
+ * CBC pace of ~2 weeks per sub-topic (teach → practise → class test).
+ */
 function estimateTopicWeeks(topic, opts = {}) {
-  const per = Math.max(1, opts.subtopicsPerWeek || DEFAULT_SUBTOPICS_PER_WEEK);
+  const per = Math.max(1, opts.weeksPerSubtopic || DEFAULT_WEEKS_PER_SUBTOPIC);
   const cap = Math.max(1, opts.maxWeeksPerTopic || MAX_WEEKS_PER_TOPIC);
   const n = cleanSubtopics(topic).length;
-  if (n <= 1) return 1;
-  return Math.min(cap, Math.ceil(n / per));
+  if (n === 0) return 1;
+  return Math.min(cap, Math.max(1, n * per));
 }
 
 function normalizeWeeksByTerm(weeksByTerm) {
@@ -83,28 +89,49 @@ function toDivisionItems(topics, opts = {}) {
 }
 
 /**
- * Greedy, order-preserving division across Term 1/2/3. Pours topics into
- * Term 1 until its teaching-week budget is met, then Term 2, then Term 3 —
- * so each term continues the syllabus and no topic is repeated or skipped.
+ * Order-preserving BALANCED division across Term 1/2/3: each term targets its
+ * proportional share of the syllabus's total estimated weeks, so a light
+ * syllabus still spreads across all three terms instead of pouring wholesale
+ * into Term 1 (which left Terms 2 and 3 empty). A topic joins the current
+ * term while that keeps the term at least as close to its target as stopping
+ * short would — never past the term's physical teaching-week budget — so each
+ * term continues the syllabus and no topic is repeated or skipped.
  */
 function divideTopicsByTerm(topics, opts = {}) {
   const items = toDivisionItems(topics, opts);
   const weeksByTerm = normalizeWeeksByTerm(opts.weeksByTerm);
   const byTerm = {1: [], 2: [], 3: []};
 
+  let remainingWeeks = items.reduce((n, it) => n + it.weeks, 0);
+
+  // The term's share of the not-yet-placed weeks, proportional to its slice
+  // of the remaining calendar budget — at least 1, never above the term's
+  // own physical budget.
+  const termTarget = (index) => {
+    const budget = weeksByTerm[TERMS[index]];
+    const remainingBudget = TERMS.slice(index)
+        .reduce((n, t) => n + weeksByTerm[t], 0) || 1;
+    return Math.max(1, Math.min(budget,
+        Math.round((remainingWeeks * budget) / remainingBudget)));
+  };
+
   let ti = 0;
   let usedInTerm = 0;
+  let target = termTarget(0);
   for (const item of items) {
     while (
       ti < TERMS.length - 1 &&
       usedInTerm > 0 &&
-      usedInTerm + item.weeks > weeksByTerm[TERMS[ti]]
+      (usedInTerm + item.weeks > weeksByTerm[TERMS[ti]] ||
+        usedInTerm + item.weeks - target > target - usedInTerm)
     ) {
       ti += 1;
       usedInTerm = 0;
+      target = termTarget(ti);
     }
     byTerm[TERMS[ti]].push(item);
     usedInTerm += item.weeks;
+    remainingWeeks -= item.weeks;
   }
 
   return {byTerm, items, weeksByTerm};

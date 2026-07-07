@@ -40,13 +40,13 @@ const SCIENCE = [
   { label: 'Materials', subtopics: ['Natural Materials', 'Man-made Materials'] },
 ]
 
-console.log('estimateTopicWeeks')
+console.log('estimateTopicWeeks — ~2 weeks per sub-topic (CBC pace)')
 {
   assert(estimateTopicWeeks({ subtopics: [] }) === 1, 'no sub-topics → 1 week')
-  assert(estimateTopicWeeks({ subtopics: ['a'] }) === 1, 'one sub-topic → 1 week')
-  assert(estimateTopicWeeks({ subtopics: ['a', 'b'] }) === 1, 'two sub-topics → 1 week')
-  assert(estimateTopicWeeks({ subtopics: ['a', 'b', 'c'] }) === 2, 'three sub-topics → 2 weeks')
-  assert(estimateTopicWeeks({ subtopics: Array.from({ length: 20 }, (_, i) => `s${i}`) }) === 4, 'huge topic capped at 4 weeks')
+  assert(estimateTopicWeeks({ subtopics: ['a'] }) === 2, 'one sub-topic → 2 weeks')
+  assert(estimateTopicWeeks({ subtopics: ['a', 'b'] }) === 4, 'two sub-topics → 4 weeks')
+  assert(estimateTopicWeeks({ subtopics: ['a', 'b', 'c'] }) === 6, 'three sub-topics → 6 weeks')
+  assert(estimateTopicWeeks({ subtopics: Array.from({ length: 20 }, (_, i) => `s${i}`) }) === 6, 'huge topic capped at 6 weeks')
 }
 
 console.log('divideTopicsByTerm — the core "no restart" guarantee')
@@ -76,6 +76,52 @@ console.log('divideTopicsByTerm — the core "no restart" guarantee')
   // Ordering is preserved globally.
   const indices = [...byTerm[1], ...byTerm[2], ...byTerm[3]].map((it) => it.index)
   assert(indices.every((v, i) => i === 0 || v > indices[i - 1]), 'global order preserved')
+}
+
+console.log('divideTopicsByTerm — a light syllabus still spreads across all three terms')
+{
+  // Grade 4 Mathematics: 8 topics with 1–2 sub-topics each. Under the old
+  // fill-first division every topic estimated ~1 week, so ALL EIGHT fit
+  // inside Term 1's budget and Terms 2 and 3 came back empty (the "it is
+  // not fixed" screenshot). The balanced division must reproduce the
+  // official CBC split: 4.1–4.3 · 4.4–4.6 · 4.7–4.8.
+  const MATHS = [
+    { label: '4.1 Sets', subtopics: ['Operations on Sets'] },
+    { label: '4.2 Numbers', subtopics: ['Numbers and Notation', 'Factors and Multiples'] },
+    { label: '4.3 Fractions', subtopics: ['Common Fractions', 'Decimal Fractions'] },
+    { label: '4.4 Financial Arithmetic', subtopics: ['Money'] },
+    { label: '4.5 Angles', subtopics: ['Types of Angles'] },
+    { label: '4.6 Shapes', subtopics: ['Plane Shapes', 'Solid Shapes'] },
+    { label: '4.7 Measures', subtopics: ['Time and Area'] },
+    { label: '4.8 Statistics', subtopics: ['Bar Graphs and Line Graphs'] },
+  ]
+  const { byTerm } = divideTopicsByTerm(MATHS, { weeksByTerm: { 1: 10, 2: 10, 3: 9 } })
+  assert(byTerm[1].length > 0 && byTerm[2].length > 0 && byTerm[3].length > 0,
+    'no term is left empty')
+  assert(
+    byTerm[1].map((t) => t.topic).join('|') === '4.1 Sets|4.2 Numbers|4.3 Fractions',
+    'Term 1 = Sets, Numbers, Fractions (official split)',
+  )
+  assert(
+    byTerm[2].map((t) => t.topic).join('|') === '4.4 Financial Arithmetic|4.5 Angles|4.6 Shapes',
+    'Term 2 = Financial Arithmetic, Angles, Shapes (official split)',
+  )
+  assert(
+    byTerm[3].map((t) => t.topic).join('|') === '4.7 Measures|4.8 Statistics',
+    'Term 3 = Measures, Statistics (official split)',
+  )
+}
+
+console.log('divideTopicsByTerm — very few 1-week topics still spread out')
+{
+  const tiny = [
+    { label: 'A', subtopics: [] },
+    { label: 'B', subtopics: [] },
+    { label: 'C', subtopics: [] },
+  ]
+  const { byTerm } = divideTopicsByTerm(tiny, { weeksByTerm: { 1: 12, 2: 12, 3: 11 } })
+  assert(byTerm[1].length === 1 && byTerm[2].length === 1 && byTerm[3].length === 1,
+    'three light topics land one per term')
 }
 
 console.log('topicsForTerm — Term 3 continues Term 2')
