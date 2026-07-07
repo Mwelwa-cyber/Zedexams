@@ -181,6 +181,11 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
       onCropped?.(blob)
     } catch {
       setError('Could not crop this image — the browser may be blocking it. Use “Replace” to upload a cropped version instead.')
+    } finally {
+      // Always clear busy — even on the success path. Today the parent unmounts
+      // this modal right after onCropped, but if that ordering ever changes a
+      // success without this reset would leave a spinning, disabled "Cropping…"
+      // button. A reset on an unmounting component is a harmless no-op.
       setBusy(false)
     }
   }

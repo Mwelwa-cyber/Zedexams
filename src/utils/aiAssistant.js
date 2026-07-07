@@ -35,6 +35,18 @@ const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
 function messageFromError(error) {
   const code = error?.code || ''
+  const rawMessage = String(error?.message || '')
+  // App Check enforcement surfaces as permission-denied ("App Check
+  // verification failed.") on the HTTP soft-verify path, and as
+  // unauthenticated ("Firebase App Check token is invalid.") when a callable
+  // has enforceAppCheck on. Both carry App-Check / attestation wording. Detect
+  // it FIRST so a security-attestation failure gets a clear, actionable message
+  // instead of the misleading "only available for teachers and admins" — a
+  // teacher whose reCAPTCHA token hasn't propagated is NOT a role problem, and
+  // that copy sends them chasing the wrong fix.
+  if (/app[\s-]?check|attestation/i.test(rawMessage)) {
+    return 'Security check failed — please refresh the page and try again. If it keeps happening, clear your cache or try a different browser.'
+  }
   // Domain-specific copy that beats the generic templates — keep it.
   if (code.includes('resource-exhausted')) {
     return 'Daily AI limit reached. Please try again tomorrow.'

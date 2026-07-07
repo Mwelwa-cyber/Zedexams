@@ -62,9 +62,12 @@ const DOCX_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04])
 const XLSX_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00])
 const PPTX_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00])
 const SVG_BYTES = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')
-// 6 MB buffer to trip the 5-MB image cap on validQuizImageUpload /
-// validLessonImageUpload. Cheap to allocate in JS.
+// 6 MB buffer to trip the 5-MB image cap on validLessonImageUpload. Cheap to
+// allocate in JS.
 const OVERSIZE_IMAGE_BYTES = new Uint8Array(6 * 1024 * 1024)
+// 11 MB buffer to trip the 10-MB validQuizImageUpload cap (quiz images get more
+// headroom than lesson images because a detailed tall scan re-encodes larger).
+const QUIZ_OVERSIZE_IMAGE_BYTES = new Uint8Array(11 * 1024 * 1024)
 
 let pass = 0
 let fail = 0
@@ -293,9 +296,17 @@ async function main() {
     ))
   })
 
-  await test('image >5 MB rejected (size cap)', async () => {
+  await test('image >10 MB rejected (size cap)', async () => {
     await assertFails(uploadBytes(
       ref(teacherAStorage, `quiz-images/${TEACHER_A}/oversize.png`),
+      QUIZ_OVERSIZE_IMAGE_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('image between 5 and 10 MB accepted (quiz headroom above compressed output)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(teacherAStorage, `quiz-images/${TEACHER_A}/midsize.png`),
       OVERSIZE_IMAGE_BYTES,
       { contentType: 'image/png' },
     ))
