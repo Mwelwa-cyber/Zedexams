@@ -22,6 +22,7 @@ import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
+import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
 
 const AuthContext = createContext(null)
 
@@ -420,6 +421,11 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let unsubProfile = null
+    // Timestamp of the last forced token refresh triggered by a profile-snapshot
+    // auth error. Throttled with the same window as useAuthRecovery so a
+    // persistent permission-denied can't spin getIdToken()/Firestore in a tight
+    // error → refresh → re-subscribe → error loop.
+    let lastProfileRefreshAt = 0
     disposedRef.current = false
     // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
     // within this window, drop the loading gate so the user sees *something*.
@@ -495,19 +501,41 @@ export function AuthProvider({ children }) {
           // Stale-token recovery: a tab idle for hours can wake with an
           // expired ID token, which Firestore surfaces as permission-denied
           // / unauthenticated even though the account is fine. Try ONE forced
-          // refresh + re-subscribe before giving up; only a refresh failure
-          // means the session is genuinely gone.
+          // refresh + re-subscribe before giving up.
           if (e?.code === 'permission-denied' || e?.code === 'unauthenticated') {
-            try {
-              await user.getIdToken(true)
-              if (disposedRef.current) return
-              subscribeProfile(user)
-              return
-            } catch (refreshErr) {
-              if (disposedRef.current) return
-              expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
-              return
+            const now = Date.now()
+            // Throttle so a persistent denial can't loop getIdToken/Firestore.
+            if (now - lastProfileRefreshAt >= REFRESH_THROTTLE_MS) {
+              lastProfileRefreshAt = now
+              try {
+                await user.getIdToken(true)
+                if (disposedRef.current) return
+                subscribeProfile(user)
+                return
+              } catch (refreshErr) {
+                if (disposedRef.current) return
+                // Only a genuinely terminal auth failure ends the session. A
+                // flaky/offline network, a rate-limit, or an unclassifiable
+                // throw must NOT sign the user out — doing so was the spurious
+                // "logged out on reload" bug on Zambian mobile links. Defer to
+                // the same policy useAuthRecovery uses; on a non-terminal
+                // failure fall through to a recoverable 'unreadable' state and
+                // let the recovery hook retry on the next resume/online event.
+                const online = typeof navigator !== 'undefined' ? navigator.onLine : true
+                if (shouldExpireSession(refreshErr?.code, online)) {
+                  expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
+                  return
+                }
+              }
             }
+            // Already refreshed within the throttle window, or the refresh
+            // failed transiently: keep the session and surface a recoverable
+            // state instead of a logout.
+            if (disposedRef.current) return
+            setUserProfile(null)
+            setProfileIssue('unreadable')
+            setLoading(false)
+            return
           }
           // Transient / network errors: surface a recoverable state rather
           // than nuking the session. The recovery hook retries on resume.
