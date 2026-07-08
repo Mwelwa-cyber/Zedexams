@@ -13,7 +13,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
-import { useNote }            from '../hooks/useNote'
+import { useOfflineNote }     from '../hooks/useOfflineNote'
 import { useRecordNoteProgress } from '../hooks/useRecordNoteProgress'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
@@ -30,6 +30,7 @@ import { fetchNoteSmart }     from '../lib/smart'
 import { useActiveSection }   from '../hooks/useActiveSection'
 import { NoteToc }            from '../components/NoteToc'
 import { BackToTop }          from '../components/BackToTop'
+import { SaveOfflineButton }  from '../components/SaveOfflineButton'
 import SeoHelmet              from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -51,7 +52,7 @@ export function LearnerNoteRead() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const wantsInsights = searchParams.get('insights') === '1'
-  const { note, loading, error } = useNote(id)
+  const { note, loading, error } = useOfflineNote(id)
 
   // Learner reading-comfort: text size, typeface, page background (persisted).
   const prefs = useReaderPrefs()
@@ -160,6 +161,9 @@ export function LearnerNoteRead() {
             <span className="text-xs text-[#4A5A6E] inline-flex items-center gap-1">
               <Calendar size={11} /> Published {formatDate(note.publishedAt)}
             </span>
+            <span className="ml-auto">
+              <SaveOfflineButton note={note} />
+            </span>
           </div>
 
           <h1 className="font-display text-3xl sm:text-5xl md:text-6xl tracking-tight leading-[1.05] mb-6 text-[#0F1B2D]">
@@ -216,7 +220,7 @@ export function LearnerNoteRead() {
                 rel="noopener noreferrer"
                 className="notes-chip notes-chip-shadow inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:-translate-y-px transition text-[#0F1B2D] font-semibold"
               >
-                <Download size={14} /> Save offline
+                <Download size={14} /> Download PDF
               </a>
             )}
           </div>
