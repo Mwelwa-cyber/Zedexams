@@ -6,6 +6,7 @@ import { isSuperAdmin } from './permissions'
 export const ROLES = {
   LEARNER:     'learner',
   TEACHER:     'teacher',
+  PARENT:      'parent',
   ADMIN:       'admin',
   SUPER_ADMIN: 'superAdmin',
 }

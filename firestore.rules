@@ -1685,6 +1685,42 @@ service cloud.firestore {
       );
     }
 
+    // ── familyInviteCodes (family portal — learner-minted parent codes) ──
+    //
+    // A learner mints a short code; a parent account redeems it via the
+    // redeemFamilyInviteCode callable (admin SDK) to create a parentLinks doc.
+    // The code doc is a mild secret: only the owning learner may read it (to
+    // display / manage / rotate it). Redemption never reads it from the client
+    // — the callable does, with the admin SDK — so parents need no read access,
+    // and `list` is constrained to the learner's own codes so a scan can't
+    // enumerate other learners' codes. Create/revoke run through callables
+    // (server mints a unique id + rotates), so every client write is denied.
+    match /familyInviteCodes/{code} {
+      allow get, list: if isAuthed() && resource.data.learnerUid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    // ── parentLinks (family portal — parent ↔ child link) ──
+    //
+    // Doc id is `${parentUid}_${learnerUid}`. Created by the
+    // redeemFamilyInviteCode callable (admin SDK) after it validates the code;
+    // the parent dashboard reads its own links (query where parentUid == uid),
+    // and the learner can see — and cut off — links about them (query where
+    // learnerUid == uid). Either side may delete the link. No client
+    // create/update: the callable owns the doc shape + the authorising check,
+    // so a tampered client can't forge a link to a child it has no code for.
+    match /parentLinks/{linkId} {
+      allow get, list: if isAuthed() && (
+        resource.data.parentUid == request.auth.uid ||
+        resource.data.learnerUid == request.auth.uid
+      );
+      allow create, update: if false;
+      allow delete: if isAuthed() && (
+        resource.data.parentUid == request.auth.uid ||
+        resource.data.learnerUid == request.auth.uid
+      );
+    }
+
     // ── assignments (audit A10 PR 3 — teacher assigns work to a class) ──
     //
     // Each doc points one resource (quiz or daily exam) at one class.
