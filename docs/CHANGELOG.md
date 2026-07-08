@@ -5,6 +5,41 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-07-08 — Android closed testing (v1.3.0)
+
+Features bundled into the Android closed-testing App Bundle since v1.2.7.
+Short tester-facing blurb lives in `distribution/whatsnew/whatsnew-en-US`.
+
+### Added
+- **Global learner search** across quizzes, notes, past papers, and games
+  from a single search bar. (#1642)
+- **Real offline reading for learner notes** — downloaded notes stay readable
+  without a connection. (#1640)
+- **Family portal**: parent↔child linking backend plus the parent portal UI
+  and learner family-code panel. (#1634, #1635)
+- **Real dark-mode toggle** and Midnight theme coverage across the learner
+  app — notes reader + library, sticker surfaces, settings badges and
+  toasts. (#1628, #1636, #1637, #1639)
+- **Learner Settings redesigned** as a premium AI dashboard, with Settings
+  surfaced directly in the account menu. (#1616, #1623)
+- **Schemes of Work studio upgrade**: spec term shape, quality checklist,
+  default revision weeks. (#1619)
+
+### Fixed
+- Spurious logout on reload and the blank-white auth loading screen. (#1617)
+- Scanned quiz/paper import cutting off mid-upload. (#1614)
+- Overlapping bottom bars in the assessment/exam-paper studio, and sideways
+  scrolling on learner pages when the subscription banner shows. (#1638, #1641)
+- Android edge-to-edge: bottom nav bar cleared on the learner dashboard. (#1612)
+- `noteProgress` permission error on first note open. (#1622)
+- Syllabus term division dumping the whole syllabus into Term 1. (#1626)
+- Play Billing purchase-verification config failures are now diagnosed and
+  alerted instead of failing silently. (#1627)
+
+### Performance
+- GradeHub memoization and capped unbounded teacher/admin list
+  queries. (#1630, #1632, #1633)
+
 ## 2026-07-05 — Android closed testing (v1.2.5)
 
 Features bundled into the Android closed-testing App Bundle. Short
