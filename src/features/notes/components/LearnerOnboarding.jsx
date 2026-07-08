@@ -35,7 +35,7 @@ export function LearnerOnboarding({ user, onDone }) {
   }
 
   return (
-    <div className="notes-studio min-h-screen flex items-center justify-center px-5 py-10" style={{ backgroundColor: '#F5EFE1' }}>
+    <div className="notes-studio note-page-cream min-h-screen flex items-center justify-center px-5 py-10">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-[#0F1B2D]" style={{ backgroundColor: '#FF7A1A', boxShadow: '0 2px 0 #0F1B2D' }}>

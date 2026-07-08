@@ -69,7 +69,7 @@ export function LearnerNotesList() {
   }, [activeSubject, notes, subjects])
 
   return (
-    <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
+    <div className="notes-studio note-page-cream min-h-screen pb-24 lg:pb-8">
       <SeoHelmet title="Notes" path="/notes" noIndex />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
         <div className="mb-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
