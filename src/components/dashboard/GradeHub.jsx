@@ -490,11 +490,11 @@ function TabButton({ active, onClick, icon, label, subtitle, accentClass: _accen
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`min-h-0 flex-1 flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-full transition-colors ${tabSurface} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+      className={`min-h-0 min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-full transition-colors ${tabSurface} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
-      <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black">
+      <span className="inline-flex max-w-full items-center gap-1.5 text-xs sm:text-sm font-black">
         {locked ? <Icon as={Lock} size="xs" strokeWidth={2.4} /> : <Icon as={icon} size="xs" strokeWidth={2.4} />}
-        {label}
+        <span className="truncate">{label}</span>
       </span>
       {subtitle && (
         <span className={`text-[10px] font-bold leading-tight truncate max-w-full ${active ? 'opacity-80' : ''}`}>
