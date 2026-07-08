@@ -86,6 +86,8 @@ export default function Register() {
   const [fieldErrors, setFieldErrors] = useState({})
 
   const isTeacher = form.role === 'teacher'
+  const isParent = form.role === 'parent'
+  const isLearner = form.role === 'learner'
   const score = useMemo(() => passwordScore(form.password), [form.password])
   const strengthHint =
     form.password.length === 0 ? 'Enter at least 6 characters' :
@@ -118,10 +120,10 @@ export default function Register() {
       email: ['required', 'email'],
       password: ['required', { min: 6 }],
       confirm: [{ match: 'password', value: form.password, message: 'Passwords do not match.' }],
-      school: ['required'],
-      ...(isTeacher
-        ? { subject: ['required'], province: ['required'] }
-        : { grade: ['required'] }),
+      // Parents have no school/grade of their own; they link to a child later.
+      ...(isParent ? {} : { school: ['required'] }),
+      ...(isTeacher ? { subject: ['required'], province: ['required'] } : {}),
+      ...(isLearner ? { grade: ['required'] } : {}),
     }
   }
 
@@ -231,9 +233,9 @@ export default function Register() {
         <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#aaa] text-center mb-2.5">
           I am a
         </div>
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
           <RoleCard
-            active={!isTeacher}
+            active={isLearner}
             onClick={() => pickRole('learner')}
             emoji="🎓"
             name="Learner"
@@ -244,7 +246,14 @@ export default function Register() {
             onClick={() => pickRole('teacher')}
             emoji="👩‍🏫"
             name="Teacher"
-            hint={<>Lesson plans<br />&amp; teaching tools</>}
+            hint={<>Lesson plans<br />&amp; tools</>}
+          />
+          <RoleCard
+            active={isParent}
+            onClick={() => pickRole('parent')}
+            emoji="👪"
+            name="Parent"
+            hint={<>Follow your<br />child's progress</>}
           />
         </div>
 
@@ -254,17 +263,21 @@ export default function Register() {
           style={
             isTeacher
               ? { background: '#EBF5F1', borderColor: 'rgba(28,100,70,0.2)' }
-              : { background: '#FFF5EC', borderColor: 'rgba(232,135,42,0.25)' }
+              : isParent
+                ? { background: '#EEF2FF', borderColor: 'rgba(79,70,229,0.22)' }
+                : { background: '#FFF5EC', borderColor: 'rgba(232,135,42,0.25)' }
           }
         >
-          <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isTeacher ? '📚' : '📚'}</span>
+          <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
           <span
             className="text-[12.5px] font-medium"
-            style={{ color: isTeacher ? '#1C6446' : '#C96E1C' }}
+            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#C96E1C' }}
           >
             {isTeacher
               ? 'Access lesson plans, schemes of work & teaching tools'
-              : "You'll get access to Grade 4–7 quizzes & exam practice"}
+              : isParent
+                ? "Follow your child's quiz scores, streaks & subjects"
+                : "You'll get access to Grade 4–7 quizzes & exam practice"}
           </span>
         </div>
 
@@ -385,18 +398,20 @@ export default function Register() {
             )}
           </div>
 
-          <Field
-            label="School Name"
-            id="school"
-            value={form.school}
-            onChange={set('school')}
-            placeholder="e.g. Lusaka Academy"
-            autoComplete="organization"
-            icon="🏫"
-            error={fieldErrors.school}
-          />
+          {!isParent && (
+            <Field
+              label="School Name"
+              id="school"
+              value={form.school}
+              onChange={set('school')}
+              placeholder="e.g. Lusaka Academy"
+              autoComplete="organization"
+              icon="🏫"
+              error={fieldErrors.school}
+            />
+          )}
 
-          {!isTeacher && (
+          {isLearner && (
             <div>
               <label htmlFor="grade" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">Grade</label>
               <div className="relative">

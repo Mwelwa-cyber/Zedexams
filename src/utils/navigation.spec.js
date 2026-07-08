@@ -28,15 +28,21 @@ describe('getRoleLandingPath', () => {
     expect(getRoleLandingPath({ isAdmin: true, isTeacher: true })).toBe('/admin')
   })
 
+  it('sends a parent to the family portal', () => {
+    expect(getRoleLandingPath({ role: 'parent' })).toBe('/family')
+    expect(getRoleLandingPath('parent')).toBe('/family')
+    expect(getRoleLandingPath({ isParent: true })).toBe('/family')
+  })
+
   it('falls back to /dashboard by default for unknown roles', () => {
-    expect(getRoleLandingPath({ role: 'parent' })).toBe('/dashboard')
+    expect(getRoleLandingPath({ role: 'nonsense' })).toBe('/dashboard')
     expect(getRoleLandingPath(null)).toBe('/dashboard')
     expect(getRoleLandingPath(undefined)).toBe('/dashboard')
   })
 
   it('uses a caller-supplied fallback when the role is unknown', () => {
     expect(getRoleLandingPath(null, '/login')).toBe('/login')
-    expect(getRoleLandingPath({ role: 'parent' }, '/')).toBe('/')
+    expect(getRoleLandingPath({ role: 'nonsense' }, '/')).toBe('/')
     // A recognised role ignores the fallback.
     expect(getRoleLandingPath({ role: 'teacher' }, '/login')).toBe('/teacher')
   })

@@ -5,6 +5,7 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
 
   if (profileOrFlags?.isAdmin || role === 'admin' || role === 'superAdmin') return '/admin'
   if (profileOrFlags?.isTeacher || role === 'teacher') return '/teacher'
+  if (profileOrFlags?.isParent || role === 'parent') return '/family'
   if (role === 'learner' || role === 'student') return '/dashboard'
   return fallback
 }

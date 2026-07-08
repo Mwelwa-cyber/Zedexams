@@ -7,6 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField, Note } from '../components/ui'
 import ParentShareManager from '../../../components/parent/ParentShareManager'
+import FamilyCodePanel from '../../../components/parent/FamilyCodePanel'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
 // Headerless body — composed by MyAccountPanel; default keeps the Panel wrapper.
@@ -80,6 +81,10 @@ export function ParentBody() {
           </Field>
         </div>
         <Note>These details help us reach your parent or guardian and personalise the digest we send them.</Note>
+      </Section>
+
+      <Section title="Connect a parent account" hint="Give your parent a family code so they can sign in and follow your progress from their own account.">
+        <FamilyCodePanel />
       </Section>
 
       <Section title="Share your progress" hint="Send a read-only link so your parent can follow your results — never your password.">
