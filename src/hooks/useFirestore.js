@@ -32,6 +32,14 @@ export const LEARNER_QUIZ_LIMIT = 400
 // stops an unbounded read as the catalogue grows. Newest-first.
 export const LEARNER_LESSON_LIMIT = 400
 
+// Safety cap on the teacher-owned content lists (own quizzes / lessons /
+// assessments). These `where('createdBy','==',uid) + orderBy` queries feed
+// library + header lists and had no bound, so a prolific author read their
+// entire back-catalogue on every mount. 300 is far above any realistic
+// per-teacher count, so it never trims a visible library — it only stops an
+// unbounded read as the account ages. Newest-first.
+export const TEACHER_QUERY_LIMIT = 300
+
 // How far back the admin "recent activity" queries reach. 90 days is the
 // rolling window the dashboards visualise; reading the entire history on
 // every admin reload was a major Firestore read-amplifier.
@@ -516,9 +524,9 @@ export function useFirestore() {
     } catch (e) { console.error('getAllQuizzes:', e); return [] }
   }
 
-  async function getQuizzesByTeacher(teacherId) {
+  async function getQuizzesByTeacher(teacherId, limitCount = TEACHER_QUERY_LIMIT) {
     try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', teacherId), orderBy('createdAt', 'desc')))
+      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', teacherId), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzesByTeacher:', e); return [] }
   }
@@ -586,12 +594,13 @@ export function useFirestore() {
   }
 
   // ── Assessments (teacher-private) ────────────────────────────
-  async function getMyAssessments(uid) {
+  async function getMyAssessments(uid, limitCount = TEACHER_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(
         collection(db, 'assessments'),
         where('createdBy', '==', uid),
         orderBy('createdAt', 'desc'),
+        limit(limitCount),
       ))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getMyAssessments:', e); return [] }
@@ -917,9 +926,12 @@ export function useFirestore() {
     return ref.id
   }
 
-  async function getPendingPayments() {
+  async function getPendingPayments(limitCount = ADMIN_QUERY_LIMIT) {
     try {
-      const snap = await getDocs(query(collection(db, 'payments'), where('status', '==', 'pending'), orderBy('createdAt', 'asc')))
+      // Oldest-first so the admin works the queue FIFO; the cap bounds the read
+      // if a backlog builds. A backlog beyond ADMIN_QUERY_LIMIT is cleared by
+      // processing the oldest and reloading.
+      const snap = await getDocs(query(collection(db, 'payments'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getPendingPayments:', e); return [] }
   }
@@ -1289,25 +1301,25 @@ export function useFirestore() {
   }
 
   // ── Teacher / content-workflow ───────────────────────────────
-  async function getMyQuizzes(uid) {
+  async function getMyQuizzes(uid, limitCount = TEACHER_QUERY_LIMIT) {
     try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', uid), orderBy('createdAt', 'desc')))
+      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getMyQuizzes:', e); return [] }
   }
 
-  async function getMyLessons(uid) {
+  async function getMyLessons(uid, limitCount = TEACHER_QUERY_LIMIT) {
     try {
-      const snap = await getDocs(query(collection(db, 'lessons'), where('createdBy', '==', uid), orderBy('createdAt', 'desc')))
+      const snap = await getDocs(query(collection(db, 'lessons'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getMyLessons:', e); return [] }
   }
 
-  async function getPendingApprovals() {
+  async function getPendingApprovals(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const [qSnap, lSnap] = await Promise.all([
-        getDocs(query(collection(db, 'quizzes'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'))),
-        getDocs(query(collection(db, 'lessons'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'))),
+        getDocs(query(collection(db, 'quizzes'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'), limit(limitCount))),
+        getDocs(query(collection(db, 'lessons'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'), limit(limitCount))),
       ])
       return [
         ...qSnap.docs.map(d => ({ id: d.id, contentType: 'quiz',   ...d.data() })),
