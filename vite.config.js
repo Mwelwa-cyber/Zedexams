@@ -348,11 +348,6 @@ export default defineConfig(({ mode }) => {
             }
             if (normalizedId.includes('/node_modules/marked/')) return 'markdown-vendor'
 
-            // Icons are used across almost every page but are relatively small;
-            // keep them in their own chunk so the main vendor bundle doesn't
-            // re-download them when other deps change.
-            if (normalizedId.includes('/node_modules/lucide-react/')) return 'icons-vendor'
-
             // Heroicons ships solid + outline + mini SVG modules — large enough
             // to dominate the vendor chunk if they fall into the catch-all.
             if (normalizedId.includes('/node_modules/@heroicons/')) return 'heroicons-vendor'

@@ -25,6 +25,12 @@ export function normalizeThemeId(id) {
   return THEME_IDS.includes(next) ? next : DEFAULT_THEME
 }
 
+// Themes whose palette is dark. Tailwind's `dark:` variants (darkMode:
+// 'class') only fire when an ancestor carries the `dark` class, so these
+// themes must also toggle it — otherwise every dark: style in the tree is
+// dead and light panels leak into the dark palette.
+const DARK_THEME_IDS = new Set(['midnight'])
+
 /**
  * Apply a theme by setting `theme-<id>` on <body>, removing any prior
  * theme class. Exported so the route-aware applicator can override the
@@ -33,8 +39,10 @@ export function normalizeThemeId(id) {
 export function applyThemeToBody(id) {
   if (typeof document === 'undefined') return
   const body = document.body
+  const next = normalizeThemeId(id)
   THEME_CLASS_IDS.forEach(t => body.classList.remove(`theme-${t}`))
-  body.classList.add(`theme-${normalizeThemeId(id)}`)
+  body.classList.add(`theme-${next}`)
+  document.documentElement.classList.toggle('dark', DARK_THEME_IDS.has(next))
 }
 
 /**

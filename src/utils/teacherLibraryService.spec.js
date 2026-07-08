@@ -27,6 +27,8 @@ vi.mock('./libraryClassification', () => ({
 
 import {
   saveLessonPlanGeneration,
+  duplicateGeneration,
+  CLIENT_CREATED_TOOLS,
   summarizeGenerations,
   titleForGeneration,
   TOOL_META,
@@ -93,6 +95,76 @@ describe('saveLessonPlanGeneration', () => {
   it('rejects when there is no plan', async () => {
     await expect(saveLessonPlanGeneration({ uid: 'u1', planJson: null })).rejects.toThrow(/generate a plan/i)
     expect(addDocMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('duplicateGeneration', () => {
+  beforeEach(() => addDocMock.mockClear())
+
+  // The exact top-level keys the firestore.rules client-tool create rule
+  // permits (keys().hasOnly([...])). Keep in sync with firestore.rules.
+  const CLIENT_CREATE_KEYS = new Set([
+    'ownerUid', 'tool', 'status', 'visibility',
+    'createdAt', 'inputs', 'output', 'library',
+  ])
+
+  const item = {
+    id: 'gen-1',
+    ownerUid: 'u1',
+    tool: 'mark_schedule',
+    status: 'complete',
+    visibility: 'private',
+    inputs: { grade: 'G5', term: '1', subject: null, topic: 'Term 1 mark schedule' },
+    output: { header: { grade: 'G5', term: 1 }, pupils: [{ name: 'A' }] },
+    library: { libraryType: 'mark_schedules' },
+    // Read-only fields that must NOT leak into the copy:
+    exportedFormats: ['docx'],
+    teacherEdited: true,
+    createdAt: { seconds: 1 },
+  }
+
+  it('writes a rules-compliant copy owned by the caller and returns the new id', async () => {
+    const id = await duplicateGeneration(item, 'u1')
+    expect(id).toBe('gen-123')
+    const written = addDocMock.mock.calls[0][1]
+    expect(written.ownerUid).toBe('u1')
+    expect(written.tool).toBe('mark_schedule')
+    expect(written.status).toBe('complete')
+    expect(written.visibility).toBe('private')
+    expect(written.createdAt).toBe('SERVER_TS') // fresh timestamp, not the original's
+    expect(written.inputs).toEqual(item.inputs)
+    expect(written.output).toEqual(item.output)
+    expect(written.library).toEqual(item.library)
+    // CRITICAL: no leaked read-only keys — the create rule's keys().hasOnly
+    // would reject the whole write.
+    for (const key of Object.keys(written)) {
+      expect(CLIENT_CREATE_KEYS.has(key)).toBe(true)
+    }
+  })
+
+  it('omits library when the source has none', async () => {
+    await duplicateGeneration({ ...item, library: undefined }, 'u1')
+    expect('library' in addDocMock.mock.calls[0][1]).toBe(false)
+  })
+
+  it('rejects AI-generated tools (client cannot create those docs)', async () => {
+    await expect(duplicateGeneration({ ...item, tool: 'worksheet' }, 'u1'))
+      .rejects.toThrow(/cannot be duplicated/i)
+    expect(addDocMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects when signed out or when the doc has no output', async () => {
+    await expect(duplicateGeneration(item, null)).rejects.toThrow(/sign in/i)
+    await expect(duplicateGeneration({ ...item, output: null }, 'u1'))
+      .rejects.toThrow(/no content/i)
+    expect(addDocMock).not.toHaveBeenCalled()
+  })
+
+  it('covers every client-creatable tool from firestore.rules', () => {
+    expect(CLIENT_CREATED_TOOLS.sort()).toEqual([
+      'class_timetable', 'mark_schedule', 'record_of_work',
+      'sba_mark_sheet', 'sba_plan', 'weekly_forecast',
+    ])
   })
 })
 

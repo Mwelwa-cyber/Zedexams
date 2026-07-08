@@ -1044,7 +1044,7 @@ export default function QuizRunnerV2() {
                   <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Word bank</p>
                   <div className="flex flex-wrap gap-2">
                     {wordBank.map((word, i) => (
-                      <span key={i} className="rounded-full border-2 border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-800">{word}</span>
+                      <span key={`${i}:${word}`} className="rounded-full border-2 border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-800">{word}</span>
                     ))}
                   </div>
                 </div>

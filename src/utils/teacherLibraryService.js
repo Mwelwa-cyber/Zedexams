@@ -423,6 +423,45 @@ export async function saveSbaPlanGeneration({ uid, existingId, artifact }) {
   })
 }
 
+// Tools whose library docs the client may CREATE directly — mirrors the
+// firestore.rules aiGenerations create rule (pure client-side derivations,
+// no AI call). These are the only tools "Duplicate" can support without a
+// server round-trip; AI-generated docs are created by Cloud Functions only,
+// so their duplicate path is "Generate similar".
+export const CLIENT_CREATED_TOOLS = [
+  'mark_schedule', 'weekly_forecast', 'record_of_work',
+  'class_timetable', 'sba_mark_sheet', 'sba_plan',
+]
+
+/**
+ * Duplicate a client-created generation into a fresh library doc owned by
+ * `uid`. The copy gets its own id + createdAt; the teacher then edits it in
+ * place (the classic "duplicate last term's mark schedule / timetable and
+ * tweak" flow). Returns the new generation id, or throws with a
+ * user-presentable message.
+ */
+export async function duplicateGeneration(item, uid) {
+  if (!uid) throw new Error('Sign in again to duplicate this item.')
+  if (!item?.id || !CLIENT_CREATED_TOOLS.includes(item.tool)) {
+    throw new Error('This document type cannot be duplicated yet — use "Generate similar" instead.')
+  }
+  if (!item.output) throw new Error('This document has no content to duplicate.')
+  // Build the new doc explicitly from the create rule's allowlisted keys —
+  // spreading `item` would leak read-only fields (id, exportedFormats,
+  // teacherEdited, …) and fail the rules' keys().hasOnly check.
+  const ref = await addDoc(collection(db, 'aiGenerations'), {
+    ownerUid: uid,
+    tool: item.tool,
+    status: 'complete',
+    visibility: 'private',
+    createdAt: serverTimestamp(),
+    inputs: item.inputs || {},
+    output: item.output,
+    ...(item.library ? { library: item.library } : {}),
+  })
+  return ref.id
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
