@@ -99,7 +99,7 @@ export default function Navbar() {
   // Desktop active link gets a 2-px accent underline so the current section
   // reads at a glance without leaning solely on the tinted background.
   const linkClass = ({ isActive }) =>
-    `relative flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex items-center gap-1.5 px-2.5 2xl:px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
       isActive
         ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl after:absolute after:left-3 after:right-3 after:-bottom-[2px] after:h-[2px] after:rounded-full after:theme-accent-fill'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
@@ -119,29 +119,33 @@ export default function Navbar() {
           <Logo variant="full" size="md" />
         </Link>
 
-        {/* Desktop nav links */}
+        {/* Desktop nav links. Labels only render from xl up — between lg and xl
+            the full set (logo + links + search/bell/badge/profile/logout) is
+            wider than the viewport, which pushed the right cluster past the
+            glass background and into horizontal overflow. Icon-only links keep
+            everything inside the bar on smaller desktops. */}
         <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(l => (
-            <NavLink key={l.to} to={l.to} className={linkClass}>
+            <NavLink key={l.to} to={l.to} className={linkClass} title={l.label} aria-label={l.label}>
               <Icon as={l.icon} size="sm" />
-              <span>{l.label}</span>
+              <span className="hidden xl:inline">{l.label}</span>
             </NavLink>
           ))}
           {(isTeacher && !isAdmin) && (
-            <NavLink to="/teacher" className={linkClass}>
+            <NavLink to="/teacher" className={linkClass} title="Teacher" aria-label="Teacher">
               <Icon as={GraduationCap} size="sm" />
-              <span>Teacher</span>
+              <span className="hidden xl:inline">Teacher</span>
             </NavLink>
           )}
           {isAdmin && (
-            <NavLink to="/admin" className={linkClass}>
+            <NavLink to="/admin" className={linkClass} title="Admin" aria-label="Admin">
               <Icon as={ShieldCheck} size="sm" />
-              <span>Admin</span>
+              <span className="hidden xl:inline">Admin</span>
             </NavLink>
           )}
-          <NavLink to="/settings" className={linkClass}>
+          <NavLink to="/settings" className={linkClass} title="Settings" aria-label="Settings">
             <Icon as={Settings} size="sm" />
-            <span>Settings</span>
+            <span className="hidden xl:inline">Settings</span>
           </NavLink>
         </div>
 
@@ -169,8 +173,10 @@ export default function Navbar() {
               className="flex items-center gap-2 rounded-lg px-1 py-0.5 transition-colors hover:theme-bg-subtle"
             >
               {renderAvatar('h-8 w-8')}
-              <div className="text-right hidden lg:block">
-                <p className="theme-text font-black text-xs leading-tight truncate max-w-[100px]">
+              {/* Name + role need ~150px; below 2xl that width tips the bar
+                  into overflow, so the avatar (with tooltip) carries identity. */}
+              <div className="text-right hidden 2xl:block" title={userProfile?.displayName ?? 'User'}>
+                <p className="theme-text font-black text-xs leading-tight truncate max-w-[140px]">
                   {userProfile?.displayName ?? 'User'}
                 </p>
                 <p className="theme-text-muted text-xs capitalize">{userProfile?.role ?? 'learner'}</p>
@@ -179,10 +185,11 @@ export default function Navbar() {
             <button
               onClick={handleLogout}
               aria-label="Sign out"
+              title="Sign out"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-danger hover:bg-danger-subtle px-3 py-1.5 rounded-lg transition-colors min-h-0"
             >
               <Icon as={LogOut} size="xs" />
-              Logout
+              <span className="hidden 2xl:inline">Logout</span>
             </button>
           </div>
         </div>

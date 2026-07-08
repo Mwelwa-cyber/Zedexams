@@ -132,11 +132,13 @@ export function SettingsSaveProvider({ children }) {
     }
   }, [updateProfileFields])
 
-  // A completed save (status back to idle/saved with empty queue) ends the
-  // undo burst so the next edit starts a fresh snapshot.
+  // The undo burst ends when the bar settles back to idle — NOT the moment the
+  // save lands. The "All changes saved" phase still renders the Undo button, so
+  // clearing the snapshot on 'saved' left a visible Undo that did nothing.
   useEffect(() => {
-    if (status === 'saved') {
+    if (status === 'idle') {
       undoRef.current = null
+      setCanUndo(false)
     }
   }, [status])
 
