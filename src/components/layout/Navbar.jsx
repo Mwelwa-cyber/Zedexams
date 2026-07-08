@@ -15,6 +15,7 @@ import {
   X,
   LogOut,
   Sparkles,
+  Search,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
@@ -146,6 +147,15 @@ export default function Navbar() {
 
         {/* Right side — desktop */}
         <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+          {(!isAdmin && !isTeacher) && (
+            <Link
+              to="/search"
+              aria-label="Search quizzes, notes, papers and games"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg theme-text-muted transition-colors hover:theme-bg-subtle hover:theme-text"
+            >
+              <Icon as={Search} size="sm" strokeWidth={2.1} />
+            </Link>
+          )}
           {userProfile && <NotificationBell />}
           {/* Access badge */}
           <span className={`inline-flex items-center gap-1 font-black text-xs px-2.5 py-1 rounded-full border ${badgeClass}`}>
@@ -177,8 +187,17 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile right — bell + avatar + hamburger */}
+        {/* Mobile right — search + bell + avatar + hamburger */}
         <div className="flex lg:hidden items-center gap-2">
+          {(!isAdmin && !isTeacher) && (
+            <Link
+              to="/search"
+              aria-label="Search quizzes, notes, papers and games"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg theme-text-muted transition-colors hover:theme-bg-subtle"
+            >
+              <Icon as={Search} size="sm" strokeWidth={2.1} />
+            </Link>
+          )}
           {userProfile && <NotificationBell />}
           <Link
             to="/profile"

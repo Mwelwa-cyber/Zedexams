@@ -9,8 +9,8 @@
 //   createdBy (not authorId), grade as string '4'|'5'|'6', term/week as strings.
 
 import {
-  collection, doc, query, where, orderBy,
-  getDoc, addDoc, updateDoc, deleteDoc,
+  collection, doc, query, where, orderBy, limit as fsLimit,
+  getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   serverTimestamp, onSnapshot,
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
@@ -97,6 +97,28 @@ export function subscribeLearnerNotes({ grade, subject }, onChange, onError) {
       onError?.(err)
     },
   )
+}
+
+/**
+ * One-shot fetch of published reading notes for a grade — used by global
+ * search, which needs a single read rather than a live subscription. Bounded
+ * by `limit` (default 200) since it feeds a client-side substring match.
+ */
+export async function fetchLearnerNotes({ grade, limit = 200 } = {}) {
+  if (!grade) return []
+  try {
+    const snap = await getDocs(query(
+      collection(db, NOTES),
+      where('isPublished', '==', true),
+      where('grade', '==', String(grade)),
+      orderBy('publishedAt', 'desc'),
+      fsLimit(limit),
+    ))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('[notes] fetchLearnerNotes error:', err)
+    return []
+  }
 }
 
 // ─── writes ──────────────────────────────────────────────────────────

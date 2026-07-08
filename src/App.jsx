@@ -75,6 +75,7 @@ const ExamTimetablePage = lazy(() => import('./components/timetable/ExamTimetabl
 const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
+const LearnerSearch = lazy(() => import('./components/search/LearnerSearch'))
 
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
@@ -584,6 +585,8 @@ export default function App() {
           <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quiz/:quizId"      element={<ProtectedRoute><LearnerOnlyRoute><QuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/results/:resultId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizResults /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Global learner search across quizzes / notes / papers / games. */}
+          <Route path="/search"            element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerSearch /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Notes (standalone reading material) — canonical /notes routes. */}
           <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
