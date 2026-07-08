@@ -216,7 +216,11 @@ export function AuthProvider({ children }) {
   const subscribeProfileRef = useRef(null)
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
-    const isTeacherSignup = role === ROLES.TEACHER
+    // Only learner / teacher / parent are self-selectable at signup; anything
+    // else falls back to learner. Parents carry no grade and no teacher extras.
+    const signupRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
+    const isTeacherSignup = signupRole === ROLES.TEACHER
+    const isLearnerSignup = signupRole === ROLES.LEARNER
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
 
@@ -236,8 +240,8 @@ export function AuthProvider({ children }) {
     const userRecord = defaultUserRecord({
       displayName,
       email,
-      role: isTeacherSignup ? ROLES.TEACHER : ROLES.LEARNER,
-      grade: isTeacherSignup ? null : (grade ?? null),
+      role: signupRole,
+      grade: isLearnerSignup ? (grade ?? null) : null,
       school: school ?? '',
       referralCode,
       referredBy,
@@ -260,8 +264,8 @@ export function AuthProvider({ children }) {
     // Audit B2 — capture signup. Role + grade only; no email / no
     // displayName / no school in the event payload.
     capture('signup_completed', {
-      role: isTeacherSignup ? 'teacher' : 'learner',
-      grade: isTeacherSignup ? null : (grade ?? null),
+      role: signupRole,
+      grade: isLearnerSignup ? (grade ?? null) : null,
       provider: 'email',
     })
     return cred
@@ -287,7 +291,7 @@ export function AuthProvider({ children }) {
   // first sign-in) so the Register page can honour the selected
   // Learner/Teacher tab. Existing users keep their saved role.
   async function loginWithGoogle({ role } = {}) {
-    const targetRole = role === ROLES.TEACHER ? ROLES.TEACHER : ROLES.LEARNER
+    const targetRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
     const cred = isNativePlatform()
       ? await signInWithGoogleNative()
       : await signInWithPopup(auth, googleProvider)
@@ -386,6 +390,7 @@ export function AuthProvider({ children }) {
   const isSuperAdmin = isSuperAdminRole(userProfile)
   const isLearner  = userProfile?.role === ROLES.LEARNER
   const isTeacher  = userProfile?.role === ROLES.TEACHER || isSuperAdmin
+  const isParent   = userProfile?.role === ROLES.PARENT
   const isAdmin    = isSuperAdmin
   // True for admin / superAdmin only. Use this for admin-only UI (settings,
   // audit log, user suspension) so a teacher acting through the legacy
@@ -626,7 +631,7 @@ export function AuthProvider({ children }) {
       currentUser, userProfile, loading, profileIssue,
       login, loginWithGoogle, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
-      isLearner, isTeacher, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+      isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       permissions,
       userStatus, isSuspended,
     }}>

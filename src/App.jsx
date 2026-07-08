@@ -187,6 +187,11 @@ const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassD
 // Audit A3 PR 1 — parent portal (public read-only progress view).
 const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
 
+// Family portal (authenticated parent accounts)
+const ParentLayout = lazy(() => import('./components/layout/ParentLayout'))
+const FamilyHome = lazy(() => import('./components/parent/FamilyHome'))
+const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPage'))
+
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
@@ -327,6 +332,19 @@ function TeacherRoute({ children }) {
       <TeacherLayout>{children}</TeacherLayout>
     </ProtectedRoute>
   )
+}
+
+// Parent portal gate. The role levels in ProtectedRoute can't distinguish a
+// parent from a learner (both sit at level 1), so this checks the role
+// explicitly: only a parent (or an admin, for support) reaches the family
+// portal; anyone else is bounced to their own landing page.
+function ParentRoute({ children }) {
+  const { currentUser, userProfile, loading, isParent, isAdmin } = useAuth()
+  if (loading) return <FullScreenLoader label="Loading your family hub…" />
+  if (!currentUser) return <Navigate to="/login" replace />
+  if (!userProfile) return <FullScreenLoader label="Loading your family hub…" />
+  if (!isParent && !isAdmin) return <Navigate to={getRoleLandingPath(userProfile)} replace />
+  return <ParentLayout>{children}</ParentLayout>
 }
 
 // Route-level error boundary. Sits inside <BrowserRouter> so it can read
@@ -530,6 +548,10 @@ export default function App() {
           <Route path="/share/:token"             element={<PublicShareView />} />
           {/* Audit A3 — parent portal. Public token-based read; no auth. */}
           <Route path="/parent/:token"            element={<ParentProgressView />} />
+
+          {/* Family portal — authenticated parent accounts. */}
+          <Route path="/family"                   element={<ParentRoute><FamilyHome /></ParentRoute>} />
+          <Route path="/family/child/:childUid"   element={<ParentRoute><ChildProgressPage /></ParentRoute>} />
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
