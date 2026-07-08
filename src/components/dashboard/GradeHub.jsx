@@ -11,7 +11,7 @@
  *   Badges Strip
  *   Mobile Bottom Navigation
  */
-import { useState, useEffect, useRef }  from 'react'
+import { useState, useEffect, useRef, useMemo, memo }  from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AcademicCapIcon,
@@ -172,16 +172,21 @@ function writeSeenNotificationIds(userId, ids) {
   }
 }
 
-function FloatingStar({ style }) {
+// These sub-components are pure and prop-driven, but GradeHub re-renders on
+// every menu / notification / tab / data-load state change. Wrapping the
+// prop-stable leaves (especially SubjectCardRich, rendered ~21× across the
+// three subject grids) in memo() lets them skip re-render when their props are
+// unchanged — the biggest render-cost win on this dashboard.
+const FloatingStar = memo(function FloatingStar({ style }) {
   return (
     <span
       className="absolute text-white/20 select-none pointer-events-none animate-float"
       style={style}
     >★</span>
   )
-}
+})
 
-function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', className = '' }) {
+const DashboardCharacter = memo(function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', className = '' }) {
   // Some callers omit the character image (text-only cards). Render nothing
   // rather than crashing on `image.webp` / `image.png`.
   if (!image) return null
@@ -211,9 +216,9 @@ function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', cl
       className={`pointer-events-none select-none object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] w-auto ${sizeClass} ${className}`}
     />
   )
-}
+})
 
-function DashboardActionCard({
+const DashboardActionCard = memo(function DashboardActionCard({
   to,
   className,
   icon: ActionIcon,
@@ -265,7 +270,7 @@ function DashboardActionCard({
       </Link>
     </section>
   )
-}
+})
 
 // Temporary, Grade-7-only banner card for the 2026 Primary School Leaving
 // Examination (PSLE) timetable. Bundled as a static asset under
@@ -310,7 +315,7 @@ function useExamCountdown(target) {
 }
 
 // Single time unit shown in the countdown row (value + label).
-function CountdownUnit({ value, label }) {
+const CountdownUnit = memo(function CountdownUnit({ value, label }) {
   return (
     <div className="flex min-w-[2.5rem] flex-col items-center rounded-xl bg-white/85 px-2 py-1 shadow-sm ring-1 ring-rose-200">
       <span className="text-base font-black tabular-nums leading-none text-rose-700 sm:text-lg">
@@ -321,7 +326,7 @@ function CountdownUnit({ value, label }) {
       </span>
     </div>
   )
-}
+})
 
 function ExamTimetableCard() {
   const { over, days, hours, minutes, seconds } = useExamCountdown(GRADE7_EXAM_START)
@@ -386,7 +391,7 @@ function ExamTimetableCard() {
 // "X topics · Y quizzes" stats line, and a coloured progress bar fed by
 // per-subject performance. Topic count is free (in-memory curriculum);
 // quiz count is optional — passes through `quizCount` when known.
-function SubjectCardRich({ subject, grade, perf, quizCount, demoCount = 0, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
+const SubjectCardRich = memo(function SubjectCardRich({ subject, grade, perf, quizCount, demoCount = 0, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
   const topicCount = getTopics(subject.id, grade).length
   const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
@@ -457,7 +462,7 @@ function SubjectCardRich({ subject, grade, perf, quizCount, demoCount = 0, dimme
       </Link>
     </div>
   )
-}
+})
 
 // Tab nav matching the screenshot: filled accent pill on the active tab,
 // flat muted text on the others. Whole row sits inside a soft track so
@@ -491,7 +496,7 @@ function TabButton({ active, onClick, icon, label, subtitle, accentClass: _accen
   )
 }
 
-function RecentResultRow({ result }) {
+const RecentResultRow = memo(function RecentResultRow({ result }) {
   const pctColor = p => p >= 70 ? 'text-green-600' : p >= 50 ? 'text-amber-600' : 'text-red-500'
   function fmt(ts) {
     if (!ts) return ''
@@ -517,9 +522,9 @@ function RecentResultRow({ result }) {
       </div>
     </div>
   )
-}
+})
 
-function StreakBadge({ streak, tone = 'page' }) {
+const StreakBadge = memo(function StreakBadge({ streak, tone = 'page' }) {
   if (!streak || streak < 2) return null
   // The hero is always a dark gradient, so the badge keeps the
   // translucent-white look there. Anywhere on a light surface we use a
@@ -541,11 +546,11 @@ function StreakBadge({ streak, tone = 'page' }) {
       <span className={`text-xs font-black ${p.text}`}>{streak} day streak!</span>
     </div>
   )
-}
+})
 
-function SkeletonCard() {
+const SkeletonCard = memo(function SkeletonCard() {
   return <Skeleton height={96} width={'100%'} className="rounded-2xl" />
-}
+})
 
 function NotificationPanel({ notifications, unreadCount, onClose }) {
   return (
@@ -799,15 +804,23 @@ export default function GradeHub() {
   const showExamTimetable = true
 
   // Average across the 7 CBC subjects, using only those with recorded scores.
-  const subjectScoreList = SUBJECTS
-    .map(s => perfBySubject[s.label])
-    .filter(v => typeof v === 'number')
-  const avgPerformance = subjectScoreList.length
-    ? Math.round(subjectScoreList.reduce((a, b) => a + b, 0) / subjectScoreList.length)
-    : 0
+  // Both derivations only depend on perfBySubject, so memoise them — they feed
+  // the render on every parent state change (menu, notifications, tab) and
+  // challengeSubjects backs a subject grid.
+  const avgPerformance = useMemo(() => {
+    const scores = SUBJECTS
+      .map(s => perfBySubject[s.label])
+      .filter(v => typeof v === 'number')
+    return scores.length
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0
+  }, [perfBySubject])
 
   const nextLevelUnlocked = avgPerformance >= 70 && hasNextGrade
-  const challengeSubjects = SUBJECTS.filter(s => (perfBySubject[s.label] ?? 0) >= 80)
+  const challengeSubjects = useMemo(
+    () => SUBJECTS.filter(s => (perfBySubject[s.label] ?? 0) >= 80),
+    [perfBySubject],
+  )
   // Challenge tab APPEARS only when the learner has earned it — per spec,
   // the section is performance-gated rather than always-visible-but-locked.
   const showChallenge = challengeSubjects.length > 0
