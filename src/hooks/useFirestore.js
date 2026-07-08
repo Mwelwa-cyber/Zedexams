@@ -44,8 +44,21 @@ export const TEACHER_QUERY_LIMIT = 300
 // rolling window the dashboards visualise; reading the entire history on
 // every admin reload was a major Firestore read-amplifier.
 const ADMIN_RECENT_WINDOW_DAYS = 90
+
+// Log a swallowed Firestore read failure to the console (dev) AND forward it to
+// the client error reporter (prod analytics). Every getter below degrades to
+// []/null on error, which keeps the UI alive but made read failures —
+// permission-denied, a missing composite index, an offline round-trip —
+// completely invisible in production. reportClientError dedups + rate-limits
+// (5/session) and stamps network status, so routing every read through this is
+// safe and never throws. `label` is the getter name → context `firestore.<fn>`.
+function reportRead(label, e) {
+  console.error(`${label}:`, e)
+  reportClientError(e, `firestore.${label}`)
+}
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
+import { reportClientError } from '../utils/clientErrorReporting.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { questionWriteSchema, coerceQuestion, canonicalizeQuestionType } from '../editor/schema/question.js'
 import { normalizeMarks, MARKS_BOUNDS } from '../utils/questionType.js'
@@ -514,28 +527,28 @@ export function useFirestore() {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), ...constraints()))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getQuizzes:', e); return [] }
+    } catch (e) { reportRead('getQuizzes', e); return [] }
   }
 
   async function getAllQuizzes(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getAllQuizzes:', e); return [] }
+    } catch (e) { reportRead('getAllQuizzes', e); return [] }
   }
 
   async function getQuizzesByTeacher(teacherId, limitCount = TEACHER_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', teacherId), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getQuizzesByTeacher:', e); return [] }
+    } catch (e) { reportRead('getQuizzesByTeacher', e); return [] }
   }
 
   async function getQuizById(quizId) {
     try {
       const snap = await getDoc(doc(db, 'quizzes', quizId))
       return snap.exists() ? coerceQuiz({ id: snap.id, ...snap.data() }) : null
-    } catch (e) { console.error('getQuizById:', e); return null }
+    } catch (e) { reportRead('getQuizById', e); return null }
   }
 
   async function createQuiz(data) {
@@ -576,7 +589,7 @@ export function useFirestore() {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes', quizId, 'questions'), orderBy('order', 'asc')))
       return snap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getQuestions:', e); return [] }
+    } catch (e) { reportRead('getQuestions', e); return [] }
   }
 
   async function saveQuestions(quizId, questions) {
@@ -603,14 +616,14 @@ export function useFirestore() {
         limit(limitCount),
       ))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getMyAssessments:', e); return [] }
+    } catch (e) { reportRead('getMyAssessments', e); return [] }
   }
 
   async function getAssessmentById(assessmentId) {
     try {
       const snap = await getDoc(doc(db, 'assessments', assessmentId))
       return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) { console.error('getAssessmentById:', e); return null }
+    } catch (e) { reportRead('getAssessmentById', e); return null }
   }
 
   // Assessments have no Zod schema yet, so subject parity with quizzes/lessons
@@ -662,7 +675,7 @@ export function useFirestore() {
         orderBy('order', 'asc'),
       ))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getAssessmentQuestions:', e); return [] }
+    } catch (e) { reportRead('getAssessmentQuestions', e); return [] }
   }
 
   async function saveAssessmentQuestions(assessmentId, questions) {
@@ -735,28 +748,28 @@ export function useFirestore() {
     try {
       const snap = await getDoc(doc(db, 'results', resultId))
       return snap.exists() ? coerceResult({ id: snap.id, ...snap.data() }) : null
-    } catch (e) { console.error('getResultById:', e); return null }
+    } catch (e) { reportRead('getResultById', e); return null }
   }
 
   async function getUserResults(userId, limitCount = 20) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), where('userId', '==', userId), orderBy('completedAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getUserResults:', e); return [] }
+    } catch (e) { reportRead('getUserResults', e); return [] }
   }
 
   async function getResultsForQuiz(quizId, limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), where('quizId', '==', quizId), orderBy('completedAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getResultsForQuiz:', e); return [] }
+    } catch (e) { reportRead('getResultsForQuiz', e); return [] }
   }
 
   async function getAllResults(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getAllResults:', e); return [] }
+    } catch (e) { reportRead('getAllResults', e); return [] }
   }
 
   // Admin-page variant of getAllResults that filters server-side to the last
@@ -773,7 +786,7 @@ export function useFirestore() {
         limit(limitCount),
       ))
       return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { console.error('getResultsInWindow:', e); return [] }
+    } catch (e) { reportRead('getResultsInWindow', e); return [] }
   }
 
   // Cheap dashboard counts via Firestore aggregation. Each call costs
@@ -823,7 +836,7 @@ export function useFirestore() {
         pending:  pendingQuizAgg.data().count + pendingLessonAgg.data().count,
       }
     } catch (e) {
-      console.error('getDashboardCounts:', e)
+      reportRead('getDashboardCounts', e)
       return { lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0 }
     }
   }
@@ -853,7 +866,7 @@ export function useFirestore() {
       return results.map(r => (r.userName || !profiles[r.userId])
         ? r
         : { ...r, userName: profiles[r.userId].displayName || profiles[r.userId].email || 'Learner' })
-    } catch (e) { console.error('getRecentResults:', e); return [] }
+    } catch (e) { reportRead('getRecentResults', e); return [] }
   }
 
   async function getWeaknessAnalysis(userId) {
@@ -871,7 +884,7 @@ export function useFirestore() {
       return Object.entries(map)
         .map(([topic, d]) => ({ topic, subject: d.subject, percentage: d.total > 0 ? Math.round((d.correct / d.total) * 100) : 0, correct: d.correct, total: d.total }))
         .sort((a, b) => a.percentage - b.percentage)
-    } catch (e) { console.error('getWeaknessAnalysis:', e); return [] }
+    } catch (e) { reportRead('getWeaknessAnalysis', e); return [] }
   }
 
   // ── Users ────────────────────────────────────────────────────
@@ -879,7 +892,7 @@ export function useFirestore() {
     try {
       const snap = await getDocs(query(collection(db, 'users'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getAllUsers:', e); return [] }
+    } catch (e) { reportRead('getAllUsers', e); return [] }
   }
 
   // Role-scoped variant of getAllUsers. The Admin Learners page only renders
@@ -895,7 +908,7 @@ export function useFirestore() {
         limit(limitCount),
       ))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getAllLearners:', e); return [] }
+    } catch (e) { reportRead('getAllLearners', e); return [] }
   }
 
   async function updateUserRole(userId, role) {
@@ -933,14 +946,14 @@ export function useFirestore() {
       // processing the oldest and reloading.
       const snap = await getDocs(query(collection(db, 'payments'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getPendingPayments:', e); return [] }
+    } catch (e) { reportRead('getPendingPayments', e); return [] }
   }
 
   async function getAllPayments(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getAllPayments:', e); return [] }
+    } catch (e) { reportRead('getAllPayments', e); return [] }
   }
 
   async function confirmPayment(paymentId, userId, plan, durationDays, adminId) {
@@ -1028,7 +1041,7 @@ export function useFirestore() {
       const userDoc = snap.docs[0]
       return { id: userDoc.id, ...userDoc.data() }
     } catch (e) {
-      console.error('findUserByEmail:', e)
+      reportRead('findUserByEmail', e)
       return null
     }
   }
@@ -1134,7 +1147,7 @@ export function useFirestore() {
       })
       return { activations: snap.size, revenue }
     } catch (e) {
-      console.error('getTodayPaymentStats:', e)
+      reportRead('getTodayPaymentStats', e)
       return { activations: 0, revenue: 0 }
     }
   }
@@ -1150,7 +1163,7 @@ export function useFirestore() {
       )
       return countSnap.data().count
     } catch (e) {
-      console.error('getActivePremiumCount:', e)
+      reportRead('getActivePremiumCount', e)
       return 0
     }
   }
@@ -1172,7 +1185,7 @@ export function useFirestore() {
       ))
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     } catch (e) {
-      console.error('getMyPayments:', e)
+      reportRead('getMyPayments', e)
       return []
     }
   }
@@ -1212,7 +1225,7 @@ export function useFirestore() {
       })
       return buckets
     } catch (e) {
-      console.error('getRevenueByDay:', e)
+      reportRead('getRevenueByDay', e)
       return buckets
     }
   }
@@ -1227,7 +1240,7 @@ export function useFirestore() {
       ))
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     } catch (e) {
-      console.error('getRecentConfirmedPayments:', e)
+      reportRead('getRecentConfirmedPayments', e)
       return []
     }
   }
@@ -1259,21 +1272,21 @@ export function useFirestore() {
       c.push(limit(LEARNER_LESSON_LIMIT))
       const snap = await getDocs(query(collection(db, 'lessons'), ...c))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getLessons:', e); return [] }
+    } catch (e) { reportRead('getLessons', e); return [] }
   }
 
   async function getAllLessons(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'lessons'), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getAllLessons:', e); return [] }
+    } catch (e) { reportRead('getAllLessons', e); return [] }
   }
 
   async function getLessonById(lessonId) {
     try {
       const snap = await getDoc(doc(db, 'lessons', lessonId))
       return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) { console.error('getLessonById:', e); return null }
+    } catch (e) { reportRead('getLessonById', e); return null }
   }
 
   // Repair a stray curriculum slug ("mathematics") to its display label on
@@ -1305,14 +1318,14 @@ export function useFirestore() {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getMyQuizzes:', e); return [] }
+    } catch (e) { reportRead('getMyQuizzes', e); return [] }
   }
 
   async function getMyLessons(uid, limitCount = TEACHER_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'lessons'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getMyLessons:', e); return [] }
+    } catch (e) { reportRead('getMyLessons', e); return [] }
   }
 
   async function getPendingApprovals(limitCount = ADMIN_QUERY_LIMIT) {
@@ -1325,7 +1338,7 @@ export function useFirestore() {
         ...qSnap.docs.map(d => ({ id: d.id, contentType: 'quiz',   ...d.data() })),
         ...lSnap.docs.map(d => ({ id: d.id, contentType: 'lesson', ...d.data() })),
       ].sort((a, b) => (b.submittedAt?.toMillis?.() ?? 0) - (a.submittedAt?.toMillis?.() ?? 0))
-    } catch (e) { console.error('getPendingApprovals:', e); return [] }
+    } catch (e) { reportRead('getPendingApprovals', e); return [] }
   }
 
   function _approvalCol(contentType) {
