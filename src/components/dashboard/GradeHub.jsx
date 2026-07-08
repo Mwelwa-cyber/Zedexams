@@ -177,6 +177,15 @@ function writeSeenNotificationIds(userId, ids) {
 // prop-stable leaves (especially SubjectCardRich, rendered ~21× across the
 // three subject grids) in memo() lets them skip re-render when their props are
 // unchanged — the biggest render-cost win on this dashboard.
+// Fixed decorative star positions, hoisted to module scope so each memoised
+// FloatingStar receives a stable `style` reference — an inline literal at the
+// call site would give a new object every render and defeat the memo().
+const FLOATING_STAR_STYLES = [
+  { top: '10%', left: '52%', fontSize: 12, animationDelay: '0s', zIndex: 2 },
+  { top: '46%', left: '93%', fontSize: 10, animationDelay: '1s', zIndex: 2 },
+  { top: '76%', left: '88%', fontSize: 9,  animationDelay: '2s', zIndex: 2 },
+]
+
 const FloatingStar = memo(function FloatingStar({ style }) {
   return (
     <span
@@ -1208,9 +1217,9 @@ export default function GradeHub() {
               {/* Kept clear of the left-hand welcome copy / button column so
                   they read as ambient sparkle rather than artifacts sitting on
                   top of the text. Anchored to the upper band and right edge. */}
-              <FloatingStar style={{ top: '10%', left: '52%', fontSize: 12, animationDelay: '0s', zIndex: 2 }} />
-              <FloatingStar style={{ top: '46%', left: '93%', fontSize: 10, animationDelay: '1s', zIndex: 2 }} />
-              <FloatingStar style={{ top: '76%', left: '88%', fontSize: 9,  animationDelay: '2s', zIndex: 2 }} />
+              <FloatingStar style={FLOATING_STAR_STYLES[0]} />
+              <FloatingStar style={FLOATING_STAR_STYLES[1]} />
+              <FloatingStar style={FLOATING_STAR_STYLES[2]} />
             </>
           )}
 
