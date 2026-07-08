@@ -47,6 +47,7 @@
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:question-bank-panel": "node scripts/test-question-bank-panel.mjs",
     "test:papers-nav": "node scripts/test-past-paper-nav.test.mjs",
+    "test:immersive-routes": "node scripts/test-immersive-studio-routes.mjs",
     "test:draft-core": "node src/hooks/draft/draftCore.test.js",
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",

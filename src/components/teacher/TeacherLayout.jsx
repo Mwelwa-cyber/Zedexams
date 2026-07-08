@@ -19,6 +19,7 @@ import TeacherTopBar from './TeacherTopBar'
 import ErrorBoundary from '../ui/ErrorBoundary'
 import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
+import { isImmersiveStudioPath } from './immersiveStudioRoutes'
 
 const NAV = [
   { to: '/teacher',                        icon: LayoutDashboard, label: 'My Dashboard', end: true },
@@ -155,7 +156,10 @@ export default function TeacherLayout({ children }) {
       </main>
 
       {/* ── Bottom shortcut nav (mobile + tablet) ──────────── */}
-      <TeacherBottomNav />
+      {/* Suppressed inside the full-screen assessment/exam-paper studio, which
+          renders its own fixed bottom dock (.sv-dock). Showing both stacks two
+          fixed bars and the dark dock covers the global nav's labels. */}
+      {!isImmersiveStudioPath(pathname) && <TeacherBottomNav />}
     </div>
   )
 }
