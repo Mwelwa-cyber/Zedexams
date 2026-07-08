@@ -23,6 +23,7 @@ const LS_KEY = 'examprep:theme'
 beforeEach(() => {
   localStorage.clear()
   document.body.className = ''
+  document.documentElement.classList.remove('dark')
 })
 
 describe('normalizeThemeId', () => {
@@ -65,6 +66,27 @@ describe('applyThemeToBody', () => {
   it('applies the default class for an unknown id', () => {
     applyThemeToBody('bogus')
     expect(document.body.classList.contains(`theme-${DEFAULT_THEME}`)).toBe(true)
+  })
+
+  it('adds the Tailwind dark class for the midnight theme', () => {
+    applyThemeToBody('midnight')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+  })
+
+  it('adds the dark class when the legacy "dark" alias is applied', () => {
+    applyThemeToBody('dark')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+  })
+
+  it('removes the dark class when switching from midnight to a light theme', () => {
+    applyThemeToBody('midnight')
+    applyThemeToBody('sky')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+  })
+
+  it('does not add the dark class for light themes', () => {
+    applyThemeToBody('oatmeal')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
 })
 

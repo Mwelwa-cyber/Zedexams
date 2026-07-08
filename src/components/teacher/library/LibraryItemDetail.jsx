@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   getGeneration,
   deleteGeneration,
+  duplicateGeneration,
   recordExport,
   updateGenerationOutput,
+  CLIENT_CREATED_TOOLS,
   TOOL_META,
   titleForGeneration,
   formatDate,
@@ -134,6 +136,7 @@ export default function LibraryItemDetail() {
   // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   // Admin-only: acknowledge a failed generation so it drops out of the
   // dashboard "Needs attention" queue without deleting the audit record.
   const [resolvingFailure, setResolvingFailure] = useState(false)
@@ -261,6 +264,30 @@ export default function LibraryItemDetail() {
   function onDelete() {
     if (!item) return
     setConfirmingDelete(true)
+  }
+
+  // Duplicate — client-created tools only (mark schedules, forecasts,
+  // records of work, timetables, SBA sheets/plans): firestore.rules lets the
+  // owner create those docs directly. AI-generated docs can't be re-created
+  // client-side; their path is "Generate similar". Owner-only, so an admin
+  // viewing another teacher's doc doesn't clone it into their own library.
+  const canDuplicate = item
+    && CLIENT_CREATED_TOOLS.includes(item.tool)
+    && !!item.output
+    && item.ownerUid === currentUser?.uid
+
+  async function onDuplicate() {
+    if (!item || duplicating) return
+    setDuplicating(true)
+    try {
+      const newId = await duplicateGeneration(item, currentUser?.uid)
+      toast.success('Copy saved to your library — you\'re now viewing the copy.')
+      navigate(`/teacher/library/${newId}`)
+    } catch (err) {
+      toast.error(err?.message || 'Could not duplicate this item. Please try again.')
+    } finally {
+      setDuplicating(false)
+    }
   }
 
   async function confirmDelete() {
@@ -787,6 +814,16 @@ export default function LibraryItemDetail() {
             {canEditDetails && (
               <button onClick={() => setEditingHeader(true)} className="studio-btn-ghost">
                 ✏️ Edit details
+              </button>
+            )}
+            {canDuplicate && (
+              <button
+                onClick={onDuplicate}
+                disabled={duplicating}
+                className="studio-btn-ghost disabled:opacity-50"
+                title="Save an editable copy of this document to your library"
+              >
+                {duplicating ? '⧉ Duplicating…' : '⧉ Duplicate'}
               </button>
             )}
             {meta.route && (
