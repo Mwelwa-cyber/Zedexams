@@ -190,3 +190,18 @@ describe('GradeHub — badges', () => {
     expect(await screen.findByText('No badges yet — go earn one!')).toBeInTheDocument()
   })
 })
+
+describe('GradeHub — subject cards', () => {
+  // SubjectCardRich is wrapped in React.memo. This guards that memoisation
+  // didn't break the prop→render path: a memoised card must still show the
+  // per-subject score fed to it (memo must re-render, not cache a stale 0%).
+  it('renders the per-subject score on the (memoised) subject card', async () => {
+    mockAuth.userProfile = {
+      id: 'learner-1', displayName: 'Amara Banda', grade: '5',
+      performance: { Mathematics: 88 },
+    }
+    renderHub()
+    await screen.findByText('My Grade 5')
+    expect(screen.getByText('88%')).toBeInTheDocument()
+  })
+})
