@@ -548,6 +548,41 @@ test('schoolProfiles stays owner-write with bounded school-identity fields', () 
   }
 })
 
+// ── family portal (parentLinks + familyInviteCodes) ─────────────
+
+console.log('\nfamily portal — parentLinks + familyInviteCodes are locked down')
+
+test('familyInviteCodes reads are scoped to the owning learner', () => {
+  const slice = rules.slice(
+    rules.indexOf('match /familyInviteCodes/{code}'),
+    rules.indexOf('match /parentLinks/{linkId}'),
+  )
+  assert(slice, 'familyInviteCodes block not found')
+  assert(
+    slice.includes('resource.data.learnerUid == request.auth.uid'),
+    'familyInviteCodes read must be scoped to the owning learner (else codes are enumerable)',
+  )
+  assert(
+    slice.includes('allow create, update, delete: if false'),
+    'familyInviteCodes client writes must be denied (minted via callable)',
+  )
+})
+
+test('parentLinks are readable/deletable only by the linked parent or learner, never client-written', () => {
+  const start = rules.indexOf('match /parentLinks/{linkId}')
+  const slice = rules.slice(start, rules.indexOf('}', rules.indexOf('allow delete', start)))
+  assert(start >= 0, 'parentLinks block not found')
+  assert(
+    slice.includes('resource.data.parentUid == request.auth.uid') &&
+    slice.includes('resource.data.learnerUid == request.auth.uid'),
+    'parentLinks read/delete must be gated to the linked parent or learner',
+  )
+  assert(
+    slice.includes('allow create, update: if false'),
+    'parentLinks create/update must be server-only (redeemFamilyInviteCode owns the shape)',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

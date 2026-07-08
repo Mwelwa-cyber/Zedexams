@@ -274,6 +274,14 @@ const {
   revokeProgressShare,
   getProgressShare,
 } = require("./parentPortal");
+// Family portal — authenticated parent accounts linking to children via a
+// learner-minted family invite code (distinct from the anonymous share links).
+const {
+  createFamilyInviteCode,
+  revokeFamilyInviteCode,
+  redeemFamilyInviteCode,
+  getChildProgress,
+} = require("./familyPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
 // Audit A3 PR 3 — admin-only manual trigger to verify Meta WhatsApp
 // wiring without waiting for the Sunday tick.
@@ -3035,6 +3043,11 @@ exports.getAssignmentCompletion = getAssignmentCompletion;
 exports.createProgressShare = createProgressShare;
 exports.revokeProgressShare = revokeProgressShare;
 exports.getProgressShare = getProgressShare;
+// Family portal — authenticated parent↔child linking.
+exports.createFamilyInviteCode = createFamilyInviteCode;
+exports.revokeFamilyInviteCode = revokeFamilyInviteCode;
+exports.redeemFamilyInviteCode = redeemFamilyInviteCode;
+exports.getChildProgress = getChildProgress;
 
 // A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
 // a 7-day email summary to every progressShare with parentEmail set,

@@ -17,11 +17,17 @@ const LEARNER_ALIASES = new Set([
   'pupil',
 ])
 
+const PARENT_ALIASES = new Set([
+  'parent',
+  'guardian',
+])
+
 export function normalizeRole(role) {
   const value = String(role || '').trim().toLowerCase()
   if (ADMIN_ALIASES.has(value)) return 'admin'
   if (TEACHER_ALIASES.has(value)) return 'teacher'
   if (LEARNER_ALIASES.has(value)) return 'learner'
+  if (PARENT_ALIASES.has(value)) return 'parent'
   return value || null
 }
 

@@ -743,6 +743,22 @@
       ]
     },
     {
+      "collectionGroup": "familyInviteCodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "learnerUid", "order": "ASCENDING" },
+        { "fieldPath": "revokedAt",  "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "familyInviteCodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "paperAttempts",
       "queryScope": "COLLECTION",
       "fields": [
