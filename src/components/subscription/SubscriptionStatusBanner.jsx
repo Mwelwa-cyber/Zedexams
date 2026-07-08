@@ -49,7 +49,7 @@ export default function SubscriptionStatusBanner() {
         <button
           type="button"
           onClick={() => navigate('/my-subscription')}
-          className="flex flex-1 items-center gap-2 bg-transparent px-0 py-0 text-left shadow-none min-h-0"
+          className="flex min-w-0 flex-1 items-center gap-2 bg-transparent px-0 py-0 text-left shadow-none min-h-0"
         >
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide">
             <span aria-hidden="true">{expired ? '⏳' : '✨'}</span>
