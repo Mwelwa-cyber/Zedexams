@@ -13,7 +13,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore'
-import { getMessaging } from 'firebase/messaging'
+import { getMessaging, isSupported } from 'firebase/messaging'
 import { getPerformance } from 'firebase/performance'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
@@ -341,26 +341,26 @@ function scheduleAppCheckInit() {
 }
 scheduleAppCheckInit()
 
-// Firebase Cloud Messaging — initialised only when the browser actually
-// supports web push (Service Worker + PushManager APIs) and we're not
-// inside the Capacitor wrapper. The wrapper uses the native push plugin
-// in a separate code path. `messaging` stays null on iOS Safari < 16.4,
-// private-mode browsers, and Capacitor — callers in src/utils/fcm.js
-// guard on the null and degrade gracefully (the permission prompt
-// simply never renders).
-let messagingInstance = null
-try {
-  if (
-    typeof window !== 'undefined'
-    && 'serviceWorker' in navigator
-    && 'PushManager' in window
-    && !isNativePlatform()
-  ) {
-    messagingInstance = getMessaging(app)
+// Firebase Cloud Messaging — initialised only when Firebase's own
+// isSupported() confirms the browser has every required API (Service
+// Worker, PushManager, IndexedDB, Notification, etc.) and we're not
+// inside the Capacitor wrapper. Using isSupported() instead of manual
+// API-presence checks prevents the messaging/unsupported-browser error
+// that was thrown on feature-phone browsers and headless environments
+// that expose serviceWorker/PushManager stubs but lack the full API set.
+// `messaging` resolves to null on iOS Safari < 16.4, private-mode
+// browsers, and Capacitor — callers in src/utils/fcm.js await this
+// Promise and degrade gracefully (the permission prompt simply never renders).
+export const messaging = (async () => {
+  try {
+    if (isNativePlatform() || typeof window === 'undefined') return null
+    const supported = await isSupported()
+    if (!supported) return null
+    return getMessaging(app)
+  } catch (err) {
+    console.warn('Firebase Messaging init failed:', err)
+    return null
   }
-} catch (err) {
-  console.warn('Firebase Messaging init failed:', err)
-}
-export const messaging = messagingInstance
+})()
 
 export default app
