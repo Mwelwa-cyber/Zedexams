@@ -164,6 +164,47 @@ check('UPDATE path clamps a legacy out-of-range duration instead of failing', ()
   assert.equal(ok.data.duration, 45)
 })
 
+console.log('\nquizWriteSchema + quizUpdateSchema (grade coercion → rule-valid)')
+
+check('a valid grade string passes through unchanged', () => {
+  const parsed = quizWriteSchema.safeParse(baseQuiz({ grade: '7' }))
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.equal(parsed.data.grade, '7')
+})
+
+check('a numeric grade is coerced to a string (the firestore rule needs a string)', () => {
+  const parsed = quizWriteSchema.safeParse(baseQuiz({ grade: 6 }))
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.strictEqual(parsed.data.grade, '6')
+})
+
+check('an EMPTY grade (importer could not detect it) defaults to a valid grade, not ""', () => {
+  // This is the "scanned paper won't save" bug: grade '' fails _validGrade and
+  // the whole quiz-doc write is denied with "Missing or insufficient
+  // permissions". Coercion must produce a rule-valid grade instead.
+  const parsed = quizUpdateSchema.safeParse({ grade: '' })
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.ok(['4', '5', '6', '7'].includes(parsed.data.grade), `got ${parsed.data.grade}`)
+})
+
+check('an out-of-range grade is clamped into 4..7 (secondary/lower-primary papers)', () => {
+  assert.equal(quizUpdateSchema.safeParse({ grade: '8' }).data.grade, '7')
+  assert.equal(quizUpdateSchema.safeParse({ grade: 8 }).data.grade, '7')
+  assert.equal(quizUpdateSchema.safeParse({ grade: '3' }).data.grade, '4')
+  assert.equal(quizUpdateSchema.safeParse({ grade: 2 }).data.grade, '4')
+})
+
+check('a null / garbage grade never rides through to the rule', () => {
+  assert.ok(['4', '5', '6', '7'].includes(quizUpdateSchema.safeParse({ grade: null }).data.grade))
+  assert.ok(['4', '5', '6', '7'].includes(quizUpdateSchema.safeParse({ grade: 'abc' }).data.grade))
+})
+
+check('an UPDATE that omits grade does not spuriously write one', () => {
+  const parsed = quizUpdateSchema.safeParse({ reviewCount: 3 })
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.equal('grade' in parsed.data, false, 'grade stays absent when not part of the patch')
+})
+
 check('UPDATE path preserves unknown passthrough fields (reviewCount, mode)', () => {
   // updateQuizWithQuestions relies on .passthrough() so the autosave path
   // validates known fields without dropping ad-hoc ones.
