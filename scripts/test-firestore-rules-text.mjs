@@ -50,15 +50,15 @@ function assertContains(needle, why) {
 
 console.log('\n_validQuestionType (writes are gated through this for both admin + teacher)')
 
-// Type list mirrors QUESTION_TYPES in src/editor/schema/question.js. The
-// rule's value must include every type the editor can save, OR a teacher
-// trying to save that question type silently has the write rejected by
-// Firestore. That's the regression #398/#399 left on main.
-const REQUIRED_TYPES = [
-  'mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf',
-  'numeric', // #398 — was missing on main pre-this-PR
-  'hotspot', // #399 — was missing on main pre-this-PR
-]
+// The rule must include EVERY type the editor can save, or saving a quiz
+// containing that type fails with an opaque "Missing or insufficient
+// permissions" (regression #398 'numeric', #399 'hotspot', and 2026-07
+// 'fill_blanks'/'diagram_label' — imported Fill-in-the-Blanks papers could
+// never save). A hand-maintained copy of the list drifted THREE times, so the
+// expected set is now imported from the single source of truth the editor
+// itself persists from.
+const { QUESTION_TYPES } = await import('../src/utils/questionType.js')
+const REQUIRED_TYPES = QUESTION_TYPES
 
 for (const t of REQUIRED_TYPES) {
   test(`whitelists '${t}'`, () => {
