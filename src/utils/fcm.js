@@ -38,16 +38,14 @@ let warnedNoVapid = false
 /**
  * True if this device can mint FCM tokens. On native (Capacitor) that means the
  * @capacitor-firebase/messaging plugin is registered; on the web it means the
- * browser exposes the Notification + Service Worker + PushManager APIs and the
- * Firebase Messaging SDK initialised.
+ * Firebase Messaging SDK initialised (which requires isSupported() to have
+ * resolved true — see src/firebase/config.js).
  */
-export function isPushSupported() {
+export async function isPushSupported() {
   if (isNativePlatform()) return isNativePushSupported()
   if (typeof window === 'undefined') return false
-  if (!('Notification' in window)) return false
-  if (!('serviceWorker' in navigator)) return false
-  if (!('PushManager' in window)) return false
-  return Boolean(messaging)
+  const m = await messaging
+  return Boolean(m)
 }
 
 /**
@@ -56,9 +54,9 @@ export function isPushSupported() {
  * from "the platform won't even let us ask". On native this reads the cached
  * plugin permission (primed on sign-in by refreshTokenIfGranted).
  */
-export function pushPermission() {
+export async function pushPermission() {
   if (isNativePlatform()) return nativePushPermissionSync()
-  if (!isPushSupported()) return 'unsupported'
+  if (!(await isPushSupported())) return 'unsupported'
   return Notification.permission // 'default' | 'granted' | 'denied'
 }
 
@@ -69,7 +67,7 @@ export function pushPermission() {
  * Cloud Function prunes any token that returns NotRegistered when sent.
  */
 export async function registerToken(uid) {
-  if (!isPushSupported() || !uid) return null
+  if (!(await isPushSupported()) || !uid) return null
   if (!VAPID_KEY) {
     // The single most common reason web push is silently dead in production:
     // the VAPID public key isn't configured, so no FCM token can ever be
@@ -88,7 +86,8 @@ export async function registerToken(uid) {
     return null
   }
   try {
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY })
+    const m = await messaging
+    const token = await getToken(m, { vapidKey: VAPID_KEY })
     if (!token) {
       capture('push_token_failed', { platform: 'web', reason: 'no_token' })
       return null
@@ -123,7 +122,7 @@ export async function registerToken(uid) {
  */
 export async function requestPushPermission(uid) {
   if (isNativePlatform()) return requestNativePushPermission(uid)
-  if (!isPushSupported()) return 'unsupported'
+  if (!(await isPushSupported())) return 'unsupported'
   let result = 'denied'
   try {
     result = await Notification.requestPermission()
@@ -152,7 +151,7 @@ export async function requestPushPermission(uid) {
  */
 export async function refreshTokenIfGranted(uid) {
   if (isNativePlatform()) return refreshNativeTokenIfGranted(uid)
-  if (pushPermission() !== 'granted' || !uid) return null
+  if ((await pushPermission()) !== 'granted' || !uid) return null
   return registerToken(uid)
 }
 
@@ -177,6 +176,12 @@ export function onForegroundMessage(handler) {
   // in-app bell still updates live from the Firestore feed listener. Bail here
   // so we never call onMessage() with a null messaging instance.
   if (isNativePlatform()) return () => {}
-  if (!isPushSupported()) return () => {}
-  return onMessage(messaging, handler)
+  // Return an unsubscribe function immediately; subscribe asynchronously once
+  // the messaging Promise resolves so callers get a stable () => void handle.
+  let unsubscribe = () => {}
+  messaging.then((m) => {
+    if (!m) return
+    unsubscribe = onMessage(m, handler)
+  })
+  return () => unsubscribe()
 }
