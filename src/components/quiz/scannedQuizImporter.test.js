@@ -34,6 +34,11 @@ import {
   groupSectionsIntoParts,
   reconcileLayoutCoverage,
   mapWithConcurrency,
+  isRetryableImportError,
+  readBatchResilient,
+  formatPageList,
+  isSameQuestionRead,
+  mergeQuestionReads,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -998,6 +1003,198 @@ await testAsync('runVisionImport throws the real reason when every batch fails',
     /Daily AI limit reached/i,
     'the underlying failure reason is bubbled up',
   )
+})
+
+// ── Per-page retry ladder (the "one group of pages could not be read" fix) ──
+
+test('isRetryableImportError: timeouts/deadlines retry, hard failures do not', () => {
+  assert.equal(isRetryableImportError(Object.assign(new Error('slow'), { code: 'timeout' })), true)
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/deadline-exceeded' })), true)
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/internal' })), true)
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/resource-exhausted' })), false)
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/permission-denied' })), false)
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/failed-precondition' })), false)
+  // Message-only errors (the friendly-error wrapper strips codes on old paths):
+  assert.equal(isRetryableImportError(new Error('Daily AI limit reached. Please try again tomorrow.')), false)
+  assert.equal(isRetryableImportError(new Error('Reading the scanned pages is taking too long.')), true)
+})
+
+await testAsync('readBatchResilient splits a timed-out batch into per-page reads', async () => {
+  // The exact production failure: the 4-page batch always times out (too much
+  // work for one call) but each page reads fine on its own.
+  const pages = [1, 2, 3, 4].map(pageNumber => ({ pageNumber, dataUrl: 'd' }))
+  const calls = []
+  const readPages = async (batch) => {
+    calls.push(batch.map(p => p.pageNumber))
+    if (batch.length > 1) throw Object.assign(new Error('too slow'), { code: 'functions/deadline-exceeded' })
+    return { sections: [{ kind: 'standalone', question: mcq({ text: `P${batch[0].pageNumber}`, sourceQuestionNumber: batch[0].pageNumber }) }] }
+  }
+  const { results, failedPages } = await readBatchResilient(pages, readPages)
+  assert.deepEqual(calls[0], [1, 2, 3, 4], 'full batch tried first')
+  assert.equal(results.length, 4, 'every page recovered individually')
+  assert.deepEqual(failedPages, [], 'no page left unread')
+})
+
+await testAsync('readBatchResilient retries a flaky single page once, then reports it', async () => {
+  const pages = [{ pageNumber: 1, dataUrl: 'd' }, { pageNumber: 2, dataUrl: 'd' }]
+  let page2Attempts = 0
+  const readPages = async (batch) => {
+    if (batch.length > 1) throw Object.assign(new Error('slow'), { code: 'timeout' })
+    if (batch[0].pageNumber === 2) {
+      page2Attempts += 1
+      throw Object.assign(new Error('slow'), { code: 'timeout' })
+    }
+    return { sections: [] }
+  }
+  const { results, failedPages } = await readBatchResilient(pages, readPages)
+  assert.equal(results.length, 1, 'page 1 read fine')
+  assert.equal(page2Attempts, 2, 'the failing page gets exactly one extra attempt')
+  assert.deepEqual(failedPages, [2], 'the genuinely unreadable page is reported')
+})
+
+await testAsync('readBatchResilient does NOT split on a hard failure (daily limit)', async () => {
+  const pages = [1, 2, 3].map(pageNumber => ({ pageNumber, dataUrl: 'd' }))
+  let calls = 0
+  const readPages = async () => {
+    calls += 1
+    throw Object.assign(new Error('Daily AI limit reached.'), { code: 'functions/resource-exhausted' })
+  }
+  const { results, failedPages, errors } = await readBatchResilient(pages, readPages)
+  assert.equal(calls, 1, 'a non-retryable failure must not trigger per-page retries')
+  assert.equal(results.length, 0)
+  assert.deepEqual(failedPages, [1, 2, 3])
+  assert.match(errors[0].message, /Daily AI limit/)
+})
+
+test('formatPageList reads naturally', () => {
+  assert.equal(formatPageList([]), '')
+  assert.equal(formatPageList([5]), 'page 5')
+  assert.equal(formatPageList([7, 5, 5, 6]), 'pages 5, 6 and 7')
+})
+
+await testAsync('runVisionImport recovers a whole timed-out batch page by page (nothing missing)', async () => {
+  // Regression for the production report: pages 5-7's batch times out on every
+  // re-import, leaving a contiguous block of questions missing. The retry
+  // ladder must degrade that batch to single-page reads and import EVERYTHING.
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  const callVision = async ({ pages }) => {
+    const nums = pages.map(p => p.pageNumber)
+    // The second batch (pages 4-7) always dies as a group…
+    if (nums.length > 1 && nums[0] >= 4) {
+      throw Object.assign(new Error('The request is taking longer than usual.'), { code: 'functions/deadline-exceeded' })
+    }
+    // …but any single page (and the first batch) reads fine: 1 question per page.
+    return { detectedCount: nums.length, sections: nums.map(n => q(n, n)) }
+  }
+  const out = await runVisionImport({
+    pageImages: [1, 2, 3, 4, 5, 6, 7].map(page),
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.deepEqual(
+    out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b),
+    [1, 2, 3, 4, 5, 6, 7],
+    'every page\'s questions survive the batch timeout',
+  )
+  assert.ok(!out.warnings.some(w => /could not be read/i.test(w)), 'no unread-pages warning once the retry recovered them')
+  assert.ok(!out.warnings.some(w => /appear to be missing/i.test(w)), 'no missing-number warning either')
+})
+
+await testAsync('runVisionImport names the exact pages that stayed unreadable', async () => {
+  // Pages 5-7 fail as a batch AND individually — the warning must name them
+  // (not a vague "one group of pages") so the teacher knows what to fix.
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  const callVision = async ({ pages }) => {
+    const nums = pages.map(p => p.pageNumber)
+    if (nums.some(n => n >= 5)) {
+      throw Object.assign(new Error('The request is taking longer than usual.'), { code: 'functions/deadline-exceeded' })
+    }
+    return { detectedCount: nums.length, sections: nums.map(n => q(n, n)) }
+  }
+  const out = await runVisionImport({
+    pageImages: [1, 2, 3, 4, 5, 6, 7].map(page),
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.deepEqual(
+    out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b),
+    [1, 2, 3, 4],
+    'readable pages still import',
+  )
+  const unreadWarning = out.warnings.find(w => /could not be read/i.test(w))
+  assert.ok(unreadWarning, 'unreadable pages are surfaced')
+  assert.match(unreadWarning, /pages 5, 6 and 7/i, 'the warning names the exact pages')
+})
+
+// ── Duplicate OCR reads of the same printed question (the "Duplicate numbers:
+// 42, 43…" + "Q42 has only 2 options" report) ────────────────────────────────
+
+test('isSameQuestionRead matches drifted reads and rejects distinct questions', () => {
+  const a = { sourceQuestionNumber: 42, sourcePage: 3, text: 'The diagram shows a simple circuit', options: ['cell', 'bulb'] }
+  const b = { sourceQuestionNumber: 42, sourcePage: 3, text: 'The diagram below shows a simple circuit with a switch', options: ['cell', 'bulb', 'switch', 'wire'] }
+  assert.equal(isSameQuestionRead(a, b), true, 'same number, same page, similar stem → same question')
+  // Same number but pages far apart (a paper that restarts numbering per section).
+  const c = { ...b, sourcePage: 9, text: 'A completely different question about rainfall', options: ['w', 'x', 'y', 'z'] }
+  assert.equal(isSameQuestionRead(a, c), false, 'same number far apart in the paper → different questions')
+  // Different numbers never match.
+  assert.equal(isSameQuestionRead(a, { ...b, sourceQuestionNumber: 43 }), false)
+  // An unreadable stem on the same page IS the same printed question.
+  assert.equal(isSameQuestionRead(a, { sourceQuestionNumber: 42, sourcePage: 3, text: '', options: [] }), true)
+})
+
+test('mergeSectionBatches merges partial re-reads of the same question (no duplicate numbers)', () => {
+  // Q42 read three times across the overlap + recovery: 2 options, then 3,
+  // then all 4. The old merge kept all three (duplicate number 42, each
+  // incomplete); now they collapse into ONE question with the fullest read.
+  const read = (opts, extra = '') => ({
+    kind: 'standalone',
+    question: {
+      text: `Which of these is a conductor${extra}?`,
+      options: opts,
+      sourceQuestionNumber: 42,
+      sourcePage: 6,
+    },
+  })
+  const { sections } = mergeSectionBatches([
+    { sections: [read(['copper', 'wood'])] },
+    { sections: [read(['copper', 'wood', 'glass'], ' of electricity')] },
+    { sections: [read(['copper', 'wood', 'glass', 'rubber'])] },
+  ])
+  assert.equal(sections.length, 1, 'the three reads collapse into one question')
+  assert.equal(sections[0].question.sourceQuestionNumber, 42)
+  assert.deepEqual(
+    sections[0].question.options,
+    ['copper', 'wood', 'glass', 'rubber'],
+    'the fullest option list wins',
+  )
+})
+
+test('mergeSectionBatches back-fills an empty-stem read from the richer duplicate', () => {
+  const blank = { kind: 'standalone', question: { text: '', options: [], sourceQuestionNumber: 7, sourcePage: 2 } }
+  const full = { kind: 'standalone', question: { text: 'Name the shape drawn below.', options: ['circle', 'square', 'kite', 'oval'], sourceQuestionNumber: 7, sourcePage: 2 } }
+  const { sections } = mergeSectionBatches([
+    { sections: [blank] },
+    { sections: [full] },
+  ])
+  assert.equal(sections.length, 1)
+  assert.equal(sections[0].question.text, 'Name the shape drawn below.')
+  assert.equal(sections[0].question.options.length, 4)
+})
+
+test('mergeSectionBatches keeps same-number questions from far-apart pages (section restart)', () => {
+  const secA = { kind: 'standalone', question: { text: 'Add 2 + 3', options: ['4', '5'], sourceQuestionNumber: 1, sourcePage: 1 } }
+  const secB = { kind: 'standalone', question: { text: 'Write a composition about your school.', options: [], sourceQuestionNumber: 1, sourcePage: 8 } }
+  const { sections } = mergeSectionBatches([
+    { sections: [secA] },
+    { sections: [secB] },
+  ])
+  assert.equal(sections.length, 2, 'numbering that restarts per section is preserved')
 })
 
 console.log(`\nscannedQuizImporter: ${passed} passed`)

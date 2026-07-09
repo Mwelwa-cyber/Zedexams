@@ -29,7 +29,7 @@ const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
 const AI_STUDY_PLAN_TIMEOUT_MS = 50000 // server: 45s
-const AI_SCANNED_IMPORT_TIMEOUT_MS = 245000 // server: 240s (vision OCR over a page batch)
+const AI_SCANNED_IMPORT_TIMEOUT_MS = 310000 // server: 300s (vision OCR over a page batch)
 const AI_SUGGEST_ANSWERS_TIMEOUT_MS = 125000 // server: 120s (batch of MCQs in one call)
 const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
@@ -608,7 +608,10 @@ export async function structureScannedQuiz(payload) {
       engineVersion: typeof data.engineVersion === 'string' ? data.engineVersion : '',
     }
   } catch (error) {
-    throw new Error(messageFromError(error))
+    // Keep the original error code alongside the friendly message — the
+    // importer's retry ladder needs it to tell a retryable timeout apart from
+    // a hard failure like the daily AI limit (which must NOT be retried).
+    throw Object.assign(new Error(messageFromError(error)), { code: error?.code || '' })
   }
 }
 

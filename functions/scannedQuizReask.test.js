@@ -18,6 +18,7 @@ const {
   buildReaskMessages,
   MAX_REASK_ROUNDS,
   MAX_REASK_NUMBERS,
+  REASK_TIME_BUDGET_MS,
 } = require("./scannedQuizImport");
 
 const TINY_PNG =
@@ -190,6 +191,56 @@ const claudeSections = (nums) => ({
     );
     assert.equal(result.recovered, 1, "recovered the gap Gemini never listed");
     assert.deepEqual([...extractedNumberSet(result.sections)].sort((a, b) => a - b), [1, 2, 3, 4, 5]);
+  });
+
+  await test("re-ask loop stops at the time budget and returns the PARTIAL result", async () => {
+    // A dense batch whose primary pass already ate the clock: the loop must
+    // NOT start another re-ask round and ride into the function deadline (a
+    // killed function loses even the questions it extracted). It returns the
+    // partial result with a warning instead.
+    let claudeCalls = 0;
+    let t = 0;
+    const result = await runScannedQuizImport(
+      {pages: [page(1)], anthropicKey: "k", geminiKey: "g"},
+      {
+        callGemini: async () => '{"questionNumbers":[1,2,3]}',
+        callClaude: async () => {
+          claudeCalls += 1;
+          // The primary pass alone consumes more than the whole budget.
+          t += REASK_TIME_BUDGET_MS + 1;
+          return claudeSections([1]); // 2 and 3 stay missing
+        },
+        now: () => t,
+      },
+    );
+    assert.equal(claudeCalls, 1, "no re-ask round starts once the budget is spent");
+    assert.equal(result.recovered, 0);
+    assert.deepEqual([...extractedNumberSet(result.sections)], [1], "the partial extraction is returned, not lost");
+    assert.ok(
+      result.warnings.some((w) => /ran out of time/i.test(w)),
+      "a clear ran-out-of-time warning is surfaced",
+    );
+  });
+
+  await test("re-ask rounds still run when there is time left on the clock", async () => {
+    let claudeCalls = 0;
+    let t = 0;
+    const result = await runScannedQuizImport(
+      {pages: [page(1)], anthropicKey: "k", geminiKey: "g"},
+      {
+        callGemini: async () => '{"questionNumbers":[1,2]}',
+        callClaude: async () => {
+          claudeCalls += 1;
+          t += 1000; // fast calls — plenty of budget left
+          if (claudeCalls === 1) return claudeSections([1]);
+          return claudeSections([2]);
+        },
+        now: () => t,
+      },
+    );
+    assert.equal(claudeCalls, 2, "the re-ask round ran normally");
+    assert.equal(result.recovered, 1);
+    assert.ok(!result.warnings.some((w) => /ran out of time/i.test(w)));
   });
 
   console.log("\nscannedQuizReask: " + passed + " passed" + (fails.length ? ", " + fails.length + " FAILED" : ""));

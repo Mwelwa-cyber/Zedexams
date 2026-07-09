@@ -1972,7 +1972,12 @@ exports.structureScannedQuiz = onCall(
   {
     secrets: [anthropicApiKey, geminiApiKey],
     region: "us-central1",
-    timeoutSeconds: 240,
+    // 300s: a dense page batch (big vision call + Gemini assist + re-ask
+    // rounds) can run long. The orchestrator also time-budgets its re-ask
+    // loop so it returns PARTIAL results before this deadline instead of
+    // dying with nothing; the client's timeout is 310s so the server's own
+    // error surfaces rather than the client giving up first.
+    timeoutSeconds: 300,
     memory: "1GiB",
     enforceAppCheck: shouldEnforceAppCheck("structureScannedQuiz"),
   },
