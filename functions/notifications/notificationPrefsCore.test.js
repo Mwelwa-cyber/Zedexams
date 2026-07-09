@@ -139,10 +139,26 @@ function lusakaTime(hh, mm = 0) {
   const none = resolveActionLink(null);
   ok("no action → dashboard fallback", none === "https://zedexams.com/dashboard");
 
-  const payload = buildFcmPayload({ title: "Hi", body: "There", action: { url: "/dashboard" } });
+  const payload = buildFcmPayload({
+    title: "Hi", body: "There", action: { url: "/dashboard" },
+    category: "learning", type: "daily_practice",
+  });
   ok("payload notification title", payload.notification.title === "Hi");
   ok("payload webpush link", payload.webpush.fcmOptions.link === "https://zedexams.com/dashboard");
   ok("payload webpush icon", payload.webpush.notification.icon.startsWith("/zedexams-logo"));
+  // Collapse tag prevents same-topic pushes from stacking into the "possible
+  // spam (N)" pile. Prefer the fine-grained type, mirror it onto android +
+  // data, and keep it consistent everywhere the browser/OS reads it.
+  ok("payload webpush collapse tag from type",
+      payload.webpush.notification.tag === "zedexams-daily_practice");
+  ok("payload android collapseKey mirrors tag",
+      payload.android.collapseKey === "zedexams-daily_practice");
+  ok("payload data tag mirrors webpush tag",
+      payload.data.tag === payload.webpush.notification.tag);
+  ok("collapse tag falls back to category when no type",
+      buildFcmPayload({ category: "payments" }).webpush.notification.tag === "zedexams-payments");
+  ok("collapse tag defaults to general with neither",
+      buildFcmPayload({}).webpush.notification.tag === "zedexams-general");
   // Native (Android) delivery fields — the plugin renders `notification` from
   // the system tray and needs `android`/`data` present. `data` values must be
   // strings for the Admin SDK, and the tap target rides along as `data.link`.

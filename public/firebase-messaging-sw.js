@@ -55,6 +55,10 @@ messaging.onBackgroundMessage((payload) => {
     body,
     icon: '/zedexams-logo.png?v=4',
     badge: '/zedexams-logo.png?v=4',
+    // Collapse onto the previous same-topic notification rather than stacking a
+    // separate one — an un-collapsed pile is what Chrome flags as "possible
+    // spam". The sender puts the topic tag on data.tag (see buildFcmPayload).
+    tag: data.tag || 'zedexams-general',
     data: { link },
   })
 })

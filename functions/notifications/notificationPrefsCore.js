@@ -181,38 +181,70 @@ function shouldSendPush(prefs, category, now = new Date()) {
 }
 
 /**
+ * A stable, per-topic notification tag. Passing the same `tag` on the webpush
+ * notification makes a fresh push REPLACE the previous one of that topic in the
+ * OS tray instead of stacking beside it. Un-collapsed piles of notifications
+ * from one origin are exactly the "Possible spam (N)" signal Chrome's abusive-
+ * notification heuristic keys on, so every push we send carries one. We tag by
+ * the fine-grained `type` when present (a re-sent streak reminder collapses onto
+ * the previous one) and fall back to `category` so distinct topics still surface
+ * separately. Always prefixed so it can't collide with any other origin's tags.
+ */
+function notificationTag({ tag, type, category } = {}) {
+  const key = String(tag || type || category || "general")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .slice(0, 60);
+  return `zedexams-${key}`;
+}
+
+/**
  * Build the FCM message body (sans `tokens`, which the sender fills in),
  * mirroring the webpush shape used by functions/dailyReminders.js so the
  * service worker (public/firebase-messaging-sw.js) renders it consistently.
+ *
+ * `category` / `type` (or an explicit `tag`) drive the collapse tag — see
+ * notificationTag(). Omitting them still yields a valid ("general") tag so a
+ * payload is never sent un-collapsed.
  */
-function buildFcmPayload({ title, body, action } = {}, origin = "https://zedexams.com") {
+function buildFcmPayload(
+    { title, body, action, category, type, tag } = {},
+    origin = "https://zedexams.com",
+) {
   const link = resolveActionLink(action, origin);
   const safeTitle = String(title || "ZedExams");
   const safeBody = String(body || "");
+  const collapseTag = notificationTag({ tag, type, category });
   return {
     notification: {
       title: safeTitle,
       body: safeBody,
     },
     // Web (service-worker) delivery: link + icon/badge for the rendered toast.
+    // `tag` collapses same-topic pushes; `renotify` is left off (default false)
+    // so a silent replacement doesn't re-buzz the device.
     webpush: {
       fcmOptions: { link },
       notification: {
         icon: "/zedexams-logo.png?v=4",
         badge: "/zedexams-logo.png?v=4",
+        tag: collapseTag,
       },
     },
     // Native (Android) delivery. `data` values MUST be strings for the Admin
     // SDK; the tap target rides along as `link` so a native tap can deep-link
     // (the OS renders the `notification` block above automatically when the app
     // is backgrounded/killed). `priority: high` keeps reminders timely.
+    // `collapseKey` is the native equivalent of the web `tag`.
     android: {
       priority: "high",
+      collapseKey: collapseTag,
     },
     data: {
       link,
       title: safeTitle,
       body: safeBody,
+      tag: collapseTag,
     },
   };
 }
@@ -243,5 +275,6 @@ module.exports = {
   isMuted,
   shouldSendPush,
   buildFcmPayload,
+  notificationTag,
   resolveActionLink,
 };

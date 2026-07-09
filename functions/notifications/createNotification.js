@@ -177,7 +177,13 @@ async function createNotification(opts = {}) {
     const tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
     if (tokens.length > 0) {
       try {
-        const payload = buildFcmPayload({ title, body, action: safeAction });
+        const payload = buildFcmPayload({
+          title,
+          body,
+          action: safeAction,
+          category,
+          type,
+        });
         const res = await sendPushToUser({ messaging, db, uid, tokens, payload });
         pushed = res.sent > 0;
       } catch (err) {
