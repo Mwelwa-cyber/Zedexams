@@ -224,7 +224,7 @@ function SubjectSkeleton() {
 }
 
 // ── Locked banner (premium nudge) ──────────────────────────────────────────
-function LockedBanner({ onUpgrade }) {
+function LockedBanner({ onUpgrade, hasDemos }) {
   return (
     <div className="zx-card mb-4 rounded-[22px] bg-white p-5 text-center">
       <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] border-2 border-slate-900 bg-amber-100">
@@ -232,7 +232,9 @@ function LockedBanner({ onUpgrade }) {
       </div>
       <p className="font-display text-[18px] font-bold text-slate-900">Full library locked</p>
       <p className="mx-auto mt-1 max-w-md text-sm font-medium text-slate-500">
-        You're viewing demo quizzes only. Upgrade to unlock every quiz across all subjects and grades.
+        {hasDemos
+          ? "You're viewing demo quizzes only. Upgrade to unlock every quiz across all subjects and grades."
+          : 'Upgrade to unlock every quiz across all subjects and grades — CBC aligned and ready to practise.'}
       </p>
       <div className="mt-4 inline-flex">
         <Button
@@ -444,17 +446,32 @@ export default function QuizList() {
               </h1>
               <p className="mt-2 text-[12.5px] font-semibold text-white/75 sm:text-sm">
                 {isDemoOnly
-                  ? `${demoForGrade} demo quiz${demoForGrade === 1 ? '' : 'zes'} for Grade ${gradeF} · Upgrade for full access`
+                  ? demoForGrade > 0
+                    ? `${demoForGrade} demo quiz${demoForGrade === 1 ? '' : 'zes'} for Grade ${gradeF} · Upgrade for full access`
+                    : `Unlock every Grade ${gradeF} quiz · Upgrade for full access`
                   : `${totalForGrade} quiz${totalForGrade === 1 ? '' : 'zes'} for Grade ${gradeF} · CBC aligned`}
               </p>
             </div>
             <div className="rounded-[18px] border-2 border-white/20 bg-white/10 px-4 py-3 text-center">
-              <p className="font-display text-2xl font-bold leading-none">
-                {isDemoOnly ? demoForGrade : totalForGrade}
-              </p>
-              <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">
-                {isDemoOnly ? 'Demo' : 'Quizzes'}
-              </p>
+              {isDemoOnly && demoForGrade === 0 ? (
+                <>
+                  <span className="mx-auto grid h-7 w-7 place-items-center text-white/90">
+                    <Icon as={Lock} size="md" />
+                  </span>
+                  <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">
+                    Locked
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-2xl font-bold leading-none">
+                    {isDemoOnly ? demoForGrade : totalForGrade}
+                  </p>
+                  <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">
+                    {isDemoOnly ? 'Demo' : 'Quizzes'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
           <label className="relative block">
@@ -483,7 +500,7 @@ export default function QuizList() {
         </section>
 
         {/* Locked banner for demo-only learners */}
-        {isDemoOnly && <LockedBanner onUpgrade={() => setShowUpgrade(true)} />}
+        {isDemoOnly && <LockedBanner onUpgrade={() => setShowUpgrade(true)} hasDemos={demoForGrade > 0} />}
 
         {/* Grade picker (single-select — only one grade is visible at a time) */}
         <section>
