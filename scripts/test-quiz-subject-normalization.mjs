@@ -172,31 +172,43 @@ check('a valid grade string passes through unchanged', () => {
   assert.equal(parsed.data.grade, '7')
 })
 
-check('a numeric grade is coerced to a string (the firestore rule needs a string)', () => {
+check('a numeric grade in range is coerced to a string (the firestore rule needs a string)', () => {
   const parsed = quizWriteSchema.safeParse(baseQuiz({ grade: 6 }))
   assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
   assert.strictEqual(parsed.data.grade, '6')
 })
 
-check('an EMPTY grade (importer could not detect it) defaults to a valid grade, not ""', () => {
-  // This is the "scanned paper won't save" bug: grade '' fails _validGrade and
-  // the whole quiz-doc write is denied with "Missing or insufficient
-  // permissions". Coercion must produce a rule-valid grade instead.
+check('an EMPTY grade is REJECTED with a clear message, not silently defaulted', () => {
+  // The "scanned paper won't save" bug: grade '' fails the Firestore rule with
+  // an opaque "Missing or insufficient permissions". We do NOT guess a grade
+  // (that would mislabel the paper) — we reject with a named, actionable error
+  // the editor surfaces at the grade selector.
   const parsed = quizUpdateSchema.safeParse({ grade: '' })
-  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
-  assert.ok(['4', '5', '6', '7'].includes(parsed.data.grade), `got ${parsed.data.grade}`)
+  assert.ok(!parsed.success, 'an empty grade must be rejected, not defaulted')
+  const issue = parsed.error.issues.find((i) => i.path.includes('grade'))
+  assert.ok(issue, 'the failing issue must name the grade field')
+  assert.match(issue.message, /grade/i, 'the message tells the admin to set a grade')
 })
 
-check('an out-of-range grade is clamped into 4..7 (secondary/lower-primary papers)', () => {
-  assert.equal(quizUpdateSchema.safeParse({ grade: '8' }).data.grade, '7')
-  assert.equal(quizUpdateSchema.safeParse({ grade: 8 }).data.grade, '7')
-  assert.equal(quizUpdateSchema.safeParse({ grade: '3' }).data.grade, '4')
-  assert.equal(quizUpdateSchema.safeParse({ grade: 2 }).data.grade, '4')
+check('an out-of-range grade is REJECTED (platform supports only 4–7)', () => {
+  assert.ok(!quizUpdateSchema.safeParse({ grade: '8' }).success, 'grade 8 rejected')
+  assert.ok(!quizUpdateSchema.safeParse({ grade: 8 }).success, 'numeric 8 rejected')
+  assert.ok(!quizUpdateSchema.safeParse({ grade: '3' }).success, 'grade 3 rejected')
+  assert.ok(!quizUpdateSchema.safeParse({ grade: 2 }).success, 'numeric 2 rejected')
 })
 
-check('a null / garbage grade never rides through to the rule', () => {
-  assert.ok(['4', '5', '6', '7'].includes(quizUpdateSchema.safeParse({ grade: null }).data.grade))
-  assert.ok(['4', '5', '6', '7'].includes(quizUpdateSchema.safeParse({ grade: 'abc' }).data.grade))
+check('a null / garbage grade is rejected, never written to the rule', () => {
+  assert.ok(!quizUpdateSchema.safeParse({ grade: null }).success)
+  assert.ok(!quizUpdateSchema.safeParse({ grade: 'abc' }).success)
+})
+
+check('isSaveableGrade mirrors what the schema accepts', async () => {
+  const { isSaveableGrade } = await import('../src/schemas/quiz.js')
+  assert.equal(isSaveableGrade('7'), true)
+  assert.equal(isSaveableGrade(7), true)
+  assert.equal(isSaveableGrade(''), false)
+  assert.equal(isSaveableGrade('8'), false)
+  assert.equal(isSaveableGrade(null), false)
 })
 
 check('an UPDATE that omits grade does not spuriously write one', () => {

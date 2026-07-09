@@ -68,6 +68,9 @@ export default function QuizEditorActionBar({
     if (autoSaveState === 'failed') {
       return truncatedError ? `Auto-save failed: ${truncatedError}` : 'Auto-save failed'
     }
+    // Idle + a message = a blocking-but-not-broken hint (e.g. "set a grade
+    // before saving"). Shown in a calm amber tone, not the red failure pill.
+    if (autoSaveState === 'idle' && truncatedError) return truncatedError
     if (dirty) return 'Unsaved changes'
     if (autoSaveState === 'saved') return 'Saved'
     return 'All changes saved'
@@ -76,6 +79,7 @@ export default function QuizEditorActionBar({
   const statusTone = (() => {
     if (autoSaveState === 'failed') return 'text-rose-700 bg-rose-50 ring-rose-200'
     if (uploadProgress || uploading || saving || autoSaveState === 'saving') return 'text-sky-700 bg-sky-50 ring-sky-200'
+    if (autoSaveState === 'idle' && autoSaveError) return 'text-amber-700 bg-amber-50 ring-amber-200'
     if (dirty) return 'text-amber-700 bg-amber-50 ring-amber-200'
     return 'text-emerald-700 bg-emerald-50 ring-emerald-200'
   })()

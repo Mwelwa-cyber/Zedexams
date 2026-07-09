@@ -61,6 +61,7 @@ import QuizEditorFloatingNav from './QuizEditorFloatingNav'
 import QuizValidationChecklist from './QuizValidationChecklist'
 import ReimportDiffModal from './ReimportDiffModal'
 import { diffImportedSections, mergeImportedSections } from '../../utils/quizReimportDiff.js'
+import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../schemas/quiz.js'
 import QuizWizardSteps from './QuizWizardSteps'
 import QuizStatusBadge from './assignment/QuizStatusBadge'
 import QuizAssignStep from './assignment/QuizAssignStep'
@@ -1687,6 +1688,15 @@ export default function EditQuizV2() {
     // Refuse if there's literally nothing to save (avoids clobbering a
     // freshly created quiz with an empty payload on first mount).
     if (!String(form.title || '').trim() && sections.length === 0) return
+    // No valid grade yet (scanned paper the importer couldn't grade) → the
+    // write would be rejected. Skip QUIETLY with a gentle hint rather than
+    // flashing a red "Auto-save failed" pill on every heartbeat; the manual
+    // save gives the same, actionable message and the grade selector fixes it.
+    if (!isSaveableGrade(form.grade)) {
+      setAutoSaveState(AUTO_SAVE.IDLE)
+      setAutoSaveError(GRADE_REQUIRED_MESSAGE)
+      return
+    }
 
     autoSavingRef.current = true
     setAutoSaveState(AUTO_SAVE.SAVING)
@@ -1825,6 +1835,16 @@ export default function EditQuizV2() {
     // dropped). Fail fast with a friendly toast instead of a mid-save throw.
     if (!currentUser?.uid) {
       show('Your session has expired. Please sign in again before saving.', true)
+      return
+    }
+    // Grade is required and must be one the platform supports (4–7). A scanned
+    // paper whose grade the importer couldn't read arrives with an empty grade,
+    // which the Firestore rule rejects with an opaque "Missing or insufficient
+    // permissions". Surface the real, fixable reason instead — and point the
+    // admin at the grade selector — for EVERY save mode (publish skips
+    // validate(), so this guard lives here, before the mode branch).
+    if (!isSaveableGrade(form.grade)) {
+      show(GRADE_REQUIRED_MESSAGE, true)
       return
     }
     // Publishing triggers the full pre-publish checklist; lower-trust

@@ -52,32 +52,43 @@ const emptyableString = (max) =>
 // Kept as strings because the Firestore rule requires `value is string`.
 const ACTIVE_GRADE_STRINGS = ['4', '5', '6', '7']
 
+// Friendly, actionable message shown when a quiz has no valid grade. Surfaced
+// verbatim by the editor (manual save toast + auto-save hint) so the admin
+// knows exactly what to do instead of hitting an opaque permission error.
+export const GRADE_REQUIRED_MESSAGE = 'Set the paper’s grade (4–7) at the top before saving.'
+
 /**
- * Coerce any grade the editor/importer might hold into a rule-valid string.
+ * Normalise a grade for a Firestore write.
  *
- * This mirrors the `duration` fix: `grade` used to ride through as
- * `string | number` and only blew up at the Firestore rule
- * (`_validGrade` accepts ONLY the strings '4'..'7') with an opaque
- * "Missing or insufficient permissions" — a scanned paper whose grade the
- * importer couldn't detect saved with `grade: ''`, and EVERY save/auto-save
- * of it was silently rejected. So we normalise here, at the one write choke
- * point, so a write can never carry a grade the rule will reject:
- *   - a number (or numeric string) is clamped into 4..7 and stringified
- *     ('8' → '7', 3 → '4', 5 → '5');
- *   - an empty / unparseable grade falls back to the app default '5'
- *     (matching CreateQuizV2) so the paper stays saveable while the admin
- *     sets the real grade from the 4–7 selector.
- * `undefined` is passed through so an update patch that omits `grade`
- * doesn't spuriously write one.
+ * The Firestore rule `_validGrade` accepts ONLY the strings '4'..'7', so a
+ * grade that isn't one of those is silently rejected with an opaque "Missing
+ * or insufficient permissions" (the "scanned paper won't save" bug — a paper
+ * whose grade the importer couldn't detect carried `grade: ''`).
+ *
+ * We deliberately do NOT guess a grade here: silently defaulting an
+ * undetected grade would mislabel the paper (learners find it under the wrong
+ * grade). Instead we only fix the UNAMBIGUOUS case — a numeric grade that is
+ * already 4..7 becomes its string form (7 → '7') — and leave anything else
+ * (empty, out-of-range, garbage) as a string so the schema's refine below
+ * rejects it with GRADE_REQUIRED_MESSAGE, prompting the admin to pick the real
+ * grade from the 4–7 selector.
+ *
+ * `undefined` is passed through so an update patch that omits `grade` doesn't
+ * spuriously write (or reject) one.
  */
 export function coerceGrade(v) {
   if (v === undefined) return undefined
   if (typeof v === 'string' && ACTIVE_GRADE_STRINGS.includes(v)) return v
   const n = Number(v)
-  if (Number.isFinite(n) && n >= 1) {
-    return String(Math.min(7, Math.max(4, Math.round(n))))
-  }
-  return '5'
+  if (Number.isInteger(n) && n >= 4 && n <= 7) return String(n)
+  // Invalid — stringify so the refine (not a bare type error) surfaces the
+  // friendly message. null/undefined-ish → '' so the message is consistent.
+  return v == null ? '' : String(v)
+}
+
+/** True when a grade value will pass the write schema (and the Firestore rule). */
+export function isSaveableGrade(v) {
+  return ACTIVE_GRADE_STRINGS.includes(coerceGrade(v))
 }
 
 // ── Embedded shapes ───────────────────────────────────────────────
@@ -145,10 +156,15 @@ export const quizWriteSchema = z
     ),
     // Grade can arrive as a string ('5'), a number (5), an out-of-range value
     // (a paper detected as Grade 8), or empty (the importer couldn't detect
-    // it). coerceGrade normalises ALL of these into a rule-valid '4'..'7'
-    // string so the write never fails `_validGrade` with an opaque permission
-    // error (the "scanned paper won't save" bug). See coerceGrade above.
-    grade: z.preprocess(coerceGrade, z.enum(ACTIVE_GRADE_STRINGS)),
+    // it). coerceGrade fixes the unambiguous numeric case; anything else is
+    // REJECTED here with a clear, actionable message rather than silently
+    // guessing a grade (which would mislabel the paper). This turns the opaque
+    // "Missing or insufficient permissions" from the Firestore rule into a
+    // named, fixable error the editor surfaces at the grade selector.
+    grade: z.preprocess(
+      coerceGrade,
+      z.string().refine((g) => ACTIVE_GRADE_STRINGS.includes(g), { message: GRADE_REQUIRED_MESSAGE }),
+    ),
     term: z.string().max(20).default(''),
     description: z.string().max(5000).default(''),
 
