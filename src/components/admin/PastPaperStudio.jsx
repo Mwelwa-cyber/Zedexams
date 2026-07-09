@@ -1197,7 +1197,6 @@ function ImportReportCard({ report }) {
   const typeEntries = Object.entries(byType).filter(([, n]) => n > 0)
   const blockers = Array.isArray(report.blockers) ? report.blockers : []
   const validationWarnings = Array.isArray(report.validationWarnings) ? report.validationWarnings : []
-  const missing = report.numbering && Array.isArray(report.numbering.missing) ? report.numbering.missing : []
   return (
     <section className="theme-card border theme-border rounded-radius-md p-5 space-y-4">
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -1215,11 +1214,8 @@ function ImportReportCard({ report }) {
           <ul className="list-disc ml-4 space-y-0.5 font-bold">
             {blockers.map((b, i) => <li key={i}>{b}</li>)}
           </ul>
-          {missing.length > 0 && (
-            <p className="mt-2 text-xs font-black">
-              Missing questions: {missing.slice(0, 30).join(', ')}{missing.length > 30 ? ', …' : ''}
-            </p>
-          )}
+          {/* numbering.missing is NOT repeated here — gateImport already
+              includes a "Missing questions: …" line in blockers. */}
         </div>
       )}
 

@@ -65,7 +65,7 @@ const VISION_MODEL =
 // the latest code (the silent firebase-tools "exit 0 but stale" failure that
 // repeatedly made importer fixes look broken in production while passing every
 // test). Bump this whenever the server extraction logic changes.
-const SCANNED_IMPORT_ENGINE_VERSION = "2026.07.09-pageretry";
+const SCANNED_IMPORT_ENGINE_VERSION = "2026.07.09-zeroyield";
 
 // Caps. A batch is a handful of pages so each model call stays inside the
 // output-token budget and the function timeout. The client paginates a long
