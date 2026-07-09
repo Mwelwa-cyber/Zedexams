@@ -129,7 +129,19 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
         notification: {
           icon: "/zedexams-logo.png?v=4",
           badge: "/zedexams-logo.png?v=4",
+          // Collapse onto the previous streak nudge instead of stacking a fresh
+          // one every day — un-collapsed piles read as spam to Chrome. Matches
+          // buildFcmPayload()'s tag scheme for the type "daily_streak".
+          tag: "zedexams-daily_streak",
         },
+      },
+      android: {
+        priority: "high",
+        collapseKey: "zedexams-daily_streak",
+      },
+      data: {
+        link: "https://zedexams.com/dashboard",
+        tag: "zedexams-daily_streak",
       },
     };
 
