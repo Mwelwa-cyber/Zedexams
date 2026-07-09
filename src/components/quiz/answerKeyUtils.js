@@ -84,6 +84,28 @@ export function parseAnswerKey(text, questions = []) {
 
   const numbered = [...upper.matchAll(/(\d+)\s*[).:-]?\s*([A-F])\b/g)]
   if (numbered.length) {
+    // Papers that restart numbering per section print the same number twice
+    // (Section A Q1, Section B Q1). A plain number→question Map keeps only the
+    // LAST question per number, so the whole first section stayed blank. When
+    // duplicates exist, pair by occurrence instead: the Nth "1X" in the pasted
+    // key addresses the Nth question numbered 1, in display order.
+    const hasDuplicateNumbers = new Set(questions.map(q => q.number)).size !== questions.length
+    if (hasDuplicateNumbers) {
+      const queues = new Map()
+      questions.forEach(q => {
+        const list = queues.get(q.number) || []
+        list.push(q)
+        queues.set(q.number, list)
+      })
+      numbered.forEach(match => {
+        const list = queues.get(Number(match[1]))
+        const q = list && list.length ? list.shift() : null
+        if (!q) return
+        const idx = letterToIndex(match[2])
+        if (idx >= 0 && idx < q.optionCount) map[q.localId] = idx
+      })
+      return map
+    }
     const byNumber = new Map(questions.map(q => [q.number, q]))
     numbered.forEach(match => {
       const q = byNumber.get(Number(match[1]))

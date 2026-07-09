@@ -39,6 +39,7 @@ import {
   formatPageList,
   isSameQuestionRead,
   mergeQuestionReads,
+  findZeroYieldPages,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -1195,6 +1196,131 @@ test('mergeSectionBatches keeps same-number questions from far-apart pages (sect
     { sections: [secB] },
   ])
   assert.equal(sections.length, 2, 'numbering that restarts per section is preserved')
+})
+
+test('mergeQuestionReads ORs diagram/pictorial-option sightings across reads', () => {
+  // The fuller read (4 options) missed the figure; the partial read saw it.
+  // The merged question must keep BOTH the options and the diagram sighting.
+  const kept = {
+    text: 'Which container holds the most water?', options: ['jug', 'cup'],
+    sourceQuestionNumber: 12, sourcePage: 4,
+    hasDiagram: true, diagrams: [{ box: { x: 0.1, y: 0.1, w: 0.5, h: 0.3 } }],
+    optionsAreImages: true,
+  }
+  const incoming = {
+    text: 'Which container holds the most water?', options: ['jug', 'cup', 'bucket', 'spoon'],
+    sourceQuestionNumber: 12, sourcePage: 4,
+    hasDiagram: false, diagrams: [],
+    optionsAreImages: false,
+  }
+  mergeQuestionReads(kept, incoming)
+  assert.equal(kept.options.length, 4, 'the fuller option list wins')
+  assert.equal(kept.hasDiagram, true, 'the diagram sighting survives the merge')
+  assert.equal(kept.diagrams.length, 1, 'the croppable diagram box survives')
+  assert.equal(kept.optionsAreImages, true, 'the pictorial-options flag survives')
+})
+
+// ── Zero-yield page recovery (dropped block at the END of the paper) ─────────
+
+test('findZeroYieldPages flags read-but-empty pages, honouring layout counts', () => {
+  const sections = [
+    { kind: 'standalone', question: { text: 'Q1', sourceQuestionNumber: 1, sourcePage: 2 } },
+    { kind: 'passage', sourcePage: 3, questions: [{ text: 'Q2', sourceQuestionNumber: 2, sourcePage: 3 }] },
+  ]
+  // No layout: page 1 is assumed to be the cover; pages 4-5 are suspect.
+  assert.deepEqual(findZeroYieldPages(sections, [1, 2, 3, 4, 5]), [4, 5])
+  // Layout says page 4 has no questions (instructions page) → only page 5.
+  const layout = new Map([[4, 0], [5, 6]])
+  assert.deepEqual(findZeroYieldPages(sections, [1, 2, 3, 4, 5], { layoutQuestionsByPage: layout }), [5])
+  // Pages already reported unreadable are excluded.
+  assert.deepEqual(findZeroYieldPages(sections, [1, 2, 3, 4, 5], { excludePages: [4, 5] }), [])
+  // No page attribution anywhere → no signal, no re-scan.
+  assert.deepEqual(findZeroYieldPages([{ kind: 'standalone', question: { text: 'Q' } }], [1, 2, 3]), [])
+})
+
+await testAsync('runVisionImport recovers a block dropped at the END of the paper (no number gap)', async () => {
+  // Questions 1-4 captured on pages 1-2; page 3 (holding Q5-Q6) yielded
+  // nothing. There is NO gap between captured numbers, so the number-based
+  // recovery never fires — the zero-yield pass must re-scan page 3.
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  const scannedPages = []
+  const callVision = async ({ pages }) => {
+    scannedPages.push(pages.map(p => p.pageNumber))
+    const nums = pages.map(p => p.pageNumber)
+    if (nums.length > 1) {
+      // Full first pass: page 3's questions are silently dropped.
+      return { detectedCount: 4, sections: [q(1, 1), q(2, 1), q(3, 2), q(4, 2)] }
+    }
+    // Focused single/small re-scan of page 3 finds its questions.
+    return nums[0] === 3
+      ? { detectedCount: 2, sections: [q(5, 3), q(6, 3)] }
+      : { detectedCount: 0, sections: [] }
+  }
+  const out = await runVisionImport({
+    pageImages: [page(1), page(2), page(3)],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.deepEqual(
+    out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b),
+    [1, 2, 3, 4, 5, 6],
+    'the tail block is recovered even though no printed number was "missing"',
+  )
+  assert.ok(scannedPages.some(nums => nums.length === 1 && nums[0] === 3), 'page 3 got a focused re-scan')
+  assert.ok(!out.warnings.some(w => /No questions were found on/i.test(w)), 'no zero-yield warning once recovered')
+})
+
+await testAsync('runVisionImport warns about a page that still yields nothing after its re-scan', async () => {
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  const callVision = async ({ pages }) => {
+    const nums = pages.map(p => p.pageNumber)
+    if (nums.length > 1) return { detectedCount: 4, sections: [q(1, 1), q(2, 1), q(3, 2), q(4, 2)] }
+    return { detectedCount: 0, sections: [] } // page 3 reads but yields nothing, twice
+  }
+  // Layout saw questions on page 3, so it is NOT dismissed as a cover page.
+  const callLayout = async () => ({ summary: { tables: 0, diagrams: 0, questions: 2 } })
+  const out = await runVisionImport({
+    pageImages: [page(1), page(2), page(3)],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    callLayout,
+    sourceNoun: 'scanned paper',
+  })
+  const warning = out.warnings.find(w => /No questions were found on page 3/i.test(w))
+  assert.ok(warning, 'the still-empty page is named so the teacher can check it')
+})
+
+await testAsync('runVisionImport does not re-scan a cover page the layout says has no questions', async () => {
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  let visionCalls = 0
+  const callVision = async () => {
+    visionCalls += 1
+    return { detectedCount: 2, sections: [q(1, 2), q(2, 2)] }
+  }
+  // Layout: page 1 is a cover (0 questions), page 2 has the questions.
+  const callLayout = async (dataUrl) => ({
+    summary: { tables: 0, diagrams: 0, questions: dataUrl.endsWith('COVER') ? 0 : 2 },
+  })
+  const out = await runVisionImport({
+    pageImages: [
+      { pageNumber: 1, dataUrl: 'data:image/jpeg;base64,COVER' },
+      { pageNumber: 2, dataUrl: 'data:image/jpeg;base64,AAAA' },
+    ],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    callLayout,
+    sourceNoun: 'scanned paper',
+  })
+  assert.equal(visionCalls, 1, 'the cover page is not re-scanned')
+  assert.equal(out.sections.length, 2)
+  assert.ok(!out.warnings.some(w => /No questions were found on/i.test(w)))
 })
 
 console.log(`\nscannedQuizImporter: ${passed} passed`)

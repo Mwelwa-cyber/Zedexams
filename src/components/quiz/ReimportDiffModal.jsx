@@ -86,7 +86,7 @@ export default function ReimportDiffModal({
         <div className="max-h-[60vh] space-y-3 overflow-y-auto px-5 py-4 text-sm">
           <p className="text-xs font-bold text-slate-700">
             New file has <strong>{totalIncoming}</strong> question{totalIncoming === 1 ? '' : 's'}.
-            Your current quiz has <strong>{totalExisting + (totalIncoming - changedCount - unchangedCount > 0 ? 0 : 0)}</strong> matching by number.
+            <strong> {changedCount + unchangedCount}</strong> of your current {totalExisting} match by number.
           </p>
 
           {changedCount > 0 && (

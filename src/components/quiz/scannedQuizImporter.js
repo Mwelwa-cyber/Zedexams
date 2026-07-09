@@ -44,7 +44,7 @@ export const DEFAULT_DIAGRAM_HANDLING = 'keep'
 // and the server (engineVersion) ships via the Functions deploy — showing both
 // makes a half-deployed state (new UI, stale function, or vice-versa) obvious.
 // Bump on a meaningful change to this file's extraction/merge/recovery logic.
-export const SCANNED_IMPORTER_VERSION = '2026.07.09-pageretry'
+export const SCANNED_IMPORTER_VERSION = '2026.07.09-zeroyield'
 
 export function normaliseDiagramHandling(mode) {
   return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
@@ -323,6 +323,12 @@ export function mergeQuestionReads(kept, incoming) {
   if (optCount(lose.options) > optCount(win.options)) merged.options = lose.options
   const figCount = list => (Array.isArray(list) ? list.length : 0)
   if (figCount(lose.diagrams) > figCount(win.diagrams)) merged.diagrams = lose.diagrams
+  // Sighting flags OR together: a winner read that simply MISSED the figure
+  // (hasDiagram:false — not "empty", so the spread above would keep it) must
+  // not erase the other read's sighting, or the crop/fallback pass skips a
+  // figure the paper really has. Same for pictorial options.
+  if (win.hasDiagram === false && lose.hasDiagram) merged.hasDiagram = true
+  if (win.optionsAreImages === false && lose.optionsAreImages) merged.optionsAreImages = true
   Object.keys(kept).forEach(k => { delete kept[k] })
   Object.assign(kept, merged)
   return kept
@@ -770,6 +776,55 @@ export function pagesForMissingNumbers(rawSections = [], missingNumbers = [], { 
     for (let p = lo; p <= hi; p += 1) pages.add(p)
   })
   return [...pages].sort((a, b) => a - b).slice(0, maxPages)
+}
+
+/**
+ * Find pages that were read successfully but yielded NO questions at all.
+ * findMissingQuestionNumbers only sees gaps BETWEEN captured printed numbers —
+ * a block dropped at the very END of the paper (numbers past the last capture)
+ * or on a paper without reliable numbering leaves no gap to detect. A page
+ * that produced zero questions is the complementary signal: re-scan it once.
+ *
+ * `layoutQuestionsByPage` (Map pageNumber → question count from the cheap
+ * layout pass) filters out pages that genuinely have no questions (cover /
+ * instructions / passage-continuation pages). Without layout info the only
+ * heuristic is skipping page 1 (usually the cover). `excludePages` removes
+ * pages already reported unreadable — they had the full retry treatment.
+ * Pure + node-testable.
+ */
+export function findZeroYieldPages(rawSections = [], pageNumbers = [], {
+  layoutQuestionsByPage = null,
+  excludePages = [],
+  maxPages = SCANNED_RECOVERY_MAX_PAGES,
+} = {}) {
+  if (!Array.isArray(rawSections) || !rawSections.length) return []
+  const yielded = new Set()
+  const collect = (q) => {
+    const p = Number(q?.sourcePage)
+    if (Number.isInteger(p) && p > 0) yielded.add(p)
+  }
+  rawSections.forEach(section => {
+    if (section?.kind === 'passage') {
+      const own = Number(section?.sourcePage)
+      if (Number.isInteger(own) && own > 0) yielded.add(own)
+      ;(section.questions || []).forEach(collect)
+    } else {
+      collect(section?.question || section)
+    }
+  })
+  // No section carries a page attribution at all → there is no per-page yield
+  // signal to act on; re-scanning every page would be pure noise.
+  if (!yielded.size) return []
+  const excluded = new Set(excludePages)
+  return (Array.isArray(pageNumbers) ? pageNumbers : [])
+    .filter(n => !yielded.has(n) && !excluded.has(n))
+    .filter(n => {
+      if (layoutQuestionsByPage && layoutQuestionsByPage.has(n)) {
+        return layoutQuestionsByPage.get(n) > 0
+      }
+      return n !== 1
+    })
+    .slice(0, maxPages)
 }
 
 /**
@@ -1348,11 +1403,20 @@ export async function runVisionImport({
   // once per page (no duplicate pages within an import → nothing to cache
   // beyond this single pass).
   let layoutSummary = null
+  // Per-page question counts from the layout pass — lets the zero-yield
+  // recovery below tell an under-extracted page apart from a page that
+  // genuinely has no questions (cover / instructions / passage continuation).
+  let layoutQuestionsByPage = null
   if (typeof callLayout === 'function') {
     try {
       const perPage = await mapWithConcurrency(pageImages, 4, (p) =>
         callLayout(p.dataUrl).catch(() => null),
       )
+      layoutQuestionsByPage = new Map()
+      perPage.forEach((res, i) => {
+        const s = res && res.summary
+        if (s) layoutQuestionsByPage.set(pageImages[i].pageNumber, Number(s.questions) || 0)
+      })
       layoutSummary = perPage.reduce((acc, res) => {
         const s = res && res.summary
         if (!s) return acc
@@ -1363,6 +1427,7 @@ export async function runVisionImport({
       }, { tables: 0, diagrams: 0, questions: 0 })
     } catch {
       layoutSummary = null
+      layoutQuestionsByPage = null
     }
   }
 
@@ -1421,6 +1486,9 @@ export async function runVisionImport({
 
   let merged = mergeSectionBatches(batchResults)
 
+  // Pages the zero-yield pass targeted (for the honest warning below).
+  let zeroYieldTargets = []
+
   // ── Cross-batch gap recovery ───────────────────────────────────────────────
   // The merge only WARNS about printed numbers that never came back. Here we
   // close the loop: re-scan just the pages a missing block sits on (smaller,
@@ -1458,6 +1526,40 @@ export async function runVisionImport({
       // Stop as soon as a round recovers nothing new (the model genuinely
       // can't read those pages — re-running would only burn the AI meter).
       if (findMissingQuestionNumbers(merged.sections).length >= before) break
+    }
+
+    // ── Zero-yield page recovery ─────────────────────────────────────────────
+    // The number-gap loop above can only see gaps BETWEEN captured numbers; a
+    // block dropped at the very END of the paper (or a paper without reliable
+    // numbering) leaves no gap. Complementary signal: a page that read fine
+    // but produced NO questions gets one focused re-scan — unless the layout
+    // pass says the page genuinely has none (cover / instructions page).
+    // Pages that failed outright are excluded (they already had the full
+    // retry ladder and are covered by the unread-pages warning).
+    if (merged.sections.length) {
+      zeroYieldTargets = findZeroYieldPages(
+        merged.sections,
+        pageImages.map(p => p.pageNumber),
+        {
+          layoutQuestionsByPage,
+          excludePages: failedPages.filter(n => !readOkPages.has(n)),
+        },
+      )
+      if (zeroYieldTargets.length) {
+        const retryImages = zeroYieldTargets
+          .map(n => pageImageByNumber.get(n))
+          .filter(Boolean)
+        const retryBatches = chunkPages(retryImages, SCANNED_RECOVERY_BATCH_SIZE, 0)
+        for (let i = 0; i < retryBatches.length; i += 1) {
+          const { results, failedPages: unread } = await readBatchResilient(
+            retryBatches[i],
+            pages => runBatch(pages, 'recovering', i + 1, retryBatches.length),
+          )
+          batchResults.push(...results)
+          markRead(retryBatches[i], unread)
+        }
+        merged = mergeSectionBatches(batchResults)
+      }
     }
   }
   const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
@@ -1502,6 +1604,23 @@ export async function runVisionImport({
       `${unreadPages.length === 1 ? 'that page' : 'those pages'} may be missing. ` +
       'Re-import to try again, or add them by hand.',
     )
+  }
+  // Zero-yield pages that STILL produced nothing after their focused re-scan:
+  // tell the teacher exactly which pages to check instead of leaving a silent
+  // hole. (Re-checked against the post-recovery merge so a recovered page is
+  // not reported; the "assume questions" map skips the cover-page heuristic —
+  // these pages were already judged worth re-scanning.)
+  if (zeroYieldTargets.length) {
+    const stillZero = findZeroYieldPages(merged.sections, zeroYieldTargets, {
+      layoutQuestionsByPage: new Map(zeroYieldTargets.map(n => [n, 1])),
+    })
+    if (stillZero.length) {
+      warnings.push(
+        `No questions were found on ${formatPageList(stillZero)} even after a second read — ` +
+        `if the paper has questions there, re-import ${stillZero.length === 1 ? 'that page' : 'those pages'} ` +
+        'or add the questions by hand.',
+      )
+    }
   }
   // Layout-vs-extraction reconciliation: if the cheap layout pass saw more
   // tables/figures than we reconstructed, surface it so a missed table is

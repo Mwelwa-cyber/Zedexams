@@ -203,3 +203,134 @@ function runFirstImportTest() {
 }
 
 runFirstImportTest()
+
+// ── Blank-answer preservation (scanned re-import must not wipe the key) ────
+
+function runBlankAnswerPreservationTest() {
+  // Teacher imported a scanned paper, set every answer, then re-imported to
+  // catch missing questions. Scanned imports ALWAYS carry correctAnswer: ''.
+  const existing = [
+    standalone({ number: 1, text: 'What is 2+2?', correctAnswer: 3, explanation: 'Because 2+2=4', _id: 'fb-1' }),
+    standalone({ number: 2, text: 'Capital of Zambia?', correctAnswer: 0, _id: 'fb-2' }),
+  ]
+  const incoming = [
+    standalone({ number: 1, text: 'What is 2+2?', correctAnswer: '', explanation: '' }),      // identical re-read
+    standalone({ number: 2, text: 'Capital city of Zambia?', correctAnswer: '', explanation: '' }), // OCR drift
+  ]
+
+  // A blank incoming answer must NOT register as a change on its own.
+  assert.equal(
+    isQuestionChanged(existing[0].question, incoming[0].question),
+    false,
+    'identical text with a blank incoming answer is NOT a change',
+  )
+
+  const merged = mergeImportedSections(existing, incoming)
+  const byNum = Object.fromEntries(merged.map((s) => [String(s.question.sourceQuestionNumber), s]))
+
+  assert.equal(byNum['1'].question.correctAnswer, 3, 'unchanged question keeps its set answer')
+  assert.equal(byNum['1'].question.explanation, 'Because 2+2=4', 'explanation survives')
+  assert.equal(byNum['2'].question.correctAnswer, 0,
+    'even a text-drifted question keeps the teacher\'s answer when the incoming one is blank')
+  assert.match(byNum['2'].question.text, /Capital city/, 'the drifted question still takes the new text')
+
+  // A REAL incoming answer (docx with a key) still wins.
+  const keyed = mergeImportedSections(existing, [
+    standalone({ number: 1, text: 'What is 2+2?', correctAnswer: 2 }),
+  ])
+  assert.equal(keyed[0].question.correctAnswer, 2, 'a non-blank incoming answer replaces the old one')
+
+  console.log('runBlankAnswerPreservationTest passed')
+}
+
+runBlankAnswerPreservationTest()
+
+// ── Occurrence-scoped matching (papers that restart numbering per section) ─
+
+function runNumberingRestartTest() {
+  // Section A Q1/Q2, then Section B restarts at Q1. A bare-number map used to
+  // collapse both Q1s to the LAST incoming one, destroying Section A.
+  const existing = [
+    standalone({ number: 1, text: 'Add 2 + 3', _id: 'fb-a1', localId: 'a1', correctAnswer: 1 }),
+    standalone({ number: 2, text: 'Subtract 5 - 2', _id: 'fb-a2', localId: 'a2', correctAnswer: 0 }),
+    standalone({ number: 1, text: 'Write a composition about your school.', _id: 'fb-b1', localId: 'b1', type: 'short_answer', options: [] }),
+  ]
+  const incoming = [
+    standalone({ number: 1, text: 'Add 2 + 3', correctAnswer: '' }),
+    standalone({ number: 2, text: 'Subtract 5 - 2', correctAnswer: '' }),
+    standalone({ number: 1, text: 'Write a composition about your school.', correctAnswer: '', type: 'short_answer', options: [] }),
+  ]
+
+  const diff = diffImportedSections(existing, incoming)
+  assert.equal(diff.unchanged.length, 3, 'occurrence pairing matches both Q1s to their own section')
+  assert.equal(diff.changed.length, 0)
+  assert.equal(diff.added.length, 0)
+  assert.equal(diff.removed.length, 0)
+
+  const merged = mergeImportedSections(existing, incoming)
+  assert.equal(merged.length, 3, 'no duplicate or dropped sections')
+  assert.match(merged[0].question.text, /Add 2 \+ 3/, 'Section A Q1 intact')
+  assert.equal(merged[0].question._id, 'fb-a1')
+  assert.match(merged[2].question.text, /composition/, 'Section B Q1 intact — not overwritten by Section A (or vice versa)')
+  assert.equal(merged[2].question._id, 'fb-b1')
+
+  console.log('runNumberingRestartTest passed')
+}
+
+runNumberingRestartTest()
+
+// ── Passage matching: no duplication + recovered children union in ─────────
+
+function contentPassage({ id, title, children }) {
+  return {
+    kind: 'passage',
+    id,
+    passage: {
+      title,
+      passageText: 'Once upon a time in Kasama…',
+      questions: children,
+    },
+  }
+}
+
+function childQ(number, text, correctAnswer = '') {
+  return { localId: `pq-${number}-${text.length}`, sourceQuestionNumber: number, text, options: ['a', 'b', 'c', 'd'], correctAnswer }
+}
+
+function runPassageUnionTest() {
+  const existing = [
+    contentPassage({
+      id: 'p-existing',
+      title: 'The Honest Farmer',
+      children: [childQ(5, 'Why did the farmer return the purse?', 2), childQ(6, 'What lesson does the story teach?', 1)],
+    }),
+  ]
+  // Re-import of the SAME passage recovers a child (Q7) the first pass missed.
+  const incoming = [
+    contentPassage({
+      id: 'p-incoming',
+      title: 'The Honest Farmer',
+      children: [childQ(5, 'Why did the farmer return the purse?'), childQ(6, 'What lesson does the story teach?'), childQ(7, 'Where was the farmer going?')],
+    }),
+  ]
+
+  const merged = mergeImportedSections(existing, incoming)
+  const passages = merged.filter((s) => s.kind === 'passage')
+  assert.equal(passages.length, 1, 'the re-imported passage is NOT appended as a duplicate')
+  assert.equal(passages[0].id, 'p-existing', 'the teacher\'s copy of the passage is kept')
+
+  const children = passages[0].passage.questions
+  assert.equal(children.length, 3, 'the newly-recovered child question unions in')
+  assert.equal(children[0].correctAnswer, 2, 'existing children keep their set answers')
+  assert.match(children[2].text, /Where was the farmer going/, 'the recovered Q7 lands at the end')
+
+  // A genuinely NEW passage still appends.
+  const withNew = mergeImportedSections(existing, [
+    contentPassage({ id: 'p-new', title: 'A Trip to Livingstone', children: [childQ(8, 'Who travelled to Livingstone?')] }),
+  ])
+  assert.equal(withNew.filter((s) => s.kind === 'passage').length, 2, 'an unmatched passage appends as new')
+
+  console.log('runPassageUnionTest passed')
+}
+
+runPassageUnionTest()

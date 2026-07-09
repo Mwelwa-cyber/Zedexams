@@ -210,4 +210,33 @@ test('collectAiAnswerTargets skips non-MCQ, empty-stem, and <2-option questions'
   assert.equal(collectAiAnswerTargets(sections, plain).length, 0)
 })
 
+test('parseAnswerKey pairs duplicate printed numbers by occurrence (numbering-restart papers)', () => {
+  // Section A Q1/Q2 then Section B restarts at Q1/Q2 — the same printed
+  // number appears twice. The Nth "1X" pair in the pasted key must address
+  // the Nth question numbered 1, not collapse last-wins (which left the whole
+  // first section blank).
+  const qList = collectAnswerableQuestions([
+    standalone(mcq({ localId: 'a1', sourceQuestionNumber: 1 })),
+    standalone(mcq({ localId: 'a2', sourceQuestionNumber: 2 })),
+    standalone(mcq({ localId: 'b1', sourceQuestionNumber: 1 })),
+    standalone(mcq({ localId: 'b2', sourceQuestionNumber: 2 })),
+  ])
+  assert.deepEqual(
+    parseAnswerKey('1A 2B 1C 2D', qList),
+    { a1: 0, a2: 1, b1: 2, b2: 3 },
+    'both sections receive their answers',
+  )
+  // A key covering only the first section leaves the second untouched.
+  assert.deepEqual(parseAnswerKey('1A 2B', qList), { a1: 0, a2: 1 })
+})
+
+test('parseAnswerKey keeps last-wins for unique numbers (pasted correction)', () => {
+  const qList = collectAnswerableQuestions([
+    standalone(mcq({ localId: 'a', sourceQuestionNumber: 1 })),
+    standalone(mcq({ localId: 'b', sourceQuestionNumber: 2 })),
+  ])
+  // Teacher pastes "1A" then corrects with "1C" — the correction wins, as before.
+  assert.deepEqual(parseAnswerKey('1A 2B 1C', qList), { a: 2, b: 1 })
+})
+
 console.log(`\nanswerKeyUtils: ${passed} passed`)

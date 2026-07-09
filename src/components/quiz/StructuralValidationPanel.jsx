@@ -61,12 +61,8 @@ export default function StructuralValidationPanel({ result, onJump }) {
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs font-bold">
             {blockers.map((blocker, index) => <li key={index}>{blocker}</li>)}
           </ul>
-          {numbering?.missing?.length > 0 && (
-            <p className="mt-1.5 text-xs font-black">
-              Missing questions: {numbering.missing.slice(0, 30).join(', ')}
-              {numbering.missing.length > 30 ? ', …' : ''}
-            </p>
-          )}
+          {/* numbering.missing is NOT repeated here — gateImport already
+              includes a "Missing questions: …" line in blockers. */}
         </div>
       )}
 
