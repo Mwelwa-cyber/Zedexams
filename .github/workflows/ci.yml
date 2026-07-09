@@ -1,9 +1,20 @@
 name: CI
 
-# Runs lint + the existing unit test suite on every pull request and on
-# every push to main. Deploy workflows (deploy-hosting.yml, deploy-firebase.yml)
-# run the same checks again before they ship — this workflow is the
-# pre-merge gate, the deploy workflows are the post-merge belt-and-braces.
+# Runs lint + the existing unit test suite on every pull request. This is the
+# PRE-MERGE gate. Deploy workflows (deploy-hosting.yml, deploy-firebase.yml)
+# re-run lint + test:all before they ship — they are the POST-MERGE
+# belt-and-braces, so there is no need to run this whole 7-job matrix AGAIN on
+# push to main.
+#
+# Why no `push: [main]` trigger: every job here already ran (and was required
+# to pass) on the PR. Firing all 7 jobs a second time on the merge commit
+# duplicated that work and — because GitHub-hosted runners are a shared, capped
+# pool — forced the deploy-hosting / deploy-firebase jobs to queue BEHIND this
+# matrix for a runner. That runner-queue wait, not the ~3-min pipeline itself,
+# was the bulk of the "deploys are slow" delay (a merge could sit ~10 min
+# waiting for a free runner). Dropping the redundant push-to-main run frees
+# those slots so the deploy job picks up a runner immediately. Trigger a manual
+# re-run with workflow_dispatch if you ever need the full matrix against main.
 #
 # Make these two jobs required status checks on `main` in
 # Settings → Branches → Branch protection rules to actually block
@@ -11,8 +22,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main]
   workflow_dispatch:
 
