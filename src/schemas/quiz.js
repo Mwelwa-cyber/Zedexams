@@ -48,6 +48,38 @@ import { normalizeSubject } from '../config/curriculum.js'
 const emptyableString = (max) =>
   z.preprocess((v) => (v == null ? '' : v), z.string().max(max))
 
+// The only grades the platform (and firestore.rules `_validGrade`) accept.
+// Kept as strings because the Firestore rule requires `value is string`.
+const ACTIVE_GRADE_STRINGS = ['4', '5', '6', '7']
+
+/**
+ * Coerce any grade the editor/importer might hold into a rule-valid string.
+ *
+ * This mirrors the `duration` fix: `grade` used to ride through as
+ * `string | number` and only blew up at the Firestore rule
+ * (`_validGrade` accepts ONLY the strings '4'..'7') with an opaque
+ * "Missing or insufficient permissions" — a scanned paper whose grade the
+ * importer couldn't detect saved with `grade: ''`, and EVERY save/auto-save
+ * of it was silently rejected. So we normalise here, at the one write choke
+ * point, so a write can never carry a grade the rule will reject:
+ *   - a number (or numeric string) is clamped into 4..7 and stringified
+ *     ('8' → '7', 3 → '4', 5 → '5');
+ *   - an empty / unparseable grade falls back to the app default '5'
+ *     (matching CreateQuizV2) so the paper stays saveable while the admin
+ *     sets the real grade from the 4–7 selector.
+ * `undefined` is passed through so an update patch that omits `grade`
+ * doesn't spuriously write one.
+ */
+export function coerceGrade(v) {
+  if (v === undefined) return undefined
+  if (typeof v === 'string' && ACTIVE_GRADE_STRINGS.includes(v)) return v
+  const n = Number(v)
+  if (Number.isFinite(n) && n >= 1) {
+    return String(Math.min(7, Math.max(4, Math.round(n))))
+  }
+  return '5'
+}
+
 // ── Embedded shapes ───────────────────────────────────────────────
 
 /**
@@ -111,9 +143,12 @@ export const quizWriteSchema = z
       (v) => (typeof v === 'string' ? normalizeSubject(v) : v),
       z.string().min(1).max(100),
     ),
-    // Grade can be a string ('5') or number (5) depending on the form; both
-    // are accepted, the canonical normaliser below coerces to string.
-    grade: z.union([z.string().max(20), z.number().int().min(0).max(20)]),
+    // Grade can arrive as a string ('5'), a number (5), an out-of-range value
+    // (a paper detected as Grade 8), or empty (the importer couldn't detect
+    // it). coerceGrade normalises ALL of these into a rule-valid '4'..'7'
+    // string so the write never fails `_validGrade` with an opaque permission
+    // error (the "scanned paper won't save" bug). See coerceGrade above.
+    grade: z.preprocess(coerceGrade, z.enum(ACTIVE_GRADE_STRINGS)),
     term: z.string().max(20).default(''),
     description: z.string().max(5000).default(''),
 
