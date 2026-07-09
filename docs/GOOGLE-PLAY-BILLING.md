@@ -1,6 +1,6 @@
 # Google Play Billing — Android subscriptions
 
-> Snapshot as of 2026-07-07 — verify before acting.
+> Snapshot as of 2026-07-09 — verify before acting.
 
 The Android (Capacitor) app sells digital subscriptions through **Google Play
 Billing only** (Play policy). The website keeps the Lenco mobile-money flow
@@ -130,6 +130,56 @@ on the `play_verify_failed` PostHog event, and a **throttled critical ops
 email** goes to `ADMIN_EMAILS` the moment a real purchase hits a config
 error (a buyer has paid and is not getting access — Google auto-refunds
 after 3 days, so an unfixed config loses the sale).
+
+## Fixing `play-api-rejected` (401 / 403) — step by step
+
+This reason means the SA JSON parsed, we obtained an OAuth token from it, but
+the **Play Developer API refused that token** (buyers pay, get no access, and
+Google auto-refunds after 3 days). The repo wiring (secret bound to
+`verifyGooglePlayPurchase` + `hourlyMonitor`) is already correct when this
+fires — the fix is entirely in Play Console / Google Cloud. Work through it in
+order:
+
+1. **Read the exact cause.** The thrown message now carries Google's own error
+   detail, so you rarely have to guess between the two failure modes. Find it
+   in the ops email (`Detail: …`), Cloud Logging
+   (`[verifyGooglePlayPurchase] config error`), or the PostHog
+   `play_verify_failed.errorReason`:
+   - `SERVICE_DISABLED` / "…API has not been used… or it is disabled" → **the
+     API is off** (step 2).
+   - `PERMISSION_DENIED` / "insufficient permissions" (usually 403) → **the SA
+     isn't authorised in Play Console** (step 3).
+   - "invalid authentication credentials" (401) → **wrong-project / rotated
+     key** (step 4).
+2. **Enable the API on the SA's Cloud project.** The service account's project
+   id is embedded in its email —
+   `<name>@<PROJECT_ID>.iam.gserviceaccount.com` (read `client_email` from the
+   secret's JSON). Open
+   `https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com`,
+   pick **that** project, and click **Enable**. Propagation can take a few
+   minutes.
+3. **Invite the SA in Play Console.** Play Console ▸ **Users and permissions** ▸
+   **Invite new user** ▸ paste the SA `client_email` ▸ grant **View financial
+   data, orders, and cancellation survey responses** + **Manage orders and
+   subscriptions** (account-level, or scoped to the ZedExams app) ▸ **Invite
+   user**. New grants usually apply within minutes.
+4. **Confirm the key belongs to the linked project.** Play Console ▸ **Settings
+   ▸ Developer account ▸ API access** shows the Google Cloud project linked to
+   this Play account and the service accounts under it. The SA whose JSON is in
+   `GOOGLE_PLAY_SA_JSON` must appear here. A key minted in a *different* Cloud
+   project produces a 401 no matter the permissions — re-mint the key from the
+   linked project's SA and re-set the secret:
+   ```bash
+   firebase functions:secrets:set GOOGLE_PLAY_SA_JSON --project examsprepzambia
+   # paste the FULL service-account JSON, then let CI redeploy the two bound
+   # functions so the new secret version is picked up.
+   ```
+5. **Verify without a device.** Re-run runbook step 6 — call
+   `verifyGooglePlayPurchase` with a garbage token and expect
+   `results[0].status === "not_found"`. Or just wait for Vigil's hourly probe
+   (`checkPlayBilling`): the `playBilling` critical clears on `/admin/company`
+   and in the `hourlyMonitor` rollup once the config is good. A cleared probe
+   proves secret → SA → OAuth → Play API auth end to end.
 
 ## Test surface
 

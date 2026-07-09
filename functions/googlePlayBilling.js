@@ -87,6 +87,34 @@ async function getAccessToken(saJsonString) {
 }
 
 /**
+ * Google returns a JSON error body on a rejected androidpublisher call whose
+ * `error.status` / `error.message` name the exact cause — `SERVICE_DISABLED`
+ * ("Google Play Android Developer API has not been used… or it is disabled",
+ * with an enable link) vs `PERMISSION_DENIED` ("The current user has
+ * insufficient permissions", i.e. the SA isn't invited in Play Console).
+ * Surfacing it turns the otherwise-opaque 401/403 into a one-line fix instead
+ * of a Cloud Logging dive. Best-effort + bounded: never let body reading mask
+ * the config error, and stay resilient to injected fetch stubs with no text().
+ */
+async function readPlayErrorDetail(res) {
+  try {
+    if (typeof res.text !== "function") return "";
+    const raw = String((await res.text()) || "").slice(0, 400);
+    if (!raw) return "";
+    try {
+      const err = JSON.parse(raw)?.error;
+      const msg = err?.message || err?.error_description || err?.status;
+      if (msg) {
+        return ` — ${msg}${err?.status && err.status !== msg ? ` [${err.status}]` : ""}`;
+      }
+    } catch { /* not JSON — surface the raw body */ }
+    return ` — ${raw}`;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * GET purchases.subscriptionsv2 for a purchase token.
  * Returns the response body, or null when Google says the token doesn't
  * exist / is malformed (404 or 400 — a user-supplied garbage token, not an
@@ -100,8 +128,15 @@ async function fetchSubscriptionV2({accessToken, purchaseToken, fetchImpl = fetc
   });
   if (res.status === 404 || res.status === 400) return null;
   if (res.status === 401 || res.status === 403) {
+    // 403 → the SA authenticated but Play refused it: not invited in Play
+    // Console (needs Manage orders + View financial data) OR the Android
+    // Publisher API is disabled on its Cloud project. 401 → the credentials
+    // weren't accepted at all: the SA JSON is from a Cloud project not linked
+    // to this Play account, or the key was rotated. Google's own detail says
+    // which — see the "Fixing play-api-rejected" runbook in the docs.
+    const detail = await readPlayErrorDetail(res);
     throw new PlayConfigError(
-        `Play API rejected our credentials (${res.status})`, "play-api-rejected");
+        `Play API rejected our credentials (${res.status})${detail}`, "play-api-rejected");
   }
   if (!res.ok) {
     throw new Error(`Play API error ${res.status}`);

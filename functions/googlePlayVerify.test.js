@@ -343,6 +343,38 @@ function reset() {
   ok("probe: Play API 403 → play-api-rejected",
       probe.ok === false && probe.reason === "play-api-rejected");
 
+  // A rejected Play call carries a JSON error body naming the exact cause
+  // (SERVICE_DISABLED = API off, PERMISSION_DENIED = SA not invited). Surface
+  // it so the ops email/PostHog reason is actionable, not a bare "(403)".
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => ({
+      status: 403,
+      text: async () => JSON.stringify({
+        error: {status: "PERMISSION_DENIED",
+          message: "The current user has insufficient permissions."},
+      }),
+    }),
+  });
+  ok("probe: Play 403 body → play-api-rejected surfaces Google's own reason",
+      probe.ok === false && probe.reason === "play-api-rejected" &&
+      /insufficient permissions/.test(probe.message) &&
+      /PERMISSION_DENIED/.test(probe.message));
+
+  // A 401 whose body isn't JSON still surfaces the raw detail, never throws.
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => "tok",
+    fetchImpl: async () => ({
+      status: 401,
+      text: async () => "Request had invalid authentication credentials.",
+    }),
+  });
+  ok("probe: Play 401 non-JSON body → play-api-rejected with raw detail",
+      probe.ok === false && probe.reason === "play-api-rejected" &&
+      /invalid authentication credentials/.test(probe.message));
+
   probe = await probePlayConfig({
     saJson: "x",
     getToken: async () => "tok",
