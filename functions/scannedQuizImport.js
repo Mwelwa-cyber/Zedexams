@@ -65,7 +65,7 @@ const VISION_MODEL =
 // the latest code (the silent firebase-tools "exit 0 but stale" failure that
 // repeatedly made importer fixes look broken in production while passing every
 // test). Bump this whenever the server extraction logic changes.
-const SCANNED_IMPORT_ENGINE_VERSION = "2026.06.30-numrecovery";
+const SCANNED_IMPORT_ENGINE_VERSION = "2026.07.09-pageretry";
 
 // Caps. A batch is a handful of pages so each model call stays inside the
 // output-token budget and the function timeout. The client paginates a long
@@ -80,6 +80,16 @@ const MAX_QUESTIONS_PER_CALL = 60;
 // papers" complaint). Each round only re-asks for the still-missing numbers,
 // so a clean batch still costs zero extra rounds.
 const MAX_REASK_ROUNDS = 3;
+// Wall-clock budget for the whole import call. The function's own deadline is
+// 300s (functions/index.js); if the primary pass + re-ask rounds ride into
+// that, Cloud Functions kills the request and the CLIENT LOSES EVERYTHING the
+// call had already extracted — the "one group of pages could not be read"
+// failure that keeps the same dense pages missing on every re-import. So the
+// re-ask loop checks elapsed time and stops early, returning the partial (but
+// real) result with a warning instead; the client's own recovery pass then
+// re-reads the affected pages in smaller batches. `deps.now` is injectable so
+// tests can simulate a slow batch without waiting.
+const REASK_TIME_BUDGET_MS = 210 * 1000;
 // Cap on how many missing printed numbers we re-ask for in one batch. Guards
 // against a hallucinated Gemini number list triggering an unbounded re-ask,
 // but set well above any real batch's question count so a genuinely long run
@@ -1047,6 +1057,8 @@ async function runScannedQuizImport(
     require("./teacherTools/anthropicClient").callClaude;
   const callGemini = deps.callGemini ||
     require("./geminiClient").callGemini;
+  const now = deps.now || Date.now;
+  const startedAt = now();
 
   const {pages, dropped} = validatePages(rawPages);
   const pageNumbers = pages.map((p) => p.pageNumber);
@@ -1134,6 +1146,22 @@ async function runScannedQuizImport(
     let missing = computeMissingNumbers(expected, extracted);
     let round = 0;
     while (missing.length && round < MAX_REASK_ROUNDS) {
+      // Stop re-asking before the function deadline: returning the partial
+      // result (with a warning) beats being killed mid-round and returning
+      // NOTHING — a dead batch loses even the questions already extracted.
+      if (now() - startedAt > REASK_TIME_BUDGET_MS) {
+        warnings.push(
+          "This batch ran out of time while double-checking for missed " +
+          "questions — some numbered questions on these pages may be " +
+          "missing. The importer will retry those pages automatically; " +
+          "re-import if any are still absent.",
+        );
+        console.warn("[scannedQuizImport] re-ask stopped by time budget", {
+          elapsedMs: now() - startedAt,
+          missing: missing.length,
+        });
+        break;
+      }
       round += 1;
       let reask;
       try {
@@ -1226,6 +1254,7 @@ module.exports = {
   buildReaskMessages,
   MAX_REASK_ROUNDS,
   MAX_REASK_NUMBERS,
+  REASK_TIME_BUDGET_MS,
   buildClaudeMessages,
   buildGeminiImages,
   CLAUDE_SYSTEM_PROMPT,

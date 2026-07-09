@@ -44,7 +44,7 @@ export const DEFAULT_DIAGRAM_HANDLING = 'keep'
 // and the server (engineVersion) ships via the Functions deploy — showing both
 // makes a half-deployed state (new UI, stale function, or vice-versa) obvious.
 // Bump on a meaningful change to this file's extraction/merge/recovery logic.
-export const SCANNED_IMPORTER_VERSION = '2026.06.30-numrecovery'
+export const SCANNED_IMPORTER_VERSION = '2026.07.09-pageretry'
 
 export function normaliseDiagramHandling(mode) {
   return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
@@ -57,6 +57,11 @@ export function normaliseDiagramHandling(mode) {
 // while still capturing a passage/map that crosses a boundary whole.
 export const SCANNED_BATCH_SIZE = 4
 export const SCANNED_BATCH_OVERLAP = 1
+// Recovery re-scans use SMALLER batches than the first pass: fewer pages per
+// call make the vision model enumerate more reliably AND keep each call well
+// inside the function deadline (the pages being recovered are usually the
+// dense/slow ones that made the original 4-page batch time out).
+export const SCANNED_RECOVERY_BATCH_SIZE = 2
 // Cross-batch gap recovery. A single batch can badly under-extract its pages
 // (the vision model "summarises" a long run and silently skips a block), which
 // the per-batch server recovery never sees — leaving a contiguous range of
@@ -145,6 +150,84 @@ export function chunkPages(pages = [], size = SCANNED_BATCH_SIZE, overlap = SCAN
   return batches
 }
 
+/**
+ * Should a failed vision call be retried? Transient failures (timeout,
+ * deadline-exceeded, dropped connection, server hiccup) are worth a smaller
+ * retry; hard failures (daily AI limit, permission, bad request, App Check)
+ * will fail identically on every retry, so retrying just burns time.
+ * The callable wrapper preserves the Firebase error code on the error it
+ * throws; when only a friendly message survives, fall back to message
+ * heuristics and default to retryable (retries are strictly bounded).
+ */
+export function isRetryableImportError(error) {
+  const code = String(error?.code || '').toLowerCase()
+  if (code) {
+    if (/resource-exhausted|permission-denied|unauthenticated|invalid-argument|failed-precondition|not-found/.test(code)) {
+      return false
+    }
+    if (/timeout|deadline|internal|unavailable|aborted|cancelled|unknown|network/.test(code)) {
+      return true
+    }
+  }
+  const message = String(error?.message || '').toLowerCase()
+  if (/daily limit|usage limit|limit reached|sign in|permission|not allowed/.test(message)) return false
+  return true
+}
+
+/**
+ * Read one batch of pages resiliently. `readPages(pages)` is the vision call
+ * for an arbitrary page list. Strategy:
+ *   1. Try the whole batch once.
+ *   2. On a retryable failure, fall back to reading each page individually —
+ *      a single page is a much smaller request (far less likely to hit the
+ *      function deadline) and the model enumerates one page very reliably.
+ *   3. A page that fails retryably gets exactly one more attempt.
+ * Returns { results, failedPages, errors } — pages listed in failedPages are
+ * genuinely unread and should be surfaced to the teacher. Never throws.
+ * Pure orchestration (readPages injected) so it unit-tests under plain node.
+ */
+export async function readBatchResilient(batchPages = [], readPages) {
+  const pages = Array.isArray(batchPages) ? batchPages.filter(Boolean) : []
+  if (!pages.length) return { results: [], failedPages: [], errors: [] }
+  try {
+    return { results: [await readPages(pages)], failedPages: [], errors: [] }
+  } catch (error) {
+    if (!isRetryableImportError(error)) {
+      return { results: [], failedPages: pages.map(p => p.pageNumber), errors: [error] }
+    }
+    const results = []
+    const failedPages = []
+    const errors = [error]
+    for (const page of pages) {
+      try {
+        results.push(await readPages([page]))
+      } catch (pageError) {
+        if (isRetryableImportError(pageError)) {
+          try {
+            results.push(await readPages([page]))
+            continue
+          } catch (retryError) {
+            errors.push(retryError)
+            failedPages.push(page.pageNumber)
+            continue
+          }
+        }
+        errors.push(pageError)
+        failedPages.push(page.pageNumber)
+      }
+    }
+    return { results, failedPages, errors }
+  }
+}
+
+/** Human-readable page list: "page 5" / "pages 5, 6 and 9". */
+export function formatPageList(pages = []) {
+  const list = [...new Set(pages)].sort((a, b) => a - b)
+  if (!list.length) return ''
+  if (list.length === 1) return `page ${list[0]}`
+  return `pages ${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`
+}
+
 function questionKey(q) {
   const stem = String(q?.text || '').trim().toLowerCase()
   const opts = (Array.isArray(q?.options) ? q.options : []).join('|').toLowerCase()
@@ -156,6 +239,93 @@ function questionKey(q) {
   // "24|28|32|36" collapse to one question and are silently dropped.
   const num = Number.isFinite(q?.sourceQuestionNumber) ? `#${q.sourceQuestionNumber}` : ''
   return `${num}${stem}::${opts}`
+}
+
+function normalizeReadText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function tokenOverlapRatio(a, b) {
+  const ta = new Set(a.split(' ').filter(Boolean))
+  const tb = new Set(b.split(' ').filter(Boolean))
+  if (!ta.size || !tb.size) return 0
+  let hit = 0
+  ta.forEach(t => { if (tb.has(t)) hit += 1 })
+  return hit / Math.min(ta.size, tb.size)
+}
+
+/**
+ * Are two extracted questions two OCR READS of the same printed question?
+ * The batch overlap and the recovery re-scans read the same physical page more
+ * than once, and OCR drift means the second read rarely matches the first
+ * verbatim — questionKey() then treats them as distinct and BOTH survive the
+ * merge (the "Duplicate numbers: 42, 43…" + "Q42 has only 2 options, Q42 has
+ * only 3 options" report). Same printed number on the same/adjacent page with
+ * a similar stem (or matching options, or one unreadable stem) is one question.
+ * Adjacent pages count because a question straddling a page boundary can be
+ * stamped with either page across two reads. Numbers far apart in the paper
+ * (e.g. papers that restart numbering per section) never collide because their
+ * pages differ by more than one. Pure + exported for tests.
+ */
+export function isSameQuestionRead(a, b) {
+  const na = Number(a?.sourceQuestionNumber)
+  const nb = Number(b?.sourceQuestionNumber)
+  if (!Number.isInteger(na) || na <= 0 || na !== nb) return false
+  const pa = Number(a?.sourcePage)
+  const pb = Number(b?.sourcePage)
+  if (Number.isInteger(pa) && pa > 0 && Number.isInteger(pb) && pb > 0 && Math.abs(pa - pb) > 1) {
+    return false
+  }
+  const sa = normalizeReadText(a?.text)
+  const sb = normalizeReadText(b?.text)
+  // One read couldn't extract the stem — same number on the same page is the
+  // same printed question; merging fills the blank instead of duplicating it.
+  if (!sa || !sb) return true
+  if (sa === sb || sa.startsWith(sb) || sb.startsWith(sa)) return true
+  if (tokenOverlapRatio(sa, sb) >= 0.6) return true
+  // Stems drifted apart — shared answer options still identify the read.
+  const optsA = new Set((Array.isArray(a?.options) ? a.options : []).map(normalizeReadText).filter(Boolean))
+  const optsB = (Array.isArray(b?.options) ? b.options : []).map(normalizeReadText).filter(Boolean)
+  return optsB.filter(o => optsA.has(o)).length >= 2
+}
+
+// How "complete" one OCR read of a question is. Options dominate (a read that
+// captured all four options beats a read that captured two), then stem length,
+// then attached figures.
+function readScore(q) {
+  const opts = Array.isArray(q?.options) ? q.options.filter(o => String(o ?? '').trim()).length : 0
+  const stem = String(q?.text || '').trim().length
+  const figs = Array.isArray(q?.diagrams) ? q.diagrams.length : 0
+  return opts * 1000 + Math.min(stem, 900) + figs * 50
+}
+
+/**
+ * Merge a second OCR read of the same printed question INTO the kept object
+ * (in place, so references already inside merged sections upgrade too). The
+ * more complete read wins per field; the other read back-fills anything the
+ * winner left blank, and the richer options/diagram lists are kept outright.
+ * Exported for tests.
+ */
+export function mergeQuestionReads(kept, incoming) {
+  const [win, lose] = readScore(incoming) > readScore(kept) ? [incoming, kept] : [kept, incoming]
+  const merged = { ...lose }
+  Object.entries(win).forEach(([k, v]) => {
+    const empty = v == null ||
+      (typeof v === 'string' && !v.trim()) ||
+      (Array.isArray(v) && !v.length)
+    if (!empty) merged[k] = v
+  })
+  const optCount = list => (Array.isArray(list) ? list.filter(o => String(o ?? '').trim()).length : 0)
+  if (optCount(lose.options) > optCount(win.options)) merged.options = lose.options
+  const figCount = list => (Array.isArray(list) ? list.length : 0)
+  if (figCount(lose.diagrams) > figCount(win.diagrams)) merged.diagrams = lose.diagrams
+  Object.keys(kept).forEach(k => { delete kept[k] })
+  Object.assign(kept, merged)
+  return kept
 }
 
 function passageKey(section) {
@@ -181,6 +351,10 @@ export function mergeSectionBatches(batchResults = []) {
   const warnings = []
   const seenQuestions = new Set()
   const passageByKey = new Map()
+  // Every kept question, indexed by its printed number, so a second OCR read
+  // of the same printed question (overlap / recovery re-scan, with OCR drift)
+  // merges into the kept object instead of surviving as a duplicate.
+  const keptByNumber = new Map()
   let detectedTotal = 0
 
   const takeQuestions = (list = []) => {
@@ -197,6 +371,19 @@ export function mergeSectionBatches(batchResults = []) {
       if (!stem && !hasNumber) return
       const key = questionKey(q)
       if (seenQuestions.has(key)) return
+      if (hasNumber) {
+        const candidates = keptByNumber.get(q.sourceQuestionNumber) || []
+        const match = candidates.find(existing => isSameQuestionRead(existing, q))
+        if (match) {
+          // Same printed question read twice — upgrade the kept copy in place
+          // (it's already referenced from a merged section) and drop this one.
+          mergeQuestionReads(match, q)
+          seenQuestions.add(key)
+          return
+        }
+        candidates.push(q)
+        keptByNumber.set(q.sourceQuestionNumber, candidates)
+      }
       seenQuestions.add(key)
       kept.push(q)
     })
@@ -1195,16 +1382,29 @@ export async function runVisionImport({
   const batchResults = []
   // A single failed reading batch (timeout, network drop, daily-cap,
   // rate-limit, App Check) must NOT discard the pages that read fine — that is
-  // the "import cuts off on its own and I lose everything" report. Catch each
-  // batch, keep the successful ones, and only hard-fail if EVERY batch failed
-  // (surfacing the real reason so a config problem is visible, not silent).
+  // the "import cuts off on its own and I lose everything" report. Each batch
+  // reads resiliently: a transient failure (typically the function deadline on
+  // a dense 4-page batch) falls back to one-page-at-a-time reads with a retry,
+  // so a slow batch degrades to smaller calls instead of losing its pages —
+  // the recurring "one group of pages could not be read / questions 23-33
+  // missing" report. Only pages that STILL failed after that are surfaced, and
+  // we only hard-fail if EVERY batch failed (so a config problem is visible).
   const batchErrors = []
+  const failedPages = []
+  const readOkPages = new Set()
+  const markRead = (pages, unread) => {
+    const unreadSet = new Set(unread)
+    pages.forEach(p => { if (!unreadSet.has(p.pageNumber)) readOkPages.add(p.pageNumber) })
+  }
   for (let i = 0; i < batches.length; i += 1) {
-    try {
-      batchResults.push(await runBatch(batches[i], 'reading', i + 1, batches.length, i === 0))
-    } catch (error) {
-      batchErrors.push({ batch: i + 1, message: error?.message || '' })
-    }
+    const { results, failedPages: unread, errors } = await readBatchResilient(
+      batches[i],
+      pages => runBatch(pages, 'reading', i + 1, batches.length),
+    )
+    batchResults.push(...results)
+    failedPages.push(...unread)
+    markRead(batches[i], unread)
+    if (errors.length) batchErrors.push({ batch: i + 1, message: errors[0]?.message || '' })
   }
 
   if (!batchResults.length) {
@@ -1238,16 +1438,21 @@ export async function runVisionImport({
         .filter(Boolean)
       if (!retryImages.length) break
       const before = missing.length
-      const retryBatches = chunkPages(retryImages)
+      // Recovery re-scans use smaller, no-overlap batches: the pages being
+      // recovered are usually the dense/slow ones, and fewer pages per call
+      // both reads more reliably and stays inside the function deadline. The
+      // resilient reader degrades a still-failing pair to single-page reads.
+      const retryBatches = chunkPages(retryImages, SCANNED_RECOVERY_BATCH_SIZE, 0)
       for (let i = 0; i < retryBatches.length; i += 1) {
-        try {
-          batchResults.push(
-            await runBatch(retryBatches[i], 'recovering', i + 1, retryBatches.length),
-          )
-        } catch {
-          // A failed recovery batch just means we keep the missing-number
-          // warning — never sink the whole import for it.
-        }
+        // A failed recovery page just means we keep the missing-number
+        // warning — readBatchResilient never throws, so a bad page can't
+        // sink the whole import.
+        const { results, failedPages: unread } = await readBatchResilient(
+          retryBatches[i],
+          pages => runBatch(pages, 'recovering', i + 1, retryBatches.length),
+        )
+        batchResults.push(...results)
+        markRead(retryBatches[i], unread)
       }
       merged = mergeSectionBatches(batchResults)
       // Stop as soon as a round recovers nothing new (the model genuinely
@@ -1283,15 +1488,19 @@ export async function runVisionImport({
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
-  // Some page groups failed to read but others succeeded — surface a clear,
-  // honest partial-import notice instead of silently dropping their questions.
-  // (Recovery above may have back-filled gaps between captured numbers; this
-  // still flags that whole groups were skipped so the teacher can re-import.)
-  if (batchErrors.length) {
-    const groupLabel = batchErrors.length === 1 ? 'One group of pages' : `${batchErrors.length} groups of pages`
+  // Some pages failed to read even after the per-page retries — surface a
+  // clear, honest partial-import notice naming the exact pages instead of
+  // silently dropping their questions. A page that failed inside one batch but
+  // was read successfully by another pass (overlap / split retry / recovery)
+  // is NOT reported: its content made it in.
+  const unreadPages = [...new Set(failedPages)].filter(n => !readOkPages.has(n))
+  if (unreadPages.length) {
+    const pageLabel = formatPageList(unreadPages)
     warnings.unshift(
-      `${groupLabel} could not be read (${batchErrors[0].message || 'the reader failed'}) — ` +
-      'questions on those pages may be missing. Re-import to try them again, or add them by hand.',
+      `${pageLabel.charAt(0).toUpperCase()}${pageLabel.slice(1)} could not be read even after retrying ` +
+      `(${batchErrors[0]?.message || 'the reader failed'}) — questions on ` +
+      `${unreadPages.length === 1 ? 'that page' : 'those pages'} may be missing. ` +
+      'Re-import to try again, or add them by hand.',
     )
   }
   // Layout-vs-extraction reconciliation: if the cheap layout pass saw more
