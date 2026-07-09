@@ -3,6 +3,7 @@ import {
   diffImportedSections,
   mergeImportedSections,
   isQuestionChanged,
+  remapPreservedAnswer,
 } from './quizReimportDiff.js'
 
 function standalone({
@@ -334,3 +335,81 @@ function runPassageUnionTest() {
 }
 
 runPassageUnionTest()
+
+// ── Answer is remapped (not blindly copied) when options change on re-import ──
+
+function runAnswerRemapTest() {
+  const existing = { correctAnswer: 1, options: ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'] }
+
+  // Options unchanged → keep the index.
+  assert.deepEqual(
+    remapPreservedAnswer(existing, { correctAnswer: '', options: ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'] }),
+    { correctAnswer: 1 },
+    'unchanged options keep the stored index',
+  )
+
+  // Options REORDERED → the answer follows the correct option's text to its new slot.
+  assert.deepEqual(
+    remapPreservedAnswer(existing, { correctAnswer: '', options: ['Ndola', 'Lusaka', 'Kitwe', 'Livingstone'] }),
+    { correctAnswer: 0 },
+    'reordered options: Ndola moved to index 0 — the answer follows it',
+  )
+
+  // The correct option is GONE → clear + flag rather than mark a wrong choice.
+  const dropped = remapPreservedAnswer(existing, { correctAnswer: '', options: ['Lusaka', 'Kitwe', 'Livingstone', 'Chipata'] })
+  assert.equal(dropped.correctAnswer, '', 'a vanished correct option clears the answer')
+  assert.equal(dropped.requiresReview, true, 'and flags the question for review')
+  assert.match(dropped.reviewNote, /options changed/i)
+
+  // A written-answer (string) carries over untouched — no options to shift.
+  assert.deepEqual(
+    remapPreservedAnswer({ correctAnswer: 'photosynthesis', options: [] }, { correctAnswer: '', options: [] }),
+    { correctAnswer: 'photosynthesis' },
+  )
+
+  // End-to-end through the merge: a matched blank re-import with reordered
+  // options must not mark the wrong choice correct.
+  const merged = mergeImportedSections(
+    [standalone({ number: 5, correctAnswer: 1, options: ['Lusaka', 'Ndola', 'Kitwe', 'Livingstone'], _id: 'fb-5' })],
+    [standalone({ number: 5, correctAnswer: '', options: ['Ndola', 'Lusaka', 'Kitwe', 'Livingstone'] })],
+  )
+  assert.equal(merged[0].question.correctAnswer, 0, 'merged answer follows Ndola to its new index')
+
+  console.log('runAnswerRemapTest passed')
+}
+
+runAnswerRemapTest()
+
+// ── Matched passage children are UPDATED (not just appended) on re-import ─────
+
+function runPassageChildUpdateTest() {
+  const existing = [
+    contentPassage({
+      id: 'p-existing',
+      title: 'The Honest Farmer',
+      children: [childQ(5, 'Why did the farmer return the purse?', 2)],
+    }),
+  ]
+  // Re-import corrects Q5's OCR text AND recovers a missed Q6.
+  const incoming = [
+    contentPassage({
+      id: 'p-incoming',
+      title: 'The Honest Farmer',
+      children: [
+        childQ(5, 'Why did the farmer return the lost purse to its owner?'),  // corrected text, blank answer
+        childQ(6, 'What lesson does the story teach?'),                        // newly recovered
+      ],
+    }),
+  ]
+
+  const merged = mergeImportedSections(existing, incoming)
+  const children = merged.find((s) => s.kind === 'passage').passage.questions
+  assert.equal(children.length, 2, 'the recovered child is added')
+  assert.match(children[0].text, /lost purse to its owner/, 'the existing child takes the corrected re-import text')
+  assert.equal(children[0].correctAnswer, 2, 'and keeps the teacher-set answer (options unchanged)')
+  assert.match(children[1].text, /lesson does the story teach/, 'the new child appends')
+
+  console.log('runPassageChildUpdateTest passed')
+}
+
+runPassageChildUpdateTest()

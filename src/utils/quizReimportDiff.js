@@ -112,16 +112,54 @@ function indexByOccurrence(sections = []) {
   return { byKey, passages }
 }
 
+// Carry a teacher's existing MCQ answer onto the re-imported question SAFELY.
+// MCQ answers are stored as an option INDEX, so if the re-import changed the
+// option text or order, blindly copying the old index would mark a different
+// choice correct. So: unchanged options → keep the index; options changed but
+// the correct option's TEXT still exists → remap to its new index; the correct
+// option is gone → clear the answer and flag it for review rather than leave a
+// silently-wrong one. Non-index answers (short-answer/essay/fill store a
+// string) have no options to shift, so they carry over as-is. Returns the
+// patch to apply to the merged question ({ correctAnswer, requiresReview?,
+// reviewNote? }). Pure + exported for tests.
+export function remapPreservedAnswer(existing = {}, incoming = {}) {
+  const answer = existing.correctAnswer
+  // String answer (written-response types) — options don't apply.
+  if (!Number.isInteger(answer)) return { correctAnswer: answer }
+  const existingOpts = Array.isArray(existing.options) ? existing.options : []
+  const incomingOpts = Array.isArray(incoming.options) ? incoming.options : []
+  // Options unchanged → the stored index still points at the same option.
+  if (optionsEqual(existingOpts, incomingOpts)) return { correctAnswer: answer }
+  // Options changed → follow the correct option by its TEXT to its new slot.
+  const correctText = normaliseField(existingOpts[answer])
+  if (correctText) {
+    const newIndex = incomingOpts.findIndex((opt) => normaliseField(opt) === correctText)
+    if (newIndex >= 0) return { correctAnswer: newIndex }
+  }
+  // The correct option no longer exists — don't guess. Clear + flag.
+  return {
+    correctAnswer: '',
+    requiresReview: true,
+    reviewNote: 'Options changed on re-import and the saved answer no longer matched an option — please set the correct answer.',
+  }
+}
+
 // Blank-answer preservation for the merge: take the incoming question's
 // content, but keep the existing answer/explanation when the incoming one is
 // blank (scanned re-imports never carry a key — replacing would wipe the
-// teacher's completed answer key).
+// teacher's completed answer key). The answer is remapped, not blindly copied,
+// so a changed option list can't silently mark the wrong choice correct.
 function mergeQuestionPreservingAnswers(existingQuestion, incomingQuestion) {
   const incoming = incomingQuestion || {}
   const existing = existingQuestion || {}
   const next = { ...incoming }
   if (String(incoming.correctAnswer ?? '') === '' && String(existing.correctAnswer ?? '') !== '') {
-    next.correctAnswer = existing.correctAnswer
+    const mapped = remapPreservedAnswer(existing, incoming)
+    next.correctAnswer = mapped.correctAnswer
+    if (mapped.requiresReview) next.requiresReview = true
+    if (mapped.reviewNote) {
+      next.reviewNotes = [...new Set([...(Array.isArray(next.reviewNotes) ? next.reviewNotes : []), mapped.reviewNote])]
+    }
   }
   if (normaliseField(incoming.explanation) === '' && normaliseField(existing.explanation) !== '') {
     next.explanation = existing.explanation
@@ -146,25 +184,55 @@ function passagesMatch(sigA, sigB) {
 }
 
 /**
- * Union an incoming passage's child questions into the existing passage:
- * children the existing passage already has (by printed number, else stem)
- * are kept in their existing, teacher-edited form; genuinely NEW children —
- * e.g. a question the first import missed and a re-import recovered — append
- * at the end. Returns the existing section untouched when nothing is new.
+ * Merge an incoming passage's child questions into the existing passage:
+ *   - a child the existing passage already has (matched by printed number,
+ *     else stem) is UPDATED to the re-imported content — so a re-import that
+ *     corrects a comprehension question's OCR text/options is applied — while
+ *     preserving the teacher's identity fields and answer (remapped, never
+ *     blindly copied, exactly like standalone questions);
+ *   - a genuinely NEW child (a question the first import missed and a re-import
+ *     recovered) is appended at the end.
+ * Returns the existing section untouched when nothing changed or was added.
  */
 function unionPassageChildren(existingSection, incomingSection) {
   const existingQuestions = existingSection.passage?.questions || []
+  const incomingQuestions = incomingSection.passage?.questions || []
+  const incomingByKey = new Map()
+  incomingQuestions.forEach((q) => {
+    const key = passageChildKey(q)
+    if (key && !incomingByKey.has(key)) incomingByKey.set(key, q)
+  })
+
+  let changed = false
+  const updated = existingQuestions.map((existingChild) => {
+    const key = passageChildKey(existingChild)
+    const incomingChild = key ? incomingByKey.get(key) : null
+    if (!incomingChild) return existingChild
+    if (!isQuestionChanged(existingChild, incomingChild)) return existingChild
+    changed = true
+    // Take the re-imported content, keep the child's identity + a safely
+    // remapped answer (same rules as the standalone merge below).
+    return {
+      ...mergeQuestionPreservingAnswers(existingChild, incomingChild),
+      _id: existingChild._id,
+      localId: existingChild.localId,
+      partId: existingChild.partId ?? incomingChild.partId ?? null,
+      topic: existingChild.topic || incomingChild.topic || '',
+    }
+  })
+
   const have = new Set(existingQuestions.map(passageChildKey).filter(Boolean))
-  const additions = (incomingSection.passage?.questions || []).filter((q) => {
+  const additions = incomingQuestions.filter((q) => {
     const key = passageChildKey(q)
     return key && !have.has(key)
   })
-  if (!additions.length) return existingSection
+
+  if (!changed && !additions.length) return existingSection
   return {
     ...existingSection,
     passage: {
       ...existingSection.passage,
-      questions: [...existingQuestions, ...additions],
+      questions: [...updated, ...additions],
     },
   }
 }
