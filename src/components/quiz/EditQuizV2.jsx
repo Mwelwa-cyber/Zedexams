@@ -1952,9 +1952,18 @@ export default function EditQuizV2() {
       show('This quiz\'s questions didn\'t load — reload the page before changing its status.', true)
       return
     }
+    const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
+    // Publishing writes the quiz doc through the same grade-gated schema as a
+    // save, so an invalid grade (undetected scanned-import grade) would fail
+    // the write. Surface the fixable reason up front instead — but ONLY when
+    // publishing: unpublishing (taking content DOWN) must never be blocked by
+    // a bad grade on a legacy doc.
+    if (nextStatus === 'published' && !isSaveableGrade(form.grade)) {
+      show(GRADE_REQUIRED_MESSAGE, true)
+      return
+    }
     setSaving(true)
     try {
-      const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
       const serializedSections = await serializeWithImportedAssetUploads()
       // Publishing classifies the quiz (practice vs exam-only, preserving a
       // Daily Exam pin) so it actually shows up for learners. Unpublishing
