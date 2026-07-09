@@ -56,13 +56,52 @@ class PlayConfigError extends Error {
 let cachedJwt = null;
 let cachedJwtEmail = null;
 
-async function getAccessToken(saJsonString) {
+/**
+ * Parse GOOGLE_PLAY_SA_JSON into the service-account object, tolerating the two
+ * ways `firebase functions:secrets:set` + copy-paste routinely mangle it (the
+ * incident this guards against — a mis-set secret took Play verification down):
+ *
+ *   1. the whole object wrapped in a pair of SINGLE quotes ('{...}') — not
+ *      valid JSON, so a bare JSON.parse throws;
+ *   2. the object double-encoded as a JSON string ("{\"type\":...}") — a bare
+ *      JSON.parse yields the *string*, not the object.
+ *
+ * Both self-heal here; anything still unparseable throws the same
+ * `sa-json-invalid` as before, so a genuinely bad/empty secret is not masked.
+ * Mirrors normalizePem()'s tolerance for the GitHub App key (monitor.js).
+ */
+function parseServiceAccountJson(saJsonString) {
+  let value = String(saJsonString || "").trim();
+  // A single-quote wrapper is never valid JSON; strip one matched pair so the
+  // common `'{...}'` paste parses. (Double-quote wrapping needs no special
+  // case — a JSON-encoded object is itself valid JSON, handled by the
+  // double-decode below.)
+  if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+    value = value.slice(1, -1).trim();
+  }
+  const invalid = () =>
+    new PlayConfigError("GOOGLE_PLAY_SA_JSON is not valid JSON", "sa-json-invalid");
   let sa;
   try {
-    sa = JSON.parse(String(saJsonString || ""));
+    sa = JSON.parse(value);
   } catch {
-    throw new PlayConfigError("GOOGLE_PLAY_SA_JSON is not valid JSON", "sa-json-invalid");
+    throw invalid();
   }
+  // Double-encoded: the first parse returns a string; parse once more to reach
+  // the object. Exactly one extra hop — never loop.
+  if (typeof sa === "string") {
+    try {
+      sa = JSON.parse(sa);
+    } catch {
+      throw invalid();
+    }
+  }
+  if (!sa || typeof sa !== "object") throw invalid();
+  return sa;
+}
+
+async function getAccessToken(saJsonString) {
+  const sa = parseServiceAccountJson(saJsonString);
   if (!sa.client_email || !sa.private_key) {
     throw new PlayConfigError(
         "GOOGLE_PLAY_SA_JSON is missing client_email/private_key", "sa-json-incomplete");
@@ -433,6 +472,7 @@ async function verifyAndApplyPurchase({
 
 module.exports = {
   PlayConfigError,
+  parseServiceAccountJson,
   getAccessToken,
   fetchSubscriptionV2,
   acknowledgeSubscription,

@@ -131,6 +131,13 @@ email** goes to `ADMIN_EMAILS` the moment a real purchase hits a config
 error (a buyer has paid and is not getting access — Google auto-refunds
 after 3 days, so an unfixed config loses the sale).
 
+`getAccessToken` parses the secret through `parseServiceAccountJson`, which
+**self-heals the two ways `firebase functions:secrets:set` + copy-paste mangle
+the SA JSON**: a single-quote-wrapped object (`'{...}'`) and a double-encoded
+JSON string (`"{\"type\":...}"`). Prefer `--data-file ./sa.json` when setting
+the secret to avoid the mangling entirely; the tolerant parse is a backstop, not
+a licence to paste. A genuinely bad/empty value still fails `sa-json-invalid`.
+
 ## Fixing `play-api-rejected` (401 / 403) — step by step
 
 This reason means the SA JSON parsed, we obtained an OAuth token from it, but

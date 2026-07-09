@@ -63,8 +63,8 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 
-const {verifyAndApplyPurchase, getAccessToken, probePlayConfig, PlayConfigError} =
-  require("./googlePlayBilling");
+const {verifyAndApplyPurchase, getAccessToken, probePlayConfig, PlayConfigError,
+  parseServiceAccountJson} = require("./googlePlayBilling");
 const {derivePaymentId} = require("./googlePlayBillingCore");
 
 // ── Fixtures + injected deps ─────────────────────────────────────────────
@@ -312,6 +312,39 @@ function reset() {
   thrown = null;
   await getAccessToken("{}").catch((err) => { thrown = err; });
   ok("SA JSON missing fields → PlayConfigError reason sa-json-incomplete",
+      thrown instanceof PlayConfigError && thrown.reason === "sa-json-incomplete");
+
+  // ── parseServiceAccountJson: self-heals the copy-paste mangling that took
+  // Play verification down (a mis-set GOOGLE_PLAY_SA_JSON secret). Recoverable
+  // shapes parse; a genuinely bad secret still throws sa-json-invalid so it's
+  // never silently masked.
+  // A placeholder private_key (NOT a real PEM block — the secret-hygiene scan
+  // rejects tracked PEM markers); the parse only needs the field to survive.
+  const saObj = {client_email: "sa@x.iam.gserviceaccount.com", private_key: "pk-test-placeholder"};
+  const clean = JSON.stringify(saObj);
+  const parsedClean = parseServiceAccountJson(clean);
+  ok("clean SA JSON parses to the object",
+      parsedClean.client_email === saObj.client_email && parsedClean.private_key === saObj.private_key);
+  ok("surrounding whitespace is tolerated",
+      parseServiceAccountJson(`\n  ${clean}\n`).client_email === saObj.client_email);
+  ok("single-quote-wrapped JSON self-heals ('{...}')",
+      parseServiceAccountJson(`'${clean}'`).client_email === saObj.client_email);
+  ok("double-encoded JSON self-heals (\"{\\\"...\\\"}\")",
+      parseServiceAccountJson(JSON.stringify(clean)).client_email === saObj.client_email);
+  const throws = (input, label) => {
+    let e = null;
+    try { parseServiceAccountJson(input); } catch (err) { e = err; }
+    ok(label, e instanceof PlayConfigError && e.reason === "sa-json-invalid");
+  };
+  throws("not-json at all", "unparseable garbage → sa-json-invalid");
+  throws("\"just a quoted string\"", "a JSON string (not an object) → sa-json-invalid");
+  throws("42", "a JSON number (not an object) → sa-json-invalid");
+  throws("", "empty secret → sa-json-invalid (probe catches empty as sa-json-missing earlier)");
+  // A single-quote-wrapped but field-INCOMPLETE object still reaches the field
+  // gate (proves the self-heal parses before the completeness check runs).
+  thrown = null;
+  await getAccessToken("'{}'").catch((err) => { thrown = err; });
+  ok("single-quote-wrapped {} self-heals then fails at the field gate, not parse",
       thrown instanceof PlayConfigError && thrown.reason === "sa-json-incomplete");
 
   // probePlayConfig — the runbook's garbage-token sanity check as code
