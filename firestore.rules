@@ -31,7 +31,13 @@ service cloud.firestore {
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
-    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']; }
+    // Must mirror QUESTION_TYPES in src/utils/questionType.js EXACTLY — the
+    // editor persists canonical types verbatim, so a type missing here makes
+    // every save of a quiz containing one fail with "Missing or insufficient
+    // permissions" (regressions #398 numeric, #399 hotspot, and the imported
+    // Fill-in-the-Blanks papers that could never save). Guarded by
+    // test:rules-text, which now derives its expected list from QUESTION_TYPES.
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'tf', 'short_answer', 'diagram', 'diagram_label', 'fill', 'fill_blanks', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']; }
     function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {

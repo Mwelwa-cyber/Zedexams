@@ -398,6 +398,39 @@ async function main() {
     await assertFails(getDoc(doc(learnerA, 'quizzes', 'daily_exam_quiz', 'questions', 'q1')))
   })
 
+  // ── quizzes/{id}/questions — every editor question type saves ─
+  section('quiz questions — every canonical editor type passes _validQuestionType')
+
+  // Regression guard for the drift that hit THREE times (#398 'numeric',
+  // #399 'hotspot', 2026-07 'fill_blanks'/'diagram_label'): a canonical
+  // editor type missing from the rules allowlist makes every save of a quiz
+  // containing one fail with "Missing or insufficient permissions" — for
+  // admins too. The imported Fill-in-the-Blanks papers could never save.
+  const { QUESTION_TYPES } = await import('../src/utils/questionType.js')
+  for (const qType of QUESTION_TYPES) {
+    await test(`admin can save a '${qType}' question`, async () => {
+      await assertSucceeds(setDoc(doc(admin, 'quizzes', 'draft_quiz', 'questions', `type_${qType}`), {
+        type: qType,
+        text: `A ${qType} question`,
+        options: qType === 'mcq' || qType === 'tf' ? ['a', 'b', 'c', 'd'] : [],
+        correctAnswer: qType === 'mcq' || qType === 'tf' ? 0 : '',
+        marks: 1,
+        order: 1,
+      }))
+    })
+  }
+
+  await test('a bogus question type is still rejected', async () => {
+    await assertFails(setDoc(doc(admin, 'quizzes', 'draft_quiz', 'questions', 'type_bogus'), {
+      type: 'not_a_real_type',
+      text: 'Bad type',
+      options: [],
+      correctAnswer: '',
+      marks: 1,
+      order: 1,
+    }))
+  })
+
   // ── exam_attempts ────────────────────────────────────────────
   section('exam_attempts — submitted public, in-progress private, no client updates')
 
