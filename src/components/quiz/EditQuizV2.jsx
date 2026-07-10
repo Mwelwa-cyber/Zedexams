@@ -1448,7 +1448,13 @@ export default function EditQuizV2() {
       // Topic is intentionally left untouched on import — imported papers
       // span many CBC topics; the teacher should keep their own value or
       // leave the field blank rather than have the title stamped in.
-      grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
+      // Prefer the grade the importer read. If it couldn't read one, keep the
+      // quiz's existing grade only when it's already valid; otherwise clear it
+      // so the save prompts for the real grade rather than a wrong default
+      // riding through (the silent-mislabel path).
+      grade: linkedToPaper
+        ? current.grade
+        : (imported.quiz.grade || (isSaveableGrade(current.grade) ? current.grade : '')),
       subject: normalizeSubject(linkedToPaper ? current.subject : (imported.quiz.subject || current.subject)),
       mode: 'imported_document',
       importStatus: imported.importStatus,

@@ -26,6 +26,7 @@ import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion, collectQuizIssues } from '../../utils/quizValidation.js'
+import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../schemas/quiz.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
@@ -444,7 +445,13 @@ export default function CreateQuizV2() {
     return () => clearTimeout(timer)
   }, [form, sections, parts, creationMode, currentUser?.uid])
 
+  // True once the admin explicitly picks a grade. Lets an import that couldn't
+  // detect a grade tell an admin-chosen grade apart from the untouched default,
+  // so it prompts for the real grade instead of silently keeping the default.
+  const gradeTouchedRef = useRef(false)
+
   function setF(field, value) {
+    if (field === 'grade') gradeTouchedRef.current = true
     setForm(current => ({ ...current, [field]: value }))
   }
 
@@ -822,7 +829,14 @@ export default function CreateQuizV2() {
         // Topic is intentionally left untouched on import — imported papers
         // span many CBC topics; the teacher should keep their own value or
         // leave the field blank rather than have the title stamped in.
-        grade: imported.quiz.grade || current.grade,
+        // Use the grade the importer read; if it couldn't read one, keep the
+        // current grade ONLY when the admin explicitly chose it — otherwise
+        // clear it (rather than silently keep the default) so the save prompts
+        // for the real grade instead of mislabeling the paper. Manual quiz
+        // creation is unaffected: its default grade stays until an import
+        // without a detected grade lands.
+        grade: imported.quiz.grade
+          || (gradeTouchedRef.current && isSaveableGrade(current.grade) ? current.grade : ''),
         subject: imported.quiz.subject || current.subject,
         mode: 'imported_document',
         importStatus: imported.importStatus,
@@ -1261,6 +1275,13 @@ export default function CreateQuizV2() {
   function validate() {
     if (!form.title.trim()) {
       show('Please enter a quiz title.', true)
+      return false
+    }
+    // A grade the platform supports (4–7) is required. An import that couldn't
+    // read the grade leaves the field empty (see applyImportedPayload) so the
+    // admin picks it here rather than the quiz saving under a wrong default.
+    if (!isSaveableGrade(form.grade)) {
+      show(GRADE_REQUIRED_MESSAGE, true)
       return false
     }
     if (questionCount === 0) {

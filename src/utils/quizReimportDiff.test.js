@@ -413,3 +413,43 @@ function runPassageChildUpdateTest() {
 }
 
 runPassageChildUpdateTest()
+
+// ── Duplicate numbers are paired by CONTENT, not array position ──────────────
+
+function runDuplicateNumberContentMatchTest() {
+  // Numbering-restart paper: the FIRST import missed Section A's Q1 and kept
+  // only Section B's Q1. The re-import brings BOTH Q1s. Position pairing would
+  // merge Section B's saved id/answer onto Section A's text; content pairing
+  // matches B↔B and treats A as genuinely new.
+  const existing = [
+    standalone({ number: 1, text: 'Write a composition about your school.', type: 'short_answer', options: [], correctAnswer: 'essay', _id: 'fb-B1', localId: 'B1' }),
+  ]
+  const incoming = [
+    standalone({ number: 1, text: 'Add 2 and 3.', options: ['4', '5', '6', '7'], correctAnswer: '' }),      // Section A Q1 (new)
+    standalone({ number: 1, text: 'Write a composition about your school.', type: 'short_answer', options: [], correctAnswer: '' }), // Section B Q1 (existing)
+  ]
+
+  const merged = mergeImportedSections(existing, incoming)
+  assert.equal(merged.length, 2, 'both Q1s are present')
+  // The existing Section B question keeps its identity + answer, matched to the
+  // Section B incoming (same text), NOT to Section A's "Add 2 and 3".
+  const kept = merged.find((s) => s.question._id === 'fb-B1')
+  assert.ok(kept, 'the existing Section B Q1 is preserved by id')
+  assert.match(kept.question.text, /composition/, 'and keeps its own text, not Section A’s')
+  assert.equal(kept.question.correctAnswer, 'essay', 'and its saved answer')
+  // Section A Q1 comes in as a NEW question (no stale id stamped on it).
+  const added = merged.find((s) => /Add 2 and 3/.test(s.question.text))
+  assert.ok(added, 'Section A Q1 is added')
+  assert.ok(!added.question._id, 'the added question is not stamped with the existing id')
+
+  // Diff reports it correctly too: one unchanged (B), one added (A), none changed/removed.
+  const diff = diffImportedSections(existing, incoming)
+  assert.equal(diff.added.length, 1, 'Section A Q1 is an add')
+  assert.equal(diff.unchanged.length, 1, 'Section B Q1 is unchanged')
+  assert.equal(diff.changed.length, 0)
+  assert.equal(diff.removed.length, 0, 'nothing is wrongly reported as removed')
+
+  console.log('runDuplicateNumberContentMatchTest passed')
+}
+
+runDuplicateNumberContentMatchTest()

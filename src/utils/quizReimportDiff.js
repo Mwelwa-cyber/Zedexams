@@ -87,29 +87,77 @@ function sourceNumber(section) {
 }
 
 /**
- * Index standalone sections by an OCCURRENCE-SCOPED number key: the Nth
- * section bearing printed number K gets key "K#N". Papers that restart
- * numbering per section carry the same printed number more than once, and a
- * bare-number map collapses them last-wins — Section A's questions would be
- * diffed/merged against Section B's content and destroyed. Occurrence pairing
- * matches first-with-first in document order instead.
+ * Pair existing↔incoming standalone sections by printed number.
+ *
+ * The common case is a unique number: one existing, one incoming → a direct
+ * pair. Papers that restart numbering per section carry the SAME printed
+ * number more than once (Section A Q1 and Section B Q1). Pairing those by array
+ * POSITION is wrong whenever the two imports don't contain the same duplicates
+ * in the same order — e.g. the first import missed Section A Q1 but kept
+ * Section B Q1, then a re-import brings both: position pairing would merge
+ * Section B's saved answer onto Section A's text. So for a duplicated number we
+ * pair by CONTENT similarity (stem + options), best match first, and only when
+ * there's a real match — leftovers become genuine adds / removes rather than
+ * being stamped onto unrelated questions.
+ *
+ * Returns { pairs: Map(existingSection → incomingSection), added: [], removed: [] }.
+ * `pairs` is keyed by the existing section object so callers can walk existing
+ * in its own order and look up each one's incoming match.
  */
-function indexByOccurrence(sections = []) {
-  const counts = new Map()
-  const byKey = new Map()
-  const passages = []
-  sections.forEach((section) => {
-    if (section?.kind === 'passage') {
-      passages.push(section)
+function pairStandalonesByNumber(existing = [], incoming = []) {
+  const groupByNumber = (sections) => {
+    const map = new Map()
+    sections.forEach((section) => {
+      if (section?.kind === 'passage') return
+      const num = sourceNumber(section)
+      if (!num) return
+      if (!map.has(num)) map.set(num, [])
+      map.get(num).push(section)
+    })
+    return map
+  }
+  const existingByNumber = groupByNumber(existing)
+  const incomingByNumber = groupByNumber(incoming)
+
+  const pairs = new Map()
+  const added = []
+  const removed = []
+
+  const allNumbers = new Set([...existingByNumber.keys(), ...incomingByNumber.keys()])
+  allNumbers.forEach((num) => {
+    const exs = existingByNumber.get(num) || []
+    const ins = incomingByNumber.get(num) || []
+
+    // Fast path — a unique number: direct pair / add / remove.
+    if (exs.length <= 1 && ins.length <= 1) {
+      if (exs.length && ins.length) pairs.set(exs[0], ins[0])
+      else if (ins.length) added.push(ins[0])
+      else removed.push(exs[0])
       return
     }
-    const num = sourceNumber(section)
-    if (!num) return
-    const occurrence = counts.get(num) || 0
-    counts.set(num, occurrence + 1)
-    byKey.set(`${num}#${occurrence}`, section)
+
+    // Duplicated number → greedily pair by content similarity, best first.
+    const candidates = []
+    exs.forEach((e, ei) => {
+      const eSig = sectionSignature(e)
+      ins.forEach((n, ni) => {
+        candidates.push({ ei, ni, score: matchScore(eSig, sectionSignature(n)) })
+      })
+    })
+    candidates.sort((a, b) => b.score - a.score)
+    const usedEx = new Set()
+    const usedIn = new Set()
+    candidates.forEach(({ ei, ni, score }) => {
+      if (score <= 0 || usedEx.has(ei) || usedIn.has(ni)) return
+      usedEx.add(ei)
+      usedIn.add(ni)
+      pairs.set(exs[ei], ins[ni])
+    })
+    exs.forEach((e, ei) => { if (!usedEx.has(ei)) removed.push(e) })
+    ins.forEach((n, ni) => { if (!usedIn.has(ni)) added.push(n) })
   })
-  return { byKey, passages }
+
+  return { pairs, added, removed }
 }
 
 // Carry a teacher's existing MCQ answer onto the re-imported question SAFELY.
@@ -254,35 +302,27 @@ function unionPassageChildren(existingSection, incomingSection) {
  *                                          unchanged for the merge step
  */
 export function diffImportedSections(existing = [], incoming = []) {
-  const { byKey: existingByKey, passages: existingPassages } = indexByOccurrence(existing)
-  const { byKey: incomingByKey, passages: incomingPassages } = indexByOccurrence(incoming)
+  const existingPassages = existing.filter((s) => s?.kind === 'passage')
+  const incomingPassages = incoming.filter((s) => s?.kind === 'passage')
+  const { pairs, added: addedSections, removed } = pairStandalonesByNumber(existing, incoming)
 
-  const added = []
+  const added = [...addedSections]
   const changed = []
   const unchanged = []
-  const removed = []
 
-  // Walk incoming in its order so the UI shows them grouped naturally.
-  incomingByKey.forEach((incomingSection, key) => {
-    if (existingByKey.has(key)) {
-      const existingSection = existingByKey.get(key)
-      if (isQuestionChanged(existingSection.question, incomingSection.question)) {
-        changed.push({
-          sourceQuestionNumber: key.slice(0, key.indexOf('#')),
-          before: existingSection,
-          after: incomingSection,
-        })
-      } else {
-        unchanged.push(existingSection)
-      }
+  // Walk existing in order so matched rows read naturally in the diff UI.
+  existing.forEach((existingSection) => {
+    if (existingSection?.kind === 'passage') return
+    const incomingSection = pairs.get(existingSection)
+    if (!incomingSection) return // in `removed`
+    if (isQuestionChanged(existingSection.question, incomingSection.question)) {
+      changed.push({
+        sourceQuestionNumber: sourceNumber(existingSection),
+        before: existingSection,
+        after: incomingSection,
+      })
     } else {
-      added.push(incomingSection)
-    }
-  })
-
-  existingByKey.forEach((existingSection, key) => {
-    if (!incomingByKey.has(key)) {
-      removed.push(existingSection)
+      unchanged.push(existingSection)
     }
   })
 
@@ -317,27 +357,23 @@ export function diffImportedSections(existing = [], incoming = []) {
  * "Replace all" goes through the existing replace flow, not this helper.
  */
 export function mergeImportedSections(existing = [], incoming = []) {
-  const { byKey: incomingByKey } = indexByOccurrence(incoming)
+  // Content-aware standalone pairing (handles duplicate numbers correctly).
+  const { pairs, added: addedStandalones } = pairStandalonesByNumber(existing, incoming)
   // Incoming passages, with signatures, so an existing passage can claim its
   // re-imported counterpart (each incoming passage matches at most once).
   const incomingPassageInfo = incoming
     .filter((section) => section?.kind === 'passage')
     .map((section) => ({ section, signature: sectionSignature(section), used: false }))
 
-  const usedKeys = new Set()
   const merged = []
-
-  // Occurrence counter for the existing walk — pairs the Nth existing
-  // question numbered K with the Nth incoming question numbered K.
-  const existingCounts = new Map()
 
   // Walk existing in its current order so any reordering the teacher
   // applied is preserved on top of the merge.
   existing.forEach((section) => {
     if (section?.kind === 'passage') {
       // A re-imported copy of this passage? Keep the teacher's copy and union
-      // in only the child questions the re-import newly recovered — never
-      // append the whole passage again (that doubled every passage).
+      // in the re-imported children (updating changed ones, appending new
+      // ones) — never append the whole passage again (that doubled every one).
       const signature = sectionSignature(section)
       const match = signature
         ? incomingPassageInfo.find((p) => !p.used && passagesMatch(p.signature, signature))
@@ -350,12 +386,8 @@ export function mergeImportedSections(existing = [], incoming = []) {
       }
       return
     }
-    const num = sourceNumber(section)
-    const occurrence = num ? (existingCounts.get(num) || 0) : 0
-    if (num) existingCounts.set(num, occurrence + 1)
-    const key = num ? `${num}#${occurrence}` : null
-    if (key && incomingByKey.has(key)) {
-      const incomingSection = incomingByKey.get(key)
+    const incomingSection = pairs.get(section)
+    if (incomingSection) {
       // Take the incoming content but preserve identity fields so the
       // Firestore record updates in place. The teacher's manual fields
       // that the importer doesn't set (topic, partId) carry over, and a
@@ -371,27 +403,21 @@ export function mergeImportedSections(existing = [], incoming = []) {
           topic: section.question?.topic || incomingSection.question?.topic || '',
         },
       })
-      usedKeys.add(key)
     } else {
       merged.push(section)
     }
   })
 
-  // Append incoming-only standalones and genuinely NEW passages (ones no
-  // existing passage claimed above).
-  const incomingCounts = new Map()
+  // Append incoming-only standalones (in incoming order) and genuinely NEW
+  // passages (ones no existing passage claimed above).
+  const addedSet = new Set(addedStandalones)
   incoming.forEach((section) => {
     if (section?.kind === 'passage') {
       const info = incomingPassageInfo.find((p) => p.section === section)
       if (info && !info.used) merged.push(section)
       return
     }
-    const num = sourceNumber(section)
-    const occurrence = num ? (incomingCounts.get(num) || 0) : 0
-    if (num) incomingCounts.set(num, occurrence + 1)
-    const key = num ? `${num}#${occurrence}` : null
-    if (key && usedKeys.has(key)) return
-    merged.push(section)
+    if (addedSet.has(section)) merged.push(section)
   })
 
   return merged
