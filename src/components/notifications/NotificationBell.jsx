@@ -7,8 +7,13 @@ import NotificationCenter from './NotificationCenter'
  * Bell icon + unread badge for the top navigation. Opens the Notification
  * Center. Shared across learner / teacher / admin shells — the notifications
  * themselves are role-agnostic.
+ *
+ * `withPanel` — the Notification Center portals to <body>, so when a shell
+ * mounts two bells (Navbar has a desktop and a mobile cluster; only one is
+ * visible at a time) exactly ONE of them may own the panel, or two identical
+ * overlays stack. Pass `withPanel={false}` on every bell after the first.
  */
-export default function NotificationBell() {
+export default function NotificationBell({ withPanel = true }) {
   const { unreadCount, open, setOpen } = useNotifications()
   const hasUnread = unreadCount > 0
 
@@ -18,6 +23,7 @@ export default function NotificationBell() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        title="Notifications"
         aria-haspopup="dialog"
         className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg theme-text-muted hover:theme-text hover:theme-bg-subtle transition-colors min-h-0 bg-transparent shadow-none"
       >
@@ -31,7 +37,7 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-      {open && <NotificationCenter />}
+      {withPanel && open && <NotificationCenter />}
     </>
   )
 }

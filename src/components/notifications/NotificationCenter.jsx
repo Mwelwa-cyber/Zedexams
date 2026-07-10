@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../contexts/NotificationContext'
 import Icon from '../ui/Icon'
@@ -159,7 +160,12 @@ export default function NotificationCenter() {
     navigate('/settings')
   }
 
-  return (
+  // Portal to <body>: the bell that opens this lives inside the glass navbar,
+  // whose backdrop-filter + will-change:transform (.zx-glass-nav /
+  // .zx-nav-autohide) make the nav the containing block for fixed-position
+  // descendants — rendered in place, this "full-screen" overlay would be
+  // squashed into the 80px nav strip and look like the bell does nothing.
+  return createPortal(
     <div
       className="fixed inset-0 z-[120] flex justify-end sm:p-4"
       role="dialog"
@@ -298,6 +304,7 @@ export default function NotificationCenter() {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

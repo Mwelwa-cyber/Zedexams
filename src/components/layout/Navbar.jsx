@@ -98,12 +98,17 @@ export default function Navbar() {
   // Shared link styles — extracted so desktop and mobile renders stay in sync.
   // Desktop active link gets a 2-px accent underline so the current section
   // reads at a glance without leaning solely on the tinted background.
+  // Below xl there isn't room for inline icon+text, but icon-only links left
+  // learners guessing what each glyph meant — so the links stack a tiny label
+  // under the icon instead of hiding it, and switch to the inline row at xl+.
   const linkClass = ({ isActive }) =>
-    `relative flex items-center gap-1.5 px-2.5 2xl:px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex flex-col xl:flex-row items-center gap-0.5 xl:gap-1.5 px-2 xl:px-2.5 2xl:px-3 py-1 xl:py-1.5 rounded-[10px] text-[10px] xl:text-sm font-bold transition-all duration-fast ease-out ${
       isActive
         ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl after:absolute after:left-3 after:right-3 after:-bottom-[2px] after:h-[2px] after:rounded-full after:theme-accent-fill'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
+  // The label under/next to each desktop link icon — never hidden.
+  const linkLabelClass = 'leading-none xl:leading-normal'
   const mobileLinkClass = ({ isActive }) =>
     `relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
       isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:theme-accent-fill' : 'theme-text hover:theme-bg-subtle'
@@ -119,33 +124,33 @@ export default function Navbar() {
           <Logo variant="full" size="md" />
         </Link>
 
-        {/* Desktop nav links. Labels only render from xl up — between lg and xl
-            the full set (logo + links + search/bell/badge/profile/logout) is
-            wider than the viewport, which pushed the right cluster past the
-            glass background and into horizontal overflow. Icon-only links keep
-            everything inside the bar on smaller desktops. */}
+        {/* Desktop nav links. Inline icon+label needs more width than exists
+            between lg and xl (logo + links + search/bell/badge/profile/logout
+            overflowed the glass bar), but pure icons were unreadable — so on
+            those widths each link stacks a 10px label under a 20px icon, and
+            the row layout with full-size labels returns at xl+. */}
         <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(l => (
             <NavLink key={l.to} to={l.to} className={linkClass} title={l.label} aria-label={l.label}>
-              <Icon as={l.icon} size="sm" />
-              <span className="hidden xl:inline">{l.label}</span>
+              <Icon as={l.icon} size="md" />
+              <span className={linkLabelClass}>{l.label}</span>
             </NavLink>
           ))}
           {(isTeacher && !isAdmin) && (
             <NavLink to="/teacher" className={linkClass} title="Teacher" aria-label="Teacher">
-              <Icon as={GraduationCap} size="sm" />
-              <span className="hidden xl:inline">Teacher</span>
+              <Icon as={GraduationCap} size="md" />
+              <span className={linkLabelClass}>Teacher</span>
             </NavLink>
           )}
           {isAdmin && (
             <NavLink to="/admin" className={linkClass} title="Admin" aria-label="Admin">
-              <Icon as={ShieldCheck} size="sm" />
-              <span className="hidden xl:inline">Admin</span>
+              <Icon as={ShieldCheck} size="md" />
+              <span className={linkLabelClass}>Admin</span>
             </NavLink>
           )}
           <NavLink to="/settings" className={linkClass} title="Settings" aria-label="Settings">
-            <Icon as={Settings} size="sm" />
-            <span className="hidden xl:inline">Settings</span>
+            <Icon as={Settings} size="md" />
+            <span className={linkLabelClass}>Settings</span>
           </NavLink>
         </div>
 
@@ -155,9 +160,10 @@ export default function Navbar() {
             <Link
               to="/search"
               aria-label="Search quizzes, notes, papers and games"
+              title="Search"
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg theme-text-muted transition-colors hover:theme-bg-subtle hover:theme-text"
             >
-              <Icon as={Search} size="sm" strokeWidth={2.1} />
+              <Icon as={Search} size="md" strokeWidth={2.1} />
             </Link>
           )}
           {userProfile && <NotificationBell />}
@@ -200,12 +206,16 @@ export default function Navbar() {
             <Link
               to="/search"
               aria-label="Search quizzes, notes, papers and games"
+              title="Search"
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg theme-text-muted transition-colors hover:theme-bg-subtle"
             >
-              <Icon as={Search} size="sm" strokeWidth={2.1} />
+              <Icon as={Search} size="md" strokeWidth={2.1} />
             </Link>
           )}
-          {userProfile && <NotificationBell />}
+          {/* withPanel={false}: the desktop bell above already owns the
+              portaled Notification Center — a second mount would stack two
+              identical overlays on <body>. */}
+          {userProfile && <NotificationBell withPanel={false} />}
           <Link
             to="/profile"
             aria-label="Open your profile"
