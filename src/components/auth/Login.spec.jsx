@@ -31,6 +31,7 @@ vi.mock('firebase/auth', () => ({
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
   SESSION_EXPIRED_KEY: 'auth:sessionExpired',
+  hasAuthSessionHint: vi.fn(() => false),
 }))
 
 // Capture navigate calls without a real router history stack.
@@ -40,7 +41,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, hasAuthSessionHint } from '../../contexts/AuthContext'
 import Login from './Login'
 
 // Minimal auth mock helpers
@@ -73,6 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockLogout.mockResolvedValue(undefined)
   mockResetPassword.mockResolvedValue(undefined)
+  hasAuthSessionHint.mockReturnValue(false)
 })
 
 // ── Primary bug regression ────────────────────────────────────────────────────
@@ -206,5 +208,80 @@ describe('Login — Google sign-in surfaces the real failure, not a password err
     expect(screen.queryByText(/google sign-in failed/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/could not be completed/i)).not.toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})
+
+// ── Session restoration ("logged out on refresh" regression) ─────────────────
+// A page refresh used to strand an authenticated user on the login form: a
+// route guard bounced them to /login while Firebase was still restoring the
+// session, and Login never redirected them once restoration completed.
+describe('Login — refresh/session-restoration behaviour', () => {
+  it('shows the restoring-session loader (not the form) while auth resolves on a device with a session hint', () => {
+    hasAuthSessionHint.mockReturnValue(true)
+    setAuth({ loading: true, currentUser: null })
+
+    renderLogin()
+
+    expect(screen.getByText(/restoring your session/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the form immediately for a genuinely signed-out visitor (no hint), even while auth resolves', () => {
+    hasAuthSessionHint.mockReturnValue(false)
+    setAuth({ loading: true, currentUser: null })
+
+    renderLogin()
+
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
+  })
+
+  it('redirects an already-authenticated user off the login page to their role landing', async () => {
+    setAuth({
+      loading: false,
+      currentUser: { uid: 'uid-1' },
+      userProfile: { id: 'uid-1', role: 'teacher' },
+    })
+
+    renderLogin()
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher', { replace: true }))
+  })
+
+  it('returns the user to the protected page they were bounced from (location.state.from)', async () => {
+    setAuth({
+      loading: false,
+      currentUser: { uid: 'uid-1' },
+      userProfile: { id: 'uid-1', role: 'teacher' },
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: '/login', state: { from: { pathname: '/teacher/quiz-studio', search: '' } } }]}
+      >
+        <Login />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher/quiz-studio', { replace: true }))
+  })
+
+  it('signing in from a bounced guard returns to the requested page, not the dashboard', async () => {
+    mockLogin.mockResolvedValue({ user: { uid: 'uid-9' } })
+    mockEnsureUserProfile.mockResolvedValue({ id: 'uid-9', role: 'learner' })
+    setAuth()
+
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: '/login', state: { from: { pathname: '/quiz/123', search: '' } } }]}
+      >
+        <Login />
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'l@school.com' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i),     { target: { value: 'pass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/quiz/123', { replace: true }))
   })
 })
