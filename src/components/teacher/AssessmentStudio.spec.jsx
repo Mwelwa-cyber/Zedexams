@@ -62,7 +62,11 @@ vi.mock('./studio/AssessmentHomeView', () => ({
   ),
 }))
 vi.mock('./studio/AssessmentBuilderView', () => ({
-  BuilderView: () => <div data-testid="builder-view">builder-view</div>,
+  // Expose form.title as a data attribute so F6 tests can assert the form
+  // was reset to defaults after startBlankPaper() is called.
+  BuilderView: ({ form }) => (
+    <div data-testid="builder-view" data-form-title={form?.title ?? ''}>builder-view</div>
+  ),
 }))
 // Slide-overs live in AssessmentSlideOvers (not previously mocked because the
 // edit-gate tests never reach the main return). The interaction tests DO reach
@@ -233,5 +237,39 @@ describe('AssessmentStudio — variant wording (edit gate)', () => {
     render(<MemoryRouter><AssessmentStudio variant="exam" /></MemoryRouter>)
     expect(await screen.findByText('Access denied')).toBeInTheDocument()
     expect(screen.getByText(/You can only edit exam papers you created\./)).toBeInTheDocument()
+  })
+})
+
+/*
+ * F6 regression — startBlankPaper() resets createdIdRef.current to null.
+ *
+ * Root cause: the old inline "New paper" handler forgot to null-out
+ * createdIdRef.current. The 2-second library autosave then saw the stale
+ * Firestore ID and overwrote the previously-saved paper with a blank form,
+ * silently destroying the teacher's work. Fix: startBlankPaper() explicitly
+ * sets createdIdRef.current = null before changing the view.
+ *
+ * The unit-level observable: clicking the "New paper" button in HomeView
+ * resets the studio to builder mode with an empty form title — proving
+ * startBlankPaper() (the function that contains the fix) was called rather
+ * than the old partial-reset inline handler.
+ */
+describe('AssessmentStudio — startBlankPaper resets form (F6)', () => {
+  beforeEach(() => {
+    mockParams = {}  // fresh mode — no paperId, so HomeView is shown first
+  })
+
+  it('after onNewPaper fires, builder view renders with an empty form title', async () => {
+    renderStudioFresh('test')
+    expect(screen.getByTestId('home-view')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'stub-new-paper' }))
+
+    // startBlankPaper() calls changeView('builder') — BuilderView mounts.
+    await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+
+    // makeDefaultForm() seeds title as '' — prove the form was fully reset.
+    const builderEl = screen.getByTestId('builder-view')
+    expect(builderEl.dataset.formTitle).toBe('')
   })
 })

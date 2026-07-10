@@ -24,7 +24,15 @@ import {
   MapCompetenciesAction,
   DetectDuplicatesAction,
 } from './AssessmentAnalysisActions'
-import { McqOptions, FillBlanksInputs } from './AssessmentQuestionEditors'
+import {
+  McqOptions,
+  FillBlanksInputs,
+  NumericInputs,
+  MatchingInputs,
+  SequenceInputs,
+  DataTableInputs,
+} from './AssessmentQuestionEditors'
+import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from './assessmentQuestionTypes'
 import AiReviewPanel from './AiReviewPanel'
 import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
@@ -551,6 +559,9 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             </select>
           </div>
         </div>
+        <p style={{ fontSize: 11, color: 'var(--sv-muted)', margin: '0 0 12px' }}>
+          Changing these updates the paper header too — quick questions always match the paper&apos;s grade and subject.
+        </p>
         <div style={{ marginBottom: 12 }}>
           <CurriculumPicker
             curriculumMode={aiForm.framework === '2013' ? 'previous' : 'cbc'}
@@ -602,8 +613,10 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
               <option value="mcq">Multiple choice</option>
               <option value="true_false">True / False</option>
               <option value="short_answer">Short answer</option>
+              {/* fill_blank (singular) is the server wire value
+                  (functions/aiService.js:760-762) — do NOT "fix" to plural. */}
               <option value="fill_blank">Fill in the blanks</option>
-              <option value="mixed">Mixed (all three)</option>
+              <option value="mixed">Mixed (MCQ, true/false, short answer)</option>
             </select>
           </div>
         </div>
@@ -787,7 +800,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
 /* ==================================================================
  * QUESTION EDITOR SLIDE-OVER
  * ================================================================== */
-export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQuestion, onUpdatePassageQuestion, questionNumbers }) {
+export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQuestion, onUpdatePassageQuestion, questionNumbers, mcqChoiceCount }) {
   // Find the target question
   const target = useMemo(() => {
     if (!targetKey) return null
@@ -853,13 +866,15 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
           <div className="sv-field" style={{ marginTop: 12 }}>
             <label>Question type</label>
             <select
-              value={type}
-              onChange={e => update('type', e.target.value)}
+              value={typeSelectValue(type)}
+              onChange={e => {
+                const patches = patchForTypeChange(question, e.target.value)
+                Object.entries(patches).forEach(([k, v]) => update(k, v))
+              }}
             >
-              <option value="mcq">Multiple choice</option>
-              <option value="short_answer">Short answer</option>
-              <option value="diagram">Structured / diagram</option>
-              <option value="essay">Essay</option>
+              {STUDIO_QUESTION_TYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
         )}
@@ -902,6 +917,7 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
             <div className="sv-block-cat" style={{ marginTop: 16 }}>Options</div>
             <McqOptions
               question={question}
+              maxOptions={typeof mcqChoiceCount === 'number' ? mcqChoiceCount : undefined}
               onChangeOption={(optIndex, value) => {
                 const next = [...(question.options || ['', '', '', ''])]
                 next[optIndex] = value
@@ -912,9 +928,9 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
           </>
         )}
 
-        {(type === 'short_answer' || type === 'fill' || type === 'diagram') && (
+        {(type === 'short_answer' || type === 'fill' || type === 'diagram' || type === 'essay') && (
           <div className="sv-field" style={{ marginTop: 12 }}>
-            <label>Expected answer (used for marking key)</label>
+            <label>{type === 'essay' ? 'Marking notes / sample answer (not printed)' : 'Expected answer (used for marking key)'}</label>
             <textarea
               value={String(question.correctAnswer ?? '')}
               onChange={e => update('correctAnswer', e.target.value)}
@@ -923,10 +939,56 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
           </div>
         )}
 
+        {type === 'numeric' && (
+          <div style={{ marginTop: 12 }}>
+            <NumericInputs
+              correctAnswer={question.correctAnswer}
+              tolerance={question.numericTolerance}
+              unit={question.numericUnit}
+              onChangeAnswer={value => update('correctAnswer', value)}
+              onChangeTolerance={value => update('numericTolerance', value)}
+              onChangeUnit={value => update('numericUnit', value)}
+            />
+          </div>
+        )}
+
+        {type === 'matching' && (
+          <div style={{ marginTop: 12 }}>
+            <MatchingInputs
+              left={question.matchingLeft || []}
+              right={question.matchingRight || []}
+              answer={question.matchingAnswer || []}
+              onChangeLeft={value => update('matchingLeft', value)}
+              onChangeRight={value => update('matchingRight', value)}
+              onChangeAnswer={value => update('matchingAnswer', value)}
+            />
+          </div>
+        )}
+
+        {type === 'sequence' && (
+          <div style={{ marginTop: 12 }}>
+            <SequenceInputs
+              items={question.sequenceItems || []}
+              answer={question.sequenceAnswer || []}
+              onChangeItems={value => update('sequenceItems', value)}
+              onChangeAnswer={value => update('sequenceAnswer', value)}
+            />
+          </div>
+        )}
+
         {type === 'fill_blanks' && (
           <div className="sv-field" style={{ marginTop: 12 }}>
             <div className="sv-block-cat">Fill-in-the-Blanks</div>
             <FillBlanksInputs question={question} onUpdate={update} />
+          </div>
+        )}
+
+        {question.tableData && (
+          <div style={{ marginTop: 12 }}>
+            <DataTableInputs
+              tableData={question.tableData}
+              onChange={value => update('tableData', value)}
+            />
           </div>
         )}
 

@@ -23,7 +23,7 @@ export function BuilderView(props) {
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onUpdatePart, onRemovePart, onAssignSectionToPart,
-    onImportDocument, onScan, importing, importSummary,
+    onImportDocument, onScan, importing, importSummary, onDismissImportSummary,
     onCreatePaper, onVerifyPaper, onClearAll, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
     onSave, saving = false, health, onShowHealth, onShowTemplates,
     assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
@@ -115,7 +115,7 @@ export function BuilderView(props) {
             disabled={saving || questionCount === 0}
             title="Save this paper to your library"
           >
-            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save draft'}
+            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save to library'}
           </button>
         </div>
         <input
@@ -135,7 +135,7 @@ export function BuilderView(props) {
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
-        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
+        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onDismissImportSummary={onDismissImportSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
 
         {/* No-content recovery: route the teacher into a template, AI, import,
             or hand-building — instead of an empty canvas with no next step. */}
@@ -176,7 +176,7 @@ export function BuilderView(props) {
             groupCount={grouped.length}
             allParts={parts}
             questionNumbers={questionNumbers}
-            paperMeta={{ grade: form.grade, subject: form.subject, language: form.language }}
+            paperMeta={{ grade: form.grade, subject: form.subject, language: form.language, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount }}
             onAddBlock={onAddBlock}
             onEditQuestion={onEditQuestion}
             onMoveSection={onMoveSection}

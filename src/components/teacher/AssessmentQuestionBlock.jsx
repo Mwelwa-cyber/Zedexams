@@ -35,6 +35,7 @@ import {
   DataTableInputs,
   DiagramLabelEditor,
 } from './AssessmentQuestionEditors'
+import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from './assessmentQuestionTypes'
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
@@ -442,17 +443,17 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, p
         <div className="sv-q-num">{questionNumbers[question.localId] || sectionIndex + 1}.</div>
         <div className={`sv-q-type-tag ${meta.tag}`}>{meta.label.toUpperCase()}</div>
         <select
-          value={type}
-          onChange={e => onUpdateQuestion('type', e.target.value)}
+          value={typeSelectValue(type)}
+          onChange={e => {
+            // Apply type + any seeded fields in one pass via patchForTypeChange.
+            const patches = patchForTypeChange(question, e.target.value)
+            Object.entries(patches).forEach(([k, v]) => onUpdateQuestion(k, v))
+          }}
           style={{ background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '3px 8px', fontSize: 11.5 }}
         >
-          <option value="mcq">Multiple choice</option>
-          <option value="short_answer">Short answer</option>
-          <option value="diagram">Structured / diagram</option>
-          <option value="essay">Essay</option>
-          <option value="numeric">Numeric</option>
-          <option value="matching">Matching</option>
-          <option value="sequence">Sequence</option>
+          {STUDIO_QUESTION_TYPE_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
         </select>
         <label className="sv-q-marks-input">
           marks
@@ -773,6 +774,7 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, p
       {isMcq && (
         <McqOptions
           question={question}
+          maxOptions={typeof paperMeta?.mcqAnswerChoiceCount === 'number' ? paperMeta.mcqAnswerChoiceCount : undefined}
           onChangeOption={(optIndex, value) => {
             const next = [...(question.options || ['', '', '', ''])]
             next[optIndex] = value
