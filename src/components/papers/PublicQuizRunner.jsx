@@ -35,6 +35,9 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
+import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
+import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import ZoomableImage from '../quiz/ZoomableImage'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
@@ -130,12 +133,12 @@ function OptionButton({ label, optionValue, index, selected, revealed, correct, 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`w-full text-left px-4 py-3 rounded-radius-md flex items-start gap-3 font-bold text-sm transition-colors disabled:cursor-not-allowed ${cls}`}
+      className={`w-full min-h-[56px] text-left px-4 py-3 rounded-radius-md flex items-start gap-3 transition-colors disabled:cursor-not-allowed ${cls}`}
     >
       <span className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-white/30 border border-current">
         {String.fromCharCode(65 + index)}
       </span>
-      <span className="flex-1 min-w-0">
+      <span className="answer-text flex-1 min-w-0">
         {hasVisual && (
           <span className="block mb-2 rounded-md overflow-hidden border theme-border bg-white">
             {diagram?.libraryKey ? (
@@ -173,6 +176,10 @@ export default function PublicQuizRunner() {
   const { currentUser, userProfile } = useAuth()
   const uid = currentUser?.uid || null
   const isPremium = useMemo(() => hasPremiumAccess(userProfile), [userProfile])
+  // Learner reading preferences (display-only; never affects scoring or the
+  // free-question limit).
+  const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
+  const [showReadingSettings, setShowReadingSettings] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -401,12 +408,22 @@ export default function PublicQuizRunner() {
   const remaining = Math.max(0, FREE_QUESTION_LIMIT - previewCount)
   const lockedOut = !isPremium && hasReachedFreeLimit(paperId, uid)
 
+  const { className: _quizShellClass, style: quizDisplayStyle, ...quizDisplayAttrs } = quizDisplayVars
+
   return (
-    <div className="min-h-screen theme-bg pb-24">
+    <div className="min-h-screen theme-bg pb-24" style={quizDisplayStyle} {...quizDisplayAttrs}>
       <SeoHelmet
         title={`${paper.title} — past-paper quiz`}
         description={`Practise ${paper.title} (${paper.year || ''}) with instant feedback. Free preview, no sign-up required.`}
         path={`/papers/${paperId}/quiz`}
+      />
+      <ReadingSettingsSheet
+        open={showReadingSettings}
+        onClose={() => setShowReadingSettings(false)}
+        prefs={quizDisplayPrefs}
+        setPref={setQuizDisplayPref}
+        resetPrefs={resetQuizDisplayPrefs}
+        saving={savingDisplayPrefs}
       />
 
       {/* Header */}
@@ -433,12 +450,13 @@ export default function PublicQuizRunner() {
         <div className="theme-card border theme-border rounded-radius-md shadow-elev-sm p-5 sm:p-6 space-y-5">
           {/* Progress */}
           <div>
-            <div className="flex items-center justify-between text-xs font-black mb-2">
+            <div className="flex items-center justify-between gap-2 text-xs font-black mb-2">
               <span className="theme-text-muted uppercase tracking-widest">
                 Question {currentIndex + 1} of {total}
               </span>
-              <span className="theme-text-muted">
-                Score {score}
+              <span className="flex items-center gap-2">
+                <span className="theme-text-muted">Score {score}</span>
+                <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
               </span>
             </div>
             <Progress value={currentIndex + (revealed ? 1 : 0)} max={total} />
@@ -470,13 +488,14 @@ export default function PublicQuizRunner() {
           ) : null}
           <ExtraQuestionImages question={question} />
           {question.diagramText && !question.imageDiagram?.libraryKey && !question.imageUrl && (
-            <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">
+            <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
               {question.diagramText}
             </p>
           )}
 
-          {/* Question prompt */}
-          <div className="theme-text font-black text-base sm:text-lg leading-snug">
+          {/* Question prompt — regular weight; only intentionally-marked words
+              (bold/underline/highlight) stand out. */}
+          <div className="question-text">
             {question.textJSON
               ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
               : <p>{plainTextFromQuestion(question)}</p>}

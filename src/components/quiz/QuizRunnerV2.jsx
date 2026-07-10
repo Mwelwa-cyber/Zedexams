@@ -17,6 +17,9 @@ import { numericMatches, hotspotMatches } from '../../utils/examService'
 // extracts plain text from either format. Legacy richTextToPlainText is
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
+import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import ReadingSettingsButton from './reading/ReadingSettingsButton'
+import ReadingSettingsSheet from './reading/ReadingSettingsSheet'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
   computeQuizScore,
@@ -110,7 +113,7 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
       className="zx-opt"
     >
       <span className="zx-opt-letter">{label}</span>
-      <span className="flex-1 text-sm font-semibold leading-snug">
+      <span className="answer-text flex-1 leading-snug">
         {diagram ? (
           <DiagramSvg
             libraryKey={diagram.libraryKey}
@@ -137,7 +140,13 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             (keeps the legacy quiz path working). */}
         {optionValue ? <RichContent value={optionValue} className="rich-option" /> : children}
       </span>
-      {revealed && correct && <span className="text-lg">✅</span>}
+      {/* Icon + label pair so correctness is never signalled by colour alone. */}
+      {revealed && correct && (
+        <span className="zx-opt-state text-lg" role="img" aria-label="Correct">✓</span>
+      )}
+      {revealed && wrong && (
+        <span className="zx-opt-state text-lg" role="img" aria-label="Incorrect">✗</span>
+      )}
     </button>
   )
 }
@@ -240,6 +249,12 @@ export default function QuizRunnerV2() {
   const { getQuizById, getQuestions, saveResult } = useFirestore()
   const { canUseExamMode, canAccessFullContent } = useSubscription()
   const { dataSaver } = useDataSaver()
+  // Learner reading preferences (text size / spacing / theme / highlight …).
+  // displayVars is spread onto the runner root so every question, option, and
+  // passage inherits the chosen theme + scale. Display-only — never touches
+  // answers or scoring.
+  const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
+  const [showReadingSettings, setShowReadingSettings] = useState(false)
 
   const [quiz, setQuiz] = useState(null)
   const [sections, setSections] = useState([])
@@ -720,17 +735,19 @@ export default function QuizRunnerV2() {
           const textBlock = (
             <div>
               {question.sharedInstruction && (
-                <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
-                  <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
+                <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 leading-relaxed text-slate-900">
+                  {/* Regular weight by default; only intentionally-bold/underlined/
+                      highlighted words (rendered as marks) stand out. */}
+                  <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
                 </div>
               )}
-              <RichContent value={question.text} className="text-[15px] font-bold leading-relaxed text-slate-900 sm:text-[17px]" />
+              <RichContent value={question.text} className="question-text" />
               {question.diagramText && (
                 // whitespace-pre-line preserves the newlines that PR #653
                 // routes into diagramText for flattened-table data (Q4's
                 // oranges table renders as separate rows instead of
                 // collapsing every \n into a single space).
-                <p className="mt-2 whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
+                <p className="mt-2 whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">{question.diagramText}</p>
               )}
             </div>
           )
@@ -1614,10 +1631,26 @@ export default function QuizRunnerV2() {
 
   const mascot = getQuizSubjectMascot(quiz?.subject)
   const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
+  // Reading-preference scope: data-quiz-* attrs + CSS custom properties. The
+  // `quiz-shell` class returned by the resolver is dropped here so the reading
+  // theme/size apply without forcing the shell's max-width on the full runner.
+  const { className: _quizShellClass, style: quizDisplayStyle, ...quizDisplayAttrs } = quizDisplayVars
 
   return (
-    <div className={`${themeClass} theme-bg theme-text min-h-screen`}>
+    <div
+      className={`${themeClass} theme-bg theme-text min-h-screen`}
+      style={quizDisplayStyle}
+      {...quizDisplayAttrs}
+    >
       <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
+      <ReadingSettingsSheet
+        open={showReadingSettings}
+        onClose={() => setShowReadingSettings(false)}
+        prefs={quizDisplayPrefs}
+        setPref={setQuizDisplayPref}
+        resetPrefs={resetQuizDisplayPrefs}
+        saving={savingDisplayPrefs}
+      />
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
           <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 text-slate-900">
@@ -1682,6 +1715,7 @@ export default function QuizRunnerV2() {
               )}
               {mode === 'exam' && <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>⏱️ {fmt(timeLeft)}</div>}
               {mode === 'practice' && <span className="zx-pill-dark zx-pill-green">🌱 Practice</span>}
+              <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
             </div>
           </div>
           <div className="h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
@@ -1708,7 +1742,7 @@ export default function QuizRunnerV2() {
                   </div>
                   {activeSection.passage.title && <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeSection.passage.title}</h2>}
                   {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm font-bold text-slate-700" />
+                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm text-slate-700" />
                   )}
                 </div>
                 {activeSection.passage.imageUrl && (
@@ -1723,7 +1757,7 @@ export default function QuizRunnerV2() {
                   </div>
                 )}
                 <div className="p-4 sm:p-5">
-                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-900" />
+                  <RichContent value={activeSection.passage.passageText} className="passage-text" />
                 </div>
               </div>
             </div>
