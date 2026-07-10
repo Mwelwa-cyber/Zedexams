@@ -300,3 +300,37 @@ function runSubPartsRoundTripTest() {
 }
 
 runSubPartsRoundTripTest()
+
+// ── Passage imageDiagram serialize/hydrate round-trip ──
+// A catalog shape diagram on a passage block (imageDiagram: {libraryKey, params})
+// must survive serialize → hydrate so the PDF and DOCX renderers can draw it.
+// This was the B1 layout-layer root cause: assessmentPaperLayout.js never forwarded
+// imageDiagram from the raw passage, so the block always arrived as null downstream.
+function runPassageImageDiagramRoundTripTest() {
+  const passageSection = createPassageSection({
+    title: 'Study the diagram below and answer the questions that follow.',
+    passageKind: 'diagram',
+    imageDiagram: { libraryKey: 'cylinder', params: { r: '3', h: '6' } },
+    questions: [
+      { type: 'short_answer', text: 'What shape is shown?', options: [], correctAnswer: 'cylinder' },
+    ],
+  })
+
+  const serialized = serializeQuizSections([passageSection], [])
+  const savedPassage = serialized.passages[0]
+  assert(savedPassage, 'passage with imageDiagram serializes into passages[]')
+  assert(savedPassage.imageDiagram, 'passage.imageDiagram serialized (not dropped)')
+  assert.equal(savedPassage.imageDiagram.libraryKey, 'cylinder', 'imageDiagram.libraryKey persists through serialize')
+  assert.deepEqual(savedPassage.imageDiagram.params, { r: '3', h: '6' }, 'imageDiagram.params persist through serialize')
+
+  const { sections } = hydrateQuizSections(serialized.questions, serialized.passages, [], [])
+  const passage = sections.find(s => s.kind === 'passage')
+  assert(passage, 'passage section with imageDiagram reopens')
+  assert(passage.passage.imageDiagram, 'passage.imageDiagram survives hydrate (not lost on reopen)')
+  assert.equal(passage.passage.imageDiagram.libraryKey, 'cylinder', 'imageDiagram.libraryKey survives full round-trip')
+  assert.deepEqual(passage.passage.imageDiagram.params, { r: '3', h: '6' }, 'imageDiagram.params survive full round-trip')
+
+  console.log('runPassageImageDiagramRoundTripTest passed (passage imageDiagram serialize → hydrate)')
+}
+
+runPassageImageDiagramRoundTripTest()

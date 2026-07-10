@@ -641,6 +641,12 @@ export function serializeQuizSections(sections = [], parts = []) {
         // before the doc reaches Firestore. Cleared on save when the upload
         // succeeds; never persisted long-term.
         imageAssetId: passage.imageAssetId || '',
+        // Catalog shape diagram on the passage stimulus. Persisted so the
+        // preview, PDF, and DOCX renderers can draw it after a save → reload.
+        // null (old passages without a shape) is fully backward-compatible.
+        imageDiagram: passage.imageDiagram && passage.imageDiagram.libraryKey
+          ? { libraryKey: String(passage.imageDiagram.libraryKey), params: passage.imageDiagram.params || {} }
+          : null,
         passageKind: normalizePassageKind(passage.passageKind),
         manualMarks: normalizeManualMarks(passage.manualMarks),
         order: startOrder,
@@ -1018,6 +1024,12 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
       passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
       imageAssetId: passage.imageAssetId ?? '',
+      // Restore the catalog shape diagram (if any) so it survives a
+      // save → reload round-trip. createPassageSection spreads overrides
+      // so this flows through to passage.imageDiagram automatically.
+      imageDiagram: passage.imageDiagram && passage.imageDiagram.libraryKey
+        ? { libraryKey: String(passage.imageDiagram.libraryKey), params: passage.imageDiagram.params || {} }
+        : null,
       passageKind: passage.passageKind,
       manualMarks: passage.manualMarks,
       questions: [],

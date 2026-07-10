@@ -5,12 +5,13 @@
  * (assessmentPaperLayout.js):
  *   - the studio preview  → src/components/teacher/views/PaperBlocks.jsx  (also the PDF, via window.print)
  *   - the Word export     → src/utils/assessmentToDocx.js
+ *   - the print-window PDF → src/utils/assessmentToPdf.js
  *
  * When one renderer learns a new block kind (or a new default) and the other
- * doesn't, the Word download silently diverges from the on-screen paper — the
- * class of bug this whole change set is about. These checks fail the moment the
- * two switch statements (or the shared answer-line defaults) drift apart, so the
- * drift is caught in CI instead of in a teacher's printout.
+ * doesn't, the Word download or PDF silently diverges from the on-screen paper —
+ * the class of bug this whole change set is about. These checks fail the moment
+ * any two switch statements (or the shared answer-line defaults) drift apart, so
+ * the drift is caught in CI instead of in a teacher's printout.
  *
  * Pure text + a single buildPaperLayout call — no docx, no DOM. Run:
  *   node src/utils/paperRenderersSync.test.js
@@ -55,16 +56,23 @@ function caseLabelsIn(src, marker) {
 
 const previewSrc = readFileSync(join(root, 'src/components/teacher/views/PaperBlocks.jsx'), 'utf8')
 const docxSrc = readFileSync(join(root, 'src/utils/assessmentToDocx.js'), 'utf8')
+const pdfSrc = readFileSync(join(root, 'src/utils/assessmentToPdf.js'), 'utf8')
 
-console.log('block-kind sync — preview switch === DOCX switch === layout output')
+console.log('block-kind sync — preview switch === DOCX switch === PDF switch === layout output')
 
 const previewKinds = caseLabelsIn(previewSrc, 'function PaperBlock(')
 const docxKinds = caseLabelsIn(docxSrc, 'function renderBlock(')
+const pdfKinds = caseLabelsIn(pdfSrc, 'function renderBlock(')
 assert(previewKinds && previewKinds.size >= 8, `preview PaperBlock handles ${previewKinds ? previewKinds.size : 0} block kinds`)
 assert(docxKinds && docxKinds.size >= 8, `DOCX renderBlock handles ${docxKinds ? docxKinds.size : 0} block kinds`)
+assert(pdfKinds && pdfKinds.size >= 8, `PDF renderBlock handles ${pdfKinds ? pdfKinds.size : 0} block kinds`)
 assert(
   previewKinds && docxKinds && eqSet(previewKinds, docxKinds),
   `preview and DOCX handle the SAME block kinds\n      preview: ${showSet(previewKinds || new Set())}\n      docx:    ${showSet(docxKinds || new Set())}`,
+)
+assert(
+  previewKinds && pdfKinds && eqSet(previewKinds, pdfKinds),
+  `preview and PDF handle the SAME block kinds\n      preview: ${showSet(previewKinds || new Set())}\n      pdf:     ${showSet(pdfKinds || new Set())}`,
 )
 
 // A comprehensive paper that exercises EVERY block kind buildPaperLayout can
@@ -104,6 +112,7 @@ assert(DEFAULT_ANSWER_LINES.diagram === 4, 'DEFAULT_ANSWER_LINES.diagram is 4')
 assert(DEFAULT_ANSWER_LINES.short === 2, 'DEFAULT_ANSWER_LINES.short is 2')
 assert(previewSrc.includes('DEFAULT_ANSWER_LINES.essay'), 'preview uses DEFAULT_ANSWER_LINES.essay (not a literal)')
 assert(docxSrc.includes('DEFAULT_ANSWER_LINES.essay'), 'DOCX uses DEFAULT_ANSWER_LINES.essay (not a literal)')
+assert(pdfSrc.includes('DEFAULT_ANSWER_LINES.essay'), 'PDF uses DEFAULT_ANSWER_LINES.essay (not a literal)')
 assert(!/answerSpaceParas\(b,\s*10\)/.test(docxSrc), 'DOCX no longer hard-codes 10 essay lines')
 assert(!/defaultLines=\{(?:8|10|4)\}/.test(previewSrc), 'preview no longer hard-codes answer-line literals')
 

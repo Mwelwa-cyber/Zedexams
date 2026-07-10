@@ -11,7 +11,10 @@
  *   - 'scheme': marking key for teachers (correct answer + explanation per Q).
  */
 
-import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { splitStatementSegments, statementLabel } from './fillBlanks.js'
+import { subPartLabel, splitPartBlanks } from './questionParts.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -33,6 +36,16 @@ function renderInstructionsHtml(text) {
   // Preserve paragraph breaks
   const paras = withBold.split(/\n\s*\n/).map(p => p.replace(/\n/g, ' '))
   return paras.map(p => `<p>${p}</p>`).join('')
+}
+
+// Render a catalog shape diagram (imageDiagram: {libraryKey, params}) as an
+// inline SVG. Mirrors the `diagramHtml` helper in sbaTaskToPdf.js — same
+// catalog, same default color.  Returns '' when the key is absent or unknown.
+function diagramHtml(imageDiagram) {
+  if (!imageDiagram?.libraryKey) return ''
+  const svg = renderDiagramSvg(imageDiagram.libraryKey, imageDiagram.params, '#1c1612')
+  if (!svg) return ''
+  return `<div class="q-diagram">${svg}</div>`
 }
 
 export function openPrintWindow() {
@@ -78,7 +91,7 @@ function attributionHtml() {
 <div class="attribution-footer">${escapeHtml(ATTRIBUTION_FOOTER_TEXT)}</div>`
 }
 
-function buildPrintableHtml(assessment, questions, mode, { attribution = false } = {}) {
+export function buildPrintableHtml(assessment, questions, mode, { attribution = false } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
   const docTitle = mode === 'scheme'
     ? `${assessment.title || 'Marking Key'} — Marking Key`
@@ -530,6 +543,34 @@ body {
 }
 .diagram-box img { max-width: 100%; max-height: 280pt; object-fit: contain; }
 
+/* ── catalog shape diagram SVGs (imageDiagram field) ── */
+.q-diagram { text-align: center; margin: 6pt 0; }
+.q-diagram svg { max-width: 100%; max-height: 280pt; height: auto; display: inline-block; }
+/* SVG diagrams inside image-mode option boxes */
+.options-image .item .img-box svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+/* SVG diagrams inside mixed-mode option boxes */
+.options-mixed .item svg { width: 40pt; height: 40pt; display: inline-block; vertical-align: middle; }
+/* ── fill-in-the-blanks ── */
+.fill-blanks { margin: 4pt 0; }
+.fill-word-bank { border: 1px solid #000; padding: 4pt 10pt; margin: 4pt 0 10pt; display: inline-block; font-size: 10.5pt; }
+.fill-row { display: flex; gap: 8pt; margin: 10pt 0; font-size: 11pt; line-height: 2; }
+.fill-label { flex: 0 0 auto; }
+.fill-text { flex: 1; }
+.fill-gap { display: inline-block; min-width: 100pt; border-bottom: 1px solid #000; height: 12pt; margin: 0 4pt; vertical-align: middle; }
+.fill-answer { color: #047857; font-weight: 700; }
+/* ── short-answer sub-parts ── */
+.subparts { margin: 4pt 0; }
+.subpart-row { display: flex; gap: 8pt; margin: 8pt 0; font-size: 11pt; line-height: 1.9; }
+.subpart-label { flex: 0 0 auto; }
+.subpart-body { flex: 1; }
+.subpart-gap { display: inline-block; min-width: 100pt; border-bottom: 1px dotted #000; height: 12pt; margin: 0 4pt; vertical-align: middle; }
+.subpart-lines { margin-left: 30pt; }
+/* ── labelled blanks answer space ── */
+.labelled-blanks { margin: 6pt 0; }
+.labelled-blank-row { display: flex; align-items: flex-end; gap: 8pt; margin: 4pt 0; }
+.blank-label { font-weight: 600; white-space: nowrap; }
+.labelled-line { flex: 1; border-bottom: 1px solid #000; height: 14pt; display: inline-block; }
+
 .correct-mark { color: #047857; font-weight: 700; }
 .answer-block {
   margin: 4pt 0 4pt 14pt;
@@ -595,6 +636,7 @@ function renderBlock(block) {
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'passageTotal': return `<div style="text-align:right;font-weight:700;font-size:10.5pt;margin:0 0 8pt;">Total: ${block.totalMarks} mark${block.totalMarks === 1 ? '' : 's'}</div>`
     case 'pagebreak': return '<div class="pagebreak"></div>'
     case 'endOfPaper': return `<div class="end-of-paper">${escapeHtml(block.text)}</div>`
     case 'footerCode': return `<div class="footer-code">${escapeHtml(block.code)}</div>`
@@ -706,6 +748,7 @@ function renderPassage(b) {
     ${b.title ? `<strong class="h">${escapeHtml(b.title)}</strong>` : ''}
     ${b.text ? `<div>${b.text.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('')}</div>` : ''}
     ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;"><img src="${escapeHtml(b.imageUrl)}" alt=""></div>` : ''}
+    ${diagramHtml(b.imageDiagram)}
   </div>`
 }
 
@@ -740,21 +783,38 @@ function renderQuestion(b) {
       }
     }
   }
+  // Catalog shape diagram on the question stem (imageDiagram: {libraryKey, params}).
+  // Rendered after uploaded images so a question can carry both a photo and a
+  // geometric figure without either obscuring the other — mirrors PaperBlocks.jsx.
+  body += diagramHtml(b.imageDiagram)
   if (b.tableData) {
     body += renderDataTable(b.tableData)
   }
-  if (b.wordBank && b.wordBank.length) {
+  // Word bank for non-fill_blanks types (fill_blanks has its own bordered box
+  // rendered inside renderFillBlanksHtml; a generic word-bank line printed here
+  // would double it up and diverge from the preview — PaperBlocks.jsx ~:321).
+  if (b.type !== 'fill_blanks' && b.wordBank && b.wordBank.length) {
     body += `<div class="word-bank"><strong>Word bank:</strong> ${b.wordBank.map(escapeHtml).join(' · ')}</div>`
   }
 
   if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     body += renderOptionsHtml(b)
+  } else if (b.type === 'fill_blanks') {
+    // Fill-in-the-Blanks: word-bank box + numbered statements with blank spans.
+    // In scheme mode (showAnswer) the blanks are filled with the expected answer
+    // in green — mirrors PaperFillBlanks in PaperBlocks.jsx ~:372-419 and the
+    // DOCX renderQuestion fill_blanks branch in assessmentToDocx.js ~:1065-1092.
+    body += renderFillBlanksHtml(b)
   } else if (b.type === 'short_answer' || b.type === 'fill') {
-    body += renderAnswerLines(b.answerLines ?? 2)
+    // Short-answer: sub-parts take priority if present; otherwise a plain answer
+    // space honouring answerFormat / blankLabels / explicit answerLines (incl. 0).
+    body += b.subParts?.length > 0
+      ? renderSubParts(b)
+      : answerSpaceHtml(b, DEFAULT_ANSWER_LINES.short)
   } else if (b.type === 'diagram') {
-    body += renderAnswerLines(b.answerLines ?? 4)
+    body += answerSpaceHtml(b, DEFAULT_ANSWER_LINES.diagram)
   } else if (b.type === 'essay') {
-    body += renderAnswerLines(b.answerLines ?? 10)
+    body += answerSpaceHtml(b, DEFAULT_ANSWER_LINES.essay)
   } else if (b.type === 'numeric') {
     body += renderNumericLine(b)
   } else if (b.type === 'matching') {
@@ -811,9 +871,17 @@ function renderOptionsHtml(b) {
     return `<div class="options-image">
       ${opts.map((opt, i) => {
         const media = b.optionMedia?.[i]
-        const img = media?.imageUrl
-          ? `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
-          : '<span style="font-size:24pt;">?</span>'
+        // Prefer the catalog shape diagram; fall back to an uploaded image.
+        // Mirrors PaperMcqOptions image-mode in PaperBlocks.jsx ~:535-539.
+        let img
+        if (media?.diagram?.libraryKey) {
+          const svg = renderDiagramSvg(media.diagram.libraryKey, media.diagram.params, '#1c1612') || ''
+          img = svg || '<span style="font-size:24pt;">?</span>'
+        } else if (media?.imageUrl) {
+          img = `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+        } else {
+          img = '<span style="font-size:24pt;">?</span>'
+        }
         const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
         const labelInner = optsPlain[i] || opt
           ? ` <span class="opt-rich">${optHtml(i)}</span>`
@@ -829,9 +897,17 @@ function renderOptionsHtml(b) {
     return `<div class="options-mixed">
       ${opts.map((opt, i) => {
         const media = b.optionMedia?.[i]
-        const img = media?.imageUrl
-          ? `<img class="img" src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
-          : '<span class="img" style="display:inline-block;width:40pt;height:40pt;"></span>'
+        // Prefer the catalog shape diagram; fall back to an uploaded image.
+        // Mirrors PaperMcqOptions mixed-mode in PaperBlocks.jsx ~:559-563.
+        let img
+        if (media?.diagram?.libraryKey) {
+          const svg = renderDiagramSvg(media.diagram.libraryKey, media.diagram.params, '#1c1612') || ''
+          img = `<span class="img">${svg}</span>`
+        } else if (media?.imageUrl) {
+          img = `<img class="img" src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+        } else {
+          img = '<span class="img" style="display:inline-block;width:40pt;height:40pt;"></span>'
+        }
         const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
         return `<div class="item">
           <span class="letter">${SECTION_LETTERS[i]}.</span>
@@ -850,9 +926,106 @@ function renderOptionsHtml(b) {
   </div>`
 }
 
-function renderAnswerLines(count) {
-  const n = Math.max(1, Math.min(20, count))
+// Honour answerFormat / blankLabels / explicit answerLines (including 0) — mirrors
+// answerSpaceParas in assessmentToDocx.js and PaperAnswerSpace in PaperBlocks.jsx.
+// `defaultLines` is the fallback from DEFAULT_ANSWER_LINES when no explicit count is set.
+function answerSpaceHtml(b, defaultLines) {
+  if (b.answerFormat === 'none') return ''
+  if (b.answerFormat === 'labelled_blanks' && Array.isArray(b.blankLabels) && b.blankLabels.length) {
+    const rows = b.blankLabels.map(label =>
+      `<div class="labelled-blank-row"><span class="blank-label">${escapeHtml(label)}:</span><span class="answer-line labelled-line"></span></div>`
+    ).join('')
+    return `<div class="answer-lines labelled-blanks">${rows}</div>`
+  }
+  const n = b.answerLines != null && Number.isFinite(Number(b.answerLines)) && Number(b.answerLines) >= 0
+    ? Number(b.answerLines)
+    : defaultLines
+  if (n === 0) return ''
   return `<div class="answer-lines">${Array.from({ length: n }).map(() => '<div class="answer-line"></div>').join('')}</div>`
+}
+
+// Fill-in-the-Blanks: word-bank box (when non-empty) + one labelled row per statement.
+// Blanks are rendered as dotted underline spans. In scheme mode (`b.showAnswer`) they
+// are replaced with the expected answer highlighted in green — mirrors PaperFillBlanks
+// in PaperBlocks.jsx (~:372-419) and the DOCX fill_blanks branch in
+// assessmentToDocx.js (~:1065-1092).
+function renderFillBlanksHtml(b) {
+  const statements = Array.isArray(b.statements) ? b.statements : []
+  let html = '<div class="fill-blanks">'
+  if (Array.isArray(b.wordBank) && b.wordBank.length) {
+    html += `<div class="fill-word-bank"><strong>Word Bank:</strong> ${b.wordBank.map(escapeHtml).join(' &nbsp;·&nbsp; ')}</div>`
+  }
+  for (let si = 0; si < statements.length; si++) {
+    const s = statements[si]
+    const text = String(s?.text ?? '')
+    const answers = Array.isArray(s?.answers) ? s.answers : []
+    // splitStatementSegments returns plain text segments; blanks sit between
+    // adjacent pairs (segs.length - 1 blanks total).
+    const segs = splitStatementSegments(text)
+    let inner = ''
+    for (let i = 0; i < segs.length; i++) {
+      inner += escapeHtml(segs[i])
+      if (i < segs.length - 1) {
+        const ans = answers[i]
+        if (b.showAnswer && ans) {
+          inner += `<span class="fill-answer">${escapeHtml(String(ans))}</span>`
+        } else {
+          inner += '<span class="fill-gap"></span>'
+        }
+      }
+    }
+    html += `<div class="fill-row">
+      <span class="fill-label">${escapeHtml(statementLabel(si))}.</span>
+      <span class="fill-text">${inner}</span>
+    </div>`
+  }
+  html += '</div>'
+  return html
+}
+
+// Sub-parts: "(a) sentence text [marks]" rows, each honouring per-part answerFormat
+// ('inline' dotted-gap / 'lines' ruled lines / 'none' no space). Mirrors PaperSubParts
+// in PaperBlocks.jsx (~:427-479) and subPartParas in assessmentToDocx.js (~:908-952).
+function renderSubParts(b) {
+  const subParts = Array.isArray(b.subParts) ? b.subParts : []
+  let html = '<div class="subparts">'
+  for (let i = 0; i < subParts.length; i++) {
+    const p = subParts[i]
+    const label = subPartLabel(i)
+    const pMarks = Number(p.marks ?? 1)
+    const marksTag = pMarks > 0 ? `<em class="qmarks" style="font-size:9.5pt;">&nbsp;[${pMarks}]</em>` : ''
+    const fmt = p.answerFormat ?? 'inline'
+    let partBody = ''
+    if (fmt === 'none') {
+      partBody = `<span>${escapeHtml(p.text || '')}</span>${marksTag}`
+    } else if (fmt === 'lines') {
+      const n = p.answerLines != null && Number.isFinite(Number(p.answerLines)) && Number(p.answerLines) >= 0
+        ? Number(p.answerLines)
+        : DEFAULT_ANSWER_LINES.short
+      const linesHtml = n > 0
+        ? `<div class="subpart-lines">${Array.from({ length: n }).map(() => '<div class="answer-line"></div>').join('')}</div>`
+        : ''
+      partBody = `<span>${escapeHtml(p.text || '')}</span>${marksTag}${linesHtml}`
+    } else {
+      // 'inline' (default): blanks are dotted gaps within the sentence.
+      // splitPartBlanks returns plain text segments; blanks sit between pairs.
+      const segs = splitPartBlanks(p.text || '')
+      let inner = ''
+      for (let j = 0; j < segs.length; j++) {
+        inner += escapeHtml(segs[j])
+        if (j < segs.length - 1) {
+          inner += '<span class="subpart-gap"></span>'
+        }
+      }
+      partBody = `<span>${inner}</span>${marksTag}`
+    }
+    html += `<div class="subpart-row">
+      <span class="subpart-label">(${escapeHtml(label)})</span>
+      <span class="subpart-body">${partBody}</span>
+    </div>`
+  }
+  html += '</div>'
+  return html
 }
 
 // Numeric questions get a single short answer line with an optional unit
@@ -913,6 +1086,21 @@ function renderMatchingColumns(b) {
 }
 
 function renderAnswerBlock(b) {
+  // fill_blanks answers are already rendered inline (green spans) by
+  // renderFillBlanksHtml when b.showAnswer === true — nothing more to add here.
+  if (b.type === 'fill_blanks') return ''
+
+  // Sub-parts: list "(a) expected (b) expected …" before the normal answer lines —
+  // mirrors PaperAnswerBlock's subParts branch in PaperBlocks.jsx (~:676).
+  if (Array.isArray(b.subParts) && b.subParts.length > 0) {
+    const pairs = b.subParts
+      .map((p, i) => `(${subPartLabel(i)}) ${escapeHtml(String(p.answer ?? '—'))}`)
+      .join('&nbsp;&nbsp; ')
+    const body = `<div><span class="label">Answers:</span> ${pairs}</div>`
+    const notes = b.explanation ? `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>` : ''
+    return `<div class="answer-block">${body}${notes}</div>`
+  }
+
   // Identify-mode diagrams print a numbered list of expected answers.
   if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
     const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${escapeHtml(l.text || '—')}`).join('&nbsp;&nbsp; ')
