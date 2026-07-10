@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { paywall } from '../../utils/paywall'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import { isNativePlatform } from '../../utils/runtime'
 import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
@@ -67,19 +68,22 @@ export default function QuizLimitPopup() {
   const ctx = state?.ctx || {}
   const limit = ctx.limit || 30
 
-  // Body scroll-lock + Esc + one analytics event per show.
+  // Body scroll-lock + one analytics event per show. Escape / focus-in /
+  // Tab-trap / focus-restore live in useFocusTrap so keyboard users can't tab
+  // into the page behind the backdrop.
   useEffect(() => {
     if (!open) return undefined
     capture('paywall_shown', { reason: REASON, feature: 'past-paper-quiz', plan_target: 'learner' })
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    function onKey(e) { if (e.key === 'Escape') paywall.hide() }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => { document.body.style.overflow = prev }
   }, [open])
+
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, {
+    active: open && !showUpgrade,
+    onEscape: () => paywall.hide(),
+  })
 
   if (!open) return null
   const native = isNativePlatform()
@@ -120,7 +124,7 @@ export default function QuizLimitPopup() {
         onClick={() => paywall.hide()}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <div ref={panelRef} className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={() => paywall.hide()}

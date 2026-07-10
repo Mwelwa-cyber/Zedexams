@@ -532,6 +532,12 @@ export default function QuizRunnerV2() {
     const typedAnswer = shortText[questionId]?.trim()
     if (!typedAnswer || !currentQuestion) return
 
+    // Persist the raw answer up front so a failed/blocked AI call (offline,
+    // rate-limited, unavailable) can never discard what the learner typed. The
+    // AI verdict below only enriches it with the `correct` flag used for
+    // scoring — it is never a precondition for the answer being saved.
+    setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer } }))
+
     const questionText = [
       getRichPlainText(currentQuestion.sharedInstruction),
       getRichPlainText(currentQuestion.text),
@@ -562,7 +568,13 @@ export default function QuizRunnerV2() {
       }
     } catch (error) {
       console.error('AI check failed:', error)
-      setActionError(error?.message || 'AI marking is temporarily unavailable. Please try again.')
+      if (mode === 'exam') {
+        // The raw answer was saved above, so nothing is lost. Don't block the
+        // learner or show a scary failure — marking just didn't happen now.
+        setActionError('Your answer is saved. We couldn’t mark it right now — that’s okay, keep going.')
+      } else {
+        setActionError(error?.message || 'AI marking is temporarily unavailable. Please try again.')
+      }
     } finally {
       setAiChecking(current => ({ ...current, [questionId]: false }))
     }
@@ -1489,6 +1501,31 @@ export default function QuizRunnerV2() {
                 const handleType = (value) => {
                   setShortText(current => ({ ...current, [question.id]: value }))
                   if (actionError) setActionError('')
+                  if (mode === 'exam') {
+                    // Exam mode: persist the raw text on every keystroke so a
+                    // dropped connection can never lose the answer (the old
+                    // path only saved it after a successful AI call, so an
+                    // offline learner's typing vanished). The optional
+                    // "Save Answer" button below still enriches it with an AI
+                    // verdict for scoring when online.
+                    setAnswers(current => {
+                      const next = { ...current }
+                      const trimmed = value.trim()
+                      if (trimmed) next[question.id] = { text: trimmed }
+                      else delete next[question.id]
+                      return next
+                    })
+                    // Editing invalidates any prior AI verdict so scoring never
+                    // uses a stale mark against changed text.
+                    if (aiResults[question.id]) {
+                      setAiResults(current => {
+                        const next = { ...current }
+                        delete next[question.id]
+                        return next
+                      })
+                    }
+                    return
+                  }
                   if (checked) {
                     setAiResults(current => {
                       const next = { ...current }

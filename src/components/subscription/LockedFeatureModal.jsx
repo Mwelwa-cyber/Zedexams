@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { lockedFeature } from '../../utils/lockedFeature'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import { isNativePlatform } from '../../utils/runtime'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -47,18 +48,20 @@ export default function LockedFeatureModal() {
 
   useEffect(() => lockedFeature.subscribe(setState), [])
 
-  // Body scroll-lock + Esc to close while open.
+  // Body scroll-lock while open. Escape / focus-in / Tab-trap / focus-restore
+  // live in useFocusTrap so keyboard users can't tab into the page behind.
   useEffect(() => {
     if (!state) return undefined
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    function onKey(e) { if (e.key === 'Escape') lockedFeature.hide() }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => { document.body.style.overflow = prev }
   }, [state])
+
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, {
+    active: !!state && !upgradePlanId,
+    onEscape: () => lockedFeature.hide(),
+  })
 
   if (!state) return null
 
@@ -114,7 +117,7 @@ export default function LockedFeatureModal() {
         onClick={() => lockedFeature.hide()}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <div ref={panelRef} className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={() => lockedFeature.hide()}

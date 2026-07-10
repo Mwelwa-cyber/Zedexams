@@ -69,6 +69,51 @@ describe('popup eligibility', () => {
   })
 })
 
+describe('first-session guard (new accounts)', () => {
+  it('is NOT eligible for an account created less than 24h ago', () => {
+    // A brand-new learner must never be greeted with "Welcome Back!" — their
+    // first session is already the one where upgrade surfaces pile up.
+    setAuth({
+      role: 'learner',
+      subscriptionPlan: 'free',
+      createdAt: new Date(Date.now() - 2 * HOUR),
+    })
+    const { result } = renderHook(() => useSubscriptionReminder())
+    expect(result.current.shouldRemind).toBe(true)
+    expect(result.current.isNewAccount).toBe(true)
+    expect(result.current.popupEligible).toBe(false)
+  })
+
+  it('becomes eligible once the account is older than 24h', () => {
+    setAuth({
+      role: 'learner',
+      subscriptionPlan: 'free',
+      createdAt: new Date(Date.now() - 30 * HOUR),
+    })
+    const { result } = renderHook(() => useSubscriptionReminder())
+    expect(result.current.isNewAccount).toBe(false)
+    expect(result.current.popupEligible).toBe(true)
+  })
+
+  it('reads a Firestore Timestamp-like createdAt via toDate()', () => {
+    setAuth({
+      role: 'learner',
+      subscriptionPlan: 'free',
+      createdAt: { toDate: () => new Date(Date.now() - HOUR) },
+    })
+    const { result } = renderHook(() => useSubscriptionReminder())
+    expect(result.current.isNewAccount).toBe(true)
+    expect(result.current.popupEligible).toBe(false)
+  })
+
+  it('treats a missing createdAt as an old account (guard protects new users, not silences the nudge)', () => {
+    setAuth({ role: 'learner', subscriptionPlan: 'free' })
+    const { result } = renderHook(() => useSubscriptionReminder())
+    expect(result.current.isNewAccount).toBe(false)
+    expect(result.current.popupEligible).toBe(true)
+  })
+})
+
 describe('dismissedUntil parsing', () => {
   it('reads a Firestore Timestamp-like value via toDate()', () => {
     const when = new Date(Date.now() + 5 * HOUR)

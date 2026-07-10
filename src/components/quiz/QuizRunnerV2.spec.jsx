@@ -54,8 +54,10 @@ vi.mock('../../hooks/useQuizPersistence', () => ({
   clearQuizSession: vi.fn(),
 }))
 
-// Network / AI leaf — never call the real checker in a unit test.
-vi.mock('../../utils/geminiChecker', () => ({ checkAnswerWithAI: vi.fn() }))
+// Network / AI leaf — never call the real checker in a unit test. Kept behind a
+// handle so tests can make it resolve (online) or reject (offline).
+const mockCheckAnswerWithAI = vi.fn()
+vi.mock('../../utils/geminiChecker', () => ({ checkAnswerWithAI: (...a) => mockCheckAnswerWithAI(...a) }))
 
 // examService.js calls getFunctions(app) at import time; QuizRunnerV2 only
 // pulls two pure grading helpers from it, so stub the module.
@@ -104,6 +106,18 @@ function mcq(overrides = {}) {
   }
 }
 
+function shortAnswer(overrides = {}) {
+  return {
+    id: 'q1',
+    type: 'short_answer',
+    text: 'Name the process plants use to make food.',
+    correctAnswer: 'photosynthesis',
+    marks: 1,
+    order: 0,
+    ...overrides,
+  }
+}
+
 function quizDoc(overrides = {}) {
   return {
     id: 'quiz-1',
@@ -131,6 +145,7 @@ beforeEach(() => {
   mockSubscription = { canUseExamMode: true, canAccessFullContent: true }
   searchParamsValue = ''
   mockLoadQuizSession.mockReturnValue(null)
+  mockCheckAnswerWithAI.mockResolvedValue({ correct: true, feedback: 'Great' })
 })
 
 describe('QuizRunnerV2 — load states', () => {
@@ -438,5 +453,63 @@ describe('QuizRunnerV2 — session resume', () => {
       expect.objectContaining({ quizId: 'quiz-1', mode: 'exam', answers: expect.objectContaining({ q1: 1 }) }),
     )
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results/result-9'))
+  })
+})
+
+describe('QuizRunnerV2 — exam short-answers are never lost to a dropped connection', () => {
+  async function startExamWithShortAnswer() {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([shortAnswer()])
+    mockSaveResult.mockResolvedValue('result-sa')
+    renderRunner()
+    // Pick Exam mode, then start.
+    fireEvent.click(await screen.findByRole('button', { name: /Timed/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Start Exam/i }))
+    return screen.findByPlaceholderText('Type your answer here...')
+  }
+
+  async function submitExam() {
+    fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Submit ✓/ }))
+    await waitFor(() => expect(mockSaveResult).toHaveBeenCalledTimes(1))
+    return mockSaveResult.mock.calls[0][0]
+  }
+
+  it('records the typed answer immediately — no "Save Answer" / AI call needed', async () => {
+    const input = await startExamWithShortAnswer()
+    fireEvent.change(input, { target: { value: 'Photosynthesis' } })
+
+    // The learner never taps Save Answer (and never needs a network round-trip);
+    // the raw text is already in the submitted answers.
+    const payload = await submitExam()
+    expect(payload.mode).toBe('exam')
+    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis' })
+    expect(mockCheckAnswerWithAI).not.toHaveBeenCalled()
+  })
+
+  it('keeps the answer and reassures the learner when AI marking fails offline', async () => {
+    mockCheckAnswerWithAI.mockRejectedValue(new Error('Failed to fetch'))
+    const input = await startExamWithShortAnswer()
+    fireEvent.change(input, { target: { value: 'Photosynthesis' } })
+
+    // Tapping Save Answer offline used to discard the answer; now it stays put
+    // and the learner gets a calm, non-blocking message.
+    fireEvent.click(screen.getByRole('button', { name: /Save Answer/i }))
+    expect(await screen.findByText(/Your answer is saved/i)).toBeInTheDocument()
+
+    // And it survives all the way into the submitted result.
+    const payload = await submitExam()
+    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis' })
+  })
+
+  it('enriches the answer with the AI verdict when marking succeeds online', async () => {
+    mockCheckAnswerWithAI.mockResolvedValue({ correct: true, feedback: 'Correct' })
+    const input = await startExamWithShortAnswer()
+    fireEvent.change(input, { target: { value: 'Photosynthesis' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save Answer/i }))
+
+    const payload = await submitExam()
+    await waitFor(() => expect(mockCheckAnswerWithAI).toHaveBeenCalledTimes(1))
+    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis', correct: true })
   })
 })

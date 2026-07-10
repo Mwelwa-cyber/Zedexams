@@ -8,6 +8,12 @@ import { resolveSubscriptionStatus } from '../utils/subscriptionStatus'
 // the cadence holds across sessions and devices.
 const SNOOZE_HOURS = 60
 
+// A brand-new account never sees the Welcome-Back popup: greeting someone who
+// just registered with "Welcome Back!" is jarring, and their first session is
+// already the one place the status banner + in-page upgrade prompts pile up.
+// Let them explore first; the nudge starts on day two.
+const MIN_ACCOUNT_AGE_HOURS = 24
+
 function toDate(value) {
   if (!value) return null
   if (typeof value?.toDate === 'function') return value.toDate()
@@ -35,10 +41,18 @@ export function useSubscriptionReminder(opts = {}) {
   const dismissedUntil = toDate(userProfile?.reminderDismissedUntil)
   const isSnoozed = !!dismissedUntil && dismissedUntil > new Date()
 
+  // First-session guard: accounts younger than MIN_ACCOUNT_AGE_HOURS are never
+  // popup-eligible. A missing createdAt (legacy profile) counts as old — the
+  // guard exists to protect genuinely-new users, not to silence the nudge.
+  const createdAt = toDate(userProfile?.createdAt)
+  const isNewAccount =
+    !!createdAt && Date.now() - createdAt.getTime() < MIN_ACCOUNT_AGE_HOURS * 60 * 60 * 1000
+
   // The login popup may show when the user still needs reminding AND they
-  // haven't snoozed it today. Pro / Trial users never qualify (shouldRemind
-  // is false), which is how upgrading silently removes every reminder.
-  const popupEligible = status.shouldRemind && !isSnoozed
+  // haven't snoozed it today AND the account isn't brand-new. Pro / Trial
+  // users never qualify (shouldRemind is false), which is how upgrading
+  // silently removes every reminder.
+  const popupEligible = status.shouldRemind && !isSnoozed && !isNewAccount
 
   // Snooze the popup for the rest of the day and record that we showed it.
   // Writes only the two reminder fields, which the Firestore self-update rule
@@ -70,6 +84,7 @@ export function useSubscriptionReminder(opts = {}) {
     ...status,
     dismissedUntil,
     isSnoozed,
+    isNewAccount,
     popupEligible,
     snoozeReminders,
     recordReminderShown,

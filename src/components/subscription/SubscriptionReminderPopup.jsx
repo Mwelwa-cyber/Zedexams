@@ -1,10 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../hooks/useSubscriptionReminder'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import { upgradePortal } from '../../utils/subscriptionStatus'
 import { isReminderSuppressedPath } from '../../utils/reminderVisibility'
 import { isNativePlatform } from '../../utils/runtime'
+import { paywall } from '../../utils/paywall'
+import { lockedFeature } from '../../utils/lockedFeature'
 import { capture } from '../../utils/analytics'
 import Icon from '../ui/Icon'
 import { ArrowRight, X } from '../ui/icons'
@@ -60,6 +63,10 @@ export default function SubscriptionReminderPopup() {
     // racing the first frame.
     const t = setTimeout(() => {
       if (shownThisSession()) return
+      // One upgrade modal at a time: if the learner already has a paywall or
+      // locked-feature modal on screen, stay quiet. Not marked as shown, so a
+      // later navigation gets another chance once the other modal is gone.
+      if (paywall.isActive() || lockedFeature.isActive()) return
       markShownThisSession()
       setOpen(true)
       recordReminderShown()
@@ -73,19 +80,21 @@ export default function SubscriptionReminderPopup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, userProfile, popupEligible, pathname])
 
-  // Esc + scroll lock while open.
+  // Scroll lock while open. Escape / focus-in / Tab-trap / focus-restore all
+  // live in useFocusTrap below so keyboard and screen-reader users aren't left
+  // tabbing through the page behind the backdrop.
   useEffect(() => {
     if (!open) return undefined
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    function onKey(e) { if (e.key === 'Escape') handleDismiss() }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('keydown', onKey)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { document.body.style.overflow = prev }
   }, [open])
+
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, {
+    active: open && !showUpgrade,
+    onEscape: handleDismiss,
+  })
 
   if (!open) return null
 
@@ -138,7 +147,7 @@ export default function SubscriptionReminderPopup() {
         onClick={handleDismiss}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <div ref={panelRef} className="relative w-full max-w-xs animate-scale-in overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <button
           type="button"
           onClick={handleDismiss}
