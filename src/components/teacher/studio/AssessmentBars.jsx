@@ -4,12 +4,22 @@ import Icon from './studioIcons'
  * TOP BAR
  * ================================================================== */
 // Maps the studio's save flags to a single status badge. Priority:
-// durable library copy → in-flight library save → unsaved edits →
-// local autosave → brand-new draft. `savedToLibrary` wins over `saving`
-// because handleSave deliberately keeps `saving` true through the
-// post-save navigation delay (to keep the button disabled) — at that
-// point the save is already done, so we show the success state.
-export function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary }) {
+// persistent autosave failure → durable library copy → in-flight library
+// save → unsaved edits → local autosave → brand-new draft. `autosaveFailed`
+// outranks everything: a stale "Saved to library" badge over a save loop
+// that keeps failing is exactly the silent data-risk this flag exists to
+// surface. `savedToLibrary` wins over `saving` because handleSave
+// deliberately keeps `saving` true through the post-save navigation delay
+// (to keep the button disabled) — at that point the save is already done,
+// so we show the success state.
+export function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary, autosaveFailed }) {
+  if (autosaveFailed) {
+    return {
+      text: '⚠ Autosave failed',
+      title: 'Saving to your library keeps failing — your changes are still safe on this device and will retry as you edit. Check your connection, or use "Save to library" to retry now.',
+      cls: 'is-autosave-failed', dot: 'var(--sv-gold)', ring: 'rgba(200,146,61,0.28)',
+    }
+  }
   if (savedToLibrary) {
     return { text: '✓ Saved to library', title: 'This paper is saved in your library — available across your devices.', cls: 'is-library', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.20)' }
   }
@@ -34,13 +44,15 @@ export function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary
   return { text: 'Draft', title: 'Not saved yet — start typing and your work auto-saves.', cls: 'is-idle', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
 }
 
-export function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
-  // Three distinct, honest states so the teacher always knows where their
+export function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, autosaveFailed, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
+  // Distinct, honest states so the teacher always knows where their
   // work lives:
+  //   • Autosave failed   — the library autosave keeps failing (work is
+  //                         still safe in the on-device draft)
   //   • Unsaved changes   — edits not yet captured by the autosave debounce
   //   • Saved on device   — auto-saved locally + to the cloud draft
   //   • Saved to library  — the durable, shareable library copy exists
-  const status = describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary })
+  const status = describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary, autosaveFailed })
   return (
     <header className="sv-app-bar">
       <button className="sv-icon-btn" onClick={onBack} aria-label="Back"><Icon name="back" size={18} /></button>

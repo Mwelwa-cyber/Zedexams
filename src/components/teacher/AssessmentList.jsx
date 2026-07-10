@@ -225,7 +225,8 @@ export default function AssessmentList({ variant = 'test' }) {
       } else {
         // Pass the pre-opened window so the browser doesn't treat this as a
         // popup (window.open was already called before the async fetch above).
-        printAssessmentAsPdf(assessment, questions, { mode, win })
+        // Free-plan prints carry the same attribution as the Word export.
+        printAssessmentAsPdf(assessment, questions, { mode, win, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       }
     } catch (err) {
       toast.error(`Export failed: ${err.message || 'unexpected error'}`)
