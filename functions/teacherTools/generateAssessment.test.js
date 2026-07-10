@@ -20,6 +20,11 @@
  * usageMeter.test.js); assessmentSchema / assessmentQualityCheck /
  * masterBankSourcingCore / assessmentPromptV9 load for real.
  *
+ * Constraint of that pattern: the stubs must be installed BEFORE the first
+ * require of generateAssessment.js (Node caches the module with whatever its
+ * dependencies resolved to at that moment), and the test must never
+ * re-require it after restoring Module._load.
+ *
  * Run: node functions/teacherTools/generateAssessment.test.js
  */
 

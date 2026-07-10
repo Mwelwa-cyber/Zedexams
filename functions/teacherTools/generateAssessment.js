@@ -244,8 +244,10 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     try {
       await refundGeneration(uid, usage, "assessment");
     } catch (refundErr) {
+      // Include the usage object: if the refund failed because it was
+      // malformed, the log has to show what refundGeneration actually saw.
       console.error("[generateAssessment] refund failed after generation error",
-          {uid, generationId: genRef.id}, refundErr);
+          {uid, generationId: genRef.id, usage}, refundErr);
     }
     throw err;
   }

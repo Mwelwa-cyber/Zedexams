@@ -234,7 +234,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
       await refundGeneration(uid, usage, "lesson_activities");
     } catch (refundErr) {
       console.error("[generateLessonActivities] refund failed after generation error",
-          {uid, generationId: genRef.id}, refundErr);
+          {uid, generationId: genRef.id, usage}, refundErr);
     }
     throw err;
   }
