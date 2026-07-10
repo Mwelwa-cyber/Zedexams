@@ -10,6 +10,8 @@ export const REFRESH_THROTTLE_MS = 30_000
 // Firebase auth error codes that mean "this session is gone, send the user
 // back to login". `auth/network-request-failed` is intentionally NOT here: an
 // offline tab will recover when the radio comes back, no need to log out.
+// This is an ALLOWLIST — shouldExpireSession only ends the session on a code
+// listed here, never on an unrecognised one (see below).
 export const TERMINAL_AUTH_ERRORS = new Set([
   'auth/user-token-expired',
   'auth/id-token-expired',
@@ -17,6 +19,8 @@ export const TERMINAL_AUTH_ERRORS = new Set([
   'auth/user-disabled',
   'auth/user-not-found',
   'auth/invalid-user-token',
+  'auth/invalid-refresh-token',
+  'auth/invalid-credential',
   'auth/requires-recent-login',
 ])
 
@@ -43,13 +47,16 @@ export const TRANSIENT_AUTH_ERRORS = new Set([
  *   • offline / network blips (the `online` listener retries on reconnect)
  *   • empty/unknown codes (don't nuke a session we can't positively classify)
  *   • transient/retryable auth codes (rate-limiting, backend hiccups)
- * Any explicit `auth/*` code that survives those guards is treated as terminal
- * — a stale or revoked token won't fix itself on its own.
+ *   • any auth/* code NOT on the terminal allowlist — codes like
+ *     auth/timeout or auth/quota-exceeded are recoverable, and the old
+ *     `startsWith('auth/')` catch-all here was signing users out on them
+ *     ("logged out on refresh/resume"). Unknown ≠ dead: default to keeping
+ *     the session and let the next resume/online event retry.
  */
 export function shouldExpireSession(code, online) {
   if (!code) return false
   if (code === 'auth/network-request-failed') return false
   if (online === false) return false
   if (TRANSIENT_AUTH_ERRORS.has(code)) return false
-  return TERMINAL_AUTH_ERRORS.has(code) || code.startsWith('auth/')
+  return TERMINAL_AUTH_ERRORS.has(code)
 }

@@ -32,8 +32,17 @@ for (const code of TRANSIENT_AUTH_ERRORS) {
 }
 assert(shouldExpireSession('auth/too-many-requests', false) === false, 'too-many-requests offline → no expire')
 
-// — Any non-transient auth/* code (not network) while online → expire ——
-assert(shouldExpireSession('auth/invalid-action-code', true) === true, 'unknown auth/* online → expire')
+// — auth/* codes OFF the terminal allowlist must NOT expire the session ——
+// The old `startsWith('auth/')` catch-all treated every unrecognised auth code
+// as a dead session, which signed users out on recoverable failures
+// (auth/timeout, auth/quota-exceeded, …) after a refresh or app resume.
+assert(shouldExpireSession('auth/invalid-action-code', true) === false, 'unlisted auth/* online → no expire')
+assert(shouldExpireSession('auth/timeout', true) === false, 'auth/timeout → no expire')
+assert(shouldExpireSession('auth/quota-exceeded', true) === false, 'auth/quota-exceeded → no expire')
+
+// — Newly-listed terminal codes: a bad refresh token IS a dead session ——
+assert(shouldExpireSession('auth/invalid-refresh-token', true) === true, 'invalid-refresh-token online → expire')
+assert(shouldExpireSession('auth/invalid-credential', true) === true, 'invalid-credential online → expire')
 
 // — Network failure → never expire (offline tab recovers on reconnect) ——
 assert(shouldExpireSession('auth/network-request-failed', true) === false, 'network-request-failed → no expire (online)')

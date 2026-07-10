@@ -432,13 +432,26 @@ export function AuthProvider({ children }) {
     // error → refresh → re-subscribe → error loop.
     let lastProfileRefreshAt = 0
     disposedRef.current = false
-    // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
-    // within this window, drop the loading gate so the user sees *something*.
-    // 5 s gives slower Zambian networks enough time to complete the round-trip
-    // before we fall back to the generic "loading your workspace…" screen.
+    // Watchdog: if Firebase auth doesn't emit its first event within this
+    // window, drop the loading gate so the user sees *something*. The window
+    // is hint-aware: when this device is KNOWN to have a signed-in session
+    // (AUTH_HINT_KEY), dropping the gate early is catastrophic — every route
+    // guard reads `loading === false && currentUser === null` as "signed
+    // out" and bounces the user to /login, which is exactly the "refreshing
+    // logs me out" bug. Firebase's first emission can legitimately exceed 5 s
+    // on a cold start whose persisted token has expired (app reopened after
+    // hours away): the SDK blocks initialization on a network token reload,
+    // and slow links stretch that well past 5 s. So a hinted device waits far
+    // longer before giving up, while a device with no session still falls
+    // through to the public pages after 5 s (for those visitors auth resolves
+    // near-instantly anyway — this is just a belt-and-braces ceiling).
+    const watchdogMs = hasAuthSessionHint() ? 30_000 : 5000
     const timeout = setTimeout(() => {
-      if (!disposedRef.current) setLoading(false)
-    }, 5000)
+      if (disposedRef.current) return
+      console.warn(`[auth] restoration watchdog fired after ${watchdogMs}ms without an auth event`)
+      setLoading(false)
+    }, watchdogMs)
+    if (import.meta.env.DEV) console.info('[auth] waiting for Firebase to restore the session…')
 
     // (Re-)attach the profile snapshot for `user`. Factored out of the
     // onAuthStateChanged callback so useAuthRecovery can call it again after a
@@ -480,6 +493,7 @@ export function AuthProvider({ children }) {
             setUserProfile(profile)
             setProfileIssue(null)
             setLoading(false)
+            if (import.meta.env.DEV) console.info('[auth] profile loaded, role:', profile?.role)
             // Audit B2 — identify with uid + role only (no email).
             // Safe to call repeatedly; PostHog dedupes on uid.
             identifyUser(user.uid, profile?.role)
@@ -557,6 +571,9 @@ export function AuthProvider({ children }) {
 
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
+      if (import.meta.env.DEV) {
+        console.info('[auth] auth state resolved:', user ? `uid=${user.uid}` : 'no user (signed out)')
+      }
       if (unsubProfile) {
         try { unsubProfile() } catch { /* listener already torn down */ }
         unsubProfile = null

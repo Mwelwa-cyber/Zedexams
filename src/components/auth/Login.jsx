@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { fetchSignInMethodsForEmail } from 'firebase/auth'
 import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
-import { useAuth, SESSION_EXPIRED_KEY } from '../../contexts/AuthContext'
+import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
@@ -12,6 +12,7 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
+import FullScreenLoader from '../ui/FullScreenLoader'
 
 // Auth-error copy now lives centrally in src/utils/friendlyErrors.js
 // (friendlyAuthMessage) so Login + Register share one source of truth — see
@@ -53,8 +54,36 @@ const INPUT_CLASS =
   'focus:ring-[3px] focus:ring-black/5'
 
 export default function Login() {
-  const { login, loginWithGoogle, resetPassword, ensureUserProfile } = useAuth()
+  const {
+    login, loginWithGoogle, resetPassword, ensureUserProfile,
+    currentUser, userProfile, loading: authLoading, profileIssue,
+  } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Where to send the user after sign-in. A route guard that bounced them
+  // here stashes the page they were trying to open in location.state.from —
+  // honour it so a refresh of /teacher/quiz-studio lands back on
+  // /teacher/quiz-studio, not the generic dashboard. Falls back to the
+  // role landing page when they came to /login directly.
+  const fromPath = location.state?.from
+    ? `${location.state.from.pathname || ''}${location.state.from.search || ''}` || null
+    : null
+  const postLoginPath = (profile) => fromPath || getRoleLandingPath(profile, '/')
+
+  // A user who is ALREADY signed in has no business on the login form —
+  // this is what makes the "bounced to /login while Firebase was still
+  // restoring the session" case self-heal: the moment restoration completes,
+  // they're sent straight back to where they were.
+  useEffect(() => {
+    if (authLoading || !currentUser) return
+    if (profileIssue) {
+      // Signed in but the profile couldn't be read — let RootRedirect show
+      // the recovery screen rather than stranding them on the login form.
+      navigate('/', { replace: true })
+      return
+    }
+    if (userProfile) navigate(fromPath || getRoleLandingPath(userProfile, '/'), { replace: true })
+  }, [authLoading, currentUser, userProfile, profileIssue, fromPath, navigate])
 
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
@@ -105,7 +134,7 @@ export default function Login() {
       // the profileIssue state (they already do: 'unreadable' shows Repair,
       // 'missing' shows Bootstrap + Sign Out). Only hard-fail if Firebase Auth
       // itself threw (caught below).
-      navigate(getRoleLandingPath(profile, '/'), { replace: true })
+      navigate(postLoginPath(profile), { replace: true })
     } catch (err) {
       let message = friendlyAuthMessage(err.code, { online: navigator.onLine })
       if (PASSWORD_FAILURE_CODES.has(err.code)) {
@@ -126,7 +155,7 @@ export default function Login() {
       // transient network read failure, not a genuinely missing profile.
       // Do not call logout() — the Firebase session is valid. Navigate to "/"
       // and let RootRedirect / MissingProfileRecovery handle the profileIssue.
-      navigate(getRoleLandingPath(profile, '/'), { replace: true })
+      navigate(postLoginPath(profile), { replace: true })
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
       // Log the raw code+message so an unmapped failure (e.g. a native Google
@@ -156,6 +185,14 @@ export default function Login() {
           : 'Failed to send reset email. Please try again.',
       )
     } finally { setResetLoading(false) }
+  }
+
+  // This device has a known signed-in session that Firebase is still
+  // restoring — hold on the branded loader rather than flashing the sign-in
+  // form at a user who never signed out. A genuinely signed-out visitor has
+  // no hint and falls straight through to the form.
+  if (authLoading && !currentUser && hasAuthSessionHint()) {
+    return <FullScreenLoader label="Restoring your session…" />
   }
 
   return (
