@@ -110,6 +110,11 @@ describe('GenerateButton', () => {
     expect(btn).toBeDisabled()
     expect(screen.queryByText('Generate Notes')).not.toBeInTheDocument()
   })
+
+  it('honours an extra readiness condition via the disabled prop', () => {
+    render(<GenerateButton generating={false} disabled>Generate Scheme of Work</GenerateButton>)
+    expect(screen.getByRole('button', { name: /generate scheme of work/i })).toBeDisabled()
+  })
 })
 
 describe('StudioEmptyState', () => {
