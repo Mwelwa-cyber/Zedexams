@@ -1323,4 +1323,61 @@ await testAsync('runVisionImport does not re-scan a cover page the layout says h
   assert.ok(!out.warnings.some(w => /No questions were found on/i.test(w)))
 })
 
+await testAsync('a DEGRADED layout result does not suppress the zero-yield re-scan', async () => {
+  // analyzePaperLayout returns { summary: { total: 0 }, degraded: true } on a
+  // timeout — no `questions` field. That must NOT be recorded as "0 questions"
+  // (which would wrongly mark the page confirmed-empty and skip its re-scan).
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  const scanned = []
+  const callVision = async ({ pages }) => {
+    const nums = pages.map(p => p.pageNumber)
+    scanned.push(nums)
+    if (nums.length > 1) return { detectedCount: 2, sections: [q(1, 1), q(2, 1)] } // page 2 dropped
+    return nums[0] === 2 ? { detectedCount: 1, sections: [q(3, 2)] } : { detectedCount: 0, sections: [] }
+  }
+  // Layout times out on every page → degraded, no questions count.
+  const callLayout = async () => ({ objects: [], summary: { total: 0 }, degraded: true })
+  const out = await runVisionImport({
+    pageImages: [page(1), page(2)],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    callLayout,
+    sourceNoun: 'scanned paper',
+  })
+  assert.ok(scanned.some(nums => nums.length === 1 && nums[0] === 2), 'page 2 got a focused re-scan despite the degraded layout')
+  assert.ok(out.sections.some(s => s.question.sourceQuestionNumber === 3), 'its question was recovered')
+})
+
+await testAsync('recovers pages when the FIRST pass returns nothing but layout saw questions', async () => {
+  // Small paper: the single first-pass call comes back empty, but the layout
+  // pass saw questions on page 1. Without all-empty recovery this falls through
+  // to "no questions could be read"; with it, page 1 gets a focused re-scan.
+  const page = (n) => ({ pageNumber: n, dataUrl: 'data:image/jpeg;base64,AAAA' })
+  const q = (n, p) => ({ kind: 'standalone', question: mcq({ text: `Question ${n}`, sourceQuestionNumber: n, sourcePage: p }) })
+  let call = 0
+  const callVision = async ({ pages }) => {
+    call += 1
+    // First (whole-paper) pass returns nothing; the focused single-page re-scan finds them.
+    if (call === 1) return { detectedCount: 0, sections: [] }
+    return { detectedCount: 2, sections: [q(1, 1), q(2, 1)] }
+  }
+  const callLayout = async () => ({ summary: { tables: 0, diagrams: 0, questions: 2 } })
+  const out = await runVisionImport({
+    pageImages: [page(1)],
+    assetByPage: {},
+    file: { name: 'paper.pdf' },
+    callVision,
+    callLayout,
+    sourceNoun: 'scanned paper',
+  })
+  assert.ok(call >= 2, 'an all-empty first pass still triggers a recovery re-scan')
+  assert.deepEqual(
+    out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b),
+    [1, 2],
+    'the questions the first pass missed are recovered',
+  )
+})
+
 console.log(`\nscannedQuizImporter: ${passed} passed`)

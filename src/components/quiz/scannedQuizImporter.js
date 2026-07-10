@@ -1415,7 +1415,16 @@ export async function runVisionImport({
       layoutQuestionsByPage = new Map()
       perPage.forEach((res, i) => {
         const s = res && res.summary
-        if (s) layoutQuestionsByPage.set(pageImages[i].pageNumber, Number(s.questions) || 0)
+        // Only record an AUTHORITATIVE per-page count from a NON-degraded
+        // layout that actually reported a `questions` number. A degraded /
+        // timed-out layout returns { summary: { total: 0 }, degraded: true }
+        // with no `questions` field — recording that as 0 would make the
+        // zero-yield pass treat the page as confirmed-empty and wrongly
+        // suppress its re-scan. Leaving it absent lets findZeroYieldPages fall
+        // back to its "assume a non-cover page has questions" heuristic.
+        if (s && !res.degraded && Number.isFinite(Number(s.questions))) {
+          layoutQuestionsByPage.set(pageImages[i].pageNumber, Number(s.questions))
+        }
       })
       layoutSummary = perPage.reduce((acc, res) => {
         const s = res && res.summary
@@ -1536,15 +1545,27 @@ export async function runVisionImport({
     // pass says the page genuinely has none (cover / instructions page).
     // Pages that failed outright are excluded (they already had the full
     // retry ladder and are covered by the unread-pages warning).
-    if (merged.sections.length) {
-      zeroYieldTargets = findZeroYieldPages(
-        merged.sections,
-        pageImages.map(p => p.pageNumber),
-        {
+    {
+      const allPageNumbers = pageImages.map(p => p.pageNumber)
+      const excludedPages = failedPages.filter(n => !readOkPages.has(n))
+      if (merged.sections.length) {
+        zeroYieldTargets = findZeroYieldPages(merged.sections, allPageNumbers, {
           layoutQuestionsByPage,
-          excludePages: failedPages.filter(n => !readOkPages.has(n)),
-        },
-      )
+          excludePages: excludedPages,
+        })
+      } else if (layoutQuestionsByPage && layoutQuestionsByPage.size) {
+        // The first pass returned NOTHING, so findZeroYieldPages has no page
+        // attribution to work from — but the layout pass DID see questions on
+        // some pages. Re-scan exactly those (focused per-page reads enumerate
+        // far more reliably than the failed whole-paper pass) instead of
+        // falling straight through to "no questions could be read". Only pages
+        // a non-degraded layout reported questions on, and not ones that
+        // failed to read outright.
+        const excluded = new Set(excludedPages)
+        zeroYieldTargets = allPageNumbers
+          .filter(n => !excluded.has(n) && (layoutQuestionsByPage.get(n) || 0) > 0)
+          .slice(0, SCANNED_RECOVERY_MAX_PAGES)
+      }
       if (zeroYieldTargets.length) {
         const retryImages = zeroYieldTargets
           .map(n => pageImageByNumber.get(n))
