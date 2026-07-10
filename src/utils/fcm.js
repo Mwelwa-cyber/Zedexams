@@ -179,9 +179,11 @@ export function onForegroundMessage(handler) {
   // Return an unsubscribe function immediately; subscribe asynchronously once
   // the messaging Promise resolves so callers get a stable () => void handle.
   let unsubscribe = () => {}
-  messaging.then((m) => {
-    if (!m) return
-    unsubscribe = onMessage(m, handler)
-  })
+  messaging
+    .then((m) => {
+      if (!m) return
+      unsubscribe = onMessage(m, handler)
+    })
+    .catch(() => {})
   return () => unsubscribe()
 }
