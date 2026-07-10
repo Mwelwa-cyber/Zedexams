@@ -268,6 +268,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
   let modelUsed = SLIDE_NOTES_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "slideNotes"},
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

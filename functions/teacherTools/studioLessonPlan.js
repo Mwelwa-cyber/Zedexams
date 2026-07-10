@@ -171,6 +171,7 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
   ].filter(Boolean).join("\n\n");
 
   const response = await callClaude(apiKey, {
+    track: {uid, tool: "lesson_plan"},
     systemPrompt,
     cbcContextBlock: contextBlock || null,
     messages: [{role: "user", content: userPrompt}],

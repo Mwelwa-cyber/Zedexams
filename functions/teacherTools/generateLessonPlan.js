@@ -282,6 +282,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
 
   try {
     const baseClaudeArgs = {
+      track: {uid, tool: "lesson_plan"},
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

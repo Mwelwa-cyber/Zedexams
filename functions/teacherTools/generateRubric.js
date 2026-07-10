@@ -156,6 +156,7 @@ async function runRubric({uid, rawInputs, apiKey}) {
   let modelUsed = RUBRIC_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "rubric"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

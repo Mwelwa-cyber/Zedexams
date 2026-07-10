@@ -377,7 +377,17 @@ service cloud.firestore {
         || resource.data.userId == request.auth.uid
         || isAdmin()
       );
-      allow create: if isAuthed() && incoming().userId == request.auth.uid;
+      // Creates are pinned to the server-authoritative model: an attempt is
+      // born 'in_progress' with no score/percentage (exactly what the client's
+      // attemptStartSchema emits) — the in_progress → submitted transition is
+      // written ONLY by submitDailyExam via the admin SDK. Without the pin, a
+      // learner could addDoc a pre-scored 'submitted' attempt and plant it
+      // straight onto the public daily leaderboard the read rule above feeds.
+      allow create: if isAuthed()
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'in_progress'
+        && incoming().score == null
+        && incoming().percentage == null;
 
       // Private per-attempt detail (answers + personal analytics). Written
       // only by the grader / backfill (admin SDK, which bypasses rules), so

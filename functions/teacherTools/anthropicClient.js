@@ -165,23 +165,19 @@ async function callClaude(apiKey, opts = {}) {
     // to "high", which is slower and costlier.
     thinking,
     outputConfig,
+    // Cost attribution for the /admin/ai-costs rollups: {uid, tool}. Optional
+    // — without it the call still records under the shared "teacherTools"
+    // tool label so the monthly ceiling always sees this spend.
+    track,
   } = opts;
 
-  // Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the
-  // runtime; fails open so an accounting glitch never blocks a generation.
-  try {
-    const {getBudgetStatus} = require("../aiCostTracking");
-    const status = await getBudgetStatus();
-    if (status && status.overBudget) {
-      throw new HttpsError(
-          "resource-exhausted",
-          "The monthly AI budget has been reached. AI features are paused " +
-          "until the next billing month or until an admin raises the limit.",
-      );
+  // Monthly spend ceiling. No-op unless a ceiling is armed on the runtime;
+  // fails open so an accounting glitch never blocks a generation.
+  {
+    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("../aiCostTracking");
+    if (await isOverBudget()) {
+      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
     }
-  } catch (err) {
-    if (err instanceof HttpsError) throw err;
-    console.warn("[anthropicClient] budget check failed (allowing call)", err);
   }
 
   // Validate mode + required params up front so config errors fail fast and
@@ -232,11 +228,35 @@ async function callClaude(apiKey, opts = {}) {
     });
   };
 
-  return attemptWithFallback({
+  const result = await attemptWithFallback({
     models: buildModelLadder(model),
     dispatch,
     streamProgressed: () => streamProgressed,
   });
+
+  // Fire-and-forget usage rollup (same idiom as aiService — never throws,
+  // never awaited) so the monthly ceiling, the treasury governor, and
+  // /admin/ai-costs see teacher-generator spend, historically the largest
+  // category that never reached the meter the budget gate reads.
+  if (result && result.usage) {
+    try {
+      const {recordAiUsage} = require("../aiCostTracking");
+      recordAiUsage({
+        uid: (track && track.uid) || null,
+        tool: (track && track.tool) || "teacherTools",
+        model: result.model || model,
+        usage: {
+          input_tokens: result.usage.inputTokens,
+          output_tokens: result.usage.outputTokens,
+          cache_creation_input_tokens: result.usage.cacheCreationTokens,
+          cache_read_input_tokens: result.usage.cacheReadTokens,
+        },
+      });
+    } catch (err) {
+      console.warn("[anthropicClient] cost track failed", err);
+    }
+  }
+  return result;
 }
 
 // Helper: build the optional reasoning-control fields. Caller passes the

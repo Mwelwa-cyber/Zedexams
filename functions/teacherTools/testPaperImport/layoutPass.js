@@ -286,6 +286,7 @@ function createAnalyzePaperLayout(anthropicApiKeySecret) {
           classify: async (img) => {
             const {callClaude} = require("../anthropicClient");
             const result = await callClaude(anthropicKey, {
+              track: {tool: "testPaperImport"},
               systemPrompt: LAYOUT_SYSTEM_PROMPT,
               model: LAYOUT_MODEL,
               messages: [{

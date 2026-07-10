@@ -204,6 +204,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
   let modelUsed = ASSESSMENT_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "assessment"},
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
       formatContextBlock: formatBlock,

@@ -1192,10 +1192,12 @@ export function useFirestore() {
 
   // Per-day revenue + activation count for the admin dashboard. Reads
   // every confirmed/successful payment from the last `days` days and
-  // buckets client-side so the query is a single inequality with no
-  // composite index dependency. Cheap at the volume we expect for the
-  // foreseeable future (~tens of payments/day); revisit when daily
-  // volume gets into the hundreds.
+  // buckets client-side. The status-in + confirmedAt range combination
+  // REQUIRES the (status ASC, confirmedAt ASC) composite index in
+  // firestore.indexes.json — without it this query throws, the catch
+  // below returns zeroed buckets, and the revenue chart silently reads
+  // K0. Cheap at the volume we expect (~tens of payments/day); revisit
+  // when daily volume gets into the hundreds.
   async function getRevenueByDay(days = 7) {
     const buckets = []
     const startOfToday = new Date()

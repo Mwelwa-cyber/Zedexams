@@ -31,6 +31,14 @@ async function callGemini(apiKey, opts = {}) {
       "Gemini API key is not configured.",
     );
   }
+  // Monthly spend ceiling — Gemini calls historically bypassed the gate.
+  // Fails open inside isOverBudget so an accounting glitch never blocks.
+  {
+    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
+    if (await isOverBudget()) {
+      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
+    }
+  }
   const model = opts.model || DEFAULT_MODEL;
   const url = `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -86,6 +94,24 @@ async function callGemini(apiKey, opts = {}) {
   }
 
   const data = await res.json();
+  // Fire-and-forget usage rollup (never throws, never awaited) so Gemini
+  // spend reaches the meter the budget ceiling and /admin/ai-costs read.
+  // usageMetadata's prompt/candidates counts map onto input/output tokens.
+  try {
+    const {recordAiUsage} = require("./aiCostTracking");
+    const um = data?.usageMetadata;
+    recordAiUsage({
+      uid: (opts.track && opts.track.uid) || null,
+      tool: (opts.track && opts.track.tool) || "gemini",
+      model,
+      usage: {
+        input_tokens: Number(um?.promptTokenCount || 0),
+        output_tokens: Number(um?.candidatesTokenCount || 0),
+      },
+    });
+  } catch (err) {
+    console.warn("[geminiClient] cost track failed", err);
+  }
   // Gemini returns candidates[0].content.parts[].text; concatenate any
   // text parts so we don't drop content if the model emits multiple.
   const candidate = data?.candidates?.[0];

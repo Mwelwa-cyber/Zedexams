@@ -203,6 +203,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
   let modelUsed = ACTIVITIES_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "lessonActivities"},
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

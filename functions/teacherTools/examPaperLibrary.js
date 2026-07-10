@@ -93,6 +93,7 @@ async function runAnalyzeExamPaper({uid, data, apiKey}) {
   const {blocks, droppedForSize, extraNote} = await buildMessageBlocks(source);
 
   const result = await callClaude(apiKey, {
+    track: {uid, tool: "examPaperAnalyze"},
     systemPrompt: ANALYSIS_SYSTEM_PROMPT,
     messages: [{
       role: "user",
@@ -209,6 +210,7 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
   const samples = matches.slice(0, MAX_SYNTHESIS_SAMPLES);
 
   const result = await callClaude(apiKey, {
+    track: {uid, tool: "examPaperFormat"},
     systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
     messages: [{
       role: "user",
