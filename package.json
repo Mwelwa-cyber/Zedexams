@@ -151,7 +151,7 @@
     "test:dead-provider-secrets": "node functions/deadProviderSecrets.test.js",
     "test:studio-lesson-plan": "node functions/teacherTools/studioLessonPlan.test.js",
     "test:grading": "node src/utils/grading.test.js",
-    "test:exam-paper-schema": "node functions/teacherTools/examPaperSchema.test.js",
+    "test:generate-assessment": "node functions/teacherTools/generateAssessment.test.js",
     "test:assessment-formats": "node functions/teacherTools/assessmentFormatSeeds.test.js",
     "test:assessment-format-resolver": "node functions/teacherTools/assessmentFormats.test.js",
     "test:assessment-prompt-v5": "node functions/teacherTools/assessmentPromptV5.test.js",

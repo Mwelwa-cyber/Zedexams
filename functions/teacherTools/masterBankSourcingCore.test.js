@@ -7,7 +7,7 @@
 
 const {
   normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
-  editorQuestionToExamPaper, selectBankQuestions, buildAvoidNote, mergeSourcedIntoSections,
+  selectBankQuestions, buildAvoidNote, mergeSourcedIntoSections,
 } = require("./masterBankSourcingCore");
 
 let failures = 0;
@@ -161,23 +161,6 @@ console.log("\nbuildAvoidNote — assessment stems via `prompt`");
 {
   const note = buildAvoidNote([{prompt: "What is osmosis?"}, {question: "Define gravity"}]);
   assert(note.includes("osmosis") && note.includes("gravity"), "reads both prompt (assessment) and question (quiz)");
-}
-
-console.log("\neditorQuestionToExamPaper — MCQ-only, strict option count");
-{
-  const q = editorQuestionToExamPaper({
-    type: "mcq", text: "2 + 2 = ?", options: ["3", "4", "5", "6"],
-    correctAnswer: 1, explanation: "sum", topic: "Arithmetic", difficulty: "easy",
-  }, {optionCount: 4});
-  assert(q && q.type === "multiple_choice", "mcq → multiple_choice");
-  assert(q.correctAnswer === "4", "index → option text");
-  assert(q.options.length === 4 && q.topic === "Arithmetic" && q.difficulty === "easy", "carries options, topic, difficulty");
-
-  assert(editorQuestionToExamPaper({type: "mcq", text: "Q", options: ["a", "b", "c"], correctAnswer: 0}, {optionCount: 4}) === null, "wrong option count (3 vs 4) → null");
-  assert(editorQuestionToExamPaper({type: "short_answer", text: "Q", correctAnswer: "x"}, {optionCount: 4}) === null, "non-MCQ (short_answer) → null");
-  assert(editorQuestionToExamPaper({type: "tf", text: "Q", correctAnswer: 0}, {optionCount: 4}) === null, "true/false → null (exam is MCQ-only)");
-  const dfl = editorQuestionToExamPaper({type: "mcq", text: "Q", options: ["a", "b"], correctAnswer: 0, difficulty: "weird"}, {optionCount: 2});
-  assert(dfl.difficulty === "medium", "unknown difficulty defaults to medium");
 }
 
 if (failures > 0) {
