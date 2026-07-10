@@ -60,6 +60,17 @@ beforeEach(() => {
 })
 
 describe('NotificationCenter', () => {
+  it('portals the overlay to document.body (not inside the opener)', () => {
+    // Regression: rendered in place, the fixed-position overlay is trapped by
+    // the glass navbar's backdrop-filter/will-change containing block and gets
+    // squashed into the 80px nav strip — the bell then looks dead.
+    setCtx({ notifications: [] })
+    const { container } = renderCenter()
+    const dialog = screen.getByRole('dialog', { name: 'Notifications' })
+    expect(dialog.parentElement).toBe(document.body)
+    expect(container.contains(dialog)).toBe(false)
+  })
+
   it('renders the empty state when there are no notifications', () => {
     setCtx({ notifications: [] })
     renderCenter()
