@@ -14,15 +14,22 @@ import { SECTION_LETTERS } from './assessmentStudioMeta'
 import Icon from './studio/studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 
-export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
-  const options = Array.isArray(question.options) && question.options.length
+export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maxOptions }) {
+  const allOptions = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
+  const cap = (typeof maxOptions === 'number' && maxOptions >= 2 && maxOptions <= allOptions.length)
+    ? maxOptions
+    : allOptions.length
+  const visibleOptions = allOptions.slice(0, cap)
+  const hiddenOptions = allOptions.slice(cap)
+  const hiddenHaveContent = hiddenOptions.some(o => String(o || '').trim().length > 0)
   const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia : []
   const correctIndex = typeof question.correctAnswer === 'number' ? question.correctAnswer : 0
+  const correctIsHidden = correctIndex >= cap
   return (
     <div className="sv-mcq-options">
-      {options.map((option, optIndex) => {
+      {visibleOptions.map((option, optIndex) => {
         const media = optionMedia[optIndex]
         return (
           <McqOptionRow
@@ -41,6 +48,16 @@ export function McqOptions({ question, onChangeOption, onSelectCorrect, onUpload
           />
         )
       })}
+      {hiddenHaveContent && (
+        <div style={{ fontSize: 11, color: 'var(--sv-muted)', padding: '4px 8px' }}>
+          {hiddenOptions.filter(o => String(o || '').trim().length > 0).length} more option(s) hidden by the paper&apos;s Answer choices setting — kept, not printed.
+        </div>
+      )}
+      {correctIsHidden && (
+        <div style={{ fontSize: 11, color: '#B45309', padding: '4px 8px', background: '#FFFBEB', borderRadius: 4, marginTop: 4 }}>
+          Warning: the correct answer (option {String.fromCharCode(65 + correctIndex)}) is hidden by the current Answer choices setting. Update the correct answer or increase the choice count.
+        </div>
+      )}
     </div>
   )
 }

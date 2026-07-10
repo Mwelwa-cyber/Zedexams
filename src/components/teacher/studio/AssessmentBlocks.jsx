@@ -8,6 +8,7 @@ import {
   ShortAnswerInputs,
   AnswerSpaceControl,
 } from '../AssessmentQuestionEditors'
+import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue } from '../assessmentQuestionTypes'
 import { QuestionBlock } from '../AssessmentQuestionBlock'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import {
@@ -21,9 +22,63 @@ import {
 import Icon from './studioIcons'
 
 /* ==================================================================
+ * IMPORT SUMMARY BANNER
+ * Shown at the top of HeaderBlock after a document/scan import so the
+ * teacher immediately sees what was extracted. Dismisses by clearing
+ * importSummary in AssessmentStudio via onDismissImportSummary.
+ * ================================================================== */
+function ImportSummaryBanner({ summary, onDismiss }) {
+  const warnings = Array.isArray(summary.warnings) ? summary.warnings : []
+  const manyWarnings = warnings.length > 3
+  return (
+    <div className="sv-import-banner" role="status" aria-live="polite">
+      <div className="sv-import-banner-head">
+        <span className="sv-import-banner-title">
+          {summary.smartApplied && (
+            <span className="sv-import-tag smart">Smart import</span>
+          )}
+          <strong>{summary.fileName || 'Imported document'}</strong>
+          {' — '}
+          {summary.totalQuestions != null ? `${summary.totalQuestions} question${summary.totalQuestions === 1 ? '' : 's'} extracted` : 'questions extracted'}
+          {summary.reviewCount > 0 && (
+            <span className="sv-import-tag review"> · {summary.reviewCount} need review</span>
+          )}
+        </span>
+        {onDismiss && (
+          <button
+            type="button"
+            className="sv-import-banner-dismiss"
+            onClick={onDismiss}
+            aria-label="Dismiss import summary"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {warnings.length > 0 && (
+        manyWarnings ? (
+          <details className="sv-import-warnings">
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--sv-muted)' }}>
+              {warnings.length} import warnings
+            </summary>
+            <ul className="sv-import-warning-list">
+              {warnings.map((w, i) => <li key={i}>{String(w)}</li>)}
+            </ul>
+          </details>
+        ) : (
+          <ul className="sv-import-warning-list">
+            {warnings.map((w, i) => <li key={i}>{String(w)}</li>)}
+          </ul>
+        )
+      )}
+    </div>
+  )
+}
+
+/* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'], assessmentTypeLabel = 'Assessment' }) {
+export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'], assessmentTypeLabel = 'Assessment', importSummary, onDismissImportSummary }) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -37,6 +92,10 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
       <div className="sv-block-head">
         <span className="sv-ic"><Icon name="header" size={15} /></span> Paper Header
       </div>
+
+      {importSummary && (
+        <ImportSummaryBanner summary={importSummary} onDismiss={onDismissImportSummary} />
+      )}
 
       <div className="sv-identity-row">
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--sv-s3)' }}>
@@ -375,6 +434,7 @@ export function SectionBlock(props) {
         sectionIndex={sectionIndex}
         parts={parts}
         questionNumbers={questionNumbers}
+        paperMeta={paperMeta}
         onEditQuestion={onEditQuestion}
         onMoveSection={onMoveSection}
         onRemoveSection={onRemoveSection}
@@ -410,7 +470,7 @@ export function SectionBlock(props) {
   )
 }
 
-export function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+export function PassageBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
   const passage = section.passage
   const kind = passage.passageKind || 'comprehension'
   const isMap = kind === 'map'
@@ -633,13 +693,30 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, on
           <div className="sv-q-card-top">
             <div className="sv-q-num">{questionNumbers[question.localId] || qIndex + 1}.</div>
             <select
-              value={question.type === 'mcq' || !question.type ? 'mcq' : 'short_answer'}
-              onChange={e => setQuestionType(qIndex, e.target.value)}
-              title="Switch this sub-question between multiple choice and short answer"
+              value={question.type === 'mcq' || !question.type ? 'mcq' : question.type === 'short_answer' ? 'short_answer' : typeSelectValue(question.type)}
+              onChange={e => {
+                // Only mcq and short_answer can be set inline; other types
+                // must be changed via "Edit in detail" (EditorSlide supports all 8).
+                if (e.target.value === 'mcq' || e.target.value === 'short_answer') {
+                  setQuestionType(qIndex, e.target.value)
+                }
+              }}
+              title="Switch between multiple choice and short answer; for other types use 'Edit in detail'"
               style={{ background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '3px 8px', fontSize: 11.5 }}
             >
               <option value="mcq">Multiple choice</option>
               <option value="short_answer">Short answer</option>
+              {question.type && question.type !== 'mcq' && question.type !== 'short_answer' && (
+                // Show the real type as a disabled option so the select displays
+                // the truth instead of silently coercing to short_answer. The
+                // teacher can change it via "Edit in detail".
+                <option
+                  value={typeSelectValue(question.type)}
+                  disabled
+                >
+                  {(STUDIO_QUESTION_TYPE_OPTIONS.find(o => o.value === typeSelectValue(question.type))?.label || question.type)} — edit via &quot;Edit in detail&quot;
+                </option>
+              )}
             </select>
             <label className="sv-q-marks-input">
               marks
@@ -659,6 +736,7 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, on
           {(question.type === 'mcq' || !question.type) ? (
             <McqOptions
               question={question}
+              maxOptions={typeof paperMeta?.mcqAnswerChoiceCount === 'number' ? paperMeta.mcqAnswerChoiceCount : undefined}
               onChangeOption={(optIndex, value) => {
                 const next = [...(question.options || ['', '', '', ''])]
                 next[optIndex] = value

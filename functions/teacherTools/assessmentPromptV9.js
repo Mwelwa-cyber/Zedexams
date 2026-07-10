@@ -45,16 +45,16 @@ const PROMPT_VERSION = "assessment.v9";
 const COMBINED_NUMERACY_SUBJECTS = new Set(["numeracy"]);
 
 // Human labels for the canonical question-type keys, used when listing the
-// teacher's whitelist in the user prompt. short_answer covers fill-in-the-blank
-// (the schema has no separate type for it), so the label says both.
+// teacher's whitelist in the user prompt.
 const QT_LABELS = {
   multiple_choice: "multiple choice",
-  short_answer: "short answer / fill-in-the-blank",
+  short_answer: "short answer",
   structured: "structured (multi-part)",
   calculation: "calculation (show working)",
   true_false: "true/false",
   essay: "essay / composition",
   matching: "matching (Column A with Column B)",
+  fill_blanks: "fill in the blanks (structured statements with a word bank)",
 };
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher and examiner writing a formal CBC ASSESSMENT (a graded test).
@@ -81,6 +81,12 @@ Matching questions:
 - Use type "matching" for the classic "Match the items in Column A with Column B" exercise: 3-6 items in "left", their partners in "right" (you may add ONE extra distractor to "right"), and "pairs" where pairs[i] is the 0-based index into "right" matching left[i].
 - The prompt should read like the real papers: "Match the animals in Column A with their young ones in Column B."
 - Score 1 mark per correct pair unless the format says otherwise; the marking guide lists the correct pairings.
+
+Fill-in-blanks questions:
+- Use type "fill_blanks" for complete-the-sentence exercises where learners fill each blank from a provided word bank. Write 3-6 "statements", each one a separate sentence with ONE blank written as ____ (exactly four underscores). Collect every correct answer into a "wordBank" array and shuffle it; at Zambian primary-school standard, add 1-2 extra distractor words so learners must choose carefully rather than place whatever is left.
+- Each statement in the "statements" array is an object: { "text": "The heart pumps ____.", "answer": "blood" }. The "answer" field is the single word (or short phrase) that fills the blank in that statement.
+- ALWAYS populate the prose "answer" field at the question level with the correct answers in blank order (e.g. "blood; lungs; brain") and the "markingGuide" — the structured data may degrade on stale clients; the prose key must survive independently.
+- Score 1 mark per correctly filled blank unless the format says otherwise.
 
 MATHS NOTATION — write every piece of maths the way it should PRINT, not as rough ASCII. This applies to the question text, the options, and the marking guide:
 - Fractions: ALWAYS write \\frac{a}{b} (e.g. \\frac{1}{3}, \\frac{2}{5}). Mixed numbers: put the whole number directly before the fraction — c\\frac{a}{b} (e.g. 2\\frac{1}{4}). NEVER write a fraction as "1/3".
@@ -261,12 +267,14 @@ function buildUserPrompt(inputs) {
     '      "questions": [',
     "        {",
     '          "number": number,',
-    '          "type": "multiple_choice"|"short_answer"|"structured"|"calculation"|"true_false"|"essay"|"matching",',
+    '          "type": "multiple_choice"|"short_answer"|"structured"|"calculation"|"true_false"|"essay"|"matching"|"fill_blanks",',
     '          "prompt": string,',
     '          "options": [string, ...],   // only for multiple_choice / true_false',
     '          "left": [string, ...],      // only for matching: Column A items (3-6)',
     '          "right": [string, ...],     // only for matching: Column B (may hold one extra distractor)',
     '          "pairs": [number, ...],     // only for matching: pairs[i] = 0-based index into right matching left[i]',
+    '          "statements": [{"text": string, "answer": string}],  // fill_blanks only: 3-6 sentences, each with ____ blank(s)',
+    '          "wordBank": [string, ...],  // fill_blanks only: all correct answers + 1-2 distractors, shuffled',
     '          "marks": number,',
     '          "visual": {                 // ONLY when the question needs a picture; else null. Drawn images hold NO text.',
     '            "kind": "stem_figure"|"labelled_figure"|"option_images"|"shape"|"shape_options",',
@@ -303,6 +311,7 @@ function buildUserPrompt(inputs) {
     allowedTypes.length > 0 ?
       "- Use ONLY the allowed question types listed above — every single " +
       "question must be one of them." : "",
+    "- Fill-in-blanks: write each statement with ____ (4 underscores per blank); put all correct answers plus 1-2 distractors in \"wordBank\" (shuffled); set the question-level \"answer\" to the answers in blank order so stale consumers keep a marking key.",
     "- Write fractions as \\\\frac{a}{b} and other maths in $…$ — never plain ASCII like \"1/3\".",
     "- Add a \"visual\" only where a real exam would show a picture; leave it null otherwise.",
     "- Use Zambian English spelling. Return ONLY the JSON object.",

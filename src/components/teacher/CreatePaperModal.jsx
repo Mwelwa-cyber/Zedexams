@@ -27,22 +27,23 @@ import { canonicalizeAssessmentType } from '../../utils/questionType'
 
 // Each chip maps to a canonical schema question type (`canonical`) sent to the
 // generator so the paper contains ONLY the selected types, while `key` is the
-// human phrasing folded into the prompt text (so "fill-in-the-blank" still
-// reads as blanks even though it is stored as a short_answer). Fill-in-the-blank
-// has no separate schema type — it is a short_answer presented with blanks.
+// human phrasing folded into the prompt text. Fill-in-the-blank is a
+// first-class schema type (fill_blanks, v1.6) with its own structured
+// statements[] + wordBank[] shape — distinct from short_answer.
 //
 // The `canonical` values are the ASSESSMENT namespace (multiple_choice /
-// true_false / structured / calculation / …), the vocabulary the generator +
-// assessmentSchema speak — NOT the editor enum (mcq / tf / …). They are the
-// single source of truth in src/utils/questionType.js (ASSESSMENT_QUESTION_TYPES,
-// guarded against this map by CreatePaperModal.spec.jsx); canonicalTypesFor()
-// folds each through canonicalizeAssessmentType so the modal can never emit a
-// spelling the shared normalizer doesn't recognise.
+// true_false / structured / calculation / fill_blanks / …), the vocabulary the
+// generator + assessmentSchema speak — NOT the editor enum (mcq / tf / …).
+// They are the single source of truth in src/utils/questionType.js
+// (ASSESSMENT_QUESTION_TYPES, guarded against this map by
+// CreatePaperModal.spec.jsx); canonicalTypesFor() folds each through
+// canonicalizeAssessmentType so the modal can never emit a spelling the shared
+// normalizer doesn't recognise.
 export const QUESTION_TYPE_OPTIONS = [
   { key: 'multiple choice', canonical: 'multiple_choice', label: 'Multiple choice' },
   { key: 'true/false', canonical: 'true_false', label: 'True / False' },
   { key: 'short answer', canonical: 'short_answer', label: 'Short answer' },
-  { key: 'fill-in-the-blank', canonical: 'short_answer', label: 'Fill in the blank' },
+  { key: 'fill-in-the-blank', canonical: 'fill_blanks', label: 'Fill in the blank' },
   { key: 'matching (match Column A with Column B)', canonical: 'matching', label: 'Matching' },
   { key: 'structured (multi-part)', canonical: 'structured', label: 'Structured' },
   { key: 'calculation (show working)', canonical: 'calculation', label: 'Calculation' },
@@ -50,8 +51,8 @@ export const QUESTION_TYPE_OPTIONS = [
 ]
 
 // The canonical schema types for the currently-selected chips, deduped
-// (multiple chips can map to the same canonical type, e.g. short answer +
-// fill-in-the-blank → short_answer).
+// (multiple chips with the same canonical are merged, e.g. two short-answer
+// chips, but fill-in-the-blank now maps to fill_blanks — a distinct type).
 function canonicalTypesFor(selectedKeys) {
   const out = []
   for (const k of selectedKeys) {

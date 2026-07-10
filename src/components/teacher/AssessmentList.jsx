@@ -12,26 +12,7 @@ import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { getStudioVariant, isExamPaperType } from './studioVariant'
-
-const ASSESSMENT_TYPE_LABELS = {
-  topic: 'Topic Test',
-  weekly: 'Weekly Test',
-  mid_term: 'Mid-Term Test',
-  end_of_term: 'End-of-Term Test',
-  mock: 'Mock Exam',
-  examination: 'Examination',
-  exam: 'Exam',
-  monthly: 'Monthly test',
-  diagnostic: 'Diagnostic / baseline',
-  pre_test: 'Pre-test',
-  post_test: 'Post-test',
-  revision: 'Revision test',
-  continuous: 'Continuous assessment',
-  summative: 'Summative assessment',
-  practical: 'Practical assessment',
-  oral: 'Oral assessment',
-  project: 'Project-based assessment',
-}
+import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
 
 function formatDate(ts) {
   if (!ts) return '—'

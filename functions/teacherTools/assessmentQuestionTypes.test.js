@@ -39,17 +39,18 @@ console.log("assessmentQuestionTypes");
     ["multiple_choice", "short_answer"]);
   ok("passes through canonical types unchanged", true);
 
-  // Fill-in-the-blank maps to short_answer; the chip "short answer" + the chip
-  // "fill-in-the-blank" both arrive canonicalised, so they dedupe to one.
+  // fill_in_the_blank and its variants map to the dedicated fill_blanks type
+  // (v1.6 — previously mapped to short_answer; each now has its own type).
   assert.deepStrictEqual(
     normalizeQuestionTypes(["multiple_choice", "fill_in_the_blank"]),
-    ["multiple_choice", "short_answer"]);
-  ok("fill_in_the_blank maps to short_answer", true);
+    ["multiple_choice", "fill_blanks"]);
+  ok("fill_in_the_blank maps to fill_blanks", true);
 
+  // short_answer + fill_in_the_blank are now DIFFERENT canonical types.
   assert.deepStrictEqual(
-    normalizeQuestionTypes(["short_answer", "short_answer", "fill_in_the_blank"]),
-    ["short_answer"]);
-  ok("duplicates (incl. fill-in-the-blank) collapse to one", true);
+    normalizeQuestionTypes(["short_answer", "fill_in_the_blank"]),
+    ["short_answer", "fill_blanks"]);
+  ok("short_answer and fill_in_the_blank are distinct types (no dedup)", true);
 
   // Loose/free-text shapes still resolve.
   assert.deepStrictEqual(
@@ -129,6 +130,29 @@ console.log("assessmentQuestionTypes");
   const plain = renderFormatContextBlock(DEFAULT_PROFILE, {grade: "G4"});
   ok("unrestricted render has no restriction banner",
     !plain.includes("QUESTION-TYPE RESTRICTION"));
+}
+
+// ── fill_blanks is now a first-class canonical type (v1.6) ─────────────────
+{
+  // fill_blanks passes through normalizeQuestionTypes unchanged.
+  assert.deepStrictEqual(
+    normalizeQuestionTypes(["fill_blanks"]), ["fill_blanks"]);
+  ok("fill_blanks passes through as canonical", true);
+
+  // A fill_blanks-only selection → a single fallback section (no seed section
+  // declares fill_blanks) that carries exactly the allowed type.
+  const fillOnly = filterProfileToTypes(DEFAULT_PROFILE, ["fill_blanks"]);
+  ok("fill_blanks-only collapses to one allowed-only section",
+    fillOnly.paperStructure.length === 1 &&
+    fillOnly.paperStructure[0].marksShare === 100 &&
+    fillOnly.paperStructure[0].questionTypes.length === 1 &&
+    fillOnly.paperStructure[0].questionTypes[0] === "fill_blanks");
+
+  // The rendered block names the fill_blanks label.
+  const block = renderFormatContextBlock(DEFAULT_PROFILE,
+    {grade: "G4", allowedTypes: ["fill_blanks"]});
+  ok("rendered block names the fill_blanks label",
+    block.includes("Fill in the Blanks"));
 }
 
 console.log(`assessmentQuestionTypes: ${passed} checks passed`);

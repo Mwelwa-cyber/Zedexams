@@ -1,7 +1,7 @@
-// Question Bank side panel — a collapsible drawer docked inside the Exam
-// Studio so the curated bank comes to the teacher instead of making them
-// navigate to a separate page. Opening it never leaves the paper in progress
-// (the builder lives in the studio's React state; this is a sibling overlay).
+// Question Bank side panel — a collapsible drawer docked inside the Test Paper
+// Studio and Exam Studio so the curated bank comes to the teacher instead of
+// making them navigate to a separate page. Opening it never leaves the paper in
+// progress (the builder lives in the studio's React state; this is a sibling overlay).
 //
 // On open it auto-scopes the bank to the paper's grade + subject + topic
 // (falling back from topic → subject level, flagged as "widened"), layers the
@@ -281,7 +281,7 @@ export default function QuestionBankPanel({ open, onClose, uid, context = {}, on
 
         {visible.length > 0 && (
           <footer className="px-4 py-2 text-[11px] text-gray-400 border-t theme-border bg-white text-center">
-            {visible.length} question{visible.length === 1 ? '' : 's'} · inserts land at the end of the paper and can be dragged into place
+            {visible.length} question{visible.length === 1 ? '' : 's'} · inserts land at the end of the paper — use the ↑ ↓ arrows on the question card to move it into place
           </footer>
         )}
       </aside>

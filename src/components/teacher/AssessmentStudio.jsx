@@ -67,7 +67,7 @@ import ImportReviewScreen from './scan/ImportReviewScreen'
 import { studioGradeToKbGrade, studioSubjectToKey } from './syllabusTopicOptions'
 import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
 import { getStudioVariant } from './studioVariant'
-import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
+import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from './assessmentStudioMeta'
 import {
   importQuizDocument,
   revokeImportedQuizAssets,
@@ -143,30 +143,10 @@ const GRADE_WORDS = {
 }
 export const TERMS = ['1', '2', '3']
 
-// Labels stay comprehensive: the selectable types use the studio's "Test"/
-// "Exam" wording, while the legacy keys are retained so papers saved before
-// the type list was trimmed still render a readable label rather than a bare
-// "Assessment" fallback. Which subset the picker shows is driven by the studio
-// variant (Test Paper vs Exam) — see getStudioVariant.
-export const ASSESSMENT_TYPE_LABELS = {
-  topic: 'Topic Test',
-  weekly: 'Weekly Test',
-  mid_term: 'Mid-Term Test',
-  end_of_term: 'End-of-Term Test',
-  mock: 'Mock Exam',
-  examination: 'Examination',
-  exam: 'Exam',
-  monthly: 'Monthly test',
-  diagnostic: 'Diagnostic / baseline',
-  pre_test: 'Pre-test',
-  post_test: 'Post-test',
-  revision: 'Revision test',
-  continuous: 'Continuous assessment',
-  summative: 'Summative assessment',
-  practical: 'Practical assessment',
-  oral: 'Oral assessment',
-  project: 'Project-based assessment',
-}
+// Re-exported from assessmentStudioMeta.js — the canonical single source of
+// truth for assessment type labels shared by both AssessmentStudio and
+// AssessmentList. Named export kept for backwards compat with any import.
+export const ASSESSMENT_TYPE_LABELS = ASSESSMENT_TYPE_LABELS_META
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
@@ -309,6 +289,54 @@ function buildFooterCode(form) {
 
 
 /* ------------------------------------------------------------------
+ * Form defaults — module-level so startBlankPaper can reference the
+ * same shape the useState initializer uses, without duplicating it.
+ * ------------------------------------------------------------------ */
+function makeDefaultForm(cfg) {
+  return {
+    title: '',
+    subject: 'Integrated Science',
+    grade: '4',
+    term: '1',
+    year: new Date().getFullYear(),
+    duration: 60,
+    type: 'assessment',
+    topic: '',
+    assessmentType: cfg.defaultType,
+    schoolName: '',
+    // School identity (seeded from the saved school profile by
+    // applySchoolProfileDefaults; rendered in the paper header when set).
+    schoolLogoUrl: '',
+    motto: '',
+    address: '',
+    emisNumber: '',
+    footerText: '',
+    className: '',
+    paperName: '',
+    assessmentDate: '',
+    coverInstructions: '',
+    showNameField: true,
+    showDateField: true,
+    showMarksField: true,
+    showClassField: false,
+    // MCQ option presentation (applies to every multiple-choice question).
+    mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
+    mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
+    // Where the block of loose / ungrouped questions sits relative to the
+    // sections: the number of sections that print before it. 0 = the loose
+    // questions lead the paper (the historical default); the teacher can push
+    // them below a section with the section's move-up control.
+    ungroupedOrder: 0,
+    endOfPaperText: '— END OF PAPER —',
+    mode: '',
+    importStatus: '',
+    sourceFileName: '',
+    sourceContentType: '',
+    importWarnings: [],
+  }
+}
+
+/* ------------------------------------------------------------------
  * Top-level component
  * ------------------------------------------------------------------ */
 
@@ -352,47 +380,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
   const [pasteSlide, setPasteSlide] = useState({ open: false, afterIndex: null })
   const [toast, setToast] = useState(null)
 
-  // Data state (compatible with existing schema)
+  // Data state (compatible with existing schema). The initializer spreads the
+  // deep-link params on top so a "Create for this lesson" link lands correctly.
   const [form, setForm] = useState(() => ({
-    title: '',
-    subject: 'Integrated Science',
-    grade: '4',
-    term: '1',
-    year: new Date().getFullYear(),
-    duration: 60,
-    type: 'assessment',
-    topic: '',
-    assessmentType: cfg.defaultType,
-    schoolName: '',
-    // School identity (seeded from the saved school profile by
-    // applySchoolProfileDefaults; rendered in the paper header when set).
-    schoolLogoUrl: '',
-    motto: '',
-    address: '',
-    emisNumber: '',
-    footerText: '',
-    className: '',
-    paperName: '',
-    assessmentDate: '',
-    coverInstructions: '',
-    showNameField: true,
-    showDateField: true,
-    showMarksField: true,
-    showClassField: false,
-    // MCQ option presentation (applies to every multiple-choice question).
-    mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
-    mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
-    // Where the block of loose / ungrouped questions sits relative to the
-    // sections: the number of sections that print before it. 0 = the loose
-    // questions lead the paper (the historical default); the teacher can push
-    // them below a section with the section's move-up control.
-    ungroupedOrder: 0,
-    endOfPaperText: '— END OF PAPER —',
-    mode: '',
-    importStatus: '',
-    sourceFileName: '',
-    sourceContentType: '',
-    importWarnings: [],
+    ...makeDefaultForm(cfg),
     // Pre-fill from a Lesson Plan Studio "Create for this lesson" deep-link
     // (?grade=G5&subject=mathematics&topic=…&term=2). Only values valid for the
     // studio's flat grade/subject/term lists are applied; the rest stay default.
@@ -2381,19 +2372,27 @@ export default function AssessmentStudio({ variant = 'test' }) {
         openSlide('editor', { questionKey: section.question.localId })
         return
       }
-      case 'image_identify':
+      case 'image_identify': {
         // Image Identify is a diagram-with-labels question rendered in
         // "identify" mode: numbered markers print on the image, and the
         // student writes the matching term on numbered blank lines below.
-        // Reuses all the diagramLabels infrastructure (PR #430).
-        newSection = baseQuestion('diagram', {
+        // Reuses all the diagramLabels infrastructure (PR #430). Mirrors
+        // diagram_image exactly: flags requiresReview so the teacher knows an
+        // image must be attached, and opens the editor slide immediately.
+        const identifySection = baseQuestion('diagram', {
           options: [],
           correctAnswer: '',
           marks: 5,
           diagramText: 'Identify the labelled parts',
           diagramMode: 'identify',
+          requiresReview: true,
+          reviewNotes: ['Diagram needed: attach a picture or generate one from the question editor.'],
         })
-        break
+        insertSectionAfter(insertAfterIndex, identifySection)
+        showToast('Identify-the-diagram question added — attach or generate its image.')
+        openSlide('editor', { questionKey: identifySection.question.localId })
+        return
+      }
       case 'pagebreak':
         newSection = createPagebreakSection()
         break
@@ -2470,9 +2469,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // Lineage: record which bank question this copy came from.
     if (row?.id) cloned.sourceBankId = row.id
     const section = buildStandaloneSection(cloned)
-    // Land at the end of the paper by default; the teacher can drag it into
-    // place. Appending (rather than reusing a captured index) keeps a run of
-    // inserts in the order they were clicked.
+    // Land at the end of the paper by default; the teacher can use the ↑ ↓
+    // arrows on the question card to move it into place. Appending (rather than
+    // reusing a captured index) keeps a run of inserts in the order they were clicked.
     insertSectionAfter(null, section)
     if (view !== 'builder') changeView('builder')
     // Bookkeeping only — atomic increment, fire-and-forget. Insert success is
@@ -2509,6 +2508,37 @@ export default function AssessmentStudio({ variant = 'test' }) {
     run()
     return () => { alive = false }
   }, [view, currentUser?.uid, bankPicker.open, form.grade, form.subject, form.topic])
+
+  // Full "blank paper" reset used by HomeView's "New paper" button.
+  // Key fix: resets createdIdRef.current to null so the 2s library autosave
+  // does NOT overwrite the previously created paper with the blank one's content.
+  function startBlankPaper() {
+    // Revoke any object URLs from a previous import session.
+    revokeImportedQuizAssets(importedAssets)
+    setImportedAssets({})
+    // Reset questions + sections to a single empty starter.
+    setSections([createStandaloneSection()])
+    setParts([])
+    // Reset all form fields to defaults, then re-apply school profile branding.
+    setForm(applySchoolProfileDefaults(makeDefaultForm(cfg), schoolProfile))
+    // Clear the session identity so the next library write creates a fresh doc
+    // instead of overwriting the paper that was previously saved this session.
+    createdIdRef.current = null
+    // Clear removed-question ids from any prior session.
+    setDeletedIds([])
+    // Clear import state.
+    setImportSummary(null)
+    // Clear autosave status flags.
+    autosaveFailStreakRef.current = 0
+    setAutosaveFailed(false)
+    setSavedToLibrary(false)
+    setDirty(false)
+    setLibraryDirty(false)
+    // Reset undo stack so Ctrl+Z on the new blank paper doesn't resurface the
+    // previous paper.
+    resetUndoBaseline()
+    changeView('builder')
+  }
 
   /* ------------ render ------------ */
   // Edit mode: hold the builder behind a loader until the saved paper is
@@ -2575,12 +2605,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         <HomeView
           recentPapers={recentPapers}
           eyebrow={cfg.eyebrow}
-          onNewPaper={() => {
-            // Reset to a clean slate
-            setSections([createStandaloneSection()])
-            setParts([])
-            changeView('builder')
-          }}
+          onNewPaper={startBlankPaper}
           onOpenPaper={(paperId) => navigate(`${cfg.routeBase}/${paperId}/edit`)}
           onAi={() => openSlide('ai')}
           onTemplate={() => setTemplateOpen(true)}
@@ -2656,6 +2681,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           onScan={() => setScanOpen(true)}
           importing={importingDocument}
           importSummary={importSummary}
+          onDismissImportSummary={() => setImportSummary(null)}
           onCreatePaper={() => setCreatePaperOpen(true)}
           onVerifyPaper={() => setVerifyOpen(true)}
           onClearAll={() => setClearAllOpen(true)}
@@ -2836,6 +2862,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         onUpdateStandaloneQuestion={updateStandaloneQuestion}
         onUpdatePassageQuestion={updatePassageQuestion}
         questionNumbers={questionNumbers}
+        mcqChoiceCount={form.mcqAnswerChoiceCount}
       />
 
       <QuestionBankPanel

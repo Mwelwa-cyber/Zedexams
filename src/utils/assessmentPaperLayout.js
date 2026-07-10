@@ -469,6 +469,13 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
           text: plain(item.passage.passageText),
           imageUrl: item.passage.imageUrl || '',
           imageAlt: plain(item.passage.imageAlt) || plain(item.passage.title) || '',
+          // Catalog shape diagram on the passage stimulus (e.g. a geometry
+          // figure the sub-questions refer to). Passed through from the
+          // stored passage doc so all three renderers (preview, PDF, DOCX)
+          // can draw it without the layout layer swallowing the field.
+          imageDiagram: item.passage.imageDiagram && item.passage.imageDiagram.libraryKey
+            ? { libraryKey: item.passage.imageDiagram.libraryKey, params: item.passage.imageDiagram.params || {} }
+            : null,
           passageKind: item.passage.passageKind || 'comprehension',
           ...passageMarksFields(item.passage, passageQuestions),
         })
@@ -497,6 +504,9 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       text: plain(passage.passageText),
       imageUrl: passage.imageUrl || '',
       imageAlt: plain(passage.imageAlt) || plain(passage.title) || '',
+      imageDiagram: passage.imageDiagram && passage.imageDiagram.libraryKey
+        ? { libraryKey: passage.imageDiagram.libraryKey, params: passage.imageDiagram.params || {} }
+        : null,
       passageKind: passage.passageKind || 'comprehension',
       ...passageMarksFields(passage, []),
     })
