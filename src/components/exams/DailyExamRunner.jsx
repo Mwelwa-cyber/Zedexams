@@ -33,6 +33,9 @@ import {
   submitExam,
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
+import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
+import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import SeoHelmet from '../seo/SeoHelmet'
 import ErrorBoundary from '../ui/ErrorBoundary'
@@ -69,7 +72,7 @@ function OptionButton({ label, selected, onClick, disabled, children }) {
       className="zx-opt"
     >
       <span className="zx-opt-letter">{label}</span>
-      <span className="flex-1 text-sm font-semibold leading-snug">{children}</span>
+      <span className="answer-text flex-1 leading-snug">{children}</span>
     </button>
   )
 }
@@ -157,6 +160,9 @@ function DailyExamRunnerInner() {
   const { examId } = useParams()
   const navigate   = useNavigate()
   const { currentUser, userProfile } = useAuth()
+  // Learner reading preferences (display-only; never affects scoring or timing).
+  const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
+  const [showReadingSettings, setShowReadingSettings] = useState(false)
 
   // Core data
   const [quiz, setQuiz]           = useState(null)
@@ -409,13 +415,13 @@ function DailyExamRunnerInner() {
         {/* Question text */}
         <div>
           {question.sharedInstruction && (
-            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
-              <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
+            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 leading-relaxed text-slate-900">
+              <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
             </div>
           )}
-          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed text-slate-900" />
+          <RichContent value={question.text} className="question-text" />
           {question.diagramText && (
-            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">
+            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
               {question.diagramText}
             </p>
           )}
@@ -587,10 +593,19 @@ function DailyExamRunnerInner() {
   const answered = Object.keys(answers).length
   const progress = questions.length ? Math.round((answered / questions.length) * 100) : 0
   const warn = timeLeft <= 60
+  const { className: _quizShellClass, style: quizDisplayStyle, ...quizDisplayAttrs } = quizDisplayVars
 
   return (
-    <div className="theme-bg theme-text min-h-screen">
+    <div className="theme-bg theme-text min-h-screen" style={quizDisplayStyle} {...quizDisplayAttrs}>
       <SeoHelmet title={quiz?.title || 'Exam'} path={`/exam/${examId}`} noIndex />
+      <ReadingSettingsSheet
+        open={showReadingSettings}
+        onClose={() => setShowReadingSettings(false)}
+        prefs={quizDisplayPrefs}
+        setPref={setQuizDisplayPref}
+        resetPrefs={resetQuizDisplayPrefs}
+        saving={savingDisplayPrefs}
+      />
 
       {/* Action error toast */}
       {actionError && (
@@ -643,8 +658,11 @@ function DailyExamRunnerInner() {
               <p className="truncate text-sm font-black leading-tight text-slate-900">{quiz?.title}</p>
             </div>
             {/* Timer — red when ≤ 60 s */}
-            <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>
-              ⏱️ {fmt(timeLeft)}
+            <div className="flex items-center gap-2">
+              <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>
+                ⏱️ {fmt(timeLeft)}
+              </div>
+              <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
             </div>
           </div>
 

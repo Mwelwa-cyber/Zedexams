@@ -88,6 +88,17 @@ test('<u> tag survives', () => {
   assertIncludes(out, '<u>underline</u>', 'u')
 })
 
+test('<mark> highlight survives (comprehension "highlighted word" questions)', () => {
+  const out = ensureRichTextHtml('<p>Choose the <mark>highlighted</mark> word.</p>')
+  assertIncludes(out, '<mark>highlighted</mark>', 'mark preserved through quiz-rich pipeline')
+})
+
+test('<mark> keeps its highlight colour via background-color style', () => {
+  const out = ensureRichTextHtml('<p><mark style="background-color:#ffe58a">note</mark></p>')
+  assertIncludes(out, '<mark', 'mark tag kept')
+  assertIncludes(out, 'background-color:#ffe58a', 'highlight colour kept')
+})
+
 test('<b> is aliased to <strong>', () => {
   const out = ensureRichTextHtml('<p><b>bold</b></p>')
   assertIncludes(out, '<strong>bold</strong>', 'b→strong')
@@ -227,6 +238,21 @@ test('sanitizeHTML permits data-latex AND data-math-latex', () => {
 test('sanitizeQuizRichHTML permits headings', () => {
   const out = sanitizeQuizRichHTML('<h1>Title</h1>')
   assertIncludes(out, '<h1>', 'h1 allowed in final defensive pass')
+})
+
+test('sanitizeHTML + sanitizeQuizRichHTML permit <mark>', () => {
+  const editor = sanitizeHTML('<p><mark>x</mark></p>')
+  const quiz = sanitizeQuizRichHTML('<p><mark>x</mark></p>')
+  assertIncludes(editor, '<mark>', 'mark allowed in editor sanitiser')
+  assertIncludes(quiz, '<mark>', 'mark allowed in quiz-rich sanitiser')
+})
+
+test('<mark> cannot smuggle a script or event handler', () => {
+  const out = sanitizeQuizRichHTML('<mark onclick="alert(1)">x</mark><script>alert(2)</script>')
+  assertNotIncludes(out, 'onclick', 'event handler stripped off mark')
+  assertNotIncludes(out, '<script', 'script tag stripped')
+  assertNotIncludes(out, 'alert', 'no script payload')
+  assertIncludes(out, '<mark>x</mark>', 'clean mark retained')
 })
 
 // ── Group 6: Grade-7 math blocks ─────────────────────────────────────

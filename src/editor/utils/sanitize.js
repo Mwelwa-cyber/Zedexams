@@ -13,6 +13,9 @@ import { stripImportJunkChars } from '../../utils/textJunk.js'
 
 const EDITOR_ALLOWED_TAGS = [
   'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
+  // <mark> = intentional highlight from the Tiptap Highlight extension. Keep in
+  // sync with QUIZ_RICH_ALLOWED_TAGS below and the walker in quizRichText.js.
+  'mark',
   'ul', 'ol', 'li',
   'h1', 'h2', 'h3',
   'blockquote',
@@ -95,6 +98,11 @@ export function sanitizePastedHTML(html) {
 const QUIZ_RICH_ALLOWED_TAGS = [
   'p', 'div', 'br',
   'strong', 'em', 'u', 's',
+  // <mark> = intentional highlight (e.g. "what does the highlighted word mean?").
+  // Keep in sync with EDITOR_ALLOWED_TAGS above and ALLOWED_TAGS in
+  // src/utils/quizRichText.js. Highlight colour survives via the whitelisted
+  // background-color style property.
+  'mark',
   'sub', 'sup',
   'ul', 'ol', 'li',
   'span',

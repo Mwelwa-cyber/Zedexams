@@ -16,6 +16,11 @@ const ALLOWED_TAGS = new Set([
   'EM',
   'U',
   'S',
+  // <mark> carries an intentional highlight from the exam paper (e.g. a
+  // comprehension question asking "what does the highlighted word mean?").
+  // Keep it in sync with QUIZ_RICH_ALLOWED_TAGS in src/editor/utils/sanitize.js
+  // — dropping it here flattens highlights on edit (the past-papers-flatten bug).
+  'MARK',
   'SUB',
   'SUP',
   'UL',

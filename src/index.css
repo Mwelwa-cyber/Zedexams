@@ -3548,6 +3548,7 @@ select option {
     align-items: center;
     gap: 12px;
     width: 100%;
+    min-height: 56px;              /* WCAG-comfortable touch target */
     text-align: left;
     background: #fff;
     color: #0F1B2D;
@@ -3556,7 +3557,9 @@ select option {
     border-radius: 18px;
     padding: 12px 14px;
     transition: transform 80ms ease, box-shadow 80ms ease, background 120ms ease;
-    font-weight: 600;
+    /* Option TEXT is regular-medium; only intentionally-bold words (rendered as
+       <strong> inside .answer-text) stand out. The letter chip stays weight 800. */
+    font-weight: 500;
   }
   .zx-opt:hover  { transform: translateY(1px); box-shadow: 0 1px 0 #0F1B2D; }
   .zx-opt:active { transform: translateY(2px); box-shadow: 0 0 0 #0F1B2D; }
@@ -4117,6 +4120,197 @@ body.data-saver [data-bg-gradient] {
 .rich-content .math-inline-node { display: inline-flex; align-items: center; vertical-align: middle; background: transparent; border: none; padding: 0; margin: 0 1px; }
 /* KaTeX equations can be wider than the viewport on phones; let them scroll inside their card */
 .rich-content .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Learner quiz reading layer  (unlayered so it beats the @layer-components
+ * .zx-* base and the body.theme-* app themes inside the quiz container)
+ *
+ * Solves the "everything looks bold" bug: question/answer/passage text is
+ * regular-medium (500) by default, and ONLY intentionally-marked words
+ * (<strong>/<u>/<mark>/<em>/<sup>/<sub> from the exam paper) stand out. All
+ * reading preferences (text size, spacing, theme, highlight/underline style,
+ * dyslexia font, wider spacing, larger letters) are driven by data-* attributes
+ * + CSS custom properties set on the .quiz-shell container by useQuizDisplayPrefs.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* 1 ─ Content typography. Normal text is weight 500; marks are the only
+ *     things that visually pop. Size/line-height read the reading-prefs vars
+ *     (fallbacks make the classes work even outside a .quiz-shell). */
+.question-text {
+  font-weight: 500;
+  font-size: calc(clamp(1.15rem, 4.5vw, 1.45rem) * var(--quiz-text-scale, 1));
+  line-height: var(--quiz-line-height, 1.5);
+  letter-spacing: 0;
+}
+.answer-text {
+  font-weight: 500;
+  font-size: calc(clamp(1rem, 4vw, 1.2rem) * var(--quiz-text-scale, 1));
+  line-height: calc(var(--quiz-line-height, 1.5) - 0.1);
+}
+.passage-text {
+  font-weight: 400;
+  font-size: calc(1rem * var(--quiz-text-scale, 1));
+  line-height: calc(var(--quiz-line-height, 1.5) + 0.1);
+}
+
+/* Intentional marks — must stand out from the 500 base and can NOT be styled
+ * away by a learner preference (accessibility requirement). */
+.question-text strong, .answer-text strong, .passage-text strong,
+.rich-content strong { font-weight: 800; }
+.question-text em, .answer-text em, .passage-text em { font-style: italic; }
+.question-text u, .answer-text u, .passage-text u, .rich-content u {
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-style: var(--quiz-underline-style, solid);
+  text-underline-offset: 4px;
+}
+.question-text mark, .answer-text mark, .passage-text mark, .rich-content mark {
+  background: var(--quiz-highlight, #ffe58a);
+  color: inherit;
+  padding: 0.05em 0.18em;
+  border-radius: 0.2em;
+}
+.rich-content sup, .question-text sup, .answer-text sup, .passage-text sup { vertical-align: super; font-size: 0.75em; }
+.rich-content sub, .question-text sub, .answer-text sub, .passage-text sub { vertical-align: sub;   font-size: 0.75em; }
+
+/* 2 ─ Reading scope root. The learner runner spreads data-quiz-* + the CSS
+ *     custom-property defaults onto its outermost element (the "scope"). All
+ *     the pref selectors below key off these data-* attributes, NOT off a
+ *     class, so they don't force any particular width on the runner layout.
+ *     `.quiz-shell` is a *separate*, opt-in comfortable-reading-width helper. */
+.quiz-shell { max-width: 760px; margin: 0 auto; }
+
+[data-quiz-theme] {
+  --quiz-card: #ffffff;
+  --quiz-card-text: #0F1B2D;
+  --quiz-border: #0F1B2D;
+  --quiz-shadow: #0F1B2D;
+  --quiz-highlight: #ffe58a;
+  --quiz-accent: #FF7A1A;
+  --quiz-text-scale: 1;
+  --quiz-line-height: 1.5;
+  --quiz-underline-style: solid;
+  --quiz-answer-gap: 12px;
+  --quiz-letter-size: 32px;
+}
+
+/* 3 ─ Text size / line spacing prefs. */
+[data-quiz-size="small"]  { --quiz-text-scale: 0.9; }
+[data-quiz-size="medium"] { --quiz-text-scale: 1; }
+[data-quiz-size="large"]  { --quiz-text-scale: 1.15; }
+[data-quiz-size="xlarge"] { --quiz-text-scale: 1.35; }
+[data-quiz-spacing="compact"]     { --quiz-line-height: 1.3; }
+[data-quiz-spacing="comfortable"] { --quiz-line-height: 1.5; }
+[data-quiz-spacing="wide"]        { --quiz-line-height: 1.8; }
+
+/* 4 ─ Underline style pref (drives .rich-content u above). "none" is never
+ *     emitted by the resolver — intentional underlines always render. */
+[data-quiz-underline="solid"]  { --quiz-underline-style: solid; }
+[data-quiz-underline="dashed"] { --quiz-underline-style: dashed; }
+[data-quiz-underline="dotted"] { --quiz-underline-style: dotted; }
+[data-quiz-underline="double"] { --quiz-underline-style: double; }
+
+/* 5 ─ Dyslexia-friendly font + wider tracking. */
+[data-quiz-dyslexia="true"] .question-text,
+[data-quiz-dyslexia="true"] .answer-text,
+[data-quiz-dyslexia="true"] .passage-text {
+  font-family: 'Trebuchet MS', 'Comic Sans MS', Verdana, Tahoma, sans-serif;
+  letter-spacing: 0.035em;
+  word-spacing: 0.08em;
+}
+
+/* 6 ─ Wider answer spacing + larger answer letters. */
+[data-quiz-theme] .opt-grid { gap: var(--quiz-answer-gap, 12px); }
+[data-quiz-answer-space="wide"] { --quiz-answer-gap: 22px; }
+[data-quiz-theme] .zx-opt-letter {
+  width: var(--quiz-letter-size, 32px);
+  height: var(--quiz-letter-size, 32px);
+}
+[data-quiz-letters="large"] { --quiz-letter-size: 42px; }
+[data-quiz-letters="large"] .zx-opt-letter { font-size: 15px; }
+
+/* 7 ─ Reduce animations (in addition to prefers-reduced-motion). */
+[data-quiz-reduce-motion="true"] *,
+[data-quiz-reduce-motion="true"] *::before,
+[data-quiz-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* 8 ─ Quiz reading THEMES. Scoped tighter than body.theme-* so the learner's
+ *     quiz theme always wins inside the quiz, regardless of app theme.
+ *     correct-green / incorrect-red / warning stay SYSTEM-OWNED (re-asserted
+ *     at the end) so answer states are always legible in every theme. */
+[data-quiz-theme="light"] {
+  --quiz-card: #ffffff; --quiz-card-text: #0F1B2D; --quiz-border: #0F1B2D;
+  --quiz-shadow: #0F1B2D; --quiz-page: transparent;
+}
+[data-quiz-theme="dark"] {
+  --quiz-card: #1e293b; --quiz-card-text: #e2e8f0; --quiz-border: #475569;
+  --quiz-shadow: #0b1220; --quiz-page: #0f172a; --quiz-highlight: #6b5d1f;
+}
+[data-quiz-theme="sepia"] {
+  --quiz-card: #fbf3e0; --quiz-card-text: #43341f; --quiz-border: #b7a488;
+  --quiz-shadow: #d8c7a5; --quiz-page: #f4ecd8; --quiz-highlight: #e9c96b;
+}
+[data-quiz-theme="high-contrast"] {
+  --quiz-card: #ffffff; --quiz-card-text: #000000; --quiz-border: #000000;
+  --quiz-shadow: #000000; --quiz-page: #ffffff; --quiz-highlight: #ffea00;
+}
+
+/* Paint the reading area + themed surfaces from the vars above. The "light"
+ * theme keeps --quiz-page transparent so the runner's own brand background
+ * shows through; dark/sepia/high-contrast repaint the whole reading area. */
+[data-quiz-theme]:not([data-quiz-theme="light"]) { background: var(--quiz-page); color: var(--quiz-card-text); }
+[data-quiz-theme] .zx-card-shared,
+[data-quiz-theme] .zx-opt {
+  background: var(--quiz-card);
+  color: var(--quiz-card-text);
+  border-color: var(--quiz-border);
+  box-shadow: 0 2px 0 var(--quiz-shadow);
+}
+[data-quiz-theme] .zx-opt-letter {
+  background: color-mix(in srgb, var(--quiz-accent) 22%, transparent);
+  color: var(--quiz-card-text);
+  border-color: var(--quiz-border);
+}
+[data-quiz-theme="high-contrast"] .zx-card-shared,
+[data-quiz-theme="high-contrast"] .zx-opt { border-width: 3px; }
+
+/* The past-paper + daily-exam runners use the app `.theme-card` surface rather
+ * than `.zx-card-shared`. Repaint those to the quiz theme too (only for the
+ * non-light themes, so the light theme leaves the brand surface untouched).
+ * Scoped under [data-quiz-theme] so nothing outside a quiz is affected. */
+[data-quiz-theme]:not([data-quiz-theme="light"]) .theme-card {
+  background: var(--quiz-card);
+  color: var(--quiz-card-text);
+  border-color: var(--quiz-border);
+}
+
+/* Re-assert answer states LAST so selected/correct/wrong keep their meaning in
+ * every theme (colour + border, paired with an icon in the runner markup). */
+[data-quiz-theme] .zx-opt[data-selected="true"] {
+  background: var(--quiz-accent); color: #fff; border-color: var(--quiz-accent);
+}
+[data-quiz-theme] .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
+[data-quiz-theme] .zx-opt[data-correct="true"] { background: #10B981; color: #fff; border-color: #059669; }
+[data-quiz-theme] .zx-opt[data-wrong="true"]   { background: #EF4444; color: #fff; border-color: #B91C1C; }
+
+/* Answer-state icon (paired with colour so correctness is never colour-only). */
+.zx-opt-state {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Safe-area: keep the fixed bottom action bar clear of the Android/iOS home
+ * indicator so "free questions left" + the primary button stay tappable. */
+.zx-glass-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
 
 .animate-scale-in   { animation: scale-in  0.22s ease-out both; }
 .animate-slide-up   { animation: slide-up  0.25s ease-out both; }
