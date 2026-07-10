@@ -22,7 +22,8 @@ import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from './reading/ReadingSettingsButton'
 import ReadingSettingsSheet from './reading/ReadingSettingsSheet'
 import TextToSpeechButton from './reading/TextToSpeechButton'
-import { optionsToReadAloudText, questionToReadAloudText, toSpokenText } from '../../utils/readAloudText'
+import PassageViewer from './reading/PassageViewer'
+import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
   computeQuizScore,
@@ -1764,46 +1765,26 @@ export default function QuizRunnerV2() {
       <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-5xl flex-1 flex-col px-3 py-4 pb-44 sm:px-4">
         {activeSection.kind === 'passage' ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-            <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-              <div className="zx-card-shared overflow-hidden">
-                <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-4 sm:px-5">
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="zx-pill-dark zx-pill-orange">
-                      {activeSection.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
-                    </span>
-                    <span className="zx-pill-dark zx-pill-light">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-2">
-                    {activeSection.passage.title && <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeSection.passage.title}</h2>}
-                    <TextToSpeechButton
-                      id={`passage:${activeSectionIndex}`}
-                      label="passage"
-                      getText={() => toSpokenText(activeSection.passage.passageText)}
-                      tts={readAloud}
-                      className="ml-auto shrink-0"
-                    />
-                  </div>
-                  {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm text-slate-700" />
-                  )}
-                </div>
-                {activeSection.passage.imageUrl && (
-                  <div className="border-b-2 border-slate-900 bg-slate-50 p-3 sm:p-4">
-                    <ZoomableImage
-                      src={activeSection.passage.imageUrl}
-                      alt="Passage illustration"
-                      fallbackText={activeSection.passage.diagramText || activeSection.passage.title || ''}
-                      priority
-                      className="mx-auto max-h-[80vh] w-full rounded-2xl object-contain"
-                    />
-                  </div>
-                )}
-                <div className="p-4 sm:p-5">
-                  <RichContent value={activeSection.passage.passageText} className="passage-text" />
-                </div>
-              </div>
+            <div id="quiz-passage-card" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+              <PassageViewer
+                passage={activeSection.passage}
+                questionCount={activeSection.questions.length}
+                ttsId={`passage:${activeSectionIndex}`}
+                tts={readAloud}
+                showLineNumbers={quizDisplayPrefs.showPassageLineNumbers}
+                keepOpen={quizDisplayPrefs.keepPassageOpen}
+              />
             </div>
             <div className="min-w-0 space-y-4">
+              {/* On mobile the passage sits above the questions — this jumps the
+                  learner back to it without losing their place in the question. */}
+              <button
+                type="button"
+                onClick={() => document.getElementById('quiz-passage-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="zx-pill-dark zx-pill-light lg:hidden"
+              >
+                ↑ Back to passage
+              </button>
               {activeSection.questions.map(renderQuestion)}
             </div>
           </div>
