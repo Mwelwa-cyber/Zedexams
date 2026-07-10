@@ -47,6 +47,7 @@ const REVISE_MODEL = process.env.REVISE_SECTION_MODEL || "claude-haiku-4-5";
 
 async function runReviseLessonSection({uid, inputs, apiKey}) {
   const {parsed, model} = await callClaude(apiKey, {
+    track: {uid, tool: "reviseLessonSection"},
     model: REVISE_MODEL,
     mode: "tool",
     systemPrompt: SYSTEM_PROMPT,

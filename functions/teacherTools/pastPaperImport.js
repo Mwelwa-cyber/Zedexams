@@ -589,6 +589,7 @@ async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, ac
     let result;
     try {
       result = await callClaude(apiKey, {
+        track: {tool: "pastPaperImport"},
         systemPrompt: SYSTEM_PROMPT,
         messages,
         model: IMPORT_MODEL,
@@ -675,6 +676,7 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seen
       let result;
       try {
         result = await callClaude(apiKey, {
+          track: {tool: "pastPaperImport"},
           systemPrompt: SYSTEM_PROMPT,
           messages: [{role: "user", content: [...segment.blocks, {type: "text", text: promptText}]}],
           model: IMPORT_MODEL,

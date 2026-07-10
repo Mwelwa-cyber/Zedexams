@@ -58,6 +58,7 @@ const LESSON_COUNT_MODEL =
 
 async function runAiLessonCount({inputs, apiKey}) {
   const claudeResult = await callClaude(apiKey, {
+    track: {tool: "lessonCount"},
     model: LESSON_COUNT_MODEL,
     mode: "tool",
     systemPrompt: SYSTEM_PROMPT,

@@ -264,6 +264,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
   let modelUsed = NOTES_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "notes"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

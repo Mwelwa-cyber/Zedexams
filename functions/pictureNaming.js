@@ -192,6 +192,7 @@ async function nameOnePictureBatch({pictures, anthropicKey}, deps = {}) {
     require("./teacherTools/anthropicClient").callClaude;
 
   const result = await callClaude(anthropicKey, {
+    track: {tool: "pictureNaming"},
     systemPrompt: SYSTEM_PROMPT,
     messages: buildNamingMessages(pictures),
     model: deps.model || NAMING_MODEL,

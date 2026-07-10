@@ -1885,6 +1885,7 @@ exports.structureImportedQuiz = onCall(
     if (geminiKey) {
       try {
         const geminiText = await callGemini(geminiKey, {
+          track: {tool: "documentImport"},
           systemPrompt: [
             "You are a document scanner for the ZedExams smart-import pipeline.",
             "Read the raw exam document below and emit a STRUCTURED JSON list",

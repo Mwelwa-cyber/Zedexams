@@ -39,6 +39,15 @@ async function callGeminiImage(apiKey, opts = {}) {
     throw new HttpsError("invalid-argument", "Image prompt is required.");
   }
 
+  // Monthly spend ceiling — same gate as the other model clients. Fails
+  // open inside isOverBudget so an accounting glitch never blocks.
+  {
+    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
+    if (await isOverBudget()) {
+      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
+    }
+  }
+
   const model = opts.model || DEFAULT_IMAGE_MODEL;
   const url =
     `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent` +
@@ -89,6 +98,18 @@ async function callGeminiImage(apiKey, opts = {}) {
   for (const part of parts) {
     const inline = part?.inlineData;
     if (inline && inline.data && inline.mimeType) {
+      // Fire-and-forget flat-cost rollup (never throws, never awaited) so
+      // Gemini image spend reaches the budget meter + /admin/ai-costs.
+      try {
+        const {recordAiImageUsage} = require("./aiCostTracking");
+        recordAiImageUsage({
+          uid: (opts.track && opts.track.uid) || null,
+          tool: (opts.track && opts.track.tool) || "imageGeneration",
+          model,
+        });
+      } catch (err) {
+        console.warn("[geminiImageClient] image cost track failed", err);
+      }
       return {b64: String(inline.data), mimeType: String(inline.mimeType)};
     }
   }

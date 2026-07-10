@@ -165,6 +165,7 @@ async function runHomework({uid, rawInputs, apiKey}) {
   let modelUsed = HOMEWORK_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "homework"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

@@ -189,6 +189,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     const userPrompt = buildUserPrompt(genInputs) + buildAvoidNote(sourced.questions);
     try {
       const response = await callClaude(apiKey, {
+        track: {uid, tool: "quiz"},
         systemPrompt: SYSTEM_PROMPT,
         cbcContextBlock: contextBlock,
         messages: [{role: "user", content: userPrompt}],

@@ -90,7 +90,10 @@ async function generateAndUpload({uid, noteId, prompt, geminiKey, openaiKey}) {
   // --- Gemini attempt ---
   if (geminiKey) {
     try {
-      const {b64, mimeType} = await callGeminiImage(geminiKey, {prompt: finalPrompt});
+      const {b64, mimeType} = await callGeminiImage(geminiKey, {
+        prompt: finalPrompt,
+        track: {uid, tool: "notePictures"},
+      });
       const buffer = Buffer.from(b64, "base64");
       const {url, sizeBytes} = await uploadToStorage(uid, noteId, buffer, mimeType, prompt);
       return {url, sizeBytes, provider: "gemini"};
@@ -108,6 +111,7 @@ async function generateAndUpload({uid, noteId, prompt, geminiKey, openaiKey}) {
     );
   }
   const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
+    track: {uid, tool: "notePictures"},
     prompt: finalPrompt,
     size: "1024x1024",
     quality: "medium",

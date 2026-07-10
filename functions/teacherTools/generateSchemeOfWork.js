@@ -322,6 +322,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   let modelUsed = DEFAULT_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "schemeOfWork"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: fullContextBlock,
       messages: [{role: "user", content: userPrompt}],
