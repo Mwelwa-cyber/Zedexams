@@ -19,7 +19,15 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
-import { FieldTextarea, FieldSelect } from './studioFields'
+import {
+  FieldTextarea,
+  FieldSelect,
+  FieldGrid,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
+import Icon from '../../ui/Icon'
+import { Download, Play } from '../../ui/icons'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
 import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
@@ -249,20 +257,22 @@ export default function FlashcardGenerator() {
               value={selectorSeed}
               onChange={setCurr}
             />
-            <FieldSelect
-              label="Number of cards"
-              value={String(form.count)}
-              options={FLASHCARD_COUNTS.map((p) => ({
-                value: String(p.value), label: p.label,
-              }))}
-              onChange={(v) => updateField('count', Number(v))}
-            />
-            <FieldSelect
-              label="Difficulty"
-              value={form.difficulty}
-              options={WORKSHEET_DIFFICULTIES}
-              onChange={(v) => updateField('difficulty', v)}
-            />
+            <FieldGrid>
+              <FieldSelect
+                label="Number of cards"
+                value={String(form.count)}
+                options={FLASHCARD_COUNTS.map((p) => ({
+                  value: String(p.value), label: p.label,
+                }))}
+                onChange={(v) => updateField('count', Number(v))}
+              />
+              <FieldSelect
+                label="Difficulty"
+                value={form.difficulty}
+                options={WORKSHEET_DIFFICULTIES}
+                onChange={(v) => updateField('difficulty', v)}
+              />
+            </FieldGrid>
             <FieldSelect
               label="Language"
               value={form.language}
@@ -277,13 +287,9 @@ export default function FlashcardGenerator() {
               maxLength={500}
             />
 
-            <button
-              type="submit"
-              disabled={status === 'generating'}
-              className="studio-btn-primary w-full py-3"
-            >
-              {status === 'generating' ? 'Generating…' : '▶ Generate Flashcards'}
-            </button>
+            <GenerateButton generating={status === 'generating'}>
+              Generate Flashcards
+            </GenerateButton>
 
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
@@ -309,13 +315,13 @@ export default function FlashcardGenerator() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => enterStudy(0)} className="studio-btn-primary">
-                      ▶ Study mode
+                      <Icon as={Play} size="sm" /> Study mode
                     </button>
                     <button onClick={onExport} className="studio-btn-ghost">
-                      📄 Download .docx
+                      <Icon as={Download} size="sm" /> Download .docx
                     </button>
                     <button onClick={onExportPdf} className="studio-btn-ghost">
-                      📄 Download .pdf
+                      <Icon as={Download} size="sm" /> Download .pdf
                     </button>
                   </div>
                 </div>
@@ -374,22 +380,14 @@ export default function FlashcardGenerator() {
   )
 }
 
-/* ── Inputs ─────────────────────────────────────────────────── */
-
 /* ── States ─────────────────────────────────────────────────── */
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#fde9b8', display: 'grid', placeItems: 'center', fontSize: 44 }}>
-        🎴
-      </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Ready for revision cards</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Pick a topic and you'll get a deck of flashcards you can study on-screen
-        or print as cut-outs for class.
-      </p>
-    </div>
+    <StudioEmptyState emoji="🎴" tone="#fde9b8" title="Ready for revision cards">
+      Pick a topic and you'll get a deck of flashcards you can study on-screen
+      or print as cut-outs for class.
+    </StudioEmptyState>
   )
 }
 

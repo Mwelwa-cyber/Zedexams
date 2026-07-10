@@ -32,7 +32,19 @@ import StudioPageHeader from '../StudioPageHeader'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
-import { FieldLabel, FieldText, FieldTextarea, FieldSelect, FieldDate } from './studioFields'
+import {
+  FieldLabel,
+  FieldText,
+  FieldTextarea,
+  FieldSelect,
+  FieldDate,
+  FieldGrid,
+  AdvancedOptions,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
+import Icon from '../../ui/Icon'
+import { Download, ImageIcon, RefreshCw } from '../../ui/icons'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { notesInputDescriptor } from '../../../hooks/draft/descriptors'
@@ -351,14 +363,14 @@ export default function NotesStudio() {
           emoji="🦉"
         />
 
-        <div className="grid grid-cols-1 gap-6">
-          <div className="studio-form">
-            <DraftRecoveryPrompt {...draft} label="notes" />
-          </div>
+        <div className="mb-4">
+          <DraftRecoveryPrompt {...draft} label="notes" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
           {/* ── Input panel ─────────────────────────────────────── */}
           <form
             onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit studio-form"
+            className="studio-card p-5 space-y-4 h-fit"
           >
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
@@ -405,43 +417,54 @@ export default function NotesStudio() {
                   value={selectorSeed}
                   onChange={setCurr}
                 />
-                <FieldSelect
-                  label="Lesson duration"
-                  value={String(form.durationMinutes)}
-                  options={DURATION_PRESETS.map((p) => ({
-                    value: String(p.value),
-                    label: p.label,
-                  }))}
-                  onChange={(v) => updateField('durationMinutes', Number(v))}
-                />
-                <FieldSelect
-                  label="Medium of instruction"
-                  value={form.language}
-                  options={TEACHER_LANGUAGES}
-                  onChange={(v) => updateField('language', v)}
-                />
-                <FieldText
-                  label="School"
-                  placeholder="School name"
-                  value={form.school}
-                  onChange={(v) => updateField('school', v)}
-                  maxLength={120}
-                />
-                <FieldText
-                  label="Teacher name"
-                  placeholder="Mr / Mrs ..."
-                  value={form.teacherName}
-                  onChange={(v) => updateField('teacherName', v)}
-                  maxLength={80}
-                />
+                <FieldGrid>
+                  <FieldSelect
+                    label="Lesson duration"
+                    value={String(form.durationMinutes)}
+                    options={DURATION_PRESETS.map((p) => ({
+                      value: String(p.value),
+                      label: p.label,
+                    }))}
+                    onChange={(v) => updateField('durationMinutes', Number(v))}
+                  />
+                  <FieldSelect
+                    label="Medium of instruction"
+                    value={form.language}
+                    options={TEACHER_LANGUAGES}
+                    onChange={(v) => updateField('language', v)}
+                  />
+                </FieldGrid>
+                <AdvancedOptions label="Document details" hint="School, teacher name, lesson date">
+                  <FieldText
+                    label="School"
+                    placeholder="School name"
+                    value={form.school}
+                    onChange={(v) => updateField('school', v)}
+                    maxLength={120}
+                  />
+                  <FieldText
+                    label="Teacher name"
+                    placeholder="Mr / Mrs ..."
+                    value={form.teacherName}
+                    onChange={(v) => updateField('teacherName', v)}
+                    maxLength={80}
+                  />
+                  <FieldDate
+                    label="Lesson date (optional)"
+                    value={form.date}
+                    onChange={(v) => updateField('date', v)}
+                  />
+                </AdvancedOptions>
               </>
             )}
 
-            <FieldDate
-              label="Lesson date (optional)"
-              value={form.date}
-              onChange={(v) => updateField('date', v)}
-            />
+            {mode === MODE_FROM_PLAN && (
+              <FieldDate
+                label="Lesson date (optional)"
+                value={form.date}
+                onChange={(v) => updateField('date', v)}
+              />
+            )}
 
             <FieldTextarea
               label="Extra instructions (optional)"
@@ -455,13 +478,9 @@ export default function NotesStudio() {
               maxLength={500}
             />
 
-            <button
-              type="submit"
-              disabled={status === 'generating'}
-              className="studio-btn-primary w-full py-3"
-            >
-              {status === 'generating' ? 'Writing notes…' : '▶ Generate Notes'}
-            </button>
+            <GenerateButton generating={status === 'generating'} generatingLabel="Writing notes…">
+              Generate Notes
+            </GenerateButton>
 
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
@@ -485,13 +504,13 @@ export default function NotesStudio() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={onExportDocx} className="studio-btn-ghost">
-                      📄 Download .docx
+                      <Icon as={Download} size="sm" /> Download .docx
                     </button>
                     <button onClick={onExportPdf} className="studio-btn-ghost">
-                      📄 Download .pdf
+                      <Icon as={Download} size="sm" /> Download .pdf
                     </button>
                     <button onClick={() => setStatus('idle')} className="studio-btn-primary">
-                      ▶ Generate Another
+                      <Icon as={RefreshCw} size="sm" /> Generate Another
                     </button>
                   </div>
                 </div>
@@ -522,9 +541,11 @@ export default function NotesStudio() {
                       disabled={diagramStatus === 'generating'}
                       className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
-                      {diagramStatus === 'generating'
-                        ? `Drawing… ${diagramProgress.done}/${diagramProgress.total}`
-                        : '🖼 Generate diagrams'}
+                      {diagramStatus === 'generating' ? (
+                        `Drawing… ${diagramProgress.done}/${diagramProgress.total}`
+                      ) : (
+                        <><Icon as={ImageIcon} size="sm" /> Generate diagrams</>
+                      )}
                     </button>
                   </div>
                 )}
@@ -672,16 +693,10 @@ function SelectedPlanSummary({ plan }) {
 
 function EmptyState({ mode }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#dbe7f4', display: 'grid', placeItems: 'center', fontSize: 44 }}>
-        🦉
-      </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Notes ready when you are</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        {mode === MODE_FROM_PLAN
-          ? 'Pick one of your saved lesson plans on the left and we\'ll write delivery notes that match it.'
-          : 'Tell us the grade, subject and topic on the left and we\'ll write teacher notes you can skim before class.'}
-      </p>
-    </div>
+    <StudioEmptyState emoji="🦉" tone="#dbe7f4" title="Notes ready when you are">
+      {mode === MODE_FROM_PLAN
+        ? 'Pick one of your saved lesson plans on the left and we\'ll write delivery notes that match it.'
+        : 'Tell us the grade, subject and topic on the left and we\'ll write teacher notes you can skim before class.'}
+    </StudioEmptyState>
   )
 }

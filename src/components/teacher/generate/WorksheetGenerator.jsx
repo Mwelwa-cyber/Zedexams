@@ -32,7 +32,16 @@ import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { worksheetInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import { FieldTextarea, FieldSelect } from './studioFields'
+import {
+  FieldTextarea,
+  FieldSelect,
+  FieldGrid,
+  AdvancedOptions,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
+import Icon from '../../ui/Icon'
+import { Download, Key } from '../../ui/icons'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
@@ -287,14 +296,14 @@ export default function WorksheetGenerator() {
           emoji="🐢"
         />
 
-        <div className="grid grid-cols-1 gap-6">
-          <div className="studio-form">
-            <DraftRecoveryPrompt {...draft} label="worksheet" />
-          </div>
+        <div className="mb-4">
+          <DraftRecoveryPrompt {...draft} label="worksheet" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
           {/* Input panel */}
           <form
             onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit studio-form"
+            className="studio-card p-5 space-y-4 h-fit"
           >
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
@@ -303,30 +312,6 @@ export default function WorksheetGenerator() {
               key={selectorKey}
               value={selectorSeed}
               onChange={setCurr}
-            />
-            <FieldSelect
-              label="Term"
-              value={form.term}
-              options={CURRICULUM_TERMS}
-              onChange={(v) => updateField('term', v)}
-            />
-            <FieldSelect
-              label="Number of lessons for this sub-topic"
-              value={form.totalLessons}
-              options={TOTAL_LESSONS_OPTIONS}
-              onChange={(v) => updateField('totalLessons', v)}
-            />
-            <FieldSelect
-              label="Lesson number"
-              value={form.lessonNumber}
-              options={LESSON_NUMBER_OPTIONS}
-              onChange={(v) => updateField('lessonNumber', v)}
-            />
-            <FieldSelect
-              label="Learning environment"
-              value={form.learningEnvironment}
-              options={LEARNING_ENVIRONMENT_OPTIONS}
-              onChange={(v) => updateField('learningEnvironment', v)}
             />
             <FieldSelect
               label="Worksheet style"
@@ -352,34 +337,66 @@ export default function WorksheetGenerator() {
                 onChange={(v) => updateField('passageLength', v)}
               />
             )}
-            <FieldSelect
-              label="Number of questions"
-              value={String(form.count)}
-              options={WORKSHEET_QUESTION_COUNTS.map((p) => ({
-                value: String(p.value), label: p.label,
-              }))}
-              onChange={(v) => updateField('count', Number(v))}
-            />
-            <FieldSelect
-              label="Difficulty"
-              value={form.difficulty}
-              options={WORKSHEET_DIFFICULTIES}
-              onChange={(v) => updateField('difficulty', v)}
-            />
-            <FieldSelect
-              label="Pupil time (estimate)"
-              value={String(form.durationMinutes)}
-              options={WORKSHEET_DURATIONS.map((p) => ({
-                value: String(p.value), label: p.label,
-              }))}
-              onChange={(v) => updateField('durationMinutes', Number(v))}
-            />
-            <FieldSelect
-              label="Language"
-              value={form.language}
-              options={TEACHER_LANGUAGES}
-              onChange={(v) => updateField('language', v)}
-            />
+            <FieldGrid>
+              <FieldSelect
+                label="Number of questions"
+                value={String(form.count)}
+                options={WORKSHEET_QUESTION_COUNTS.map((p) => ({
+                  value: String(p.value), label: p.label,
+                }))}
+                onChange={(v) => updateField('count', Number(v))}
+              />
+              <FieldSelect
+                label="Difficulty"
+                value={form.difficulty}
+                options={WORKSHEET_DIFFICULTIES}
+                onChange={(v) => updateField('difficulty', v)}
+              />
+            </FieldGrid>
+            <AdvancedOptions hint="Term, lesson numbering, timing, language">
+              <FieldSelect
+                label="Term"
+                value={form.term}
+                options={CURRICULUM_TERMS}
+                onChange={(v) => updateField('term', v)}
+              />
+              <FieldGrid>
+                <FieldSelect
+                  label="Lessons for this sub-topic"
+                  value={form.totalLessons}
+                  options={TOTAL_LESSONS_OPTIONS}
+                  onChange={(v) => updateField('totalLessons', v)}
+                />
+                <FieldSelect
+                  label="Lesson number"
+                  value={form.lessonNumber}
+                  options={LESSON_NUMBER_OPTIONS}
+                  onChange={(v) => updateField('lessonNumber', v)}
+                />
+              </FieldGrid>
+              <FieldSelect
+                label="Learning environment"
+                value={form.learningEnvironment}
+                options={LEARNING_ENVIRONMENT_OPTIONS}
+                onChange={(v) => updateField('learningEnvironment', v)}
+              />
+              <FieldGrid>
+                <FieldSelect
+                  label="Pupil time (estimate)"
+                  value={String(form.durationMinutes)}
+                  options={WORKSHEET_DURATIONS.map((p) => ({
+                    value: String(p.value), label: p.label,
+                  }))}
+                  onChange={(v) => updateField('durationMinutes', Number(v))}
+                />
+                <FieldSelect
+                  label="Language"
+                  value={form.language}
+                  options={TEACHER_LANGUAGES}
+                  onChange={(v) => updateField('language', v)}
+                />
+              </FieldGrid>
+            </AdvancedOptions>
             <FieldTextarea
               label="Extra instructions (optional)"
               placeholder="e.g. Include at least one word problem about the market."
@@ -388,13 +405,9 @@ export default function WorksheetGenerator() {
               maxLength={500}
             />
 
-            <button
-              type="submit"
-              disabled={status === 'generating'}
-              className="studio-btn-primary w-full py-3"
-            >
-              {status === 'generating' ? 'Generating…' : '▶ Generate Worksheet'}
-            </button>
+            <GenerateButton generating={status === 'generating'}>
+              Generate Worksheet
+            </GenerateButton>
 
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
@@ -432,16 +445,16 @@ export default function WorksheetGenerator() {
                       Show answers
                     </label>
                     <button onClick={onExportPupil} className="studio-btn-ghost">
-                      📄 Worksheet .docx
+                      <Icon as={Download} size="sm" /> Worksheet .docx
                     </button>
                     <button onClick={onExportPupilPdf} className="studio-btn-ghost">
-                      📄 Worksheet .pdf
+                      <Icon as={Download} size="sm" /> Worksheet .pdf
                     </button>
                     <button onClick={onExportAnswerKey} className="studio-btn-primary">
-                      🔑 Answer Key .docx
+                      <Icon as={Key} size="sm" /> Answer Key .docx
                     </button>
                     <button onClick={onExportAnswerKeyPdf} className="studio-btn-ghost">
-                      🔑 Answer Key .pdf
+                      <Icon as={Key} size="sm" /> Answer Key .pdf
                     </button>
                   </div>
                 </div>
@@ -485,22 +498,14 @@ export default function WorksheetGenerator() {
   )
 }
 
-/* ── Inputs ─────────────────────────────────────────────────── */
-
 /* ── States ─────────────────────────────────────────────────── */
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#d8ecd0', display: 'grid', placeItems: 'center', fontSize: 44 }}>
-        🐢
-      </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Ready to make a worksheet</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Pick the grade, subject and topic on the left. You'll get a printable
-        worksheet plus a separate answer key file for marking.
-      </p>
-    </div>
+    <StudioEmptyState emoji="🐢" tone="#d8ecd0" title="Ready to make a worksheet">
+      Pick the grade, subject and topic on the left. You'll get a printable
+      worksheet plus a separate answer key file for marking.
+    </StudioEmptyState>
   )
 }
 

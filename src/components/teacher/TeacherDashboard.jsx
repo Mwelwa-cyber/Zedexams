@@ -45,7 +45,6 @@ import {
   PencilLine,
   Play,
   Search,
-  SlidersHorizontal,
   Sparkles,
   Target,
 } from '../ui/icons'
@@ -889,8 +888,8 @@ export default function TeacherDashboard() {
           aria-label="Search all your teaching materials"
           className="teacher-universal-search__input"
         />
-        <button type="submit" className="teacher-universal-search__filter" aria-label="Search">
-          <Icon as={SlidersHorizontal} size="sm" />
+        <button type="submit" className="teacher-universal-search__filter" aria-label="Search your library">
+          <Icon as={ArrowRight} size="sm" />
         </button>
       </form>
 

@@ -2,7 +2,12 @@ import { describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 
-import { FieldNumberCombo } from './studioFields'
+import {
+  FieldNumberCombo,
+  AdvancedOptions,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
 
 // A small controlled wrapper so the combobox behaves like it does in a studio
 // (parent owns the value, mirrors it back in via the `value` prop).
@@ -60,5 +65,61 @@ describe('FieldNumberCombo', () => {
     fireEvent.blur(input)
     expect(input.value).toBe('5')
     expect(onChange).toHaveBeenLastCalledWith(5)
+  })
+})
+
+describe('AdvancedOptions', () => {
+  it('hides its fields until the teacher opens it, then shows them', () => {
+    render(
+      <AdvancedOptions hint="Term, language">
+        <span>Term field</span>
+      </AdvancedOptions>,
+    )
+    const toggle = screen.getByRole('button', { name: /advanced options/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Term field')).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Term field')).toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(screen.queryByText('Term field')).not.toBeInTheDocument()
+  })
+
+  it('starts open when defaultOpen is set', () => {
+    render(
+      <AdvancedOptions defaultOpen>
+        <span>Term field</span>
+      </AdvancedOptions>,
+    )
+    expect(screen.getByText('Term field')).toBeInTheDocument()
+  })
+})
+
+describe('GenerateButton', () => {
+  it('shows the call to action when idle', () => {
+    render(<GenerateButton generating={false}>Generate Worksheet</GenerateButton>)
+    const btn = screen.getByRole('button', { name: /generate worksheet/i })
+    expect(btn).toBeEnabled()
+  })
+
+  it('disables itself and shows the generating label while running', () => {
+    render(<GenerateButton generating generatingLabel="Writing notes…">Generate Notes</GenerateButton>)
+    const btn = screen.getByRole('button', { name: /writing notes/i })
+    expect(btn).toBeDisabled()
+    expect(screen.queryByText('Generate Notes')).not.toBeInTheDocument()
+  })
+})
+
+describe('StudioEmptyState', () => {
+  it('renders the title and helper copy', () => {
+    render(
+      <StudioEmptyState emoji="🐢" tone="#d8ecd0" title="Ready to make a worksheet">
+        Pick the grade, subject and topic.
+      </StudioEmptyState>,
+    )
+    expect(screen.getByText('Ready to make a worksheet')).toBeInTheDocument()
+    expect(screen.getByText('Pick the grade, subject and topic.')).toBeInTheDocument()
   })
 })
