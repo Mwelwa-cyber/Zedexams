@@ -175,7 +175,8 @@ exports.submitDailyExam = onCall(
     if (!quizSnap.exists) {
       throw new HttpsError("not-found", "Exam not found.");
     }
-    await assertExamAccess(uid, quizSnap.data());
+    const quizData = quizSnap.data();
+    await assertExamAccess(uid, quizData);
 
     const questions = await loadQuestions(db, pre.examId);
 
@@ -192,12 +193,25 @@ exports.submitDailyExam = onCall(
       if (attempt.status === "submitted") return null;
 
       const startedAtMs = attempt.startedAt?.toMillis?.() ?? null;
+      // Deadline for the timeTaken cap, derived entirely from server-side
+      // values: startedAt is a serverTimestamp and durationMinutes comes
+      // from the quiz doc. attempt.endTime is NOT used here — it was
+      // computed from the learner's browser clock at startExam, so a
+      // skewed device clock would distort the recorded time. The 30-min
+      // fallback mirrors startExam's `durationMinutes || 30`.
+      const durationMinutes =
+        Number.isFinite(Number(quizData.durationMinutes)) && Number(quizData.durationMinutes) > 0 ?
+          Number(quizData.durationMinutes) :
+          30;
+      const endTimeMs = Number.isFinite(startedAtMs) ?
+        startedAtMs + durationMinutes * 60_000 :
+        null;
       const result = gradeAttempt({
         attempt: {
           totalMarks: attempt.totalMarks || 0,
           totalQuestions: attempt.totalQuestions || 0,
           startedAtMs,
-          endTimeMs: Number.isFinite(attempt.endTime) ? attempt.endTime : null,
+          endTimeMs,
         },
         questions,
         answers,

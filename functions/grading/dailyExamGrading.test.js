@@ -69,7 +69,7 @@ const late = gradeAttempt({
   answers: {},
   nowMs: 1_000_000 + 387 * 60_000, // submitted 387 minutes after start
 });
-ok("late auto-submit caps timeTaken at duration (40m)", late.timeTakenSeconds === 40 * 60);
+ok("late auto-submit caps timeTaken at endTimeMs", late.timeTakenSeconds === 40 * 60);
 const onTime = gradeAttempt({
   attempt: {totalMarks: 0, totalQuestions: 0, startedAtMs: 1_000_000, endTimeMs: 1_000_000 + 40 * 60_000},
   questions,
