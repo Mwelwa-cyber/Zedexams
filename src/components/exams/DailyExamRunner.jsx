@@ -39,6 +39,7 @@ import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
 import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
 import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
 import PassageViewer from '../quiz/reading/PassageViewer'
+import QuizReviewScreen from '../quiz/review/QuizReviewScreen'
 import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -416,13 +417,18 @@ function DailyExamRunnerInner() {
             type="button"
             onClick={() => setFlagged(prev => ({ ...prev, [question.id]: !prev[question.id] }))}
             className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-900 shadow-[0_2px_0_#0F1B2D] transition-colors ${
-              flagged[question.id] ? 'bg-amber-300' : 'bg-white'
+              flagged[question.id] ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'
             }`}
-            title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
-            aria-label={flagged[question.id] ? 'Unflag this question' : 'Flag this question for review'}
+            title={flagged[question.id] ? 'Remove bookmark' : 'Bookmark this question'}
+            aria-label={flagged[question.id] ? 'Remove bookmark from this question' : 'Bookmark this question'}
             aria-pressed={Boolean(flagged[question.id])}
           >
-            <span aria-hidden="true">🚩</span>
+            {/* Bookmark icon — filled when active */}
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+              fill={flagged[question.id] ? 'currentColor' : 'none'}
+              stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+              <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+            </svg>
           </button>
         </div>
 
@@ -668,34 +674,21 @@ function DailyExamRunnerInner() {
         </div>
       )}
 
-      {/* Submit confirmation modal */}
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="zx-card-shared w-full max-w-sm p-6 text-center">
-            <div className="mb-3 text-5xl">📤</div>
-            <h2 className="mb-2 text-xl font-black text-slate-900">Submit Exam?</h2>
-            {questions.length - answered > 0 ? (
-              <p className="mb-5 text-sm font-semibold text-slate-600">
-                You have{' '}
-                <span className="font-black text-orange-600">{questions.length - answered} unanswered</span>{' '}
-                — they will be marked incorrect.
-              </p>
-            ) : (
-              <p className="mb-5 text-sm font-semibold text-slate-600">
-                All {questions.length} questions answered. Ready to submit?
-              </p>
-            )}
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setShowConfirm(false)} className="zx-sb zx-sb-secondary flex-1">
-                ← Keep Going
-              </button>
-              <button type="button" onClick={() => handleSubmit(false)} className="zx-sb zx-sb-primary flex-1">
-                Submit ✓
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Pre-submit review. Exam mode: nothing is revealed before submission,
+          so entries carry no correctness — the review shows only answered /
+          unanswered / bookmarked, never leaking answers. */}
+      <QuizReviewScreen
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onJumpToSection={setActiveSectionIndex}
+        onFinish={() => handleSubmit(false)}
+        submitting={submitting}
+        sections={sections}
+        answers={answers}
+        flagged={flagged}
+        revealed={{}}
+        aiResults={{}}
+      />
 
       {/* Sticky header — game-themed white strip with navy border */}
       <div className="zx-hero-strip sticky top-0 z-30">

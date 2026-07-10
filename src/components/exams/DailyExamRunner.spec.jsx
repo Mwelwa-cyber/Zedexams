@@ -195,7 +195,7 @@ describe('DailyExamRunner — taking the exam', () => {
     expect(screen.getByRole('button', { name: /Next/i })).toBeInTheDocument()
   })
 
-  it('submits via the confirm modal and navigates to the results page', async () => {
+  it('submits via the pre-submit review screen and navigates to the results page', async () => {
     renderRunner()
     await screen.findByText(/What is 2 \+ 2\?/)
 
@@ -206,8 +206,8 @@ describe('DailyExamRunner — taking the exam', () => {
     fireEvent.click(screen.getByText('Lusaka'))
 
     fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
-    expect(await screen.findByText(/Submit Exam\?/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Submit ✓/ }))
+    expect(await screen.findByText('Review your answers')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Finish quiz/ }))
 
     await waitFor(() => expect(mockSubmitExam).toHaveBeenCalledTimes(1))
     expect(mockSubmitExam).toHaveBeenCalledWith('learner-1', 'exam-1', 'att-1', expect.objectContaining({ q1: 1, q2: 0 }))
