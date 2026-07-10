@@ -11,7 +11,11 @@ const {normalizeBloom} = require("./bloomTaxonomy");
 // let a multi-topic paper be verified for topic mixing + Bloom variety and
 // let the deterministic quality checker re-order clustered papers. Both
 // default to null so pre-1.5 payloads and clients are unaffected.
-const SCHEMA_VERSION = "1.5";
+// v1.5 → v1.6: first-class fill_blanks questions (statements[] + wordBank[]).
+// Pre-1.6 payloads (no fill_blanks questions) validate unchanged. Malformed
+// fill_blanks (no valid statements / no blanks) degrades to short_answer so
+// a stale cached client never sees an unknown type.
+const SCHEMA_VERSION = "1.6";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -21,6 +25,7 @@ const ALLOWED_TYPES = new Set([
   "true_false",
   "essay",
   "matching",
+  "fill_blanks",
 ]);
 
 // Visual question support (v1.4). A question may carry a structured `visual`
@@ -57,6 +62,34 @@ function isPositiveNumber(v) {
 }
 function isNonNegativeNumber(v) {
   return typeof v === "number" && Number.isFinite(v) && v >= 0;
+}
+
+// ── Fill-in-blanks helpers (v1.6) ─────────────────────────────────────────
+// Mirrors fillBlanks.js on the client (src/utils/fillBlanks.js). Kept as an
+// inline CJS copy here because functions/ is CJS and src/ is ESM — they can't
+// share a module at runtime. The BLANK_RE is intentionally identical.
+
+// Any run of 2+ underscores counts as one blank.
+function countBlanks(text) {
+  const m = String(text || "").match(/_{2,}/g);
+  return m ? m.length : 0;
+}
+
+// Normalise one AI-emitted statement into the canonical { text, answers }
+// shape the studio (and fillBlanks.js) expects. The AI emits either
+// { text, answer: string } (one answer, one blank) or { text, answers: [] }.
+// Answers are aligned to blanks left-to-right; extra slots are trimmed and
+// missing slots are left as empty strings (the teacher fills them in).
+function normalizeFillStatement(raw) {
+  const text = str(raw && raw.text, 2000);
+  const blanks = countBlanks(text);
+  const rawAnswers = Array.isArray(raw && raw.answers) ? raw.answers :
+    ((raw && raw.answer != null) ? [String(raw.answer)] : []);
+  const answers = [];
+  for (let i = 0; i < blanks; i++) {
+    answers.push(str(rawAnswers[i], 200));
+  }
+  return {text, answers};
 }
 
 const OPTION_LETTERS = "ABCDEFGH".split("");
@@ -239,13 +272,44 @@ function validateAssessment(input) {
                 .map((q) => {
                   let type = ALLOWED_TYPES.has(q.type) ?
                     q.type : "short_answer";
+
+                  // ── Fill-in-blanks normalization (v1.6) ─────────────────
+                  // Runs BEFORE marks so the blank count can seed the default.
+                  // Malformed fill_blanks (no valid statements / no blanks)
+                  // degrades to short_answer — same pattern as matching.
+                  let fillBlanksData = null;
+                  if (type === "fill_blanks") {
+                    const rawStmts = Array.isArray(q.statements) ? q.statements : [];
+                    const statements = rawStmts
+                        .filter((s) => s && typeof s === "object")
+                        .map(normalizeFillStatement)
+                        .filter((s) => s.text && countBlanks(s.text) >= 1)
+                        .slice(0, 40);
+                    const wordBank = Array.isArray(q.wordBank) ?
+                      q.wordBank.filter(isNonEmptyString)
+                          .map((w) => str(w, 120)).slice(0, 40) : [];
+                    if (statements.length >= 1) {
+                      fillBlanksData = {statements, wordBank};
+                    } else {
+                      // No valid statements — the answer prose still survives
+                      // as the marking key for degraded consumers.
+                      type = "short_answer";
+                    }
+                  }
+                  const totalBlanks = fillBlanksData ?
+                    fillBlanksData.statements.reduce(
+                        (n, s) => n + countBlanks(s.text), 0) : 0;
+
                   // Sub-parts: "(a)…(b)…(c)…" under one instruction stem. When
                   // present the question's marks are the SUM of its parts (the
                   // stem owns none), so the paper total stays honest.
                   const parts = normalizeParts(q.parts);
                   const marks = parts.length ?
                     parts.reduce((s, p) => s + (Number(p.marks) || 0), 0) :
-                    (isPositiveNumber(q.marks) ? Math.round(q.marks) : 1);
+                    // fill_blanks: default marks to total blank count (1 mark
+                    // per blank) when the AI didn't supply an explicit value.
+                    (isPositiveNumber(q.marks) ? Math.round(q.marks) :
+                      (totalBlanks > 0 ? totalBlanks : 1));
                   marksFromQuestions += marks;
                   const number = isPositiveNumber(q.number) ?
                     Math.round(q.number) : globalQNum;
@@ -286,6 +350,11 @@ function validateAssessment(input) {
                       (options && options.length >= 2 ? options : null) :
                       null,
                     matching,
+                    // Fill-in-blanks structured data (v1.6). Non-null only for
+                    // fill_blanks questions; null for all others so pre-1.6
+                    // payloads and stale clients are completely unaffected.
+                    statements: fillBlanksData ? fillBlanksData.statements : null,
+                    wordBank: fillBlanksData ? fillBlanksData.wordBank : null,
                     marks,
                     // Optional brief of a figure the teacher should attach
                     // (v1.1). Coerces to null for absent/garbage values so

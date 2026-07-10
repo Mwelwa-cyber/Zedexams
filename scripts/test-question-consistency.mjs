@@ -42,6 +42,7 @@ import {
 import { isQuestionCorrect, computeQuizScore } from '../src/utils/quizScoring.js'
 import { rowToQuestion, CSV_HEADERS } from '../src/utils/csvQuizImport.js'
 import { buildPaperLayout } from '../src/utils/assessmentPaperLayout.js'
+import { ASSESSMENT_QUESTION_TYPES } from '../src/utils/questionType.js'
 
 const require = createRequire(import.meta.url)
 const { validateAssessment } = require('../functions/teacherTools/assessmentSchema.js')
@@ -273,7 +274,7 @@ test('CSV marks 20 imports cleanly; 0 / 21 error (the #1252 1..20 gate)', () => 
 })
 
 // ── 7. Assessment / export namespace (the divergence to unify later) ──────
-console.log('\nassessment + export namespace divergence (LOCKS today’s split)')
+console.log(`\nassessment + export namespace divergence (LOCKS today\u2019s split)`)
 // LOCKS: the assessment path uses a SEPARATE question-type vocabulary
 // (multiple_choice / true_false / …) from the editor enum (mcq / tf / …).
 // validateAssessment accepts and preserves its own namespace; the editor's
@@ -311,6 +312,40 @@ test('validateAssessment preserves a 50-mark question (no 20 cap, unlike quizzes
   assert(ok, 'assessment should validate')
   eq(value.sections[0].questions[0].marks, 50, 'assessment kept 50 marks')
 })
+// LOCKS: fill_blanks is now a first-class assessment type (v1.6). It must be in
+// ASSESSMENT_QUESTION_TYPES (the src/ registry) and accepted by validateAssessment
+// (the functions/ schema). Both must declare it identically.
+test('ASSESSMENT_QUESTION_TYPES includes fill_blanks (v1.6 parity)', () => {
+  assert(ASSESSMENT_QUESTION_TYPES.includes('fill_blanks'), 'fill_blanks missing from ASSESSMENT_QUESTION_TYPES')
+})
+test('validateAssessment accepts and normalises a fill_blanks question (v1.6)', () => {
+  const { ok, value } = validateAssessment({
+    header: { title: 'English Test', grade: '4', subject: 'English', topic: 'Sentence structure' },
+    sections: [{
+      title: 'Fill in the Blanks',
+      questions: [{
+        number: 1,
+        type: 'fill_blanks',
+        prompt: 'Fill in the blanks.',
+        statements: [
+          { text: 'The sun rises in the ____.', answer: 'east' },
+          { text: 'We sleep at ____.', answer: 'night' },
+        ],
+        wordBank: ['east', 'night', 'west'],
+        marks: 2,
+        answer: 'east; night',
+      }],
+    }],
+  })
+  assert(ok, 'fill_blanks assessment should validate')
+  const q = value.sections[0].questions[0]
+  eq(q.type, 'fill_blanks', 'fill_blanks type preserved')
+  assert(Array.isArray(q.statements) && q.statements.length === 2, 'statements preserved')
+  assert(Array.isArray(q.statements[0].answers) && q.statements[0].answers[0] === 'east',
+    'singular answer mapped to answers[]')
+  assert(Array.isArray(q.wordBank) && q.wordBank.includes('west'), 'wordBank preserved')
+  eq(value.schemaVersion, '1.6', 'schema version is 1.6')
+})
 
 // ── 8. Export surface (assessment paper layout) ──────────────────────────
 console.log('\nexport surface (buildPaperLayout) reflects canonical type + marks')
@@ -330,7 +365,7 @@ console.log('\nexport surface (buildPaperLayout) reflects canonical type + marks
   const learner = blocks.find((b) => b.kind === 'learnerFields')
   const qBlocks = blocks.filter((b) => b.kind === 'question')
 
-  test('export totals every question’s marks (incl. the 15- and 20-mark items)', () =>
+  test("export totals every question's marks (incl. the 15- and 20-mark items)", () =>
     eq(learner?.totalMarks, 2 + 3 + 4 + 4 + 5 + 2 + 20 + 15, 'learnerFields.totalMarks'))
   test('export emits one question block per question', () =>
     eq(qBlocks.length, questions.length, 'question block count'))

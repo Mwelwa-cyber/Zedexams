@@ -55,8 +55,9 @@ const QUESTION_TYPES = new Set([
 
 // Human labels for the canonical question-type keys — used when rendering the
 // "teacher restricted this paper to ONLY these types" line into the format
-// block. Mirrors the studio picker's labels. Includes "matching", which is a
-// valid schema type even though the format seeds never put it in a section.
+// block. Mirrors the studio picker's labels. Includes "matching" and
+// "fill_blanks", which are valid schema types even though the format seeds
+// never declare them in a named section.
 const QUESTION_TYPE_LABELS = {
   multiple_choice: "Multiple choice",
   short_answer: "Short answer / fill-in-the-blank",
@@ -65,23 +66,24 @@ const QUESTION_TYPE_LABELS = {
   true_false: "True / False",
   essay: "Essay / Composition",
   matching: "Matching (Column A with Column B)",
+  fill_blanks: "Fill in the Blanks",
 };
 
 // The full set of canonical question types the assessment SCHEMA accepts —
 // QUESTION_TYPES above is the narrower set a format SECTION may declare (it
-// omits "matching", which seeds never section-ise). Used to canonicalise the
-// studio's "Question types" picker before grounding/generation.
+// omits "matching" and "fill_blanks", which seeds never section-ise). Used to
+// canonicalise the studio's "Question types" picker before grounding/generation.
 const CANONICAL_QUESTION_TYPES = new Set([
   "multiple_choice", "short_answer", "structured",
-  "calculation", "true_false", "essay", "matching",
+  "calculation", "true_false", "essay", "matching", "fill_blanks",
 ]);
-// Loose aliases so a free-text / older client value still resolves. Fill-in-
-// the-blank is stored as a short_answer (the schema has no separate type for
-// it); the prompt/instructions still ask for blanks.
+// Loose aliases so a free-text / older client value still resolves.
+// fill_in_the_blank / fill_in_blank / fillin_the_blank all map to the
+// dedicated fill_blanks type (v1.6 — previously mapped to short_answer).
 const QUESTION_TYPE_ALIASES = {
-  fill_in_the_blank: "short_answer",
-  fill_in_blank: "short_answer",
-  fillin_the_blank: "short_answer",
+  fill_in_the_blank: "fill_blanks",
+  fill_in_blank: "fill_blanks",
+  fillin_the_blank: "fill_blanks",
   truefalse: "true_false",
   mcq: "multiple_choice",
 };

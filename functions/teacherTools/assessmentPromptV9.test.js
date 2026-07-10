@@ -129,7 +129,7 @@ ok("system prompt keeps the QUESTION TYPES hard rule",
   ok("user prompt lists the allowed question types",
     prompt.includes("ALLOWED QUESTION TYPES") &&
     prompt.includes("multiple choice") &&
-    prompt.includes("short answer / fill-in-the-blank"));
+    prompt.includes("short answer"));
   ok("user prompt restates the hard rule in the Rules section",
     prompt.includes("Use ONLY the allowed question types listed above"));
 }
@@ -157,6 +157,59 @@ ok("clockface + protractor still advertised and allowlisted",
     prompt.includes("\"kind\": \"stem_figure\"|\"labelled_figure\"|\"option_images\""));
   ok("user prompt names the assessment type",
     prompt.includes("- Assessment type: End-of-Term Test"));
+}
+
+// ── v9: fill_blanks type support ────────────────────────────────────────────
+ok("system prompt has fill-in-blanks authoring rules",
+  SYSTEM_PROMPT.includes("Fill-in-blanks questions:") &&
+  SYSTEM_PROMPT.includes("fill_blanks") &&
+  SYSTEM_PROMPT.includes("____ (exactly four underscores)") &&
+  SYSTEM_PROMPT.includes("1-2 extra distractor"));
+
+ok("system prompt requires prose answer to survive degradation",
+  SYSTEM_PROMPT.includes("prose \"answer\" field at the question level"));
+
+// fill_blanks appears in the type union in the JSON schema contract.
+{
+  const prompt = buildUserPrompt({
+    grade: "G4",
+    subject: "english",
+    topic: "Sentence structure",
+    totalMarks: 20,
+    assessmentType: "topic_test",
+  });
+  ok("JSON contract type union includes fill_blanks",
+    prompt.includes("\"fill_blanks\""));
+  ok("JSON contract lists statements and wordBank fields",
+    prompt.includes("\"statements\"") && prompt.includes("\"wordBank\""));
+}
+
+// fill_blanks appears in the allowed-types user-prompt label.
+{
+  const prompt = buildUserPrompt({
+    grade: "G4",
+    subject: "english",
+    topic: "Vocabulary",
+    totalMarks: 20,
+    assessmentType: "topic_test",
+    questionTypes: ["fill_blanks"],
+  });
+  ok("fill_blanks label appears in the allowed-types list",
+    prompt.includes("fill in the blanks"));
+}
+
+// short_answer no longer claims to cover fill-in-the-blank in QT_LABELS.
+{
+  const prompt = buildUserPrompt({
+    grade: "G4",
+    subject: "english",
+    topic: "Grammar",
+    totalMarks: 20,
+    assessmentType: "topic_test",
+    questionTypes: ["short_answer"],
+  });
+  ok("short_answer label no longer includes 'fill-in-the-blank'",
+    !prompt.includes("fill-in-the-blank"));
 }
 
 console.log(`assessmentPromptV9: ${passed} checks passed`);

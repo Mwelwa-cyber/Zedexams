@@ -79,13 +79,14 @@ eq('editor mcq → assessment multiple_choice', editorTypeToAssessment('mcq'), '
 eq('editor tf → assessment true_false', editorTypeToAssessment('tf'), 'true_false')
 eq('editor short (legacy) → assessment short_answer', editorTypeToAssessment('short'), 'short_answer')
 ok('editor numeric has no clean assessment counterpart (null)', editorTypeToAssessment('numeric') === null)
-ok('editor fill_blanks has no clean assessment counterpart (null)', editorTypeToAssessment('fill_blanks') === null)
+eq('editor fill_blanks → assessment fill_blanks (v1.6 bijective)', editorTypeToAssessment('fill_blanks'), 'fill_blanks')
 eq('assessment multiple_choice → editor mcq', assessmentTypeToEditor('multiple_choice'), 'mcq')
 eq('assessment true_false → editor tf', assessmentTypeToEditor('true_false'), 'tf')
+eq('assessment fill_blanks → editor fill_blanks (v1.6 bijective)', assessmentTypeToEditor('fill_blanks'), 'fill_blanks')
 ok('assessment structured has no clean editor counterpart (null)', assessmentTypeToEditor('structured') === null)
 ok('assessment calculation has no clean editor counterpart (null)', assessmentTypeToEditor('calculation') === null)
-// bijective pairs round-trip
-for (const t of ['mcq', 'tf', 'short_answer', 'essay', 'matching']) {
+// bijective pairs round-trip (fill_blanks uses the same key on both sides)
+for (const t of ['mcq', 'tf', 'short_answer', 'essay', 'matching', 'fill_blanks']) {
   eq(`round-trip ${t}`, assessmentTypeToEditor(editorTypeToAssessment(t)), t)
 }
 

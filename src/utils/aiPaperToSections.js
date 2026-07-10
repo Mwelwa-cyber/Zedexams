@@ -16,6 +16,7 @@ import {
   importMarkupToOptionHtml,
 } from '../components/quiz/importRichText.js'
 import { stimulusDescriptorFromQuestion, splitSubQuestions } from './stimulusQuestion.js'
+import { normalizeFillStatements, normalizeWordBank } from './fillBlanks.js'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
@@ -117,6 +118,7 @@ function mapType(aiType) {
     case 'true_false': return 'mcq' // True/False renders as a 2-option MCQ
     case 'essay': return 'essay'
     case 'matching': return 'matching'
+    case 'fill_blanks': return 'fill_blanks'
     case 'short_answer':
     case 'calculation':
     case 'structured':
@@ -250,6 +252,36 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     }
     if (options.length < 2) {
       reviewNotes.push('AI returned fewer than 2 options — complete them.')
+    }
+  } else if (type === 'fill_blanks') {
+    // assessmentSchema v1.6 normalises the AI output to {text, answers:[]}
+    // before this converter runs. Guard for hand-built payloads that may still
+    // carry the singular `answer` form from the raw model response.
+    const rawStmts = Array.isArray(q?.statements) ? q.statements.map((s) => {
+      if (!s || typeof s !== 'object') return { text: '', answers: [] }
+      // AI emits singular `answer`; schema normalises to `answers[]`. Accept both.
+      const answers = Array.isArray(s.answers) ? s.answers :
+        (s.answer != null ? [String(s.answer)] : [])
+      return { text: String(s.text ?? '').trim(), answers }
+    }) : []
+    const statements = normalizeFillStatements(rawStmts)
+    const wordBank = normalizeWordBank(Array.isArray(q?.wordBank) ? q.wordBank : [])
+    const hasValidBlanks = statements.some((s) => /_{2,}/.test(s.text))
+    if (hasValidBlanks) {
+      overrides.statements = statements
+      overrides.wordBank = wordBank
+      overrides.wordBankReuse = false
+      overrides.correctAnswer = answer // prose answer key for marking
+      if (!answer) {
+        reviewNotes.push('AI did not give a prose answer key for the fill-blanks question.')
+      }
+    } else {
+      // No statements with blanks — degrade to short_answer so the studio stays
+      // usable (matches the same degrade path in assessmentSchema.js).
+      overrides.type = 'short_answer'
+      overrides.detectedType = 'short_answer'
+      overrides.correctAnswer = answer
+      reviewNotes.push('Fill-blanks had no valid blanks — converted to short answer. Edit or re-generate.')
     }
   } else {
     // Short-answer SUB-PARTS: prefer the model's explicit `parts`; otherwise

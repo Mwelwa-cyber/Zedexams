@@ -129,8 +129,9 @@ describe('CreatePaperModal — question types', () => {
   // Reproduces the reported bug: the teacher selected only Multiple choice +
   // Fill in the blank but the paper also came back with Short answer and
   // Structured questions. The fix sends a canonical `questionTypes` whitelist
-  // (deduped: fill-in-the-blank collapses into short_answer) so the generator
-  // can hard-restrict the paper to exactly those types.
+  // so the generator can hard-restrict the paper to exactly those types.
+  // fill-in-the-blank is now the dedicated fill_blanks type (v1.6), distinct
+  // from short_answer — the two are no longer deduped into one canonical.
   it('sends only the selected question types (deduped to canonical keys)', async () => {
     const { generateAssessment } = await import('../../utils/teacherTools')
     generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
@@ -149,12 +150,14 @@ describe('CreatePaperModal — question types', () => {
 
     expect(generateAssessment).toHaveBeenCalledTimes(1)
     const payload = generateAssessment.mock.calls[0][0]
-    // fill-in-the-blank → short_answer; "multiple choice" → multiple_choice.
+    // fill-in-the-blank → fill_blanks (its own schema type, v1.6);
+    // "multiple choice" → multiple_choice.
     expect([...payload.questionTypes].sort()).toEqual(
-      ['multiple_choice', 'short_answer'],
+      ['fill_blanks', 'multiple_choice'],
     )
-    // The disallowed type is gone — no structured.
+    // The disallowed types are gone — no short_answer, no structured.
     expect(payload.questionTypes).not.toContain('structured')
+    expect(payload.questionTypes).not.toContain('short_answer')
     // The human phrasing is also echoed in the instructions so the prompt
     // renders fill-in-the-blank as blanks.
     expect(payload.instructions).toMatch(/fill-in-the-blank/i)

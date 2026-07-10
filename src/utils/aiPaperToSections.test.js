@@ -554,4 +554,101 @@ console.log('aiPaperToSections')
   ok('aiPaperToStudioDoc never throws on an empty/failed generation', true)
 }
 
+// ── fill_blanks mapping (v1.6) ─────────────────────────────────────────────
+{
+  // Valid fill_blanks from the assessmentSchema output (already-normalized
+  // {text, answers:[]} shape from assessmentSchema v1.6).
+  const { overrides, warnings } = mapAiQuestion({
+    type: 'fill_blanks',
+    prompt: 'Fill in the blanks using the word bank.',
+    statements: [
+      { text: 'The heart pumps ____.', answers: ['blood'] },
+      { text: 'We breathe with our ____.', answers: ['lungs'] },
+      { text: 'We think with our ____.', answers: ['brain'] },
+    ],
+    wordBank: ['blood', 'lungs', 'brain', 'bones'],
+    marks: 3,
+    answer: 'blood; lungs; brain',
+    markingGuide: '1 mark each blank.',
+  })
+  assert.strictEqual(overrides.type, 'fill_blanks', 'fill_blanks type is preserved')
+  assert.ok(Array.isArray(overrides.statements) && overrides.statements.length === 3,
+    'three statements carried through')
+  assert.deepStrictEqual(overrides.statements[0].answers, ['blood'], 'answers array preserved')
+  assert.ok(Array.isArray(overrides.wordBank) && overrides.wordBank.includes('bones'),
+    'wordBank is carried through')
+  assert.strictEqual(overrides.correctAnswer, 'blood; lungs; brain', 'prose answer key preserved')
+  assert.ok(!overrides.requiresReview, 'valid fill_blanks needs no review')
+  assert.strictEqual(warnings.length, 0, 'no warnings for a clean fill_blanks')
+  ok('valid fill_blanks maps to fill_blanks editor type with statements + wordBank', true)
+
+  // Singular `answer` form on statements (raw AI output before schema normalization).
+  const { overrides: raw } = mapAiQuestion({
+    type: 'fill_blanks',
+    prompt: 'Fill in.',
+    statements: [
+      { text: 'Zambia gained independence in ____.', answer: '1964' },
+    ],
+    wordBank: [],
+    marks: 1,
+    answer: '1964',
+  })
+  assert.strictEqual(raw.type, 'fill_blanks')
+  assert.deepStrictEqual(raw.statements[0].answers, ['1964'],
+    'singular answer is mapped to answers[]')
+  ok('fill_blanks handles singular `answer` on statement (pre-schema-normalization)', true)
+
+  // Malformed fill_blanks (no blanks) degrades to short_answer, sets review flag.
+  const { overrides: bad } = mapAiQuestion({
+    type: 'fill_blanks',
+    prompt: 'Complete.',
+    statements: [
+      { text: 'Plants make food through photosynthesis.', answers: [] },
+    ],
+    marks: 2,
+    answer: 'photosynthesis',
+  })
+  assert.strictEqual(bad.type, 'short_answer', 'fill_blanks without blanks degrades to short_answer')
+  assert.strictEqual(bad.correctAnswer, 'photosynthesis', 'prose answer preserved after degrade')
+  assert.strictEqual(bad.requiresReview, true, 'degraded question is flagged for review')
+  ok('fill_blanks with no valid blanks degrades to a flagged short_answer', true)
+
+  // Empty statements array → short_answer degrade.
+  const { overrides: empty } = mapAiQuestion({
+    type: 'fill_blanks',
+    prompt: 'Fill in.',
+    statements: [],
+    marks: 1,
+    answer: 'water',
+  })
+  assert.strictEqual(empty.type, 'short_answer', 'fill_blanks with empty statements degrades')
+  ok('fill_blanks with empty statements degrades to short_answer', true)
+
+  // fill_blanks question inside a full assessment converts end-to-end.
+  const blocks = aiAssessmentToStudioBlocks({
+    header: { title: 'G4 English — Topic Test', totalMarks: 5 },
+    sections: [{
+      title: 'Fill in the Blanks',
+      instructions: 'Use the word bank to fill in the blanks.',
+      questions: [{
+        type: 'fill_blanks',
+        prompt: 'Fill in the blanks.',
+        statements: [
+          { text: 'The sun rises in the ____.', answers: ['east'] },
+          { text: 'We sleep at ____.', answers: ['night'] },
+        ],
+        wordBank: ['east', 'night', 'west'],
+        marks: 2,
+        answer: 'east; night',
+      }],
+    }],
+  })
+  assert.strictEqual(blocks.questionCount, 1)
+  const sec = blocks.sections[0]
+  assert.strictEqual(sec.kind, 'standalone')
+  assert.strictEqual(sec.question.type, 'fill_blanks')
+  assert.ok(Array.isArray(sec.question.statements))
+  ok('fill_blanks in a full assessment converts to a standalone fill_blanks block', true)
+}
+
 console.log(`aiPaperToSections: ${passed} checks passed`)

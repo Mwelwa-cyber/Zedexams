@@ -173,7 +173,7 @@ export function normalizeMarks(value, bounds = MARKS_BOUNDS.quiz) {
 // the parity instead).
 export const ASSESSMENT_QUESTION_TYPES = [
   'multiple_choice', 'short_answer', 'structured', 'calculation',
-  'true_false', 'essay', 'matching',
+  'true_false', 'essay', 'matching', 'fill_blanks',
 ]
 
 // Assessment-side input spellings → assessment canonical (mirrors the picker
@@ -195,10 +195,11 @@ export function canonicalizeAssessmentType(type) {
 
 // ── The bridge: the ONE place quiz⇄assessment type conversion lives ────────
 // Only the unambiguous, bijective pairs are mapped. Quiz-only types
-// (diagram/hotspot/fill/fill_blanks/sequence) and assessment-only types
+// (diagram/hotspot/fill/sequence) and assessment-only types
 // (structured/calculation) have no clean counterpart, so the bridge returns
 // `null` for them and the caller decides (rather than silently picking a wrong
-// type). 'short' folds onto short_answer on the way out.
+// type). 'short' folds onto short_answer on the way out. fill_blanks uses the
+// same canonical key on both sides, so it maps bijectively through unchanged.
 const EDITOR_TO_ASSESSMENT = {
   mcq: 'multiple_choice',
   tf: 'true_false',
@@ -206,6 +207,7 @@ const EDITOR_TO_ASSESSMENT = {
   short: 'short_answer',
   essay: 'essay',
   matching: 'matching',
+  fill_blanks: 'fill_blanks',
 }
 const ASSESSMENT_TO_EDITOR = {
   multiple_choice: 'mcq',
@@ -213,6 +215,7 @@ const ASSESSMENT_TO_EDITOR = {
   short_answer: 'short_answer',
   essay: 'essay',
   matching: 'matching',
+  fill_blanks: 'fill_blanks',
 }
 
 /** Editor type → assessment namespace, or null when there's no clean mapping. */
