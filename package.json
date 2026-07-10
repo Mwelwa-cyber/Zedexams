@@ -203,6 +203,7 @@
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
     "test:ai-cost-openai": "node functions/aiCostOpenAi.test.js",
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
+    "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:treasury": "node functions/treasury.test.js",
     "test:budget-revenue-linked": "node functions/aiBudgetRevenueLinked.test.js",
     "test:marshal": "node functions/agents/runners/marshal.test.js",
