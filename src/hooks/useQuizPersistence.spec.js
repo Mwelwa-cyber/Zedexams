@@ -78,6 +78,36 @@ describe('exam-session expiry (keyed on endTime)', () => {
   })
 })
 
+describe('includeExpired — recover a lapsed exam instead of losing it', () => {
+  it('returns an expired exam (flagged) so the runner can auto-submit the saved answers', () => {
+    const state = practiceState({ mode: 'exam', endTime: Date.now() - HOUR, answers: { q1: 3 } })
+    saveQuizSession(QUIZ, USER, state)
+    // Default still discards it — nothing changes for existing callers.
+    expect(loadQuizSession(QUIZ, USER)).toBeNull()
+    // Opted-in caller gets the attempt back, marked expired, answers intact.
+    const recovered = loadQuizSession(QUIZ, USER, { includeExpired: true })
+    expect(recovered).toMatchObject({ ...state, expired: true })
+    expect(recovered.answers).toEqual({ q1: 3 })
+  })
+
+  it('does not flag a still-live exam as expired even with includeExpired', () => {
+    const state = practiceState({ mode: 'exam', endTime: Date.now() + HOUR })
+    saveQuizSession(QUIZ, USER, state)
+    const loaded = loadQuizSession(QUIZ, USER, { includeExpired: true })
+    expect(loaded).toEqual(state)
+    expect(loaded.expired).toBeUndefined()
+  })
+
+  it('still discards an expired practice session regardless of includeExpired', () => {
+    saveQuizSession(QUIZ, USER, practiceState({ savedAt: Date.now() - 8 * DAY }))
+    expect(loadQuizSession(QUIZ, USER, { includeExpired: true })).toBeNull()
+  })
+
+  it('returns null (not an expired stub) when there is nothing saved', () => {
+    expect(loadQuizSession(QUIZ, USER, { includeExpired: true })).toBeNull()
+  })
+})
+
 describe('practice-session expiry (7-day TTL)', () => {
   it('restores a practice session saved within the TTL', () => {
     const state = practiceState({ savedAt: Date.now() - 6 * DAY })

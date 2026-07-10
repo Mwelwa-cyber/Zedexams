@@ -172,20 +172,27 @@ describe('DailyExamRunner — taking the exam', () => {
     expect(screen.getByText('1 answered')).toBeInTheDocument()
   })
 
-  it('blocks Next until the current section is answered, then advances', async () => {
+  it('lets the learner skip an unanswered question — Next always advances', async () => {
     renderRunner()
     await screen.findByText(/What is 2 \+ 2\?/)
 
-    // Guard fires on an unanswered section.
-    fireEvent.click(screen.getByRole('button', { name: /Next/i }))
-    expect(await screen.findByText(/Please answer this question before moving/i)).toBeInTheDocument()
-    expect(screen.queryByText(/Capital of Zambia/)).not.toBeInTheDocument()
-
-    // Answer, then advance to the second question.
-    fireEvent.click(screen.getByText('4'))
+    // On a timed exam a learner must be able to defer a hard question (flag it
+    // and come back). Next advances even with the current section unanswered —
+    // no blocking guard, no error toast.
     fireEvent.click(screen.getByRole('button', { name: /Next/i }))
     expect(await screen.findByText(/Capital of Zambia\?/)).toBeInTheDocument()
     expect(screen.getByText(/Section 2 \/ 2/)).toBeInTheDocument()
+    expect(screen.queryByText(/Please answer this question before moving/i)).not.toBeInTheDocument()
+    // The skipped question is still counted as unanswered for guidance.
+    expect(screen.getByText('0/2 answered')).toBeInTheDocument()
+  })
+
+  it('exposes a Submit control on every section so the exam can never dead-end', async () => {
+    renderRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+    // Section 1 (not the last) still offers Submit alongside Next.
+    expect(screen.getByRole('button', { name: /Submit 🏁/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Next/i })).toBeInTheDocument()
   })
 
   it('submits via the confirm modal and navigates to the results page', async () => {

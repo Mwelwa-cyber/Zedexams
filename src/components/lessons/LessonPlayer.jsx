@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Volume2, Eye, EyeOff } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
+import { useAuth } from '../../contexts/AuthContext'
 import SlideRenderer from './SlideRenderer'
 import LessonCompleteScreen from './LessonCompleteScreen'
 import PowerPointViewerPlayer from './PowerPointViewerPlayer'
@@ -46,6 +47,7 @@ export default function LessonPlayer() {
   const navigate = useNavigate()
   const deckRef = useRef(null)
   const { getLessonById } = useFirestore()
+  const { currentUser } = useAuth()
   const toast = useToast()
 
   const [lesson, setLesson] = useState(null)
@@ -87,6 +89,47 @@ export default function LessonPlayer() {
   const answers = useMemo(() => lesson?.answers?.length ? lesson.answers : getSlideAnswers(slides), [lesson, slides])
   const activeSlide = slides[index]
   const progress = complete ? 100 : slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0
+
+  // Resume where the learner left off. Slide lessons previously always started
+  // at slide 1 and tracked no progress, so anyone interrupted on a phone (a
+  // call, a dropped connection, closing the tab) restarted the whole lesson.
+  // Persist the current slide + completion in localStorage, scoped to the
+  // learner's uid so a shared device doesn't leak one learner's position to
+  // another. Mirrors the PDF viewer's resume approach.
+  const [hydrated, setHydrated] = useState(false)
+  const progressKey = lessonId ? `examprep:lesson:progress:${lessonId}:${currentUser?.uid || 'anon'}` : null
+
+  useEffect(() => {
+    if (hydrated || !progressKey || !slides.length) return
+    try {
+      const raw = localStorage.getItem(progressKey)
+      if (raw) {
+        const saved = JSON.parse(raw)
+        if (saved?.complete) {
+          setComplete(true)
+        } else {
+          const savedIndex = Number(saved?.index)
+          if (Number.isInteger(savedIndex) && savedIndex > 0) {
+            setIndex(Math.min(savedIndex, slides.length - 1))
+          }
+        }
+      }
+    } catch {
+      // Corrupt/blocked storage — just start from the beginning.
+    }
+    setHydrated(true)
+  }, [hydrated, progressKey, slides.length])
+
+  useEffect(() => {
+    // Only write after hydration so the restore above isn't clobbered by an
+    // initial index=0 write in the same commit.
+    if (!hydrated || !progressKey || !slides.length) return
+    try {
+      localStorage.setItem(progressKey, JSON.stringify({ index, complete, savedAt: Date.now() }))
+    } catch {
+      // Quota/private-mode — resume is best-effort, never fatal.
+    }
+  }, [index, complete, hydrated, progressKey, slides.length])
 
   useEffect(() => {
     function handleKey(event) {

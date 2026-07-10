@@ -49,8 +49,17 @@ export function saveQuizSession(quizId, userId, state) {
 /**
  * Load a previously saved session.
  * Returns `null` if nothing is saved, the session has expired, or data is corrupt.
+ *
+ * @param {string} quizId
+ * @param {string} userId
+ * @param {{ includeExpired?: boolean }} [opts]
+ *   When `includeExpired` is true, an exam whose `endTime` has already passed
+ *   is returned with an `expired: true` marker instead of being dropped, so the
+ *   caller can reconstruct the attempt and auto-submit it rather than losing
+ *   every saved answer. A genuinely-expired practice session is still discarded.
  */
-export function loadQuizSession(quizId, userId) {
+export function loadQuizSession(quizId, userId, opts = {}) {
+  const { includeExpired = false } = opts
   try {
     const raw = localStorage.getItem(sessionKey(quizId, userId))
     if (!raw) return null
@@ -58,8 +67,12 @@ export function loadQuizSession(quizId, userId) {
     const session = JSON.parse(raw)
 
     if (session.mode === 'exam') {
-      // Exam sessions are only valid while endTime is still in the future
-      if (!session.endTime || session.endTime <= Date.now()) return null
+      // Exam sessions are only valid while endTime is still in the future.
+      // A caller that opts into includeExpired gets the expired attempt back
+      // (flagged) so it can submit the saved answers instead of discarding them.
+      if (!session.endTime || session.endTime <= Date.now()) {
+        return includeExpired ? { ...session, expired: true } : null
+      }
     } else {
       // Practice sessions expire after 7 days
       if (!session.savedAt || Date.now() - session.savedAt > PRACTICE_TTL) return null

@@ -17,6 +17,12 @@ vi.mock('../../hooks/useFirestore', () => ({
   useFirestore: () => ({ getLessonById: mockGetLessonById }),
 }))
 
+// AuthContext initialises Firebase at import time; stub it. The player only
+// reads currentUser.uid to scope its saved-progress localStorage key.
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({ currentUser: { uid: 'learner-1' } }),
+}))
+
 const mockToastInfo = vi.fn()
 vi.mock('../ui/Toast', () => ({ useToast: () => ({ info: mockToastInfo, error: vi.fn(), success: vi.fn() }) }))
 
@@ -60,6 +66,7 @@ async function renderPlayer() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.clear()
   mockGetLessonById.mockResolvedValue(LESSON)
   installSpeech()
 })
@@ -103,5 +110,31 @@ describe('LessonPlayer — read aloud', () => {
     const btn = await renderPlayer()
     fireEvent.click(btn)
     expect(mockToastInfo).toHaveBeenCalledWith('Read-aloud is not supported on this browser.')
+  })
+})
+
+describe('LessonPlayer — resume progress', () => {
+  const KEY = 'examprep:lesson:progress:lesson-1:learner-1'
+
+  it('resumes at the saved slide instead of restarting at slide 1', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ index: 1, complete: false }))
+    render(<MemoryRouter><LessonPlayer /></MemoryRouter>)
+    // Counter reads "2 / N" — the learner picks up where they left off.
+    expect(await screen.findByText(/^2 \/ \d+$/)).toBeInTheDocument()
+  })
+
+  it('starts a fresh lesson at slide 1 when no progress is saved', async () => {
+    render(<MemoryRouter><LessonPlayer /></MemoryRouter>)
+    expect(await screen.findByText(/^1 \/ \d+$/)).toBeInTheDocument()
+  })
+
+  it('persists the current slide as the learner advances', async () => {
+    render(<MemoryRouter><LessonPlayer /></MemoryRouter>)
+    await screen.findByText(/^1 \/ \d+$/)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem(KEY) || '{}')
+      expect(saved.index).toBe(1)
+    })
   })
 })

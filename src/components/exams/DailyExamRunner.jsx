@@ -262,6 +262,23 @@ function DailyExamRunnerInner() {
           : {}
         setAnswers(safeAnswers)
         setFlagged(safeFlagged)
+        // Rehydrate the text/numeric input boxes. answers[] holds the raw typed
+        // string for these types, but each <input value={typed}> binds to
+        // shortText — which init never restored. Result: a learner who
+        // refreshed or came back mid-exam saw their typed/numeric answers gone
+        // from the boxes (still saved + counted, but blank on screen), reading
+        // as lost work under time pressure. Seed shortText from the saved
+        // answers so the boxes show what was actually recorded.
+        const flatQuestions = Array.isArray(data.sections)
+          ? data.sections.flatMap(s => (s.kind === 'passage' ? (s.questions || []) : [s.question])).filter(Boolean)
+          : []
+        const rehydratedText = {}
+        for (const q of flatQuestions) {
+          if ((isTextType(q.type) || isNumericType(q.type)) && typeof safeAnswers[q.id] === 'string') {
+            rehydratedText[q.id] = safeAnswers[q.id]
+          }
+        }
+        setShortText(rehydratedText)
         const safeSectionLen = Array.isArray(data.sections) ? data.sections.length : 0
         const requestedIdx = Number.isFinite(session.currentSectionIndex) ? session.currentSectionIndex : 0
         setActiveSectionIndex(
@@ -370,12 +387,12 @@ function DailyExamRunnerInner() {
     return qs.every(q => answers[q.id] !== undefined)
   }
 
-  function tryNext() {
-    if (!sectionAnswered(sections[activeSectionIndex])) {
-      setActionError('Please answer this question before moving to the next one.')
-      return
-    }
-    setActiveSectionIndex(i => i + 1)
+  // Forward navigation is deliberately unguarded: on a timed exam a learner
+  // must be able to defer a hard question (that's what the 🚩 flag is for) and
+  // come back via the section dots. The submit modal still warns about any
+  // unanswered questions before the attempt is finalised.
+  function goNext() {
+    setActiveSectionIndex(i => Math.min(sections.length - 1, i + 1))
   }
 
   function renderQuestion(question) {
@@ -768,13 +785,7 @@ function DailyExamRunnerInner() {
                     key={section.id ?? idx}
                     type="button"
                     title={`Section ${idx + 1}${complete ? ' ✓' : ''}${isFlagged ? ' 🚩' : ''}`}
-                    onClick={() => {
-                      if (idx > activeSectionIndex && !sectionAnswered(sections[activeSectionIndex])) {
-                        setActionError('Please answer the current question before jumping ahead.')
-                        return
-                      }
-                      setActiveSectionIndex(idx)
-                    }}
+                    onClick={() => setActiveSectionIndex(idx)}
                     className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
                     style={{
                       height: 10,
@@ -804,15 +815,18 @@ function DailyExamRunnerInner() {
               ← Prev
             </button>
 
-            {activeSectionIndex < sections.length - 1 ? (
-              <button type="button" onClick={tryNext} className="zx-sb zx-sb-primary text-sm">
-                Next →
-              </button>
-            ) : (
+            {/* Submit is always reachable so a learner can finish from any
+                question; Next simply advances (skipping is allowed). */}
+            <div className="flex gap-2">
               <button type="button" onClick={() => setShowConfirm(true)} className="zx-sb zx-sb-amber text-sm">
                 Submit 🏁
               </button>
-            )}
+              {activeSectionIndex < sections.length - 1 && (
+                <button type="button" onClick={goNext} className="zx-sb zx-sb-primary text-sm">
+                  Next →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
