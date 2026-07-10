@@ -197,6 +197,7 @@ exports.submitDailyExam = onCall(
           totalMarks: attempt.totalMarks || 0,
           totalQuestions: attempt.totalQuestions || 0,
           startedAtMs,
+          endTimeMs: Number.isFinite(attempt.endTime) ? attempt.endTime : null,
         },
         questions,
         answers,
