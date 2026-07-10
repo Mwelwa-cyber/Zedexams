@@ -548,6 +548,33 @@ test('schoolProfiles stays owner-write with bounded school-identity fields', () 
   }
 })
 
+// ── exam_attempts (daily-exam leaderboard integrity) ────────────
+
+console.log('\nexam_attempts — client creates pinned to the unscored in_progress shape')
+
+test('exam_attempts create pins status/score/percentage (leaderboard anti-forgery)', () => {
+  // The read rule exposes every status=='submitted' doc to all signed-in
+  // users and the daily leaderboard trusts those docs directly, so the
+  // create rule MUST NOT let a client mint a pre-scored 'submitted'
+  // attempt. Grading is server-only (submitDailyExam, admin SDK).
+  const start = rules.indexOf('match /exam_attempts/{attemptId}')
+  assert(start >= 0, 'exam_attempts match block not found')
+  const slice = rules.slice(start, start + 2400)
+  assert(
+    slice.includes("incoming().status == 'in_progress'"),
+    "exam_attempts create must pin status to 'in_progress' — else a learner can forge a submitted leaderboard entry",
+  )
+  assert(
+    slice.includes('incoming().score == null') &&
+    slice.includes('incoming().percentage == null'),
+    'exam_attempts create must pin score/percentage to null — grading is server-authoritative',
+  )
+  assert(
+    /allow update:\s*if false/.test(slice),
+    'exam_attempts client updates must stay denied (server-only grading)',
+  )
+})
+
 // ── family portal (parentLinks + familyInviteCodes) ─────────────
 
 console.log('\nfamily portal — parentLinks + familyInviteCodes are locked down')
