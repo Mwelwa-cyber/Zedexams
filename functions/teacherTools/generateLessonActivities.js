@@ -228,7 +228,14 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String((err && err.message) || err).slice(0, 500),
     }).catch(() => {});
-    await refundGeneration(uid, usage, "lesson_activities");
+    // Best-effort: a refund failure must not mask the original error, but it
+    // leaves the teacher's quota silently decremented, so log it.
+    try {
+      await refundGeneration(uid, usage, "lesson_activities");
+    } catch (refundErr) {
+      console.error("[generateLessonActivities] refund failed after generation error",
+          {uid, generationId: genRef.id}, refundErr);
+    }
     throw err;
   }
 

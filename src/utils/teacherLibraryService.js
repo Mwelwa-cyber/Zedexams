@@ -590,7 +590,8 @@ export const TOOL_META = {
     route: '/teacher/generate/lesson-plan',
     colour: 'orange',
   },
-  // AI-generated test/exam papers (generateAssessment / generateExamPaper land
+  // AI-generated test/exam papers (generateAssessment — plus legacy docs from
+  // the retired generateExamPaper callable — land
   // these in aiGenerations). The Library detail view renders them as a printed
   // paper. No `route`: the studio's "Create with AI" modal owns generation and
   // doesn't pre-fill from a query string, so "Generate similar" is intentionally

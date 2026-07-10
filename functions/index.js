@@ -109,10 +109,6 @@ const {
 const {
   createGenerateQuiz,
 } = require("./teacherTools/generateQuiz");
-// Teacher Tools — Exam Studio (ECZ Grade 7-style practice questions).
-const {
-  createGenerateExamPaper,
-} = require("./teacherTools/generateExamPaper");
 // Teacher Tools — Diagram Generator (gpt-image-1, B&W line art for assessments).
 const {
   createGenerateDiagram,
@@ -2424,8 +2420,10 @@ exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);
 // Teacher Tools — Quiz (short curriculum-grounded formative quiz).
 exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 
-// Teacher Tools — Exam Studio (ECZ Grade 7 PSLE-style practice questions).
-exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
+// The generateExamPaper callable was retired 2026-07: no frontend ever called
+// it — the Exam Studio generates through generateAssessment with
+// assessmentType 'mock_exam'. Legacy `tool:'exam_paper'` aiGenerations docs
+// still render in the library via src/utils/aiPaperToSections.js.
 
 // Teacher Tools — Diagram Generator. All three styles (line-art, photoreal,
 // colour illustration) render via gpt-image-1: Recraft and Kie were both
