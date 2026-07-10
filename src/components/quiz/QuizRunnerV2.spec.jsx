@@ -289,8 +289,7 @@ describe('QuizRunnerV2 — answering', () => {
 
   it('advances through a two-question quiz with Next and reaches the submit modal', async () => {
     // Two single-MCQ sections so a Next control exists (a one-question quiz
-    // jumps straight to Submit). Each is answered before advancing, matching
-    // the runner's "answer before you move on" guard.
+    // jumps straight to Submit).
     mockGetQuizById.mockResolvedValue(quizDoc())
     mockGetQuestions.mockResolvedValue([
       mcq({ id: 'q1', order: 0, text: 'What is 2 + 2?' }),
@@ -313,6 +312,47 @@ describe('QuizRunnerV2 — answering', () => {
 
     // The confirm modal appears rather than submitting straight away.
     expect(await screen.findByText('Submit Quiz?')).toBeInTheDocument()
+  })
+
+  it('lets the learner skip an unanswered question and submit from anywhere', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([
+      mcq({ id: 'q1', order: 0, text: 'What is 2 + 2?' }),
+      mcq({ id: 'q2', order: 1, text: 'What is 3 + 3?', options: ['5', '6', '7', '8'], correctAnswer: 1 }),
+    ])
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    // Skip Q1 (unanswered) — Next advances with no blocking error. Practice has
+    // no timer, so a hard block here would be a permanent dead-end.
+    fireEvent.click(screen.getByRole('button', { name: /Next →/ }))
+    expect(await screen.findByText('What is 3 + 3?')).toBeInTheDocument()
+    expect(screen.queryByText(/answer this question before/i)).not.toBeInTheDocument()
+
+    // Answer Q2 so only the deliberately-skipped Q1 remains unanswered.
+    fireEvent.click(optionButtons(container)[1])
+
+    // Submit is reachable even though Q1 was never answered.
+    fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
+    expect(await screen.findByText('Submit Quiz?')).toBeInTheDocument()
+    // The modal honestly reports the skipped question as unanswered.
+    expect(screen.getByText(/1 unanswered/)).toBeInTheDocument()
+  })
+
+  it('keeps Submit reachable on a non-final section so practice can never dead-end', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([
+      mcq({ id: 'q1', order: 0 }),
+      mcq({ id: 'q2', order: 1, text: 'Second' }),
+    ])
+    renderRunner()
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+    // On section 1 of 2 both controls are present.
+    expect(screen.getByRole('button', { name: /Next →/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Submit 🏁/ })).toBeInTheDocument()
   })
 
   it('submits the quiz — saveResult is called with a sensible payload and the app navigates to results', async () => {

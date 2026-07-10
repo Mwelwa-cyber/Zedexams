@@ -1832,13 +1832,7 @@ export default function QuizRunnerV2() {
                   <button
                     key={section.id}
                     type="button"
-                    onClick={() => {
-                      if (index > activeSectionIndex && !sectionAnswered(activeSection)) {
-                        setActionError('Please answer the current question before jumping ahead.')
-                        return
-                      }
-                      setActiveSectionIndex(index)
-                    }}
+                    onClick={() => setActiveSectionIndex(index)}
                     title={`Section ${index + 1}${complete ? ' ✓' : ''}${flaggedSection ? ' 🚩' : ''}`}
                     className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
                     style={{
@@ -1856,29 +1850,29 @@ export default function QuizRunnerV2() {
             </div>
           )}
 
+          {/* Learners can move freely: forward navigation is never blocked on
+              answering the current question (they can skip/defer and come back
+              via the section dots), and Submit is always reachable so a
+              practice session — which has no timer — can never dead-end. The
+              submit modal still warns about any unanswered questions. */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
             <button type="button" onClick={() => setActiveSectionIndex(index => Math.max(0, index - 1))} disabled={activeSectionIndex === 0} className="zx-sb zx-sb-secondary flex-1 px-3 text-sm sm:flex-none sm:px-4">
               ← Prev
             </button>
-            {activeSectionIndex < sections.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!sectionAnswered(activeSection)) {
-                    setActionError('Please answer this question before moving to the next one.')
-                    return
-                  }
-                  setActiveSectionIndex(index => index + 1)
-                }}
-                className="zx-sb zx-sb-primary flex-1 px-3 text-sm sm:flex-none sm:px-4"
-              >
-                Next →
-              </button>
-            ) : (
+            <div className="flex flex-1 gap-2 sm:flex-none">
               <button type="button" onClick={() => setShowSubmit(true)} className="zx-sb zx-sb-amber flex-1 px-3 text-sm sm:flex-none sm:px-4">
                 Submit 🏁
               </button>
-            )}
+              {activeSectionIndex < sections.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSectionIndex(index => Math.min(sections.length - 1, index + 1))}
+                  className="zx-sb zx-sb-primary flex-1 px-3 text-sm sm:flex-none sm:px-4"
+                >
+                  Next →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
