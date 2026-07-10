@@ -310,8 +310,8 @@ describe('QuizRunnerV2 — answering', () => {
     const submitBtn = screen.getByRole('button', { name: /Submit 🏁/ })
     fireEvent.click(submitBtn)
 
-    // The confirm modal appears rather than submitting straight away.
-    expect(await screen.findByText('Submit Quiz?')).toBeInTheDocument()
+    // The pre-submit review screen appears rather than submitting straight away.
+    expect(await screen.findByText('Review your answers')).toBeInTheDocument()
   })
 
   it('lets the learner skip an unanswered question and submit from anywhere', async () => {
@@ -336,9 +336,9 @@ describe('QuizRunnerV2 — answering', () => {
 
     // Submit is reachable even though Q1 was never answered.
     fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
-    expect(await screen.findByText('Submit Quiz?')).toBeInTheDocument()
-    // The modal honestly reports the skipped question as unanswered.
-    expect(screen.getByText(/1 unanswered/)).toBeInTheDocument()
+    expect(await screen.findByText('Review your answers')).toBeInTheDocument()
+    // The review screen honestly reports the skipped question as unanswered.
+    expect(screen.getByText(/1 unanswered question will be marked incorrect/)).toBeInTheDocument()
   })
 
   it('keeps Submit reachable on a non-final section so practice can never dead-end', async () => {
@@ -364,10 +364,10 @@ describe('QuizRunnerV2 — answering', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
     await screen.findByText('What is 2 + 2?')
 
-    // Answer the only question correctly, then open + confirm the submit modal.
+    // Answer the only question correctly, then open the review screen and finish.
     fireEvent.click(optionButtons(container)[1])
     fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /Submit ✓/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Finish quiz/ }))
 
     // saveResult receives the graded payload (server-authoritative scoring
     // re-grades from the question key, so a correct MCQ → 100%).

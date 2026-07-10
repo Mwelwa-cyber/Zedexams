@@ -23,6 +23,7 @@ import ReadingSettingsButton from './reading/ReadingSettingsButton'
 import ReadingSettingsSheet from './reading/ReadingSettingsSheet'
 import TextToSpeechButton from './reading/TextToSpeechButton'
 import PassageViewer from './reading/PassageViewer'
+import QuizReviewScreen from './review/QuizReviewScreen'
 import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
@@ -722,13 +723,18 @@ export default function QuizRunnerV2() {
             type="button"
             onClick={() => setFlagged(current => ({ ...current, [question.id]: !current[question.id] }))}
             className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-900 shadow-[0_2px_0_#0F1B2D] transition-colors ${
-              flagged[question.id] ? 'bg-amber-300' : 'bg-white'
+              flagged[question.id] ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'
             }`}
-            title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
-            aria-label={flagged[question.id] ? 'Unflag this question' : 'Flag this question for review'}
+            title={flagged[question.id] ? 'Remove bookmark' : 'Bookmark this question'}
+            aria-label={flagged[question.id] ? 'Remove bookmark from this question' : 'Bookmark this question'}
             aria-pressed={Boolean(flagged[question.id])}
           >
-            <span aria-hidden="true">🚩</span>
+            {/* Bookmark icon — filled when active */}
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+              fill={flagged[question.id] ? 'currentColor' : 'none'}
+              stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+              <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+            </svg>
           </button>
         </div>
 
@@ -1732,23 +1738,24 @@ export default function QuizRunnerV2() {
         </div>
       )}
 
-      {showSubmit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="zx-card-shared w-full max-w-sm p-6 text-center">
-            <div className="mb-3 text-5xl">📤</div>
-            <h2 className="mb-2 text-xl font-black text-slate-900">Submit Quiz?</h2>
-            {questions.length - answered > 0 ? (
-              <p className="mb-5 text-sm font-semibold text-slate-600">You have <span className="font-black text-orange-600">{questions.length - answered} unanswered</span> — they&apos;ll be marked incorrect.</p>
-            ) : (
-              <p className="mb-5 text-sm font-semibold text-slate-600">All {questions.length} questions answered. Ready!</p>
-            )}
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setShowSubmit(false)} className="zx-sb zx-sb-secondary flex-1">← Keep Going</button>
-              <button type="button" onClick={() => handleSubmit(false)} className="zx-sb zx-sb-primary flex-1">Submit ✓</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Pre-submit review: every question's answered/unanswered/bookmarked
+          state (plus correct/incorrect for feedback already revealed in
+          practice mode — never in exam mode), with filters, tap-to-jump, and
+          the Finish button. Jumps from here are unrestricted, unlike the
+          forward-blocking section dots — going back to a bookmarked or
+          skipped question is the whole point of reviewing. */}
+      <QuizReviewScreen
+        open={showSubmit}
+        onClose={() => setShowSubmit(false)}
+        onJumpToSection={setActiveSectionIndex}
+        onFinish={() => handleSubmit(false)}
+        submitting={submitting}
+        sections={sections}
+        answers={answers}
+        flagged={flagged}
+        revealed={mode === 'practice' ? revealed : {}}
+        aiResults={aiResults}
+      />
 
       <div className="zx-hero-strip sticky top-0 z-30">
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4">
