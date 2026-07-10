@@ -54,6 +54,7 @@ const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
 const {runMarshal} = require("./runners/marshal");
 const {refreshFxRate} = require("../fxRate");
+const {writeAgentRollup} = require("./rollups");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
 const {shouldAuditGeneration} = require("./auditScope");
 
@@ -128,14 +129,13 @@ const nightlyQaSmoke = onSchedule(NIGHTLY_QA_OPTS, async () => {
     return;
   }
 
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "quill",
     department: "qaEng",
     status: report.ok ? "done" : "awaiting_approval",
     input: {runType: "nightly-smoke"},
     output: {quill: report},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -241,14 +241,13 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
     findings: findings.slice(0, 50),
   };
 
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "cala",
     department: "qaEng",
     status: drifted > 0 || errored > 0 ? "awaiting_approval" : "done",
     input: {runType: "weekly-cbc-audit", sampleSize: snap.size},
     output: {cala: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -324,14 +323,13 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     }
   }
 
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "vigil",
     department: "qaEng",
     status: report.ok ? "done" : "awaiting_approval",
     input: {runType: "hourly-monitor"},
     output: {vigil: report},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -389,14 +387,13 @@ const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
   // Surface notable runs (recovered money or errors needing a human) at the
   // top of the dashboard; quiet "nothing to do" runs are just logged.
   const notable = summary.recovered.length > 0 || summary.errors.length > 0;
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "till",
     department: "revenue",
     status: notable ? "awaiting_approval" : "done",
     input: {runType: "hourly-reconcile"},
     output: {till: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -475,14 +472,13 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
   // Anything triaged (or errored) is something a human should glance at and
   // send; a quiet run with no new messages is just logged.
   const notable = summary.processed > 0 || summary.errors.length > 0;
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "echo",
     department: "support",
     status: notable ? "awaiting_approval" : "done",
     input: {runType: "support-triage"},
     output: {echo: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -582,14 +578,13 @@ const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
 
   // A backlog (or an error) is something to act on; an empty week is just logged.
   const notable = summary.backlog.length > 0 || summary.errors.length > 0;
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "compass",
     department: "content",
     status: notable ? "awaiting_approval" : "done",
     input: {runType: "weekly-product-signal", windowDays: summary.windowDays},
     output: {compass: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -628,14 +623,13 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
   }
 
   const notable = summary.atRisk > 0 || summary.errors.length > 0;
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "anchor",
     department: "growth",
     status: notable ? "awaiting_approval" : "done",
     input: {runType: "weekly-retention-scan"},
     output: {anchor: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });
@@ -815,14 +809,13 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
     return;
   }
 
-  await db.collection("agentJobs").add({
+  await writeAgentRollup(db, admin.firestore.FieldValue, {
     agentId: "marshal",
     department: "qaEng",
     status: report.healthy ? "done" : "awaiting_approval",
     input: {runType: "hourly-supervisor"},
     output: {marshal: report},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });

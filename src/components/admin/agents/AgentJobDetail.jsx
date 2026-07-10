@@ -214,13 +214,14 @@ function ApprovalPanel({ job }) {
   )
 }
 
-// Read-only rollups (the weekly CBC audit) also land in awaiting_approval,
-// but there's nothing to publish — agentJobsOnApproved/Pubo only act on
-// `content` jobs, so an audit is a qaEng no-op. Show a plain "Acknowledge"
-// instead of the misleading "Approve & publish" flow. Firestore rules only
-// permit admins to move an agentJob to 'approved' or 'rejected', so
-// acknowledging writes 'approved' (harmless for a qaEng job) while still
-// recording who reviewed it and when.
+// Read-only rollups (Vigil, Marshal, Till, Echo, the weekly CBC audit, …)
+// also land in awaiting_approval, but there's nothing to publish —
+// agentJobsOnApproved/Pubo only act on content-line drafts and skip any job
+// carrying input.runType, so acknowledging a rollup is a status-only no-op.
+// Show a plain "Acknowledge" instead of the misleading "Approve & publish"
+// flow. Firestore rules only permit admins to move an agentJob to 'approved'
+// or 'rejected', so acknowledging writes 'approved' (harmless for a rollup)
+// while still recording who reviewed it and when.
 function AcknowledgePanel({ job }) {
   const { currentUser } = useAuth()
   const [busy, setBusy]   = useState(false)
@@ -394,7 +395,9 @@ export default function AgentJobDetail() {
       </header>
 
       {job.status === 'awaiting_approval' && (
-        isAuditSummary(job.output?.cala)
+        // Scheduled rollups always carry input.runType; the audit-summary
+        // shape check keeps older weekly-audit docs on the same path.
+        (job.input?.runType || isAuditSummary(job.output?.cala))
           ? <AcknowledgePanel job={job} />
           : <ApprovalPanel job={job} />
       )}
