@@ -37,10 +37,14 @@ export function useSpeech() {
     try { return localStorage.getItem(LS_VOICE_KEY) || '' } catch { return '' }
   })
   const [speaking, setSpeaking] = useState(false)
+  const [paused, setPaused]     = useState(false)
   const [activeId, setActiveId] = useState(null)
   const activeIdRef  = useRef(null)
   const audioRef     = useRef(null)
   const objectUrlRef = useRef(null)
+  // Which backend is currently playing — pause/resume differ between the cloud
+  // <audio> element and the browser speechSynthesis engine.
+  const modeRef      = useRef(null) // 'cloud' | 'browser' | null
 
   const voice = useMemo(() => {
     if (voiceURI) {
@@ -70,9 +74,35 @@ export function useSpeech() {
     cleanupAudio()
     try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
     setSpeaking(false)
+    setPaused(false)
     setActiveId(null)
     activeIdRef.current = null
+    modeRef.current = null
   }, [cleanupAudio])
+
+  // Pause the current utterance without discarding it. No-op if nothing plays.
+  const pause = useCallback(() => {
+    if (!activeIdRef.current) return
+    if (modeRef.current === 'cloud' && audioRef.current) {
+      try { audioRef.current.pause() } catch { /* ignore */ }
+      setPaused(true)
+    } else if (modeRef.current === 'browser') {
+      try { window.speechSynthesis?.pause() } catch { /* ignore */ }
+      setPaused(true)
+    }
+  }, [])
+
+  // Resume a paused utterance.
+  const resume = useCallback(() => {
+    if (!activeIdRef.current) return
+    if (modeRef.current === 'cloud' && audioRef.current) {
+      try { audioRef.current.play() } catch { /* ignore */ }
+      setPaused(false)
+    } else if (modeRef.current === 'browser') {
+      try { window.speechSynthesis?.resume() } catch { /* ignore */ }
+      setPaused(false)
+    }
+  }, [])
 
   // Browser fallback used only when Cloud TTS fails (network down, etc.)
   const speakBrowserFallback = useCallback((text, id) => {
@@ -82,9 +112,11 @@ export function useSpeech() {
     }
     const synth = window.speechSynthesis
     synth.cancel()
+    modeRef.current = 'browser'
     const chunks = chunkBySentence(text, 200)
     if (!chunks.length) {
       setSpeaking(false); setActiveId(null); activeIdRef.current = null
+      modeRef.current = null
       return
     }
     chunks.forEach((chunk, index) => {
@@ -96,7 +128,8 @@ export function useSpeech() {
       if (index === chunks.length - 1) {
         const finish = () => {
           if (activeIdRef.current === id) {
-            setSpeaking(false); setActiveId(null); activeIdRef.current = null
+            setSpeaking(false); setPaused(false); setActiveId(null); activeIdRef.current = null
+            modeRef.current = null
           }
         }
         utter.onend = finish
@@ -115,6 +148,7 @@ export function useSpeech() {
     try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
 
     setSpeaking(true)
+    setPaused(false)
     setActiveId(id)
     activeIdRef.current = id
 
@@ -135,10 +169,12 @@ export function useSpeech() {
       const audio = new Audio(url)
       audioRef.current     = audio
       objectUrlRef.current = url
+      modeRef.current      = 'cloud'
 
       const finish = () => {
         if (activeIdRef.current === id) {
-          setSpeaking(false); setActiveId(null); activeIdRef.current = null
+          setSpeaking(false); setPaused(false); setActiveId(null); activeIdRef.current = null
+          modeRef.current = null
         }
         cleanupAudio()
       }
@@ -249,7 +285,7 @@ export function useSpeech() {
 
   return {
     // Text-to-speech
-    supported, voices, voice, setVoice, speaking, activeId, speak, stop,
+    supported, voices, voice, setVoice, speaking, paused, activeId, speak, stop, pause, resume,
     // Speech-to-text (microphone)
     recognitionSupported,
     listening,

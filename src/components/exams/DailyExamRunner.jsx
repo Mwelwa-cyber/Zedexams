@@ -34,8 +34,11 @@ import {
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
 import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
 import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
+import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
+import { optionsToReadAloudText, questionToReadAloudText, toSpokenText } from '../../utils/readAloudText'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import SeoHelmet from '../seo/SeoHelmet'
 import ErrorBoundary from '../ui/ErrorBoundary'
@@ -163,6 +166,7 @@ function DailyExamRunnerInner() {
   // Learner reading preferences (display-only; never affects scoring or timing).
   const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
   const [showReadingSettings, setShowReadingSettings] = useState(false)
+  const readAloud = useQuizReadAloud(quizDisplayPrefs.readAloud)
 
   // Core data
   const [quiz, setQuiz]           = useState(null)
@@ -188,6 +192,12 @@ function DailyExamRunnerInner() {
   const [flagged, setFlagged]                   = useState({})
   const [shortText, setShortText]               = useState({})
   const [activeSectionIndex, setActiveSectionIndex] = useState(0)
+
+  // Stop read-aloud audio when moving between exam sections.
+  useEffect(() => {
+    readAloud.stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSectionIndex])
 
   // Timer
   const [endTime, setEndTime]   = useState(null)
@@ -419,7 +429,16 @@ function DailyExamRunnerInner() {
               <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
             </div>
           )}
-          <RichContent value={question.text} className="question-text" />
+          <div className="flex items-start gap-2">
+            <RichContent value={question.text} className="question-text flex-1" />
+            <TextToSpeechButton
+              id={`q:${question.id}`}
+              label="question"
+              getText={() => questionToReadAloudText(question)}
+              tts={readAloud}
+              className="mt-0.5 shrink-0"
+            />
+          </div>
           {question.diagramText && (
             <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
               {question.diagramText}
@@ -516,6 +535,18 @@ function DailyExamRunnerInner() {
             </div>
           </div>
         ) : (
+          <>
+          {readAloud.enabled && question.options?.length > 0 && (
+            <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-500">
+              <span>Answer options</span>
+              <TextToSpeechButton
+                id={`opts:${question.id}`}
+                label="answer options"
+                getText={() => optionsToReadAloudText(question.options)}
+                tts={readAloud}
+              />
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             {question.options?.map((option, idx) => (
               <OptionButton
@@ -533,6 +564,7 @@ function DailyExamRunnerInner() {
               </OptionButton>
             ))}
           </div>
+          </>
         )}
       </div>
     )
@@ -687,11 +719,20 @@ function DailyExamRunnerInner() {
             <div className="lg:sticky lg:top-24 lg:self-start">
               <div className="zx-card-shared overflow-hidden">
                 <div className="border-b-2 border-slate-900 bg-orange-50 px-5 py-4">
-                  {activeSection.passage.title && (
-                    <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    {activeSection.passage.title && (
+                      <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>
+                    )}
+                    <TextToSpeechButton
+                      id={`passage:${activeSectionIndex}`}
+                      label="passage"
+                      getText={() => toSpokenText(activeSection.passage.passageText)}
+                      tts={readAloud}
+                      className="ml-auto shrink-0"
+                    />
+                  </div>
                   {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm font-bold text-slate-700" />
+                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm text-slate-700" />
                   )}
                 </div>
                 {activeSection.passage.imageUrl && (
@@ -700,7 +741,7 @@ function DailyExamRunnerInner() {
                   </div>
                 )}
                 <div className="p-5">
-                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-900" />
+                  <RichContent value={activeSection.passage.passageText} className="passage-text" />
                 </div>
               </div>
             </div>

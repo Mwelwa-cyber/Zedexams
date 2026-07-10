@@ -18,8 +18,11 @@ import { numericMatches, hotspotMatches } from '../../utils/examService'
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from './reading/ReadingSettingsButton'
 import ReadingSettingsSheet from './reading/ReadingSettingsSheet'
+import TextToSpeechButton from './reading/TextToSpeechButton'
+import { optionsToReadAloudText, questionToReadAloudText, toSpokenText } from '../../utils/readAloudText'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
   computeQuizScore,
@@ -255,6 +258,9 @@ export default function QuizRunnerV2() {
   // answers or scoring.
   const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
   const [showReadingSettings, setShowReadingSettings] = useState(false)
+  // Read-aloud (text-to-speech). Gated by the readAloud reading preference —
+  // when off, no speaker buttons render and nothing is ever spoken.
+  const readAloud = useQuizReadAloud(quizDisplayPrefs.readAloud)
 
   const [quiz, setQuiz] = useState(null)
   const [sections, setSections] = useState([])
@@ -287,6 +293,13 @@ export default function QuizRunnerV2() {
   const timerRef = useRef(null)
   const autoRef = useRef(false)
   const submitRef = useRef(null)
+
+  // Stop any read-aloud audio when the learner moves to another section, so
+  // audio never bleeds across questions.
+  useEffect(() => {
+    readAloud.stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSectionIndex])
   // Synchronous re-entry guard. `submitting` state is async, so a timer
   // auto-fire and a manual tap landing in the same tick would both pass a
   // state check and write two `results` docs. A ref flips immediately.
@@ -741,7 +754,16 @@ export default function QuizRunnerV2() {
                   <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
                 </div>
               )}
-              <RichContent value={question.text} className="question-text" />
+              <div className="flex items-start gap-2">
+                <RichContent value={question.text} className="question-text flex-1" />
+                <TextToSpeechButton
+                  id={`q:${question.id}`}
+                  label="question"
+                  getText={() => questionToReadAloudText(question)}
+                  tts={readAloud}
+                  className="mt-0.5 shrink-0"
+                />
+              </div>
               {question.diagramText && (
                 // whitespace-pre-line preserves the newlines that PR #653
                 // routes into diagramText for flattened-table data (Q4's
@@ -1550,6 +1572,17 @@ export default function QuizRunnerV2() {
           </div>
         ) : (
           <div className="space-y-4">
+            {readAloud.enabled && (
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                <span>Answer options</span>
+                <TextToSpeechButton
+                  id={`opts:${question.id}`}
+                  label="answer options"
+                  getText={() => optionsToReadAloudText(question.options)}
+                  tts={readAloud}
+                />
+              </div>
+            )}
             <div className="opt-grid">
               {question.options.map((option, optionIndex) => {
                 const media = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
@@ -1740,7 +1773,16 @@ export default function QuizRunnerV2() {
                     </span>
                     <span className="zx-pill-dark zx-pill-light">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
                   </div>
-                  {activeSection.passage.title && <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeSection.passage.title}</h2>}
+                  <div className="flex items-start justify-between gap-2">
+                    {activeSection.passage.title && <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeSection.passage.title}</h2>}
+                    <TextToSpeechButton
+                      id={`passage:${activeSectionIndex}`}
+                      label="passage"
+                      getText={() => toSpokenText(activeSection.passage.passageText)}
+                      tts={readAloud}
+                      className="ml-auto shrink-0"
+                    />
+                  </div>
                   {activeSection.passage.instructions && (
                     <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm text-slate-700" />
                   )}
