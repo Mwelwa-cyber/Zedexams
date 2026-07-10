@@ -238,8 +238,17 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     });
     // The AI call failed with a hard throw — no usable assessment was returned.
     // Refund the credit or roll back the counter so the teacher is not charged
-    // for a transient failure. Best-effort: must not mask the original error.
-    try { await refundGeneration(uid, usage, "assessment"); } catch (_) {}
+    // for a transient failure. Best-effort: must not mask the original error,
+    // but a failed refund leaves the teacher's quota silently decremented, so
+    // it must at least be traceable in the logs.
+    try {
+      await refundGeneration(uid, usage, "assessment");
+    } catch (refundErr) {
+      // Include the usage object: if the refund failed because it was
+      // malformed, the log has to show what refundGeneration actually saw.
+      console.error("[generateAssessment] refund failed after generation error",
+          {uid, generationId: genRef.id, usage}, refundErr);
+    }
     throw err;
   }
 

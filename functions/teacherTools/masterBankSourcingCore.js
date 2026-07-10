@@ -178,54 +178,6 @@ function editorQuestionToAssessment(editorQ) {
   return {type, prompt, options: null, answer, markingGuide, marks};
 }
 
-/* ------------------------ editor → exam-paper mapper --------------------- */
-
-function normalizeDifficulty(value) {
-  const t = plainify(value).toLowerCase();
-  return ["easy", "medium", "hard"].includes(t) ? t : "medium";
-}
-
-/**
- * Map one Master Bank question to the ECZ exam-paper shape. Exam papers are
- * single-best-answer MCQ ONLY, and `validateExamPaper` requires EXACTLY
- * `optionCount` options per question — so a bank MCQ whose option count differs
- * is dropped (returns null) rather than flagging the whole paper. Non-MCQ types
- * are also dropped.
- */
-function editorQuestionToExamPaper(editorQ, {optionCount = 4} = {}) {
-  if (!editorQ || typeof editorQ !== "object") return null;
-  const t = String(editorQ.type || "").toLowerCase();
-  if (t !== "mcq" && t !== "multiple_choice") return null;
-
-  const question = plainify(editorQ.text);
-  if (!question) return null;
-
-  const options = (Array.isArray(editorQ.options) ? editorQ.options : [])
-    .map((o) => plainify(o))
-    .filter(Boolean);
-  if (options.length !== optionCount) return null; // strict: exact count
-
-  const ca = editorQ.correctAnswer;
-  let correctAnswer = "";
-  if (typeof ca === "number" && Number.isInteger(ca) && options[ca] != null) {
-    correctAnswer = options[ca];
-  } else if (typeof ca === "string" && options.includes(plainify(ca))) {
-    correctAnswer = plainify(ca);
-  } else {
-    return null;
-  }
-
-  return {
-    type: "multiple_choice",
-    question,
-    options,
-    correctAnswer,
-    explanation: plainify(editorQ.explanation),
-    topic: plainify(editorQ.topic),
-    difficulty: normalizeDifficulty(editorQ.difficulty),
-  };
-}
-
 /* --------------------------- selection + balance ------------------------- */
 
 const DIFFICULTY_ORDER = ["easy", "medium", "hard"];
@@ -355,7 +307,6 @@ module.exports = {
   plainify,
   editorQuestionToQuiz,
   editorQuestionToAssessment,
-  editorQuestionToExamPaper,
   selectBankQuestions,
   buildAvoidNote,
   mergeSourcedIntoSections,

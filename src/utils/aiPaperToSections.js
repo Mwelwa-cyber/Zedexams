@@ -343,7 +343,8 @@ export function mapAiQuestion(q, { partId = null } = {}) {
  * Never throws on malformed input — skips junk and reports it.
  */
 /**
- * Normalise the FLAT exam-paper shape (`generateExamPaper` → `tool:'exam_paper'`:
+ * Normalise the FLAT exam-paper shape (legacy `tool:'exam_paper'` docs from the
+ * retired `generateExamPaper` callable:
  * `{ header, questions: [{ number, question, options, correctAnswer, explanation }] }`)
  * into the sectioned assessment shape `aiAssessmentToStudioBlocks` understands.
  * The exam paper is a single block of multiple-choice questions, so it becomes
