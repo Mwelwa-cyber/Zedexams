@@ -467,6 +467,85 @@ console.log('\nLabelled diagram keeps its labels as a text list when the composi
   }
 }
 
+console.log('\nschoolLogoUrl in header → image embedded in Word header (not dropped)')
+// The Word export used to omit the school logo from the paper header even when
+// the PDF/preview rendered it. buildAssessmentDocument now pre-fetches the logo
+// bytes and passes an ImageRun into headerParagraphs so the .docx header matches.
+{
+  clearImageBytesCache()
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
+  try {
+    const logoDoc = await buildAssessmentDocument(
+      { title: 'Logo Test', subject: 'Science', schoolName: 'ZedExams Academy',
+        schoolLogoUrl: 'https://example.com/logo.png', showNameField: false },
+      [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
+      { mode: 'paper' },
+    )
+    const files = unzipSync(new Uint8Array(await Packer.toBuffer(logoDoc)))
+    // The logo must land as a media part inside the packed docx.
+    const mediaKeys = Object.keys(files).filter((k) => k.startsWith('word/media/'))
+    assert(mediaKeys.length > 0, 'schoolLogoUrl → image embedded as a media part in the header')
+    // The header XML must reference an image relationship (an a:blip element).
+    const headerXmls = Object.keys(files)
+      .filter((k) => /word\/header\d+\.xml$/.test(k))
+      .map((k) => strFromU8(files[k]))
+      .join('\n')
+    assert(headerXmls.includes('blip'), 'schoolLogoUrl → header XML carries an image relationship (a:blip)')
+    assert(headerXmls.includes('ZEDEXAMS ACADEMY'), 'school name is still present in the header alongside the logo')
+  } finally {
+    globalThis.fetch = realFetch
+    clearImageBytesCache()
+  }
+}
+
+console.log('\nschoolLogoUrl fetch fails → document still packs, failure counted, no throw')
+// When the logo URL is unreachable the export must degrade gracefully: the
+// text-only header renders as normal and the failure is counted in stats.failedImages
+// so the studio can warn the teacher — matching the pattern for question images.
+{
+  clearImageBytesCache()
+  globalThis.fetch = async () => ({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) })
+  let threw = false
+  const failStats = { failedImages: [] }
+  try {
+    const failLogoDoc = await buildAssessmentDocument(
+      { title: 'Logo Fail Test', subject: 'Science', schoolName: 'ZedExams Academy',
+        schoolLogoUrl: 'https://example.com/missing-logo.png', showNameField: false },
+      [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
+      { mode: 'paper', stats: failStats },
+    )
+    await Packer.toBuffer(failLogoDoc) // must not throw
+  } catch {
+    threw = true
+  } finally {
+    globalThis.fetch = realFetch
+    clearImageBytesCache()
+  }
+  assert(!threw, 'logo fetch failure → buildAssessmentDocument does not throw')
+  assert(failStats.failedImages.length === 1, 'logo fetch failure → counted in stats.failedImages')
+  assert(failStats.failedImages[0] === 'school logo', 'logo fetch failure → label is "school logo"')
+}
+
+console.log('\nNo logo URL → output unchanged (no regression for papers without a logo)')
+// Papers without a schoolLogoUrl must pack identically to before — the logo
+// paragraph must not appear in the header.
+{
+  const noLogoDoc = await buildAssessmentDocument(
+    { title: 'No Logo Test', subject: 'Science', schoolName: 'ZedExams Academy', showNameField: false },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(noLogoDoc)))
+  const mediaKeys = Object.keys(files).filter((k) => k.startsWith('word/media/'))
+  assert(mediaKeys.length === 0, 'no schoolLogoUrl → no media part in the packed docx')
+  const headerXmls = Object.keys(files)
+    .filter((k) => /word\/header\d+\.xml$/.test(k))
+    .map((k) => strFromU8(files[k]))
+    .join('\n')
+  assert(headerXmls.includes('ZEDEXAMS ACADEMY'), 'no logo → school name still present in header')
+  assert(!headerXmls.includes('blip'), 'no logo → header XML carries no image relationship')
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
   process.exit(1)

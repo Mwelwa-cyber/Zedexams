@@ -705,13 +705,16 @@ async function renderBlock(block, stats = null) {
 // the same 2–4 line centred stack the body version used, capped with a thin
 // rule that divides the header region from the body — mirroring the bottom edge
 // of the preview's `.sv-paper-banner` box.
-function headerParagraphs(b) {
+function headerParagraphs(b, logoRun = null) {
   if (!b) return []
   const out = []
+  // School logo image, pre-fetched as an ImageRun by the async caller and passed
+  // in here. Rendered above the school name, mirroring the PDF and preview banner.
+  if (logoRun) {
+    out.push(centeredPara([logoRun], { spacing: { after: 40 } }))
+  }
   out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 }), { spacing: { after: 40 } }))
   // School identity lines from Teacher Settings → My School (all optional).
-  // The logo image is preview/PDF-only for now — embedding it in the Word
-  // header needs a CORS byte fetch; the text identity is what schools require.
   const addressLine = [b.address, b.emisNumber ? `EMIS: ${b.emisNumber}` : '']
     .filter(Boolean).join(' · ')
   if (addressLine) out.push(centeredPara(runText(addressLine, { size: 18 }), { spacing: { after: 30 } }))
@@ -741,9 +744,9 @@ function headerParagraphs(b) {
  *
  * Spread into the section literal: `{ ...paperSectionShell(blocks, opts), children }`.
  */
-export function paperSectionShell(blocks = [], { attribution = false } = {}) {
+export function paperSectionShell(blocks = [], { attribution = false, logoRun = null } = {}) {
   const headerBlock = blocks.find((b) => b.kind === 'header')
-  const banner = headerParagraphs(headerBlock)
+  const banner = headerParagraphs(headerBlock, logoRun)
   const shell = {}
   const headers = {}
 
@@ -1355,6 +1358,16 @@ export async function buildAssessmentDocument(assessment, questions, { mode = 'p
   const blocks = buildPaperLayout(assessment, questions, { mode })
   const children = await renderPaperBlocksToDocx(blocks, stats)
 
+  // Pre-fetch the school logo for the Word header. The PDF reads b.logoUrl ||
+  // b.schoolLogoUrl; mirror that lookup so both exports stay in step.
+  const headerBlock = blocks.find((b) => b.kind === 'header')
+  let logoRun = null
+  const logoUrl = headerBlock && (headerBlock.logoUrl || headerBlock.schoolLogoUrl)
+  if (logoUrl) {
+    logoRun = await loadImageRun(logoUrl, { width: 60, height: 60, alt: 'School logo' })
+    if (!logoRun) recordImageFailure(stats, 'school logo')
+  }
+
   const title = sanitizeXmlText(mode === 'scheme'
     ? `${assessment.title || 'Assessment'} — Marking Key`
     : (assessment.title || 'Assessment'))
@@ -1368,7 +1381,7 @@ export async function buildAssessmentDocument(assessment, questions, { mode = 'p
         document: { run: { font: 'Times New Roman', size: 22 } },
       },
     },
-    sections: [{ ...paperSectionShell(blocks, { attribution }), children }],
+    sections: [{ ...paperSectionShell(blocks, { attribution, logoRun }), children }],
   })
 }
 
