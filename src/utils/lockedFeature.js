@@ -26,4 +26,9 @@ export const lockedFeature = {
     fn(currentState)
     return () => listeners.delete(fn)
   },
+  // Synchronous read for surfaces that must not stack on top of an open
+  // locked-feature modal (e.g. the Welcome-Back popup defers while it shows).
+  isActive() {
+    return currentState !== null
+  },
 }

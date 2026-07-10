@@ -19,4 +19,9 @@ export const paywall = {
     fn(currentState)
     return () => listeners.delete(fn)
   },
+  // Synchronous read for surfaces that must not stack on top of an open
+  // paywall (e.g. the Welcome-Back popup defers while a modal is showing).
+  isActive() {
+    return currentState !== null
+  },
 }
