@@ -99,6 +99,11 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
         return
       }
       setProducts(items)
+      setSelectedPlanId((current) => (
+        current && items.some((item) => item.planId === current)
+          ? current
+          : items[0]?.planId || null
+      ))
       setPhase('plans')
     } catch {
       if (!mountedRef.current) return
