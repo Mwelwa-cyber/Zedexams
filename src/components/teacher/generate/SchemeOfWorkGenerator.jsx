@@ -28,7 +28,14 @@ import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
-import { FieldText, FieldTextarea, FieldSelect } from './studioFields'
+import {
+  FieldText,
+  FieldTextarea,
+  FieldSelect,
+  AdvancedOptions,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
@@ -571,26 +578,28 @@ export default function SchemeOfWorkGenerator() {
                   : 'No saved timetables yet — create one in the Class Timetable Studio to make schemes timetable-aware.'}
               </p>
             </div>
-            <FieldSelect
-              label="Language"
-              value={form.language}
-              options={TEACHER_LANGUAGES}
-              onChange={(v) => updateField('language', v)}
-            />
-            <FieldText
-              label="School"
-              placeholder="School name"
-              value={form.school}
-              onChange={(v) => updateField('school', v)}
-              maxLength={120}
-            />
-            <FieldText
-              label="Teacher name"
-              placeholder="Mr / Mrs ..."
-              value={form.teacherName}
-              onChange={(v) => updateField('teacherName', v)}
-              maxLength={80}
-            />
+            <AdvancedOptions label="Document details" hint="Language, school, teacher name">
+              <FieldSelect
+                label="Language"
+                value={form.language}
+                options={TEACHER_LANGUAGES}
+                onChange={(v) => updateField('language', v)}
+              />
+              <FieldText
+                label="School"
+                placeholder="School name"
+                value={form.school}
+                onChange={(v) => updateField('school', v)}
+                maxLength={120}
+              />
+              <FieldText
+                label="Teacher name"
+                placeholder="Mr / Mrs ..."
+                value={form.teacherName}
+                onChange={(v) => updateField('teacherName', v)}
+                maxLength={80}
+              />
+            </AdvancedOptions>
             <FieldTextarea
               label="Extra instructions (optional)"
               placeholder="e.g. Emphasise revision in the last two weeks. Include a mock exam in Week 11."
@@ -614,17 +623,12 @@ export default function SchemeOfWorkGenerator() {
               />
             )}
 
-            <button
-              type="submit"
-              disabled={status === 'generating' || !readiness.ready}
-              className="studio-btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            <GenerateButton
+              generating={status === 'generating'}
+              disabled={!readiness.ready}
             >
-              {status === 'generating'
-                ? 'Generating…'
-                : hasSyllabusTopics
-                  ? '🦁 Review term topics →'
-                  : '▶ Generate Scheme of Work'}
-            </button>
+              {hasSyllabusTopics ? 'Review term topics' : 'Generate Scheme of Work'}
+            </GenerateButton>
             {hasSyllabusTopics && (
               <p className="text-xs text-center" style={{ color: '#566f76' }}>
                 We'll divide the syllabus across the terms and let you review Term {form.term}'s topics before generating.
@@ -826,16 +830,10 @@ function QualityChecklist({ result }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#faecb8', display: 'grid', placeItems: 'center', fontSize: 44 }}>
-        🦁
-      </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Plan a whole term at once</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Pick curriculum, grade, subject and term. You'll get a full week-by-week
-        scheme of work, paced to the calendar — ready to edit and print.
-      </p>
-    </div>
+    <StudioEmptyState emoji="🦁" tone="#faecb8" title="Plan a whole term at once">
+      Pick curriculum, grade, subject and term. You'll get a full week-by-week
+      scheme of work, paced to the calendar — ready to edit and print.
+    </StudioEmptyState>
   )
 }
 

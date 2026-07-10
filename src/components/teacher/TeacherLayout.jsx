@@ -1,17 +1,5 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  PencilLine,
-  FolderOpen,
-  GraduationCap,
-  CalendarDays,
-  LogOut,
-  Settings,
-  FileText,
-  BookOpen,
-  Target,
-  ClipboardList,
-} from '../ui/icons'
+import { LogOut, Settings } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
@@ -20,20 +8,7 @@ import ErrorBoundary from '../ui/ErrorBoundary'
 import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
 import { isImmersiveStudioPath } from './immersiveStudioRoutes'
-
-const NAV = [
-  { to: '/teacher',                        icon: LayoutDashboard, label: 'My Dashboard', end: true },
-  { to: '/teacher/generate/lesson-plan',   icon: FileText,        label: 'Lesson Plans'            },
-  { to: '/teacher/generate/scheme-of-work', icon: BookOpen,       label: 'Schemes of Work'         },
-  { to: '/teacher/generate/weekly-forecast', icon: Target,        label: 'Weekly Focus'            },
-  { to: '/teacher/generate/record-of-work', icon: ClipboardList,  label: 'Record of Work'          },
-  { to: '/teacher/library',                icon: FolderOpen,      label: 'My Library'              },
-  { to: '/teacher/test-papers',            icon: PencilLine,      label: 'Test Papers'             },
-  { to: '/teacher/syllabi',                icon: FolderOpen,      label: 'Syllabi Studio'          },
-  { to: '/teacher/curriculum',             icon: GraduationCap,   label: 'Curriculum'              },
-  { to: '/teacher/calendar',               icon: CalendarDays,    label: 'School Calendar'         },
-  { to: '/settings',                       icon: Settings,        label: 'Settings'                },
-]
+import { SIDEBAR_NAV } from './teacherNav'
 
 export default function TeacherLayout({ children }) {
   const { logout, userProfile, isAdmin } = useAuth()
@@ -98,7 +73,7 @@ export default function TeacherLayout({ children }) {
               <div className="theme-border my-2 border-t" />
             </>
           )}
-          {NAV.map(item => (
+          {SIDEBAR_NAV.map(item => (
             <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
               {({ isActive }) => (
                 <>

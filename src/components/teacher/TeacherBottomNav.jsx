@@ -1,14 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import { FolderOpen, Home, ClipboardCheckList, Users } from '../ui/icons'
 import Icon from '../ui/Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
-
-const TEACHER_NAV_ITEMS = [
-  { to: '/teacher',             icon: Home,               label: 'Home',        end: true  },
-  { to: '/teacher/library',     icon: FolderOpen,         label: 'Library',     end: false },
-  { to: '/teacher/test-papers', icon: ClipboardCheckList, label: 'Assessments', end: false },
-  { to: '/teacher/register',    icon: Users,              label: 'My Class',    end: false },
-]
+import { BOTTOM_NAV } from './teacherNav'
 
 const PILL_STYLE = { width: 38, height: 30, borderRadius: 12 }
 
@@ -20,7 +13,7 @@ export default function TeacherBottomNav({ className = '' }) {
       aria-label="Primary teacher navigation"
     >
       <div className="flex">
-        {TEACHER_NAV_ITEMS.map(item => (
+        {BOTTOM_NAV.map(item => (
           <NavLink
             key={item.to}
             to={item.to}

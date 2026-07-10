@@ -164,10 +164,11 @@ export function AdvancedOptions({ label = 'Advanced options', hint, defaultOpen 
 }
 
 // The one submit button every generator shares: spinner while generating,
-// sparkles otherwise. Keeps the disabled/label wiring in one place.
-export function GenerateButton({ generating, generatingLabel = 'Generating…', children }) {
+// sparkles otherwise. Keeps the disabled/label wiring in one place. `disabled`
+// lets a studio add its own readiness condition on top of `generating`.
+export function GenerateButton({ generating, disabled = false, generatingLabel = 'Generating…', children }) {
   return (
-    <button type="submit" disabled={generating} className="studio-btn-primary w-full py-3">
+    <button type="submit" disabled={generating || disabled} className="studio-btn-primary w-full py-3">
       {generating ? (
         <>
           <span className="studio-btn-spinner" aria-hidden="true" />
