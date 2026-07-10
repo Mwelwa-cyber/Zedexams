@@ -39,7 +39,7 @@ export function openPrintWindow() {
   return window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
 }
 
-export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', win: preWin = null } = {}) {
+export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', win: preWin = null, attribution = false } = {}) {
   if (!assessment) throw new Error('No assessment to export.')
 
   const win = preWin || window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
@@ -47,7 +47,7 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', wi
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
 
-  const html = buildPrintableHtml(assessment, questions || [], mode)
+  const html = buildPrintableHtml(assessment, questions || [], mode, { attribution })
   win.document.open()
   win.document.write(html)
   win.document.close()
@@ -64,7 +64,21 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', wi
   else win.addEventListener('load', () => setTimeout(ready, 200))
 }
 
-function buildPrintableHtml(assessment, questions, mode) {
+// Free-plan attribution — the same branding contract as the DOCX exporters
+// (see docxAttribution.js, which owns the canonical wording): a light
+// diagonal watermark plus a "Made with ZedExams" footer line. Both are
+// `position: fixed`, which browsers repeat on every printed page. Paid /
+// admin exports stay completely clean.
+const ATTRIBUTION_WATERMARK_TEXT = 'ZedExams.com'
+const ATTRIBUTION_FOOTER_TEXT =
+  'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers'
+
+function attributionHtml() {
+  return `<div class="attribution-watermark" aria-hidden="true">${escapeHtml(ATTRIBUTION_WATERMARK_TEXT)}</div>
+<div class="attribution-footer">${escapeHtml(ATTRIBUTION_FOOTER_TEXT)}</div>`
+}
+
+function buildPrintableHtml(assessment, questions, mode, { attribution = false } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
   const docTitle = mode === 'scheme'
     ? `${assessment.title || 'Marking Key'} — Marking Key`
@@ -78,6 +92,7 @@ function buildPrintableHtml(assessment, questions, mode) {
   <style>${PRINT_CSS}</style>
 </head>
 <body>
+${attribution ? attributionHtml() : ''}
 ${blocks.map(renderBlock).join('\n')}
 </body>
 </html>`
@@ -534,6 +549,28 @@ body {
   font-style: italic;
   font-size: 10pt;
   color: #555;
+}
+/* Free-plan attribution — fixed elements repeat on every printed page. */
+.attribution-watermark {
+  position: fixed;
+  top: 45%; left: 0; right: 0;
+  text-align: center;
+  transform: rotate(-35deg);
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 52pt;
+  letter-spacing: 2pt;
+  color: rgba(0, 0, 0, 0.07);
+  z-index: -1;
+  pointer-events: none;
+}
+.attribution-footer {
+  position: fixed;
+  bottom: 2pt; left: 0; right: 0;
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.5pt;
+  color: #888;
 }
 .footer-code {
   text-align: right;

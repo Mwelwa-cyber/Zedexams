@@ -153,4 +153,25 @@ eq(classifyValue({ a: null, b: '' }), 'empty', 'object of only-empty values is e
   eq(err[0].status, 'done', 'errored → earlier steps stay done')
 }
 
+/* ── assessment reveal — validateAssessment's exact result shape ── */
+{
+  // The generator returns { schemaVersion, header, sections, markingScheme }.
+  // schemaVersion/header are plumbing and must never reveal as document
+  // sections (a "Schema Version — assessment.v9" row used to leak here).
+  const result = {
+    schemaVersion: '1.5',
+    header: { title: 'Fractions Test', grade: 'G7', subject: 'Mathematics', topic: 'Fractions' },
+    sections: [{ title: 'Section 1', questions: [{ number: 1, prompt: 'Q1', marks: 2 }] }],
+    markingScheme: { notes: 'Standard marking.', totalMarks: 2 },
+  }
+  const sections = buildSections(result, TOOL_SECTION_CONFIG.assessment)
+  const ids = sections.map((s) => s.id)
+  assert(!ids.includes('schemaVersion'), 'assessment reveal skips schemaVersion')
+  assert(!ids.includes('header'), 'assessment reveal skips header')
+  eq(ids.join(','), 'sections,markingScheme', 'assessment reveals sections then marking scheme')
+  eq(sections[0].title, 'Paper Sections', 'sections titled as Paper Sections')
+  eq(sections[1].title, 'Marking Scheme', 'marking scheme gets its label')
+  eq(sections[1].icon, '🗝️', 'marking scheme gets its icon')
+}
+
 console.log(`✓ live-generation-sections: ${passed} assertions passed`)

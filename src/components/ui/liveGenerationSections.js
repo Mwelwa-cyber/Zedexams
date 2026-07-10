@@ -85,6 +85,7 @@ export function classifyValue(value) {
  */
 const ALWAYS_SKIP = new Set([
   'header', 'meta', 'metadata', 'id', 'generationId', 'version',
+  'schemaVersion',
   'title', 'schoolName', 'school', 'answerKey', 'answers',
 ])
 
@@ -298,9 +299,15 @@ export const TOOL_SECTION_CONFIG = {
     },
   },
   assessment: {
-    order: ['instructions', 'sections', 'blocks', 'questions'],
-    labels: { blocks: 'Paper Sections', sections: 'Paper Sections', questions: 'Questions' },
-    icons: { blocks: '📝', sections: '📝', questions: '❓' },
+    // validateAssessment returns { schemaVersion, header, sections,
+    // markingScheme } — schemaVersion/header are plumbing (ALWAYS_SKIP), the
+    // paper reveals section-by-section and closes on the marking scheme.
+    order: ['instructions', 'sections', 'blocks', 'questions', 'markingScheme'],
+    labels: {
+      blocks: 'Paper Sections', sections: 'Paper Sections',
+      questions: 'Questions', markingScheme: 'Marking Scheme',
+    },
+    icons: { blocks: '📝', sections: '📝', questions: '❓', markingScheme: '🗝️' },
   },
   rubric: {
     order: ['taskSummary', 'criteria', 'levels', 'performanceLevels', 'notes'],

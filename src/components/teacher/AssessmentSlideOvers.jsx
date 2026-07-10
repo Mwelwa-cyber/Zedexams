@@ -25,6 +25,7 @@ import {
   DetectDuplicatesAction,
 } from './AssessmentAnalysisActions'
 import { McqOptions, FillBlanksInputs } from './AssessmentQuestionEditors'
+import AiReviewPanel from './AiReviewPanel'
 import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
 
@@ -128,7 +129,7 @@ export function BlockPickerSlide({ open, onClose, onPick }) {
         <div className="sv-block-cat">Media &amp; reading</div>
         <div className="sv-block-picker-grid">
           <BlockPickerItem icon="comprehension" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
-          <BlockPickerItem icon="shape" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="shape" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('diagram_image')} />
           <BlockPickerItem icon="drawLabel" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
           <BlockPickerItem icon="map" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
           <BlockPickerItem icon="table" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
@@ -479,9 +480,27 @@ function AiTopicSubtopicPicker({ grade, subject, framework, topics, subtopics, o
   )
 }
 
-export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
+export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
+  // A pending review batch takes over the slide: the generated questions
+  // must be accepted or discarded before the tool list distracts from them.
+  if (review) {
+    return (
+      <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+        <div className="sv-slideover-head">
+          <button className="sv-icon-btn sv-icon-btn-sm" onClick={onClose} aria-label="Close"><Icon name="remove" size={20} /></button>
+          <h3 className="serif">
+            <Icon name="ai" size={17} /> Review generated questions
+            <small>Untick any you don&apos;t want, then add the rest</small>
+          </h3>
+        </div>
+        <div className="sv-slideover-body">
+          <AiReviewPanel review={review} onConfirm={onConfirmReview} onDiscard={onDiscardReview} />
+        </div>
+      </aside>
+    )
+  }
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -505,7 +524,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
         <div className="sv-block-cat">Quick questions</div>
         <div className="sv-ai-msg">
           <strong>Generate questions on CBC topics</strong>
-          Pick one or more topics and sub-topics, a count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
+          Pick one or more topics and sub-topics, a count and type — I&apos;ll draft them for you to review, then you choose which ones go into the paper.
         </div>
 
         <div className="sv-field-grid two" style={{ marginBottom: 12 }}>
@@ -680,17 +699,21 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
  * DIAGRAM GENERATOR (inline mini-form inside AiSlide)
  *
  * Takes a free-form description ("Cross-section of human skin labelled
- * epidermis, dermis, hypodermis"), calls the Recraft-backed callable,
+ * epidermis, dermis, hypodermis"), calls the generateDiagram callable,
  * and the resulting Storage URL is added as the question image of a
  * fresh "structured" question via the parent's onGenerate handler.
+ *
+ * Every style renders on OpenAI gpt-image-1 — the Recraft and Kie
+ * backends were decommissioned. The wire values ('recraft' | 'openai' |
+ * 'kie') survive as pure STYLE selectors the server still accepts (see
+ * ALLOWED_PROVIDERS in functions/teacherTools/generateDiagram.js):
+ * 'recraft' = B&W line art, 'openai' = photoreal, 'kie' = colour
+ * illustration.
  * ================================================================== */
 function DiagramGeneratorAction({ disabled, onGenerate }) {
   const [prompt, setPrompt] = useState('')
   const [open, setOpen] = useState(false)
-  // 'recraft' = B&W line art (default, cheap, clean on photocopiers).
-  // 'openai'  = photoreal photograph via gpt-image-1 — better for real-
-  //             world subjects (maps, biology specimens, lab apparatus).
-  const [provider, setProvider] = useState('recraft')
+  const [style, setStyle] = useState('recraft')
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -701,7 +724,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
         <div className="sv-ic"><Icon name="shape" size={20} /></div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Generate diagram</strong>
-          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art or a photoreal image</small>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>Line art, photoreal, or colour illustration</small>
         </div>
         <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
       </button>
@@ -721,24 +744,24 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => setProvider('recraft')}
-                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+                onClick={() => setStyle('recraft')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${style === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: style === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 <Icon name="scratch" size={13} /> Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
               </button>
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => setProvider('openai')}
-                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+                onClick={() => setStyle('openai')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${style === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: style === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 <Icon name="camera" size={13} /> Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
               </button>
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => setProvider('kie')}
-                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+                onClick={() => setStyle('kie')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${style === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: style === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 <Icon name="drawLabel" size={13} /> Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
               </button>
@@ -748,7 +771,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
             type="button"
             className="sv-btn sv-btn-primary sv-btn-full"
             disabled={disabled || !prompt.trim()}
-            onClick={() => onGenerate(prompt.trim(), provider).then(() => setPrompt(''))}
+            onClick={() => onGenerate(prompt.trim(), style).then(() => setPrompt(''))}
           >
             <Icon name={disabled ? 'spinner' : 'ai'} size={15} spin={disabled} /> {disabled ? 'Generating…' : 'Generate image'}
           </button>

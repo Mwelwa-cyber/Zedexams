@@ -163,10 +163,12 @@
   margin-left: var(--sv-s2);
   white-space: nowrap;
 }
-/* Save-status tones — see describeSaveStatus() in AssessmentStudio.jsx. */
+/* Save-status tones — see describeSaveStatus() in studio/AssessmentBars.jsx. */
 .studio-v2 .sv-badge-mini.is-unsaved { color: #7A5A1F; background: var(--sv-gold-soft); }
 .studio-v2 .sv-badge-mini.is-local,
 .studio-v2 .sv-badge-mini.is-library { color: #2C5A41; background: var(--sv-sage-soft); }
+/* Persistent library-autosave failure — amber warning, louder than is-unsaved. */
+.studio-v2 .sv-badge-mini.is-autosave-failed { color: #8A3D0F; background: #FCE8D5; }
 
 /* ============================================================
    COMPACT DOCK + FAB (replaces the chunky bottom bar)
