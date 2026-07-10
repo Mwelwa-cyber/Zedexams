@@ -45,6 +45,11 @@ export async function fetchPlayProducts(planIds) {
     .filter((w) => w.productId)
   if (!wanted.length) return []
 
+  const billing = await NativePurchases.isBillingSupported()
+  if (!billing?.isBillingSupported) {
+    throw new Error('Google Play billing is not available on this device')
+  }
+
   const { products } = await NativePurchases.getProducts({
     productIdentifiers: wanted.map((w) => w.productId),
     productType: PURCHASE_TYPE.SUBS,
@@ -54,7 +59,7 @@ export async function fetchPlayProducts(planIds) {
   for (const p of products || []) {
     // Android subs: planIdentifier carries the product id; identifier is
     // the base plan. Fall back to identifier for other platforms.
-    const productId = p.planIdentifier || p.identifier
+    const productId = p.planIdentifier || p.productIdentifier || p.identifier
     if (productId && !byProductId.has(productId)) byProductId.set(productId, p)
   }
 
@@ -118,7 +123,7 @@ export function classifyPurchaseError(err) {
   const msg = String(err?.message || err || '')
   if (/pending/i.test(msg)) return 'pending'
   if (/not purchased/i.test(msg)) return 'not-completed'
-  if (/BILLING_UNAVAILABLE|FEATURE_NOT_SUPPORTED|Billing setup|BILLING_INTERRUPTED/i.test(msg)) {
+  if (/BILLING_UNAVAILABLE|FEATURE_NOT_SUPPORTED|Billing setup|BILLING_INTERRUPTED|billing is not available|billing unavailable|service unavailable|play store/i.test(msg)) {
     return 'unavailable'
   }
   return 'unknown'
