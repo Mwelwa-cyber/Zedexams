@@ -36,8 +36,11 @@ import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
+import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
 import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
+import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
+import { optionsToReadAloudText } from '../../utils/readAloudText'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import ZoomableImage from '../quiz/ZoomableImage'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
@@ -180,6 +183,7 @@ export default function PublicQuizRunner() {
   // free-question limit).
   const { prefs: quizDisplayPrefs, setPref: setQuizDisplayPref, resetPrefs: resetQuizDisplayPrefs, displayVars: quizDisplayVars, saving: savingDisplayPrefs } = useQuizDisplayPrefs()
   const [showReadingSettings, setShowReadingSettings] = useState(false)
+  const readAloud = useQuizReadAloud(quizDisplayPrefs.readAloud)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -195,6 +199,12 @@ export default function PublicQuizRunner() {
   // Mirrors the localStorage counter so we re-render when it bumps.
   const [previewCount, setPreviewCount] = useState(0)
   const [finished, setFinished] = useState(false)
+
+  // Stop read-aloud audio when moving to another question so it never bleeds over.
+  useEffect(() => {
+    readAloud.stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex])
 
   useEffect(() => {
     let cancelled = false
@@ -495,13 +505,33 @@ export default function PublicQuizRunner() {
 
           {/* Question prompt — regular weight; only intentionally-marked words
               (bold/underline/highlight) stand out. */}
-          <div className="question-text">
-            {question.textJSON
-              ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
-              : <p>{plainTextFromQuestion(question)}</p>}
+          <div className="flex items-start gap-2">
+            <div className="question-text flex-1">
+              {question.textJSON
+                ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
+                : <p>{plainTextFromQuestion(question)}</p>}
+            </div>
+            <TextToSpeechButton
+              id={`q:${currentIndex}`}
+              label="question"
+              getText={() => plainTextFromQuestion(question)}
+              tts={readAloud}
+              className="mt-0.5 shrink-0"
+            />
           </div>
 
           {/* Options */}
+          {readAloud.enabled && options.length > 0 && (
+            <div className="flex items-center gap-2 text-xs font-bold theme-text-muted">
+              <span>Answer options</span>
+              <TextToSpeechButton
+                id={`opts:${currentIndex}`}
+                label="answer options"
+                getText={() => optionsToReadAloudText(options.map(plainTextFromOption))}
+                tts={readAloud}
+              />
+            </div>
+          )}
           <div className="space-y-2.5">
             {options.map((opt, idx) => {
               const label = plainTextFromOption(opt)

@@ -54,6 +54,7 @@
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
     "test:learner-prefs": "node src/features/learnerSettings/lib/learnerPrefs.test.js",
     "test:quiz-display-prefs": "node src/utils/quizDisplayPrefs.test.js",
+    "test:read-aloud-text": "node src/utils/readAloudText.test.js",
     "test:draft-dashboard": "node src/features/drafts/draftDashboard.test.js",
     "test:sba-docx": "node scripts/test-sba-task-docx.mjs",
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
