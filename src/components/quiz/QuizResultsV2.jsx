@@ -12,6 +12,7 @@ import useSoundEffects from '../../hooks/useSoundEffects'
 // quizzes and Tiptap JSON quizzes saved by the new editor.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import { answerToText } from '../../utils/answerText'
+import { isQuestionCorrect } from '../../utils/quizScoring'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -224,7 +225,12 @@ export default function QuizResultsV2() {
 
   function renderQuestion(question) {
     const userAnswer = result.answers?.[question.id]
-    const correct = userAnswer === question.correctAnswer || userAnswer?.correct === true
+    // Grade the review badge with the same authority that computed the score
+    // ring (computeQuizScore → isQuestionCorrect). The old ad-hoc equality
+    // check only handled MCQ + AI-verdict answers, so fill_blanks / matching /
+    // sequence / hotspot / diagram-label answers (bare arrays or {x,y}) never
+    // matched and were always painted red ✗ — even at 100%.
+    const correct = isQuestionCorrect(question, userAnswer)
 
     return (
       <div key={question.id} className={`theme-card theme-text rounded-2xl border-2 p-4 shadow-sm ${
@@ -232,9 +238,11 @@ export default function QuizResultsV2() {
       }`}>
         <div className="mb-2 flex items-start gap-2">
           <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black ${
-            correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-          }`}>
-            {correct ? '✓' : '✗'}
+            correct ? 'bg-green-500 text-white'
+              : userAnswer === undefined ? 'bg-gray-400 text-white'
+              : 'bg-red-500 text-white'
+          }`} aria-label={correct ? 'Correct' : userAnswer === undefined ? 'Not answered' : 'Incorrect'}>
+            {correct ? '✓' : userAnswer === undefined ? '–' : '✗'}
           </span>
           <div className="min-w-0 flex-1">
             {question.sharedInstruction && (

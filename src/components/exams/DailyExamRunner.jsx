@@ -262,6 +262,23 @@ function DailyExamRunnerInner() {
           : {}
         setAnswers(safeAnswers)
         setFlagged(safeFlagged)
+        // Rehydrate the text/numeric input boxes. answers[] holds the raw typed
+        // string for these types, but each <input value={typed}> binds to
+        // shortText — which init never restored. Result: a learner who
+        // refreshed or came back mid-exam saw their typed/numeric answers gone
+        // from the boxes (still saved + counted, but blank on screen), reading
+        // as lost work under time pressure. Seed shortText from the saved
+        // answers so the boxes show what was actually recorded.
+        const flatQuestions = Array.isArray(data.sections)
+          ? data.sections.flatMap(s => (s.kind === 'passage' ? (s.questions || []) : [s.question])).filter(Boolean)
+          : []
+        const rehydratedText = {}
+        for (const q of flatQuestions) {
+          if ((isTextType(q.type) || isNumericType(q.type)) && typeof safeAnswers[q.id] === 'string') {
+            rehydratedText[q.id] = safeAnswers[q.id]
+          }
+        }
+        setShortText(rehydratedText)
         const safeSectionLen = Array.isArray(data.sections) ? data.sections.length : 0
         const requestedIdx = Number.isFinite(session.currentSectionIndex) ? session.currentSectionIndex : 0
         setActiveSectionIndex(

@@ -294,6 +294,9 @@ export default function QuizRunnerV2() {
   const timerRef = useRef(null)
   const autoRef = useRef(false)
   const submitRef = useRef(null)
+  // Set when an exam is resumed after its deadline already passed — the
+  // auto-submit effect finalises the saved answers instead of dropping them.
+  const expiredResumeRef = useRef(false)
 
   // Stop any read-aloud audio when the learner moves to another section, so
   // audio never bleeds across questions.
@@ -367,9 +370,12 @@ export default function QuizRunnerV2() {
           }
         }
 
-        // Auto-resume any in-progress session saved in localStorage
+        // Auto-resume any in-progress session saved in localStorage. Opt into
+        // includeExpired so an exam whose timer ran out while the app was
+        // closed is reconstructed and submitted (below) rather than silently
+        // discarded — otherwise the learner loses the whole attempt.
         if (currentUser) {
-          const saved = loadQuizSession(quizId, currentUser.uid)
+          const saved = loadQuizSession(quizId, currentUser.uid, { includeExpired: true })
           if (saved) {
             setMode(saved.mode)
             setAnswers({ ...seedSequence, ...(saved.answers || {}) })
@@ -381,6 +387,9 @@ export default function QuizRunnerV2() {
             if (saved.endTime) setEndTime(saved.endTime)
             setStartTime(saved.startTime || Date.now())
             setStarted(true)
+            // Expired exam: flag it so the auto-submit effect finalises the
+            // saved answers once questions/state are in place.
+            if (saved.expired) expiredResumeRef.current = true
           } else if (Object.keys(seedSequence).length) {
             setAnswers(seedSequence)
           }
@@ -460,6 +469,18 @@ export default function QuizRunnerV2() {
     timerRef.current = setInterval(tick, 500)
     return () => clearInterval(timerRef.current)
   }, [started, mode, endTime])
+
+  // Finalise an exam that was resumed after its deadline. The restore path sets
+  // expiredResumeRef; once the session is started and questions are in state
+  // (so handleSubmit's closure holds the recovered answers) we submit exactly
+  // once. autoRef is shared with the live timer path so the two can never
+  // double-submit. Without this the learner's saved answers would be lost.
+  useEffect(() => {
+    if (!expiredResumeRef.current) return
+    if (!started || !questions.length || autoRef.current) return
+    autoRef.current = true
+    submitRef.current?.(true)
+  }, [started, questions])
 
   // Persist state whenever anything meaningful changes.
   // endTime / startTime are stable after the session starts, so we omit them

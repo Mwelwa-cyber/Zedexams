@@ -367,6 +367,36 @@ describe('QuizRunnerV2 — session resume', () => {
     // No "Start Practice" pre-quiz button — the runner jumps to the question.
     expect(await screen.findByText('What is 2 + 2?')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Start Practice/i })).not.toBeInTheDocument()
-    expect(mockLoadQuizSession).toHaveBeenCalledWith('quiz-1', 'learner-1')
+    // Opts into includeExpired so a lapsed exam is recovered + auto-submitted
+    // rather than silently dropped.
+    expect(mockLoadQuizSession).toHaveBeenCalledWith('quiz-1', 'learner-1', { includeExpired: true })
+  })
+
+  it('recovers a lapsed exam by auto-submitting the saved answers instead of losing them', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq({ id: 'q1' })])
+    mockSaveResult.mockResolvedValue('result-9')
+    // An exam whose deadline passed while the app was closed — the persistence
+    // layer now hands it back flagged `expired` rather than returning null.
+    mockLoadQuizSession.mockReturnValue({
+      mode: 'exam',
+      answers: { q1: 1 },
+      flagged: {},
+      revealed: {},
+      shortText: {},
+      aiResults: {},
+      activeSectionIndex: 0,
+      endTime: 1, // in the past
+      startTime: 1,
+      expired: true,
+    })
+    renderRunner()
+    // It finalises the recovered attempt (score saved) and routes to results,
+    // rather than discarding the whole attempt.
+    await waitFor(() => expect(mockSaveResult).toHaveBeenCalledTimes(1))
+    expect(mockSaveResult).toHaveBeenCalledWith(
+      expect.objectContaining({ quizId: 'quiz-1', mode: 'exam', answers: expect.objectContaining({ q1: 1 }) }),
+    )
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results/result-9'))
   })
 })
