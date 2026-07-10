@@ -470,7 +470,9 @@ describe('QuizRunnerV2 — exam short-answers are never lost to a dropped connec
 
   async function submitExam() {
     fireEvent.click(screen.getByRole('button', { name: /Submit 🏁/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /Submit ✓/ }))
+    // Submit 🏁 opens the pre-submit review screen (QuizReviewScreen);
+    // the attempt is finalised from its "Finish quiz ✓" button.
+    fireEvent.click(await screen.findByRole('button', { name: /Finish quiz ✓/ }))
     await waitFor(() => expect(mockSaveResult).toHaveBeenCalledTimes(1))
     return mockSaveResult.mock.calls[0][0]
   }
