@@ -42,7 +42,9 @@ function choiceEquals(given, correct) {
  *
  * @param {object} args
  * @param {object} args.attempt   The exam_attempts doc data (needs
- *                                totalMarks, totalQuestions, startedAtMs).
+ *                                totalMarks, totalQuestions, startedAtMs,
+ *                                endTimeMs — the server-derived deadline,
+ *                                startedAtMs + exam duration).
  * @param {object[]} args.questions  Raw question docs (with answer keys).
  * @param {object} args.answers   { [questionId]: value } from the learner.
  * @param {number} args.nowMs     Server time in ms (Date.now()).
@@ -97,7 +99,12 @@ function gradeAttempt({attempt, questions, answers, nowMs}) {
   const totalQuestions = safeQuestions.length || attempt.totalQuestions || 0;
   const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
   const startMs = Number.isFinite(attempt.startedAtMs) ? attempt.startedAtMs : (nowMs - 60_000);
-  const timeTakenSeconds = Math.max(0, Math.round((nowMs - startMs) / 1000));
+  // Cap the submission instant at the attempt deadline so an abandoned
+  // exam auto-submitted hours later can't record an inflated duration.
+  // endTimeMs must be server-derived (startedAt + quiz duration) — never
+  // the client-written attempt.endTime, which follows the device clock.
+  const submitMs = Number.isFinite(attempt.endTimeMs) ? Math.min(nowMs, attempt.endTimeMs) : nowMs;
+  const timeTakenSeconds = Math.max(0, Math.round((submitMs - startMs) / 1000));
 
   const strengths = Object.entries(topicBreakdown)
     .filter(([, t]) => t.percentage >= 70).map(([k]) => k);

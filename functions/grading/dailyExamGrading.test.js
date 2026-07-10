@@ -60,6 +60,26 @@ ok("empty answers → score 0", empty.score === 0);
 ok("empty answers → percentage 0", empty.percentage === 0);
 ok("empty answers → Needs Improvement", empty.performanceLevel === "Needs Improvement");
 
+// ── timeTakenSeconds clamps to the attempt deadline ──────────────────────
+// An abandoned attempt is auto-submitted hours later (restoreExam expiry
+// path); "time taken" must cap at the exam window, not wall-clock.
+const late = gradeAttempt({
+  attempt: {totalMarks: 0, totalQuestions: 0, startedAtMs: 1_000_000, endTimeMs: 1_000_000 + 40 * 60_000},
+  questions,
+  answers: {},
+  nowMs: 1_000_000 + 387 * 60_000, // submitted 387 minutes after start
+});
+ok("late auto-submit caps timeTaken at endTimeMs", late.timeTakenSeconds === 40 * 60);
+const onTime = gradeAttempt({
+  attempt: {totalMarks: 0, totalQuestions: 0, startedAtMs: 1_000_000, endTimeMs: 1_000_000 + 40 * 60_000},
+  questions,
+  answers,
+  nowMs: 1_060_000,
+});
+ok("in-window submit unaffected by endTimeMs", onTime.timeTakenSeconds === 60);
+const noEnd = gradeAttempt({attempt, questions, answers, nowMs: 1_060_000});
+ok("missing endTimeMs falls back to nowMs", noEnd.timeTakenSeconds === 60);
+
 // ── Fallback to attempt totals when questions missing ────────────────────
 const fb = gradeAttempt({
   attempt: {totalMarks: 20, totalQuestions: 10, startedAtMs: 1_000_000},
