@@ -25,7 +25,10 @@ function PreviewQuestion({ question }) {
 
       {question.sharedInstruction && (
         <div className="theme-accent-bg theme-border rounded-2xl border px-3 py-2">
-          <RichContent value={question.sharedInstruction} className="theme-accent-text text-sm font-bold" />
+          {/* Regular weight — matches the learner runner, so only words the
+              teacher intentionally formatted (bold/underline/highlight)
+              stand out in the preview exactly as learners will see them. */}
+          <RichContent value={question.sharedInstruction} className="theme-accent-text text-sm" />
         </div>
       )}
 
@@ -41,7 +44,10 @@ function PreviewQuestion({ question }) {
       )}
       <ExtraQuestionImages question={question} className="mt-3" />
 
-      <RichContent value={question.text} className="text-base font-bold leading-relaxed" />
+      {/* question-text = the Phase 1 learner typography (weight 500, strong at
+          800, visible u/mark/sup/sub) so this preview is an ACCURATE mirror of
+          what a learner sees — a teacher can verify their formatting here. */}
+      <RichContent value={question.text} className="question-text" />
 
       {question.diagramText && (
         // whitespace-pre-line preserves the newlines PR #653 routes into
@@ -61,7 +67,7 @@ function PreviewQuestion({ question }) {
               <div
                 key={`${question.id || question.localId || question.questionNumber}-${index}`}
                 className={joinClasses(
-                  'rounded-2xl border-2 px-4 py-3 text-sm font-semibold',
+                  'answer-text rounded-2xl border-2 px-4 py-3',
                   index === question.correctAnswer
                     ? 'border-green-300 bg-green-50 text-green-800'
                     : 'theme-border theme-bg-subtle theme-text',
@@ -203,7 +209,7 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                     </div>
                     {section.passage.title && <p className="theme-text mt-3 text-lg font-black">{section.passage.title}</p>}
                     {section.passage.instructions && (
-                      <RichContent value={section.passage.instructions} className="theme-accent-text mt-2 text-sm font-bold" />
+                      <RichContent value={section.passage.instructions} className="theme-accent-text mt-2 text-sm" />
                     )}
                     {section.passage.imageUrl && (
                       <div className="theme-border theme-bg-subtle mt-4 overflow-hidden rounded-2xl border p-3">
@@ -215,7 +221,7 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                         />
                       </div>
                     )}
-                    <RichContent value={section.passage.passageText} className="mt-4 text-sm leading-7" />
+                    <RichContent value={section.passage.passageText} className="passage-text mt-4" />
                   </div>
                   {section.questions.map(question => <PreviewQuestion key={question.id || question.localId} question={question} />)}
                 </div>
