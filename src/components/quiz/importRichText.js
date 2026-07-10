@@ -37,6 +37,8 @@
  * and under the plain `node` test runner alike.
  */
 
+import { hasFormatTokens, consumeFormatToken, closeFormatTokens } from './importFormatTokens.js'
+
 // Operators the VerticalArithmetic node accepts (see VerticalArithmetic.js).
 // We normalise the ASCII forms a model is likely to emit (`-`, `*`, `x`, `/`)
 // into the exact Unicode glyphs the node stores.
@@ -76,7 +78,8 @@ export function hasImportMarkup(text) {
     /\\frac\s*\{/.test(s) ||           // stacked fraction
     /\$[^$\n]+\$/.test(s) ||           // $…$ inline math
     /\\\(|\\\[/.test(s) ||             // \( … \) / \[ … \]
-    /\[\[\s*vmath\b/i.test(s)          // vertical arithmetic token
+    /\[\[\s*vmath\b/i.test(s) ||       // vertical arithmetic token
+    hasFormatTokens(s)                 // [[b]]/[[u]]/[[i]]/[[hl]]/[[sup]]/[[sub]]
   ) {
     return true
   }
@@ -131,9 +134,23 @@ export function convertInline(text) {
   let out = ''
   let i = 0
   const n = src.length
+  // Open formatting tokens ([[b]]/[[u]]/…) — see importFormatTokens.js. The
+  // DOCX extractor emits these around bold/underlined/italic/highlighted
+  // words, and the smart-import prompt tells the model to preserve them.
+  const formatStack = []
 
   while (i < n) {
     const ch = src[i]
+
+    // [[b]] / [[/u]] / … formatting tokens → semantic tags.
+    if (ch === '[') {
+      const consumed = consumeFormatToken(src, i, formatStack)
+      if (consumed) {
+        out += consumed.html
+        i = consumed.next
+        continue
+      }
+    }
 
     // $ … $  (single-dollar inline math). No newline allowed inside.
     if (ch === '$') {
@@ -185,6 +202,9 @@ export function convertInline(text) {
     i += 1
   }
 
+  // Close any formatting still open at the end of the run so the output HTML
+  // is always balanced (tokens never legitimately span a line break).
+  out += closeFormatTokens(formatStack)
   return out
 }
 

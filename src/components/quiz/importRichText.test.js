@@ -198,6 +198,37 @@ assertEqual('empty stays empty', importMarkupToRichHtml(''), '')
   assertEqual('plain multiline untouched', html, 'Line one\nLine two')
 }
 
+/* ── Formatting tokens (DOCX run formatting / smart-import passthrough) ── */
+
+{
+  const html = importMarkupToRichHtml('What does the [[u]]underlined[[/u]] word mean?')
+  assertEqual('underline token → <u>', html, '<p>What does the <u>underlined</u> word mean?</p>')
+}
+
+{
+  const html = importMarkupToRichHtml('The [[b]]boy[[/b]] ate a [[hl]]mango[[/hl]].')
+  assertIncludes('bold token → <strong>', html, '<strong>boy</strong>')
+  assertIncludes('highlight token → <mark>', html, '<mark>mango</mark>')
+}
+
+{
+  // Formatting tokens mixed with maths markup in one field.
+  const html = importMarkupToRichHtml('Simplify $x^2$ where the [[i]]index[[/i]] is 2')
+  assertIncludes('math survives next to tokens', html, 'class="mnode"')
+  assertIncludes('italic token → <em>', html, '<em>index</em>')
+}
+
+{
+  const html = importMarkupToOptionHtml('the [[b]]largest[[/b]] planet')
+  assertEqual('option token converts inline (no <p>)', html, 'the <strong>largest</strong> planet')
+}
+
+{
+  const html = importMarkupToRichHtml('H[[sub]]2[[/sub]]O and 3[[sup]]2[[/sup]]')
+  assertIncludes('subscript token → <sub>', html, 'H<sub>2</sub>O')
+  assertIncludes('superscript token → <sup>', html, '3<sup>2</sup>')
+}
+
 /* ── Options ───────────────────────────────────────────────────────────── */
 
 assertEqual('plain option unchanged', importMarkupToOptionHtml('117 kg'), '117 kg')

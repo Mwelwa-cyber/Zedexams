@@ -10,6 +10,14 @@ import { reconcileSmartSectionOrder, shouldRunSmartImport } from './documentQuiz
 import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import {
+  wrapFormattedPieces,
+  fixLeadingStructuralTokens,
+  formatTokensToHtml,
+  formatTokensToInlineHtml,
+  stripFormatTokens,
+} from './importFormatTokens.js'
+import { buildImportFormatWarnings } from './importFormatChecks.js'
 import { subPartsFromText } from '../../utils/stimulusQuestion.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'
 import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
@@ -156,30 +164,71 @@ function makeImageAsset(bytesOrBlob, sourcePath, contentType, warnings) {
   }
 }
 
+// Read a run's direct formatting (w:rPr). Returns { b, i, u, hl, sup, sub }
+// when the run carries at least one format, else null. Toggle properties may
+// be explicitly off (<w:b w:val="0|false"/>); underline/highlight use
+// w:val="none" for off. Only DIRECT run formatting is read — style-inherited
+// formatting (e.g. a Heading style's bold) is document styling, not the
+// intentional word-level emphasis exam questions refer to.
+function runFormatFlags(run) {
+  const rPr = Array.from(run.children || []).find(child => child.localName === 'rPr')
+  if (!rPr) return null
+  const children = Array.from(rPr.children || [])
+  const readVal = element =>
+    (element?.getAttribute('w:val') || element?.getAttribute('val') || '').toLowerCase()
+  const onFlag = name => {
+    const el = children.find(child => child.localName === name)
+    if (!el) return false
+    const val = readVal(el)
+    return !(val === '0' || val === 'false' || val === 'none' || val === 'off')
+  }
+  const vertAlign = readVal(children.find(child => child.localName === 'vertAlign'))
+  const formats = {
+    b: onFlag('b'),
+    i: onFlag('i'),
+    u: onFlag('u'),
+    hl: onFlag('highlight'),
+    sup: vertAlign === 'superscript',
+    sub: vertAlign === 'subscript',
+  }
+  return formats.b || formats.i || formats.u || formats.hl || formats.sup || formats.sub
+    ? formats
+    : null
+}
+
 function paragraphText(paragraph) {
   const pieces = []
-  ;(function walk(node) {
+  ;(function walk(node, formats) {
     Array.from(node?.childNodes || []).forEach(child => {
       if (child.nodeType !== 1) return
       if (child.localName === 't') {
-        if (child.textContent) pieces.push(child.textContent)
+        if (child.textContent) pieces.push({ text: child.textContent, formats })
         return
       }
       if (child.localName === 'tab') {
         // Preserve a real tab so we can detect tab-separated question /
         // option formats (`1\tStem`, `A\tAnswer`) before cleanText() strips
         // them. Replaced with a space inside normalizeTabbedQuestionLine().
-        pieces.push('\t')
+        pieces.push({ text: '\t', formats: null })
         return
       }
       if (child.localName === 'br' || child.localName === 'cr') {
-        pieces.push('\n')
+        pieces.push({ text: '\n', formats: null })
         return
       }
-      walk(child)
+      if (child.localName === 'r') {
+        // A run carries its own formatting; its w:t descendants inherit it.
+        walk(child, runFormatFlags(child))
+        return
+      }
+      walk(child, formats)
     })
-  })(paragraph)
-  return normalizeTabbedQuestionLine(pieces.join(''))
+  })(paragraph, null)
+  // wrapFormattedPieces emits [[b]]/[[u]]/… tokens around formatted words
+  // (dropping whole-paragraph styling); fixLeadingStructuralTokens then frees
+  // "1." / "A." prefixes of tokens so the parser regexes still match.
+  const withTokens = fixLeadingStructuralTokens(wrapFormattedPieces(pieces))
+  return normalizeTabbedQuestionLine(withTokens)
 }
 
 // PRISCA / ECZ Word docs lay out questions in a 2-column table-less format:
@@ -855,6 +904,69 @@ function trueFalseToIndex(value) {
   return 0
 }
 
+/* ── DOCX formatting-token conversion (deterministic path) ────────────────
+ * extractDocx emits [[b]]/[[u]]/[[i]]/[[hl]]/[[sup]]/[[sub]] tokens around
+ * words the Word document formatted (see importFormatTokens.js). After the
+ * parser has done its structural work, these convert into the editor HTML the
+ * sanitiser allows. Fields without tokens pass through completely unchanged,
+ * so plain imports behave exactly as before. The smart-import path converts
+ * its own tokens inside importMarkupToRichHtml, so its output never carries
+ * tokens into these helpers (which then no-op on it). */
+
+function convertQuestionFormatTokens(question) {
+  if (!question || typeof question !== 'object') return question
+  const next = { ...question }
+  if (typeof question.text === 'string') next.text = formatTokensToHtml(question.text)
+  if (typeof question.explanation === 'string') next.explanation = formatTokensToHtml(question.explanation)
+  if (typeof question.sharedInstruction === 'string') next.sharedInstruction = formatTokensToHtml(question.sharedInstruction)
+  if (Array.isArray(question.options)) {
+    next.options = question.options.map(option =>
+      typeof option === 'string' ? formatTokensToInlineHtml(option) : option,
+    )
+  }
+  return next
+}
+
+function convertFormatTokensInSections(sections) {
+  if (!Array.isArray(sections)) return sections
+  return sections.map(section => {
+    if (!section) return section
+    if (section.kind === 'passage' && section.passage) {
+      const passage = section.passage
+      return {
+        ...section,
+        passage: {
+          ...passage,
+          // Titles render as plain text (h2), so tokens are stripped, not converted.
+          title: typeof passage.title === 'string' ? stripFormatTokens(passage.title) : passage.title,
+          instructions: typeof passage.instructions === 'string' ? formatTokensToHtml(passage.instructions) : passage.instructions,
+          passageText: typeof passage.passageText === 'string' ? formatTokensToHtml(passage.passageText) : passage.passageText,
+          questions: Array.isArray(passage.questions)
+            ? passage.questions.map(convertQuestionFormatTokens)
+            : passage.questions,
+        },
+      }
+    }
+    if (section.question) {
+      return { ...section, question: convertQuestionFormatTokens(section.question) }
+    }
+    return section
+  })
+}
+
+function convertFormatTokensInParts(parts) {
+  if (!Array.isArray(parts)) return parts
+  return parts.map(part => {
+    if (!part || typeof part !== 'object') return part
+    return {
+      ...part,
+      title: typeof part.title === 'string' ? stripFormatTokens(part.title) : part.title,
+      instructions: typeof part.instructions === 'string' ? formatTokensToHtml(part.instructions) : part.instructions,
+      example: typeof part.example === 'string' ? formatTokensToHtml(part.example) : part.example,
+    }
+  })
+}
+
 function aiQuestionToLocalOverrides(q) {
   const rawOptions = Array.isArray(q.options) && q.options.length ? q.options : ['', '', '', '']
   const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (rawOptions.length >= 2 ? 'mcq' : 'short_answer')
@@ -1156,7 +1268,8 @@ export async function importQuizDocument(input, options = {}) {
 
   const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings, importOptions)
   const metadata = buildImportMetadata(
-    local.processedBlocks.map(block => block.text).join('\n'),
+    // Formatting tokens ([[b]]…) would pollute title/subject detection.
+    stripFormatTokens(local.processedBlocks.map(block => block.text).join('\n')),
     file.name,
   )
 
@@ -1217,6 +1330,17 @@ export async function importQuizDocument(input, options = {}) {
     }
   }
 
+  // Convert the DOCX run-formatting tokens extractDocx captured into editor
+  // HTML on every text field (question stems, options, passages, part
+  // instructions). Runs before the comprehension regroup + sub-part split so
+  // those heuristics see the same HTML shape the smart-import path already
+  // produces. Fields without tokens pass through untouched, and smart-import
+  // output never carries tokens (importMarkupToRichHtml consumes them), so
+  // this is a no-op for everything except formatted Word imports.
+  sections = convertFormatTokensInSections(sections)
+  questions = Array.isArray(questions) ? questions.map(convertQuestionFormatTokens) : questions
+  parts = convertFormatTokensInParts(parts)
+
   // Safety net for the smart-import path: the deterministic parser already
   // regroups comprehension questions, but reconcileSmartSectionOrder takes its
   // passage questions from the (LLM) smart sections, which can re-pile every
@@ -1240,6 +1364,12 @@ export async function importQuizDocument(input, options = {}) {
     }
   }
 
+  // Formatting sanity checks: a question that says "the underlined word" must
+  // actually contain (or sit under a passage containing) underlined text —
+  // same for bold / italics / highlight, plus passage-reference and
+  // empty-option checks. Pure inspection, never mutates the questions.
+  warnings.push(...buildImportFormatWarnings(sections))
+
   const importStatus = summary.needsReview > 0 || warnings.length
     ? 'needs_review'
     : 'success'
@@ -1260,7 +1390,7 @@ export async function importQuizDocument(input, options = {}) {
     sections,
     parts,
     questions,
-    documentInstruction: local.documentInstruction || '',
+    documentInstruction: formatTokensToHtml(local.documentInstruction || ''),
     imageAssets: extracted.imageAssets,
     importStatus,
     warnings,

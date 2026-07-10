@@ -266,9 +266,17 @@ export default function ImportQuizPanel({
           ) : null}
           {importSummary.warnings?.length ? (
             <ul className="mt-2 space-y-0.5">
-              {importSummary.warnings.slice(0, 3).map((warning, index) => (
+              {/* Show enough for the per-question formatting checks ("says
+                  underlined but none detected", "option B is empty") to be
+                  actionable, without letting a noisy import flood the panel. */}
+              {importSummary.warnings.slice(0, 8).map((warning, index) => (
                 <li key={`${warning}-${index}`} className="text-xs font-bold leading-relaxed">{warning}</li>
               ))}
+              {importSummary.warnings.length > 8 ? (
+                <li className="text-xs font-bold leading-relaxed opacity-75">
+                  +{importSummary.warnings.length - 8} more — the full list is kept on the quiz’s import notes.
+                </li>
+              ) : null}
             </ul>
           ) : null}
 
