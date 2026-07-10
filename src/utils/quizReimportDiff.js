@@ -87,7 +87,8 @@ function sourceNumber(section) {
 }
 
 /**
- * Pair existing↔incoming standalone sections by printed number.
+ * Pair existing↔incoming standalone sections by printed number, using content
+ * similarity to resolve duplicates correctly.
  *
  * The common case is a unique number: one existing, one incoming → a direct
  * pair. Papers that restart numbering per section carry the SAME printed
