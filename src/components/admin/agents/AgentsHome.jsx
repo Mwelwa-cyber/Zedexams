@@ -11,6 +11,7 @@ import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
 import AgentJobsQueue from './AgentJobsQueue'
 import AgentRunHistory from './AgentRunHistory'
 import AgentsDashboard from './AgentsDashboard'
+import BulkAcknowledgeBar from './BulkAcknowledgeBar'
 
 function AgentCostMeter({ agentId }) {
   // Aggregate over the most recent 50 jobs for this agent. For agents that
@@ -311,6 +312,7 @@ export function AgentsAllJobs() {
           Showing the 100 most recent jobs that match the filter. Click a chip to narrow by status.
         </p>
       </header>
+      <BulkAcknowledgeBar />
       <div className="flex flex-wrap gap-2">
         {JOBS_STATUS_CHIPS.map(chip => {
           const active = statusFilter === chip.id

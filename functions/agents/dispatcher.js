@@ -383,6 +383,11 @@ function createAgentJobsOnApproved(opsAlertSecrets = []) {
       if (before.status === "approved") return;
       if (after.status !== "approved") return;
       if (after.department !== "content") return;
+      // Scheduled rollups (input.runType) are read-only reports — Compass
+      // files them under the content department, and acknowledging one must
+      // not invoke Pubo (it would fail on the missing aria.generationId and
+      // count against Pubo's circuit breaker).
+      if (after.input && after.input.runType) return;
       if (after.seed === true) return;
       const jobData = {id: jobId, ...after};
       const jobRef = admin.firestore().collection("agentJobs").doc(jobId);

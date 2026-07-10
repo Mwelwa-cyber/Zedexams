@@ -66,6 +66,29 @@ const CONTENT_JOB = {
   createdAt,
 }
 
+// An ops rollup (Vigil hourly monitor) — read-only, carries input.runType.
+const VIGIL_JOB = {
+  id: 'job1',
+  agentId: 'vigil',
+  department: 'qaEng',
+  status: 'awaiting_approval',
+  input: { runType: 'hourly-monitor' },
+  output: { vigil: { ok: false, checks: [] } },
+  createdAt,
+}
+
+// Compass lives in the content department but is still a read-only rollup —
+// input.runType must win over department when routing the review panel.
+const COMPASS_JOB = {
+  id: 'job1',
+  agentId: 'compass',
+  department: 'content',
+  status: 'awaiting_approval',
+  input: { runType: 'weekly-product-signal', windowDays: 28 },
+  output: { compass: { backlog: [], errors: [] } },
+  createdAt,
+}
+
 beforeEach(() => {
   updateDocMock.mockClear()
 })
@@ -103,5 +126,21 @@ describe('AgentJobDetail — approval vs acknowledge routing', () => {
 
     expect(await screen.findByText(/Awaiting your approval/i)).toBeInTheDocument()
     expect(screen.queryByText('Acknowledge')).not.toBeInTheDocument()
+  })
+
+  it('shows Acknowledge for an ops rollup carrying input.runType (Vigil)', async () => {
+    currentJob = VIGIL_JOB
+    render(<AgentJobDetail />)
+
+    expect(await screen.findByText('Acknowledge')).toBeInTheDocument()
+    expect(screen.queryByText(/Approve & publish/i)).not.toBeInTheDocument()
+  })
+
+  it('shows Acknowledge for a content-department rollup (Compass) — runType wins over department', async () => {
+    currentJob = COMPASS_JOB
+    render(<AgentJobDetail />)
+
+    expect(await screen.findByText('Acknowledge')).toBeInTheDocument()
+    expect(screen.queryByText(/Awaiting your approval/i)).not.toBeInTheDocument()
   })
 })
