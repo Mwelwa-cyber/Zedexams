@@ -21,7 +21,16 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
-import { FieldTextarea, FieldSelect, FieldNumberCombo } from './studioFields'
+import {
+  FieldTextarea,
+  FieldSelect,
+  FieldNumberCombo,
+  FieldGrid,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
+import Icon from '../../ui/Icon'
+import { Download, RefreshCw } from '../../ui/icons'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { rubricInputDescriptor } from '../../../hooks/draft/descriptors'
@@ -220,7 +229,7 @@ export default function RubricGenerator() {
               onChange={(v) => updateField('taskDescription', v)}
               maxLength={500}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <FieldGrid>
               <FieldNumberCombo
                 label="Total marks"
                 value={form.totalMarks}
@@ -235,7 +244,7 @@ export default function RubricGenerator() {
                 options={RUBRIC_CRITERIA_COUNTS.map((c) => ({ value: String(c.value), label: c.label }))}
                 onChange={(v) => updateField('numberOfCriteria', Number(v))}
               />
-            </div>
+            </FieldGrid>
             <FieldSelect
               label="Language"
               value={form.language}
@@ -250,13 +259,9 @@ export default function RubricGenerator() {
               maxLength={500}
             />
 
-            <button
-              type="submit"
-              disabled={status === 'generating'}
-              className="studio-btn-primary w-full py-3"
-            >
-              {status === 'generating' ? 'Generating…' : '▶ Generate Rubric'}
-            </button>
+            <GenerateButton generating={status === 'generating'}>
+              Generate Rubric
+            </GenerateButton>
 
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
@@ -279,13 +284,13 @@ export default function RubricGenerator() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={onExport} className="studio-btn-ghost">
-                      📄 Download .docx (landscape)
+                      <Icon as={Download} size="sm" /> Download .docx (landscape)
                     </button>
                     <button onClick={onExportPdf} className="studio-btn-ghost">
-                      📄 Download .pdf
+                      <Icon as={Download} size="sm" /> Download .pdf
                     </button>
                     <button onClick={() => setStatus('idle')} className="studio-btn-primary">
-                      ▶ Generate Another
+                      <Icon as={RefreshCw} size="sm" /> Generate Another
                     </button>
                   </div>
                 </div>
@@ -328,22 +333,14 @@ export default function RubricGenerator() {
   )
 }
 
-/* ── Inputs (match other generators) ────────────────────────── */
-
 /* ── States ─────────────────────────────────────────────────── */
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div style={{ width: 86, height: 86, borderRadius: '50%', background: '#f0d6e0', display: 'grid', placeItems: 'center', fontSize: 44 }}>
-        📋
-      </div>
-      <h3 className="studio-display mt-4" style={{ fontSize: 20 }}>Consistent marking in seconds</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Describe the task and pick total marks. You'll get a four-level rubric with clear
-        descriptors so every teacher marks the same piece the same way.
-      </p>
-    </div>
+    <StudioEmptyState emoji="📋" tone="#f0d6e0" title="Consistent marking in seconds">
+      Describe the task and pick total marks. You'll get a four-level rubric with clear
+      descriptors so every teacher marks the same piece the same way.
+    </StudioEmptyState>
   )
 }
 

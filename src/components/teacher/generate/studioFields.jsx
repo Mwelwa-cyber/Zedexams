@@ -9,6 +9,8 @@
  */
 
 import { useEffect, useId, useState } from 'react'
+import Icon from '../../ui/Icon'
+import { ChevronDown, SlidersHorizontal, Sparkles } from '../../ui/icons'
 
 export function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>
@@ -121,6 +123,78 @@ export function FieldNumberCombo({ label, value, options, onChange, min = 1, max
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </datalist>
+    </div>
+  )
+}
+
+// Two fields side by side on anything wider than a phone, stacked below.
+// Pass any Field* children; each keeps its own label.
+export function FieldGrid({ children }) {
+  return <div className="studio-field-grid">{children}</div>
+}
+
+// Collapsible "Advanced options" disclosure. The essential fields stay in
+// view; the rarely-changed ones (term, lesson numbering, language, timing…)
+// live in here so a studio form reads as 4–5 decisions, not 12. Field values
+// live in the parent form state, so collapsing never loses anything.
+export function AdvancedOptions({ label = 'Advanced options', hint, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const panelId = useId()
+  return (
+    <div className={`studio-advanced${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="studio-advanced__toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon as={SlidersHorizontal} size="xs" />
+        <span className="studio-advanced__label">{label}</span>
+        {hint && <span className="studio-advanced__hint">{hint}</span>}
+        <Icon as={ChevronDown} size="xs" className="studio-advanced__chevron" />
+      </button>
+      {open && (
+        <div id={panelId} className="studio-advanced__panel">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// The one submit button every generator shares: spinner while generating,
+// sparkles otherwise. Keeps the disabled/label wiring in one place.
+export function GenerateButton({ generating, generatingLabel = 'Generating…', children }) {
+  return (
+    <button type="submit" disabled={generating} className="studio-btn-primary w-full py-3">
+      {generating ? (
+        <>
+          <span className="studio-btn-spinner" aria-hidden="true" />
+          {generatingLabel}
+        </>
+      ) : (
+        <>
+          <Icon as={Sparkles} size="sm" />
+          {children}
+        </>
+      )}
+    </button>
+  )
+}
+
+// Shared output-panel empty state — replaces the near-identical local
+// EmptyState() functions that were copy-pasted into every studio. `tone` is
+// the pastel disc colour behind the emoji (each studio keeps its own).
+export function StudioEmptyState({ emoji, tone = '#f0eee8', title, children, action }) {
+  return (
+    <div className="studio-empty">
+      <div className="studio-empty__badge" style={{ background: tone }} aria-hidden="true">
+        {emoji}
+      </div>
+      <h3 className="studio-display studio-empty__title">{title}</h3>
+      <p className="studio-empty__text">{children}</p>
+      {action && <div className="studio-empty__action">{action}</div>}
     </div>
   )
 }

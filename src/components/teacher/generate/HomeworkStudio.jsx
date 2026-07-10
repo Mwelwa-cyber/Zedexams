@@ -21,7 +21,16 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
-import { FieldTextarea, FieldSelect } from './studioFields'
+import {
+  FieldTextarea,
+  FieldSelect,
+  FieldGrid,
+  AdvancedOptions,
+  GenerateButton,
+  StudioEmptyState,
+} from './studioFields'
+import Icon from '../../ui/Icon'
+import { Download, Key } from '../../ui/icons'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
@@ -234,12 +243,12 @@ export default function HomeworkStudio() {
           subtitle="Grounded on the verified curriculum module — questions, answer key and a note for parents."
           emoji="🏠"
         />
-        <div className="grid grid-cols-1 gap-6">
-          <div className="studio-form">
-            <DraftRecoveryPrompt {...draft} label="homework" />
-          </div>
+        <div className="mb-4">
+          <DraftRecoveryPrompt {...draft} label="homework" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
           <form onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit studio-form">
+            className="studio-card p-5 space-y-4 h-fit">
             <div className="flex justify-end">
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
             </div>
@@ -248,40 +257,45 @@ export default function HomeworkStudio() {
               value={selectorSeed}
               onChange={setCurr}
             />
-            <FieldSelect label="Term" value={form.term}
-              options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
-            <FieldSelect label="Number of lessons for this sub-topic"
-              value={form.totalLessons} options={TOTAL_LESSONS_OPTIONS}
-              onChange={(v) => set('totalLessons', v)} />
-            <FieldSelect label="Lesson number" value={form.lessonNumber}
-              options={LESSON_NUMBER_OPTIONS}
-              onChange={(v) => set('lessonNumber', v)} />
-            <FieldSelect label="Learning environment"
-              value={form.learningEnvironment}
-              options={LEARNING_ENVIRONMENT_OPTIONS}
-              onChange={(v) => set('learningEnvironment', v)} />
-            <FieldSelect label="Number of questions"
-              value={String(form.count)}
-              options={[3, 5, 6, 8, 10, 12].map((n) => ({
-                value: String(n), label: `${n} questions`,
-              }))}
-              onChange={(v) => set('count', Number(v))} />
-            <FieldSelect label="Time at home (estimate)"
-              value={String(form.estimatedMinutes)}
-              options={[10, 15, 20, 30, 45, 60].map((m) => ({
-                value: String(m), label: `${m} min`,
-              }))}
-              onChange={(v) => set('estimatedMinutes', Number(v))} />
-            <FieldSelect label="Language" value={form.language}
-              options={TEACHER_LANGUAGES} onChange={(v) => set('language', v)} />
+            <FieldGrid>
+              <FieldSelect label="Number of questions"
+                value={String(form.count)}
+                options={[3, 5, 6, 8, 10, 12].map((n) => ({
+                  value: String(n), label: `${n} questions`,
+                }))}
+                onChange={(v) => set('count', Number(v))} />
+              <FieldSelect label="Time at home (estimate)"
+                value={String(form.estimatedMinutes)}
+                options={[10, 15, 20, 30, 45, 60].map((m) => ({
+                  value: String(m), label: `${m} min`,
+                }))}
+                onChange={(v) => set('estimatedMinutes', Number(v))} />
+            </FieldGrid>
+            <AdvancedOptions hint="Term, lesson numbering, language">
+              <FieldSelect label="Term" value={form.term}
+                options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
+              <FieldGrid>
+                <FieldSelect label="Lessons for this sub-topic"
+                  value={form.totalLessons} options={TOTAL_LESSONS_OPTIONS}
+                  onChange={(v) => set('totalLessons', v)} />
+                <FieldSelect label="Lesson number" value={form.lessonNumber}
+                  options={LESSON_NUMBER_OPTIONS}
+                  onChange={(v) => set('lessonNumber', v)} />
+              </FieldGrid>
+              <FieldSelect label="Learning environment"
+                value={form.learningEnvironment}
+                options={LEARNING_ENVIRONMENT_OPTIONS}
+                onChange={(v) => set('learningEnvironment', v)} />
+              <FieldSelect label="Language" value={form.language}
+                options={TEACHER_LANGUAGES} onChange={(v) => set('language', v)} />
+            </AdvancedOptions>
             <FieldTextarea label="Extra instructions (optional)"
               placeholder="e.g. One word problem about the market."
               value={form.instructions}
               onChange={(v) => set('instructions', v)} maxLength={500} />
-            <button type="submit" disabled={status === 'generating'}
-              className="studio-btn-primary w-full py-3">
-              {status === 'generating' ? 'Generating…' : '▶ Generate Homework'}
-            </button>
+            <GenerateButton generating={status === 'generating'}>
+              Generate Homework
+            </GenerateButton>
             {usage && (
               <div className="text-xs theme-text-secondary text-center">
                 {usage.used}/{usage.limit} homeworks used on the{' '}
@@ -314,16 +328,16 @@ export default function HomeworkStudio() {
                       Show answers
                     </label>
                     <button onClick={() => onExport(false)} className="studio-btn-ghost">
-                      📄 Pupil sheet .docx
+                      <Icon as={Download} size="sm" /> Pupil sheet .docx
                     </button>
                     <button onClick={() => onExportPdf(false)} className="studio-btn-ghost">
-                      📄 Pupil sheet .pdf
+                      <Icon as={Download} size="sm" /> Pupil sheet .pdf
                     </button>
                     <button onClick={() => onExport(true)} className="studio-btn-primary">
-                      🔑 With answer key .docx
+                      <Icon as={Key} size="sm" /> With answer key .docx
                     </button>
                     <button onClick={() => onExportPdf(true)} className="studio-btn-ghost">
-                      🔑 With answer key .pdf
+                      <Icon as={Key} size="sm" /> With answer key .pdf
                     </button>
                   </div>
                 </div>
@@ -348,8 +362,10 @@ export default function HomeworkStudio() {
               docTitle={homework?.header?.title}
               title="Setting homework…"
               emptyState={
-                <Centered emoji="🏠" title="Ready to set homework"
-                  body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get questions, an answer key and a parent note." />
+                <StudioEmptyState emoji="🏠" tone="#dbe7f4" title="Ready to set homework">
+                  Pick the grade, subject and (ideally) a stored sub-topic. You'll
+                  get questions, an answer key and a parent note.
+                </StudioEmptyState>
               }
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
@@ -369,14 +385,4 @@ export default function HomeworkStudio() {
   )
 }
 
-function Centered({ emoji, title, body, action }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3">{emoji}</div>
-      <h3 className="studio-display" style={{ fontSize: 20 }}>{title}</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>{body}</p>
-      {action && <div className="mt-4">{action}</div>}
-    </div>
-  )
-}
 
