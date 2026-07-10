@@ -38,7 +38,8 @@ import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
 import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
 import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
-import { optionsToReadAloudText, questionToReadAloudText, toSpokenText } from '../../utils/readAloudText'
+import PassageViewer from '../quiz/reading/PassageViewer'
+import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import SeoHelmet from '../seo/SeoHelmet'
 import ErrorBoundary from '../ui/ErrorBoundary'
@@ -716,36 +717,24 @@ function DailyExamRunnerInner() {
       <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-5xl flex-1 flex-col px-4 py-4 pb-44">
         {activeSection.kind === 'passage' ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              <div className="zx-card-shared overflow-hidden">
-                <div className="border-b-2 border-slate-900 bg-orange-50 px-5 py-4">
-                  <div className="flex items-start justify-between gap-2">
-                    {activeSection.passage.title && (
-                      <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>
-                    )}
-                    <TextToSpeechButton
-                      id={`passage:${activeSectionIndex}`}
-                      label="passage"
-                      getText={() => toSpokenText(activeSection.passage.passageText)}
-                      tts={readAloud}
-                      className="ml-auto shrink-0"
-                    />
-                  </div>
-                  {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm text-slate-700" />
-                  )}
-                </div>
-                {activeSection.passage.imageUrl && (
-                  <div className="border-b-2 border-slate-900 bg-slate-50 p-4">
-                    <img src={activeSection.passage.imageUrl} alt="Passage" className="max-h-72 w-full rounded-2xl object-contain" loading="lazy" />
-                  </div>
-                )}
-                <div className="p-5">
-                  <RichContent value={activeSection.passage.passageText} className="passage-text" />
-                </div>
-              </div>
+            <div id="exam-passage-card" className="lg:sticky lg:top-24 lg:self-start">
+              <PassageViewer
+                passage={activeSection.passage}
+                questionCount={activeSection.questions.length}
+                ttsId={`passage:${activeSectionIndex}`}
+                tts={readAloud}
+                showLineNumbers={quizDisplayPrefs.showPassageLineNumbers}
+                keepOpen={quizDisplayPrefs.keepPassageOpen}
+              />
             </div>
             <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => document.getElementById('exam-passage-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="zx-pill-dark zx-pill-light lg:hidden"
+              >
+                ↑ Back to passage
+              </button>
               {activeSection.questions.map(renderQuestion)}
             </div>
           </div>

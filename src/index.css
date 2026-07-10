@@ -4149,8 +4149,36 @@ body.data-saver [data-bg-gradient] {
 }
 .passage-text {
   font-weight: 400;
-  font-size: calc(1rem * var(--quiz-text-scale, 1));
+  /* --passage-local-scale is an extra, passage-only multiplier the PassageViewer
+     A−/A+ stepper sets on the .passage-body, layered on top of the global size. */
+  font-size: calc(1rem * var(--quiz-text-scale, 1) * var(--passage-local-scale, 1));
   line-height: calc(var(--quiz-line-height, 1.5) + 0.1);
+}
+
+/* Passage body: optional line numbers. Numbers each top-level block of the
+   passage via a CSS counter so rich formatting (bold/underline/highlight,
+   tables, images) is fully preserved — no plain-text fallback. */
+.passage-body { --passage-local-scale: 1; }
+.passage-body[data-line-numbers="true"] .rich-content { counter-reset: passage-line; }
+.passage-body[data-line-numbers="true"] .rich-content > p,
+.passage-body[data-line-numbers="true"] .rich-content > div,
+.passage-body[data-line-numbers="true"] .rich-content > blockquote {
+  counter-increment: passage-line;
+  position: relative;
+  padding-left: 2.6em;
+}
+.passage-body[data-line-numbers="true"] .rich-content > p::before,
+.passage-body[data-line-numbers="true"] .rich-content > div::before,
+.passage-body[data-line-numbers="true"] .rich-content > blockquote::before {
+  content: counter(passage-line);
+  position: absolute;
+  left: 0;
+  width: 2em;
+  text-align: right;
+  opacity: 0.5;
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 /* Intentional marks — must stand out from the 500 base and can NOT be styled
