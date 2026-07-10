@@ -27,6 +27,10 @@ import {
   TableIcon,
 } from '../../components/ui/icons'
 
+// Default highlight for the compact (answer-option) variant's single-toggle
+// highlighter — matches the first swatch of the full variant's picker.
+const DEFAULT_HL = '#fef08a'
+
 const TX_COLORS = [
   '#1a1523', '#1e3a8a', '#dc2626', '#ea580c', '#ca8a04',
   '#15803d', '#2563eb', '#7c3aed', '#be185d', '#64748b',
@@ -42,6 +46,7 @@ const EMPTY_TOOLBAR_STATE = {
   italic: false,
   underline: false,
   strike: false,
+  highlight: false,
   superscript: false,
   subscript: false,
   bulletList: false,
@@ -190,6 +195,7 @@ export default function EditorToolbar({
         italic: safeIsActive(currentEditor, 'italic'),
         underline: safeIsActive(currentEditor, 'underline'),
         strike: safeIsActive(currentEditor, 'strike'),
+        highlight: safeIsActive(currentEditor, 'highlight'),
         superscript: safeIsActive(currentEditor, 'superscript'),
         subscript: safeIsActive(currentEditor, 'subscript'),
         bulletList: safeIsActive(currentEditor, 'bulletList'),
@@ -256,6 +262,46 @@ export default function EditorToolbar({
         <TBtn editor={editor} cmd="toggleStrike" active={toolbarState.strike} title="Strikethrough">
           <Strikethrough size={15} strokeWidth={2.5} />
         </TBtn>
+        {/* Clear formatting — strips every mark (bold/underline/italic/
+            highlight/colour/sup/sub) from the selection and lifts block
+            formatting (headings/lists) back to a plain paragraph. This is
+            the standard "eraser" every word processor has; without it a
+            teacher had to retype text to undo pasted-in styling. */}
+        <TBtn
+          editor={editor}
+          title="Clear formatting"
+          onAction={() => {
+            try {
+              editor?.chain().focus().unsetAllMarks().clearNodes().run()
+            } catch { /* invalid for the current selection — ignore */ }
+          }}
+        >
+          {/* Eraser glyph (inline SVG — no matching icon in the shared set) */}
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 20H8.5l-4.2-4.2a2 2 0 0 1 0-2.8L13.6 3.7a2 2 0 0 1 2.8 0l4.9 4.9a2 2 0 0 1 0 2.8L14 18.7" />
+            <path d="M9.5 9.5 15 15" />
+          </svg>
+        </TBtn>
+        {/* Compact (answer-option) variant: a single default-colour highlight
+            toggle. Options can be the target of "choose the highlighted word"
+            questions, so highlight must be reachable here too — but the full
+            colour picker is too wide for the option row. */}
+        {variant === 'compact' && (
+          <TBtn
+            editor={editor}
+            active={toolbarState.highlight}
+            title="Highlight"
+            onAction={() => runCommand(editor, 'toggleHighlight', { color: DEFAULT_HL })}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true">
+              <path d="M9 11l-4 4h4l4-4" />
+              <path d="M15 5l4 4-9 9H6v-4l9-9z" />
+              <path d="M3 21h18" />
+            </svg>
+          </TBtn>
+        )}
         <div className="tbsep" />
 
         {/* -- Super / Sub --
@@ -349,7 +395,8 @@ export default function EditorToolbar({
         {/* -- Highlight -- */}
         <div className="crel">
           <button
-            type="button" className="tbb" title="Highlight"
+            type="button" className={`tbb${toolbarState.highlight ? ' on' : ''}`} title="Highlight"
+            aria-pressed={toolbarState.highlight}
             onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => { e.preventDefault(); setShowTxColor(false); setShowHlColor((v) => !v) }}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
@@ -381,6 +428,22 @@ export default function EditorToolbar({
                   }}
                 />
               ))}
+              {/* Remove any highlight from the selection — otherwise the only
+                  way to clear a highlight is re-clicking its exact colour. */}
+              <button
+                type="button"
+                className="sw"
+                style={{ background: '#fff', gridColumn: '1 / -1', fontSize: '10px', fontWeight: 700 }}
+                aria-label="Remove highlight"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault()
+                  editor.chain().focus().unsetHighlight().run()
+                  setShowHlColor(false)
+                }}
+              >
+                None
+              </button>
             </div>
           )}
         </div>
