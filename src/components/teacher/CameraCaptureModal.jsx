@@ -89,11 +89,21 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
     return stopStream
   }, [stage, startCamera, stopStream])
 
-  // Clean up object URLs we created for previews.
+  // Keep a ref to the latest preview URLs so the unmount cleanup always
+  // revokes the current values. Assigning during render (outside an effect)
+  // is the standard "last value" ref pattern; it runs before any effects.
+  const urlsRef = useRef({ o: null, e: null })
+  urlsRef.current = { o: original?.url, e: enhanced?.url }
+
+  // Revoke preview object-URLs on unmount. Replacement-time revocations are
+  // already handled inside the setState updaters (setEnhanced / setOriginal /
+  // retake), so the dependency array must be [] — running this cleanup on
+  // every dep change would revoke the still-current Original URL the moment
+  // Enhanced is set, breaking the Original/Enhanced compare toggle.
   useEffect(() => () => {
-    if (original?.url) URL.revokeObjectURL(original.url)
-    if (enhanced?.url) URL.revokeObjectURL(enhanced.url)
-  }, [original, enhanced])
+    if (urlsRef.current?.o) URL.revokeObjectURL(urlsRef.current.o)
+    if (urlsRef.current?.e) URL.revokeObjectURL(urlsRef.current.e)
+  }, [])
 
   async function runEnhance(sourceBlob, bw) {
     setBusyMsg('Improving image quality…')

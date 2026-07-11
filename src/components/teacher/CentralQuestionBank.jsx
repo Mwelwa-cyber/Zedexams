@@ -28,6 +28,40 @@ function answerText(q) {
   return q.answer ? plain(q.answer) : '—'
 }
 
+/**
+ * Serialise a question to the numbered plain-text grammar that
+ * parsePastedQuestions (src/utils/pasteQuestionParser.js) accepts, so
+ * teachers can paste it into the Assessment Studio's Paste Import slide-over.
+ *
+ * Exported so it can be unit-tested independently.
+ *
+ * @param {object} q   Parsed question (from parseBankQuestion)
+ * @param {object} row Bank row (for marks fallback)
+ * @returns {string}
+ */
+export function questionToPasteText(q, row) {
+  if (!q) return ''
+  const marks = row?.marks || q.marks || 1
+  const text  = plain(q.text)
+  let out = `1. ${text} [${marks}]`
+
+  if (Array.isArray(q.options) && q.options.length >= 2) {
+    // MCQ — emit A)…D) option lines then Answer: <letter>
+    const count = Math.min(q.options.length, 4)
+    for (let i = 0; i < count; i++) {
+      out += `\n${String.fromCharCode(65 + i)}) ${plain(q.options[i])}`
+    }
+    if (typeof q.correctAnswer === 'number' && q.correctAnswer >= 0) {
+      out += `\nAnswer: ${String.fromCharCode(65 + q.correctAnswer)}`
+    }
+  } else {
+    // Short-answer, essay, true/false, numeric, etc.
+    const ans = answerText(q)
+    if (ans && ans !== '—') out += `\nAnswer: ${ans}`
+  }
+  return out
+}
+
 function QuestionCard({ row, mine, fav, busy, onPreview, onUse, onDuplicate, onEdit, onFav }) {
   const q = parseBankQuestion(row)
   return (
@@ -135,13 +169,15 @@ export default function CentralQuestionBank() {
 
   useEffect(() => { load() }, [load])
 
-  const handleUse = useCallback((row) => {
+  const handleUse = useCallback(async (row) => {
     const q = parseBankQuestion(row)
+    const fallback = 'Open the Question Bank picker inside a paper to insert this question.'
+    if (!navigator.clipboard) { show(fallback); return }
     try {
-      navigator.clipboard?.writeText(JSON.stringify(q))
+      await navigator.clipboard.writeText(questionToPasteText(q, row))
       show('Question copied — paste it in a studio, or open the Question Bank picker inside any paper.')
     } catch {
-      show('Open the Question Bank picker inside a paper to insert this question.')
+      show(fallback)
     }
   }, [])
 

@@ -89,11 +89,14 @@ function CountdownChip({ term, status }) {
   }
 
   const d   = daysUntil(term.close);
-  const pct = Math.max(0, Math.min(100, Math.round(((term.workingDays - d) / term.workingDays) * 100)));
+  // pct uses residentDays (the full calendar span, same as LearnerCalendar)
+  // so it agrees with the calendar-day delta d. Using workingDays here mixes
+  // units and clamps the bar to 0% for the first ~4 weeks of a term.
+  const pct = Math.max(0, Math.min(100, Math.round(((term.residentDays - d) / term.residentDays) * 100)));
   return (
     <div style={{ marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: FG_MUTED, marginBottom: 4 }}>
-        <span style={{ fontWeight: 600, color: RED }}>{d} working days left</span>
+        <span style={{ fontWeight: 600, color: RED }}>{d} days left</span>
         <span>{pct}% elapsed</span>
       </div>
       <div style={{ background: PROGRESS_TR, borderRadius: 99, height: 6, overflow: "hidden" }}>
