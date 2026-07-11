@@ -385,6 +385,13 @@ export const questionSchema = z
     //   are not supported" in the SDK before the write left the browser.)
     //   Caps are 10 × 16 (not the hand-editor's 6 × 12) because reconstructed
     //   scan tables — e.g. a school timetable — legitimately run 7-8 columns.
+    //   This schema deliberately accepts ONLY the persisted { cells } shape:
+    //   the single parse gateway is normalizeQuestionPayload
+    //   (src/utils/questionWritePayload.js), which calls serializeTableData
+    //   BEFORE the safeParse, so an in-memory string[][] table never reaches
+    //   this validator. Rejecting bare nested arrays here is a feature — it
+    //   keeps the Firestore "Nested arrays are not supported" crash out of
+    //   any future write path that skips the fold.
     tableData: z
       .object({
         headers: z.array(z.string().max(60)).max(10).default([]),

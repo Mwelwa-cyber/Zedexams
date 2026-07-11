@@ -96,9 +96,15 @@ test('validQuestionFields stays FAR below the 1000-expression evaluation cap', (
   // .strict()); the rule keeps only the checks with real integrity teeth.
   //
   // Guard: count the presence-gates (clauses) and incoming() calls inside
-  // the function body. The thresholds leave several-fold headroom below the
-  // observed cliff; if this test fails, do NOT raise the threshold — move
-  // the new validation into src/editor/schema/question.js instead. The
+  // the function body. Observed arithmetic from the incident: the ~35-clause
+  // version (~110 incoming() calls) crossed 1000 expressions on a ~40-field
+  // payload — roughly 25-30 evaluated expressions per clause once each
+  // clause's presence check + type check + bounds all run, plus the
+  // isAdmin()/isTeacherOrAbove() auth overhead (a users get() + role
+  // comparisons) spent in the same evaluation. 8 clauses ≈ 200-250
+  // expressions worst case ≈ 4x headroom under the cap. If this test fails,
+  // do NOT raise the threshold — move the new validation into
+  // src/editor/schema/question.js instead. The
   // behavioural companion (scripts/test-quiz-autosave-rules-emulator.mjs)
   // replays full real payloads through the emulator and fails on the cliff
   // itself.

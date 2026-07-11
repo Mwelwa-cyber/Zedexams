@@ -27,6 +27,11 @@
  * Run:
  *   npm run test:quiz-autosave-rules
  * (wraps this in `firebase emulators:exec --only firestore`)
+ *
+ * Deliberately NOT part of `npm run test:all`: like test-firestore-rules-
+ * emulator.mjs, it needs the Firestore emulator (a JVM process), and the
+ * test:all runner only auto-discovers plain `node` scripts. CI runs it in
+ * the "Tests (Firestore rules emulator)" job (see .github/workflows/ci.yml).
  */
 
 import { readFileSync } from 'node:fs'
@@ -85,25 +90,47 @@ async function test(name, fn) {
 }
 
 /**
- * When a write is denied, bisect the payload one field at a time to name the
- * culprit(s) in the failure message — "permission denied" alone has cost
- * hours of guessing every time this class of bug recurs.
+ * When a write is denied, bisect the payload to name the culprit field(s) in
+ * the failure message — "permission denied" alone has cost hours of guessing
+ * every time this class of bug recurs.
+ *
+ * Two passes: first try removing each field alone (names a single culprit
+ * exactly); if no single removal unblocks the write — multiple fields are
+ * invalid, or the failure isn't field-shaped (e.g. the expression-budget
+ * cliff, an authorization denial) — peel fields cumulatively until the write
+ * passes and report every peeled field as a candidate set.
  */
 async function diagnoseDeniedWrite(db, ref, payload, { asUpdate = false } = {}) {
-  const culprits = []
-  for (const key of Object.keys(payload)) {
-    const variant = { ...payload }
-    delete variant[key]
+  const attempt = async (variant) => {
     try {
       if (asUpdate) await updateDoc(ref, variant)
       else await setDoc(ref, variant)
-      culprits.push(key)
-      break // write went through — key was (at least part of) the problem
+      return true
     } catch {
-      /* still denied without this key — keep looking */
+      return false
     }
   }
-  return culprits
+  // Pass 1: single-field removal — precise when exactly one field is at fault.
+  for (const key of Object.keys(payload)) {
+    const variant = { ...payload }
+    delete variant[key]
+    if (await attempt(variant)) return { culprits: [key], exact: true }
+  }
+  // Pass 2: cumulative peel — several fields (or none: auth/budget) at fault.
+  const peeled = []
+  const variant = { ...payload }
+  for (const key of Object.keys(payload)) {
+    delete variant[key]
+    peeled.push(key)
+    if (await attempt(variant)) return { culprits: [...peeled], exact: false }
+  }
+  return { culprits: [], exact: false }
+}
+
+function describeCulprits({ culprits, exact }) {
+  if (!culprits.length) return ' — no field-level culprit (authorization or expression-budget failure)'
+  if (exact) return ` — culprit field: ${culprits[0]}`
+  return ` — culprit fields (candidate set, not minimal): ${culprits.join(', ')}`
 }
 
 // ── Fixture: a scanned ECZ-style paper as structureScannedQuiz returns it ──
@@ -111,6 +138,11 @@ async function diagnoseDeniedWrite(db, ref, payload, { asUpdate = false } = {}) 
 // mixed-type sub-questions, true/false, fill-in-the-blank with a word bank,
 // matching, handwritten maths, an unreadable stem (number only), a label-the-
 // diagram question, and a multi-mark short answer grouped under a Section.
+// Per-question ocrConfidence / source values mirror real importer output for
+// fidelity: they flow into the persisted aiConfidence field and extra review
+// notes, growing the written payload the way a real scan does — the field
+// COUNT is what exercises the rules expression budget, so realistic optional
+// fields are the point, not decoration.
 function buildScannedBatchFixture() {
   return {
     detectedCount: 10,
@@ -274,7 +306,8 @@ function buildQuizPatch(serialized, uid) {
   })
   if (!parsed.success) {
     const first = parsed.error.issues?.[0]
-    throw new Error(`quizUpdateSchema rejected the autosave patch at "${first?.path?.join('.')}": ${first?.message}`)
+    const path = first?.path?.join('.') || '(root)'
+    throw new Error(`quizUpdateSchema rejected the autosave patch at "${path}": ${first?.message || 'schema violation'}`)
   }
   return parsed.data
 }
@@ -306,8 +339,8 @@ async function replayAutosave(db, quizId, serialized, uid, { existingIds = null 
   try {
     await assertSucceeds(updateDoc(quizRef, quizPatch))
   } catch (err) {
-    const culprits = await diagnoseDeniedWrite(db, quizRef, quizPatch, { asUpdate: true })
-    throw new Error(`quiz-doc patch denied${culprits.length ? ` — culprit field: ${culprits.join(', ')}` : ''} (${err.message})`)
+    const diagnosis = await diagnoseDeniedWrite(db, quizRef, quizPatch, { asUpdate: true })
+    throw new Error(`quiz-doc patch denied${describeCulprits(diagnosis)} (${err.message})`)
   }
 
   const payloads = []
@@ -332,9 +365,9 @@ async function replayAutosave(db, quizId, serialized, uid, { existingIds = null 
         if (existingIds) await updateDoc(ref, cleanQ)
         else await setDoc(ref, cleanQ)
       } catch {
-        const culprits = await diagnoseDeniedWrite(db, ref, cleanQ, { asUpdate: Boolean(existingIds) })
+        const diagnosis = await diagnoseDeniedWrite(db, ref, cleanQ, { asUpdate: Boolean(existingIds) })
         throw new Error(
-          `question ${i + 1} (type ${cleanQ.type}) denied${culprits.length ? ` — culprit field: ${culprits.join(', ')}` : ''} (${err.message})`,
+          `question ${i + 1} (type ${cleanQ.type}) denied${describeCulprits(diagnosis)} (${err.message})`,
         )
       }
     }
@@ -412,8 +445,8 @@ async function main() {
     try {
       await assertSucceeds(updateDoc(ref, cleanQ))
     } catch (err) {
-      const culprits = await diagnoseDeniedWrite(adminDb, ref, cleanQ, { asUpdate: true })
-      throw new Error(`denied${culprits.length ? ` — culprit field: ${culprits.join(', ')}` : ''} (${err.message})`)
+      const diagnosis = await diagnoseDeniedWrite(adminDb, ref, cleanQ, { asUpdate: true })
+      throw new Error(`denied${describeCulprits(diagnosis)} (${err.message})`)
     }
   })
 
@@ -430,8 +463,8 @@ async function main() {
         try {
           await assertSucceeds(setDoc(ref, cleanQ))
         } catch (err) {
-          const culprits = await diagnoseDeniedWrite(db, ref, cleanQ)
-          throw new Error(`maxed '${raw.type}' denied for ${who}${culprits.length ? ` — culprit field: ${culprits.join(', ')}` : ''} (${err.message})`)
+          const diagnosis = await diagnoseDeniedWrite(db, ref, cleanQ)
+          throw new Error(`maxed '${raw.type}' denied for ${who}${describeCulprits(diagnosis)} (${err.message})`)
         }
       }
     }
@@ -453,8 +486,8 @@ async function main() {
       try {
         await assertSucceeds(setDoc(ref, cleanQ))
       } catch (err) {
-        const culprits = await diagnoseDeniedWrite(teacherDb, ref, cleanQ)
-        throw new Error(`maxed '${raw.type}' denied on assessments${culprits.length ? ` — culprit field: ${culprits.join(', ')}` : ''} (${err.message})`)
+        const diagnosis = await diagnoseDeniedWrite(teacherDb, ref, cleanQ)
+        throw new Error(`maxed '${raw.type}' denied on assessments${describeCulprits(diagnosis)} (${err.message})`)
       }
     }
   })
