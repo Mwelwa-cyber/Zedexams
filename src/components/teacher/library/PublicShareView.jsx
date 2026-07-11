@@ -9,15 +9,34 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import WeeklyForecastView from '../views/WeeklyForecastView'
 import RecordOfWorkView from '../views/RecordOfWorkView'
 import RubricView from '../views/RubricView'
+import NotesView from '../views/NotesView'
+import HomeworkView from '../views/HomeworkView'
+import LessonActivitiesView from '../views/LessonActivitiesView'
+import SbaTaskView from '../views/SbaTaskView'
+import SbaPlanView from '../views/SbaPlanView'
+import MarkScheduleView from '../views/MarkScheduleView'
+import ClassTimetableView from '../views/ClassTimetableView'
+import AssessmentPaperView from '../views/AssessmentPaperView'
 import Logo from '../../ui/Logo'
 import SeoHelmet from '../../seo/SeoHelmet'
 
 const TOOL_LABEL = {
-  lesson_plan:    'Lesson plan',
-  worksheet:      'Worksheet',
-  flashcards:     'Flashcards',
-  scheme_of_work: 'Scheme of work',
-  rubric:         'Rubric',
+  lesson_plan:       'Lesson plan',
+  worksheet:         'Worksheet',
+  flashcards:        'Flashcards',
+  scheme_of_work:    'Scheme of work',
+  weekly_forecast:   'Weekly forecast',
+  record_of_work:    'Record of work',
+  rubric:            'Rubric',
+  notes:             'Notes',
+  homework:          'Homework',
+  lesson_activities: 'Exercise & Homework',
+  sba_task:          'SBA Task',
+  sba_plan:          'SBA Year Plan',
+  mark_schedule:     'Mark Schedule',
+  class_timetable:   'Class Timetable',
+  assessment:        'Test Paper',
+  exam_paper:        'Exam Paper',
 }
 
 /**
@@ -141,14 +160,30 @@ export default function PublicShareView() {
 function RenderPlanByTool({ tool, plan }) {
   if (!plan) return <p className="text-sm text-slate-500 italic">Empty plan.</p>
   switch (tool) {
-    case 'lesson_plan':    return <LessonPlanView plan={plan} />
-    case 'worksheet':      return <WorksheetView worksheet={plan} showAnswers={false} />
-    case 'flashcards':     return <FlashcardsView flashcards={plan} />
-    case 'scheme_of_work': return <SchemeOfWorkView scheme={plan} />
-    case 'weekly_forecast': return <WeeklyForecastView forecast={plan} />
-    case 'record_of_work': return <RecordOfWorkView record={plan} />
-    case 'rubric':         return <RubricView rubric={plan} />
+    case 'lesson_plan':       return <LessonPlanView plan={plan} />
+    case 'worksheet':         return <WorksheetView worksheet={plan} showAnswers={false} />
+    case 'flashcards':        return <FlashcardsView flashcards={plan} />
+    case 'scheme_of_work':    return <SchemeOfWorkView scheme={plan} />
+    case 'weekly_forecast':   return <WeeklyForecastView forecast={plan} />
+    case 'record_of_work':    return <RecordOfWorkView record={plan} />
+    case 'rubric':            return <RubricView rubric={plan} />
+    case 'notes':             return <NotesView notes={plan} />
+    case 'homework':          return <HomeworkView hw={plan} showAnswers={false} />
+    case 'lesson_activities': return <LessonActivitiesView activities={plan} showAnswers={false} />
+    // showAnswers defaults to true in SbaTaskView — must be explicit to avoid
+    // publishing the marking guide on an unauthenticated public page.
+    case 'sba_task':          return <SbaTaskView task={plan} showAnswers={false} />
+    case 'sba_plan':          return <SbaPlanView plan={plan} />
+    case 'mark_schedule':     return <MarkScheduleView schedule={plan} />
+    case 'class_timetable':   return <ClassTimetableView timetable={plan} />
+    case 'assessment':
+    case 'exam_paper':        return <AssessmentPaperView assessment={plan} tool={tool} showAnswers={false} />
     default:
-      return <pre className="text-xs whitespace-pre-wrap bg-slate-50 p-3 rounded-lg">{JSON.stringify(plan, null, 2)}</pre>
+      return (
+        <div className="py-12 text-center text-slate-500">
+          <p className="text-sm font-medium text-slate-700 mb-1">Preview not available</p>
+          <p className="text-sm">This document type can&rsquo;t be previewed on a share link yet &mdash; ask the teacher for an exported copy.</p>
+        </div>
+      )
   }
 }
