@@ -105,6 +105,31 @@ describe('QuizSectionsEditor — populated', () => {
   })
 })
 
+describe('QuizSectionsEditor — insert question between cards', () => {
+  it('renders an insert affordance between cards and fires onInsertStandalone with the anchor + Part', () => {
+    const onInsertStandalone = vi.fn()
+    renderEditor({
+      sections: [standaloneSection('a'), standaloneSection('b')],
+      totalQuestions: 2,
+      onInsertStandalone,
+    })
+    // One divider at the top of the (ungrouped) group + one after each card = 3.
+    const inserts = screen.getAllByRole('button', { name: 'Insert a new question here' })
+    expect(inserts).toHaveLength(3)
+    // The divider after the first card inserts AFTER card 'a'.
+    fireEvent.click(inserts[1])
+    expect(onInsertStandalone).toHaveBeenCalledWith({ anchorId: 'a', mode: 'after', partId: null })
+  })
+
+  it('omits the insert affordances when the parent does not wire onInsertStandalone', () => {
+    renderEditor({
+      sections: [{ id: 'a', kind: 'standalone', question: emptyQuestion({ text: 'Q1' }) }],
+      totalQuestions: 1,
+    })
+    expect(screen.queryByRole('button', { name: 'Insert a new question here' })).not.toBeInTheDocument()
+  })
+})
+
 describe('QuizSectionsEditor — shuffle confirm flow', () => {
   it('requires confirmation before shuffling and then calls onShuffleSections', () => {
     const onShuffleSections = vi.fn()

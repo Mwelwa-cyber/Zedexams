@@ -2,9 +2,62 @@ import assert from 'node:assert/strict'
 import {
   createPassageSection,
   createStandaloneSection,
+  insertStandaloneSection,
   serializeQuizSections,
   hydrateQuizSections,
 } from './quizSections.js'
+
+// ── Insert a question at any position (between two cards / top of a Part) ──
+// Question numbers derive purely from sections[] order, so splicing a new
+// standalone section into the right slot must renumber automatically and keep
+// the new card in the correct Part. Pins the pure helper behind the editor's
+// "Insert question here" dividers.
+function runInsertStandaloneTest() {
+  const base = [
+    createStandaloneSection({ text: 'Q1', partId: 'partA' }),
+    createStandaloneSection({ text: 'Q2', partId: 'partA' }),
+    createStandaloneSection({ text: 'Q3', partId: 'partB' }),
+  ]
+  const numberOf = (sections, text) => {
+    const { questions } = serializeQuizSections(sections, [])
+    const q = questions.find(x => String(x.text).includes(text))
+    return q ? q.order : null
+  }
+
+  // Insert AFTER the first card → new card becomes Q2, old Q2/Q3 shift up.
+  const afterFirst = insertStandaloneSection(base, { anchorId: base[0].id, mode: 'after', partId: 'partA' })
+  assert.equal(afterFirst.sections.length, 4, 'insert grows the list by one')
+  assert.equal(afterFirst.sections[1].id, afterFirst.insertedId, 'new section lands at index 1 (right after the anchor)')
+  assert.equal(afterFirst.sections[1].question.partId, 'partA', 'inserted question inherits the requested Part')
+  assert.equal(afterFirst.insertedQuestionId, afterFirst.sections[1].question.localId, 'insertedQuestionId points at the new card for scroll/focus')
+  assert.equal(numberOf(afterFirst.sections, 'Q1'), 1, 'Q1 keeps number 1')
+  assert.equal(numberOf(afterFirst.sections, 'Q2'), 3, 'old Q2 shifts from 2 → 3')
+  assert.equal(numberOf(afterFirst.sections, 'Q3'), 4, 'old Q3 shifts from 3 → 4')
+  // The blank inserted card takes the freed-up number 2.
+  const insertedOrder = serializeQuizSections(afterFirst.sections, [])
+    .questions.find(q => q.localId === afterFirst.insertedQuestionId).order
+  assert.equal(insertedOrder, 2, 'the inserted blank card takes number 2 (between old 1 and 2)')
+
+  // Insert BEFORE a card → lands at that card's slot.
+  const beforeThird = insertStandaloneSection(base, { anchorId: base[2].id, mode: 'before', partId: 'partB' })
+  assert.equal(beforeThird.sections[2].id, beforeThird.insertedId, 'before-mode splices at the anchor index')
+  assert.equal(beforeThird.sections[2].question.partId, 'partB', 'before-insert inherits Part B')
+
+  // anchorId null → very top of the paper.
+  const atTop = insertStandaloneSection(base, { anchorId: null })
+  assert.equal(atTop.sections[0].id, atTop.insertedId, 'null anchor inserts at the very start')
+
+  // Unknown anchor (deleted mid-interaction) → append, never throw.
+  const orphan = insertStandaloneSection(base, { anchorId: 'gone', mode: 'after' })
+  assert.equal(orphan.sections[orphan.sections.length - 1].id, orphan.insertedId, 'unknown anchor appends at the end')
+
+  // Purity: the input array is never mutated.
+  assert.equal(base.length, 3, 'insert never mutates the input sections array')
+
+  console.log('runInsertStandaloneTest passed (insert between / before / top / unknown anchor + renumber)')
+}
+
+runInsertStandaloneTest()
 
 // ── Issue 2: passage short-answer sub-questions must NOT be forced to MCQ ──
 // The passage UI can add short-answer sub-questions; serialization used to

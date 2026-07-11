@@ -192,6 +192,48 @@ export function createStandaloneSection(questionOverrides = {}) {
   }
 }
 
+/**
+ * Insert a fresh standalone question into `sections` at a chosen position,
+ * so a teacher can add a question BETWEEN two existing ones (e.g. a
+ * question the importer skipped between printed 31 and 32) without adding at
+ * the bottom and shuffling it up by hand.
+ *
+ * Question numbers are derived purely from `sections[]` order (see
+ * buildQuestionNumberMap / serializeQuizSections), so splicing the new section
+ * into the right slot renumbers everything automatically — the inserted card
+ * takes the next number and every card after it shifts up by one.
+ *
+ * Anchoring is by section id (stable across renders/reorders), not array index:
+ *   - mode 'after'  → placed immediately after `anchorId`
+ *   - mode 'before' → placed immediately before `anchorId`
+ *   - anchorId null → placed at the very start of the paper
+ * `partId` sets the new question's Part membership so it lands in the same
+ * Part / Section group as its neighbours (null = ungrouped). An unknown
+ * anchorId falls back to appending at the end rather than throwing.
+ *
+ * Pure: returns a NEW { sections, insertedId } — never mutates the input.
+ */
+export function insertStandaloneSection(sections = [], { anchorId = null, mode = 'after', partId = null, overrides = {} } = {}) {
+  const list = Array.isArray(sections) ? sections : []
+  const newSection = createStandaloneSection({ ...overrides, partId: partId ?? null })
+  let at
+  if (anchorId == null) {
+    at = 0
+  } else {
+    const anchorIndex = list.findIndex(section => section.id === anchorId)
+    // Unknown anchor (e.g. deleted mid-interaction) → append rather than throw.
+    if (anchorIndex < 0) at = list.length
+    else at = mode === 'before' ? anchorIndex : anchorIndex + 1
+  }
+  return {
+    sections: [...list.slice(0, at), newSection, ...list.slice(at)],
+    insertedId: newSection.id,
+    // The new question's localId — callers scroll/focus the fresh card by its
+    // [data-question-id] anchor (see EditQuizV2 scrollToQuestion).
+    insertedQuestionId: newSection.question.localId,
+  }
+}
+
 // A "Part" is a numbered grouping (e.g. "QUESTIONS 1-15") that wraps any
 // number of standalone or passage sections. Parts live in a parallel array
 // alongside `sections[]`; section membership is tracked via `question.partId`,

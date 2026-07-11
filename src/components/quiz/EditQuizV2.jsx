@@ -14,6 +14,7 @@ import {
   getQuestionKey,
   hasOnlyEmptyStarterSection,
   hydrateQuizSections,
+  insertStandaloneSection,
   serializeQuizSections,
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
@@ -1019,6 +1020,22 @@ export default function EditQuizV2() {
     setSections(currentSections => [...currentSections, createStandaloneSection()])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
+  }, [])
+
+  // Insert a blank question BETWEEN existing ones (or at the start of a Part),
+  // so a teacher fixing an importer gap doesn't have to add at the bottom and
+  // walk the card up. `anchorId` is the section it's placed relative to,
+  // `mode` is 'after' | 'before', and `partId` keeps it in the same Part /
+  // Section group. Question numbers recompute from order, so the new card takes
+  // the next printed number automatically. After insert we scroll to + briefly
+  // highlight the fresh card so the teacher sees where it landed.
+  const insertStandaloneAt = useCallback(function insertStandaloneAt({ anchorId = null, mode = 'after', partId = null } = {}) {
+    const result = insertStandaloneSection(sectionsRef.current, { anchorId, mode, partId })
+    setSections(result.sections)
+    setDirty(true)
+    // sectionsRef is a ref (always current) and scrollToQuestion only touches
+    // the DOM, so an empty dep list is correct — the closure never goes stale.
+    setTimeout(() => scrollToQuestion(result.insertedQuestionId), 60)
   }, [])
 
   const addPassageSectionHandler = useCallback(function addPassageSectionHandler() {
@@ -2326,6 +2343,7 @@ export default function EditQuizV2() {
             onPassageQuestionOptionImageUpload={uploadPassageQuestionOptionImage}
             onPassageQuestionOptionImageRemove={removePassageQuestionOptionImage}
             onPassageAddQuestion={addPassageQuestion}
+            onInsertStandalone={insertStandaloneAt}
             onAddStandalone={addStandaloneSectionHandler}
             onAddPassage={addPassageSectionHandler}
             onAddMap={addMapSectionHandler}
