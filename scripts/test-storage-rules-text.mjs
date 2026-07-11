@@ -237,6 +237,44 @@ test('syllabi PDF storage rule is gone', () => {
   )
 })
 
+// ── email-verification enforcement ──────────────────────────────
+
+console.log('\nemail-verification enforcement')
+
+test('isVerified() helper exists and checks the token claim', () => {
+  assert(/function isVerified\(\)/.test(rules), 'isVerified() helper missing')
+  assert(
+    rules.includes("'email_verified' in request.auth.token"),
+    'the email_verified TOKEN claim must be the check',
+  )
+  assert(/function inVerificationGrace\(\)/.test(rules), 'inVerificationGrace() helper missing')
+})
+
+test('the role + ownership helpers all require verification', () => {
+  assert(
+    /function isTeacherOrAdmin\(\) \{\n      return isVerified\(\)/.test(rules),
+    'isTeacherOrAdmin() must be built on isVerified()',
+  )
+  assert(
+    /function isAdmin\(\) \{\n      return isVerified\(\)/.test(rules),
+    'isAdmin() must be built on isVerified()',
+  )
+  assert(
+    /function ownsPath\(ownerUid\) \{\n      return isVerified\(\)/.test(rules),
+    'ownsPath() must be built on isVerified() — it gates every owner-scoped write',
+  )
+})
+
+test('no path match grants read on bare isAuthed()', () => {
+  // Every shared-read path (papers, quiz-images, …) moved to isVerified().
+  // isAuthed() may only appear inside the helper definitions at the top.
+  const body = rules.slice(rules.indexOf('match /papers/'))
+  assert(
+    !/allow read: if isAuthed\(\)/.test(body),
+    'a path-level read is still on bare isAuthed() — unverified accounts must not read protected files',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

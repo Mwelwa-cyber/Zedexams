@@ -42,6 +42,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 
 const REGION = "us-central1";
 const INVITE_CODE_LENGTH = 8;
@@ -90,8 +91,7 @@ const generateClassInvite = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const {ref: classRef, data: classData} = await loadClassOrThrow(
@@ -136,8 +136,7 @@ const joinClassByCode = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const code = String(request.data?.code || "").trim().toUpperCase();
   if (!code || code.length < 6 || code.length > 16) {
@@ -220,8 +219,7 @@ const approveLearner = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   const learnerUid = String(request.data?.learnerUid || "").trim();
@@ -274,8 +272,7 @@ const declineLearner = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   const learnerUid = String(request.data?.learnerUid || "").trim();
@@ -297,8 +294,7 @@ const removeLearnerFromClass = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   const learnerUid = String(request.data?.learnerUid || "").trim();
@@ -342,8 +338,7 @@ const createClassAssignment = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   const resourceType = String(request.data?.resourceType || "").trim();
@@ -499,8 +494,7 @@ const removeClassAssignment = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const assignmentId = String(request.data?.assignmentId || "").trim();
   if (!assignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
@@ -526,8 +520,7 @@ const leaveClass = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   if (!classId) throw new HttpsError("invalid-argument", "classId is required.");

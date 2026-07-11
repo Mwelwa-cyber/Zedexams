@@ -40,6 +40,7 @@
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
@@ -610,8 +611,7 @@ const triggerWeeklyParentDigest = onCall({
   memory: "512MiB",
   secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const userSnap = await db.collection("users").doc(uid).get();

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { sendEmailVerification } from 'firebase/auth'
 import { useAuth } from '../../contexts/AuthContext'
+import { friendlyVerificationError } from '../../utils/verification'
 
 /**
  * Inline reminder banner for unverified email accounts (audit A8).
@@ -25,7 +25,7 @@ import { useAuth } from '../../contexts/AuthContext'
  *     back; otherwise emailVerified stays stale until next sign-in.
  */
 export default function VerifyEmailBanner() {
-  const { currentUser } = useAuth()
+  const { currentUser, emailVerified, refreshEmailVerification, resendVerificationEmail } = useAuth()
   const [dismissed, setDismissed] = useState(false)
   const [busyResend, setBusyResend] = useState(false)
   const [busyRefresh, setBusyRefresh] = useState(false)
@@ -39,26 +39,20 @@ export default function VerifyEmailBanner() {
     return () => clearInterval(t)
   }, [cooldown])
 
-  if (!currentUser || currentUser.emailVerified || dismissed) return null
+  if (!currentUser || emailVerified !== false || dismissed) return null
 
   async function handleResend() {
     setBusyResend(true)
     setFeedback(null)
     try {
-      await sendEmailVerification(currentUser)
+      await resendVerificationEmail()
       setFeedback({
         kind: 'ok',
         text: `Sent! Check ${currentUser.email || 'your inbox'} (and the spam folder).`,
       })
       setCooldown(60)
     } catch (err) {
-      // Firebase returns auth/too-many-requests if you spam the SDK.
-      // Surface the real cause so the user knows it isn't a typo on
-      // their end.
-      const msg = err?.code === 'auth/too-many-requests'
-        ? 'Too many requests — try again in a minute.'
-        : 'Couldn\'t send right now. Please try again shortly.'
-      setFeedback({ kind: 'err', text: msg })
+      setFeedback({ kind: 'err', text: friendlyVerificationError(err) })
     } finally {
       setBusyResend(false)
     }
@@ -68,11 +62,11 @@ export default function VerifyEmailBanner() {
     setBusyRefresh(true)
     setFeedback(null)
     try {
-      await currentUser.reload()
-      // After reload, emailVerified updates in-place. The next render
-      // sees the new value via the auth state subscription and hides
-      // this banner automatically.
-      if (!currentUser.emailVerified) {
+      // Context-owned check: reloads the auth user, force-refreshes the ID
+      // token, and flips the shared emailVerified state so the route guards
+      // (not just this banner) see the verification immediately.
+      const verified = await refreshEmailVerification()
+      if (!verified) {
         setFeedback({
           kind: 'err',
           text: "We don't see a verification yet — check the link in your email and click it again.",

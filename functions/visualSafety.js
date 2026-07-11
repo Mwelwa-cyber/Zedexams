@@ -16,6 +16,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const {
   callAnthropic, getUserRole, isStaffRole, assertDailyLimit, getAnthropicApiKey,
 } = require("./aiService");
@@ -83,7 +84,7 @@ function createCheckVisualSafety(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], region: "us-central1", timeoutSeconds: 60, memory: "512MiB"},
     async (request) => {
-      if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in first.");
+      await assertVerifiedAuth(request);
       const role = await getUserRole(request.auth.uid);
       if (!isStaffRole(role)) {
         throw new HttpsError("permission-denied", "Only teachers and admins can check images.");

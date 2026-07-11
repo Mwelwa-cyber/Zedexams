@@ -177,15 +177,13 @@ export default function Register() {
         form.role,
         isTeacher ? { province: form.province, subject: form.subject } : {},
       )
-      // Attempt to read the profile we just wrote so we can navigate to the
-      // correct role landing path immediately. On a flaky network the read may
-      // fail; that is not a reason to destroy a freshly created, valid Firebase
-      // session. AuthContext's onSnapshot listener runs concurrently and will
-      // populate the profile or set profileIssue on its own. If ensureUserProfile
-      // returns null we still navigate to "/" — RootRedirect / MissingProfileRecovery
-      // will recover from there.
-      const profile = await ensureUserProfile(cred.user)
-      navigate(getRoleLandingPath(profile, '/'), { replace: true })
+      // A fresh email/password signup is always unverified at this instant —
+      // the dashboard is gated behind verification, so land directly on the
+      // verification page. Warm the profile read in the background so the
+      // dashboard is ready the moment they verify (failure is fine:
+      // AuthContext's onSnapshot listener populates it on its own).
+      ensureUserProfile(cred.user).catch(() => null)
+      navigate('/verify-email', { replace: true })
     } catch (err) {
       // Never echo a raw Firebase message to the learner — map the code, and
       // fall back to calm generic copy when it's unmapped.

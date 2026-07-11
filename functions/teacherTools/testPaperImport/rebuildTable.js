@@ -177,14 +177,14 @@ async function runRebuildTable(args, deps = {}) {
  */
 function createRebuildTableFromImage(anthropicApiKeySecret) {
   const {onCall, HttpsError} = require("firebase-functions/v2/https");
+  const {assertVerifiedAuth} = require("../../authGuard");
   const {getUserRole, isStaffRole} = require("../../aiService");
   const {assertAndIncrement} = require("../usageMeter");
 
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
     async (request) => {
-      const uid = request.auth && request.auth.uid;
-      if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
+      const uid = await assertVerifiedAuth(request, "Please sign in.");
 
       const data = request.data || {};
 

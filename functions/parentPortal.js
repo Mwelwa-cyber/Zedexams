@@ -27,6 +27,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
 
 const REGION = "us-central1";
@@ -61,8 +62,7 @@ const createProgressShare = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const parentEmail = request.data?.parentEmail
       ? String(request.data.parentEmail).trim().toLowerCase().slice(0, 200)
@@ -105,8 +105,7 @@ const revokeProgressShare = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const token = String(request.data?.token || "").trim().toUpperCase();
   if (!token) throw new HttpsError("invalid-argument", "token is required.");

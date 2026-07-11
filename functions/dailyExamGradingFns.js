@@ -19,6 +19,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const admin = require("firebase-admin");
 const {gradeAttempt, stripAnswerKey} = require("./grading/dailyExamGrading");
 const {getUserRole} = require("./aiService");
@@ -56,11 +57,9 @@ async function assertExamAccess(uid, quizData) {
   );
 }
 
+// Signed-in + email-verified (shared guard; see authGuard.js).
 function requireAuth(request) {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Please sign in first.");
-  }
-  return request.auth.uid;
+  return assertVerifiedAuth(request);
 }
 
 function asString(v, max) {
@@ -107,7 +106,7 @@ async function loadQuestions(db, examId) {
 exports.getExamQuestions = onCall(
   {region: REGION, timeoutSeconds: 20},
   async (request) => {
-    const uid = requireAuth(request);
+    const uid = await requireAuth(request);
     const examId = asString(request.data?.examId, 200);
     const attemptId = asString(request.data?.attemptId, 200);
     if (!examId) {
@@ -145,7 +144,7 @@ exports.getExamQuestions = onCall(
 exports.submitDailyExam = onCall(
   {region: REGION, timeoutSeconds: 30},
   async (request) => {
-    const uid = requireAuth(request);
+    const uid = await requireAuth(request);
     const attemptId = asString(request.data?.attemptId, 200);
     if (!attemptId) {
       throw new HttpsError("invalid-argument", "attemptId is required.");

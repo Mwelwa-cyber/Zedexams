@@ -34,6 +34,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 
 const REGION = "us-central1";
 const WINDOW_DAYS = 30;
@@ -94,8 +95,7 @@ const getClassStats = onCall({
   timeoutSeconds: 60,
   memory: "512MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const classId = String(request.data?.classId || "").trim();
   if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
