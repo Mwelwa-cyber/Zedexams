@@ -64,7 +64,7 @@ Module._load = function (request, ...rest) {
 };
 
 const {verifyAndApplyPurchase, getAccessToken, probePlayConfig, PlayConfigError,
-  parseServiceAccountJson} = require("./googlePlayBilling");
+  parseServiceAccountJson, describeSaIdentity} = require("./googlePlayBilling");
 const {derivePaymentId} = require("./googlePlayBillingCore");
 
 // ── Fixtures + injected deps ─────────────────────────────────────────────
@@ -423,6 +423,53 @@ function reset() {
   });
   ok("probe: network error → transient, never throws",
       probe.ok === false && probe.reason === "transient");
+
+  // ── describeSaIdentity + the probe's identity suffix ──
+  // A play-api-rejected failure must NAME the key it used (client_email +
+  // key-id prefix) so a wrong-account / rotated-key mismatch is visible in
+  // the hourly-monitor rollup itself, instead of needing a Secret Manager
+  // dive to learn which identity Google rejected.
+  const idSa = JSON.stringify({
+    client_email: "probe-sa@examsprepzambia.iam.gserviceaccount.com",
+    private_key: "pk-test-placeholder",
+    private_key_id: "abcdef0123456789",
+  });
+  ok("describeSaIdentity → email + 8-char key-id prefix",
+      describeSaIdentity(idSa) ===
+      "probe-sa@examsprepzambia.iam.gserviceaccount.com, key abcdef01…");
+  ok("describeSaIdentity: no private_key_id → email alone",
+      describeSaIdentity(JSON.stringify({client_email: "a@b.iam.gserviceaccount.com"})) ===
+      "a@b.iam.gserviceaccount.com");
+  ok("describeSaIdentity: unparseable JSON → empty string",
+      describeSaIdentity("not-json") === "");
+  ok("describeSaIdentity: no client_email → empty string",
+      describeSaIdentity("{}") === "");
+
+  probe = await probePlayConfig({
+    saJson: idSa,
+    getToken: async () => "tok",
+    fetchImpl: async () => ({status: 401}),
+  });
+  ok("probe: play-api-rejected names the SA identity it used",
+      probe.ok === false && probe.reason === "play-api-rejected" &&
+      probe.message.includes(
+          "[SA in secret: probe-sa@examsprepzambia.iam.gserviceaccount.com, key abcdef01…]"));
+
+  probe = await probePlayConfig({
+    saJson: idSa,
+    getToken: async () => "tok",
+    fetchImpl: async () => { throw new Error("socket hang up"); },
+  });
+  ok("probe: transient failure also names the SA identity",
+      probe.ok === false && probe.reason === "transient" &&
+      /\[SA in secret: probe-sa@/.test(probe.message));
+
+  probe = await probePlayConfig({
+    saJson: "x",
+    getToken: async () => { throw new PlayConfigError("invalid_grant", "token-fetch-failed"); },
+  });
+  ok("probe: unparseable secret → failure message carries no identity suffix",
+      probe.ok === false && !probe.message.includes("[SA in secret:"));
 
   console.log(`\n${passed} passed`);
 })().catch((err) => {
