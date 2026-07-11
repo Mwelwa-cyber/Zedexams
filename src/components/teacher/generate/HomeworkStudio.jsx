@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   generateHomework,
   TEACHER_LANGUAGES,
@@ -85,6 +85,9 @@ export default function HomeworkStudio() {
   const [showAnswers, setShowAnswers] = useState(false)
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
 
   // Universal Draft Manager: auto-save the homework inputs.
   const draft = useStudioInputDraft({
@@ -120,6 +123,7 @@ export default function HomeworkStudio() {
   }
 
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('homework')) return null
     const res = await generateHomework(buildPayload())
     if (res.ok && res.data?.homework) {
       const fresh = res.data.homework
@@ -158,6 +162,7 @@ export default function HomeworkStudio() {
       return
     }
     if (!ensureCanGenerate('homework')) return
+    const run = ++runRef.current
     setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
@@ -166,6 +171,7 @@ export default function HomeworkStudio() {
     // Teacher Settings → My AI → homework difficulty rides along inside
     // buildPayload() as an extra instruction line (server caps at 500 chars).
     const res = await generateHomework(buildPayload())
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -369,7 +375,7 @@ export default function HomeworkStudio() {
               }
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
-              onStop={() => setStatus('idle')}
+              onStop={() => { runRef.current += 1; setStatus('idle') }}
               onRegenerate={() => onGenerate()}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}

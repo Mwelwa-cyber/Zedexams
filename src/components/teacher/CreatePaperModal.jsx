@@ -5,7 +5,7 @@
 // blocks via aiPaperToSections. The teacher reviews/edits before saving
 // — nothing is auto-saved.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { generateAssessment } from '../../utils/teacherTools'
 import { paywall } from '../../utils/paywall'
 import { useAuth } from '../../contexts/AuthContext'
@@ -159,6 +159,9 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   const [status, setStatus] = useState('idle') // idle | generating | done | error
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed (or a second run started).
+  const runRef = useRef(0)
   // How the teacher supplies topics / sub-topics: 'pick' = choose from the
   // syllabus drop-down, 'write' = type their own. Defaults to the syllabus
   // drop-down; falls back to 'write' automatically when the chosen
@@ -375,6 +378,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     // Fail fast: assessments are a Max studio — a capped Free/Pro teacher gets
     // the pay/upgrade prompt now, not after a wasted generation round-trip.
     if (!ensureCanGenerate('assessment')) return
+    const run = ++runRef.current
     setStatus('generating')
     setError('')
     const res = await generateAssessment({
@@ -398,6 +402,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       questionTypes: canonicalTypesFor(form.questionTypes),
       instructions: buildInstructions(),
     })
+    if (run !== runRef.current) return
     if (!res.ok) {
       // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
       // paywall rather than dumping the raw quota error (the server marks
@@ -727,7 +732,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
                   tool="assessment"
                   status="generating"
                   title={isExam ? 'Writing your exam…' : 'Writing your paper…'}
-                  onStop={() => setStatus('idle')}
+                  onStop={() => { runRef.current += 1; setStatus('idle'); }}
                 />
               </div>
             )}

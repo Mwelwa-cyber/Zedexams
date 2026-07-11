@@ -865,7 +865,7 @@ export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
  */
 export function getItemPermissions({ userProfile, isAdmin = false, item }) {
   const level = getLibraryAccessLevel({ userProfile, isAdmin })
-  const ownsIt = !!item && !!userProfile && item.ownerUid === userProfile.uid
+  const ownsIt = !!item && !!userProfile && item.ownerUid === (userProfile.uid ?? userProfile.id)
 
   if (level === LIBRARY_ACCESS.PREMIUM) {
     return { canView: true, canDownload: true, canPrint: true, canExport: true, level }

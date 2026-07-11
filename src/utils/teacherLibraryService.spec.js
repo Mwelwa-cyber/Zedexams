@@ -33,6 +33,7 @@ import {
   titleForGeneration,
   TOOL_META,
   TOOL_FILTER_OPTIONS,
+  getItemPermissions,
 } from './teacherLibraryService'
 
 // The exact top-level keys the firestore.rules `lesson_plan` create rule
@@ -208,6 +209,41 @@ describe('summarizeGenerations', () => {
   it('handles empty and missing input', () => {
     expect(summarizeGenerations([])).toEqual({ total: 0, byTool: {} })
     expect(summarizeGenerations()).toEqual({ total: 0, byTool: {} })
+  })
+})
+
+// Regression: getItemPermissions checked item.ownerUid === userProfile.uid but
+// AuthContext stores profiles as { id: uid, ...data } (no uid field on the doc).
+// The fix: userProfile.uid ?? userProfile.id — covers both old and new shapes.
+describe('getItemPermissions — uid ?? id ownership check', () => {
+  it('grants download to a Pro teacher whose profile has only id (AuthContext shape)', () => {
+    // AuthContext profile: { id: <uid>, ...Firestore data }  ← no uid field
+    const userProfile = { id: 'u1', subscriptionTier: 'pro' }
+    const item = { ownerUid: 'u1' }
+    const { canDownload } = getItemPermissions({ userProfile, item })
+    expect(canDownload).toBe(true)
+  })
+
+  it('grants download to a Pro teacher whose profile has uid field (legacy shape)', () => {
+    const userProfile = { uid: 'u1', subscriptionTier: 'pro' }
+    const item = { ownerUid: 'u1' }
+    const { canDownload } = getItemPermissions({ userProfile, item })
+    expect(canDownload).toBe(true)
+  })
+
+  it('denies download on a Pro teacher\'s non-owned item', () => {
+    const userProfile = { id: 'u1', subscriptionTier: 'pro' }
+    const item = { ownerUid: 'u2' }
+    const { canDownload } = getItemPermissions({ userProfile, item })
+    expect(canDownload).toBe(false)
+  })
+
+  it('grants full access to admin regardless of ownership or profile shape', () => {
+    const userProfile = { id: 'u1' }
+    const item = { ownerUid: 'u2' }
+    const { canDownload, canExport } = getItemPermissions({ userProfile, isAdmin: true, item })
+    expect(canDownload).toBe(true)
+    expect(canExport).toBe(true)
   })
 })
 
