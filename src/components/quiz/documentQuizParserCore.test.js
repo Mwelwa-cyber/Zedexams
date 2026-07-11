@@ -1086,6 +1086,49 @@ function runGarbageSymbolCleanTest() {
 
 runGarbageSymbolCleanTest()
 
+// ── Worked examples skipped ─────────────────────────────────────────────────
+// Grade-seven papers often include an unnumbered "Example" immediately before
+// the real numbered run. The example may itself contain "1." plus A-D options,
+// which previously inflated the import count and shifted the real paper's
+// questions. Examples are teaching scaffolds, not assessable questions.
+function runWorkedExampleSkipTest() {
+  const blocks = [
+    block('PART 1'),
+    block('Example'),
+    block('1. Which word is an adjective?'),
+    block('A. quickly'),
+    block('B. blue'),
+    block('C. under'),
+    block('D. sing'),
+    block('Answer: B'),
+    block('Now do questions 1-2'),
+    block('1. Which word is a noun?'),
+    block('A. run'),
+    block('B. table'),
+    block('C. quickly'),
+    block('D. under'),
+    block('2. Which sentence is correctly punctuated?'),
+    block('A. we went home.'),
+    block('B. We went home.'),
+    block('C. We went home'),
+    block('D. we went home'),
+  ]
+
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(summary.questions, 2,
+    `worked examples must not become questions, got ${summary.questions}`)
+  assert.deepEqual(
+    questions.map(q => Number(q.sourceQuestionNumber)),
+    [1, 2],
+    'the real Q1/Q2 remain after the example is skipped',
+  )
+  assert.ok(questions.every(q => !/adjective|blue/i.test(plainRichText(q.text))),
+    'example stem/options must not leak into imported question text')
+}
+
+runWorkedExampleSkipTest()
+
 // ── Duplicate-question collapse ──────────────────────────────────────────────
 // Reproduces the "a 60-question paper imports as 64, with some questions
 // appearing twice" report. Three duplication shapes are exercised; the parser

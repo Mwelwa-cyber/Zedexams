@@ -38,6 +38,20 @@ function standaloneSection(id, overrides = {}) {
   return { id, kind: 'standalone', question: emptyQuestion({ text: `Question ${id}`, ...overrides }) }
 }
 
+function passageSection(id, questions = [emptyQuestion({ localId: `${id}-q1`, text: `Question ${id}` })]) {
+  return {
+    id,
+    kind: 'passage',
+    passage: {
+      localId: `${id}-p`,
+      title: `Passage ${id}`,
+      passageText: `Read passage ${id}.`,
+      passageKind: 'comprehension',
+      questions,
+    },
+  }
+}
+
 // Minimal required props: the editor reads many callbacks but tolerates
 // undefined ones (they only fire on interaction). These are the ones our
 // assertions exercise.
@@ -209,5 +223,34 @@ describe('QuizSectionsEditor — editing a question card', () => {
     expect(screen.getByText('Delete 1 selected question?')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onStandaloneRemove).toHaveBeenCalledWith(0)
+  })
+})
+
+describe('QuizSectionsEditor — editing passage questions', () => {
+  it('lets passage questions change type with the same presets as standalone questions', () => {
+    const onPassageQuestionChange = vi.fn()
+    const question = emptyQuestion({
+      localId: 'passage-q1',
+      text: 'What is the main idea?',
+      type: 'mcq',
+      subtype: 'spelling',
+      options: ['A', 'B', 'C', 'D'],
+      correctAnswer: 0,
+    })
+    renderEditor({
+      sections: [passageSection('p1', [question])],
+      questionNumbers: { 'passage-q1': 1 },
+      totalQuestions: 1,
+      onPassageQuestionChange,
+    })
+
+    fireEvent.change(screen.getByDisplayValue('MCQ (4 options)'), {
+      target: { value: 'short_answer' },
+    })
+
+    expect(onPassageQuestionChange).toHaveBeenCalledWith(0, 0, 'type', 'short_answer')
+    expect(onPassageQuestionChange).toHaveBeenCalledWith(0, 0, 'options', [])
+    expect(onPassageQuestionChange).toHaveBeenCalledWith(0, 0, 'correctAnswer', '')
+    expect(onPassageQuestionChange).toHaveBeenCalledWith(0, 0, 'subtype', null)
   })
 })
