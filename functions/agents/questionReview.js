@@ -298,7 +298,7 @@ async function reviewQuestion({db, jobRef, questionId, docData, anthropicApiKeyS
   const openaiKey = (openaiApiKeySecret && openaiApiKeySecret.value()) ||
     process.env.OPENAI_API_KEY;
   if (openaiKey) {
-    questionEmbedding = await embedText(openaiKey, embedTextFor(question));
+    questionEmbedding = await embedText(openaiKey, embedTextFor(question), {track: {tool: "qix"}});
     if (questionEmbedding) {
       const semantic = classifyEmbeddingDuplicate(questionEmbedding, candidates);
       if (semantic.isDuplicate) {

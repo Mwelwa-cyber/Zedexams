@@ -272,6 +272,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
 
   try {
     const baseClaudeArgs = {
+      track: {uid, tool: "worksheet"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

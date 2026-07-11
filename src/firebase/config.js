@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
-import { resilientGetToken } from './appCheckResilient'
+import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN } from './appCheckResilient'
 import {
   getAuth,
   setPersistence,
@@ -250,15 +250,65 @@ async function initAppCheck() {
     // CustomProvider does not forward initialize() to the wrapped provider, so
     // we initialize the ReCaptchaEnterpriseProvider ourselves, lazily on first
     // token request and guarded against a synchronous throw.
+    //
+    // The render itself can still die with "reCAPTCHA placeholder element must
+    // be empty": the SDK renders into a div with the FIXED id
+    // `fire_app_check_${app.name}`, and grecaptcha resolves that id to the
+    // FIRST matching node — so any stale or duplicate container (bfcache-
+    // restored DOM, an extension cloning nodes, a previous half-finished init)
+    // makes the render throw ASYNCHRONOUSLY inside grecaptcha.ready(), where no
+    // try/catch of ours can reach it. Worse than the noise: the SDK's internal
+    // `initialized` deferred never resolves after that throw, so EVERY later
+    // mint in the session times out into a placeholder — the session stays
+    // unattested until reload. Two defences:
+    //   1. remove any pre-existing container before initialize, so the SDK's
+    //      fresh div is the only match for the id;
+    //   2. if minting is still stuck on placeholders well after init (a broken
+    //      render never self-heals), clean up and re-initialize — bounded and
+    //      spaced so a genuinely-down reCAPTCHA can't cause an init loop.
+    const removeStaleRecaptchaContainers = () => {
+      try {
+        document
+          .querySelectorAll(`div[id="fire_app_check_${app.name}"]`)
+          .forEach((node) => node.remove())
+      } catch { /* DOM cleanup is best-effort */ }
+    }
+    const RECAPTCHA_RECOVERY_MAX_ATTEMPTS = 2
+    const RECAPTCHA_RECOVERY_MIN_AGE_MS = 60_000
     const recaptcha = new ReCaptchaEnterpriseProvider(APPCHECK_RECAPTCHA_KEY)
     let recaptchaInitialized = false
+    let recaptchaInitAt = 0
+    let consecutivePlaceholders = 0
+    let recoveryAttempts = 0
     const provider = new CustomProvider({
-      getToken: () => {
+      getToken: async () => {
         if (!recaptchaInitialized) {
           recaptchaInitialized = true
+          recaptchaInitAt = Date.now()
+          removeStaleRecaptchaContainers()
           try { recaptcha.initialize(app) } catch { /* redundant init is harmless */ }
         }
-        return resilientGetToken(() => recaptcha.getToken())
+        const res = await resilientGetToken(() => recaptcha.getToken())
+        if (res.token !== APPCHECK_PLACEHOLDER_TOKEN) {
+          consecutivePlaceholders = 0
+          return res
+        }
+        consecutivePlaceholders += 1
+        // Two consecutive placeholder cycles (~2 min at the 60s placeholder
+        // TTL) a minute or more after init is a stuck widget, not a slow first
+        // script load — re-initialize so the session regains real attestation.
+        if (
+          consecutivePlaceholders >= 2 &&
+          recoveryAttempts < RECAPTCHA_RECOVERY_MAX_ATTEMPTS &&
+          Date.now() - recaptchaInitAt >= RECAPTCHA_RECOVERY_MIN_AGE_MS
+        ) {
+          recoveryAttempts += 1
+          recaptchaInitAt = Date.now()
+          consecutivePlaceholders = 0
+          removeStaleRecaptchaContainers()
+          try { recaptcha.initialize(app) } catch { /* same guard as first init */ }
+        }
+        return res
       },
     })
     jsAppCheck = initializeAppCheck(app, {

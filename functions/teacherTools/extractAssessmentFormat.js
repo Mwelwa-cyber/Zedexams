@@ -142,6 +142,7 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
     await buildMessageBlocks(source);
 
   const result = await callClaude(apiKey, {
+    track: {uid, tool: "assessmentFormat"},
     systemPrompt: EXTRACT_SYSTEM_PROMPT,
     messages: [{
       role: "user",

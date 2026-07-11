@@ -218,6 +218,7 @@ function createRebuildTableFromImage(anthropicApiKeySecret) {
           readTable: async (image) => {
             const {callClaude} = require("../anthropicClient");
             const result = await callClaude(anthropicKey, {
+              track: {tool: "testPaperImport"},
               systemPrompt: TABLE_SYSTEM_PROMPT,
               messages: [{
                 role: "user",

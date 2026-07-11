@@ -495,6 +495,45 @@ async function main() {
     await assertFails(updateDoc(doc(admin, 'exam_attempts', 'attempt_in_progress'), { score: 999 }))
   })
 
+  await test('learner can create their own unscored in_progress attempt', async () => {
+    // Exactly the shape the client's attemptStartSchema emits on startExam.
+    await assertSucceeds(setDoc(doc(learnerB, 'exam_attempts', 'attempt_b_honest'), {
+      userId: LEARNER_B,
+      status: 'in_progress',
+      score: null,
+      percentage: null,
+    }))
+  })
+
+  await test('learner cannot create a pre-scored "submitted" attempt (leaderboard forgery)', async () => {
+    // Submitted attempts are readable by everyone and the daily leaderboard
+    // trusts them directly — a client-minted one would rank instantly.
+    await assertFails(setDoc(doc(learnerB, 'exam_attempts', 'attempt_b_forged'), {
+      userId: LEARNER_B,
+      status: 'submitted',
+      score: 100,
+      percentage: 100,
+    }))
+  })
+
+  await test('learner cannot create an in_progress attempt with a preloaded score', async () => {
+    await assertFails(setDoc(doc(learnerB, 'exam_attempts', 'attempt_b_preloaded'), {
+      userId: LEARNER_B,
+      status: 'in_progress',
+      score: 100,
+      percentage: 100,
+    }))
+  })
+
+  await test('learner cannot create an attempt under someone else’s userId', async () => {
+    await assertFails(setDoc(doc(learnerB, 'exam_attempts', 'attempt_b_spoofed'), {
+      userId: LEARNER_A,
+      status: 'in_progress',
+      score: null,
+      percentage: null,
+    }))
+  })
+
   // ── results ──────────────────────────────────────────────────
   section('results — anti-tamper')
 

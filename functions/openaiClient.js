@@ -45,6 +45,15 @@ async function callOpenAIImage(apiKey, opts = {}) {
       "OpenAI API key is not configured.",
     );
   }
+  // Monthly spend ceiling — images are the priciest per-call spend
+  // (~$0.06 each) and historically bypassed the gate entirely. Fails open
+  // inside isOverBudget so an accounting glitch never blocks a generation.
+  {
+    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
+    if (await isOverBudget()) {
+      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
+    }
+  }
   const prompt = String(opts.prompt || "").slice(0, 4000);
   const size = ALLOWED_OPENAI_SIZES.has(opts.size) ? opts.size : "1536x1024";
   const quality = ALLOWED_OPENAI_QUALITIES.has(opts.quality)
@@ -127,6 +136,18 @@ async function callOpenAIImage(apiKey, opts = {}) {
   const b64 = json?.data?.[0]?.b64_json;
   if (!b64) {
     throw new HttpsError("internal", "OpenAI returned no image data.");
+  }
+  // Fire-and-forget flat-cost rollup (never throws, never awaited) so image
+  // spend reaches the same meter the budget ceiling and /admin/ai-costs read.
+  try {
+    const {recordAiImageUsage} = require("./aiCostTracking");
+    recordAiImageUsage({
+      uid: (opts.track && opts.track.uid) || null,
+      tool: (opts.track && opts.track.tool) || "imageGeneration",
+      model, quality, size,
+    });
+  } catch (err) {
+    console.warn("[openaiClient] image cost track failed", err);
   }
   return {b64, model, size, quality};
 }

@@ -1873,6 +1873,7 @@ exports.structureImportedQuiz = onCall(
     if (geminiKey) {
       try {
         const geminiText = await callGemini(geminiKey, {
+          track: {tool: "documentImport"},
           systemPrompt: [
             "You are a document scanner for the ZedExams smart-import pipeline.",
             "Read the raw exam document below and emit a STRUCTURED JSON list",
@@ -2927,6 +2928,13 @@ exports.hourlyAgentSupervisor = hourlyAgentSupervisorCron;
 // settings/fxRate so the budget governor + /admin/company read a fresh, cached
 // rate without a live network call. Range-checked; fails to the env fallback.
 exports.dailyFxRefresh = dailyFxRefreshCron;
+
+// Daily Firestore backup export (Africa/Lusaka 01:30). Kicks off a Firestore
+// Admin exportDocuments run into the FIRESTORE_BACKUP_BUCKET GCS bucket and
+// records the outcome in opsBackups/{date}; alerts ops on failure. Safe to
+// deploy before the bucket exists — unconfigured runs skip with a warning.
+// Setup (bucket, IAM, PITR) is documented in functions/firestoreBackup.js.
+exports.dailyFirestoreBackup = require("./firestoreBackup").dailyFirestoreBackup;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly

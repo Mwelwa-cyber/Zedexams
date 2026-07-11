@@ -33,6 +33,8 @@ vi.mock('../../editor/components/RichEditor.jsx', () => ({
 vi.mock('../ui/AiGenerationProgress', () => ({ default: () => null }))
 vi.mock('./syllabusTopicOptions', () => ({
   useSyllabusTopicOptions: () => ({ options: [], loading: false }),
+  useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
+  normalizeStudioFramework: (v) => (String(v || '') === '2013' ? '2013' : '2023'),
 }))
 vi.mock('./views/PaperBlocks', () => ({ PaperBlock: () => null }))
 vi.mock('../../utils/assessmentBloom', () => ({

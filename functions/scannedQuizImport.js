@@ -1076,6 +1076,7 @@ async function runScannedQuizImport(
   if (geminiKey) {
     try {
       const text = await callGemini(geminiKey, {
+        track: {tool: "scannedQuizImport"},
         systemPrompt: GEMINI_SYSTEM_PROMPT,
         userPrompt:
           "List the printed question numbers across these pages as " +
@@ -1101,6 +1102,7 @@ async function runScannedQuizImport(
   // 16 000 comfortably fits the largest ECZ English batch; Sonnet supports up
   // to 64 K output tokens so this is nowhere near the model ceiling.
   const result = await callClaude(anthropicKey, {
+    track: {tool: "scannedQuizImport"},
     systemPrompt: CLAUDE_SYSTEM_PROMPT,
     messages: buildClaudeMessages(pages, hints, geminiDraft),
     model: VISION_MODEL,
@@ -1166,6 +1168,7 @@ async function runScannedQuizImport(
       let reask;
       try {
         reask = await callClaude(anthropicKey, {
+          track: {tool: "scannedQuizImport"},
           systemPrompt: CLAUDE_SYSTEM_PROMPT,
           messages: buildReaskMessages(pages, hints, missing),
           model: VISION_MODEL,

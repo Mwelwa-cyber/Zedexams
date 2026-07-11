@@ -271,6 +271,7 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, storageSubdir}) {
 
   const openaiSizeUsed = OPENAI_SIZE_BY_CANONICAL_SIZE[size] || "1536x1024";
   const {b64, model: usedModel} = await callOpenAIImage(openaiKey, {
+    track: {uid, tool: "diagram"},
     prompt: finalPrompt, // keeps the provider-specific style guard
     size: openaiSizeUsed,
     quality: "medium",

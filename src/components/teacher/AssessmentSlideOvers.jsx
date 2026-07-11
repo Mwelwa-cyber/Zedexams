@@ -12,12 +12,14 @@ import { parsePastedQuestions } from '../../utils/pasteQuestionParser.js'
 import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
-import { useSyllabusTopicOptions } from './syllabusTopicOptions'
+import {
+  useSyllabusTopicOptions, useStudioSubjectChoices, normalizeStudioFramework,
+} from './syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
 import { PaperBlock } from './views/PaperBlocks'
 import Icon from './studio/studioIcons'
 import { bloomLevel, BLOOM_LABELS, BLOOM_LEVELS } from '../../utils/assessmentBloom'
-import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
+import { STUDIO_GRADES } from './assessmentStudioMeta'
 import {
   BalanceDifficultyAction,
   BloomBalanceAction,
@@ -491,6 +493,12 @@ function AiTopicSubtopicPicker({ grade, subject, framework, topics, subtopics, o
 export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
+  // The paper's curriculum framework drives both pickers below — one choice
+  // shared with the header and the full-paper modal, not a slide-local one.
+  const framework = normalizeStudioFramework(form.framework)
+  // Subjects the syllabus actually carries for this grade + framework (falls
+  // back to the static eight while loading / when no rows exist).
+  const { options: subjectChoices } = useStudioSubjectChoices(form.grade, framework, form.subject)
   // A pending review batch takes over the slide: the generated questions
   // must be accepted or discarded before the tool list distracts from them.
   if (review) {
@@ -553,7 +561,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
               value={form.subject}
               onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
-              {STUDIO_SUBJECTS.map(s => (
+              {subjectChoices.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -564,14 +572,19 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
         </p>
         <div style={{ marginBottom: 12 }}>
           <CurriculumPicker
-            curriculumMode={aiForm.framework === '2013' ? 'previous' : 'cbc'}
-            onSelect={(mode) => setAiForm(prev => ({ ...prev, framework: mode === 'previous' ? '2013' : '2023', topics: [], subtopics: [], topic: '' }))}
+            curriculumMode={framework === '2013' ? 'previous' : 'cbc'}
+            onSelect={(mode) => {
+              // The framework belongs to the paper (like grade/subject) so the
+              // header + full-paper modal follow the same choice.
+              onUpdatePaperMeta?.('framework', mode === 'previous' ? '2013' : '2023')
+              setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' }))
+            }}
           />
         </div>
         <AiTopicSubtopicPicker
           grade={form.grade}
           subject={form.subject}
-          framework={aiForm.framework}
+          framework={framework}
           topics={aiForm.topics || []}
           subtopics={aiForm.subtopics || []}
           onChangeTopics={(next) => setAiForm(prev => ({ ...prev, topics: next }))}

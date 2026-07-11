@@ -95,7 +95,43 @@ const PRICE_PER_MTOK = {
     cacheCreation5m: 0,
     cacheRead: 0,
   },
+  // Google Gemini text (document import, OCR structuring, answer suggest).
+  // callGemini maps usageMetadata's promptTokenCount/candidatesTokenCount
+  // onto {input_tokens, output_tokens}; no cache accounting on this path.
+  "gemini-2.5-flash": {
+    input: 0.30,
+    output: 2.50,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  // Catch-all: every Gemini text path here is a flash variant, so an
+  // unrecognised gemini-* id prices at flash rates rather than zero.
+  // (Gemini IMAGE generations are flat-priced via IMAGE_PRICE_USD below,
+  // never token-priced through this table.)
+  "gemini": {
+    input: 0.30,
+    output: 2.50,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  // OpenAI embeddings (Qix semantic dedup). Input-only pricing.
+  "text-embedding-3-small": {
+    input: 0.02,
+    output: 0,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
+  "text-embedding-3-large": {
+    input: 0.13,
+    output: 0,
+    cacheCreation5m: 0,
+    cacheRead: 0,
+  },
 };
+
+// Truly unknown models log at zero cost so we don't fabricate numbers —
+// the call is still counted (see header comment).
+const ZERO_RATES = {input: 0, output: 0, cacheCreation5m: 0, cacheRead: 0};
 
 function pickRates(model) {
   const id = String(model || "").toLowerCase();
@@ -106,7 +142,43 @@ function pickRates(model) {
     if (key === "default") continue;
     if (id.startsWith(key) && (!best || key.length > best.length)) best = key;
   }
-  return PRICE_PER_MTOK[best] || PRICE_PER_MTOK.default;
+  if (best) return PRICE_PER_MTOK[best];
+  // A claude-* id from a future family without its own row prices at the
+  // default production rates; anything else logs at zero (never at Sonnet
+  // rates, which would fabricate spend for e.g. an unlisted provider).
+  return id.startsWith("claude") ? PRICE_PER_MTOK.default : ZERO_RATES;
+}
+
+// Flat per-image pricing in USD. gpt-image-1 bills per image by
+// quality × size (the repo's default is medium 1536x1024 ≈ $0.063 — the
+// "~$0.06/image" noted in generateDiagram). Gemini 2.5 Flash Image is a
+// flat per-image rate (≈1290 image-output tokens at $30/MTok). Keyed by
+// longest model-id prefix like PRICE_PER_MTOK.
+const IMAGE_PRICE_USD = {
+  "gpt-image-1": {
+    low: {"1024x1024": 0.011, "1024x1536": 0.016, "1536x1024": 0.016},
+    medium: {"1024x1024": 0.042, "1024x1536": 0.063, "1536x1024": 0.063},
+    high: {"1024x1024": 0.167, "1024x1536": 0.250, "1536x1024": 0.250},
+  },
+  "gemini-2.5-flash-image": 0.039,
+};
+
+/**
+ * Flat USD cost of one generated image. Unknown models / quality / size
+ * combinations return 0 (counted, not fabricated) — same policy as
+ * pickRates for unknown text models.
+ */
+function imageCostUsd(model, {quality, size} = {}) {
+  const id = String(model || "").toLowerCase();
+  let best = null;
+  for (const key of Object.keys(IMAGE_PRICE_USD)) {
+    if (id.startsWith(key) && (!best || key.length > best.length)) best = key;
+  }
+  const entry = best ? IMAGE_PRICE_USD[best] : null;
+  if (typeof entry === "number") return entry;
+  if (!entry) return 0;
+  const byQuality = entry[String(quality || "").toLowerCase()];
+  return (byQuality && byQuality[String(size || "")]) || 0;
 }
 
 function dateKeyUtc() {
@@ -157,14 +229,46 @@ function computeCostUsd(model, usage = {}) {
  *              ('aiChat', 'generateQuiz', 'lessonPlan', etc.)
  */
 async function recordAiUsage({uid, model, usage, tool}) {
+  return writeUsageRollups({
+    uid,
+    tool,
+    inputTokens: usage?.input_tokens || 0,
+    outputTokens: usage?.output_tokens || 0,
+    cacheCreation: usage?.cache_creation_input_tokens || 0,
+    cacheRead: usage?.cache_read_input_tokens || 0,
+    costUsd: computeCostUsd(model, usage),
+  });
+}
+
+/**
+ * Fire-and-forget rollup for flat-priced image generations (gpt-image-1,
+ * Gemini image) — no token accounting; the cost comes from IMAGE_PRICE_USD
+ * by model + quality + size. Same never-throws contract as recordAiUsage.
+ *
+ *   recordAiImageUsage({ uid, model, quality, size, tool })
+ */
+async function recordAiImageUsage({uid, model, quality, size, tool}) {
+  return writeUsageRollups({
+    uid,
+    tool,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreation: 0,
+    cacheRead: 0,
+    costUsd: imageCostUsd(model, {quality, size}),
+  });
+}
+
+/**
+ * Shared rollup writer behind recordAiUsage / recordAiImageUsage. Never
+ * throws — accounting failures must not crash the user-facing AI flow.
+ */
+async function writeUsageRollups({
+  uid, tool, inputTokens, outputTokens, cacheCreation, cacheRead, costUsd,
+}) {
   try {
     const db = admin.firestore();
     const date = dateKeyUtc();
-    const inputTokens = usage?.input_tokens || 0;
-    const outputTokens = usage?.output_tokens || 0;
-    const cacheCreation = usage?.cache_creation_input_tokens || 0;
-    const cacheRead = usage?.cache_read_input_tokens || 0;
-    const costUsd = computeCostUsd(model, usage);
 
     const dayRef = db.collection("aiUsage").doc(date);
     const inc = (n) => admin.firestore.FieldValue.increment(n);
@@ -226,7 +330,7 @@ async function recordAiUsage({uid, model, usage, tool}) {
     return {costUsd, inputTokens, outputTokens};
   } catch (err) {
     // Accounting NEVER blocks the request. Log + move on.
-    console.warn("[aiCostTracking] recordAiUsage failed", err);
+    console.warn("[aiCostTracking] usage rollup write failed", err);
     return null;
   }
 }
@@ -498,6 +602,28 @@ async function getRevenueLinkedBudgetStatus() {
   };
 }
 
+// User-facing message every client-side budget gate throws with
+// (code "resource-exhausted").
+const BUDGET_PAUSED_MESSAGE =
+  "The monthly AI budget has been reached. AI features are paused " +
+  "until the next billing month or until an admin raises the limit.";
+
+/**
+ * Convenience for the model-client gates (anthropicClient, openaiClient,
+ * geminiClient, embeddings): true only when a ceiling is armed AND
+ * month-to-date tracked spend has reached it. Never throws — any
+ * accounting error fails open, matching getBudgetStatus.
+ */
+async function isOverBudget() {
+  try {
+    const status = await getBudgetStatus();
+    return Boolean(status && status.overBudget);
+  } catch (err) {
+    console.warn("[aiCostTracking] budget check failed (allowing call)", err);
+    return false;
+  }
+}
+
 // Test seam — let tests reset the in-memory caches between cases.
 function _resetBudgetCache() {
   budgetCache = {expiresAt: 0, monthKey: null, monthCostUsd: 0};
@@ -507,9 +633,14 @@ function _resetBudgetCache() {
 
 module.exports = {
   recordAiUsage,
+  recordAiImageUsage,
   computeCostUsd,
   pickRates,
+  imageCostUsd,
   PRICE_PER_MTOK,
+  IMAGE_PRICE_USD,
+  isOverBudget,
+  BUDGET_PAUSED_MESSAGE,
   monthKeyUtc,
   getMonthlyBudgetUsd,
   getMonthToDateCostUsd,

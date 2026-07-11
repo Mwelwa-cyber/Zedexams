@@ -153,6 +153,7 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
   let modelUsed = FLASHCARDS_MODEL;
   try {
     const response = await callClaude(apiKey, {
+      track: {uid, tool: "flashcards"},
       systemPrompt: pickSystemPrompt(inputs),
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: userPrompt}],

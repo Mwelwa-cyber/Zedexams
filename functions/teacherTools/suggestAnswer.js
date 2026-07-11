@@ -471,6 +471,7 @@ async function callGeminiForAnswer({inputs, geminiKey}) {
   ];
 
   const text = await callGemini(geminiKey, {
+    track: {tool: "suggestAnswer"},
     systemPrompt: SYSTEM_PROMPT,
     userPrompt: promptLines.join("\n"),
     imageUrl: inputs.imageUrl,
@@ -522,6 +523,7 @@ async function runSuggestAnswer({uid, inputs, apiKey, geminiKey}) {
 
   if (!parsed) {
     const claudeResult = await callClaude(apiKey, {
+      track: {uid, tool: "suggestAnswer"},
       model: SUGGEST_MODEL,
       mode: "tool",
       systemPrompt: SYSTEM_PROMPT,
