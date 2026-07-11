@@ -2182,6 +2182,12 @@ exports.checkShortAnswer = onCall(
       );
     }
 
+    // Same shared per-user daily AI allowance every other learner-facing
+    // model callable enforces (see explainAnswer) — this was the one
+    // Anthropic endpoint a scripted client could drain without a cap.
+    const role = await getUserRole(request.auth.uid);
+    await assertDailyLimit(request.auth.uid, role, "markAnswer");
+
     const context = [grade ? `Grade ${grade}` : "", subject]
       .filter(Boolean)
       .join(", ");
