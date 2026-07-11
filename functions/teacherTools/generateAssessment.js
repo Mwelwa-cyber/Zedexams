@@ -26,7 +26,7 @@ const {
 } = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV9");
+  require("./assessmentPromptV10");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {sourceAssessmentFromBank} = require("./masterBankSourcing");
