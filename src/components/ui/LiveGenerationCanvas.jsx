@@ -47,6 +47,10 @@ import { useLiveReveal } from '../../hooks/useLiveReveal'
  *   onStop          — Stop Generation (during generating).
  *   onRegenerate    — regenerate the whole document.
  *   onRegenerateSection — async (sectionId) => freshResult|void; swaps one section.
+ *                         Must return the updated result object on success, or a
+ *                         falsy value on failure. A falsy return (or a throw) shows
+ *                         an inline "Could not rewrite this section" notice in place
+ *                         of a silent no-op.
  *   onSaveToLibrary — async () => void; explicit save.
  *   onContinueEditing — hand off to the studio's full editable/export View.
  *   onRetry         — retry after an error.
@@ -85,6 +89,9 @@ export default function LiveGenerationCanvas({
   // regenerate can swap a single section without re-revealing the whole doc.
   const [sections, setSections] = useState([])
   const [busySection, setBusySection] = useState(null)
+  // Tracks which section (by id) most recently failed to regenerate, so the
+  // canvas can show an inline notice without relying on the studio to surface it.
+  const [sectionError, setSectionError] = useState(null)
   const resultRef = useRef(result)
 
   useEffect(() => {
@@ -114,6 +121,7 @@ export default function LiveGenerationCanvas({
 
   async function handleRegenerateSection(sectionId) {
     if (!onRegenerateSection || busySection) return
+    setSectionError(null)
     setBusySection(sectionId)
     try {
       const fresh = await onRegenerateSection(sectionId)
@@ -123,9 +131,12 @@ export default function LiveGenerationCanvas({
         if (replacement) {
           setSections((prev) => prev.map((s) => (s.id === sectionId ? replacement : s)))
         }
+      } else {
+        // falsy result: studio's regeneration failed without throwing
+        setSectionError(sectionId)
       }
     } catch {
-      /* the studio surfaces its own error; leave the old section in place */
+      setSectionError(sectionId)
     } finally {
       setBusySection(null)
     }
@@ -135,8 +146,12 @@ export default function LiveGenerationCanvas({
   const hasActions = Boolean(onContinueEditing || onSaveToLibrary || onRegenerate)
 
   // Mobile: the panel canvas opens as a full-screen preview once Generate is
-  // clicked. The embedded variant (inside a modal) skips the overlay + chrome.
-  const overlay = active && !embedded
+  // clicked, and stays full-screen when an error occurs so the teacher sees the
+  // error message + retry button rather than a card below the fold.
+  // The embedded variant (inside a modal) skips the overlay + chrome.
+  // NOTE: only the overlay condition includes 'error'; `active` must stay
+  // generating|success-only because it also gates the header/timeline/sections block.
+  const overlay = (active || status === 'error') && !embedded
     ? 'max-md:fixed max-md:inset-0 max-md:z-[70] max-md:rounded-none max-md:m-0 max-md:min-h-screen max-md:overflow-y-auto'
     : ''
   const wrapperClass = embedded
@@ -200,6 +215,7 @@ export default function LiveGenerationCanvas({
                     canRegenerate={complete && Boolean(onRegenerateSection)}
                     busy={busySection === s.id}
                     anyBusy={Boolean(busySection)}
+                    failed={sectionError === s.id}
                     onRegenerate={() => handleRegenerateSection(s.id)}
                   />
                 ))}
@@ -309,7 +325,7 @@ function TimelineRow({ step }) {
 
 /* ── revealed section ──────────────────────────────────────────── */
 
-function RevealSection({ section, canRegenerate, busy, anyBusy, onRegenerate }) {
+function RevealSection({ section, canRegenerate, busy, anyBusy, failed, onRegenerate }) {
   return (
     <div className="animate-slide-in-soft">
       <div className="flex items-center justify-between gap-2 mb-2 border-b theme-border pb-1">
@@ -333,6 +349,10 @@ function RevealSection({ section, canRegenerate, busy, anyBusy, onRegenerate }) 
         <div className="py-4 flex items-center gap-2 text-sm theme-text-muted">
           <MiniSpinner /> Rewriting this section…
         </div>
+      ) : failed ? (
+        <p className="text-sm text-danger py-2">
+          Could not rewrite this section — please try again.
+        </p>
       ) : (
         <LiveGenerationSectionValue value={section.value} />
       )}
@@ -344,7 +364,7 @@ function RevealSection({ section, canRegenerate, busy, anyBusy, onRegenerate }) 
 
 function ErrorState({ message, onRetry }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+    <div role="alert" className="flex flex-col items-center justify-center h-full py-12 text-center">
       <div className="text-5xl mb-3" aria-hidden="true">⚠️</div>
       <h3 className="studio-display" style={{ fontSize: 20 }}>Something went wrong</h3>
       <p className="text-sm max-w-md mb-3 mt-1 theme-text-muted">
