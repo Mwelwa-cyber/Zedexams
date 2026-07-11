@@ -159,7 +159,8 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
           <input
             type="number"
             value={form.year}
-            onChange={e => setF('year', clampInt(e.target.value, 2020, 2099, new Date().getFullYear()))}
+            onChange={e => setF('year', e.target.value)}
+            onBlur={e => setF('year', clampInt(e.target.value, 2020, 2099, new Date().getFullYear()))}
           />
         </div>
       </div>
@@ -203,7 +204,8 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
           <input
             type="number"
             value={form.duration}
-            onChange={e => setF('duration', clampInt(e.target.value, 5, 600, 60))}
+            onChange={e => setF('duration', e.target.value)}
+            onBlur={e => setF('duration', clampInt(e.target.value, 5, 600, 60))}
           />
         </div>
         <div className="sv-field">
@@ -742,8 +744,8 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, pa
               marks
               <input
                 type="number"
-                value={question.marks || 1}
-                onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'marks', clampInt(e.target.value, 0, 100, 1))}
+                value={question.marks ?? 1}
+                onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'marks', clampInt(e.target.value, 1, 100, 1))}
               />
             </label>
           </div>

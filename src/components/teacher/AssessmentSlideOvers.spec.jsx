@@ -197,3 +197,38 @@ describe('EditorSlide — type select & editors (F2+F4)', () => {
     expect(updatedFields).toContain('matchingAnswer')
   })
 })
+
+/* =========================================================
+ * F23 regression — EditorSlide marks input must never
+ * store 0 while displaying 1.
+ *
+ * For MCQ questions, the Marks <input type="number"> is the
+ * only spinbutton in EditorSlide, so getAllByRole('spinbutton')[0]
+ * reliably targets it.
+ * ========================================================= */
+describe('EditorSlide — marks input never stores 0 while displaying 1 (F23)', () => {
+  it('clearing marks stores 1 (not 0)', () => {
+    const { onUpdateStandalone } = renderEditor('mcq', { marks: 3 })
+    const [marksInput] = screen.getAllByRole('spinbutton')
+    fireEvent.change(marksInput, { target: { value: '' } })
+    // clampInt('', 1, 100, 1) must return 1 — previously returned 0
+    const marksCalls = onUpdateStandalone.mock.calls.filter(([, field]) => field === 'marks')
+    expect(marksCalls).toHaveLength(1)
+    expect(marksCalls[0][2]).toBe(1)
+  })
+
+  it('stored 0 is displayed as 0 (not silently shown as 1)', () => {
+    // With ?? 1, question.marks=0 renders as 0 (truthful), not 1 (old || 1)
+    renderEditor('mcq', { marks: 0 })
+    const [marksInput] = screen.getAllByRole('spinbutton')
+    expect(marksInput).toHaveValue(0)
+  })
+
+  it('display value matches the stored value after a normal change', () => {
+    const { onUpdateStandalone } = renderEditor('mcq', { marks: 2 })
+    const [marksInput] = screen.getAllByRole('spinbutton')
+    fireEvent.change(marksInput, { target: { value: '7' } })
+    const marksCalls = onUpdateStandalone.mock.calls.filter(([, field]) => field === 'marks')
+    expect(marksCalls[0][2]).toBe(7)
+  })
+})

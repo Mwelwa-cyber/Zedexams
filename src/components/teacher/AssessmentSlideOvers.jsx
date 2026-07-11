@@ -897,8 +897,8 @@ export function EditorSlide({ open, onClose, targetKey, sections, onUpdateStanda
             <label>Marks</label>
             <input
               type="number"
-              value={question.marks || 1}
-              onChange={e => update('marks', clampInt(e.target.value, 0, 100, 1))}
+              value={question.marks ?? 1}
+              onChange={e => update('marks', clampInt(e.target.value, 1, 100, 1))}
             />
           </div>
           <div className="sv-field">
