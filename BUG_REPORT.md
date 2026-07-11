@@ -7,13 +7,17 @@
 
 ---
 
-## Current status (2026-06-07)
+## Current status (2026-07-11)
 
-The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **all P3 cleanup is done**. No open items remain.
+The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **all P3 cleanup is done**.
+
+A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified) fixed 23 issues — data-loss, silent-failure, and input bugs across the studios, register, library, scan import, and dashboard. The items below were confirmed real but deliberately deferred.
 
 ### Still open
 
-_None._
+- **P2 · `useFirestore` service-level error swallowing** — `getMyAssessments` / `getAssessmentQuestions` / `getAssessmentById` catch every error and return `[]`/`null`, and `teacherLibraryService.getGeneration` returns `null` on error, so load failures render as false empty/deleted states across AssessmentList, the studio edit loader ("This test paper does not exist or has been deleted" on a network blip — and hydrating an empty read lets autosave clobber `questionCount`/`totalMarks`), TeacherLibrary folder counts, LibraryItemDetail, and TeacherDashboard, with no retry anywhere. Fix is a rethrow + per-surface error UI across ~6 caller files; needs its own PR. Guard the studio edit loader against hydrating `questions.length === 0` while `assessment.questionCount > 0`.
+- **P3 · Curriculum lookup caches don't self-heal** — `useCurriculumOptions._indexCache`, `TopicSubtopicPicker._cacheByFw`, and `syllabusTopicOptions._lookupCache` latch an empty lookup for the session if the first syllabi load fails (the underlying `syllabusKbService` cache-poisoning was fixed 2026-07-11; these module-scope caches still latch).
+- **P3 · Register dirty-state guard only covers the Back button** — `MarkEntryGrid` now confirms on Back, but the tab `<Link>`s in `ClassRegisterDetail` (and "← My classes"/"Edit") still discard unsaved marks on SPA navigation; closing fully means lifting dirty state to the parent.
 
 _(The console-log cleanup item — scattered intermediate "test passed" lines in `src/components/quiz/documentQuizParserCore.test.js` — was resolved on 2026-06-18: the per-section logs were removed and consolidated into a single final `All documentQuizParserCore tests passed.` summary, matching the convention used by the other node test scripts.)_
 
