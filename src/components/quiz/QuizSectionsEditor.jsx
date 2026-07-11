@@ -2166,6 +2166,34 @@ function BulkActionBar({ count, theme, onClear, onDelete, onSetMarks, onApplyPat
   )
 }
 
+// A slim "insert a question here" affordance that sits BETWEEN question cards
+// (and at the top of each group). Subtle by default so a 60-question paper
+// isn't cluttered, and emphasised on hover/focus. Tapping it asks the parent to
+// splice a fresh blank question into that exact slot — the new card takes the
+// next printed number and everything below shifts up, so a teacher can fill an
+// importer gap (e.g. a question skipped between 31 and 32) in place instead of
+// adding at the bottom and walking it up by hand.
+function InsertQuestionDivider({ onInsert }) {
+  return (
+    <div className="group/ins relative my-0.5 flex items-center justify-center">
+      <div
+        aria-hidden="true"
+        className="theme-border pointer-events-none absolute inset-x-6 top-1/2 -translate-y-1/2 border-t border-dashed opacity-0 transition-opacity group-hover/ins:opacity-100"
+      />
+      <button
+        type="button"
+        onClick={onInsert}
+        aria-label="Insert a new question here"
+        title="Insert a new question here"
+        className="theme-border theme-card theme-text-muted hover:theme-text relative z-10 inline-flex min-h-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black opacity-40 transition-all hover:opacity-100 hover:shadow-sm focus-visible:opacity-100"
+      >
+        <span aria-hidden="true">＋</span>
+        <span className="hidden sm:inline">Insert question</span>
+      </button>
+    </div>
+  )
+}
+
 function AddQuestionMenu({ onAddStandalone, onAddPassage, onAddMap, variant }) {
   const [open, setOpen] = useState(false)
   const theme = THEMES[variant] || THEMES.create
@@ -2361,6 +2389,11 @@ export default function QuizSectionsEditor({
   onPassageQuestionOptionImageUpload,
   onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
+  // Insert a blank standalone question at a chosen slot (between two cards or
+  // at the top of a group). Called with { anchorId, mode: 'after'|'before',
+  // partId }. Optional — the between-card insert affordances only render when
+  // the parent wires this in.
+  onInsertStandalone,
   onAddStandalone,
   onAddPassage,
   onAddMap,
@@ -2625,6 +2658,31 @@ export default function QuizSectionsEditor({
     setPendingAction('autogroup')
   }, [onAutoGroupComprehension])
 
+  // Render a group's cards with "insert question here" dividers woven between
+  // them (and one at the very top of the group). `partId` keeps an inserted
+  // question in the same Part / Section as its neighbours (null = ungrouped).
+  // No-op wrapper when the parent didn't wire onInsertStandalone.
+  function renderGroupWithInserts(members, partId) {
+    if (!onInsertStandalone || members.length === 0) return members.map(renderSection)
+    const nodes = []
+    nodes.push(
+      <InsertQuestionDivider
+        key={`ins-top-${partId ?? 'ungrouped'}`}
+        onInsert={() => onInsertStandalone({ anchorId: members[0].id, mode: 'before', partId: partId ?? null })}
+      />,
+    )
+    members.forEach(section => {
+      nodes.push(renderSection(section))
+      nodes.push(
+        <InsertQuestionDivider
+          key={`ins-after-${section.id}`}
+          onInsert={() => onInsertStandalone({ anchorId: section.id, mode: 'after', partId: partId ?? null })}
+        />,
+      )
+    })
+    return nodes
+  }
+
   return (
     <div className="space-y-4">
       <BulkActionBar
@@ -2685,7 +2743,7 @@ export default function QuizSectionsEditor({
         </div>
       ) : (
         <>
-          {ungrouped.map(renderSection)}
+          {renderGroupWithInserts(ungrouped, null)}
 
           {sortedParts.map((part, partIndex) => {
             const members = groupedByPart.get(part.id) || []
@@ -2701,7 +2759,7 @@ export default function QuizSectionsEditor({
                 onMove={onPartMove}
                 onRemove={onPartRemove}
               >
-                {members.map(renderSection)}
+                {renderGroupWithInserts(members, part.id)}
               </PartCard>
             )
           })}
