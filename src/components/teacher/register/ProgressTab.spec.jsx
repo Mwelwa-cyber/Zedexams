@@ -38,4 +38,14 @@ describe('ProgressTab', () => {
     render(<ProgressTab register={{ id: 'c2' }} />)
     await waitFor(() => expect(screen.getByText(/No progress to show yet/i)).toBeInTheDocument())
   })
+
+  // [Bug fix #14] Load failure renders an error card, not the empty state ——
+
+  it('shows an error card when listRecords rejects', async () => {
+    const mod = await import('../../../utils/classRecords')
+    mod.listRecords.mockRejectedValueOnce(new Error('Network error'))
+    render(<ProgressTab register={{ id: 'c-err', term: 'Term 1', year: 2026 }} />)
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.queryByText(/No progress to show yet/i)).not.toBeInTheDocument()
+  })
 })

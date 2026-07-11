@@ -40,14 +40,16 @@ export default function ClassRegisterDetail() {
 
   const [reg, setReg] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setLoadError(false)
     getRegister(classId)
       .then((r) => { if (!cancelled) setReg(r) })
-      .catch((err) => console.warn('[ClassRegisterDetail] load failed', err))
+      .catch((err) => { console.warn('[ClassRegisterDetail] load failed', err); if (!cancelled) setLoadError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [classId])
@@ -81,6 +83,15 @@ export default function ClassRegisterDetail() {
 
   if (loading) {
     return <div className="space-y-3"><Skeleton className="h-10" /><Skeleton className="h-64" /></div>
+  }
+  if (loadError) {
+    return (
+      <div role="alert" className="theme-card border border-red-300 rounded-radius-md p-8 text-center">
+        <p className="theme-text font-black">Couldn&apos;t load this class</p>
+        <p className="theme-text-muted text-sm mt-2">Something went wrong. Refresh the page and try again.</p>
+        <Link to="/teacher/register" className="theme-accent-text text-sm font-black mt-2 inline-block">← Back to my classes</Link>
+      </div>
+    )
   }
   if (!reg) {
     return (

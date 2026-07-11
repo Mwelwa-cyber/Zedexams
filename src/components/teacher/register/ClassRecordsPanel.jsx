@@ -37,6 +37,7 @@ export default function ClassRecordsPanel({
   const [roster, setRoster] = useState([])
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [creating, setCreating] = useState(false)
   const [openRecord, setOpenRecord] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -50,6 +51,7 @@ export default function ClassRecordsPanel({
 
   async function refresh() {
     setLoading(true)
+    setLoadError(false)
     try {
       const types = Array.isArray(type) ? type : [type]
       const [r, all] = await Promise.all([listRoster(classId), listRecords(classId)])
@@ -57,6 +59,7 @@ export default function ClassRecordsPanel({
       setRecords(all.filter((rec) => types.includes(rec.type)))
     } catch (err) {
       console.warn('[ClassRecordsPanel] load failed', err)
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -126,6 +129,14 @@ export default function ClassRecordsPanel({
 
       {loading ? (
         <Skeleton className="h-24 rounded-radius-md" />
+      ) : loadError ? (
+        <div role="alert" className="theme-card border border-red-300 rounded-radius-md p-6 text-center">
+          <p className="theme-text font-black">Couldn&apos;t load records</p>
+          <p className="theme-text-muted text-sm mt-1">Something went wrong reading this data.</p>
+          <button type="button" onClick={refresh} className="mt-2 theme-accent-text text-sm font-black">
+            Retry
+          </button>
+        </div>
       ) : records.length === 0 && !creating ? (
         <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
           <div className="text-4xl mb-2">{emptyIcon}</div>

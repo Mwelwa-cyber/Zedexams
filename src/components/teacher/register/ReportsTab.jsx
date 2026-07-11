@@ -29,6 +29,7 @@ export default function ReportsTab({ register }) {
   const toast = useToast()
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [viewPeriod, setViewPeriod] = useState('current')
 
@@ -41,9 +42,10 @@ export default function ReportsTab({ register }) {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setLoadError(false)
     listRecords(classId)
       .then((recs) => { if (!cancelled) setRecords(recs) })
-      .catch((err) => console.warn('[ReportsTab] load failed', err))
+      .catch((err) => { console.warn('[ReportsTab] load failed', err); if (!cancelled) setLoadError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [classId])
@@ -65,6 +67,17 @@ export default function ReportsTab({ register }) {
   }
 
   if (loading) return <Skeleton className="h-24 rounded-radius-md" />
+
+  if (loadError) {
+    return (
+      <div role="alert" className="theme-card border border-red-300 rounded-radius-md p-6 text-center">
+        <p className="theme-text font-black">Couldn&apos;t load records</p>
+        <p className="theme-text-muted text-sm mt-1">
+          Something went wrong. Refresh the page and try again.
+        </p>
+      </div>
+    )
+  }
 
   if (records.length === 0) {
     return (
