@@ -1,13 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
+import { isWithinVerificationGrace } from '../../utils/verification'
 import FullScreenLoader from '../ui/FullScreenLoader'
 import MissingProfileRecovery from '../auth/MissingProfileRecovery'
+import VerifyEmailBanner from '../ui/VerifyEmailBanner'
 
 const ROLE_LEVEL = { superAdmin: 4, admin: 3, teacher: 2, learner: 1, student: 1 }
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const { currentUser, userProfile, loading, profileIssue } = useAuth()
+  const { currentUser, userProfile, loading, profileIssue, needsEmailVerification } = useAuth()
   const location = useLocation()
 
   // Branded splash (not the thin bar) while the session + profile resolve on a
@@ -20,6 +22,20 @@ export default function ProtectedRoute({ children, requiredRole }) {
   // back to the page they were on instead of the generic role landing page.
   if (!currentUser) {
     return <Navigate to="/login" replace state={{ from: location }} />
+  }
+  // Unverified email/password account. Backend (Firestore/Storage rules +
+  // Cloud Functions) enforces the same token claim, so this redirect is UX,
+  // not the security boundary. Accounts inside the migration-granted grace
+  // window keep access but see a persistent (per-session dismissible)
+  // reminder banner — grace is honoured by the backend too. The user doc
+  // must wait to load before the grace check: while userProfile is null a
+  // grace-holder would otherwise be bounced on a slow profile read.
+  const inGrace = needsEmailVerification && isWithinVerificationGrace(userProfile)
+  if (needsEmailVerification && !inGrace) {
+    if (!userProfile && !profileIssue) {
+      return <FullScreenLoader label="Restoring your session…" />
+    }
+    return <Navigate to="/verify-email" replace state={{ from: location }} />
   }
   // Signed in but the profile is unreadable (transient network failure) or
   // missing. Render the recovery screen IN PLACE — no redirect — so the URL
@@ -43,5 +59,13 @@ export default function ProtectedRoute({ children, requiredRole }) {
     }
   }
 
+  if (inGrace) {
+    return (
+      <>
+        <VerifyEmailBanner />
+        {children}
+      </>
+    )
+  }
   return children
 }

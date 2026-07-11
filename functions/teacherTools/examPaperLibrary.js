@@ -23,6 +23,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 
 const {getAnthropicApiKey, getUserRole} = require("../aiService");
 const {callClaude} = require("./anthropicClient");
@@ -298,17 +299,15 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
 
 // ── Wiring ───────────────────────────────────────────────────────────────
 
-function assertAdmin(request) {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
-  return uid;
+async function assertAdmin(request) {
+  return assertVerifiedAuth(request, "Please sign in.");
 }
 
 function createAnalyzeExamPaper(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 300, memory: "1GiB"},
     async (request) => {
-      const uid = assertAdmin(request);
+      const uid = await assertAdmin(request);
       if ((await getUserRole(uid)) !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }
@@ -322,7 +321,7 @@ function createSynthesizeAssessmentFormat(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 300, memory: "512MiB"},
     async (request) => {
-      const uid = assertAdmin(request);
+      const uid = await assertAdmin(request);
       if ((await getUserRole(uid)) !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }

@@ -27,6 +27,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
 const pdfParse = require("pdf-parse");
 
@@ -170,10 +171,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     memory: "1GiB",
     enforceAppCheck: shouldEnforceAppCheck("extractTopicsFromPdf"),
   }, async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    const uid = request.auth.uid;
+    const uid = await assertVerifiedAuth(request);
     const role = await getUserRole(uid);
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");

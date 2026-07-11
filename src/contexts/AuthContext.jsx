@@ -68,10 +68,15 @@ function toUserProfile(uid, data) {
 
 // Defaults that satisfy the create-user firestore rule. Used by both the
 // email/password register flow and the first-time Google sign-in flow.
-function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = null, school = '', referralCode = null, referredBy = null }) {
+function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = null, school = '', referralCode = null, referredBy = null, emailVerified = false }) {
   return {
     displayName: displayName ?? '',
     email: email ?? '',
+    // Display-only mirror of the Auth token's email_verified claim (the
+    // claim, not this field, is what rules/functions enforce). The create
+    // rule only accepts `true` here when the token claim really is true —
+    // i.e. Google sign-ins; password signups always start false.
+    emailVerified,
     role,
     grade,
     school,
@@ -193,6 +198,7 @@ async function ensureGoogleUserProfile(cred, targetRole) {
     role: targetRole,
     referralCode,
     referredBy,
+    emailVerified: cred.user.emailVerified === true,
   }))
   if (referredBy) clearPendingReferral()
   // Audit B2 — only emit on the first-time path so Google sign-IN by an
@@ -205,6 +211,11 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
+  // Explicit React state, NOT derived from currentUser at render time:
+  // user.reload() mutates the Firebase User in place, so a verification that
+  // completes mid-session would never re-render the guards without this.
+  // null = unknown (no user / still restoring).
+  const [emailVerified, setEmailVerified] = useState(null)
   const bootstrapInFlightRef = useRef(new Map())
   // Tracks effect teardown so async recovery paths (forced token refresh,
   // bootstrap) can bail after unmount. A ref rather than a closure boolean
@@ -254,8 +265,7 @@ export function AuthProvider({ children }) {
     if (referredBy) clearPendingReferral()
     // Fire the verification email but don't fail signup if delivery hiccups
     // (e.g. rate-limited, transient Firebase Auth outage). The user lands on
-    // their dashboard and the email arrives shortly after; if it doesn't, the
-    // /auth/action handler can still resend on demand.
+    // /verify-email, which has its own Resend button for the retry.
     try {
       await sendEmailVerification(cred.user)
     } catch (err) {
@@ -311,6 +321,37 @@ export function AuthProvider({ children }) {
     setProfileIssue(null)
     return signOut(auth)
   }
+
+  // Re-check verification against the Auth server. On success, force a token
+  // refresh so Firestore rules + Cloud Functions see email_verified=true NOW
+  // (the ID token otherwise carries the stale claim for up to an hour), then
+  // best-effort mirror onto the users doc (display-only; rules only accept
+  // the mirror write when the token claim is genuinely true).
+  const refreshEmailVerification = useCallback(async () => {
+    const user = auth.currentUser
+    if (!user) return false
+    await user.reload()
+    const verified = auth.currentUser?.emailVerified === true
+    if (verified) {
+      try {
+        await auth.currentUser.getIdToken(true)
+      } catch (err) {
+        console.warn('[verify-email] token refresh failed:', err)
+      }
+      updateDoc(doc(db, 'users', user.uid), {
+        emailVerified: true,
+        emailVerifiedAt: serverTimestamp(),
+      }).catch(() => null)
+    }
+    setEmailVerified(verified)
+    return verified
+  }, [])
+
+  const resendVerificationEmail = useCallback(async () => {
+    const user = auth.currentUser
+    if (!user) throw new Error('No signed-in user.')
+    return sendEmailVerification(user)
+  }, [])
 
   const fetchUserProfile = useCallback(async (uid, { updateState = true } = {}) => {
     try {
@@ -579,6 +620,7 @@ export function AuthProvider({ children }) {
         unsubProfile = null
       }
       setCurrentUser(user)
+      setEmailVerified(user ? user.emailVerified : null)
       setProfileIssue(null)
       // Tag Sentry with the signed-in UID so an error can be traced to a
       // specific learner/teacher for support triage. Only the UID is
@@ -639,13 +681,21 @@ export function AuthProvider({ children }) {
   useAuthRecovery({
     currentUser,
     enabled: !!currentUser,
-    onResubscribe: () => subscribeProfileRef.current?.(),
+    onResubscribe: () => {
+      subscribeProfileRef.current?.()
+      // The resume-path token refresh may have picked up a verification done
+      // on another device — sync the explicit state so guards re-evaluate.
+      if (auth.currentUser) setEmailVerified(auth.currentUser.emailVerified)
+    },
     onSessionExpired: (reason) => expireSession(`resume-${reason}`),
   })
 
   return (
     <AuthContext.Provider value={{
       currentUser, userProfile, loading, profileIssue,
+      emailVerified,
+      needsEmailVerification: !!currentUser && emailVerified === false,
+      refreshEmailVerification, resendVerificationEmail,
       login, loginWithGoogle, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
       isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,

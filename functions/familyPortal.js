@@ -32,6 +32,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
 const {
   FAMILY_CODE_TTL_DAYS,
@@ -65,8 +66,7 @@ const createFamilyInviteCode = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
 
@@ -109,8 +109,7 @@ const revokeFamilyInviteCode = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const code = normalizeFamilyCode(request.data?.code);
   if (!isValidFamilyCode(code)) {
@@ -133,8 +132,7 @@ const redeemFamilyInviteCode = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const code = normalizeFamilyCode(request.data?.code);
   if (!isValidFamilyCode(code)) {
@@ -208,8 +206,7 @@ const getChildProgress = onCall({
   timeoutSeconds: 60,
   memory: "512MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const childUid = String(request.data?.childUid || "").trim();
   if (!childUid) throw new HttpsError("invalid-argument", "childUid is required.");

@@ -1,4 +1,5 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const admin = require("firebase-admin");
 
 const {
@@ -371,9 +372,7 @@ function createGenerateStudyPlan(
       enforceAppCheck,
     },
     async (request) => {
-      if (!request.auth) {
-        throw new HttpsError("unauthenticated", "Please sign in first.");
-      }
+      await assertVerifiedAuth(request);
       if (recordAppCheckCallable) {
         recordAppCheckCallable(request, "generateStudyPlan");
       }

@@ -14,11 +14,13 @@ import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import {
   ASSESSMENT_TYPE_LABELS,
   GRADES,
-  SUBJECTS,
   TERMS,
   INSTRUCTION_PRESETS,
   buildTitleFromForm,
 } from '../AssessmentStudio'
+import {
+  useStudioSubjectChoices, normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
+} from '../syllabusTopicOptions'
 import Icon from './studioIcons'
 
 /* ==================================================================
@@ -86,6 +88,12 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
   // How scanned diagrams are handled. Default 'keep' — never drop figures by
   // default; many Zambian questions depend on them. 'text' is NOT the default.
   const [diagramHandling, setDiagramHandling] = useState('keep')
+  // Subjects come from the live syllabus for the chosen grade + curriculum —
+  // each level offers what it is actually taught (Grade 10 → Physics/Biology,
+  // Grade 1 → Literacy/Numeracy) rather than a fixed upper-primary list. The
+  // paper's saved subject always stays selectable.
+  const framework = normalizeStudioFramework(form.framework)
+  const { options: subjectChoices } = useStudioSubjectChoices(form.grade, framework, form.subject)
 
   return (
     <div className="sv-block b-header">
@@ -156,11 +164,23 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
         </div>
       </div>
 
+      <div className="sv-field" style={{ marginBottom: 'var(--sv-s3)' }}>
+        <label>Curriculum / syllabus</label>
+        <select value={framework} onChange={e => setF('framework', e.target.value)}>
+          {CURRICULUM_FRAMEWORKS.map(f => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+          The subject list and syllabus topics follow the chosen curriculum for this grade.
+        </div>
+      </div>
+
       <div className="sv-field-grid two">
         <div className="sv-field">
           <label>Subject <span className="sv-req">*</span></label>
           <select value={form.subject} onChange={e => setF('subject', e.target.value)}>
-            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+            {subjectChoices.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div className="sv-field">

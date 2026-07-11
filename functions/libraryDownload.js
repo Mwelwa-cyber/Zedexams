@@ -30,6 +30,7 @@
  */
 
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const {contentDispositionFor, sanitizeFilename} = require("./downloadHeaders");
@@ -49,10 +50,7 @@ const SUPPORTED_TOOLS = new Set(["lesson_plan", "lesson-plan"]);
 const createLibraryDownloadTicket = onCall(
   {region: "us-central1"},
   async (request) => {
-    const uid = request.auth && request.auth.uid;
-    if (!uid) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    const uid = await assertVerifiedAuth(request);
     const data = request.data || {};
     const generationId = String(data.generationId || "");
     const format = String(data.format || "docx");

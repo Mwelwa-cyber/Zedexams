@@ -28,6 +28,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 
 const {
   getAnthropicApiKey,
@@ -560,10 +561,7 @@ function createSuggestAnswer(anthropicApiKeySecret, geminiApiKeySecret) {
   return onCall(
     {secrets, timeoutSeconds: 45, memory: "256MiB"},
     async (request) => {
-      const uid = request.auth && request.auth.uid;
-      if (!uid) {
-        throw new HttpsError("unauthenticated", "Please sign in.");
-      }
+      const uid = await assertVerifiedAuth(request, "Please sign in.");
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {
         throw new HttpsError(

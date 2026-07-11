@@ -64,7 +64,7 @@ import { consumeVisualHandoff, isVisualHandoffRequest } from '../../utils/studio
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
 import ScanPaperModal from './scan/ScanPaperModal'
 import ImportReviewScreen from './scan/ImportReviewScreen'
-import { studioGradeToKbGrade, studioSubjectToKey } from './syllabusTopicOptions'
+import { studioGradeToKbGrade, studioSubjectToKey, normalizeStudioFramework } from './syllabusTopicOptions'
 import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
 import { getStudioVariant } from './studioVariant'
 import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from './assessmentStudioMeta'
@@ -227,6 +227,7 @@ function mapAssessmentToForm(a = {}) {
   copy('duration')
   copy('topic')
   copy('assessmentType')
+  copy('framework', normalizeStudioFramework)
   copy('schoolName')
   // School identity from Teacher Settings → My School (printed in the paper
   // header alongside the school name).
@@ -303,6 +304,10 @@ function makeDefaultForm(cfg) {
     type: 'assessment',
     topic: '',
     assessmentType: cfg.defaultType,
+    // Curriculum framework the paper targets: '2023' (new CBC) or '2013'
+    // (previous outcome-based syllabus). Drives which syllabus the subject +
+    // topic pickers read AND which KB the generators ground on.
+    framework: '2023',
     schoolName: '',
     // School identity (seeded from the saved school profile by
     // applySchoolProfileDefaults; rendered in the paper header when set).
@@ -438,7 +443,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // teacher can cover several topics + sub-topics in one generation (the same
   // multi-select flow as the full "Create paper with AI" modal), not one topic
   // at a time. `topic` is kept for back-compat with any override callers.
-  const [aiForm, setAiForm] = useState({ topics: [], subtopics: [], topic: '', count: 5, type: 'mcq', framework: '2023' })
+  // The curriculum framework is NOT here — it lives on the paper itself
+  // (form.framework) so the header, the quick generator and the full-paper
+  // modal all follow one choice.
+  const [aiForm, setAiForm] = useState({ topics: [], subtopics: [], topic: '', count: 5, type: 'mcq' })
   const [aiGenerating, setAiGenerating] = useState(false)
   // Quick-questions review gate: after generation the questions land here for
   // an accept/discard pass instead of being appended straight into the paper.
@@ -1387,6 +1395,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         // follows them (unlike the fields below, which only backfill).
         grade: aiPaperForm.grade || f.grade,
         subject: aiSubjectLabel || f.subject,
+        framework: normalizeStudioFramework(aiPaperForm.framework || f.framework),
         term: f.term || aiPaperForm.term,
         duration: f.duration || String(aiPaperForm.durationMinutes),
         assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
@@ -1527,7 +1536,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         subtopic: subtopicsList.join('; ').slice(0, 300),
         count: aiForm.count,
         type: aiForm.type,
-        framework: aiForm.framework,
+        framework: normalizeStudioFramework(form.framework),
       })
       const { usable, dropped } = partitionUsableQuestions(generated)
       if (!usable.length) {
@@ -1922,6 +1931,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       duration: form.duration,
       topic: form.topic,
       assessmentType: form.assessmentType,
+      framework: normalizeStudioFramework(form.framework),
       schoolName: form.schoolName,
       schoolLogoUrl: form.schoolLogoUrl || '',
       motto: form.motto || '',
@@ -2780,7 +2790,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       {createPaperOpen && (
         <CreatePaperModal
           variant={variant}
-          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term }}
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
         />

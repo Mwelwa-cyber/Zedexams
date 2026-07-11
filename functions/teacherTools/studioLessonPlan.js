@@ -31,6 +31,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 const {assertAndIncrement} = require("./usageMeter");
@@ -221,8 +222,7 @@ function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
     async (request) => {
-      const uid = request.auth && request.auth.uid;
-      if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
+      const uid = await assertVerifiedAuth(request, "Please sign in.");
 
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {

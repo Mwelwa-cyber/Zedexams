@@ -89,6 +89,8 @@ function Probe() {
     isSuspended: a.isSuspended,
     userStatus: a.userStatus,
     hasProfile: !!a.userProfile,
+    emailVerified: a.emailVerified,
+    needsEmailVerification: a.needsEmailVerification,
   }
   return <span data-testid="flags">{JSON.stringify(flags)}</span>
 }
@@ -206,6 +208,109 @@ describe('AuthProvider role + access resolution', () => {
     expect(f.isAdmin).toBe(false)
     expect(f.canAccessFullContent).toBe(false)
     expect(h.signOut).not.toHaveBeenCalled()
+  })
+
+  it('an unverified email/password user exposes needsEmailVerification', () => {
+    const f = resolveFlags({ role: 'learner' }, {
+      user: { uid: 'u1', emailVerified: false, getIdToken: vi.fn() },
+    })
+    expect(f.emailVerified).toBe(false)
+    expect(f.needsEmailVerification).toBe(true)
+  })
+
+  it('a verified (or Google) user does not need verification', () => {
+    const f = resolveFlags({ role: 'learner' }, {
+      user: { uid: 'u1', emailVerified: true, getIdToken: vi.fn() },
+    })
+    expect(f.emailVerified).toBe(true)
+    expect(f.needsEmailVerification).toBe(false)
+  })
+
+  it('signed-out state reports emailVerified null and no verification need', () => {
+    const f = resolveFlags(undefined, { user: null })
+    expect(f.emailVerified).toBe(null)
+    expect(f.needsEmailVerification).toBe(false)
+  })
+})
+
+// refreshEmailVerification is the single choke point the /verify-email page,
+// the banner, and AuthAction rely on: it must reload the user, force a token
+// refresh (rules see the claim NOW, not in ≤1h), mirror onto the users doc,
+// and flip the context state so guards re-evaluate.
+describe('AuthProvider refreshEmailVerification', () => {
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.snap.next = null
+    h.snap.error = null
+    h.signOut.mockClear()
+  })
+
+  function ProbeRefresh() {
+    const a = useAuth()
+    return (
+      <>
+        <span data-testid="verified">{JSON.stringify(a.emailVerified)}</span>
+        <button onClick={() => a.refreshEmailVerification()}>refresh</button>
+      </>
+    )
+  }
+
+  it('reloads, force-refreshes the token, mirrors to Firestore, and flips context state', async () => {
+    const { auth } = await import('../firebase/config')
+    const { updateDoc } = await import('firebase/firestore')
+    const user = {
+      uid: 'u1',
+      emailVerified: false,
+      getIdToken: vi.fn(() => Promise.resolve('tok')),
+      reload: vi.fn(function () {
+        // The real reload() mutates the user in place.
+        this.emailVerified = true
+        return Promise.resolve()
+      }),
+    }
+    auth.currentUser = user
+
+    render(<AuthProvider><ProbeRefresh /></AuthProvider>)
+    act(() => { h.onAuthCb.current(user) })
+    expect(screen.getByTestId('verified').textContent).toBe('false')
+
+    await act(async () => {
+      screen.getByText('refresh').click()
+    })
+
+    expect(user.reload).toHaveBeenCalled()
+    expect(user.getIdToken).toHaveBeenCalledWith(true)
+    expect(updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ emailVerified: true }),
+    )
+    expect(screen.getByTestId('verified').textContent).toBe('true')
+    auth.currentUser = null
+  })
+
+  it('does NOT touch the token or the mirror when still unverified', async () => {
+    const { auth } = await import('../firebase/config')
+    const { updateDoc } = await import('firebase/firestore')
+    updateDoc.mockClear()
+    const user = {
+      uid: 'u1',
+      emailVerified: false,
+      getIdToken: vi.fn(() => Promise.resolve('tok')),
+      reload: vi.fn(() => Promise.resolve()),
+    }
+    auth.currentUser = user
+
+    render(<AuthProvider><ProbeRefresh /></AuthProvider>)
+    act(() => { h.onAuthCb.current(user) })
+    await act(async () => {
+      screen.getByText('refresh').click()
+    })
+
+    expect(user.reload).toHaveBeenCalled()
+    expect(user.getIdToken).not.toHaveBeenCalled()
+    expect(updateDoc).not.toHaveBeenCalled()
+    expect(screen.getByTestId('verified').textContent).toBe('false')
+    auth.currentUser = null
   })
 })
 

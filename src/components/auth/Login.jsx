@@ -5,6 +5,7 @@ import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
+import { isWithinVerificationGrace, needsEmailVerification as userNeedsVerification } from '../../utils/verification'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../utils/recaptcha'
 import Logo from '../ui/Logo'
@@ -57,6 +58,7 @@ export default function Login() {
   const {
     login, loginWithGoogle, resetPassword, ensureUserProfile,
     currentUser, userProfile, loading: authLoading, profileIssue,
+    needsEmailVerification,
   } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -76,6 +78,13 @@ export default function Login() {
   // they're sent straight back to where they were.
   useEffect(() => {
     if (authLoading || !currentUser) return
+    // Unverified email/password session — the verification gate, not the
+    // dashboard, is where they continue. Carry fromPath through so verifying
+    // returns them to the page they originally wanted.
+    if (needsEmailVerification && !isWithinVerificationGrace(userProfile)) {
+      navigate('/verify-email', { replace: true, state: location.state })
+      return
+    }
     if (profileIssue) {
       // Signed in but the profile couldn't be read — let RootRedirect show
       // the recovery screen rather than stranding them on the login form.
@@ -83,7 +92,7 @@ export default function Login() {
       return
     }
     if (userProfile) navigate(fromPath || getRoleLandingPath(userProfile, '/'), { replace: true })
-  }, [authLoading, currentUser, userProfile, profileIssue, fromPath, navigate])
+  }, [authLoading, currentUser, userProfile, profileIssue, fromPath, navigate, needsEmailVerification, location.state])
 
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
@@ -125,6 +134,13 @@ export default function Login() {
       }
       const cred = await login(email.trim(), password)
       const profile = await ensureUserProfile(cred.user)
+      // Unverified email/password account (no grace window): continue at the
+      // verification gate. location.state.from rides along so verifying lands
+      // them on the page they originally asked for.
+      if (userNeedsVerification(cred.user) && !isWithinVerificationGrace(profile)) {
+        navigate('/verify-email', { replace: true, state: location.state })
+        return
+      }
       // A null profile after a successful auth is almost always a transient
       // read failure on a flaky network (Zambia), NOT a missing profile.
       // AuthContext's onSnapshot listener (subscribeProfile) runs concurrently

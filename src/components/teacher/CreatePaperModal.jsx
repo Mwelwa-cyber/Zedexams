@@ -140,7 +140,9 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   const [form, setForm] = useState(() => ({
     grade: isPaperGrade(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
     subject: toKbSubjectKey(paperMeta?.subject) || 'english',
-    framework: '2023',
+    // Follow the paper's curriculum choice (set in the builder header / AI
+    // slide); '2023' for papers from before the field existed.
+    framework: paperMeta?.framework === '2013' ? '2013' : '2023',
     assessmentType: isExam ? 'mock' : 'end_of_term',
     term: paperMeta?.term || '1',
     topicInput: '',

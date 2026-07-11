@@ -2,6 +2,7 @@ const { onRequest } = require('firebase-functions/v2/https');
 const admin         = require('firebase-admin');
 const textToSpeech  = require('@google-cloud/text-to-speech');
 const { getUserRole, assertDailyLimit } = require('./aiService');
+const { assertDecodedVerified } = require('./authGuard');
 const { applyCors } = require('./cors');
 const { guardHttpRateLimit } = require('./rateLimit');
 
@@ -44,6 +45,11 @@ exports.apiTextToSpeech = onRequest(
     // ~$160/1M chars; an unauthenticated endpoint is a financial-DoS surface.
     const decoded = await verifyIdToken(req);
     if (!decoded) return res.status(401).json({ error: 'Sign in required.' });
+    // Same financial-DoS reasoning applies to unverified throwaway accounts
+    // (grace-window holders pass — assertDecodedVerified checks it).
+    try { await assertDecodedVerified(decoded); } catch {
+      return res.status(403).json({ error: 'Please verify your email address to continue.' });
+    }
 
     const { text, voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = req.body || {};
 
