@@ -12,6 +12,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
@@ -50,9 +51,7 @@ const SAMPLE_BRIEF = {
 };
 
 async function requireAdmin(request) {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Please sign in first.");
-  }
+  await assertVerifiedAuth(request);
   const role = await getUserRole(request.auth.uid);
   if (role !== "admin") {
     throw new HttpsError("permission-denied", "Admins only.");

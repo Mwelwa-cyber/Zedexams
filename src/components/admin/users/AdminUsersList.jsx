@@ -17,7 +17,7 @@ import { useToast } from '../../ui/Toast'
 const ROLE_LABELS = { admin: 'Admin', teacher: 'Teacher', learner: 'Learner', student: 'Learner' }
 
 function downloadCSV(rows, filename) {
-  const header = ['id', 'email', 'displayName', 'role', 'grade', 'school', 'status', 'createdAt']
+  const header = ['id', 'email', 'displayName', 'role', 'grade', 'school', 'status', 'emailVerified', 'createdAt']
   const csv = [
     header.join(','),
     ...rows.map(r => header.map(k => JSON.stringify(r[k] ?? '')).join(',')),
@@ -58,6 +58,11 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   const [roleFilter, setRoleFilter] = useState(defaultRole)
   const [params] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all')
+  // Verification filter reads the users.emailVerified MIRROR field —
+  // display-only (the Auth token claim is what rules/functions enforce),
+  // backfilled by scripts/migrate-backfill-email-verified.mjs. Docs that
+  // predate the backfill have no field and show as "Unknown".
+  const [verifiedFilter, setVerifiedFilter] = useState(params.get('verified') || 'all')
   const [busy, setBusy] = useState({})
   // Suspend/soft-delete confirm through ConfirmDialog instead of
   // window.confirm/prompt — { kind: 'suspend' | 'delete', uid, name }.
@@ -104,11 +109,15 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
         const status = u.status || 'active'
         if (status !== statusFilter) return false
       }
+      if (verifiedFilter !== 'all') {
+        if (verifiedFilter === 'verified' && u.emailVerified !== true) return false
+        if (verifiedFilter === 'unverified' && u.emailVerified !== false) return false
+      }
       if (!term) return true
       const hay = `${u.email || ''} ${u.displayName || ''} ${u.school || ''}`.toLowerCase()
       return hay.includes(term)
     })
-  }, [users, roleFilter, statusFilter, search, defaultRole])
+  }, [users, roleFilter, statusFilter, verifiedFilter, search, defaultRole])
 
   function handleSuspend(u, current) {
     if (busy[u.id]) return
@@ -210,6 +219,15 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
             <option value="suspended">Suspended</option>
             <option value="deleted">Deleted</option>
           </select>
+          <select
+            value={verifiedFilter}
+            onChange={e => setVerifiedFilter(e.target.value)}
+            className="theme-input rounded-xl border theme-border px-3 py-2 text-sm font-bold"
+          >
+            <option value="all">Any email status</option>
+            <option value="verified">Email verified</option>
+            <option value="unverified">Email unverified</option>
+          </select>
           <Button
             variant="secondary"
             size="md"
@@ -253,7 +271,14 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
                 </div>
                 <div className="text-sm font-bold theme-text">{ROLE_LABELS[u.role] || u.role}</div>
                 <div className="text-sm theme-text-muted">{u.grade ? `G${u.grade}` : '—'}</div>
-                <div><UserStatusBadge status={status} /></div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <UserStatusBadge status={status} />
+                  {u.emailVerified === false && (
+                    <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
+                      Unverified
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs theme-text-muted">{fmtDate(u.createdAt)}</div>
                 <div className="flex items-center justify-end gap-2 flex-wrap">
                   <Link

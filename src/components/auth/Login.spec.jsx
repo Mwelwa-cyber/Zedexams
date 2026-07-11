@@ -98,6 +98,42 @@ describe('Login — session-preservation on transient profile read failure', () 
     expect(mockLogout).not.toHaveBeenCalled()
   })
 
+  it('sends an unverified email/password sign-in to /verify-email (not the dashboard)', async () => {
+    mockLogin.mockResolvedValue({ user: { uid: 'uid-123', emailVerified: false } })
+    mockEnsureUserProfile.mockResolvedValue({ id: 'uid-123', role: 'learner' })
+    setAuth()
+
+    renderLogin()
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'new@user.zm' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i),     { target: { value: 'pass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/verify-email', expect.objectContaining({ replace: true }))
+    })
+    expect(mockLogout).not.toHaveBeenCalled()
+  })
+
+  it('lets an unverified user INSIDE a grace window continue to the dashboard', async () => {
+    mockLogin.mockResolvedValue({ user: { uid: 'uid-123', emailVerified: false } })
+    mockEnsureUserProfile.mockResolvedValue({
+      id: 'uid-123',
+      role: 'learner',
+      verificationGraceUntil: { toMillis: () => Date.now() + 86_400_000 },
+    })
+    setAuth()
+
+    renderLogin()
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'legacy@user.zm' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i),     { target: { value: 'pass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled())
+    expect(mockNavigate).not.toHaveBeenCalledWith('/verify-email', expect.anything())
+  })
+
   it('navigates to "/" when ensureUserProfile returns null (lets RootRedirect handle recovery)', async () => {
     mockLogin.mockResolvedValue({ user: { uid: 'uid-123' } })
     mockEnsureUserProfile.mockResolvedValue(null)

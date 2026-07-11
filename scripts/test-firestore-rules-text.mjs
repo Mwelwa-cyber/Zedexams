@@ -389,7 +389,7 @@ test('noteSmart is learner-readable and server-write-only', () => {
   assert(rules.includes('match /noteSmart/{'), 'no noteSmart rule block found')
   const block = rules.match(/match \/noteSmart\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
   assert(block, 'noteSmart match block not found or incorrectly indented')
-  assert(/allow read:\s*if isAuthed\(\)/.test(block[1]), 'noteSmart is not readable by authenticated users')
+  assert(/allow read:\s*if isVerified\(\)/.test(block[1]), 'noteSmart is not readable by verified users')
   assert(/allow write:\s*if false/.test(block[1]), 'noteSmart write is not locked to server-only (if false)')
 })
 
@@ -492,11 +492,11 @@ test('notifications items are server-create-only and mark-read-only for clients'
     'notifications items update must be restricted to read/readAt (mark-as-read only)',
   )
   assert(
-    /allow delete:\s*if isAuthed\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
+    /allow delete:\s*if isVerified\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
     'notifications items delete must be owner-or-admin only',
   )
   assert(
-    /allow read:\s*if isAuthed\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
+    /allow read:\s*if isVerified\(\) && \(isOwner\(uid\) \|\| isAdmin\(\)\)/.test(block[1]),
     'notifications items read must be owner-or-admin only',
   )
 })
@@ -526,7 +526,7 @@ test('schoolProfiles stays owner-write with bounded school-identity fields', () 
   assert(idx >= 0, 'schoolProfiles match block not found')
   const slice = rules.slice(idx, idx + 3200)
   assert(
-    /allow write: if isAuthed\(\) && isOwner\(uid\)/.test(slice),
+    /allow write: if isVerified\(\) && isOwner\(uid\)/.test(slice),
     'schoolProfiles writes must stay owner-only',
   )
   for (const [field, cap] of [
@@ -580,6 +580,65 @@ test('parentLinks are readable/deletable only by the linked parent or learner, n
   assert(
     slice.includes('allow create, update: if false'),
     'parentLinks create/update must be server-only (redeemFamilyInviteCode owns the shape)',
+  )
+})
+
+// ── email-verification enforcement ─────────────────────────────
+
+console.log('\nemail-verification enforcement')
+
+test('isVerified()/tokenEmailVerified() helpers exist and check the token claim', () => {
+  assert(rules.includes('function isVerified()'), 'isVerified() helper missing')
+  assert(rules.includes('function tokenEmailVerified()'), 'tokenEmailVerified() helper missing')
+  assert(
+    rules.includes("'email_verified' in request.auth.token"),
+    'the email_verified TOKEN claim (not the Firestore mirror) must be the check',
+  )
+  assert(rules.includes('function inVerificationGrace()'), 'inVerificationGrace() helper missing')
+})
+
+test('role helpers require verification', () => {
+  assert(
+    /function isAdmin\(\) \{ return isVerified\(\)/.test(rules),
+    'isAdmin() must be built on isVerified() so unverified admins are rejected',
+  )
+  assert(
+    /function isTeacherOrAbove\(\) \{ return isVerified\(\)/.test(rules),
+    'isTeacherOrAbove() must be built on isVerified()',
+  )
+})
+
+test('users self-update blocklists the grace field and keeps the mirror honest', () => {
+  const slice = rules.slice(
+    rules.indexOf('match /users/{userId}'),
+    rules.indexOf('match /settings/'),
+  )
+  assert(
+    slice.includes("'verificationGraceUntil'"),
+    'verificationGraceUntil must be client-unwritable (self-granted grace = indefinite unverified access)',
+  )
+  assert(
+    slice.includes("hasAny(['emailVerified', 'emailVerifiedAt'])"),
+    'the emailVerified mirror must only be writable when the token claim is true',
+  )
+})
+
+test('the signup surface stays available to unverified users', () => {
+  const usersSlice = rules.slice(
+    rules.indexOf('match /users/{userId}'),
+    rules.indexOf('match /settings/'),
+  )
+  assert(
+    /allow create: if isAuthed\(\) && isOwner\(userId\)/.test(usersSlice),
+    'users self-create must stay on bare isAuthed() — signup writes the doc before verification',
+  )
+  const refSlice = rules.slice(
+    rules.indexOf('match /referralCodes/{code}'),
+    rules.indexOf('match /referralRedemptions/'),
+  )
+  assert(
+    /allow create: if isAuthed\(\)/.test(refSlice),
+    'referralCodes create must stay on bare isAuthed() — signup mints the lookup doc pre-verification',
   )
 })
 

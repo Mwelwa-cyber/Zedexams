@@ -32,6 +32,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 
 const REGION = "us-central1";
 const BATCH_SIZE = 100;
@@ -73,8 +74,7 @@ const backfillReferralCodes = onCall({
   timeoutSeconds: 60,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();

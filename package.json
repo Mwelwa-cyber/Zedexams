@@ -305,6 +305,7 @@
     "test:quiz-reimport-diff": "node src/utils/quizReimportDiff.test.js",
     "test:migrate-backfill-review-count": "node scripts/test-migrate-backfill-review-count.mjs",
     "test:migrate-backfill-lifetime-flag": "node scripts/test-migrate-backfill-lifetime-flag.mjs",
+    "test:migrate-email-verified": "node scripts/test-migrate-backfill-email-verified.mjs",
     "test:migrate-strip-blob-urls": "node scripts/test-migrate-strip-blob-image-urls.mjs",
     "test:migrate-sanitize-generations": "node scripts/test-migrate-sanitize-generations.mjs",
     "test:migrate-normalize-subjects": "node scripts/test-migrate-normalize-subjects.mjs",

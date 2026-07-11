@@ -12,6 +12,7 @@ import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import MissingProfileRecovery from './components/auth/MissingProfileRecovery'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
+import { isWithinVerificationGrace } from './utils/verification'
 import { isNativePlatform } from './utils/runtime'
 import PageLoader from './components/ui/PageLoader'
 import FullScreenLoader from './components/ui/FullScreenLoader'
@@ -35,7 +36,7 @@ import VisitorTracker from './components/ui/VisitorTracker'
 // returning users. New visitors have no saved preference, so it still
 // resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
-  '/login', '/register', '/auth/action',
+  '/login', '/register', '/auth/action', '/verify-email',
   '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
   '/papers', '/company',
 ])
@@ -64,6 +65,7 @@ function ThemeApplicator() {
 const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
 const AuthAction = lazy(() => import('./components/auth/AuthAction'))
+const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail'))
 const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'))
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
 const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
@@ -266,7 +268,7 @@ const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
 const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
 function RootRedirect() {
-  const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue } = useAuth()
+  const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue, needsEmailVerification } = useAuth()
   // Cold-start race: Firebase restores the persisted session asynchronously,
   // so on the first frames `currentUser` is still null even for a returning
   // logged-in user. Rendering <Marketing /> here is what made the app flash
@@ -279,6 +281,12 @@ function RootRedirect() {
   if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
   if (!userProfile) return <FullScreenLoader label="Loading your workspace…" />
+  // Unverified email/password account (outside any migration grace window):
+  // send straight to the verification gate instead of double-hopping through
+  // the role landing page's ProtectedRoute.
+  if (needsEmailVerification && !isWithinVerificationGrace(userProfile)) {
+    return <Navigate to="/verify-email" replace />
+  }
   return (
     <Navigate
       to={getRoleLandingPath({ role: userProfile.role, isAdmin, isTeacher })}
@@ -341,11 +349,14 @@ function TeacherRoute({ children }) {
 // explicitly: only a parent (or an admin, for support) reaches the family
 // portal; anyone else is bounced to their own landing page.
 function ParentRoute({ children }) {
-  const { currentUser, userProfile, loading, isParent, isAdmin } = useAuth()
+  const { currentUser, userProfile, loading, isParent, isAdmin, needsEmailVerification } = useAuth()
   const location = useLocation()
   if (loading) return <FullScreenLoader label="Loading your family hub…" />
   if (!currentUser) return <Navigate to="/login" replace state={{ from: location }} />
   if (!userProfile) return <FullScreenLoader label="Loading your family hub…" />
+  if (needsEmailVerification && !isWithinVerificationGrace(userProfile)) {
+    return <Navigate to="/verify-email" replace state={{ from: location }} />
+  }
   if (!isParent && !isAdmin) return <Navigate to={getRoleLandingPath(userProfile)} replace />
   return <ParentLayout>{children}</ParentLayout>
 }
@@ -476,6 +487,12 @@ export default function App() {
               Configure this URL in Firebase Console → Authentication → Templates
               → Customise action URL: https://zedexams.com/auth/action */}
           <Route path="/auth/action" element={<AuthAction />} />
+          {/* Verification gate for unverified email/password accounts.
+              Deliberately OUTSIDE ProtectedRoute — it needs to render for a
+              signed-in-but-unverified user, and it redirects verified users
+              away itself, so the two guards can never bounce a user back
+              and forth. */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Public share link — no auth, read-only viewer of a frozen snapshot */}
           <Route path="/share/:token"             element={<PublicShareView />} />

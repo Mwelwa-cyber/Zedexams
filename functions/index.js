@@ -40,6 +40,9 @@ const {
   stripJsonFences,
   toAnthropicShape,
 } = require("./aiService");
+// Email-verification gate shared by callables + HTTP endpoints (see
+// authGuard.js for the exemption list).
+const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
 // Gemini REST client — used by the structureImportedQuiz pipeline.
 const {callGemini} = require("./geminiClient");
 // Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
@@ -394,7 +397,8 @@ async function requireHttpAuth(req) {
   if (!token) {
     throw new HttpsError("unauthenticated", "Please sign in first.");
   }
-  return admin.auth().verifyIdToken(token);
+  const decoded = await admin.auth().verifyIdToken(token);
+  return assertDecodedVerified(decoded);
 }
 
 // Audit B3 — soft App Check verification for HTTP endpoints.
@@ -662,6 +666,9 @@ function buildBootstrappedUserProfile({
   return {
     displayName,
     email,
+    // Display-only mirror of the Auth record's verification state (the
+    // token claim stays the enforcement source of truth).
+    emailVerified: authUser?.emailVerified === true,
     role,
     grade: null,
     school: "",
@@ -990,9 +997,7 @@ exports.aiChat = onCall(
     enforceAppCheck: shouldEnforceAppCheck("aiChat"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "aiChat");
 
     const message = cleanAiString(request.data?.message, LIMITS.message);
@@ -1057,8 +1062,7 @@ exports.resendInvoiceEmail = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const invoiceId = String(request.data?.invoiceId || "").trim();
   if (!invoiceId) throw new HttpsError("invalid-argument", "invoiceId is required.");
@@ -1109,8 +1113,7 @@ exports.sendActivationConfirmation = onCall({
   memory: "256MiB",
   secrets: [...require("./metaWhatsApp").WHATSAPP_SECRETS],
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
@@ -1156,8 +1159,7 @@ exports.sendExpiryReminders = onCall({
   memory: "256MiB",
   secrets: [...require("./metaWhatsApp").WHATSAPP_SECRETS],
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
@@ -1287,8 +1289,7 @@ exports.runDawnBriefing = onCall({
   memory: "256MiB",
   secrets: [anthropicApiKey],
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
@@ -1380,6 +1381,7 @@ exports.apiAiChat = onRequest(
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
       decoded = await admin.auth().verifyIdToken(token);
+      await assertDecodedVerified(decoded);
       // Audit B3 — observability + opt-in enforcement gate. Throws
       // permission-denied only when APPCHECK_ENFORCE=1 is set.
       await softVerifyAppCheckHttp(req, "apiAiChat");
@@ -1466,9 +1468,7 @@ exports.explainAnswer = onCall(
     enforceAppCheck: shouldEnforceAppCheck("explainAnswer"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "explainAnswer");
 
     const question = cleanAiString(request.data?.question, LIMITS.question);
@@ -1516,9 +1516,7 @@ exports.generateNoteInsights = onCall(
     enforceAppCheck: shouldEnforceAppCheck("generateNoteInsights"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "generateNoteInsights");
 
     const noteId = cleanAiString(request.data?.noteId, 80);
@@ -1550,9 +1548,7 @@ exports.generateNoteSmart = onCall(
     enforceAppCheck: shouldEnforceAppCheck("generateNoteSmart"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "generateNoteSmart");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1590,9 +1586,7 @@ exports.editQuizQuestion = onCall(
     enforceAppCheck: shouldEnforceAppCheck("editQuizQuestion"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "editQuizQuestion");
 
     const action = cleanAiString(request.data?.action, 30);
@@ -1658,9 +1652,7 @@ exports.generateQuizQuestions = onCall(
     enforceAppCheck: shouldEnforceAppCheck("generateQuizQuestions"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "generateQuizQuestions");
 
     const role = await getUserRole(request.auth.uid);
@@ -1741,9 +1733,7 @@ exports.verifyQuiz = onCall(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60,
     memory: "512MiB"},
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
       throw new HttpsError(
@@ -1834,9 +1824,7 @@ exports.structureImportedQuiz = onCall(
     enforceAppCheck: shouldEnforceAppCheck("structureImportedQuiz"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "structureImportedQuiz");
 
     const role = await getUserRole(request.auth.uid);
@@ -1978,9 +1966,7 @@ exports.structureScannedQuiz = onCall(
     enforceAppCheck: shouldEnforceAppCheck("structureScannedQuiz"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "structureScannedQuiz");
 
     const role = await getUserRole(request.auth.uid);
@@ -2030,9 +2016,7 @@ exports.structureImportedNote = onCall(
     enforceAppCheck: shouldEnforceAppCheck("structureImportedNote"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "structureImportedNote");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -2074,9 +2058,7 @@ exports.ocrNotePages = onCall(
     enforceAppCheck: shouldEnforceAppCheck("ocrNotePages"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "ocrNotePages");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -2114,9 +2096,7 @@ exports.suggestQuizAnswers = onCall(
     enforceAppCheck: shouldEnforceAppCheck("suggestQuizAnswers"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "suggestQuizAnswers");
 
     const role = await getUserRole(request.auth.uid);
@@ -2157,9 +2137,7 @@ exports.checkShortAnswer = onCall(
     enforceAppCheck: shouldEnforceAppCheck("checkShortAnswer"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "checkShortAnswer");
 
     const question = cleanString(request.data?.question, MAX_LEN.question);
@@ -2262,6 +2240,7 @@ function makeStreamingEndpoint({tool, runCore}) {
           throw new HttpsError("unauthenticated", "Please sign in first.");
         }
         const decoded = await admin.auth().verifyIdToken(token);
+        await assertDecodedVerified(decoded);
         uid = decoded.uid;
         // App Check observability + opt-in enforcement gate (throws
         // permission-denied only when APPCHECK_ENFORCE=1). Mirrors apiAiChat so
@@ -2454,9 +2433,7 @@ exports.nameBankPictures = onCall(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 300,
     memory: "1GiB"},
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     const role = await getUserRole(request.auth.uid);
     if (role !== "admin" && role !== "superAdmin") {
       throw new HttpsError(
@@ -2716,8 +2693,7 @@ exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey, ope
 exports.classifyQuestionGrades = onCall(
     {secrets: [anthropicApiKey], timeoutSeconds: 120, memory: "256MiB"},
     async (request) => {
-      const uid = request.auth && request.auth.uid;
-      if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
+      const uid = await assertVerifiedAuth(request, "Please sign in.");
       const role = await getUserRole(uid);
       if (role !== "admin" && role !== "superAdmin") {
         throw new HttpsError("permission-denied", "Admin only.");
@@ -2800,9 +2776,7 @@ exports.retryAgentJob = onCall(
     enforceAppCheck: shouldEnforceAppCheck("retryAgentJob"),
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
+    await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "retryAgentJob");
 
     const role = await getUserRole(request.auth.uid);
@@ -3118,8 +3092,7 @@ exports.initiateLencoPayment = onCall({
   timeoutSeconds: 60,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
   const lenco = require("./lencoService");
   const {getPlan} = require("./plans");
@@ -3258,8 +3231,7 @@ exports.submitLencoOtp = onCall({
   timeoutSeconds: 60,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
   const paymentId = cleanString(request.data?.paymentId, 60);
   const otp = cleanString(request.data?.otp, 12);
@@ -3307,8 +3279,7 @@ exports.getLencoPaymentStatus = onCall({
   timeoutSeconds: 60,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
   const paymentId = cleanString(request.data?.paymentId, 60);
   if (!paymentId) throw new HttpsError("invalid-argument", "Payment reference is required.");
@@ -3374,8 +3345,7 @@ exports.recoverMyPendingPayments = onCall({
   timeoutSeconds: 60,
   memory: "256MiB",
 }, async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
   const apiKey = lencoApiKeyValue();
   if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
@@ -3460,8 +3430,7 @@ exports.verifyGooglePlayPurchase = onCall({
   enforceAppCheck: shouldEnforceAppCheck("verifyGooglePlayPurchase"),
 }, async (request) => {
   await recordAppCheckCallable(request, "verifyGooglePlayPurchase");
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
   const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
   if (!saJson.trim()) {
@@ -3895,10 +3864,7 @@ exports.bulkGrantDemoTrials = onCall({
   timeoutSeconds: 120,
   memory: "256MiB",
 }, async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Sign in required.");
-  }
+  const callerUid = await assertVerifiedAuth(request, "Sign in required.");
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(callerUid).get();

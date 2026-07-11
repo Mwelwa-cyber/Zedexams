@@ -25,6 +25,11 @@ vi.mock('../auth/MissingProfileRecovery', () => ({
   default: () => <div data-testid="profile-recovery" />,
 }))
 
+// The grace-window banner has its own spec; a marker keeps this one focused.
+vi.mock('../ui/VerifyEmailBanner', () => ({
+  default: () => <div data-testid="verify-banner" />,
+}))
+
 import { useAuth } from '../../contexts/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 
@@ -33,11 +38,17 @@ function LoginProbe() {
   return <div data-testid="login-page">{JSON.stringify(location.state)}</div>
 }
 
+function VerifyEmailProbe() {
+  const location = useLocation()
+  return <div data-testid="verify-email-page">{JSON.stringify(location.state)}</div>
+}
+
 function renderGuard(ui, { path = '/teacher/quiz-studio' } = {}) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/login" element={<LoginProbe />} />
+        <Route path="/verify-email" element={<VerifyEmailProbe />} />
         <Route path="/dashboard" element={<div data-testid="learner-landing" />} />
         <Route path={path} element={ui} />
       </Routes>
@@ -112,6 +123,90 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByText(/loading your workspace/i)).toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+  })
+
+  it('redirects an unverified email/password user to /verify-email with state.from', () => {
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'u1', emailVerified: false },
+      userProfile: { id: 'u1', role: 'learner' },
+      loading: false,
+      profileIssue: null,
+      needsEmailVerification: true,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    const verify = screen.getByTestId('verify-email-page')
+    expect(JSON.parse(verify.textContent).from.pathname).toBe('/teacher/quiz-studio')
+    expect(screen.queryByTestId('page')).not.toBeInTheDocument()
+  })
+
+  it('holds on the loader (not a redirect) while an unverified user’s profile is still loading — grace unknown', () => {
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'u1', emailVerified: false },
+      userProfile: null,
+      loading: false,
+      profileIssue: null,
+      needsEmailVerification: true,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    expect(screen.getByText(/restoring your session/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('verify-email-page')).not.toBeInTheDocument()
+  })
+
+  it('lets a grace-window user through WITH the persistent verify banner', () => {
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'u1', emailVerified: false },
+      userProfile: {
+        id: 'u1',
+        role: 'learner',
+        verificationGraceUntil: { toMillis: () => Date.now() + 86_400_000 },
+      },
+      loading: false,
+      profileIssue: null,
+      needsEmailVerification: true,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    expect(screen.getByTestId('page')).toBeInTheDocument()
+    expect(screen.getByTestId('verify-banner')).toBeInTheDocument()
+    expect(screen.queryByTestId('verify-email-page')).not.toBeInTheDocument()
+  })
+
+  it('blocks a user whose grace window has expired', () => {
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'u1', emailVerified: false },
+      userProfile: {
+        id: 'u1',
+        role: 'learner',
+        verificationGraceUntil: { toMillis: () => Date.now() - 1000 },
+      },
+      loading: false,
+      profileIssue: null,
+      needsEmailVerification: true,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    expect(screen.getByTestId('verify-email-page')).toBeInTheDocument()
+  })
+
+  it('verified users never see the verify gate or banner', () => {
+    useAuth.mockReturnValue({
+      currentUser: { uid: 'u1', emailVerified: true },
+      userProfile: { id: 'u1', role: 'learner' },
+      loading: false,
+      profileIssue: null,
+      needsEmailVerification: false,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    expect(screen.getByTestId('page')).toBeInTheDocument()
+    expect(screen.queryByTestId('verify-banner')).not.toBeInTheDocument()
   })
 
   it('bounces an under-privileged role to its own landing page, not /login', () => {

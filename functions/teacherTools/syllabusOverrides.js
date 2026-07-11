@@ -15,6 +15,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
 const {invalidateKbCache, getActiveKbVersion} = require("./cbcKnowledge");
 
@@ -26,11 +27,9 @@ const ALLOWED_CELLS = new Set([
   "EXPECTED STANDARD",
 ]);
 
-function requireAdmin(req) {
+async function requireAdmin(req) {
+  await assertVerifiedAuth(req, "Sign in required.");
   const auth = req.auth;
-  if (!auth || !auth.token) {
-    throw new HttpsError("unauthenticated", "Sign in required.");
-  }
   if (auth.token.admin !== true && auth.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Admins only.");
   }
@@ -59,7 +58,7 @@ function sanitiseCells(cells) {
 exports.upsertSyllabusRow = onCall(
     {region: "us-central1", timeoutSeconds: 30},
     async (req) => {
-      requireAdmin(req);
+      await requireAdmin(req);
       const data = req.data || {};
       const studioSubject = String(data.studioSubject || "").trim();
       const sheet = String(data.sheet || "").trim();
@@ -120,7 +119,7 @@ exports.upsertSyllabusRow = onCall(
 exports.deleteSyllabusRow = onCall(
     {region: "us-central1", timeoutSeconds: 30},
     async (req) => {
-      requireAdmin(req);
+      await requireAdmin(req);
       const data = req.data || {};
       const studioSubject = String(data.studioSubject || "").trim();
       const sheet = String(data.sheet || "").trim();
@@ -169,7 +168,7 @@ exports.deleteSyllabusRow = onCall(
 exports.restoreSyllabusRow = onCall(
     {region: "us-central1", timeoutSeconds: 30},
     async (req) => {
-      requireAdmin(req);
+      await requireAdmin(req);
       const data = req.data || {};
       const studioSubject = String(data.studioSubject || "").trim();
       const sheet = String(data.sheet || "").trim();

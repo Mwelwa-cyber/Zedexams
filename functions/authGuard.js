@@ -1,0 +1,77 @@
+// Shared auth guard for callables + HTTP endpoints: signed in AND (for
+// accounts that carry an email) email_verified, with the migration-granted
+// grace window (users.verificationGraceUntil, admin-SDK-written only)
+// honoured so legacy accounts aren't cut off mid-window. Mirrors the
+// isVerified() helper in firestore.rules / storage.rules — the TOKEN claim
+// is the source of truth, never the users.emailVerified display field.
+//
+// Deliberately NOT applied to:
+//   - bootstrapUserProfile  — repairs a missing profile right after signup,
+//     before the user has verified;
+//   - deleteMyAccount       — a user who mistyped their email must be able
+//     to delete the account they can never verify;
+//   - sendPasswordResetEmail — pre-auth by design;
+//   - lencoWebhook / apiWhatsAppWebhook — provider-authenticated, no user.
+//
+// The no-email arm (custom-token accounts, e.g. a future learner-ID/PIN
+// flow, carry no email claim) passes intentionally: "verify your email"
+// is meaningless for an account that has none.
+
+const { HttpsError } = require("firebase-functions/v2/https");
+const admin = require("firebase-admin");
+
+function tokenNeedsVerification(token) {
+  return !!token && !!token.email && token.email_verified !== true;
+}
+
+async function isWithinGrace(uid) {
+  try {
+    const snap = await admin.firestore().doc(`users/${uid}`).get();
+    const until = snap.exists ? snap.data()?.verificationGraceUntil : null;
+    if (!until) return false;
+    const millis = typeof until.toMillis === "function" ? until.toMillis() : NaN;
+    return Number.isFinite(millis) && millis > Date.now();
+  } catch (err) {
+    // Fail closed: an unreadable grace field must not widen access.
+    console.warn("[authGuard] grace lookup failed:", err?.message || err);
+    return false;
+  }
+}
+
+function unverifiedError() {
+  // details.reason lets the client route straight to /verify-email.
+  return new HttpsError(
+    "permission-denied",
+    "Please verify your email address to continue.",
+    { reason: "email-unverified" },
+  );
+}
+
+// Callable entry guard. Replaces the bare `if (!request.auth) throw` line.
+// Returns the caller's uid.
+async function assertVerifiedAuth(request, message = "Please sign in first.") {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", message);
+  }
+  if (tokenNeedsVerification(request.auth.token)) {
+    if (await isWithinGrace(request.auth.uid)) return request.auth.uid;
+    throw unverifiedError();
+  }
+  return request.auth.uid;
+}
+
+// Same predicate for HTTP endpoints, applied to a decoded verifyIdToken()
+// result (which carries email/email_verified directly).
+async function assertDecodedVerified(decoded) {
+  if (tokenNeedsVerification(decoded)) {
+    if (await isWithinGrace(decoded.uid)) return decoded;
+    throw unverifiedError();
+  }
+  return decoded;
+}
+
+module.exports = {
+  assertVerifiedAuth,
+  assertDecodedVerified,
+  tokenNeedsVerification,
+};

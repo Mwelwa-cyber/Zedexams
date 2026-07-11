@@ -6,7 +6,8 @@ import {
   confirmPasswordReset,
   verifyPasswordResetCode,
 } from 'firebase/auth'
-import { auth } from '../../firebase/config'
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { auth, db } from '../../firebase/config'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -68,6 +69,21 @@ export default function AuthAction() {
         if (mode === 'verifyEmail') {
           const info = await checkActionCode(auth, oobCode)
           await applyActionCode(auth, oobCode)
+          // If the link was opened in the same browser as the live session,
+          // refresh the local user + force a new ID token so the route guards
+          // and Firestore rules see email_verified=true immediately instead
+          // of after the old token's ≤1h lifetime. Best-effort — a sessionless
+          // open (e.g. link tapped on another device) just skips this.
+          try {
+            if (auth.currentUser) {
+              await auth.currentUser.reload()
+              await auth.currentUser.getIdToken(true)
+              updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                emailVerified: true,
+                emailVerifiedAt: serverTimestamp(),
+              }).catch(() => null)
+            }
+          } catch { /* verified server-side regardless; /verify-email re-checks */ }
           if (cancelled) return
           setAccountEmail(info?.data?.email ?? '')
           setStatus('success')
@@ -236,7 +252,9 @@ export default function AuthAction() {
               <>
                 <h2 className="text-[20px] font-bold text-[#1A1F2E]">Email verified</h2>
                 <p className="text-[13px] text-[#888] mt-2">
-                  Thanks for confirming {accountEmail || 'your email address'}. You can now sign in to ZedExams.
+                  {auth.currentUser
+                    ? <>Thanks for confirming {accountEmail || 'your email address'}. You&apos;re all set.</>
+                    : <>Thanks for confirming {accountEmail || 'your email address'}. You can now sign in to ZedExams.</>}
                 </p>
               </>
             )}
@@ -253,9 +271,11 @@ export default function AuthAction() {
               size="lg"
               fullWidth
               className="mt-6"
-              onClick={() => navigate('/login', { replace: true })}
+              onClick={() => navigate(auth.currentUser ? '/' : '/login', { replace: true })}
             >
-              Continue to sign in
+              {/* With a live session, "/" → RootRedirect lands the user on
+                  their role dashboard; signed-out opens the login form. */}
+              {auth.currentUser ? 'Continue to your dashboard' : 'Continue to sign in'}
             </Button>
           </div>
         )}

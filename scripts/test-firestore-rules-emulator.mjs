@@ -50,6 +50,15 @@ const LEARNER_B = 'learner_b'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
+const UNVERIFIED_LEARNER = 'unverified_learner'
+const GRACE_LEARNER = 'grace_learner'
+const UNVERIFIED_TEACHER = 'unverified_teacher'
+
+// Every rule beyond the signup surface now requires the email_verified token
+// claim (firestore.rules isVerified()), so authed contexts must mint it —
+// tokens minted with no claims read as unverified and would fail every test.
+const verifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: true })
+const unverifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: false })
 
 let pass = 0
 let fail = 0
@@ -104,6 +113,16 @@ async function main() {
     await setDoc(doc(db, 'users', TEACHER_A), { role: 'teacher' })
     await setDoc(doc(db, 'users', TEACHER_B), { role: 'teacher' })
     await setDoc(doc(db, 'users', ADMIN), { role: 'admin' })
+    // Email-verification enforcement fixtures: a legacy unverified learner
+    // with no grace window, one inside a migration-granted window, and an
+    // unverified teacher (isTeacherOrAbove() must reject them).
+    await setDoc(doc(db, 'users', UNVERIFIED_LEARNER), { role: 'learner', grade: '5' })
+    await setDoc(doc(db, 'users', GRACE_LEARNER), {
+      role: 'learner',
+      grade: '5',
+      verificationGraceUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    })
+    await setDoc(doc(db, 'users', UNVERIFIED_TEACHER), { role: 'teacher' })
 
     // Quizzes used by the read / answer-key tests.
     await setDoc(doc(db, 'quizzes', 'published_practice'), {
@@ -254,12 +273,15 @@ async function main() {
     })
   })
 
-  const learnerA = testEnv.authenticatedContext(LEARNER_A).firestore()
-  const learnerB = testEnv.authenticatedContext(LEARNER_B).firestore()
-  const teacherA = testEnv.authenticatedContext(TEACHER_A).firestore()
-  const teacherB = testEnv.authenticatedContext(TEACHER_B).firestore()
-  const admin = testEnv.authenticatedContext(ADMIN).firestore()
+  const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
+  const learnerB = testEnv.authenticatedContext(LEARNER_B, verifiedToken(LEARNER_B)).firestore()
+  const teacherA = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).firestore()
+  const teacherB = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).firestore()
+  const admin = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
   const guest = testEnv.unauthenticatedContext().firestore()
+  const unverified = testEnv.authenticatedContext(UNVERIFIED_LEARNER, unverifiedToken(UNVERIFIED_LEARNER)).firestore()
+  const graceLearner = testEnv.authenticatedContext(GRACE_LEARNER, unverifiedToken(GRACE_LEARNER)).firestore()
+  const unverifiedTeacher = testEnv.authenticatedContext(UNVERIFIED_TEACHER, unverifiedToken(UNVERIFIED_TEACHER)).firestore()
 
   // ── users/{uid} ──────────────────────────────────────────────
   section('users/{uid} — profile + role + subscription pinning')
@@ -284,7 +306,7 @@ async function main() {
 
   await test('self-create with safe defaults succeeds', async () => {
     const newUid = 'new_learner_signup'
-    const newCtx = testEnv.authenticatedContext(newUid).firestore()
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
     await assertSucceeds(setDoc(doc(newCtx, 'users', newUid), {
       role: 'learner',
       plan: 'free',
@@ -298,7 +320,7 @@ async function main() {
 
   await test('self-create cannot mint role:admin', async () => {
     const newUid = 'rogue_admin_signup'
-    const newCtx = testEnv.authenticatedContext(newUid).firestore()
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
     await assertFails(setDoc(doc(newCtx, 'users', newUid), {
       role: 'admin',
       plan: 'free',
@@ -308,7 +330,7 @@ async function main() {
 
   await test('self-create cannot mint plan:premium / isPremium:true', async () => {
     const newUid = 'rogue_premium_signup'
-    const newCtx = testEnv.authenticatedContext(newUid).firestore()
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
     await assertFails(setDoc(doc(newCtx, 'users', newUid), {
       role: 'learner',
       plan: 'premium',
@@ -894,6 +916,116 @@ async function main() {
     await assertFails(setDoc(doc(teacherA, 'usageMeters', TEACHER_A, 'periods', '202607'), {
       counters: { assessment: 0 },
     }))
+  })
+
+  // ── email-verification enforcement ───────────────────────────
+  section('email verification — unverified accounts blocked beyond the signup surface')
+
+  await test('unverified user CAN read their own users doc (verify page needs it)', async () => {
+    await assertSucceeds(getDoc(doc(unverified, 'users', UNVERIFIED_LEARNER)))
+  })
+
+  await test('unverified user CAN update a safe profile field', async () => {
+    await assertSucceeds(updateDoc(doc(unverified, 'users', UNVERIFIED_LEARNER), { displayName: 'Unv' }))
+  })
+
+  await test('unverified user CAN mint their referral lookup doc (signup path)', async () => {
+    await assertSucceeds(setDoc(doc(unverified, 'referralCodes', 'UNVCODE1'), {
+      uid: UNVERIFIED_LEARNER,
+      createdAt: serverTimestamp(),
+    }))
+  })
+
+  await test('unverified user CANNOT read a published quiz (blocked beyond signup surface)', async () => {
+    await assertFails(getDoc(doc(unverified, 'quizzes', 'published_practice')))
+  })
+
+  await test('unverified user CANNOT create a result', async () => {
+    await assertFails(setDoc(doc(unverified, 'results', 'unv_result'), {
+      userId: UNVERIFIED_LEARNER,
+      quizId: 'published_practice',
+      score: 8,
+      percentage: 80,
+    }))
+  })
+
+  await test('unverified user CANNOT create an exam attempt', async () => {
+    await assertFails(setDoc(doc(unverified, 'exam_attempts', 'unv_attempt'), {
+      userId: UNVERIFIED_LEARNER,
+      status: 'in_progress',
+    }))
+  })
+
+  await test('unverified TEACHER cannot create a draft quiz (isTeacherOrAbove gated)', async () => {
+    await assertFails(setDoc(doc(unverifiedTeacher, 'quizzes', 'unv_teacher_draft'), {
+      title: 'Unverified draft',
+      createdBy: UNVERIFIED_TEACHER,
+      isPublished: false,
+      grade: '5',
+      subject: 'English',
+    }))
+  })
+
+  await test('unverified user CANNOT self-mint emailVerified:true (mirror honesty)', async () => {
+    await assertFails(updateDoc(doc(unverified, 'users', UNVERIFIED_LEARNER), {
+      emailVerified: true,
+    }))
+  })
+
+  await test('VERIFIED user CAN stamp their own emailVerified mirror', async () => {
+    await assertSucceeds(updateDoc(doc(learnerA, 'users', LEARNER_A), {
+      emailVerified: true,
+      emailVerifiedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('user CANNOT grant themselves a verification grace window', async () => {
+    await assertFails(updateDoc(doc(unverified, 'users', UNVERIFIED_LEARNER), {
+      verificationGraceUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    }))
+  })
+
+  await test('signup self-create CANNOT smuggle a grace window in', async () => {
+    const newUid = 'rogue_grace_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'learner',
+      plan: 'free',
+      isPremium: false,
+      verificationGraceUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    }))
+  })
+
+  await test('signup self-create CANNOT claim emailVerified:true with an unverified token', async () => {
+    const newUid = 'rogue_verified_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'learner',
+      plan: 'free',
+      isPremium: false,
+      emailVerified: true,
+    }))
+  })
+
+  await test('grace-window user CAN still read a published quiz', async () => {
+    await assertSucceeds(getDoc(doc(graceLearner, 'quizzes', 'published_practice')))
+  })
+
+  await test('grace-window user CAN still create a result', async () => {
+    await assertSucceeds(setDoc(doc(graceLearner, 'results', 'grace_result'), {
+      userId: GRACE_LEARNER,
+      quizId: 'published_practice',
+      score: 6,
+      percentage: 60,
+      totalMarks: 10,
+    }))
+  })
+
+  await test('unverified user can still read the PUBLIC settings doc', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'global'), { siteName: 'ZedExams' })
+    })
+    await assertSucceeds(getDoc(doc(unverified, 'settings', 'global')))
   })
 
   await testEnv.cleanup()

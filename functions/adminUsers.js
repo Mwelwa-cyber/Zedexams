@@ -1,4 +1,5 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("./authGuard");
 const admin = require("firebase-admin");
 const {writeAuditLog} = require("./auditLog");
 
@@ -7,9 +8,8 @@ const ALLOWED_ROLE = new Set(["learner", "teacher", "admin", "superAdmin"]);
 const ADMIN_ROLES = new Set(["admin", "superAdmin"]);
 
 async function assertCallerIsAdmin(request) {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Please sign in first.");
-  }
+  // Signed-in + email-verified (admin accounts must verify like everyone).
+  await assertVerifiedAuth(request);
   const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
   if (!snap.exists || !ADMIN_ROLES.has(snap.data()?.role)) {
     throw new HttpsError("permission-denied", "Admin role required.");

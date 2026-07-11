@@ -55,6 +55,15 @@ const LEARNER_B = 'learner_b'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
+const UNVERIFIED_LEARNER = 'unverified_learner'
+const UNVERIFIED_TEACHER = 'unverified_teacher'
+const GRACE_LEARNER = 'grace_learner'
+
+// storage.rules now requires the email_verified token claim everywhere
+// (isVerified()), so authed contexts must mint it — a claimless token reads
+// as unverified and would fail every test.
+const verifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: true })
+const unverifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: false })
 
 const PDF_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34])
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -136,14 +145,26 @@ async function main() {
     await setDoc(doc(db, 'users', TEACHER_A), { role: 'teacher' })
     await setDoc(doc(db, 'users', TEACHER_B), { role: 'teacher' })
     await setDoc(doc(db, 'users', ADMIN), { role: 'admin' })
+    // Email-verification enforcement fixtures (see the matching section in
+    // test-firestore-rules-emulator.mjs).
+    await setDoc(doc(db, 'users', UNVERIFIED_LEARNER), { role: 'learner', grade: '5' })
+    await setDoc(doc(db, 'users', UNVERIFIED_TEACHER), { role: 'teacher' })
+    await setDoc(doc(db, 'users', GRACE_LEARNER), {
+      role: 'learner',
+      grade: '5',
+      verificationGraceUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    })
   })
 
-  const learnerAStorage = testEnv.authenticatedContext(LEARNER_A).storage()
-  const learnerBStorage = testEnv.authenticatedContext(LEARNER_B).storage()
-  const teacherAStorage = testEnv.authenticatedContext(TEACHER_A).storage()
-  const teacherBStorage = testEnv.authenticatedContext(TEACHER_B).storage()
-  const adminStorage = testEnv.authenticatedContext(ADMIN).storage()
+  const learnerAStorage = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).storage()
+  const learnerBStorage = testEnv.authenticatedContext(LEARNER_B, verifiedToken(LEARNER_B)).storage()
+  const teacherAStorage = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).storage()
+  const teacherBStorage = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).storage()
+  const adminStorage = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).storage()
   const guestStorage = testEnv.unauthenticatedContext().storage()
+  const unverifiedStorage = testEnv.authenticatedContext(UNVERIFIED_LEARNER, unverifiedToken(UNVERIFIED_LEARNER)).storage()
+  const unverifiedTeacherStorage = testEnv.authenticatedContext(UNVERIFIED_TEACHER, unverifiedToken(UNVERIFIED_TEACHER)).storage()
+  const graceStorage = testEnv.authenticatedContext(GRACE_LEARNER, unverifiedToken(GRACE_LEARNER)).storage()
 
   // Pre-seed a few read fixtures via security-rules-disabled storage so
   // the read tests have something to fetch. The library exposes a
@@ -599,6 +620,37 @@ async function main() {
 
   await test('authed user CANNOT delete from an unmatched path', async () => {
     await assertFails(deleteObject(ref(teacherAStorage, 'random-dir/something.bin')))
+  })
+
+  // ── email-verification enforcement ────────────────────────────
+  section('email verification — unverified accounts denied on every path')
+
+  await test('unverified user CANNOT read papers', async () => {
+    await assertFails(getBytes(ref(unverifiedStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('unverified user CANNOT read quiz images', async () => {
+    await assertFails(getBytes(ref(unverifiedStorage, `quiz-images/${TEACHER_A}/seed.png`)))
+  })
+
+  await test('unverified TEACHER cannot upload to their own papers path', async () => {
+    await assertFails(uploadBytes(
+      ref(unverifiedTeacherStorage, `papers/${UNVERIFIED_TEACHER}/unverified.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('unverified user CANNOT write a tmp-download under their own path', async () => {
+    await assertFails(uploadBytes(
+      ref(unverifiedStorage, `tmp-downloads/${UNVERIFIED_LEARNER}/export.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('grace-window user CAN still read papers (migration grace honoured)', async () => {
+    await assertSucceeds(getBytes(ref(graceStorage, `papers/${TEACHER_A}/seed.pdf`)))
   })
 
   // ── teardown ──────────────────────────────────────────────────

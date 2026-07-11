@@ -35,6 +35,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 
 const {
   getUserRole,
@@ -47,8 +48,7 @@ const {
 exports.rollbackSyllabusVersion = onCall(
   {region: "us-central1", timeoutSeconds: 60, memory: "256MiB"},
   async (request) => {
-    const uid = request.auth && request.auth.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
+    const uid = await assertVerifiedAuth(request, "Please sign in.");
     const role = await getUserRole(uid);
     if (role !== "admin" && role !== "superAdmin") {
       throw new HttpsError("permission-denied", "Admin only.");

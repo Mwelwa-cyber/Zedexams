@@ -37,6 +37,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
 
 const {
@@ -99,10 +100,7 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
     memory: "1GiB",
     enforceAppCheck: shouldEnforceAppCheck("uploadCurriculumModule"),
   }, async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    const uid = request.auth.uid;
+    const uid = await assertVerifiedAuth(request);
     const role = await getUserRole(uid);
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");
@@ -283,10 +281,8 @@ function createDeleteCurriculumUpload() {
     memory: "512MiB",
     enforceAppCheck: shouldEnforceAppCheck("deleteCurriculumUpload"),
   }, async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Please sign in first.");
-    }
-    const role = await getUserRole(request.auth.uid);
+    const uid = await assertVerifiedAuth(request);
+    const role = await getUserRole(uid);
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");
     }
