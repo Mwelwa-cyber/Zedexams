@@ -205,6 +205,27 @@ async function acknowledgeSubscription({accessToken, productId, purchaseToken, f
 }
 
 /**
+ * Best-effort "which key is this?" for probe failure messages: the SA's
+ * client_email plus the first 8 chars of its private_key_id. Both are public
+ * identifiers, not secret material. Naming them in the hourly-monitor rollup
+ * turns "Play rejected our credentials" into a checkable fact — the admin can
+ * compare the email against Play Console ▸ Users and permissions (and the key
+ * id against the SA's Keys tab) without opening Secret Manager. Returns ""
+ * when the JSON doesn't parse; the sa-json-* reasons already cover that.
+ */
+function describeSaIdentity(saJsonString) {
+  try {
+    const sa = parseServiceAccountJson(saJsonString);
+    const email = String(sa.client_email || "").trim();
+    if (!email) return "";
+    const keyId = String(sa.private_key_id || "").trim().slice(0, 8);
+    return keyId ? `${email}, key ${keyId}…` : email;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Prove the whole verification wiring (secret → SA JSON → OAuth token →
  * Play Developer API auth) without a real purchase, by asking Google about a
  * garbage token: a 400/404 ("token doesn't exist") means our credentials were
@@ -214,6 +235,8 @@ async function acknowledgeSubscription({accessToken, productId, purchaseToken, f
  *
  * Never throws. `reason` mirrors PlayConfigError reasons; "transient" marks
  * a non-config failure (Play 5xx / network) the next run should retry.
+ * Failure messages append the secret's SA identity (see describeSaIdentity)
+ * so a wrong-account / rotated-key mismatch is visible in the rollup itself.
  *
  * @returns {Promise<{ok: boolean, reason?: string, message?: string}>}
  */
@@ -230,10 +253,12 @@ async function probePlayConfig({saJson, fetchImpl = fetch, getToken = getAccessT
     });
     return {ok: true};
   } catch (err) {
+    const identity = describeSaIdentity(saJson);
+    const suffix = identity ? ` [SA in secret: ${identity}]` : "";
     if (err instanceof PlayConfigError) {
-      return {ok: false, reason: err.reason, message: err.message};
+      return {ok: false, reason: err.reason, message: `${err.message}${suffix}`};
     }
-    return {ok: false, reason: "transient", message: String(err?.message || err)};
+    return {ok: false, reason: "transient", message: `${String(err?.message || err)}${suffix}`};
   }
 }
 
@@ -478,5 +503,6 @@ module.exports = {
   acknowledgeSubscription,
   verifyAndApplyPurchase,
   probePlayConfig,
+  describeSaIdentity,
   PLAY_PACKAGE,
 };
