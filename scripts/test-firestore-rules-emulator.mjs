@@ -50,6 +50,7 @@ const LEARNER_B = 'learner_b'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
+const PARENT = 'parent_user'
 
 let pass = 0
 let fail = 0
@@ -177,6 +178,61 @@ async function main() {
       content: 'plan body',
       createdAt: new Date(),
     })
+
+    // Central Question Bank (Qix review pipeline) fixtures: one private
+    // pending question and one approved Master Bank question.
+    await setDoc(doc(db, 'questionBank', 'qb_teacher_a_pending'), {
+      ownerId: TEACHER_A,
+      reviewStatus: 'pending_review',
+      masterEligible: false,
+      text: 'What is 2 + 2?',
+    })
+    await setDoc(doc(db, 'questionBank', 'qb_master'), {
+      ownerId: TEACHER_B,
+      reviewStatus: 'approved',
+      masterEligible: true,
+      text: 'Name the capital of Zambia.',
+    })
+
+    // Class management fixtures: Teacher A's class with Learner A enrolled,
+    // plus a CF-minted invite code for it.
+    await setDoc(doc(db, 'classes', 'class_teacher_a'), {
+      teacherUid: TEACHER_A,
+      className: 'Grade 5 Blue',
+      grade: '5',
+      learners: [LEARNER_A],
+      pendingLearners: [],
+      createdAt: new Date(),
+    })
+    await setDoc(doc(db, 'classInvites', 'INVITE123'), {
+      classId: 'class_teacher_a',
+      createdBy: TEACHER_A,
+      expiresAt: new Date(Date.now() + 86_400_000),
+    })
+
+    // Family portal link (created only by the redeemFamilyInviteCode CF).
+    await setDoc(doc(db, 'parentLinks', `${PARENT}_${LEARNER_A}`), {
+      parentUid: PARENT,
+      learnerUid: LEARNER_A,
+      createdAt: new Date(),
+    })
+
+    // Money-adjacent fixtures: invoice, referral redemption, subscription
+    // event — all server-written, owner-readable.
+    await setDoc(doc(db, 'invoices', 'inv_learner_a'), {
+      userId: LEARNER_A,
+      amountZMW: 60,
+      issuedAt: new Date(),
+    })
+    await setDoc(doc(db, 'referralRedemptions', 'rr_1'), {
+      refereeUid: LEARNER_B,
+      referrerUid: LEARNER_A,
+      bonusDays: 30,
+    })
+    await setDoc(doc(db, 'subscriptionEvents', 'se_learner_a'), {
+      uid: LEARNER_A,
+      type: 'activated',
+    })
     await setDoc(doc(db, 'shares', 'share_token'), {
       tool: 'lesson_plan',
       ownerUid: TEACHER_A,
@@ -260,6 +316,7 @@ async function main() {
   const teacherB = testEnv.authenticatedContext(TEACHER_B).firestore()
   const admin = testEnv.authenticatedContext(ADMIN).firestore()
   const guest = testEnv.unauthenticatedContext().firestore()
+  const parent = testEnv.authenticatedContext(PARENT).firestore()
 
   // ── users/{uid} ──────────────────────────────────────────────
   section('users/{uid} — profile + role + subscription pinning')
@@ -671,6 +728,41 @@ async function main() {
     }))
   })
 
+  await test('learner can save a realistic own score', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'scores', 'score_a_ok'), {
+      userId: LEARNER_A,
+      gameId: 'g1',
+      score: 4200,
+      grade: 5,
+      subject: 'math',
+      playedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('learner cannot forge an absurd score onto the public leaderboard', async () => {
+    // Reads are fully public and game leaderboards trust these docs — an
+    // unbounded score:1e12 would top every board permanently.
+    await assertFails(setDoc(doc(learnerA, 'scores', 'score_a_forged'), {
+      userId: LEARNER_A,
+      gameId: 'g1',
+      score: 1e12,
+      grade: 5,
+      subject: 'math',
+      playedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('negative scores are rejected', async () => {
+    await assertFails(setDoc(doc(learnerA, 'scores', 'score_a_negative'), {
+      userId: LEARNER_A,
+      gameId: 'g1',
+      score: -50,
+      grade: 5,
+      subject: 'math',
+      playedAt: serverTimestamp(),
+    }))
+  })
+
   // ── classRegisters roster/records (Class Register) ───────────
   section('classRegisters — roster/records owner-scoped subcollection access')
 
@@ -932,6 +1024,198 @@ async function main() {
   await test('a user CANNOT write their own usage meter (dodge AI caps)', async () => {
     await assertFails(setDoc(doc(teacherA, 'usageMeters', TEACHER_A, 'periods', '202607'), {
       counters: { assessment: 0 },
+    }))
+  })
+
+  // ── questionBank (Central Question Bank / Master Bank) ────────
+  section('questionBank — no self-promotion into the Master Bank')
+
+  await test('teacher can create their own question as pending_review', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'questionBank', 'qb_new_ok'), {
+      ownerId: TEACHER_A,
+      reviewStatus: 'pending_review',
+      masterEligible: false,
+      text: 'New question',
+    }))
+  })
+
+  await test('teacher CANNOT create a question already approved (skipping Qix)', async () => {
+    await assertFails(setDoc(doc(teacherA, 'questionBank', 'qb_new_approved'), {
+      ownerId: TEACHER_A,
+      reviewStatus: 'approved',
+      masterEligible: false,
+      text: 'Self-approved',
+    }))
+  })
+
+  await test('teacher CANNOT create a question straight into the Master Bank', async () => {
+    await assertFails(setDoc(doc(teacherA, 'questionBank', 'qb_new_master'), {
+      ownerId: TEACHER_A,
+      reviewStatus: 'pending_review',
+      masterEligible: true,
+      text: 'Master-bank smuggle',
+    }))
+  })
+
+  await test('learner (not teacher) CANNOT create questionBank rows', async () => {
+    await assertFails(setDoc(doc(learnerA, 'questionBank', 'qb_learner'), {
+      ownerId: LEARNER_A,
+      reviewStatus: 'pending_review',
+      masterEligible: false,
+      text: 'Learner question',
+    }))
+  })
+
+  await test('owner CANNOT update their question to masterEligible', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'questionBank', 'qb_teacher_a_pending'), {
+      masterEligible: true,
+    }))
+  })
+
+  await test('owner CANNOT self-approve via update', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'questionBank', 'qb_teacher_a_pending'), {
+      reviewStatus: 'approved',
+    }))
+  })
+
+  await test('non-owner cannot read a private pending question', async () => {
+    await assertFails(getDoc(doc(learnerB, 'questionBank', 'qb_teacher_a_pending')))
+  })
+
+  await test('any signed-in user can read a Master Bank question', async () => {
+    await assertSucceeds(getDoc(doc(learnerB, 'questionBank', 'qb_master')))
+  })
+
+  // ── classes + classInvites (tenant isolation) ─────────────────
+  section('classes — teacher tenancy + member reads; invites are CF-only')
+
+  await test('owning teacher can read their class', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'classes', 'class_teacher_a')))
+  })
+
+  await test('enrolled learner can read the class', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'classes', 'class_teacher_a')))
+  })
+
+  await test('non-member learner CANNOT read the class (roster privacy)', async () => {
+    await assertFails(getDoc(doc(learnerB, 'classes', 'class_teacher_a')))
+  })
+
+  await test('another teacher CANNOT read the class (cross-tenant)', async () => {
+    await assertFails(getDoc(doc(teacherB, 'classes', 'class_teacher_a')))
+  })
+
+  await test('another teacher CANNOT update the class', async () => {
+    await assertFails(updateDoc(doc(teacherB, 'classes', 'class_teacher_a'), {
+      className: 'Hijacked',
+    }))
+  })
+
+  await test('any signed-in user can resolve an invite code (join flow)', async () => {
+    await assertSucceeds(getDoc(doc(learnerB, 'classInvites', 'INVITE123')))
+  })
+
+  await test('teacher CANNOT client-mint an invite code (CF-only)', async () => {
+    // The old rule let a tampered client mint a code pointing at ANOTHER
+    // teacher's class; creates are now exclusively generateClassInvite.
+    await assertFails(setDoc(doc(teacherA, 'classInvites', 'FORGED1'), {
+      classId: 'class_teacher_a',
+      createdBy: TEACHER_A,
+    }))
+  })
+
+  // ── parentLinks (family portal PII boundary) ──────────────────
+  section('parentLinks — only the linked parent or learner, never client-created')
+
+  await test('linked parent can read their link', async () => {
+    await assertSucceeds(getDoc(doc(parent, 'parentLinks', `${PARENT}_${LEARNER_A}`)))
+  })
+
+  await test('linked learner can read the link about them', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'parentLinks', `${PARENT}_${LEARNER_A}`)))
+  })
+
+  await test('an unrelated user CANNOT read the link (child-data access)', async () => {
+    await assertFails(getDoc(doc(learnerB, 'parentLinks', `${PARENT}_${LEARNER_A}`)))
+  })
+
+  await test('a parent CANNOT forge a link to an un-coded child', async () => {
+    await assertFails(setDoc(doc(parent, 'parentLinks', `${PARENT}_${LEARNER_B}`), {
+      parentUid: PARENT,
+      learnerUid: LEARNER_B,
+    }))
+  })
+
+  await test('the learner can cut off the link (either side may delete)', async () => {
+    await assertSucceeds(deleteDoc(doc(learnerA, 'parentLinks', `${PARENT}_${LEARNER_A}`)))
+  })
+
+  // ── money collections (invoices / referrals / subscription events) ──
+  section('money — owner-readable, server-only writes')
+
+  await test('owner can read their invoice', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'invoices', 'inv_learner_a')))
+  })
+
+  await test('another user CANNOT read the invoice', async () => {
+    await assertFails(getDoc(doc(learnerB, 'invoices', 'inv_learner_a')))
+  })
+
+  await test('client CANNOT create an invoice', async () => {
+    await assertFails(setDoc(doc(learnerA, 'invoices', 'inv_forged'), {
+      userId: LEARNER_A,
+      amountZMW: 0,
+    }))
+  })
+
+  await test('user can create their own referral code with the exact shape', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'referralCodes', 'CODE_A1'), {
+      uid: LEARNER_A,
+      createdAt: serverTimestamp(),
+    }))
+  })
+
+  await test('user CANNOT create a referral code under another uid', async () => {
+    await assertFails(setDoc(doc(learnerA, 'referralCodes', 'CODE_SPOOF'), {
+      uid: LEARNER_B,
+      createdAt: serverTimestamp(),
+    }))
+  })
+
+  await test('referral code with extra fields is rejected (hasOnly)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'referralCodes', 'CODE_EXTRA'), {
+      uid: LEARNER_A,
+      createdAt: serverTimestamp(),
+      bonusDays: 9999,
+    }))
+  })
+
+  await test('referral codes are immutable to clients (no update)', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'referralCodes', 'CODE_A1'), {
+      uid: LEARNER_B,
+    }))
+  })
+
+  await test('referrer and referee can read their redemption row; client writes denied', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'referralRedemptions', 'rr_1')))
+    await assertSucceeds(getDoc(doc(learnerB, 'referralRedemptions', 'rr_1')))
+    await assertFails(setDoc(doc(learnerA, 'referralRedemptions', 'rr_forged'), {
+      refereeUid: LEARNER_A,
+      referrerUid: LEARNER_A,
+      bonusDays: 9999,
+    }))
+  })
+
+  await test('an unrelated user CANNOT read a redemption row', async () => {
+    await assertFails(getDoc(doc(teacherB, 'referralRedemptions', 'rr_1')))
+  })
+
+  await test('subscription events: owner reads, others and client writes denied', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'subscriptionEvents', 'se_learner_a')))
+    await assertFails(getDoc(doc(learnerB, 'subscriptionEvents', 'se_learner_a')))
+    await assertFails(setDoc(doc(learnerA, 'subscriptionEvents', 'se_forged'), {
+      uid: LEARNER_A,
+      type: 'activated',
     }))
   })
 
