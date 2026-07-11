@@ -17,24 +17,39 @@
  * idle callback re-fires.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { APPCHECK_PLACEHOLDER_TOKEN } from './appCheckResilient'
 
 // --- Firebase SDK mocks (config.js runs these at module load) ---
 const initializeAppCheck = vi.fn(() => ({ __appCheck: true }))
 
+// Shared, hoisted state so the mocked reCAPTCHA provider is observable and
+// steerable from individual tests (init call count, token behaviour, and the
+// CustomProvider options config.js builds — its getToken is the code under
+// test for the stale-container / stuck-widget recovery path).
+const h = vi.hoisted(() => ({
+  lastCustomProviderOpts: null,
+  recaptchaInitCalls: 0,
+  recaptchaGetToken: async () => ({ token: 'real-token', expireTimeMillis: 0 }),
+}))
+
 vi.mock('firebase/app', () => ({
-  initializeApp: vi.fn(() => ({ __app: true })),
+  // `name` matters: config.js derives the reCAPTCHA container id
+  // (`fire_app_check_${app.name}`) from it for the stale-container cleanup.
+  initializeApp: vi.fn(() => ({ __app: true, name: '[DEFAULT]' })),
 }))
 vi.mock('firebase/app-check', () => ({
   initializeAppCheck: (...args) => initializeAppCheck(...args),
   ReCaptchaEnterpriseProvider: class ReCaptchaEnterpriseProvider {
-    initialize() {}
-    async getToken() { return { token: 'tok', expireTimeMillis: 0 } }
+    initialize() { h.recaptchaInitCalls += 1 }
+    getToken() { return h.recaptchaGetToken() }
   },
   // config.js now wraps the reCAPTCHA provider in a CustomProvider so a stuck
-  // reCAPTCHA can't block Auth/Firestore (see appCheckResilient.js). The mock
-  // just needs to be constructable — the guard test never mints a token.
+  // reCAPTCHA can't block Auth/Firestore (see appCheckResilient.js).
   CustomProvider: class CustomProvider {
-    constructor(opts) { this._opts = opts }
+    constructor(opts) {
+      this._opts = opts
+      h.lastCustomProviderOpts = opts
+    }
   },
   getToken: vi.fn(async () => ({ token: 'tok' })),
 }))
@@ -103,5 +118,116 @@ describe('App Check re-entry guard (firebase/config.js)', () => {
 
     // The guard must collapse both invocations into a single reCAPTCHA render.
     expect(initializeAppCheck).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * Regression tests for the stale-container cleanup + stuck-widget recovery in
+ * the web App Check provider (the "reCAPTCHA placeholder element must be
+ * empty" storm — 79% of production client errors, 2026-07).
+ *
+ * The SDK renders into a div with the FIXED id `fire_app_check_${app.name}`
+ * and grecaptcha resolves that id to the FIRST matching node, so a stale or
+ * duplicate container makes the render throw asynchronously; the SDK's
+ * `initialized` deferred then never resolves and every later mint placeholders
+ * — the session stays unattested until reload. config.js must (1) remove
+ * pre-existing containers before initializing and (2) re-initialize, bounded,
+ * when minting stays stuck on placeholders.
+ */
+describe('App Check reCAPTCHA container cleanup + recovery (firebase/config.js)', () => {
+  const CONTAINER_ID = 'fire_app_check_[DEFAULT]'
+
+  const staleContainer = () => {
+    const div = document.createElement('div')
+    div.id = CONTAINER_ID
+    div.appendChild(document.createElement('iframe')) // a rendered widget's leftovers
+    document.body.appendChild(div)
+    return div
+  }
+
+  async function bootProvider() {
+    let idleInit
+    window.requestIdleCallback = (cb) => { idleInit = cb; return 1 }
+    await import('./config.js')
+    await idleInit()
+    return h.lastCustomProviderOpts
+  }
+
+  beforeEach(() => {
+    vi.resetModules()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2030-01-01T08:00:00Z'))
+    initializeAppCheck.mockClear()
+    h.lastCustomProviderOpts = null
+    h.recaptchaInitCalls = 0
+    h.recaptchaGetToken = async () => ({ token: 'real-token', expireTimeMillis: 0 })
+    stubFirebaseEnv()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+    delete window.requestIdleCallback
+  })
+
+  it('removes stale reCAPTCHA containers before the first initialize', async () => {
+    staleContainer()
+    staleContainer() // duplicate id — the exact shape that breaks render()
+
+    const opts = await bootProvider()
+    await opts.getToken()
+
+    expect(document.querySelectorAll(`[id="${CONTAINER_ID}"]`)).toHaveLength(0)
+    expect(h.recaptchaInitCalls).toBe(1)
+  })
+
+  it('re-initializes once minting is stuck on placeholders past the recovery age', async () => {
+    h.recaptchaGetToken = async () => { throw new Error('widget never rendered') }
+    const opts = await bootProvider()
+
+    const first = await opts.getToken()
+    expect(first.token).toBe(APPCHECK_PLACEHOLDER_TOKEN)
+    expect(h.recaptchaInitCalls).toBe(1) // one placeholder alone never re-inits
+
+    // Second consecutive placeholder, still inside the min-age window: a slow
+    // first script load must NOT trigger a re-init.
+    await opts.getToken()
+    expect(h.recaptchaInitCalls).toBe(1)
+
+    // Past the min age, the next consecutive placeholder pair triggers exactly
+    // one recovery re-init (with a container cleanup first).
+    const leftover = staleContainer()
+    vi.setSystemTime(Date.now() + 61_000)
+    await opts.getToken()
+    await opts.getToken()
+    expect(h.recaptchaInitCalls).toBe(2)
+    expect(document.body.contains(leftover)).toBe(false)
+  })
+
+  it('caps recovery re-inits and resets the streak on a real token', async () => {
+    h.recaptchaGetToken = async () => { throw new Error('down') }
+    const opts = await bootProvider()
+    await opts.getToken() // lazy first init (starts the min-age clock)
+
+    // Burn through both allowed recovery attempts.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      vi.setSystemTime(Date.now() + 61_000)
+      await opts.getToken()
+      await opts.getToken()
+    }
+    expect(h.recaptchaInitCalls).toBe(3) // initial + 2 recoveries
+
+    // Further sustained placeholders never re-init again (no init loop while
+    // reCAPTCHA itself is down).
+    vi.setSystemTime(Date.now() + 61_000)
+    await opts.getToken()
+    await opts.getToken()
+    expect(h.recaptchaInitCalls).toBe(3)
+
+    // A healthy mint resets the consecutive-placeholder streak.
+    h.recaptchaGetToken = async () => ({ token: 'real-token', expireTimeMillis: 0 })
+    const healed = await opts.getToken()
+    expect(healed.token).toBe('real-token')
   })
 })
