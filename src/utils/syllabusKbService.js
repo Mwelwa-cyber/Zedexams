@@ -48,8 +48,11 @@ async function loadRawCurriculum() {
       return _rawCache
     } catch (err) {
       console.error('loadRawCurriculum failed', err)
-      _rawCache = {}
-      return _rawCache
+      // Keep _rawCache = null so the next call retries the fetch instead of
+      // permanently serving an empty object. _rawCachePromise is cleared in
+      // the finally block, which is enough to allow a fresh attempt.
+      _rawCache = null
+      throw err
     } finally {
       _rawCachePromise = null
     }

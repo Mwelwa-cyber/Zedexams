@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { HeaderBlock } from './AssessmentBlocks.jsx'
+import { HeaderBlock, PassageBlock } from './AssessmentBlocks.jsx'
 
 // Stub heavy sub-imports so only HeaderBlock's own logic is under test.
 vi.mock('../AssessmentQuestionEditors', () => ({
@@ -191,5 +191,128 @@ describe('HeaderBlock — import summary banner', () => {
     const btn = screen.getByRole('button', { name: /Dismiss import summary/i })
     fireEvent.click(btn)
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+})
+
+/* =========================================================
+ * F7 regression — Year and Duration inputs must not clamp
+ * on every keystroke; clamping happens only on blur.
+ * ========================================================= */
+describe('HeaderBlock — Year and Duration inputs do not clamp mid-typing (F7)', () => {
+  // In HeaderBlock the spinbuttons appear in DOM order: Year first, Duration second.
+  it('Year: partial input "2" is stored raw (not snapped to 2020)', () => {
+    const setF = vi.fn()
+    renderHeader({ setF })
+    const [yearInput] = screen.getAllByRole('spinbutton')
+    fireEvent.change(yearInput, { target: { value: '2' } })
+    // onChange must forward the raw string, never clampInt
+    expect(setF).toHaveBeenCalledWith('year', '2')
+  })
+
+  it('Year: onBlur commits the clamped year ("2" → 2020)', () => {
+    const setF = vi.fn()
+    renderHeader({ setF })
+    const [yearInput] = screen.getAllByRole('spinbutton')
+    fireEvent.blur(yearInput, { target: { value: '2' } })
+    expect(setF).toHaveBeenCalledWith('year', 2020)
+  })
+
+  it('Year: clearing the field (blur with "") commits the fallback year', () => {
+    const setF = vi.fn()
+    renderHeader({ setF })
+    const [yearInput] = screen.getAllByRole('spinbutton')
+    fireEvent.blur(yearInput, { target: { value: '' } })
+    // clampInt('', 2020, 2099, currentYear) returns currentYear
+    const committed = setF.mock.calls.find(([k]) => k === 'year')?.[1]
+    expect(typeof committed).toBe('number')
+    expect(committed).toBeGreaterThanOrEqual(2020)
+    expect(committed).toBeLessThanOrEqual(2099)
+  })
+
+  it('Duration: partial input "4" is stored raw (not clamped to 5)', () => {
+    const setF = vi.fn()
+    renderHeader({ setF })
+    const [, durationInput] = screen.getAllByRole('spinbutton')
+    fireEvent.change(durationInput, { target: { value: '4' } })
+    expect(setF).toHaveBeenCalledWith('duration', '4')
+  })
+
+  it('Duration: "45" stays 45 after blur — not clamped to 55', () => {
+    const setF = vi.fn()
+    renderHeader({ setF })
+    const [, durationInput] = screen.getAllByRole('spinbutton')
+    fireEvent.blur(durationInput, { target: { value: '45' } })
+    expect(setF).toHaveBeenCalledWith('duration', 45)
+  })
+})
+
+/* =========================================================
+ * F23 regression — passage sub-question marks input must
+ * never store 0 while displaying 1.
+ * ========================================================= */
+
+function renderPassage({ marks = 2 } = {}) {
+  const onUpdatePassageQuestion = vi.fn()
+  const section = {
+    id: 'sec-1',
+    kind: 'passage',
+    passage: {
+      passageKind: 'comprehension',
+      title: 'Reading Passage',
+      passageText: 'Some passage text.',
+      questions: [{
+        localId: 'q-1',
+        type: 'mcq',
+        marks,
+        text: 'Q1 stem',
+        options: ['A', 'B', 'C', 'D'],
+        correctAnswer: 0,
+      }],
+    },
+  }
+  render(
+    <PassageBlock
+      section={section}
+      sectionIndex={0}
+      parts={[]}
+      questionNumbers={{ 'q-1': 1 }}
+      paperMeta={{}}
+      onEditQuestion={vi.fn()}
+      onMoveSection={vi.fn()}
+      onRemoveSection={vi.fn()}
+      onUpdateSection={vi.fn()}
+      onUploadPassageImage={vi.fn()}
+      onRemovePassageImage={vi.fn()}
+      onUpdatePassageQuestion={onUpdatePassageQuestion}
+      onAddPassageQuestion={vi.fn()}
+      onRemovePassageQuestion={vi.fn()}
+      onAssignSectionToPart={vi.fn()}
+    />,
+  )
+  return { onUpdatePassageQuestion }
+}
+
+describe('PassageBlock — marks input never stores 0 while displaying 1 (F23)', () => {
+  it('clearing the marks field stores 1 (min 1), not 0', () => {
+    const { onUpdatePassageQuestion } = renderPassage({ marks: 2 })
+    // The sub-question marks input is wrapped in <label>marks<input /></label>
+    const marksInput = screen.getByLabelText('marks')
+    fireEvent.change(marksInput, { target: { value: '' } })
+    // clampInt('', 1, 100, 1) must return 1 — previously returned 0
+    expect(onUpdatePassageQuestion).toHaveBeenCalledWith(0, 0, 'marks', 1)
+  })
+
+  it('stored 0 is displayed as 0 (not silently shown as 1)', () => {
+    // With ?? 1, question.marks=0 renders as 0 (truthful), not 1 (old || 1 behaviour)
+    renderPassage({ marks: 0 })
+    const marksInput = screen.getByLabelText('marks')
+    expect(marksInput).toHaveValue(0)
+  })
+
+  it('onChange payload matches display for any non-empty value', () => {
+    const { onUpdatePassageQuestion } = renderPassage({ marks: 3 })
+    const marksInput = screen.getByLabelText('marks')
+    fireEvent.change(marksInput, { target: { value: '5' } })
+    expect(onUpdatePassageQuestion).toHaveBeenCalledWith(0, 0, 'marks', 5)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import CreatePaperModal, { QUESTION_TYPE_OPTIONS } from './CreatePaperModal.jsx'
 import {
   ASSESSMENT_QUESTION_TYPES,
@@ -49,6 +49,16 @@ vi.mock('../../utils/aiPaperToSections', () => ({
 }))
 
 vi.mock('../ui/AiGenerationProgress', () => ({ default: () => null }))
+
+// Capture the onStop prop emitted by CreatePaperModal so stop-race tests can
+// invoke it without a real LiveGenerationCanvas in the DOM.
+const canvasCapture = vi.hoisted(() => ({ onStop: null }))
+vi.mock('../ui/LiveGenerationCanvas', () => ({
+  default: ({ onStop }) => {
+    canvasCapture.onStop = onStop
+    return null
+  },
+}))
 
 function renderModal(props = {}) {
   return render(
@@ -190,6 +200,59 @@ describe('CreatePaperModal — exam variant', () => {
     expect(payload.assessmentType).toBe('mock_exam')
     // The instruction pitches the paper at full exam standard.
     expect(payload.instructions).toMatch(/exam standard/i)
+  })
+})
+
+// Regression: "Stop generation" was cosmetic — the awaited callable continued
+// running and its success path (setResult / setStatus('done')) fired anyway.
+// Fix: per-run token (runRef) — onStop bumps it; after each await, bail if the
+// token has been superseded.
+describe('CreatePaperModal — stop-generation race', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    canvasCapture.onStop = null
+  })
+
+  it('discards a resolved generation result when Stop was clicked first', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    const { aiAssessmentToStudioBlocks } = await import('../../utils/aiPaperToSections')
+
+    // Deferred promise — we control when the callable resolves
+    let resolveGenerate
+    generateAssessment.mockImplementation(
+      () => new Promise((res) => { resolveGenerate = res }),
+    )
+
+    renderModal()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+
+    // Click Generate — async handler runs to the first await; status → 'generating'
+    // LiveGenerationCanvas renders and canvasCapture.onStop is populated
+    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+
+    expect(canvasCapture.onStop).toBeInstanceOf(Function)
+
+    // Simulate teacher clicking Stop — bumps runRef, status → 'idle'
+    act(() => { canvasCapture.onStop() })
+
+    // Now the callable resolves with a valid result
+    await act(async () => {
+      resolveGenerate({
+        ok: true,
+        data: {
+          assessment: { header: { title: 'Test paper' }, sections: [] },
+          warning: '',
+        },
+      })
+    })
+
+    // The bail check (run !== runRef.current) must have fired:
+    //   • aiAssessmentToStudioBlocks was never reached
+    //   • status is still 'idle', not 'done' — no Apply buttons appear
+    expect(aiAssessmentToStudioBlocks).not.toHaveBeenCalled()
+    const generateBtn = screen.getByRole('button', { name: /Generate paper/i })
+    expect(generateBtn).toBeInTheDocument()
+    expect(generateBtn).not.toBeDisabled()
   })
 })
 

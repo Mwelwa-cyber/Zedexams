@@ -78,7 +78,8 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
   const [busy, setBusy] = useState(false)
 
   // Accounts mode
-  const [accounts, setAccounts] = useState(null) // null = not loaded
+  const [accounts, setAccounts] = useState(null) // null = not loaded yet
+  const [accountsError, setAccountsError] = useState(false)
   const [selected, setSelected] = useState(() => new Set())
 
   const panelRef = useRef(null)
@@ -88,11 +89,13 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
   useFocusTrap(panelRef, { onEscape: () => { if (!busy) onClose?.() } })
 
   useEffect(() => {
-    if (mode !== 'accounts' || accounts !== null) return
+    // Skip if: wrong tab, already loaded, or previous attempt errored (user
+    // must click Retry to reset accountsError before we try again).
+    if (mode !== 'accounts' || accounts !== null || accountsError) return
     listImportableAccounts(teacherUid)
       .then(setAccounts)
-      .catch((err) => { console.warn('[RosterImportModal] accounts load failed', err); setAccounts([]) })
-  }, [mode, accounts, teacherUid])
+      .catch((err) => { console.warn('[RosterImportModal] accounts load failed', err); setAccountsError(true) })
+  }, [mode, accounts, accountsError, teacherUid])
 
   function handleTextChange(value) {
     setText(value)
@@ -222,7 +225,18 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
             <p className="theme-text-muted text-xs mb-2">
               Import learners who already have accounts in your invite-code classes.
             </p>
-            {accounts === null ? (
+            {accountsError ? (
+              <div role="alert" className="py-4 text-center">
+                <p className="theme-text-muted text-sm">Couldn&apos;t load accounts. Check your connection.</p>
+                <button
+                  type="button"
+                  onClick={() => setAccountsError(false)}
+                  className="mt-2 theme-accent-text text-sm font-black"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : accounts === null ? (
               <p className="theme-text-muted text-sm py-4 text-center">Loading accounts…</p>
             ) : accounts.length === 0 ? (
               <p className="theme-text-muted text-sm py-4 text-center">

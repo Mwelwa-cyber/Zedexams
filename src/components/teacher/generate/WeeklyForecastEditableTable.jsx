@@ -9,6 +9,7 @@
  */
 
 import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+import ListTextarea from '../../ui/ListTextarea'
 
 const LIST_KEYS = new Set(['learningActivities', 'resources'])
 
@@ -29,10 +30,7 @@ export default function WeeklyForecastEditableTable({ forecast, onChange }) {
   function updateDay(index, key, value) {
     const next = days.map((d, i) => {
       if (i !== index) return d
-      const v = LIST_KEYS.has(key)
-        ? String(value).split('\n').map((s) => s.trim()).filter(Boolean)
-        : value
-      return { ...d, [key]: v }
+      return { ...d, [key]: value }
     })
     onChange({ ...forecast, days: next })
   }
@@ -53,20 +51,27 @@ export default function WeeklyForecastEditableTable({ forecast, onChange }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {columns.map((col) => {
               const isList = LIST_KEYS.has(col.key)
-              const value = isList
-                ? (Array.isArray(d[col.key]) ? d[col.key].join('\n') : '')
-                : (d[col.key] || '')
               const wide = col.key === 'topic' || col.key === 'specificCompetence' || col.key === 'learningActivities'
               return (
                 <div key={col.key} className={wide ? 'sm:col-span-2' : ''}>
                   <FieldLabel>{col.label}{isList ? ' (one per line)' : ''}</FieldLabel>
-                  <textarea
-                    value={value}
-                    onChange={(e) => updateDay(i, col.key, e.target.value)}
-                    rows={isList ? 3 : 2}
-                    className="studio-input resize-y w-full text-sm"
-                    placeholder={col.label}
-                  />
+                  {isList ? (
+                    <ListTextarea
+                      value={Array.isArray(d[col.key]) ? d[col.key] : []}
+                      onChange={(list) => updateDay(i, col.key, list)}
+                      rows={3}
+                      className="studio-input resize-y w-full text-sm"
+                      placeholder={col.label}
+                    />
+                  ) : (
+                    <textarea
+                      value={d[col.key] || ''}
+                      onChange={(e) => updateDay(i, col.key, e.target.value)}
+                      rows={2}
+                      className="studio-input resize-y w-full text-sm"
+                      placeholder={col.label}
+                    />
+                  )}
                 </div>
               )
             })}

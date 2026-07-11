@@ -459,8 +459,8 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, p
           marks
           <input
             type="number"
-            value={hasSubParts(question) ? sumSubPartMarks(question.subParts) : (question.marks || 1)}
-            onChange={e => onUpdateQuestion('marks', clampInt(e.target.value, 0, 100, 1))}
+            value={hasSubParts(question) ? sumSubPartMarks(question.subParts) : (question.marks ?? 1)}
+            onChange={e => onUpdateQuestion('marks', clampInt(e.target.value, 1, 100, 1))}
             readOnly={hasSubParts(question)}
             title={hasSubParts(question) ? 'Total auto-sums from the sub-parts below' : 'Marks for this question'}
             style={hasSubParts(question) ? { background: 'var(--sv-tinted)', cursor: 'not-allowed' } : undefined}

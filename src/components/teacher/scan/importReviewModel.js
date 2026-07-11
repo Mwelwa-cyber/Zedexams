@@ -35,6 +35,69 @@ export function stripTags(value) {
     .trim()
 }
 
+/**
+ * Strip HTML tags while converting block-end boundaries (</p>, <br>, </div>,
+ * </h1>–</h6>) to newlines first, so paragraph and line structure survives.
+ * Collapses only horizontal whitespace (spaces/tabs) — never newlines.
+ * Does NOT slice; suitable for seeding an editable textarea with the full text.
+ */
+export function stripTagsPreservingBreaks(value) {
+  return String(value == null ? '' : value)
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function escHtmlEntities(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/**
+ * Re-encode a plain-text string (from the editable textarea) back into the
+ * studio's rich HTML shape: blank-line-separated blocks become <p>…</p> and
+ * single newlines become <br>. Mirrors the toRichPreservingBreaks fallback in
+ * scannedQuizImporter.js so the re-encoded output is structurally identical to
+ * what the original importer would have produced.
+ */
+export function encodeToRichHtml(plain) {
+  const text = String(plain ?? '').trim()
+  if (!text) return ''
+  const paragraphs = text.split(/\n{2,}/).map((block) =>
+    `<p>${block
+      .split(/\n/)
+      .map((line) => escHtmlEntities(line.trim()))
+      .filter(Boolean)
+      .join('<br>')}</p>`,
+  )
+  return paragraphs.join('')
+}
+
+/**
+ * True when the importQuizDocument result contains at least one question or
+ * section. Used as the early-return guard in runImportDocument so a
+ * zero-extraction parse does not wipe the current paper before the failure is
+ * detected.
+ */
+export function importHasQuestions(imported) {
+  return ((imported?.sections?.length || 0) + (imported?.questions?.length || 0)) > 0
+}
+
 function isMcqLike(type) {
   const t = String(type || 'mcq').toLowerCase()
   return t === 'mcq' || t === 'multiple_choice' || t === 'true_false' || t === 'truefalse' || t === 'tf'
@@ -237,6 +300,9 @@ export function buildReviewModel(sections = [], pageImageUrls = {}) {
     preview: stripTags(
       item.kind === 'passage' ? item.ref?.passageText : item.ref?.text,
     ).slice(0, 280),
+    editableText: stripTagsPreservingBreaks(
+      item.kind === 'passage' ? item.ref?.passageText : item.ref?.text,
+    ),
     originalFigureUrl: item.ref?.imageUrl || null,
   }))
 

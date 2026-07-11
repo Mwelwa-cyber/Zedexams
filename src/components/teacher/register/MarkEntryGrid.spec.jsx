@@ -85,4 +85,36 @@ describe('MarkEntryGrid', () => {
     expect(recordId).toBe('rec-1')
     expect(payload.marks.a.maths).toBe(40)
   })
+
+  // [Bug fix #3] Back button dirty-state guard ——————————————————————————————
+
+  it('calls onClose immediately when not dirty', () => {
+    const onClose = vi.fn()
+    render(<MarkEntryGrid classId="c1" record={record} onClose={onClose} onSaved={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /Back to mark schedules/i }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a confirm when dirty and does NOT close if the user declines', () => {
+    const onClose = vi.fn()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<MarkEntryGrid classId="c1" record={record} onClose={onClose} onSaved={() => {}} />)
+    // Enter a mark to set dirty=true
+    fireEvent.change(screen.getByLabelText('Maths mark for Mary Banda'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: /Back to mark schedules/i }))
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('closes when dirty and the user confirms leaving', () => {
+    const onClose = vi.fn()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<MarkEntryGrid classId="c1" record={record} onClose={onClose} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Maths mark for Mary Banda'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: /Back to mark schedules/i }))
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    confirmSpy.mockRestore()
+  })
 })

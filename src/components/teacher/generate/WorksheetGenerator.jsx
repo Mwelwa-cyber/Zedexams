@@ -204,6 +204,7 @@ export default function WorksheetGenerator() {
   // section's fresh content back into the worksheet (so both the live preview
   // and the exported file stay in sync).
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('worksheet')) return null
     const res = await generateWorksheet(buildInputs())
     if (res.ok && res.data?.worksheet) {
       const fresh = res.data.worksheet

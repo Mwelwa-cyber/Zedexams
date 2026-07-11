@@ -15,6 +15,9 @@ import {
   isReviewComplete,
   pageKey,
   stripTags,
+  stripTagsPreservingBreaks,
+  encodeToRichHtml,
+  importHasQuestions,
   autoApprovedPageKeys,
   describeImportScale,
 } from './importReviewModel.js'
@@ -294,6 +297,126 @@ test('describeImportScale omits the figure clause when there are none', () => {
 test('describeImportScale is empty when there is nothing to describe', () => {
   assert.strictEqual(describeImportScale({}), '')
   assert.strictEqual(describeImportScale({ pageCount: 0, withDiagrams: 0 }), '')
+})
+
+// ── stripTagsPreservingBreaks ────────────────────────────────────────────────
+test('stripTagsPreservingBreaks converts </p> to a blank line', () => {
+  assert.strictEqual(
+    stripTagsPreservingBreaks('<p>Para 1</p><p>Para 2</p>'),
+    'Para 1\n\nPara 2',
+  )
+})
+
+test('stripTagsPreservingBreaks converts <br> to a single newline', () => {
+  assert.strictEqual(
+    stripTagsPreservingBreaks('<p>Line 1<br>Line 2</p>'),
+    'Line 1\nLine 2',
+  )
+})
+
+test('stripTagsPreservingBreaks decodes common HTML entities', () => {
+  assert.strictEqual(
+    stripTagsPreservingBreaks('<p>a &amp; b &lt; c &gt; d</p>'),
+    'a & b < c > d',
+  )
+})
+
+// ── buildReviewModel editableText (Bug [0] regressions) ─────────────────────
+test('editableText preserves text beyond 280 chars without truncation', () => {
+  const longText = 'A'.repeat(400)
+  const model = buildReviewModel([
+    {
+      kind: 'standalone',
+      question: { text: `<p>${longText}</p>`, type: 'mcq', correctAnswer: 0, sourcePage: 1 },
+    },
+  ])
+  const item = model.pages[0].items[0]
+  assert.ok(item.editableText.length > 280, 'editableText must exceed 280 chars')
+  assert.strictEqual(item.editableText, longText)
+})
+
+test('editableText preserves paragraph breaks from a multi-paragraph passage', () => {
+  const model = buildReviewModel([
+    {
+      kind: 'passage',
+      passage: {
+        title: 'Test',
+        passageText: '<p>First paragraph.</p><p>Second paragraph.</p>',
+        sourcePage: 1,
+        questions: [],
+      },
+    },
+  ])
+  const passageItem = model.pages[0].items[0]
+  assert.ok(passageItem.editableText.includes('\n'), 'editableText must contain newline')
+  assert.strictEqual(passageItem.editableText, 'First paragraph.\n\nSecond paragraph.')
+})
+
+test('preview is still sliced at 280 chars (display-only; editableText is the seed)', () => {
+  const longText = 'B'.repeat(400)
+  const model = buildReviewModel([
+    {
+      kind: 'standalone',
+      question: { text: `<p>${longText}</p>`, type: 'short_answer', sourcePage: 1 },
+    },
+  ])
+  const item = model.pages[0].items[0]
+  assert.strictEqual(item.preview.length, 280)
+  assert.ok(item.editableText.length > 280)
+})
+
+// ── encodeToRichHtml ─────────────────────────────────────────────────────────
+test('encodeToRichHtml wraps a plain string in a <p>', () => {
+  assert.strictEqual(encodeToRichHtml('Hello World'), '<p>Hello World</p>')
+})
+
+test('encodeToRichHtml converts a blank-line separator into separate <p> tags', () => {
+  assert.strictEqual(
+    encodeToRichHtml('Para 1\n\nPara 2'),
+    '<p>Para 1</p><p>Para 2</p>',
+  )
+})
+
+test('encodeToRichHtml converts a single newline into <br>', () => {
+  assert.strictEqual(
+    encodeToRichHtml('Line 1\nLine 2'),
+    '<p>Line 1<br>Line 2</p>',
+  )
+})
+
+test('encodeToRichHtml HTML-escapes < > &', () => {
+  assert.strictEqual(encodeToRichHtml('a < b & c > d'), '<p>a &lt; b &amp; c &gt; d</p>')
+})
+
+test('encodeToRichHtml returns empty string for blank input', () => {
+  assert.strictEqual(encodeToRichHtml(''), '')
+  assert.strictEqual(encodeToRichHtml('   '), '')
+})
+
+test('stripTagsPreservingBreaks / encodeToRichHtml round-trip is stable', () => {
+  const original = '<p>Para 1</p><p>Line A<br>Line B</p>'
+  const plain = stripTagsPreservingBreaks(original)
+  const reencoded = encodeToRichHtml(plain)
+  assert.strictEqual(reencoded, original)
+})
+
+// ── importHasQuestions (Bug [1] regression) ──────────────────────────────────
+test('importHasQuestions is true when sections are present', () => {
+  assert.strictEqual(importHasQuestions({ sections: [{}], questions: [] }), true)
+})
+
+test('importHasQuestions is true when questions are present', () => {
+  assert.strictEqual(importHasQuestions({ sections: [], questions: [{}] }), true)
+})
+
+test('importHasQuestions is false for a zero-extraction result', () => {
+  assert.strictEqual(importHasQuestions({ sections: [], questions: [] }), false)
+})
+
+test('importHasQuestions is false when properties are absent', () => {
+  assert.strictEqual(importHasQuestions({}), false)
+  assert.strictEqual(importHasQuestions(null), false)
+  assert.strictEqual(importHasQuestions(undefined), false)
 })
 
 console.log(`\nimportReviewModel: ${passed} passed\n`)

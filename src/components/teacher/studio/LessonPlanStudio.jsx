@@ -314,6 +314,9 @@ export default function LessonPlanStudio() {
 
   // Series progress — live Firestore subscription via useLessonSeries.
   const uid = currentUser?.uid ?? null
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
 
   // ── "This week's lesson" auto-fill ──────────────────────────────────────────
   // Read the teacher's latest Weekly Forecast and, once, prefill the studio's
@@ -513,6 +516,7 @@ export default function LessonPlanStudio() {
     // unloaded meter fall through (ensureCanGenerate returns true).
     if (!gateRef.current('lesson_plan')) return
 
+    const run = ++runRef.current
     current.setGenerationStatus('loading')
     setGenerationError(null)
     setViewMode('preview')
@@ -704,6 +708,10 @@ export default function LessonPlanStudio() {
           framework: curriculumMode === 'previous' ? '2013' : '2023',
         },
       })
+
+      // Bail if Stop was clicked while this generation was in-flight.
+      // The finally block still runs and releases the critical-work lock.
+      if (run !== runRef.current) return
 
       const raw = String(result.data?.text || '')
         .trim()
@@ -1246,7 +1254,7 @@ export default function LessonPlanStudio() {
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
             generationError={generationError}
-            onStop={() => studioState.setGenerationStatus('idle')}
+            onStop={() => { runRef.current += 1; studioState.setGenerationStatus('idle') }}
             onExportWord={handleExportWord}
             illustrationMode={studioState.formatOptions.illustrations}
             illustrationStatus={illustrationStatus}

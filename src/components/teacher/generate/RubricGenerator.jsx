@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   generateRubric,
   TEACHER_LANGUAGES,
@@ -72,6 +72,9 @@ export default function RubricGenerator() {
   const [warning, setWarning] = useState('')
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
 
   // Universal Draft Manager: auto-save the rubric inputs.
   const draft = useStudioInputDraft({
@@ -96,6 +99,7 @@ export default function RubricGenerator() {
   }
 
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('rubric')) return null
     const res = await generateRubric(buildInputs())
     if (res.ok && res.data?.rubric) {
       const fresh = res.data.rubric
@@ -134,6 +138,7 @@ export default function RubricGenerator() {
       return
     }
     if (!ensureCanGenerate('rubric')) return
+    const run = ++runRef.current
     setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
@@ -141,6 +146,7 @@ export default function RubricGenerator() {
     setRubric(null)
 
     const res = await generateRubric(buildInputs())
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -317,7 +323,7 @@ export default function RubricGenerator() {
               emptyState={<EmptyState />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
-              onStop={() => setStatus('idle')}
+              onStop={() => { runRef.current += 1; setStatus('idle') }}
               onRegenerate={() => onGenerate()}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}

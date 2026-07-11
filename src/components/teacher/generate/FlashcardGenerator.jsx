@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   generateFlashcards,
   TEACHER_LANGUAGES,
@@ -77,6 +77,9 @@ export default function FlashcardGenerator() {
   const { masteredCards, markMastered, markReview } = useFlashcardProgress(generationId)
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed. Bump in onStop + capture before await.
+  const runRef = useRef(0)
 
   // Universal Draft Manager: auto-save the flashcard inputs.
   const draft = useStudioInputDraft({
@@ -103,6 +106,7 @@ export default function FlashcardGenerator() {
   }
 
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('flashcards')) return null
     const res = await generateFlashcards(buildInputs())
     if (res.ok && res.data?.flashcards) {
       const fresh = res.data.flashcards
@@ -140,6 +144,7 @@ export default function FlashcardGenerator() {
       return
     }
     if (!ensureCanGenerate('flashcards')) return
+    const run = ++runRef.current
     setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
@@ -149,6 +154,7 @@ export default function FlashcardGenerator() {
     setIsFlipped(false)
 
     const res = await generateFlashcards(buildInputs())
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -176,27 +182,6 @@ export default function FlashcardGenerator() {
 
   const cards = flashcards?.cards || []
   const totalCards = cards.length
-
-  /* Keyboard shortcuts for study mode */
-  useEffect(() => {
-    if (viewMode !== 'study' || !totalCards) return
-    const onKey = (e) => {
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault()
-        setIsFlipped((f) => !f)
-      } else if (e.key === 'ArrowRight') {
-        setStudyIndex((i) => Math.min(i + 1, totalCards - 1))
-        setIsFlipped(false)
-      } else if (e.key === 'ArrowLeft') {
-        setStudyIndex((i) => Math.max(i - 1, 0))
-        setIsFlipped(false)
-      } else if (e.key === 'Escape') {
-        setViewMode('grid')
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [viewMode, totalCards])
 
   const enterStudy = useCallback((startAt = 0) => {
     setStudyIndex(startAt)
@@ -348,7 +333,7 @@ export default function FlashcardGenerator() {
               emptyState={<EmptyState />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
-              onStop={() => setStatus('idle')}
+              onStop={() => { runRef.current += 1; setStatus('idle') }}
               onRegenerate={() => onGenerate()}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}

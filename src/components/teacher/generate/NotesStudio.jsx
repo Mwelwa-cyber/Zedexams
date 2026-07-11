@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
@@ -115,6 +115,9 @@ export default function NotesStudio() {
   const [warning, setWarning] = useState('')
   // Live Generation Canvas hand-off (see WorksheetGenerator for the pattern).
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
 
   // Universal Draft Manager: auto-save the notes inputs (incl. the mode tab).
   const { featureFlags } = usePlatformSettings().settings
@@ -200,6 +203,7 @@ export default function NotesStudio() {
   }
 
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('notes')) return null
     const res = await generateNotes(buildInputs())
     if (res.ok && res.data?.notes) {
       const fresh = res.data.notes
@@ -257,6 +261,7 @@ export default function NotesStudio() {
     }
 
     if (!ensureCanGenerate('notes')) return
+    const run = ++runRef.current
     setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
@@ -264,6 +269,7 @@ export default function NotesStudio() {
     setNotes(null)
 
     const res = await generateNotes(buildInputs())
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -572,7 +578,7 @@ export default function NotesStudio() {
               emptyState={<EmptyState mode={mode} />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
-              onStop={() => setStatus('idle')}
+              onStop={() => { runRef.current += 1; setStatus('idle') }}
               onRegenerate={() => onGenerate()}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}

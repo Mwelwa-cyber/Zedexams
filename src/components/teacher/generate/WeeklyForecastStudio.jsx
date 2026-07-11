@@ -68,6 +68,7 @@ import { weeklyForecastDescriptor } from '../../../hooks/draft/descriptors/handB
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import ListTextarea from '../../ui/ListTextarea'
 
 // The standardized curriculum selector's payload already carries the
 // canonical KB subject slug (`curr.subject`, e.g. 'mathematics'), which is the
@@ -152,8 +153,6 @@ function migrateDayWeekdays(days) {
   return reconcileDays(out, out.map((d) => d.day))
 }
 
-const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
-const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
 export default function WeeklyForecastStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -826,7 +825,7 @@ export default function WeeklyForecastStudio() {
                   </div>
                   <div>
                     <label className="studio-label">Learning activities (one per line)</label>
-                    <textarea rows={4} value={listToLines(d.learningActivities)} onChange={(e) => updateDay(i, 'learningActivities', linesToList(e.target.value))} className="studio-input !py-1.5 text-sm resize-none" />
+                    <ListTextarea rows={4} value={d.learningActivities} onChange={(list) => updateDay(i, 'learningActivities', list)} className="studio-input !py-1.5 text-sm resize-none" />
                   </div>
                   <div>
                     <label className="studio-label">Expected standard</label>
@@ -834,7 +833,7 @@ export default function WeeklyForecastStudio() {
                   </div>
                   <div>
                     <label className="studio-label">T/L resources (one per line)</label>
-                    <textarea rows={3} value={listToLines(d.resources)} onChange={(e) => updateDay(i, 'resources', linesToList(e.target.value))} className="studio-input !py-1.5 text-sm resize-none" />
+                    <ListTextarea rows={3} value={d.resources} onChange={(list) => updateDay(i, 'resources', list)} className="studio-input !py-1.5 text-sm resize-none" />
                     <ResourceAssistant
                       grade={grade}
                       subject={subjectLabel}

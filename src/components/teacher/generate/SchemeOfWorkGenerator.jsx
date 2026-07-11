@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
@@ -25,6 +25,7 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import { useToast } from '../../ui/Toast'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
@@ -110,6 +111,10 @@ export default function SchemeOfWorkGenerator() {
   const [curriculumSource, setCurriculumSource] = useState('')
   const [qualityChecks, setQualityChecks] = useState(null)
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
+  const toast = useToast()
   const [savingEdit, setSavingEdit] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   // Step flow: 'form' (settings) → 'preview' (review & edit term topics) →
@@ -136,13 +141,13 @@ export default function SchemeOfWorkGenerator() {
 
   useEffect(() => {
     let cancelled = false
-    const uid = userProfile?.uid
+    const uid = currentUser?.uid
     if (!uid) return undefined
     listMyGenerations({ uid, tool: 'class_timetable' })
       .then((rows) => { if (!cancelled) setTimetables(rows || []) })
       .catch(() => { if (!cancelled) setTimetables([]) })
     return () => { cancelled = true }
-  }, [userProfile?.uid])
+  }, [currentUser?.uid])
 
   const timetableOptions = useMemo(() => {
     const opts = [{ value: '', label: 'None — pace by curriculum only' }]
@@ -301,6 +306,7 @@ export default function SchemeOfWorkGenerator() {
   }
 
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('scheme_of_work')) return null
     const res = await generateSchemeOfWork(buildInputs(genOverrides))
     if (res.ok && res.data?.schemeOfWork) {
       const fresh = res.data.schemeOfWork
@@ -374,6 +380,7 @@ export default function SchemeOfWorkGenerator() {
 
   async function runGenerate(overrides = {}) {
     if (!ensureCanGenerate('scheme_of_work')) return
+    const run = ++runRef.current
     setGenOverrides(overrides)
     if (overrides.term) updateField('term', overrides.term)
     setHandedOff(false)
@@ -389,6 +396,7 @@ export default function SchemeOfWorkGenerator() {
 
     const genTerm = overrides.term || form.term
     const res = await generateSchemeOfWork(buildInputs(overrides))
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -416,7 +424,7 @@ export default function SchemeOfWorkGenerator() {
     }
   }
 
-  function onExportDocx() {
+  async function onExportDocx() {
     if (!scheme) return
     const name = buildDownloadName({
       docType: 'Scheme of Work',
@@ -424,10 +432,15 @@ export default function SchemeOfWorkGenerator() {
       subject: curr.subjectLabel || curr.subject,
       term: form.term,
     })
-    downloadSchemeOfWorkDocx(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    try {
+      await downloadSchemeOfWorkDocx(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    } catch (err) {
+      console.error('[SchemeOfWorkGenerator] docx export failed', err)
+      toast.error('Could not create the file. Please try again.')
+    }
   }
 
-  function onExportPdf() {
+  async function onExportPdf() {
     if (!scheme) return
     const name = buildDownloadName({
       docType: 'Scheme of Work',
@@ -436,7 +449,12 @@ export default function SchemeOfWorkGenerator() {
       term: form.term,
       ext: 'pdf',
     })
-    downloadSchemeOfWorkPdf(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    try {
+      await downloadSchemeOfWorkPdf(scheme, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+    } catch (err) {
+      console.error('[SchemeOfWorkGenerator] pdf export failed', err)
+      toast.error('Could not create the PDF. Please try again.')
+    }
   }
 
   const subjectLabel = curr.subjectLabel || (curr.subject
@@ -729,7 +747,7 @@ export default function SchemeOfWorkGenerator() {
               emptyState={<EmptyState />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
-              onStop={() => setStatus('idle')}
+              onStop={() => { runRef.current += 1; setStatus('idle') }}
               onRegenerate={() => runGenerate(genOverrides)}
               onRegenerateSection={regenerateSection}
               onSaveToLibrary={saveToLibrary}

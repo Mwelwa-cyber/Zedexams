@@ -11,7 +11,7 @@
  * (/teacher/generate/sba-tracker).
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { generateSbaTask, TEACHER_LANGUAGES } from '../../../utils/teacherTools'
 import {
@@ -41,6 +41,7 @@ import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import { useToast } from '../../ui/Toast'
 import SbaTaskView from '../views/SbaTaskView'
 import SbaWorkflowNote from '../SbaWorkflowNote'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
@@ -79,6 +80,10 @@ export default function SbaTaskStudio() {
   // Live Generation Canvas hand-off: watch the task build section by section,
   // then click through to the full editable/export view (see HomeworkStudio).
   const [handedOff, setHandedOff] = useState(false)
+  // Per-run token: stops a resolved callable from hijacking the UI if Stop was
+  // clicked before the response landed.
+  const runRef = useRef(0)
+  const toast = useToast()
   // School name on the task banner — pre-filled from the teacher's registration
   // profile, but editable in case they set tasks for more than one school.
   const [schoolName, setSchoolName] = useState(
@@ -148,6 +153,7 @@ export default function SbaTaskStudio() {
   // Regenerate a single revealed section: re-run the generator and swap only
   // that key on the current task, leaving the rest of the reveal in place.
   async function regenerateSection(sectionId) {
+    if (!ensureCanGenerate('sba_task')) return null
     const res = await generateSbaTask(form)
     if (res.ok && res.data?.task) {
       const fresh = res.data.task
@@ -165,6 +171,7 @@ export default function SbaTaskStudio() {
   async function onGenerate(e) {
     e?.preventDefault?.()
     if (!ensureCanGenerate('sba_task')) return
+    const run = ++runRef.current
     setHandedOff(false)
     setStatus('generating')
     setErrorMessage('')
@@ -173,6 +180,7 @@ export default function SbaTaskStudio() {
     setTask(null)
     setGenerationId(null)
     const res = await generateSbaTask(form)
+    if (run !== runRef.current) return
     if (!isMounted.current) return
     if (!res.ok) {
       setStatus('error')
@@ -194,7 +202,7 @@ export default function SbaTaskStudio() {
     }
   }
 
-  function onExport(includeAnswers) {
+  async function onExport(includeAnswers) {
     if (!task) return
     const name = buildDownloadName({
       docType: includeAnswers ? 'SBA Task' : 'SBA Task (learner)',
@@ -211,14 +219,19 @@ export default function SbaTaskStudio() {
       inputs: { grade: form.grade, subject: form.subject, topic: task.header?.taskType },
     })
     if (!ok) setWarning(`Heads up: ${problems.map((p) => p.message).join(' ')}`)
-    downloadSbaTaskDocx(task, name, {
-      includeAnswers,
-      schoolName,
-      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
-    })
+    try {
+      await downloadSbaTaskDocx(task, name, {
+        includeAnswers,
+        schoolName,
+        attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      })
+    } catch (err) {
+      console.error('[SbaTaskStudio] export failed', err)
+      toast.error('Could not create the file. Please try again.')
+    }
   }
 
-  function onExportPdf(includeAnswers) {
+  async function onExportPdf(includeAnswers) {
     if (!task) return
     const name = buildDownloadName({
       docType: includeAnswers ? 'SBA Task' : 'SBA Task (learner)',
@@ -227,11 +240,16 @@ export default function SbaTaskStudio() {
       topic: task.header?.taskType || currentTaskType?.label || 'task',
       ext: 'pdf',
     })
-    downloadSbaTaskPdf(task, name, {
-      includeAnswers,
-      schoolName,
-      attribution: isFreePlanTeacher({ userProfile, isAdmin }),
-    })
+    try {
+      await downloadSbaTaskPdf(task, name, {
+        includeAnswers,
+        schoolName,
+        attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+      })
+    } catch (err) {
+      console.error('[SbaTaskStudio] pdf export failed', err)
+      toast.error('Could not create the PDF. Please try again.')
+    }
   }
 
   return (
@@ -435,7 +453,7 @@ export default function SbaTaskStudio() {
                 }
                 errorMessage={[errorMessage, errorDetail].filter(Boolean).join(' — ')}
                 savedToLibrary={Boolean(generationId)}
-                onStop={() => setStatus('idle')}
+                onStop={() => { runRef.current += 1; setStatus('idle') }}
                 onRegenerate={() => onGenerate()}
                 onRegenerateSection={regenerateSection}
                 onSaveToLibrary={saveToLibrary}

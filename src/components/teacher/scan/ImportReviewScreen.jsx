@@ -5,6 +5,7 @@ import ImageCropModal from '../../quiz/ImageCropModal'
 import DiagramHandlingChooser from './DiagramHandlingChooser'
 import {
   buildReviewModel,
+  encodeToRichHtml,
   pageKey,
   isReviewComplete,
   autoApprovedPageKeys,
@@ -343,6 +344,10 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
   // True once a figure clean/redraw/rebuild has failed for this item, so the
   // status flips to "Failed" until the teacher succeeds with another option.
   const [figureFailed, setFigureFailed] = useState(false)
+  // Unanswered when correctAnswer is '' or null/undefined — matches the model's
+  // noAnswer predicate. Without this guard, Number(null)/Number('')===0 makes
+  // option A appear checked on every unanswered MCQ.
+  const answered = ref.correctAnswer !== '' && ref.correctAnswer != null
 
   function patch(p) {
     if (typeof onPatch === 'function') onPatch(item, p)
@@ -379,16 +384,20 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
         </div>
       </div>
 
-      {/* Editable stem / passage text — OCR output is plain, so a textarea is
-          safe and lets the teacher fix wording without leaving the screen. */}
+      {/* Editable stem / passage text — seeded with the full un-truncated text
+          so a single typo fix doesn't truncate a long passage or flatten its
+          paragraph structure. Writes back re-encoded rich HTML on blur. */}
       <textarea
         className="w-full text-sm theme-bg border theme-border rounded-lg p-2 theme-text"
         rows={isPassage ? 4 : 2}
-        defaultValue={item.preview}
+        defaultValue={item.editableText}
         aria-label={`${item.label} text`}
         onBlur={(e) => {
           const value = e.target.value
-          if (value !== item.preview) patch(isPassage ? { passageText: value } : { text: value })
+          if (value !== item.editableText) {
+            const rich = encodeToRichHtml(value)
+            patch(isPassage ? { passageText: rich } : { text: rich })
+          }
         }}
       />
 
@@ -403,7 +412,7 @@ function ReviewItemCard({ item, context, detected, onPatch, onDiagram, onCrop, o
               <input
                 type="radio"
                 name={`${item.key}-answer`}
-                checked={Number(ref.correctAnswer) === i}
+                checked={answered && Number(ref.correctAnswer) === i}
                 onChange={() => patch({ correctAnswer: i, requiresReview: false })}
               />
               <span>{String.fromCharCode(65 + i)}. {opt || <em className="theme-text-muted">blank</em>}</span>

@@ -104,7 +104,13 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <button type="button" onClick={onClose} className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text">
+          <button
+            type="button"
+            onClick={() => {
+              if (!dirty || window.confirm('You have unsaved marks. Leave without saving?')) onClose()
+            }}
+            className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text"
+          >
             ← Back to mark schedules
           </button>
           <h3 className="theme-text font-display font-black text-xl mt-1">{record.title}</h3>

@@ -82,6 +82,8 @@ export default function ClassRegisterEditor() {
   const [curr, setCurr] = useState({})
   const [seed, setSeed] = useState(editing ? null : {})
   const [loading, setLoading] = useState(editing)
+  // null = no error; 'notfound' = register resolved null; 'error' = load rejected
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -90,7 +92,8 @@ export default function ClassRegisterEditor() {
     setLoading(true)
     getRegister(classId)
       .then((reg) => {
-        if (cancelled || !reg) return
+        if (cancelled) return
+        if (!reg) { setLoadError('notfound'); return }
         setForm({
           className: reg.className || '',
           term: reg.term || 'Term 1',
@@ -103,7 +106,7 @@ export default function ClassRegisterEditor() {
           subjectKey: reg.subject || '',
         })
       })
-      .catch((err) => console.warn('[ClassRegisterEditor] load failed', err))
+      .catch((err) => { console.warn('[ClassRegisterEditor] load failed', err); if (!cancelled) setLoadError('error') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [classId, editing, currentYear])
@@ -153,6 +156,28 @@ export default function ClassRegisterEditor() {
 
   if (loading) {
     return <div className="space-y-3 max-w-xl"><Skeleton className="h-10" /><Skeleton className="h-40" /></div>
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-xl space-y-5">
+        <SeoHelmet title="Edit class" path="/teacher/register/new" noIndex />
+        <div role="alert" className="theme-card border border-red-300 rounded-radius-md p-6 text-center">
+          <p className="theme-text font-black">
+            {loadError === 'notfound'
+              ? 'This class could not be found.'
+              : "We couldn’t load this class — refresh and try again."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="theme-accent-text text-sm font-black mt-2 inline-block"
+          >
+            ← Go back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const labelCls = 'block text-xs font-black theme-text-muted uppercase tracking-wider mb-1'

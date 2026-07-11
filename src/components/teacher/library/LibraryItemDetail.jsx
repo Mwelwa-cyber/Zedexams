@@ -365,8 +365,8 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'lesson_activities') {
       await downloadLessonActivitiesDocx(item.output, name(), {
-        includeAnswers: true,
-        includeModelAnswers: true,
+        includeAnswers: showAnswers,
+        includeModelAnswers: showAnswers,
       })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'homework') {
@@ -410,6 +410,8 @@ export default function LibraryItemDetail() {
       if (plan) {
         await downloadSbaPlannerDocx({ ...plan, statuses: item.output?.statuses || {} }, h, name())
         recordExport(item.id, 'docx')
+      } else {
+        toast.error('No SBA planner blueprint exists for this subject and grade, so there is nothing to export.')
       }
     }
     } catch (err) {
@@ -425,21 +427,26 @@ export default function LibraryItemDetail() {
   async function onExportXlsx() {
     if (!item?.output || !permissions.canDownload) return
     if (item.tool !== 'mark_schedule' && item.tool !== 'class_timetable') return
-    const name = buildDownloadName({
-      docType: TOOL_DOC_TYPES[item.tool] || 'Document',
-      grade: item.inputs?.grade || item.output?.header?.grade,
-      subject: item.inputs?.subject || item.output?.header?.subject,
-      term: item.inputs?.term ?? item.output?.header?.term,
-      year: item.inputs?.year ?? item.output?.header?.year,
-      extra: item.output?.header?.className,
-      ext: 'xlsx',
-    })
-    if (item.tool === 'class_timetable') {
-      await downloadClassTimetableXlsx(item.output, name)
-    } else {
-      await downloadMarkScheduleXlsx(item.output, name)
+    try {
+      const name = buildDownloadName({
+        docType: TOOL_DOC_TYPES[item.tool] || 'Document',
+        grade: item.inputs?.grade || item.output?.header?.grade,
+        subject: item.inputs?.subject || item.output?.header?.subject,
+        term: item.inputs?.term ?? item.output?.header?.term,
+        year: item.inputs?.year ?? item.output?.header?.year,
+        extra: item.output?.header?.className,
+        ext: 'xlsx',
+      })
+      if (item.tool === 'class_timetable') {
+        await downloadClassTimetableXlsx(item.output, name)
+      } else {
+        await downloadMarkScheduleXlsx(item.output, name)
+      }
+      recordExport(item.id, 'xlsx')
+    } catch (err) {
+      console.error('[LibraryItemDetail] xlsx export failed', err)
+      toast.error('Could not create the Excel file. Please try again.')
     }
-    recordExport(item.id, 'xlsx')
   }
 
   async function onExportPdf() {
@@ -460,6 +467,7 @@ export default function LibraryItemDetail() {
         recordExport(item.id, 'pdf')
       } catch (err) {
         console.error('[LibraryItemDetail] lesson plan pdf failed', err)
+        toast.error('Could not create the PDF. Please try again.')
       }
       return
     }
@@ -480,6 +488,7 @@ export default function LibraryItemDetail() {
         recordExport(item.id, 'pdf')
       } catch (err) {
         console.error('[LibraryItemDetail] timetable pdf failed', err)
+        toast.error('Could not create the PDF. Please try again.')
       }
       return
     }
@@ -522,34 +531,45 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'pdf')
     } catch (err) {
       console.error('[LibraryItemDetail] pdf export failed', err)
+      toast.error('Could not create the PDF. Please try again.')
     }
   }
 
   async function onExportReportCards() {
     if (item?.tool !== 'mark_schedule' || !item.output) return
     if (!permissions.canDownload) return
-    const name = buildDownloadName({
-      docType: 'Report Cards',
-      grade: item.inputs?.grade || item.output?.header?.grade,
-      term: item.inputs?.term ?? item.output?.header?.term,
-      year: item.inputs?.year ?? item.output?.header?.year,
-    })
-    await downloadReportCardsDocx(item.output, name)
-    recordExport(item.id, 'report_cards')
+    try {
+      const name = buildDownloadName({
+        docType: 'Report Cards',
+        grade: item.inputs?.grade || item.output?.header?.grade,
+        term: item.inputs?.term ?? item.output?.header?.term,
+        year: item.inputs?.year ?? item.output?.header?.year,
+      })
+      await downloadReportCardsDocx(item.output, name)
+      recordExport(item.id, 'report_cards')
+    } catch (err) {
+      console.error('[LibraryItemDetail] report cards export failed', err)
+      toast.error('Could not create the report cards. Please try again.')
+    }
   }
 
   async function onExportAnswerKey() {
     if (item?.tool !== 'worksheet' || !item.output) return
     if (!permissions.canDownload) return
-    const name = buildDownloadName({
-      docType: 'Worksheet',
-      grade: item.inputs?.grade || item.output?.header?.grade,
-      subject: item.inputs?.subject || item.output?.header?.subject,
-      topic: item.inputs?.topic || item.output?.header?.topic,
-      variant: 'Answer Key',
-    })
-    await downloadWorksheetDocx(item.output, name, { mode: 'answer_key' })
-    recordExport(item.id, 'docx_answer_key')
+    try {
+      const name = buildDownloadName({
+        docType: 'Worksheet',
+        grade: item.inputs?.grade || item.output?.header?.grade,
+        subject: item.inputs?.subject || item.output?.header?.subject,
+        topic: item.inputs?.topic || item.output?.header?.topic,
+        variant: 'Answer Key',
+      })
+      await downloadWorksheetDocx(item.output, name, { mode: 'answer_key' })
+      recordExport(item.id, 'docx_answer_key')
+    } catch (err) {
+      console.error('[LibraryItemDetail] answer key export failed', err)
+      toast.error('Could not create the answer key. Please try again.')
+    }
   }
 
   function onRegenerate() {

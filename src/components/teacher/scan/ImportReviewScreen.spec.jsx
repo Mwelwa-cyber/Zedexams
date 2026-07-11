@@ -152,4 +152,78 @@ describe('ImportReviewScreen', () => {
     fireEvent.click(screen.getByLabelText('Approve this page'))
     expect(screen.getByText('Open in builder')).toBeInTheDocument()
   })
+
+  // ── Bug [0] regression: textarea is seeded with the full un-truncated text ──
+  it('editing a long passage writes back the full re-encoded text, not a 280-char truncation', () => {
+    const longText = 'A'.repeat(400)
+    const passageSections = [
+      {
+        kind: 'passage',
+        passage: {
+          title: 'Long Passage',
+          passageText: `<p>${longText}</p>`,
+          sourcePage: 1,
+          questions: [
+            { text: 'Q1', type: 'mcq', options: ['a', 'b'], correctAnswer: 0, sourcePage: 1 },
+          ],
+        },
+      },
+    ]
+    const onPatchItem = vi.fn()
+    render(
+      <ImportReviewScreen
+        open
+        sections={passageSections}
+        onPatchItem={onPatchItem}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    )
+    const textarea = screen.getByLabelText('Long Passage text')
+    // Seed is the full text, not truncated at 280.
+    expect(textarea.value.length).toBeGreaterThan(280)
+    // Editing writes back re-encoded rich HTML, not a flat truncated string.
+    fireEvent.change(textarea, { target: { value: 'Corrected passage text' } })
+    fireEvent.blur(textarea)
+    expect(onPatchItem).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'passage' }),
+      expect.objectContaining({ passageText: '<p>Corrected passage text</p>' }),
+    )
+  })
+
+  // ── Bug [9] regression: unanswered MCQ radio state ──────────────────────────
+  it('an unanswered MCQ renders no radio checked, and clicking option A patches correctAnswer to 0', () => {
+    const onPatchItem = vi.fn()
+    const unansweredSections = [
+      {
+        kind: 'standalone',
+        question: {
+          text: 'Which is correct?',
+          type: 'mcq',
+          options: ['Alpha', 'Beta'],
+          correctAnswer: '',
+          sourceQuestionNumber: 1,
+          sourcePage: 1,
+        },
+      },
+    ]
+    render(
+      <ImportReviewScreen
+        open
+        sections={unansweredSections}
+        onPatchItem={onPatchItem}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    )
+    // No radio may be checked when correctAnswer is '' (unanswered).
+    const radios = screen.getAllByRole('radio')
+    radios.forEach((radio) => expect(radio).not.toBeChecked())
+    // Clicking option A (index 0) must fire onChange and patch correctAnswer=0.
+    fireEvent.click(screen.getByLabelText('A. Alpha'))
+    expect(onPatchItem).toHaveBeenCalledWith(
+      expect.objectContaining({ sectionIndex: 0 }),
+      expect.objectContaining({ correctAnswer: 0 }),
+    )
+  })
 })
