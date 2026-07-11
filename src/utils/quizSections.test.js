@@ -154,6 +154,33 @@ function runStimulusAnswerSpaceRoundTripTest() {
 
 runStimulusAnswerSpaceRoundTripTest()
 
+// ── answerLines: never-set stays null; explicit 0 stays 0 ──
+// The renderers (PaperBlocks / assessmentToPdf / assessmentToDocx) treat an
+// explicit 0 as "print no ruled lines" and null as "use the per-type
+// default". Number(null) is 0 in JS, so the old normalizeAnswerSpace turned
+// every never-set count into an explicit 0 on save — after one save→reload
+// short-answer questions printed with NO answer space.
+function runAnswerLinesNullVsZeroTest() {
+  const sections = [
+    createStandaloneSection({
+      type: 'short_answer', text: 'Never-set line count.', options: [], correctAnswer: '',
+      answerLines: null,
+    }),
+    createStandaloneSection({
+      type: 'short_answer', text: 'Explicit zero (answered on the diagram).', options: [], correctAnswer: '',
+      answerLines: 0,
+    }),
+  ]
+  const serialized = serializeQuizSections(sections, [])
+  const neverSet = serialized.questions.find(q => q.text.includes('Never-set'))
+  const explicitZero = serialized.questions.find(q => q.text.includes('Explicit zero'))
+  assert.equal(neverSet.answerLines, null, 'never-set answerLines serializes as null (per-type default)')
+  assert.equal(explicitZero.answerLines, 0, 'an explicit 0 persists as 0 (no lines)')
+  console.log('runAnswerLinesNullVsZeroTest passed (null vs explicit 0)')
+}
+
+runAnswerLinesNullVsZeroTest()
+
 // ── Diagram labels / table / drawing canvas round-trip ──
 // These rich fields must survive serialize → hydrate for BOTH standalone and
 // passage sub-questions (they previously survived only in the local draft).

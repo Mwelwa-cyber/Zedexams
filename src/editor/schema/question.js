@@ -37,6 +37,7 @@ import {
   normalizeMarks,
   MARKS_BOUNDS,
 } from '../../utils/questionType.js'
+import { hydrateTableData } from '../../utils/tableData.js'
 
 // The canonical question-type helpers now live in src/utils/questionType.js
 // (the single source of truth shared by the editor, importers, scorer, and
@@ -376,10 +377,23 @@ export const questionSchema = z
       .max(20)
       .optional(),
     diagramMode: z.enum(['labeled', 'identify']).optional(),
+    //   NOTE the persisted rows shape: Firestore rejects nested arrays, so a
+    //   row is stored as { cells: [...] } rather than a bare array. The editor
+    //   holds rows as string[][]; src/utils/tableData.js folds/unfolds at the
+    //   write/read boundaries. (The old rows: [[...]] schema shape could never
+    //   actually reach Firestore — every data-table save threw "Nested arrays
+    //   are not supported" in the SDK before the write left the browser.)
+    //   Caps are 10 × 16 (not the hand-editor's 6 × 12) because reconstructed
+    //   scan tables — e.g. a school timetable — legitimately run 7-8 columns.
     tableData: z
       .object({
-        headers: z.array(z.string().max(60)).max(6).default([]),
-        rows: z.array(z.array(z.string().max(60)).max(6)).max(12).default([]),
+        headers: z.array(z.string().max(60)).max(10).default([]),
+        rows: z
+          .array(
+            z.object({ cells: z.array(z.string().max(60)).max(10).default([]) }).strict()
+          )
+          .max(16)
+          .default([]),
       })
       .strict()
       .nullable()
@@ -651,6 +665,9 @@ export function coerceQuestion(raw) {
     marks,
     tolerance,
     correctRegion,
+    // Unfold the persisted { cells } rows back to the renderer's string[][]
+    // shape (see src/utils/tableData.js). Docs without a table keep null.
+    tableData: hydrateTableData(raw.tableData),
     subtopic: str(raw.subtopic, 200),
     competency: str(raw.competency, 200),
     specificOutcome: str(raw.specificOutcome, 500),

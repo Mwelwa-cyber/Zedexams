@@ -38,7 +38,6 @@ service cloud.firestore {
     // Fill-in-the-Blanks papers that could never save). Guarded by
     // test:rules-text, which now derives its expected list from QUESTION_TYPES.
     function _validQuestionType(value) { return value is string && value in ['mcq', 'tf', 'short_answer', 'diagram', 'diagram_label', 'fill', 'fill_blanks', 'short', 'numeric', 'hotspot', 'essay', 'matching', 'sequence']; }
-    function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
@@ -67,108 +66,42 @@ service cloud.firestore {
         && (!('quizType' in incoming()) || incoming().quizType == null || (incoming().quizType is string && incoming().quizType.size() <= 32));
     }
 
-    // Defence-in-depth on rich-text fields. Limits mirror the Zod schema in
-    // src/editor/schema/question.js. Legacy records without the JSON mirrors
-    // stay valid because all the new checks are gated on field presence.
+    // Data-integrity backstop for question docs — NOT an authorization check.
+    // The client validates the FULL shape with Zod before every write
+    // (questionWriteSchema in src/editor/schema/question.js is .strict(), so
+    // unknown fields, bad types, and out-of-range values already fail loudly
+    // on the form), and Firestore's 1 MiB doc cap bounds runaway sizes. This
+    // function only keeps the checks with real integrity teeth against a
+    // tampered client: the type allowlist (protects the graded runner), the
+    // marks bounds (protects scoring/leaderboards), and coarse shape/size
+    // caps on the biggest fields.
+    //
+    // ⚠️ EXPRESSION BUDGET — READ BEFORE ADDING A CHECK ⚠️
+    // Firestore rules abort the WHOLE evaluation with PERMISSION_DENIED
+    // ("maximum of 1000 expressions to evaluate has been reached") when a
+    // single evaluation exceeds 1000 expressions. A previous version of this
+    // function validated ~35 fields; a real imported question carries ~40
+    // fields, so evaluating it crossed the cap and EVERY scanned past-paper
+    // import failed to save — for admins too — with an opaque "Missing or
+    // insufficient permissions", while minimal hand-authored questions stayed
+    // under the cap and kept the old per-type tests green. Do not regrow this
+    // list: the clause-count guard in scripts/test-firestore-rules-text.mjs
+    // and the full-payload replay in
+    // scripts/test-quiz-autosave-rules-emulator.mjs both fail if it creeps
+    // back toward the cliff. Field-level validation belongs in the client Zod
+    // schema, not here.
     function validQuestionFields() {
       return (!('type' in incoming()) || _validQuestionType(incoming().type))
-        // Cap raised from 10 to 20 to match the client-side
-        // questionWriteSchema (bumped in PR #655). ECZ end-of-section
-        // long-answer items can legitimately be 10-20 marks; without
-        // this lift, importing such a paper would save the draft fine
-        // and then fail on publish with
-        // "Save failed: Missing or insufficient permissions."
-        // Keep the integer + non-negative shape unchanged.
+        // Cap 20 matches questionWriteSchema (PR #655): ECZ end-of-section
+        // long-answer items can legitimately be 10-20 marks.
         && (!('marks' in incoming()) || (incoming().marks is int && incoming().marks >= 1 && incoming().marks <= 20))
         && (!('options' in incoming()) || (incoming().options is list && incoming().options.size() <= 20))
         && (!('order' in incoming()) || (incoming().order is int && incoming().order >= 0 && incoming().order <= 10000))
-        && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
-        // HTML rich-text fields: stay as strings, enforce size caps.
+        // Coarse size caps on the two largest rich-text fields (mirror the
+        // Zod caps). The remaining rich-text fields are bounded client-side
+        // and by the 1 MiB doc limit.
         && (!('text' in incoming()) || (incoming().text is string && incoming().text.size() <= 100000))
-        && (!('explanation' in incoming()) || (incoming().explanation is string && incoming().explanation.size() <= 100000))
-        && (!('sharedInstruction' in incoming()) || (incoming().sharedInstruction is string && incoming().sharedInstruction.size() <= 100000))
-        && (!('passage' in incoming()) || (incoming().passage is string && incoming().passage.size() <= 200000))
-        // Tiptap JSON mirrors: must be a map (Firestore object) or null.
-        // A string here would mean someone is double-stringifying JSON — reject.
-        && (!('textJSON' in incoming()) || incoming().textJSON == null || incoming().textJSON is map)
-        && (!('explanationJSON' in incoming()) || incoming().explanationJSON == null || incoming().explanationJSON is map)
-        && (!('sharedInstructionJSON' in incoming()) || incoming().sharedInstructionJSON == null || incoming().sharedInstructionJSON is map)
-        && (!('passageJSON' in incoming()) || incoming().passageJSON == null || incoming().passageJSON is map)
-        // Content-version marker: may be absent (legacy) or an int in {1,2,3}.
-        && (!('contentVersion' in incoming()) || (incoming().contentVersion is int && incoming().contentVersion >= 1 && incoming().contentVersion <= 3))
-        // Diagram / image metadata.
-        && (!('diagramText' in incoming()) || incoming().diagramText == null || (incoming().diagramText is string && incoming().diagramText.size() <= 2000))
-        && (!('imageUrl' in incoming()) || incoming().imageUrl == null || (incoming().imageUrl is string && incoming().imageUrl.size() <= 2000))
-        // Where the question image sits ('above' | 'below' | 'left' | 'right' | 'inline').
-        // Null/absent on legacy docs → renderer falls back to 'above'.
-        && (!('imagePosition' in incoming()) || incoming().imagePosition == null || (incoming().imagePosition is string && incoming().imagePosition.size() <= 16))
-        // Library-diagram reference for the question image slot. Per-element
-        // shape ({ libraryKey, params }) is enforced by the Zod schema
-        // client-side, same convention used by `parts` and `optionMedia`.
-        && (!('imageDiagram' in incoming()) || incoming().imageDiagram == null || incoming().imageDiagram is map)
-        // Parallel media array aligned with options[i]. Per-element shape
-        // ({ imageUrl?, diagram?, alt }) is enforced by the Zod schema
-        // client-side, same convention used by `parts` above.
-        && (!('optionMedia' in incoming()) || (incoming().optionMedia is list && incoming().optionMedia.size() <= 20))
-        // Additional figures stacked below the primary image. Per-element shape
-        // ({ url, alt?, width? }) is enforced by the Zod schema client-side.
-        && (!('images' in incoming()) || (incoming().images is list && incoming().images.size() <= 6))
-        // Review flags (written by the AI importer).
-        && (!('requiresReview' in incoming()) || incoming().requiresReview is bool)
-        && (!('reviewNotes' in incoming()) || (incoming().reviewNotes is list && incoming().reviewNotes.size() <= 50))
-        && (!('importWarnings' in incoming()) || (incoming().importWarnings is list && incoming().importWarnings.size() <= 50))
-        // CBC curriculum tagging + import provenance (mirrors the 6 new fields
-        // in src/editor/schema/question.js). Bounds match the Zod caps so a
-        // draft that saved fine can never fail on publish with an opaque
-        // "Missing or insufficient permissions" (the failure mode the marks-cap
-        // lift documented). Strings may be absent on legacy/hand-authored docs.
-        && (!('subtopic' in incoming()) || (incoming().subtopic is string && incoming().subtopic.size() <= 200))
-        && (!('competency' in incoming()) || (incoming().competency is string && incoming().competency.size() <= 200))
-        && (!('specificOutcome' in incoming()) || (incoming().specificOutcome is string && incoming().specificOutcome.size() <= 500))
-        && (!('curriculum' in incoming()) || (incoming().curriculum is string && incoming().curriculum.size() <= 100))
-        // 0..1 importer confidence, or null when not set (hand-authored).
-        && (!('aiConfidence' in incoming()) || incoming().aiConfidence == null || (incoming().aiConfidence is number && incoming().aiConfidence >= 0 && incoming().aiConfidence <= 1))
-        // Per-question validation rollup — ok | warning | error.
-        && (!('validationStatus' in incoming()) || (incoming().validationStatus is string && incoming().validationStatus in ['ok', 'warning', 'error']))
-        // Printed source-paper question number (distinct from sourcePage, whose
-        // meaning varies by import path: page index for scans, question number
-        // for the server past-paper import). Drives the Document Understanding
-        // Engine's numbering analysis in the editor after a reload.
-        && (!('sourceQuestionNumber' in incoming()) || incoming().sourceQuestionNumber == null || (incoming().sourceQuestionNumber is int && incoming().sourceQuestionNumber >= 1 && incoming().sourceQuestionNumber <= 9999))
-        // PRISCA mock-paper format: optional MCQ subtype + Part membership.
-        && (!('subtype' in incoming()) || _validQuestionSubtype(incoming().subtype))
-        && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64))
-        // Numeric-answer questions (#398): tolerance is an absolute slack
-        // around correctAnswer. The Zod schema caps it at 1,000,000 and
-        // requires ≥0; mirror those bounds here as a server-side backstop.
-        // Null is allowed because every non-numeric question stores
-        // `tolerance: null` (see normalizeQuestionPayload).
-        && (!('tolerance' in incoming()) || incoming().tolerance == null || (incoming().tolerance is number && incoming().tolerance >= 0 && incoming().tolerance <= 1000000))
-        // Hotspot-answer questions (#399): correctRegion is a normalised
-        // { x, y, radius } target on the question's image. Per-key bounds
-        // ([0,1] for x/y, [0,0.5] for radius) match src/editor/schema/question.js
-        // and src/utils/hotspotGrading.js — keeps the rule from accepting
-        // a region that the grader would reject as out-of-range.
-        && (!('correctRegion' in incoming()) || incoming().correctRegion == null || (
-              incoming().correctRegion is map
-              && incoming().correctRegion.x is number
-              && incoming().correctRegion.x >= 0 && incoming().correctRegion.x <= 1
-              && incoming().correctRegion.y is number
-              && incoming().correctRegion.y >= 0 && incoming().correctRegion.y <= 1
-              && incoming().correctRegion.radius is number
-              && incoming().correctRegion.radius >= 0 && incoming().correctRegion.radius <= 0.5
-            ))
-        // Assessment-paper answer fields (numeric / matching / sequence).
-        // Per-element shape + completeness is enforced by the Zod schema and
-        // the pre-publish checklist client-side; mirror the size/type caps
-        // here as a server-side backstop, same convention as `tolerance`.
-        && (!('numericTolerance' in incoming()) || (incoming().numericTolerance is number && incoming().numericTolerance >= 0 && incoming().numericTolerance <= 1000000))
-        && (!('numericUnit' in incoming()) || (incoming().numericUnit is string && incoming().numericUnit.size() <= 40))
-        && (!('matchingLeft' in incoming()) || (incoming().matchingLeft is list && incoming().matchingLeft.size() <= 20))
-        && (!('matchingRight' in incoming()) || (incoming().matchingRight is list && incoming().matchingRight.size() <= 20))
-        && (!('matchingAnswer' in incoming()) || (incoming().matchingAnswer is list && incoming().matchingAnswer.size() <= 20))
-        && (!('sequenceItems' in incoming()) || (incoming().sequenceItems is list && incoming().sequenceItems.size() <= 20))
-        && (!('sequenceAnswer' in incoming()) || (incoming().sequenceAnswer is list && incoming().sequenceAnswer.size() <= 20));
+        && (!('passage' in incoming()) || (incoming().passage is string && incoming().passage.size() <= 200000));
     }
 
     function validLessonFields() {
@@ -482,8 +415,12 @@ service cloud.firestore {
           isAdmin()
           || get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid
         );
-        allow create, update: if validQuestionFields() && isTeacherOrAbove()
-          && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid;
+        // Authorization first, validator last: an unauthorised caller is
+        // denied before any per-field evaluation is spent (see the
+        // expression-budget note on validQuestionFields).
+        allow create, update: if isTeacherOrAbove()
+          && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid
+          && validQuestionFields();
         allow delete: if isAuthed() && (
           isAdmin()
           || (isTeacherOrAbove() && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid)
@@ -558,10 +495,13 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') != 'daily_exam'
           )
         );
-        allow create, update: if validQuestionFields() && (
+        // Authorization first, validator last: an unauthorised caller is
+        // denied before any per-field evaluation is spent (see the
+        // expression-budget note on validQuestionFields).
+        allow create, update: if (
           isAdmin()
           || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid)
-        );
+        ) && validQuestionFields();
         allow delete: if isAdmin()
           || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid);
       }

@@ -15,6 +15,7 @@ import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
+import { hydrateTableData } from './tableData.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -1038,10 +1039,14 @@ function renderNumericLine(b) {
 
 // Data/Table render — emits a plain HTML table with thin black borders.
 // Empty cells stay empty so students can fill values in when relevant.
-function renderDataTable(tableData) {
-  if (!tableData || !Array.isArray(tableData.headers) || !tableData.headers.length) return ''
+function renderDataTable(rawTableData) {
+  // Unfold the persisted { cells } row shape when the block came straight
+  // from a Firestore doc (see src/utils/tableData.js); in-memory string[][]
+  // rows pass through unchanged.
+  const tableData = hydrateTableData(rawTableData)
+  if (!tableData || !tableData.headers.length) return ''
   const headers = tableData.headers
-  const rows = Array.isArray(tableData.rows) ? tableData.rows : []
+  const rows = tableData.rows
   const headerHtml = headers.map(h => `<th>${escapeHtml(h || '')}</th>`).join('')
   const bodyHtml = rows.map(row => {
     const cells = headers.map((_, j) => `<td>${escapeHtml((Array.isArray(row) ? row[j] : '') || '')}</td>`).join('')
