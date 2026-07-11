@@ -507,6 +507,7 @@ export default function SyllabiLibrary() {
           currentSubject={currentSubject}
           onSelectSubject={showSubject}
           era={era}
+          onSwitchEra={switchEra}
           panelOpen={subjectPanelOpen}
           onOpenPanel={() => setSubjectPanelOpen(true)}
           onClosePanel={() => setSubjectPanelOpen(false)}
@@ -576,7 +577,7 @@ export default function SyllabiLibrary() {
 //   • full column (home/search on wide screens)
 //   • icon rail   (subject view ≥701px — auto-collapses so the table wins)
 //   • slide-out panel (phones via the ☰ button, or expanding the rail)
-function Sidebar({ data, grouped, currentSubject, onSelectSubject, era, panelOpen, onOpenPanel, onClosePanel }) {
+function Sidebar({ data, grouped, currentSubject, onSelectSubject, era, onSwitchEra, panelOpen, onOpenPanel, onClosePanel }) {
   if (!data) {
     return (
       <nav className="ss-sidebar" aria-label="Subjects">
@@ -595,6 +596,26 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject, era, panelOpe
           onClick={onClosePanel}
         >
           ✕
+        </button>
+      </div>
+      <div className="ss-panel-era-switch" role="tablist" aria-label="Curriculum era">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={era === 'current'}
+          className={`ss-panel-era-btn${era === 'current' ? ' is-active' : ''}`}
+          onClick={() => onSwitchEra('current')}
+        >
+          ✦ Current
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={era === 'legacy'}
+          className={`ss-panel-era-btn${era === 'legacy' ? ' is-active is-legacy' : ''}`}
+          onClick={() => onSwitchEra('legacy')}
+        >
+          📜 2013
         </button>
       </div>
       <button
@@ -1644,6 +1665,34 @@ function SyllabiStudioStyles() {
 .ss-root .ss-era-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 .ss-root .ss-era-btn.is-active { background: var(--ss-orange); color: white; }
 .ss-root .ss-era-btn.is-active.is-legacy { background: #B8860B; }
+
+/* ── ERA SWITCHER IN SLIDE-OUT PANEL ─────────────────────────────────── */
+/* Hidden outside the panel; visible only when the slide-out is open.
+   Gives phone users access to the 2013 curriculum era that the header
+   switcher hides at ≤700px. */
+.ss-root .ss-panel-era-switch {
+  display: none;
+  margin: 0 20px 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--ss-cream2);
+}
+.ss-root .ss-sidebar.is-open .ss-panel-era-switch { display: flex; }
+.ss-root .ss-panel-era-btn {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: var(--ss-white);
+  color: var(--ss-muted);
+  font-family: inherit;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+.ss-root .ss-panel-era-btn:hover { background: var(--ss-cream); color: var(--ss-teal); }
+.ss-root .ss-panel-era-btn.is-active { background: var(--ss-orange); color: white; }
+.ss-root .ss-panel-era-btn.is-active.is-legacy { background: #B8860B; }
 
 .ss-root .ss-era-tag {
   display: inline-block;

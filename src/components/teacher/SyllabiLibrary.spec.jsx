@@ -64,6 +64,7 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
   afterEach(() => {
     cleanup()
     document.body.style.overflow = ''
+    vi.unstubAllGlobals()
   })
 
   it('opens a subject and marks the root as subject view (collapses nav to a rail via CSS)', async () => {
@@ -158,5 +159,32 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
     fireEvent.click(sidebar.querySelector('.ss-nav-item'))
     expect(sidebar.classList.contains('is-open')).toBe(false)
     expect(container.querySelector('.ss-backdrop')).toBeNull()
+  })
+
+  it('era switcher in the slide-out panel switches to the 2013 curriculum and closes the panel', async () => {
+    // Stub fetch so the lazy 2013 data load resolves immediately rather than
+    // leaving async state updates pending after the synchronous assertion.
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({}) })))
+
+    const { container } = renderStudio()
+    await screen.findAllByRole('button', { name: /Physics/ })
+
+    // Open the subject slide-out panel.
+    fireEvent.click(container.querySelector('.ss-menu-btn'))
+    const sidebar = container.querySelector('.ss-sidebar')
+    expect(sidebar.classList.contains('is-open')).toBe(true)
+
+    // The panel-era-switch control must be present inside the open slide-out.
+    const eraBtns = [...sidebar.querySelectorAll('.ss-panel-era-btn')]
+    expect(eraBtns).toHaveLength(2)
+    const legacyBtn = eraBtns.find((b) => /2013/.test(b.textContent))
+    expect(legacyBtn).toBeTruthy()
+
+    // Clicking '2013' switches the era and closes the panel (switchEra calls
+    // setSubjectPanelOpen(false) so the slide-out collapses).
+    fireEvent.click(legacyBtn)
+    const root = container.querySelector('.ss-root')
+    expect(root.getAttribute('data-era')).toBe('legacy')
+    expect(sidebar.classList.contains('is-open')).toBe(false)
   })
 })
