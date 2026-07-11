@@ -15,6 +15,7 @@ import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 import { analyzeTiming } from './assessmentTiming.js'
 import { canonicalizeQuestionType } from '../editor/schema/question.js'
 import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+import { hydrateTableData } from './tableData.js'
 import { orderPaperGroups } from './quizSections.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
@@ -718,14 +719,15 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
       : [],
     diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
     // Inline data table (null when the question has no attached table).
-    tableData: q.tableData && Array.isArray(q.tableData.headers)
-      ? {
-        headers: q.tableData.headers.map(h => plain(h)),
-        rows: Array.isArray(q.tableData.rows)
-          ? q.tableData.rows.map(row => Array.isArray(row) ? row.map(c => plain(c)) : [])
-          : [],
-      }
-      : null,
+    // hydrateTableData unfolds the persisted { cells } row shape when the
+    // question came straight from a Firestore doc (the AssessmentList export
+    // path passes raw docs); in-memory string[][] rows pass through unchanged.
+    tableData: (() => {
+      const table = hydrateTableData(q.tableData)
+      return table
+        ? { headers: table.headers.map(h => plain(h)), rows: table.rows.map(row => row.map(c => plain(c))) }
+        : null
+    })(),
     // Draw & Label canvas height in points (null = no canvas).
     drawingHeight: Number.isFinite(Number(q.drawingHeight)) && Number(q.drawingHeight) > 0
       ? Math.max(80, Math.min(500, Math.round(Number(q.drawingHeight))))

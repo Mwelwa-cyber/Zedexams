@@ -62,6 +62,11 @@ const PROJECT_ID = 'examsprepzambia-test'
 const ADMIN = 'admin_user'
 const TEACHER = 'teacher_user'
 
+// The rules gate every studio write on isVerified() (email verification),
+// so the test principals need a verified-email token — mirrors
+// test-firestore-rules-emulator.mjs.
+const verifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: true })
+
 let pass = 0
 let fail = 0
 const failures = []
@@ -381,8 +386,8 @@ async function main() {
     })
   })
 
-  const adminDb = testEnv.authenticatedContext(ADMIN).firestore()
-  const teacherDb = testEnv.authenticatedContext(TEACHER).firestore()
+  const adminDb = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
+  const teacherDb = testEnv.authenticatedContext(TEACHER, verifiedToken(TEACHER)).firestore()
 
   const serialized = buildEditorSave()
   console.log(`\nBuilt editor save via real importer: ${serialized.questions.length} questions, ` +
