@@ -75,12 +75,44 @@ check('AI message: a single draft is surfaced by name', () => {
   assert.match(msg, /waiting/)
 })
 
-check('AI message: multiple drafts counted', () => {
+check('AI message: multiple drafts counted with updated copy', () => {
   const msg = buildAiMessage({
     resources: [res({ status: 'draft' }), res({ status: 'draft' }), res({ status: 'draft' })],
     now: NOW,
   })
-  assert.match(msg, /3 unpublished test papers/)
+  assert.match(msg, /3 test papers still in progress/)
+})
+
+check('AI message: ready assessments do not trigger the in-progress nag', () => {
+  // Papers with questionCount > 0 are classified as status:'ready' by TeacherDashboard;
+  // the intel layer must not count them as drafts.
+  const msg = buildAiMessage({
+    resources: [
+      res({ status: 'ready', kind: 'assessment', tool: 'assessment' }),
+      res({ status: 'ready', kind: 'assessment', tool: 'assessment' }),
+    ],
+    now: NOW,
+  })
+  assert.doesNotMatch(msg, /in progress/)
+  assert.doesNotMatch(msg, /unpublished/)
+})
+
+check('AI message: empty assessment drafts still trigger the nag', () => {
+  // Papers with no questions remain status:'draft'; one paper uses the title variant.
+  const single = buildAiMessage({
+    resources: [res({ status: 'draft', kind: 'assessment', tool: 'assessment', title: 'Grade 5 test' })],
+    now: NOW,
+  })
+  assert.match(single, /waiting/)
+
+  const multi = buildAiMessage({
+    resources: [
+      res({ status: 'draft', kind: 'assessment', tool: 'assessment' }),
+      res({ status: 'draft', kind: 'assessment', tool: 'assessment' }),
+    ],
+    now: NOW,
+  })
+  assert.match(multi, /in progress/)
 })
 
 check('AI message: stale subject', () => {

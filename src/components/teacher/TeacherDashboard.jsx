@@ -744,9 +744,9 @@ export default function TeacherDashboard() {
         createdAt: toMs(a.createdAt),
         title: a.title || a.topic || `Untitled ${isExam ? 'exam' : 'test'} paper`,
         to: assessmentEditPath(a),
-        // Assessments are always editable drafts (no publish state), so the
-        // progress bar reflects how far the paper is by question count.
-        status: 'draft',
+        // Papers with at least one question are ready artifacts; only empty
+        // papers are genuinely unfinished drafts.
+        status: (typeof a.questionCount === 'number' && a.questionCount > 0) ? 'ready' : 'draft',
         questionCount: typeof a.questionCount === 'number' ? a.questionCount : 0,
       }
     })

@@ -124,7 +124,7 @@ export function buildAiMessage({ resources = [], usage = null, now = Date.now() 
     return `Your ${drafts[0].title || 'draft test paper'} is waiting to be finished.`
   }
   if (drafts.length > 1) {
-    return `You have ${drafts.length} unpublished test papers waiting.`
+    return `You have ${drafts.length} test papers still in progress.`
   }
 
   // 3. A trusted subject has gone quiet.
@@ -180,7 +180,7 @@ export function buildInsights({ resources = [], usage = null, now = Date.now() }
   }
 
   if (drafts.length > 0) {
-    out.push({ id: 'drafts', icon: '📌', text: `${drafts.length} test paper${drafts.length === 1 ? ' is' : 's are'} waiting to be published.` })
+    out.push({ id: 'drafts', icon: '📌', text: `${drafts.length} test paper${drafts.length === 1 ? ' is' : 's are'} still in progress.` })
   }
 
   if (!hasSba && resources.length >= 3) {
