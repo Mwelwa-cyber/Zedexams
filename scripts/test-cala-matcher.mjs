@@ -205,6 +205,39 @@ await test("unknown topic yields a 'topic not found' gap", async () => {
   assert(out.citations.length === 0, "no citations for unknown topic");
 });
 
+console.log("\nCala matcher — draft hand-off guard");
+
+await test("missing aria output → 'Aria must run first' (ordering)", async () => {
+  let threw = null;
+  try {
+    await runCala({ job: { input: KNOWN_INPUT, output: {} } });
+  } catch (err) {
+    threw = err;
+  }
+  assert(threw, "runCala should throw when there is no aria output");
+  assert(/Aria must run first/.test(threw.message),
+    `expected the ordering message, got: ${threw.message}`);
+});
+
+await test("aria ran but draft is empty → 'empty draft' (not ordering)", async () => {
+  // Aria output exists (it ran) but the draft came back falsy. The message
+  // must NOT claim Aria failed to run — that misdirected the incident this
+  // guard was added for.
+  for (const draft of [null, "", undefined]) {
+    let threw = null;
+    try {
+      await runCala({ job: { input: KNOWN_INPUT, output: { aria: { draft } } } });
+    } catch (err) {
+      threw = err;
+    }
+    assert(threw, `runCala should throw on an empty draft (${JSON.stringify(draft)})`);
+    assert(/empty draft/i.test(threw.message),
+      `expected the 'empty draft' message for ${JSON.stringify(draft)}, got: ${threw.message}`);
+    assert(!/must run first/i.test(threw.message),
+      `empty-draft message must not blame ordering, got: ${threw.message}`);
+  }
+});
+
 console.log("\nCala matcher — internals");
 
 await test("normalise lowercases and strips punctuation", () => {

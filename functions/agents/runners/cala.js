@@ -163,7 +163,15 @@ async function runCala({job}) {
   const ariaOutput = job.output && job.output.aria;
   const draft = ariaOutput && ariaOutput.draft;
   if (!draft) {
-    throw new Error("Cala needs job.output.aria.draft — Aria must run first.");
+    // Distinguish "Aria never ran" (no aria output at all) from "Aria ran
+    // but handed off an empty draft". The two need very different fixes, and
+    // the old single "Aria must run first" message wrongly blamed ordering
+    // even when Aria had run and simply produced no content.
+    throw new Error(
+        ariaOutput ?
+          "Cala received an empty draft from Aria — nothing to align." :
+          "Cala needs job.output.aria.draft — Aria must run first.",
+    );
   }
 
   const {kbMatch, kbWarning, kbVersion} = await resolveCbcContext({

@@ -189,6 +189,24 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
     ],
   });
 
+  // Aria "succeeded" but produced no usable draft — the underlying generator
+  // returned a falsy value under the mapped draft key (aria.js maps it to
+  // null). Cala and Reva have nothing to work on, so stop here and attribute
+  // the failure to Aria. Letting it fall through to Cala would surface the
+  // misleading "Aria must run first" AND trip CALA's circuit breaker for an
+  // upstream problem — auto-pausing a healthy deterministic agent.
+  if (!ariaOut.draft) {
+    const err = new Error(
+      "Aria produced an empty draft — the generator returned no content.",
+    );
+    await setJobFields(jobRef, {
+      status: "failed",
+      error: `Aria: ${err.message}`,
+    });
+    await noteAgentFailure("aria", err);
+    return;
+  }
+
   // 2. Cala
   if (await isAgentPaused("cala")) {
     await setJobFields(jobRef, {
