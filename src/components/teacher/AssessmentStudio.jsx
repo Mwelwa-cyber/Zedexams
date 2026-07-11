@@ -64,6 +64,7 @@ import { consumeVisualHandoff, isVisualHandoffRequest } from '../../utils/studio
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
 import ScanPaperModal from './scan/ScanPaperModal'
 import ImportReviewScreen from './scan/ImportReviewScreen'
+import { importHasQuestions } from './scan/importReviewModel'
 import { studioGradeToKbGrade, studioSubjectToKey, normalizeStudioFramework } from './syllabusTopicOptions'
 import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
 import { getStudioVariant } from './studioVariant'
@@ -1718,6 +1719,12 @@ export default function AssessmentStudio({ variant = 'test' }) {
     setImportingDocument(true)
     try {
       const imported = await importQuizDocument(files, importOptions)
+      // Guard before any state mutation: a zero-extraction result must never
+      // wipe the current paper or reset the undo baseline.
+      if (!importHasQuestions(imported)) {
+        showToast('No questions extracted. Try a different file.', true)
+        return false
+      }
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
@@ -1747,10 +1754,6 @@ export default function AssessmentStudio({ variant = 'test' }) {
         warnings: imported.warnings,
       })
       const importedCount = (imported.sections?.length || imported.questions?.length || 0)
-      if (importedCount === 0) {
-        showToast('No questions extracted. Try a different file.', true)
-        return false
-      }
       const smartTag = imported.smartApplied ? '✨ Smart-imported ' : 'Imported '
       showToast(`${smartTag}${importedCount} question${importedCount === 1 ? '' : 's'}. Review before saving.`)
       changeView('builder')

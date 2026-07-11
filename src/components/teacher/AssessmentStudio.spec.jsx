@@ -36,6 +36,12 @@ vi.mock('../../hooks/useFirestore', () => ({
 let mockAuth = { currentUser: { uid: 'owner-1' }, userProfile: { id: 'owner-1' }, isAdmin: false }
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
+const mockImportQuizDocument = vi.fn()
+vi.mock('../quiz/documentQuizImporter', () => ({
+  importQuizDocument: (...args) => mockImportQuizDocument(...args),
+  revokeImportedQuizAssets: vi.fn(),
+}))
+
 // Firebase-touching / network util leaves.
 vi.mock('../../utils/aiAssistant', () => ({ generateAIQuizQuestions: vi.fn() }))
 vi.mock('../../utils/generateDiagram', () => ({ generateDiagram: vi.fn() }))
@@ -62,10 +68,24 @@ vi.mock('./studio/AssessmentHomeView', () => ({
   ),
 }))
 vi.mock('./studio/AssessmentBuilderView', () => ({
-  // Expose form.title as a data attribute so F6 tests can assert the form
-  // was reset to defaults after startBlankPaper() is called.
-  BuilderView: ({ form }) => (
-    <div data-testid="builder-view" data-form-title={form?.title ?? ''}>builder-view</div>
+  // Expose form.title and sections.length as data attributes. Also expose
+  // onImportDocument so B1 tests can trigger an import without a real file UI.
+  BuilderView: ({ form, sections = [], onImportDocument }) => (
+    <div
+      data-testid="builder-view"
+      data-form-title={form?.title ?? ''}
+      data-section-count={sections.length}
+    >
+      builder-view
+      <button
+        type="button"
+        onClick={() =>
+          onImportDocument?.([new File([''], 'stub.pdf', { type: 'application/pdf' })])
+        }
+      >
+        stub-import-doc
+      </button>
+    </div>
   ),
 }))
 // Slide-overs live in AssessmentSlideOvers (not previously mocked because the
@@ -237,6 +257,64 @@ describe('AssessmentStudio — variant wording (edit gate)', () => {
     render(<MemoryRouter><AssessmentStudio variant="exam" /></MemoryRouter>)
     expect(await screen.findByText('Access denied')).toBeInTheDocument()
     expect(screen.getByText(/You can only edit exam papers you created\./)).toBeInTheDocument()
+  })
+})
+
+/*
+ * B1 regression — zero-extraction import must not wipe the current paper.
+ *
+ * Root cause: runImportDocument mutated all state (setImportedAssets, setForm,
+ * setSections([]), setParts, resetUndoBaseline) BEFORE checking whether the
+ * parsed file produced any questions. A zero-extraction result wiped the paper
+ * and reseeded the undo stack, making recovery via Ctrl+Z impossible.
+ *
+ * Fix: importHasQuestions(imported) guard fires immediately after the await,
+ * before any state mutation. A zero-result returns false + toast and leaves
+ * the current paper completely untouched.
+ *
+ * Observable: after triggering a zero-extraction import the sections count
+ * (exposed via BuilderView's data-section-count) must remain at its pre-import
+ * value (the single starter section).
+ */
+describe('AssessmentStudio — zero-extraction import guard (B1)', () => {
+  beforeEach(() => {
+    mockParams = {}
+    mockImportQuizDocument.mockResolvedValue({
+      sections: [],
+      questions: [],
+      imageAssets: [],
+      quiz: {
+        title: '',
+        grade: '',
+        subject: '',
+        sourceFileName: 'stub.pdf',
+        sourceContentType: 'application/pdf',
+      },
+      importStatus: 'ok',
+      warnings: [],
+      summary: {},
+      scanned: false,
+      smartApplied: false,
+      pageImageUrls: {},
+      parts: [],
+    })
+  })
+
+  it('a zero-extraction import leaves the current paper sections untouched', async () => {
+    renderStudioFresh('test')
+    fireEvent.click(screen.getByRole('button', { name: 'stub-new-paper' }))
+    await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+
+    // The studio starts with a single blank starter section.
+    expect(screen.getByTestId('builder-view').dataset.sectionCount).toBe('1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'stub-import-doc' }))
+
+    // Wait for the async import to resolve.
+    await waitFor(() => expect(mockImportQuizDocument).toHaveBeenCalledTimes(1))
+
+    // Guard fired before mutations: starter section is preserved (count stays 1).
+    expect(screen.getByTestId('builder-view').dataset.sectionCount).toBe('1')
   })
 })
 
