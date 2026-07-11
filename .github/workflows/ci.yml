@@ -178,6 +178,12 @@ jobs:
         run: npm ci
       - name: Firestore rules tests
         run: npm run test:rules-emulator
+      - name: Quiz-editor save replay (full real payloads vs rules)
+        # Replays the editor's exact autosave payloads (built by the real
+        # importer + serializer + normalizeQuestionPayload) through the rules.
+        # Guards the expression-budget cliff that broke every scanned
+        # past-paper import — see scripts/test-quiz-autosave-rules-emulator.mjs.
+        run: npm run test:quiz-autosave-rules
 
   storage-rules-emulator:
     # Behavioural Storage-rules tests. Like the Firestore job above, these

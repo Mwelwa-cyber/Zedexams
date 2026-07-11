@@ -70,47 +70,62 @@ for (const t of REQUIRED_TYPES) {
   })
 }
 
-// ── tolerance + correctRegion validation present ───────────────
+// ── validQuestionFields: retained teeth + expression budget ─────
 
-console.log('\nvalidQuestionFields covers the #398 / #399 answer fields')
+console.log('\nvalidQuestionFields keeps its teeth AND stays under the expression budget')
 
-test('numeric tolerance is bounds-checked', () => {
-  assertContains("'tolerance' in incoming()", 'tolerance not gated in validQuestionFields')
-  assertContains('incoming().tolerance >= 0', 'tolerance lower bound missing')
-  assertContains('incoming().tolerance <= 1000000', 'tolerance upper bound missing')
+test('marks / options / order / text / passage checks are retained', () => {
+  assertContains("'marks' in incoming()", 'marks not gated in validQuestionFields')
+  assertContains('incoming().marks >= 1 && incoming().marks <= 20', 'marks bounds missing')
+  assertContains("'options' in incoming()", 'options not gated in validQuestionFields')
+  assertContains('incoming().options.size() <= 20', 'options list cap missing')
+  assertContains("'order' in incoming()", 'order not gated in validQuestionFields')
+  assertContains('incoming().text.size() <= 100000', 'text size cap missing')
+  assertContains('incoming().passage.size() <= 200000', 'passage size cap missing')
 })
 
-test('hotspot correctRegion is shape + bounds checked', () => {
-  assertContains("'correctRegion' in incoming()", 'correctRegion not gated in validQuestionFields')
-  assertContains('incoming().correctRegion.x >= 0', 'correctRegion.x lower bound missing')
-  assertContains('incoming().correctRegion.x <= 1', 'correctRegion.x upper bound missing')
-  assertContains('incoming().correctRegion.y >= 0', 'correctRegion.y lower bound missing')
-  assertContains('incoming().correctRegion.y <= 1', 'correctRegion.y upper bound missing')
-  assertContains('incoming().correctRegion.radius >= 0', 'correctRegion.radius lower bound missing')
-  assertContains('incoming().correctRegion.radius <= 0.5', 'correctRegion.radius upper bound missing')
+test('validQuestionFields stays FAR below the 1000-expression evaluation cap', () => {
+  // Firestore rules abort with PERMISSION_DENIED ("maximum of 1000
+  // expressions to evaluate has been reached") when one evaluation exceeds
+  // 1000 expressions. A ~35-clause version of validQuestionFields crossed
+  // that cap on REAL editor payloads (~40 fields per imported question), so
+  // every scanned past-paper import failed to save — for admins too — with
+  // an opaque "Missing or insufficient permissions", while minimal test
+  // payloads stayed under the cap and kept the suite green. Field-level
+  // validation belongs in the client Zod schema (questionWriteSchema is
+  // .strict()); the rule keeps only the checks with real integrity teeth.
+  //
+  // Guard: count the presence-gates (clauses) and incoming() calls inside
+  // the function body. The thresholds leave several-fold headroom below the
+  // observed cliff; if this test fails, do NOT raise the threshold — move
+  // the new validation into src/editor/schema/question.js instead. The
+  // behavioural companion (scripts/test-quiz-autosave-rules-emulator.mjs)
+  // replays full real payloads through the emulator and fails on the cliff
+  // itself.
+  const start = rules.indexOf('function validQuestionFields()')
+  assert(start >= 0, 'validQuestionFields definition not found')
+  const end = rules.indexOf('\n    }', start)
+  const body = rules.slice(start, end)
+  const clauses = (body.match(/in incoming\(\)/g) || []).length
+  const incomingCalls = (body.match(/incoming\(\)/g) || []).length
+  assert(
+    clauses <= 8,
+    `validQuestionFields has ${clauses} presence-gated clauses (max 8) — see the expression-budget note in firestore.rules before adding checks here`,
+  )
+  assert(
+    incomingCalls <= 24,
+    `validQuestionFields makes ${incomingCalls} incoming() calls (max 24) — see the expression-budget note in firestore.rules before adding checks here`,
+  )
 })
 
-test('CBC tagging + import provenance fields are gated (mirrors question.js)', () => {
-  // These 6 fields were added to the .strict() Zod schema; the rule must
-  // mirror them or a draft saves but publish fails with an opaque
-  // permission error (the marks-cap failure mode).
-  assertContains("'subtopic' in incoming()", 'subtopic not gated in validQuestionFields')
-  assertContains('incoming().subtopic.size() <= 200', 'subtopic size cap missing')
-  assertContains("'competency' in incoming()", 'competency not gated in validQuestionFields')
-  assertContains("'specificOutcome' in incoming()", 'specificOutcome not gated in validQuestionFields')
-  assertContains('incoming().specificOutcome.size() <= 500', 'specificOutcome size cap missing')
-  assertContains("'curriculum' in incoming()", 'curriculum not gated in validQuestionFields')
-  assertContains("'aiConfidence' in incoming()", 'aiConfidence not gated in validQuestionFields')
-  assertContains('incoming().aiConfidence >= 0', 'aiConfidence lower bound missing')
-  assertContains('incoming().aiConfidence <= 1', 'aiConfidence upper bound missing')
-  assertContains("'validationStatus' in incoming()", 'validationStatus not gated in validQuestionFields')
-  assertContains("incoming().validationStatus in ['ok', 'warning', 'error']", 'validationStatus enum missing')
-})
-
-test('sourceQuestionNumber (printed number) is gated with int bounds', () => {
-  assertContains("'sourceQuestionNumber' in incoming()", 'sourceQuestionNumber not gated in validQuestionFields')
-  assertContains('incoming().sourceQuestionNumber >= 1', 'sourceQuestionNumber lower bound missing')
-  assertContains('incoming().sourceQuestionNumber <= 9999', 'sourceQuestionNumber upper bound missing')
+test('question writes authorize BEFORE running the field validator', () => {
+  // Both question subcollections must evaluate the (cheap) authorization
+  // branch first and the field validator last, so a denied caller never
+  // spends the per-field expression budget. Guards the && ordering.
+  assert(
+    !/allow create, update: if validQuestionFields\(\)/.test(rules),
+    'a question create/update rule runs validQuestionFields() before authorization — reorder so auth short-circuits first',
+  )
 })
 
 // ── A few defensive invariants worth pinning ────────────────────

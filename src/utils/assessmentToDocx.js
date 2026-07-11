@@ -37,6 +37,7 @@ import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
+import { hydrateTableData } from './tableData.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
@@ -1038,8 +1039,12 @@ async function renderQuestion(b, stats = null) {
     if (run) out.push(centeredPara([run]))
   }
   if (b.tableData) {
-    const headers = Array.isArray(b.tableData.headers) ? b.tableData.headers : []
-    const rows = Array.isArray(b.tableData.rows) ? b.tableData.rows : []
+    // Unfold the persisted { cells } row shape when the block came straight
+    // from a Firestore doc (see src/utils/tableData.js); in-memory string[][]
+    // rows pass through unchanged.
+    const table = hydrateTableData(b.tableData) || { headers: [], rows: [] }
+    const headers = table.headers
+    const rows = table.rows
     if (headers.length) {
       const headerRow = new TableRow({
         children: headers.map(h => new TableCell({

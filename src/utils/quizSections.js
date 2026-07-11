@@ -3,6 +3,7 @@
 // ensureRichTextHtml from the legacy module is intentionally no longer used.
 
 import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
+import { hydrateTableData } from './tableData.js'
 
 let localIdCounter = 0
 
@@ -250,8 +251,16 @@ const ANSWER_FORMATS = new Set(['lines', 'none', 'labelled_blanks'])
 // can trust the shape. Returns { answerFormat, answerLines, blankLabels }.
 export function normalizeAnswerSpace(question = {}) {
   const answerFormat = ANSWER_FORMATS.has(question.answerFormat) ? question.answerFormat : 'lines'
-  const rawLines = Number(question.answerLines)
-  const answerLines = Number.isFinite(rawLines) && rawLines >= 0
+  // null/absent means "use the per-type default line count" and must stay
+  // null — the renderers treat an explicit 0 as "print no lines" (the
+  // answered-on-the-diagram case). Number(null) is 0 in JS, so coercing
+  // before the null check silently rewrote every never-set count to an
+  // explicit 0 on save: after one save → reload, short-answer questions
+  // printed with NO ruled answer space.
+  const rawLines = question.answerLines == null || question.answerLines === ''
+    ? null
+    : Number(question.answerLines)
+  const answerLines = rawLines != null && Number.isFinite(rawLines) && rawLines >= 0
     ? Math.min(40, Math.round(rawLines))
     : null
   const blankLabels = Array.isArray(question.blankLabels)
@@ -874,18 +883,9 @@ function hydrateStandaloneQuestion(question = {}) {
         .slice(0, 20)
       : [],
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
-    tableData: question.tableData && Array.isArray(question.tableData.headers)
-      ? {
-        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 10),
-        rows: Array.isArray(question.tableData.rows)
-          ? question.tableData.rows
-            .slice(0, 16)
-            .map(row => Array.isArray(row)
-              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 10)
-              : [])
-          : [],
-      }
-      : null,
+    // Unfold the persisted { cells } rows back to the editor's string[][]
+    // shape (see src/utils/tableData.js — Firestore rejects nested arrays).
+    tableData: hydrateTableData(question.tableData),
     drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
       ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
       : null,
@@ -980,18 +980,9 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
         .slice(0, 20)
       : [],
     diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
-    tableData: question.tableData && Array.isArray(question.tableData.headers)
-      ? {
-        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 10),
-        rows: Array.isArray(question.tableData.rows)
-          ? question.tableData.rows
-            .slice(0, 16)
-            .map(row => Array.isArray(row)
-              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 10)
-              : [])
-          : [],
-      }
-      : null,
+    // Unfold the persisted { cells } rows back to the editor's string[][]
+    // shape (see src/utils/tableData.js — Firestore rejects nested arrays).
+    tableData: hydrateTableData(question.tableData),
     wordBank: Array.isArray(question.wordBank)
       ? question.wordBank.map(w => String(w ?? '').trim()).filter(Boolean).slice(0, 40)
       : [],

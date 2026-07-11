@@ -15,6 +15,7 @@ globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.Element = dom.window.Element
 
 const { questionWriteSchema, tiptapDoc, coerceQuestion, canonicalizeQuestionType } = await import('../src/editor/schema/question.js')
+const { serializeTableData, hydrateTableData } = await import('../src/utils/tableData.js')
 const { migrateQuestionRecord } = await import('./migrate-questions-to-v3.mjs')
 
 let pass = 0
@@ -647,15 +648,42 @@ test('diagram question with labels + identify mode passes', () => {
   assert(result.data.diagramMode === 'identify', 'identify mode survives parse')
 })
 
-test('inline data table passes', () => {
+test('inline data table passes (persisted { cells } row shape)', () => {
   const d = validDoc()
   d.type = 'short_answer'
   d.options = []
   d.correctAnswer = ''
-  d.tableData = { headers: ['Animal', 'Legs'], rows: [['Dog', '4'], ['Bird', '2']] }
+  d.tableData = { headers: ['Animal', 'Legs'], rows: [{ cells: ['Dog', '4'] }, { cells: ['Bird', '2'] }] }
   const result = questionWriteSchema.safeParse(d)
   assert(result.success, JSON.stringify(result.error?.issues))
   assert(result.data.tableData.rows.length === 2, 'table rows survive parse')
+})
+
+test('nested-array table rows are rejected (Firestore cannot store them)', () => {
+  // The editor shape (rows: string[][]) must be folded to { cells } by
+  // serializeTableData BEFORE the write — Firestore throws "Nested arrays
+  // are not supported" on a bare array-of-arrays, so the schema rejecting it
+  // here keeps that SDK crash out of the save path.
+  const d = validDoc()
+  d.type = 'short_answer'
+  d.options = []
+  d.correctAnswer = ''
+  d.tableData = { headers: ['Animal', 'Legs'], rows: [['Dog', '4']] }
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'nested-array rows must fail the write schema')
+})
+
+test('tableData folds/unfolds losslessly at the Firestore boundary', () => {
+  const editorShape = { headers: ['Animal', 'Legs'], rows: [['Dog', '4'], ['Bird', '2']] }
+  const persisted = serializeTableData(editorShape)
+  assert(Array.isArray(persisted.rows) && !Array.isArray(persisted.rows[0]), 'persisted rows are objects, not arrays')
+  assert(persisted.rows[0].cells[0] === 'Dog', 'cells survive the fold')
+  const roundTripped = hydrateTableData(persisted)
+  assert(JSON.stringify(roundTripped) === JSON.stringify(editorShape), 'unfold restores the editor shape')
+  // In-memory shape passes through hydrate unchanged (editor round-trips).
+  assert(JSON.stringify(hydrateTableData(editorShape)) === JSON.stringify(editorShape), 'hydrate accepts the editor shape too')
+  assert(serializeTableData(null) === null, 'no table → null')
+  assert(hydrateTableData(null) === null, 'no persisted table → null')
 })
 
 test('draw & label canvas height passes', () => {
