@@ -213,8 +213,14 @@ export function toKbSubjectKey(subject) {
     const k = s.replace(/^_+|_+$/g, '')
     return SUBJECT_FIXES[k] || k
   }
-  const norm = normalizeSubject(s)
-  const key = String(norm || s)
+  // Display labels may carry a parenthetical qualifier purely for the
+  // teacher's benefit — "Zambian Language (Cinyanja etc.)", "Numeracy
+  // (Maths & Science)". Strip it before slugging so the derived key matches
+  // the canonical KB key ('zambian_language') instead of folding the
+  // qualifier in ('zambian_language_cinyanja_etc'), which no allowlist knows.
+  const bare = s.replace(/\s*\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim() || s
+  const norm = normalizeSubject(bare)
+  const key = String(norm || bare)
     .toLowerCase().trim().replace(/[^a-z]+/g, '_').replace(/^_+|_+$/g, '')
   return SUBJECT_FIXES[key] || key
 }

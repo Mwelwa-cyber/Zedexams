@@ -37,6 +37,24 @@ eq(toKbSubjectKey('creative_and_technology_studies'), 'creative_and_technology_s
 eq(toKbSubjectKey('english'), 'english', 'english idempotent')
 eq(toKbSubjectKey(''), '', 'empty → empty')
 
+// Syllabus display labels with a parenthetical qualifier must round-trip to
+// the canonical key — the studio's header/AI-slide subject dropdowns store
+// the LABEL (it prints on the paper) and later resolve it back to a KB key
+// for the generators. Without the parenthesis strip these produced garbage
+// keys like 'zambian_language_cinyanja_etc' that no allowlist accepts.
+eq(toKbSubjectKey('Zambian Language (Cinyanja etc.)'), 'zambian_language',
+  'parenthesised Zambian Language label → zambian_language')
+eq(toKbSubjectKey('Numeracy (Maths & Science)'), 'numeracy',
+  'parenthesised Numeracy label → numeracy')
+// Full label → key → label round-trip for every syllabus-derived subject the
+// studio dropdowns can offer (subjectLabel is exactly what they display).
+for (const k of ['english', 'mathematics', 'integrated_science', 'social_studies',
+  'expressive_arts', 'technology_studies', 'home_economics', 'zambian_language',
+  'numeracy', 'literacy', 'creative_and_technology_studies', 'religious_education',
+  'civic_education', 'physics', 'chemistry', 'biology', 'geography', 'history']) {
+  eq(toKbSubjectKey(subjectLabel(k)), k, `label round-trip: ${k}`)
+}
+
 // ── Subject labels ───────────────────────────────────────────────────────
 eq(subjectLabel('numeracy'), 'Numeracy (Maths & Science)', 'numeracy label')
 eq(subjectLabel('integrated_science'), 'Integrated Science', 'integrated_science label')

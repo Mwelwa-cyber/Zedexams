@@ -39,6 +39,17 @@ vi.mock('./studioIcons', () => ({ default: () => null }))
 // which transitively imports suggestAnswer → firebase/config. Stub it out so
 // the spec stays firebase-free.
 vi.mock('../AssessmentQuestionBlock', () => ({ QuestionBlock: () => null }))
+// HeaderBlock's syllabus-driven subject choices pull the merged-syllabi
+// services (→ firebase) transitively; stub the hook module so the spec stays
+// firebase-free and deterministic.
+vi.mock('../syllabusTopicOptions', () => ({
+  useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
+  normalizeStudioFramework: (v) => (String(v || '') === '2013' ? '2013' : '2023'),
+  CURRICULUM_FRAMEWORKS: [
+    { value: '2023', label: 'New CBC (2023)' },
+    { value: '2013', label: 'Previous syllabus (2013)' },
+  ],
+}))
 vi.mock('../assessmentStudioMeta', () => ({
   ASSESSMENT_TYPE_LABELS: {
     topic: 'Topic Test', weekly: 'Weekly Test',
