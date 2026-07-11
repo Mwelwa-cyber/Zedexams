@@ -548,6 +548,24 @@ test('schoolProfiles stays owner-write with bounded school-identity fields', () 
   }
 })
 
+// ── scores (public game leaderboards) ───────────────────────────
+
+console.log('\nscores — magnitude bound on the public leaderboard surface')
+
+test('scores create range-caps the score value', () => {
+  // scores are world-readable and the game leaderboards trust them, so the
+  // create rule must bound magnitude — else a tampered client writes
+  // score:1e12 and tops every board permanently.
+  const start = rules.indexOf('match /scores/{scoreId}')
+  assert(start >= 0, 'scores match block not found')
+  const slice = rules.slice(start, start + 1200)
+  assert(
+    slice.includes('incoming().score >= 0') &&
+    slice.includes('incoming().score <= 1000000'),
+    'scores create must range-cap score (0..1000000) — public leaderboards trust these docs',
+  )
+})
+
 // ── exam_attempts (daily-exam leaderboard integrity) ────────────
 
 console.log('\nexam_attempts — client creates pinned to the unscored in_progress shape')

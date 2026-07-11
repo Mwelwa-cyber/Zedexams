@@ -1191,10 +1191,16 @@ service cloud.firestore {
     // Update/delete: admin only (prevents tampering with leaderboards).
     match /scores/{scoreId} {
       allow read:   if true;
+      // score is range-capped (same data-integrity-backstop intent as the
+      // gamification validators below): reads are fully public and the game
+      // leaderboards trust these docs, so without the bound a tampered
+      // client could write score:1e12 and top every board permanently.
       allow create: if isAuthed()
         && incoming().userId == request.auth.uid
         && incoming().gameId is string
         && incoming().score is number
+        && incoming().score >= 0
+        && incoming().score <= 1000000
         && incoming().grade is number
         && incoming().subject is string
         && incoming().playedAt == request.time;
