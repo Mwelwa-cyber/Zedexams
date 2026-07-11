@@ -4,7 +4,13 @@
  */
 
 const assert = require("node:assert");
-const {gradeAttempt, stripAnswerKey, choiceEquals} = require("./dailyExamGrading");
+const {
+  gradeAttempt,
+  stripAnswerKey,
+  choiceEquals,
+  shouldIncludeAnswerKey,
+  canAccessExam,
+} = require("./dailyExamGrading");
 
 let passed = 0;
 function ok(name, cond) {
@@ -101,5 +107,47 @@ ok("stripped removes explanation", !("explanation" in stripped));
 ok("stripped removes tolerance", !("tolerance" in stripped));
 ok("stripped removes correctRegion", !("correctRegion" in stripped));
 ok("stripped keeps text/options", stripped.text === "2+2?" && stripped.options.length === 2);
+
+// ── shouldIncludeAnswerKey: the mid-exam answer-key-leak gate ────────────
+// Full keys go out ONLY for the caller's own SUBMITTED attempt on THIS exam.
+const submittedAttempt = {userId: "u1", examId: "e1", status: "submitted"};
+ok("own submitted attempt on this exam → keys included",
+  shouldIncludeAnswerKey({attempt: submittedAttempt, uid: "u1", examId: "e1"}) === true);
+ok("someone else's submitted attempt → stripped (leak vector)",
+  shouldIncludeAnswerKey({attempt: submittedAttempt, uid: "u2", examId: "e1"}) === false);
+ok("own submitted attempt but for a DIFFERENT exam → stripped",
+  shouldIncludeAnswerKey({attempt: submittedAttempt, uid: "u1", examId: "e2"}) === false);
+ok("own attempt still in_progress → stripped (mid-exam)",
+  shouldIncludeAnswerKey({
+    attempt: {userId: "u1", examId: "e1", status: "in_progress"}, uid: "u1", examId: "e1",
+  }) === false);
+ok("missing attempt doc → stripped (fail closed)",
+  shouldIncludeAnswerKey({attempt: null, uid: "u1", examId: "e1"}) === false);
+ok("no args at all → stripped (fail closed)", shouldIncludeAnswerKey() === false);
+ok("empty uid → stripped even if attempt matches shape",
+  shouldIncludeAnswerKey({
+    attempt: {userId: "", examId: "e1", status: "submitted"}, uid: "", examId: "e1",
+  }) === false);
+
+// ── canAccessExam: the questions read policy (mirrors firestore.rules) ───
+const publishedDaily = {createdBy: "t1", isPublished: true, quizType: "daily_exam"};
+ok("any learner can access a PUBLISHED daily_exam",
+  canAccessExam({role: "learner", uid: "u1", quizData: publishedDaily}) === true);
+ok("admin can access an unpublished draft (moderation)",
+  canAccessExam({role: "admin", uid: "u1", quizData: {createdBy: "t1", isPublished: false}}) === true);
+ok("owner can access their own unpublished draft (preview)",
+  canAccessExam({role: "teacher", uid: "t1", quizData: {createdBy: "t1", isPublished: false}}) === true);
+ok("non-owner learner cannot access an unpublished daily_exam",
+  canAccessExam({
+    role: "learner", uid: "u1",
+    quizData: {createdBy: "t1", isPublished: false, quizType: "daily_exam"},
+  }) === false);
+ok("published PRACTICE quiz is not served from this path",
+  canAccessExam({
+    role: "learner", uid: "u1",
+    quizData: {createdBy: "t1", isPublished: true, quizType: "practice"},
+  }) === false);
+ok("missing quiz doc → denied (fail closed)",
+  canAccessExam({role: "admin", uid: "u1", quizData: null}) === false);
 
 console.log(`\n─── ${passed} assertions · all passed ───`);

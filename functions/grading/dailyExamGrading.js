@@ -153,4 +153,52 @@ function stripAnswerKey(question) {
   return clean;
 }
 
-module.exports = {gradeAttempt, stripAnswerKey, ANSWER_KEY_FIELDS, choiceEquals};
+/**
+ * The answer-key gate: full question docs (keys included) go out ONLY when
+ * the caller already has a SUBMITTED attempt on THIS exam. Everything else —
+ * missing attempt, someone else's attempt, a different exam's attempt, an
+ * attempt still in progress — stays stripped, or a mid-exam learner could
+ * pull the day's answer key. Pure so getExamQuestions' security decision is
+ * directly testable; every falsy/mismatched input fails closed.
+ *
+ * @param {object} p
+ * @param {object|null|undefined} p.attempt — exam_attempts doc data (null when absent)
+ * @param {string} p.uid — caller's auth uid
+ * @param {string} p.examId — the exam being fetched
+ * @returns {boolean}
+ */
+function shouldIncludeAnswerKey({attempt, uid, examId} = {}) {
+  if (!attempt || !uid || !examId) return false;
+  return attempt.userId === uid &&
+    attempt.examId === examId &&
+    attempt.status === "submitted";
+}
+
+/**
+ * The exam-access decision behind assertExamAccess: admin, quiz owner, or a
+ * PUBLISHED daily_exam — everything else (unpublished drafts, other
+ * teachers' quizzes, published practice quizzes) is denied. Pure mirror of
+ * the firestore.rules questions read policy so it tests under plain node;
+ * the callable wraps it with the role lookup + HttpsError.
+ *
+ * @param {object} p
+ * @param {string} p.role — resolved user role
+ * @param {string} p.uid — caller's auth uid
+ * @param {object|null|undefined} p.quizData — quiz doc data
+ * @returns {boolean}
+ */
+function canAccessExam({role, uid, quizData} = {}) {
+  if (!quizData) return false;
+  if (role === "admin") return true;
+  if (uid && quizData.createdBy === uid) return true;
+  return quizData.isPublished === true && (quizData.quizType || "") === "daily_exam";
+}
+
+module.exports = {
+  gradeAttempt,
+  stripAnswerKey,
+  ANSWER_KEY_FIELDS,
+  choiceEquals,
+  shouldIncludeAnswerKey,
+  canAccessExam,
+};

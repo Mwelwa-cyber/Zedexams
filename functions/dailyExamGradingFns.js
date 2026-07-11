@@ -20,7 +20,12 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
-const {gradeAttempt, stripAnswerKey} = require("./grading/dailyExamGrading");
+const {
+  gradeAttempt,
+  stripAnswerKey,
+  shouldIncludeAnswerKey,
+  canAccessExam,
+} = require("./grading/dailyExamGrading");
 const {getUserRole} = require("./aiService");
 
 // Matches the region of every other Cloud Function in this project
@@ -45,11 +50,9 @@ const REGION = "us-central1";
 // error aborts the call rather than falling through to access.
 async function assertExamAccess(uid, quizData) {
   const role = await getUserRole(uid);
-  if (role === "admin") return;
-  if (quizData.createdBy === uid) return;
-  if (quizData.isPublished === true && (quizData.quizType || "") === "daily_exam") {
-    return;
-  }
+  // Decision logic lives in grading/dailyExamGrading.js (canAccessExam) so
+  // it's unit-tested; this wrapper owns the role lookup + fail-closed throw.
+  if (canAccessExam({role, uid, quizData})) return;
   throw new HttpsError(
     "permission-denied",
     "You don't have access to this exam.",
@@ -123,15 +126,15 @@ exports.getExamQuestions = onCall(
 
     // Full (with answer keys) only when the caller already submitted THIS
     // exam attempt — the corrections screen. Otherwise strip the keys.
+    // The decision predicate is pure + unit-tested (shouldIncludeAnswerKey).
     let includeAnswerKey = false;
     if (attemptId) {
       const aSnap = await db.collection("exam_attempts").doc(attemptId).get();
-      if (aSnap.exists) {
-        const a = aSnap.data();
-        if (a.userId === uid && a.examId === examId && a.status === "submitted") {
-          includeAnswerKey = true;
-        }
-      }
+      includeAnswerKey = shouldIncludeAnswerKey({
+        attempt: aSnap.exists ? aSnap.data() : null,
+        uid,
+        examId,
+      });
     }
 
     const questions = await loadQuestions(db, examId);
