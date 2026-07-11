@@ -211,7 +211,8 @@ async function acknowledgeSubscription({accessToken, productId, purchaseToken, f
  * turns "Play rejected our credentials" into a checkable fact — the admin can
  * compare the email against Play Console ▸ Users and permissions (and the key
  * id against the SA's Keys tab) without opening Secret Manager. Returns ""
- * when the JSON doesn't parse; the sa-json-* reasons already cover that.
+ * when the JSON doesn't parse or lacks a client_email; the sa-json-* reasons
+ * already cover those.
  */
 function describeSaIdentity(saJsonString) {
   try {
