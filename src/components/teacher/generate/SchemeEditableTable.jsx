@@ -22,6 +22,7 @@ import {
   mergeRows,
   moveTopicToWeek,
 } from '../../../utils/schemeEditing'
+import ListTextarea from '../../ui/ListTextarea'
 
 const LIST_KEYS = new Set(['specificCompetences', 'learningActivities', 'methods', 'tlAids'])
 
@@ -77,20 +78,27 @@ function WeekCard({ week, index, columns, weekCount, onChange }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {editableCols.map((col) => {
           const isList = LIST_KEYS.has(col.key)
-          const value = isList
-            ? (Array.isArray(week[col.key]) ? week[col.key].join('\n') : '')
-            : (week[col.key] || '')
           const wide = col.key === 'topic' || col.key === 'specificCompetences' || col.key === 'learningActivities'
           return (
             <div key={col.key} className={wide ? 'sm:col-span-2' : ''}>
               <FieldLabel>{col.label}{isList ? ' (one per line)' : ''}</FieldLabel>
-              <textarea
-                value={value}
-                onChange={(e) => onChange((s, i) => updateCell(s, i, col.key, e.target.value))}
-                rows={isList ? 3 : 2}
-                className="studio-input resize-y w-full text-sm"
-                placeholder={col.label}
-              />
+              {isList ? (
+                <ListTextarea
+                  value={Array.isArray(week[col.key]) ? week[col.key] : []}
+                  onChange={(list) => onChange((s, i) => updateCell(s, i, col.key, list))}
+                  rows={3}
+                  className="studio-input resize-y w-full text-sm"
+                  placeholder={col.label}
+                />
+              ) : (
+                <textarea
+                  value={week[col.key] || ''}
+                  onChange={(e) => onChange((s, i) => updateCell(s, i, col.key, e.target.value))}
+                  rows={2}
+                  className="studio-input resize-y w-full text-sm"
+                  placeholder={col.label}
+                />
+              )}
             </div>
           )
         })}

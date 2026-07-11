@@ -37,13 +37,11 @@ import { recordOfWorkDescriptor } from '../../../hooks/draft/descriptors/handBui
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import ListTextarea from '../../ui/ListTextarea'
 
 const SUBJECT_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),
 )
-
-const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
-const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
 export default function RecordOfWorkStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -359,7 +357,7 @@ export default function RecordOfWorkStudio() {
                   </div>
                   <div>
                     <label className="studio-label">Work done (one per line)</label>
-                    <textarea rows={4} value={listToLines(w.workDone)} onChange={(e) => updateWeek(i, 'workDone', linesToList(e.target.value))} className="studio-input !py-1.5 text-sm resize-none" />
+                    <ListTextarea rows={4} value={w.workDone} onChange={(list) => updateWeek(i, 'workDone', list)} className="studio-input !py-1.5 text-sm resize-none" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
