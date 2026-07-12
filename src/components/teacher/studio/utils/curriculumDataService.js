@@ -26,6 +26,11 @@
 import { getMergedSyllabi } from '../../../../utils/syllabusKbService.js'
 import { rowsWithPropagatedTopic } from '../../../../utils/syllabusMapping.js'
 import { splitSpecificOutcomes } from './splitSpecificOutcomes.js'
+import {
+  resolveColumnRoles,
+  repairColumnShiftedRow,
+  isHeaderEchoRow,
+} from '../../../../utils/curriculum2013Parser.js'
 
 // ── 2013 / Previous curriculum loader ────────────────────────────────────────
 // Mirrors the loadRawCurriculum() pattern in syllabusKbService.js.
@@ -146,13 +151,16 @@ const PREV_HEADER_WORDS = new Set([
 const normCol = (c) => String(c == null ? '' : c).trim().toLowerCase()
 const isSubtopicCol = (c) => /sub[\s_-]*topic/i.test(String(c || ''))
 
-/** Lenient outcome splitter: any code with ≥3 dotted parts (3.1.1, 10.1.2.3). */
+/**
+ * Split a SPECIFIC OUTCOMES cell into individual outcome strings via the
+ * canonical parser (handles primary-Maths 3-segment codes, OCR double-dots and
+ * codes glued to their statement). Used to synthesise per-outcome sub-topics
+ * for schema-E sheets (no sub-topic column, e.g. primary Mathematics).
+ */
 function splitOutcomesLenient(raw) {
   const t = String(raw || '').trim()
   if (!t) return []
-  const m = t.match(/\d+(?:\.\d+){2,}[\s\S]*?(?=\s+\d+(?:\.\d+){2,}|$)/g)
-  if (!m || m.length === 0) return [t]
-  return m.map((s) => s.trim()).filter(Boolean)
+  return splitSpecificOutcomes(t)
 }
 
 /** Pick the topic + subtopic columns for one 2013 sheet (see schemas above). */
@@ -196,11 +204,16 @@ function resolvePrevColumns(sheet) {
  */
 function propagatePreviousRows(sheet) {
   const { topicCol, subCol } = resolvePrevColumns(sheet)
+  const shiftRoles = resolveColumnRoles(sheet?.columns)
   const out = []
   let topic = ''
   for (const row of sheet?.rows || []) {
     if (row.type !== 'data') continue
-    const cells = row.cells || {}
+    let cells = row.cells || {}
+    // Drop repeated header rows and re-align page-break rows whose cells
+    // shifted left (outcome text in the TOPIC column) before reading columns.
+    if (isHeaderEchoRow(cells)) continue
+    cells = repairColumnShiftedRow(cells, sheet?.columns, shiftRoles).cells
     const rawTopic = topicCol ? String(cells[topicCol] || '').trim() : ''
     const subtopic = subCol ? String(cells[subCol] || '').trim() : ''
     // Skip header-echo rows (the column-header line repeated mid-sheet).

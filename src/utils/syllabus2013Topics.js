@@ -8,6 +8,7 @@
 // Keep STUDIO_SUBJECT_TO_KB_2013 in sync with the server copy.
 
 import { sheetNameToGrade } from './syllabusMapping.js'
+import { resolveColumnRoles, isHeaderEchoRow, repairColumnShiftedRow } from './curriculum2013Parser.js'
 
 export const STUDIO_SUBJECT_TO_KB_2013 = {
   'Integrated Science Syllabus (Grades 1-7, 2013)': 'integrated_science',
@@ -61,7 +62,12 @@ function splitBullets(s) {
  * Parse the raw curriculum-data-2013.json object into the same lookup
  * shape syllabusTopicOptions uses for 2023:
  *   Map "GRADE|subject" → Map<topicName, Set<subtopicName>>
- * Sub-topic suggestions come from the KNOWLEDGE column bullets.
+ *
+ * Sub-topic suggestions come from the sheet's REAL sub-topic column (resolved
+ * by role, so SUBTOPIC / SUB-TOPIC / SUB TOPIC spellings all work). Content /
+ * KNOWLEDGE bullets are only used as a fallback for sheets that genuinely have
+ * no sub-topic column (schema E, e.g. primary Mathematics) — they are content
+ * points, not sub-topics, and must not displace the real hierarchy.
  */
 export function extract2013TopicLookup(raw) {
   const byKey = new Map()
@@ -71,21 +77,38 @@ export function extract2013TopicLookup(raw) {
     for (const [sheetName, sheet] of Object.entries(sheets || {})) {
       const grade = sheetNameToGrade(sheetName)
       if (!grade) continue
-      const topicCol = detect2013TopicColumn(sheet)
+      const roles = resolveColumnRoles(sheet?.columns)
+      // Legacy mis-headed sheets: the topic may live in a stray-header column.
+      const topicCol = roles.topic || detect2013TopicColumn(sheet)
+      const subCol = roles.subtopic
+      const contentCols = roles.content || []
       const key = `${String(grade).toUpperCase()}|${subject}`
       let inner = byKey.get(key)
       if (!inner) { inner = new Map(); byKey.set(key, inner) }
       let topic = ''
       for (const row of (sheet?.rows || [])) {
         if (row?.type !== 'data') continue
-        const cells = row.cells || {}
+        let cells = row.cells || {}
+        if (isHeaderEchoRow(cells)) continue
+        // Re-align page-break rows whose cells shifted left, so outcome text
+        // in the TOPIC column never becomes a picker "topic".
+        cells = repairColumnShiftedRow(cells, sheet?.columns, roles).cells
         const codeRaw = topicCol ? String(cells[topicCol] || '').trim() : ''
         if (codeRaw) topic = codeRaw
         if (!topic) continue
         let subs = inner.get(topic)
         if (!subs) { subs = new Set(); inner.set(topic, subs) }
-        for (const k of splitBullets(cells.KNOWLEDGE)) {
-          if (k.length >= 3) subs.add(k.slice(0, 200))
+        if (subCol) {
+          const sub = String(cells[subCol] || '').trim()
+          if (sub.length >= 3) subs.add(sub.slice(0, 200))
+        } else {
+          // No sub-topic column on this sheet — content bullets keep the
+          // subject usable as type-ahead suggestions (legacy behaviour).
+          for (const col of (contentCols.length ? contentCols : ['KNOWLEDGE'])) {
+            for (const k of splitBullets(cells[col])) {
+              if (k.length >= 3) subs.add(k.slice(0, 200))
+            }
+          }
         }
       }
     }

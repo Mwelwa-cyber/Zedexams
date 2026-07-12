@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
+import {
+  resolveColumnRoles, splitSpecificOutcomes, splitPoints,
+  repairColumnShiftedRow, isHeaderEchoRow,
+} from '../../utils/curriculum2013Parser'
 
 // Subject metadata — maps the raw JSON keys to icon + category + short label.
 // Keep aligned with public/syllabi/curriculum-data.json. New subjects fall
@@ -202,6 +206,39 @@ function renderCell(val, q) {
     return highlight(lines[0] || '', q)
   }
   return highlight(val, q)
+}
+
+// 2013 curriculum cells are malformed at the SOURCE: a single SPECIFIC OUTCOMES
+// cell holds many outcomes ("1.3.1.1 Identify… 1.3.1.2 Distinguish…") and
+// CONTENT/SKILLS/VALUES pack their points onto one bulleted line. Rendered raw
+// they read as one blob and the 2nd/3rd outcome codes look like headings. This
+// renderer splits them through the canonical parser so each outcome and each
+// content point is its own list item — the structural fix, not a visual patch.
+function renderLegacyCell(colName, val, roles, q) {
+  if (!val) return null
+  if (roles && colName === roles.outcomes) {
+    const items = splitSpecificOutcomes(val)
+    if (items.length > 1 || (items[0] && items[0].code)) {
+      return (
+        <ul className="ss-outcome-list">
+          {items.map((o, i) => (
+            <li key={i}>
+              {o.code ? <span className="ss-outcome-code">{highlight(o.code, q)}</span> : null}
+              {o.code ? ' ' : ''}{highlight(o.statement, q)}
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  }
+  if (roles && ((roles.content || []).includes(colName) || colName === roles.skills || colName === roles.values || colName === roles.activities)) {
+    const points = splitPoints(val)
+    if (points.length > 1) {
+      return <ul>{points.map((p, i) => <li key={i}>{highlight(p, q)}</li>)}</ul>
+    }
+    if (points.length === 1) return highlight(points[0], q)
+  }
+  return renderCell(val, q)
 }
 
 function groupByCategory(data) {
@@ -769,6 +806,14 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
   const activeSheetName = sheetNames.includes(currentSheet) ? currentSheet : sheetNames[0]
   const sheet = activeSheetName ? meta.sheets[activeSheetName] : null
 
+  // For the 2013 ("legacy") era, resolve which physical column holds the
+  // specific outcomes vs content/skills/values so the cell renderer can split
+  // each into independent list items (see renderLegacyCell).
+  const legacyRoles = useMemo(
+    () => (era === 'legacy' && sheet ? resolveColumnRoles(sheet.columns) : null),
+    [era, sheet],
+  )
+
   // Recompute the visible rows whenever the sheet or filter changes. Each
   // visible "topic group" is represented by a header row followed by zero or
   // more data rows. Section banners (e.g. "LISTENING AND SPEAKING") are
@@ -789,7 +834,15 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
         continue
       }
       if (row.type !== 'data') continue
-      const cells = sheet.columns.map(c => (row.cells?.[c] || ''))
+      let cellsObj = row.cells || {}
+      if (legacyRoles) {
+        // 2013 sheets: drop repeated column-header rows (KNOWLEDGE/SKILLS/…)
+        // and re-align page-break rows whose cells shifted left — otherwise
+        // outcome text in the TOPIC column renders as a full-width heading.
+        if (isHeaderEchoRow(cellsObj)) continue
+        cellsObj = repairColumnShiftedRow(cellsObj, sheet.columns, legacyRoles).cells
+      }
+      const cells = sheet.columns.map(c => (cellsObj[c] || ''))
       if (q && !cells.some(c => c.toLowerCase().includes(q))) continue
       shown++
 
@@ -810,7 +863,7 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
       })
     }
     return { rows: out, shown }
-  }, [sheet, rowFilter])
+  }, [sheet, rowFilter, legacyRoles])
 
   if (!sheet) {
     return <p className="ss-empty">No sheet to display.</p>
@@ -952,9 +1005,12 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
                             : ci === 3
                               ? 'ss-activities-cell'
                               : 'ss-standard-cell'
+                      const colName = sheet.columns[ci]
                       return (
                         <td key={ci} className={className}>
-                          {renderCell(val, rowFilter.trim())}
+                          {legacyRoles
+                            ? renderLegacyCell(colName, val, legacyRoles, rowFilter.trim())
+                            : renderCell(val, rowFilter.trim())}
                         </td>
                       )
                     })}
@@ -1594,6 +1650,19 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-table td ul { padding-left: 16px; margin: 3px 0; }
 .ss-root .ss-table td ul li { margin: 4px 0; }
+
+/* 2013 curriculum: each specific outcome is its own list item with its code
+   badged, so joined outcomes never render as one blob or a false heading. */
+.ss-root .ss-outcome-list { list-style: none; padding-left: 0; margin: 2px 0; }
+.ss-root .ss-outcome-list li {
+  margin: 6px 0; padding-left: 0; line-height: 1.4;
+}
+.ss-root .ss-outcome-code {
+  display: inline-block;
+  font-weight: 700; color: var(--ss-teal);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
 
 /* ── SEARCH RESULTS ──────────────────────────────────────────────────── */
 .ss-root .ss-search-results .ss-sr-header { margin-bottom: 20px; }

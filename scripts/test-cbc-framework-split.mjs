@@ -138,7 +138,7 @@ if (sets) {
     `got ${sets.specificOutcomes && sets.specificOutcomes.length} outcomes`);
   check("SETS outcomes look split (not one giant blob)",
     sets.specificOutcomes.every((s) => s.length < 400));
-  check("SETS has parsed subtopics (from KNOWLEDGE)",
+  check("SETS has parsed subtopics (synthesised from outcomes — no sub-topic column)",
     Array.isArray(sets.subtopics) && sets.subtopics.length > 0);
   check("SETS has parsed key competencies (from SKILLS)",
     Array.isArray(sets.keyCompetencies) && sets.keyCompetencies.length > 0);
