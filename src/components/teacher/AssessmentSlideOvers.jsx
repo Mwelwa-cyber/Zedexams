@@ -503,9 +503,12 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
   // The paper's curriculum framework drives both pickers below — one choice
   // shared with the header and the full-paper modal, not a slide-local one.
   const framework = normalizeStudioFramework(form.framework)
-  // Subjects the syllabus actually carries for this grade + framework (falls
-  // back to the static eight while loading / when no rows exist).
-  const { options: subjectChoices } = useStudioSubjectChoices(form.grade, framework, form.subject)
+  // Subjects the syllabus actually carries for this grade + framework — strictly
+  // from the Syllabus Studio, no static fallback (the paper's saved subject is
+  // kept selectable by the hook).
+  const { options: subjectChoices, loading: subjectsLoading } =
+    useStudioSubjectChoices(form.grade, framework, form.subject)
+  const noSubjects = !subjectsLoading && subjectChoices.length === 0
   // A pending review batch takes over the slide: the generated questions
   // must be accepted or discarded before the tool list distracts from them.
   if (review) {
@@ -565,9 +568,12 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           <div className="sv-field">
             <label>Subject</label>
             <select
-              value={form.subject}
+              value={noSubjects ? '' : form.subject}
+              disabled={subjectsLoading || noSubjects}
               onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
+              {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
+              {noSubjects && <option value="">No subjects in this syllabus</option>}
               {subjectChoices.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
