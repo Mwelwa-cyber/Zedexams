@@ -173,13 +173,38 @@ function backupExisting() {
   return manifest
 }
 
+// Migration ids are `${STAMP}-${pid}` — letters, digits, dots, dashes,
+// underscores only. Anything else (path separators, "..") is rejected so the
+// id can never traverse out of BACKUP_DIR.
+const SAFE_ID = /^[A-Za-z0-9._-]+$/
+
+/** True when `child` resolves to a path inside `dir`. */
+function isInsideDir(dir, child) {
+  const rel = path.relative(path.resolve(dir), path.resolve(child))
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
 function rollback(id) {
+  if (!id || !SAFE_ID.test(id) || id.includes('..')) {
+    console.error(`Invalid rollback id "${id}" — expected letters/digits/dot/dash/underscore only`)
+    process.exit(1)
+  }
   const manifestPath = path.join(BACKUP_DIR, `manifest.${id}.json`)
   const altPath = path.join(BACKUP_DIR, `manifest.${STAMP}.json`)
   const p = existsSync(manifestPath) ? manifestPath : (existsSync(altPath) ? altPath : null)
   if (!p) { console.error(`No backup manifest for "${id}" in ${BACKUP_DIR}`); process.exit(1) }
   const manifest = JSON.parse(readFileSync(p, 'utf8'))
   for (const { original, backup } of manifest.backedUp || []) {
+    // Only restore FROM inside the backup dir TO one of this script's own
+    // output files — a tampered manifest can't be used to write elsewhere.
+    if (!isInsideDir(BACKUP_DIR, backup)) {
+      console.error(`skipping ${backup}: backup path is outside ${BACKUP_DIR}`)
+      continue
+    }
+    if (!OUTPUT_FILES.some((out) => path.resolve(out) === path.resolve(original))) {
+      console.error(`skipping ${original}: not one of this migration's output files`)
+      continue
+    }
     if (existsSync(backup)) { copyFileSync(backup, original); console.log(`restored ${original}`) }
   }
   console.log(`Rollback complete for ${manifest.id}. Delete curriculum-2013-normalized.json manually if the backup pre-dated it.`)
