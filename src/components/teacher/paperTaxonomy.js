@@ -217,6 +217,7 @@ const SUBJECT_LABELS = {
   history: 'History',
   accounts: 'Accounts',
   cinyanja: 'Cinyanja',
+  agricultural_science: 'Agricultural Science',
   art_and_design: 'Art & Design',
   commerce_and_principles_of_accounts: 'Commerce & Principles of Accounts',
   design_and_technology_studies: 'Design & Technology Studies',

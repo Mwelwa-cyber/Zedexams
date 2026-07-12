@@ -123,8 +123,10 @@ const ALLOWED_SUBJECTS = new Set([
   "technology_studies", "creative_and_technology_studies",
   "home_economics", "expressive_arts", "physical_education",
   // CBC 2023 Forms 1-4 subjects the Syllabus Studio exposes as their own
-  // canonical keys (Art & Design is shared with the 2013 syllabus).
-  "art_and_design", "commerce_and_principles_of_accounts",
+  // canonical keys (Agricultural Science and Art & Design are shared with
+  // the 2013 syllabus).
+  "agricultural_science", "art_and_design",
+  "commerce_and_principles_of_accounts",
   "design_and_technology_studies", "music_and_creative_arts",
 ]);
 const ALLOWED_LANGUAGES = new Set([

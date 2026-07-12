@@ -203,6 +203,12 @@ const LABEL_FIXES = [
   ['4.5. ENTREPRENEURS HIP', '4.5. ENTREPRENEURSHIP'],
   ['• Movementpattern s and Movement expl oration',
     '• Movement patterns and Movement exploration'],
+  // Contraction question tags: the shard after an apostrophe is the
+  // contraction's tail, not a broken word — "t he" must NOT join to "the"
+  // here (English Forms 1-4 grammar activities are full of these).
+  ['…isn’t he? She hasn’t been to school, has she?',
+    '…isn’t he? She hasn’t been to school, has she?'],
+  ["He is coming tomorrow, isn't he?", "He is coming tomorrow, isn't he?"],
   // Single-token OCR misspellings (dropped/altered letter).
   ['3.5 LECTROMAGNETISM', '3.5 ELECTROMAGNETISM'],
   ['0.2.7 VISUAL DESCRIMINATION', '0.2.7 VISUAL DISCRIMINATION'],

@@ -681,11 +681,14 @@ export const CORRECTIONS = {
 
 // Match keys longest-first so multi-token repairs (e.g. "p reser ves")
 // win over any shorter sub-match. Anchored so a key only fires as a
-// whole broken span, never inside a larger word.
+// whole broken span, never inside a larger word. Apostrophes (straight +
+// curly) are excluded from the lookbehind too: after a contraction the
+// "shard" is really the contraction's tail — "isn't he?" must not become
+// "isn'the?" via the "t he" -> "the" repair.
 const SORTED_KEYS = Object.keys(CORRECTIONS).sort((a, b) => b.length - a.length)
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const PATTERN = new RegExp(
-  '(?<![A-Za-z])(?:' + SORTED_KEYS.map(escapeRegex).join('|') + ')(?![A-Za-z])',
+  '(?<![A-Za-z\'\u2019])(?:' + SORTED_KEYS.map(escapeRegex).join('|') + ')(?![A-Za-z])',
   'g',
 )
 

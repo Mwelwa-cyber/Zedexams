@@ -31,6 +31,7 @@ const TOOLS_DIR = join(__dirname, "..", "functions", "teacherTools");
 const REQUIRED_KEYS = [
   "mathematics",
   "english",
+  "agricultural_science",
   "art_and_design",
   "commerce_and_principles_of_accounts",
   "design_and_technology_studies",

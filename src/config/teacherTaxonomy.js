@@ -61,6 +61,7 @@ export const TEACHER_SUBJECTS = [
   { value: 'integrated_science',   label: 'Integrated Science' },
   { value: 'environmental_science',label: 'Environmental Science' },
   { value: 'biology',              label: 'Biology' },
+  { value: 'agricultural_science', label: 'Agricultural Science' },
   { value: 'chemistry',            label: 'Chemistry' },
   { value: 'physics',              label: 'Physics' },
   { group: 'Humanities' },
@@ -138,7 +139,8 @@ const SUBJECT_GRADE_MAP = {
   numeracy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
   integrated_science:['G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   environmental_science: ['G1','G2','G3','G4'],
-  biology:           ['G10','G11','G12'],
+  biology:           ['G8','G9','G10','G11','G12'],
+  agricultural_science: ['G8','G9','G10','G11','G12'],
   chemistry:         ['G10','G11','G12'],
   physics:           ['G10','G11','G12'],
 

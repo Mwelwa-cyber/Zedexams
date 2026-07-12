@@ -25,7 +25,10 @@
  */
 
 const STUDIO_SUBJECT_TO_KB = {
+  "Agricultural Science Syllabus (Forms 1-4)": "agricultural_science",
   "Art & Design Syllabus (Forms 1-4)": "art_and_design",
+  "Biology Syllabus (Forms 1-4)": "biology",
+  "English Syllabus (Forms 1-4)": "english",
   "Commerce & Principles of Accounts Syllabus (Forms 1-4)":
     "commerce_and_principles_of_accounts",
   "Design & Technology Studies Syllabus (Forms 1-4)":
