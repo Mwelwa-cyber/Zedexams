@@ -28,7 +28,8 @@ Runs only when a push to `main` touches `firestore.rules`,
 `firestore.indexes.json`, `storage.rules`, `storage`, `functions/**`,
 `firebase.json`, or `.firebaserc`. It re-runs lint + `test:all`, then deploys
 **only the pieces that changed** (Firestore rules/indexes, Storage rules, Cloud
-Functions). Requires the `FIREBASE_TOKEN` repository secret.
+Functions). Authenticates with the `FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON`
+secret (preferred) or the legacy `FIREBASE_TOKEN` — see "One-time setup" below.
 
 Both pipelines are the belt-and-braces layer. The pre-merge gate is
 [`ci.yml`](.github/workflows/ci.yml), which runs the same lint + tests + build +
@@ -88,8 +89,28 @@ because they don't touch the hosted bundle:
 
 ## One-time setup (already done — here for reference)
 
-The pipelines authenticate via a `FIREBASE_TOKEN` repo secret plus the
-`VITE_FIREBASE_*` build secrets. To rotate the token:
+The deploy pipelines authenticate with ONE of two repo secrets (service
+account wins when both are set), plus the `VITE_FIREBASE_*` build secrets:
+
+**1. `FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON` (preferred).** A Google Cloud
+service-account key. Unlike the `login:ci` token below it is not tied to a
+personal Google account, so a password change or account security event cannot
+revoke it — exactly what silently killed every deploy on 2026-07-12. Create it
+once:
+
+1. Google Cloud Console → **IAM & Admin → Service Accounts** (project
+   `examsprepzambia`) → **Create service account** (e.g. `github-deploy`).
+2. Grant it **Firebase Admin** (`roles/firebase.admin`) and **Service Account
+   User** (`roles/iam.serviceAccountUser`). If a later deploy fails with
+   `PERMISSION_DENIED` naming a specific permission, add the role it names.
+3. On the new account: **Keys → Add key → Create new key → JSON** — download it.
+4. Paste the **entire file contents** into a new secret named
+   `FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON` at
+   <https://github.com/Mwelwa-cyber/Zedexams/settings/secrets/actions>.
+
+**2. `FIREBASE_TOKEN` (legacy fallback — deprecated by firebase-tools).**
+Tied to the Google account that mints it, so it dies on password changes /
+security checkups. To rotate:
 
 ```bash
 npx firebase-tools@latest login:ci   # sign in, copy the 1//... token

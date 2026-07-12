@@ -4,7 +4,15 @@ name: Deploy Hosting
 # to main. Replaces the Netlify deploy pipeline.
 #
 # Required repository secrets:
-#   FIREBASE_TOKEN                       — `firebase login:ci`
+#
+#   Firebase deploy auth — provide ONE of (see DEPLOY.md):
+#   FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON — (preferred) service-account JSON key,
+#                                           used via GOOGLE_APPLICATION_CREDENTIALS;
+#                                           immune to the personal-account
+#                                           security events that revoke login:ci
+#                                           tokens (broke every deploy 2026-07-12)
+#   FIREBASE_TOKEN                       — (legacy fallback) `firebase login:ci`
+#
 #   VITE_FIREBASE_API_KEY                — from your local .env
 #   VITE_FIREBASE_AUTH_DOMAIN
 #   VITE_FIREBASE_PROJECT_ID
@@ -65,6 +73,7 @@ jobs:
 
       - name: Verify required secrets
         env:
+          FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -74,7 +83,11 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
           missing=()
-          [ -z "$FIREBASE_TOKEN" ] && missing+=("FIREBASE_TOKEN")
+          # Deploy auth is satisfied by EITHER a service-account key
+          # (preferred) OR the legacy login:ci token.
+          if [ -z "$FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_TOKEN" ]; then
+            missing+=("FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON or FIREBASE_TOKEN")
+          fi
           [ -z "$VITE_FIREBASE_API_KEY" ] && missing+=("VITE_FIREBASE_API_KEY")
           [ -z "$VITE_FIREBASE_AUTH_DOMAIN" ] && missing+=("VITE_FIREBASE_AUTH_DOMAIN")
           [ -z "$VITE_FIREBASE_PROJECT_ID" ] && missing+=("VITE_FIREBASE_PROJECT_ID")
@@ -87,6 +100,35 @@ jobs:
             exit 1
           fi
           echo "All required build-time secrets are set."
+
+      # Service-account auth (preferred) with a fallback to the legacy
+      # login:ci token — same convention as android-release.yml and
+      # deploy-firebase.yml. The SA path exports GOOGLE_APPLICATION_CREDENTIALS
+      # via GITHUB_ENV so the hosting deploy step below picks it up.
+      - name: Set up Firebase deploy credentials
+        env:
+          FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON:-}" ]; then
+            echo "::warning::Using the deprecated FIREBASE_TOKEN (login:ci) auth, which any security event on the issuing Google account revokes. Add the FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON secret to switch to the supported service-account path — see DEPLOY.md."
+            exit 0
+          fi
+          creds="$RUNNER_TEMP/firebase-deploy-sa.json"
+          printf '%s' "$FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON" > "$creds"
+          chmod 600 "$creds"
+          # Fail fast on a mangled paste rather than with an opaque auth error
+          # after the full build + prerender.
+          client_email=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("client_email",""))' "$creds") || {
+            echo "::error::FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON is not valid JSON — re-paste the entire service-account key file."
+            exit 1
+          }
+          if [ -z "$client_email" ]; then
+            echo "::error::FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON parsed as JSON but has no client_email — is it really a service-account key?"
+            exit 1
+          fi
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$creds" >> "$GITHUB_ENV"
+          echo "Deploying as service account: $client_email"
 
       - name: Install dependencies
         run: npm ci
@@ -231,6 +273,13 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
+          # When service-account auth is configured (GOOGLE_APPLICATION_CREDENTIALS
+          # exported by the credentials step above), it must win: firebase-tools
+          # prefers FIREBASE_TOKEN whenever it is set, which would silently keep
+          # the deprecated (and revocable) token path alive.
+          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+            unset FIREBASE_TOKEN
+          fi
           # Stream output in real-time (visible in logs) AND write to a file so
           # we can grep it afterward. PIPESTATUS[0] gives firebase-tools' exit
           # code; tee always exits 0, so `set -e` won't abort the script here.
