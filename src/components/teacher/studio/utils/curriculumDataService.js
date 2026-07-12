@@ -30,6 +30,7 @@ import {
   resolveColumnRoles,
   repairColumnShiftedRow,
   isHeaderEchoRow,
+  joinCellText,
 } from '../../../../utils/curriculum2013Parser.js'
 
 // ── 2013 / Previous curriculum loader ────────────────────────────────────────
@@ -207,6 +208,7 @@ function propagatePreviousRows(sheet) {
   const shiftRoles = resolveColumnRoles(sheet?.columns)
   const out = []
   let topic = ''
+  let carriedSub = ''
   for (const row of sheet?.rows || []) {
     if (row.type !== 'data') continue
     let cells = row.cells || {}
@@ -215,16 +217,29 @@ function propagatePreviousRows(sheet) {
     if (isHeaderEchoRow(cells)) continue
     cells = repairColumnShiftedRow(cells, sheet?.columns, shiftRoles).cells
     const rawTopic = topicCol ? String(cells[topicCol] || '').trim() : ''
-    const subtopic = subCol ? String(cells[subCol] || '').trim() : ''
+    const rawSub = subCol ? String(cells[subCol] || '').trim() : ''
     // Skip header-echo rows (the column-header line repeated mid-sheet).
-    if (PREV_HEADER_WORDS.has(normCol(rawTopic)) && (!subtopic || PREV_HEADER_WORDS.has(normCol(subtopic)))) {
+    if (PREV_HEADER_WORDS.has(normCol(rawTopic)) && (!rawSub || PREV_HEADER_WORDS.has(normCol(rawSub)))) {
       continue
     }
-    if (rawTopic) topic = rawTopic
+    if (rawTopic) { topic = rawTopic; carriedSub = '' }
+    if (rawSub) carriedSub = rawSub
     const specificOutcomesRaw = String(cells['SPECIFIC OUTCOMES'] || '').trim()
     const content = String(cells.CONTENT || cells.KNOWLEDGE || '').trim()
     // Skip pure-filler rows: nothing identifying and no content.
-    if (!topic && !subtopic && !specificOutcomesRaw) continue
+    if (!topic && !rawSub && !specificOutcomesRaw) continue
+    // Merged-cell inheritance: a blank sub-topic cell on a row that carries
+    // outcomes belongs to the previous sub-topic (vertically merged PDF cell).
+    const subtopic = rawSub || (specificOutcomesRaw ? carriedSub : '')
+    // A continuation of the SAME (topic, subtopic) — e.g. a repaired page-break
+    // row — extends the previous entry instead of starting a new one, so
+    // getSubtopicDetail sees ALL the sub-topic's outcomes + full content.
+    const last = out.length ? out[out.length - 1] : null
+    if (last && subtopic && last.subtopic === subtopic && last.topic === (topic || subtopic)) {
+      last.specificOutcomesRaw = [last.specificOutcomesRaw, specificOutcomesRaw].filter(Boolean).join(' ')
+      last.content = joinCellText(last.content, content)
+      continue
+    }
     out.push({ topic: topic || subtopic, subtopic, specificOutcomesRaw, content })
   }
 

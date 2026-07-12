@@ -3,7 +3,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import {
   resolveColumnRoles, splitSpecificOutcomes, splitPoints,
-  repairColumnShiftedRow, isHeaderEchoRow,
+  repairColumnShiftedRow, isHeaderEchoRow, joinCellText,
 } from '../../utils/curriculum2013Parser'
 
 // Subject metadata — maps the raw JSON keys to icon + category + short label.
@@ -835,15 +835,27 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
       }
       if (row.type !== 'data') continue
       let cellsObj = row.cells || {}
+      let shiftedRow = false
       if (legacyRoles) {
         // 2013 sheets: drop repeated column-header rows (KNOWLEDGE/SKILLS/…)
         // and re-align page-break rows whose cells shifted left — otherwise
         // outcome text in the TOPIC column renders as a full-width heading.
         if (isHeaderEchoRow(cellsObj)) continue
-        cellsObj = repairColumnShiftedRow(cellsObj, sheet.columns, legacyRoles).cells
+        const repaired = repairColumnShiftedRow(cellsObj, sheet.columns, legacyRoles)
+        cellsObj = repaired.cells
+        shiftedRow = repaired.shifted
       }
       const cells = sheet.columns.map(c => (cellsObj[c] || ''))
       if (q && !cells.some(c => c.toLowerCase().includes(q))) continue
+
+      // A repaired shifted row is the second half of the previous physical row
+      // (split at a PDF page break) — merge its cells back into that row so the
+      // subtopic reads as one row with all its outcomes + full content.
+      const prevData = out.length && out[out.length - 1].kind === 'data' ? out[out.length - 1] : null
+      if (shiftedRow && prevData) {
+        prevData.cells = prevData.cells.map((v, i) => joinCellText(v, cells[i]))
+        continue
+      }
       shown++
 
       const rawTopic = (cells[0] || '').trim()

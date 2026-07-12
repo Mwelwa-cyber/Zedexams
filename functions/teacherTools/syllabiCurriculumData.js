@@ -438,6 +438,35 @@ function splitBulletList(s) {
   return parts.length ? parts : [str];
 }
 
+// True when two adjacent fragments were split MID-PHRASE by a page break
+// (mirror of isMidPhraseBreak in the client parser): unclosed bracket, or no
+// sentence-terminal punctuation + lowercase/connector boundary.
+function is2013MidPhraseBreak(prev, next) {
+  const a = String(prev || "").trim();
+  const b = String(next || "").trim();
+  if (!a || !b) return false;
+  const opens = (a.match(/\(/g) || []).length;
+  const closes = (a.match(/\)/g) || []).length;
+  if (opens > closes) return true;
+  if (/[.!?;:]$/.test(a)) return false;
+  if (/^[a-z(]/.test(b)) return true;
+  if (/,$/.test(a) || /\b(and|or|of|in|on|for|to|the|a|an|with|by|from|such as|e\.g)$/i.test(a)) return true;
+  return false;
+}
+
+// Push items onto a list, healing a mid-phrase page-break fragment by merging
+// it into the previous item ("Comparing" + "urban and rural environment").
+function pushJoined(arr, items) {
+  for (const it of items) {
+    const last = arr.length ? arr[arr.length - 1] : "";
+    if (last && is2013MidPhraseBreak(last, it)) {
+      arr[arr.length - 1] = `${last} ${it}`;
+    } else {
+      arr.push(it);
+    }
+  }
+}
+
 function get2013CurriculumDataTopics() {
   const raw = loadRawData("2013");
   const byKey = new Map();
@@ -498,15 +527,9 @@ function get2013CurriculumDataTopics() {
         for (const o of outcomes) {
           entry.specificOutcomes.push(o);
         }
-        for (const sk of splitBulletList(r.skills)) {
-          entry.keyCompetencies.push(sk);
-        }
-        for (const v of splitBulletList(r.values)) {
-          entry.values.push(v);
-        }
-        for (const c of splitBulletList(r.content)) {
-          entry.suggestedMaterials.push(c);
-        }
+        pushJoined(entry.keyCompetencies, splitBulletList(r.skills));
+        pushJoined(entry.values, splitBulletList(r.values));
+        pushJoined(entry.suggestedMaterials, splitBulletList(r.content));
       }
     }
   }

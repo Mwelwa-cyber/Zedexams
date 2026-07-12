@@ -112,3 +112,40 @@ describe('Previous (2013) coverage (real data)', () => {
     for (const grade of offered) await assertGradeIsComplete(grade, 'previous')
   })
 })
+
+// The 2013-structure acceptance cases: joined outcomes are split into
+// independent items, shifted page-break rows rejoin their sub-topic, and the
+// full hierarchy round-trips through the picker data layer (real data).
+describe('2013 hierarchy correctness (real data)', () => {
+  it('G1 Integrated Science 1.3.1 returns ALL THREE outcomes incl. those from the shifted row', async () => {
+    const subjects = await getSubjectsForGrade('Grade 1', 'previous')
+    const sci = subjects.find((s) => /integrated science/i.test(s))
+    expect(sci).toBeTruthy()
+    const topics = await getTopicsForSubject(sci, 'Grade 1', 'previous')
+    const env = topics.find((t) => t.label.startsWith('1.3.0'))
+    expect(env).toBeTruthy()
+    // Outcome text never leaks into the topic list as a heading.
+    expect(topics.some((t) => /^1\.3\.1\.2/.test(t.label))).toBe(false)
+    const sub = env.subtopics.find((s) => s.startsWith('1.3.1'))
+    expect(sub).toBeTruthy()
+    const detail = await getSubtopicDetail(sci, 'Grade 1', env.label, sub, 'previous')
+    expect(detail).toBeTruthy()
+    const codes = detail.specificOutcomes.map((o) => (o.match(/^\d+(?:\.\d+)+/) || [])[0])
+    expect(codes).toEqual(['1.3.1.1', '1.3.1.2', '1.3.1.3'])
+  })
+
+  it('G5 Integrated Science 5.2.3 Malaria returns three independent outcomes', async () => {
+    const subjects = await getSubjectsForGrade('Grade 5', 'previous')
+    const sci = subjects.find((s) => /integrated science/i.test(s))
+    const topics = await getTopicsForSubject(sci, 'Grade 5', 'previous')
+    const health = topics.find((t) => /^5\.2\.0/.test(t.label))
+    expect(health).toBeTruthy()
+    const malaria = health.subtopics.find((s) => /malaria/i.test(s))
+    expect(malaria).toBeTruthy()
+    const detail = await getSubtopicDetail(sci, 'Grade 5', health.label, malaria, 'previous')
+    expect(detail.specificOutcomes).toHaveLength(3)
+    expect(detail.specificOutcomes[0]).toMatch(/^5\.2\.3\.1/)
+    expect(detail.specificOutcomes[1]).toMatch(/^5\.2\.3\.2/)
+    expect(detail.specificOutcomes[2]).toMatch(/^5\.2\.3\.3/)
+  })
+})

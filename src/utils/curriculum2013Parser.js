@@ -234,6 +234,56 @@ export function splitPoints(raw) {
   return parts.map((p) => cleanStatement(p)).filter(Boolean)
 }
 
+/**
+ * True when two adjacent fragments were split MID-PHRASE by a page break —
+ * i.e. the second is a continuation of the first, not a new point. Signals:
+ * an unclosed bracket spanning the break, no sentence-terminal punctuation on
+ * the first + a lowercase start on the second, or a dangling connector word.
+ *   "…environment(Plants, Rocks, animals" + "Streams, buildings)"  → true
+ *   "Comparing" + "urban and rural environment"                     → true
+ *   "Cooperating in" + "group work"                                 → true
+ *   "Prevention of diseases." + "Ways of cleaning"                  → false
+ */
+export function isMidPhraseBreak(prev, next) {
+  const a = String(prev || '').trim()
+  const b = String(next || '').trim()
+  if (!a || !b) return false
+  const opens = (a.match(/\(/g) || []).length
+  const closes = (a.match(/\)/g) || []).length
+  if (opens > closes) return true
+  if (/[.!?;:]$/.test(a)) return false
+  if (/^[a-z(]/.test(b)) return true
+  if (/,$/.test(a) || /\b(and|or|of|in|on|for|to|the|a|an|with|by|from|such as|e\.g)$/i.test(a)) return true
+  return false
+}
+
+/**
+ * Append a continuation row's points onto an existing point list, merging the
+ * boundary pair into one point when the break was mid-phrase.
+ */
+export function joinPointLists(prev, next) {
+  const a = (prev || []).filter(Boolean)
+  const b = (next || []).filter(Boolean)
+  if (!a.length) return [...b]
+  if (!b.length) return [...a]
+  if (isMidPhraseBreak(a[a.length - 1], b[0])) {
+    return [...a.slice(0, -1), `${a[a.length - 1]} ${b[0]}`, ...b.slice(1)]
+  }
+  return [...a, ...b]
+}
+
+/**
+ * Join two raw cell strings across a page break for display: glued with a
+ * space when the break was mid-phrase, otherwise as separate bullet points.
+ */
+export function joinCellText(prevRaw, nextRaw) {
+  const a = String(prevRaw || '').trim()
+  const b = String(nextRaw || '').trim()
+  if (!a) return b
+  if (!b) return a
+  return isMidPhraseBreak(a, b) ? `${a} ${b}` : `${a} • ${b}`
+}
+
 // ── Column-role resolution ───────────────────────────────────────────────────
 
 const norm = (c) => String(c == null ? '' : c).toLowerCase().replace(/[^a-z]/g, '')
@@ -454,26 +504,52 @@ export function parseSheet(sheet, ctx = {}) {
       stats.mergedCellsInherited++
     }
 
-    const contentPoints = splitPoints(rawContent)
-    const skillPoints = splitPoints(rawSkills)
-    const valuePoints = splitPoints(rawValues)
-    const activityPoints = splitPoints(rawActivities)
+    let contentPoints = splitPoints(rawContent)
+    let skillPoints = splitPoints(rawSkills)
+    let valuePoints = splitPoints(rawValues)
+    let activityPoints = splitPoints(rawActivities)
 
     // Continuation row: only content/skills/values, no topic/subtopic/outcome
     // codes — its text belongs to the previous row's record(s), not a new one.
+    // joinPointLists heals boundary fragments the page break cut mid-phrase.
     const outcomeSplits = splitSpecificOutcomes(rawOutcomes)
     const hasNewIdentity = Boolean(rawTopic || rawSubtopic ||
       outcomeSplits.some((o) => o.code))
     if (!hasNewIdentity && !rawOutcomes && (contentPoints.length || skillPoints.length || valuePoints.length) && lastGroupRecords.length) {
       for (const rec of lastGroupRecords) {
-        rec.content.push(...contentPoints)
-        rec.skills.push(...skillPoints)
-        rec.values.push(...valuePoints)
-        rec.activities.push(...activityPoints)
+        rec.content = joinPointLists(rec.content, contentPoints)
+        rec.skills = joinPointLists(rec.skills, skillPoints)
+        rec.values = joinPointLists(rec.values, valuePoints)
+        rec.activities = joinPointLists(rec.activities, activityPoints)
         rec.source.rawText += ` ⏎ ${JSON.stringify(cells)}`
       }
       stats.continuationRowsJoined++
       continue
+    }
+
+    // A repaired column-shifted row is BY CONSTRUCTION the second half of the
+    // previous physical row (the shift happened because the page break dropped
+    // the leading merged cells). Its content/skills/values cells continue the
+    // previous row's cells — and in the source table that one merged cell is
+    // shared by every outcome of the subtopic (Rule 7 + Rule 9). So: join the
+    // fragments onto the previous group's records, and let the new outcome
+    // records share the same joined lists.
+    const continuesPrevGroup = shifted && lastGroupRecords.length > 0 &&
+      lastGroupRecords[0].subtopic.code === curSubtopic.code &&
+      lastGroupRecords[0].topic.code === curTopic.code
+    if (continuesPrevGroup) {
+      const prev = lastGroupRecords[0]
+      contentPoints = joinPointLists(prev.content, contentPoints)
+      skillPoints = joinPointLists(prev.skills, skillPoints)
+      valuePoints = joinPointLists(prev.values, valuePoints)
+      activityPoints = joinPointLists(prev.activities, activityPoints)
+      for (const rec of lastGroupRecords) {
+        rec.content = [...contentPoints]
+        rec.skills = [...skillPoints]
+        rec.values = [...valuePoints]
+        rec.activities = [...activityPoints]
+        rec.source.rawText += ` ⏎ ${JSON.stringify(cells)}`
+      }
     }
 
     if (outcomeSplits.length > 1) {
@@ -532,7 +608,11 @@ export function parseSheet(sheet, ctx = {}) {
       // emit one record so the subtopic is addressable, flagged for review.
       emit(null)
     }
-    lastGroupRecords = groupRecords
+    // A shifted row's records extend the previous group (they share one source
+    // row), so a further continuation row updates all of them together.
+    lastGroupRecords = continuesPrevGroup
+      ? [...lastGroupRecords, ...groupRecords]
+      : groupRecords
   }
 
   return {

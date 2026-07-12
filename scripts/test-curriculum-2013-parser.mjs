@@ -13,6 +13,7 @@ import {
   classifyCode, codeDepth, parentCode, parseCodedStatement, cleanStatement,
   splitSpecificOutcomes, splitPoints, resolveColumnRoles, isHeaderEchoRow,
   repairColumnShiftedRow, parseSheet, validateRecord,
+  isMidPhraseBreak, joinPointLists, joinCellText,
 } from '../src/utils/curriculum2013Parser.js'
 
 let passed = 0
@@ -215,7 +216,9 @@ check('full-sheet parse: shifted outcomes join their subtopic, never a heading (
     {
       TOPIC: '1.3.0 The Environment', SUBTOPIC: '1.3.1 The Environment',
       'SPECIFIC OUTCOMES': '1.3.1.1 Identify the main features of the local environment.',
-      CONTENT: '• Features of the local environment(Plants, Rocks, animals', SKILLS: '', VALUES: '',
+      CONTENT: '• Features of the local environment(Plants, Rocks, animals',
+      SKILLS: '• Observing main features of local environment • Comparing',
+      VALUES: '• Cooperating in',
     },
     {
       TOPIC: '1.3.1.2 Distinguish between urban and rural environment. 1.3.1.3 Explain the importance of the environment to living things.',
@@ -237,6 +240,34 @@ check('full-sheet parse: shifted outcomes join their subtopic, never a heading (
   // The repaired rows are flagged for review rather than silently trusted.
   const shiftedRecs = records.filter((r) => r.reviewReasons.some((x) => /column-shifted/.test(x)))
   assert.ok(shiftedRecs.length >= 2)
+  // The shifted row is the second half of the same physical row — its
+  // content/skills/values continue the previous row's cells (mid-phrase
+  // fragments healed) and are SHARED by all three outcomes (Rules 7 + 9).
+  for (const rec of records) {
+    assert.ok(rec.content.includes('Features of the local environment(Plants, Rocks, animals Streams, buildings)'), JSON.stringify(rec.content))
+    assert.ok(rec.skills.includes('Comparing urban and rural environment'), JSON.stringify(rec.skills))
+    assert.ok(rec.values.includes('Cooperating in group work'), JSON.stringify(rec.values))
+  }
+})
+
+console.log('\nmid-phrase page-break fragment healing')
+check('isMidPhraseBreak recognises the three real break shapes', () => {
+  assert.equal(isMidPhraseBreak('Features of the local environment(Plants, Rocks, animals', 'Streams, buildings)'), true)
+  assert.equal(isMidPhraseBreak('Comparing', 'urban and rural environment'), true)
+  assert.equal(isMidPhraseBreak('Cooperating in', 'group work'), true)
+  assert.equal(isMidPhraseBreak('Prevention of diseases.', 'Ways of cleaning'), false)
+  assert.equal(isMidPhraseBreak('Observing hygiene practices', 'Demonstrating hygiene'), false)
+})
+check('joinPointLists merges only the boundary pair', () => {
+  assert.deepEqual(
+    joinPointLists(['A thing.', 'Cooperating in'], ['group work', 'Asking questions']),
+    ['A thing.', 'Cooperating in group work', 'Asking questions'])
+  assert.deepEqual(joinPointLists([], ['X']), ['X'])
+  assert.deepEqual(joinPointLists(['X'], []), ['X'])
+})
+check('joinCellText glues mid-phrase, bullets otherwise', () => {
+  assert.equal(joinCellText('Cooperating in', 'group work'), 'Cooperating in group work')
+  assert.equal(joinCellText('First point.', 'Second point.'), 'First point. • Second point.')
 })
 
 console.log('\nvalidators')
