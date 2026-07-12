@@ -1384,6 +1384,11 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // it back to something human-readable for the header/exports.
     const aiSubjectLabel = aiPaperForm.subject
       ? kbSubjectLabel(aiPaperForm.subject) : ''
+    // The modal surfaces secondary grades as forms whose VALUE is the KB grade
+    // code ('G8'…'G12'); the studio form stores a bare grade token ('8'), which
+    // it interpolates elsewhere as `G${grade}`. Strip the G-prefix on the way
+    // back so those don't double up into 'GG8'.
+    const aiStudioGrade = String(aiPaperForm.grade || '').replace(/^G(?=\d)/, '')
     setForm(f => {
       const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
       const recentBranding = {
@@ -1394,7 +1399,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         ...f,
         // Grade/subject were chosen explicitly in the modal — the paper
         // follows them (unlike the fields below, which only backfill).
-        grade: aiPaperForm.grade || f.grade,
+        grade: aiStudioGrade || f.grade,
         subject: aiSubjectLabel || f.subject,
         framework: normalizeStudioFramework(aiPaperForm.framework || f.framework),
         term: f.term || aiPaperForm.term,

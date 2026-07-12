@@ -319,11 +319,18 @@ function CheckboxList({ options, selected, onToggle }) {
       {options.map((opt) => {
         const checked = selected.includes(opt)
         return (
-          <label key={opt} className="sv-cpm-checkrow" style={{ cursor: 'pointer' }}>
+          // Inline flex + fixed-size box (not just .sv-cpm-checkrow) so the
+          // checkbox and label always sit tight together — see the matching
+          // CheckboxList in CreatePaperModal.
+          <label key={opt} className="sv-cpm-checkrow"
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={checked}
               onChange={() => onToggle(opt)}
-              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
+              style={{
+                accentColor: 'var(--sv-primary)',
+                width: 16, height: 16, flex: '0 0 auto', margin: '2px 0 0',
+              }} />
+            <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
           </label>
         )
       })}

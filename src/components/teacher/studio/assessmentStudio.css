@@ -2717,6 +2717,12 @@
   display: flex; align-items: flex-start; gap: 8px;
   padding: 6px; border-radius: 6px; line-height: 1.4;
 }
+/* Keep the tick box a fixed size and non-shrinking so no ambient form rule can
+   stretch it and push the topic label far to the right (desktop regression). */
+.studio-v2 .sv-cpm-checkrow input[type="checkbox"] {
+  width: 16px; height: 16px; flex: 0 0 auto; margin: 2px 0 0;
+}
+.studio-v2 .sv-cpm-checkrow > span { flex: 1 1 auto; min-width: 0; }
 .studio-v2 .sv-cpm-hint {
   font-size: 12px; color: var(--sv-muted); margin: 6px 0 0;
 }

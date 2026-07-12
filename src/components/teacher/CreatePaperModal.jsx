@@ -18,7 +18,7 @@ import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
 import {
   PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
-  paperGradeOptions, isPaperGrade, maxTopicsFor,
+  paperGradeOptions, normalizePaperGrade, maxTopicsFor,
   isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
   FALLBACK_SUBJECT_KEYS,
 } from './paperTaxonomy'
@@ -85,12 +85,25 @@ function CheckboxList({ options, selected, onToggle, disabledMore = false }) {
         const checked = selected.includes(opt)
         const disabled = !checked && disabledMore
         return (
+          // Layout is set inline (not just via .sv-cpm-checkrow) so the
+          // checkbox and its label always sit tight together: a fixed-size,
+          // non-shrinking box + a flexing label. Relying on the scoped class
+          // alone let ambient form CSS stretch the checkbox and shove the
+          // topic text far to the right on desktop.
           <label key={opt}
-            className="sv-cpm-checkrow" style={{ opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+            className="sv-cpm-checkrow"
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              opacity: disabled ? 0.45 : 1,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}>
             <input type="checkbox" checked={checked} disabled={disabled}
               onChange={() => onToggle(opt)}
-              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
+              style={{
+                accentColor: 'var(--sv-primary)',
+                width: 16, height: 16, flex: '0 0 auto', margin: '2px 0 0',
+              }} />
+            <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
           </label>
         )
       })}
@@ -137,25 +150,35 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   // format profile below).
   const isExam = variant === 'exam'
   const paperTypes = isExam ? EXAM_PAPER_TYPES : PAPER_TYPES
-  const [form, setForm] = useState(() => ({
-    grade: isPaperGrade(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
-    subject: toKbSubjectKey(paperMeta?.subject) || 'english',
+  const [form, setForm] = useState(() => {
     // Follow the paper's curriculum choice (set in the builder header / AI
     // slide); '2023' for papers from before the field existed.
-    framework: paperMeta?.framework === '2013' ? '2013' : '2023',
-    assessmentType: isExam ? 'mock' : 'end_of_term',
-    term: paperMeta?.term || '1',
-    topicInput: '',
-    topics: [],
-    subtopicInput: '',
-    subtopics: [],
-    totalMarks: 40,
-    durationMinutes: 60,
-    questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
-    comprehension: false,
-    autoDiagrams: true,
-    extra: '',
-  }))
+    const framework = paperMeta?.framework === '2013' ? '2013' : '2023'
+    // Normalise the studio's grade ('4', '8', 'G10') into the modal's value
+    // scheme, then keep it only if it's a valid option for this curriculum
+    // (secondary is now shown as forms, and Grade 7 / Form 5 don't exist under
+    // CBC) — otherwise fall back to Grade 4.
+    const seededGrade = normalizePaperGrade(paperMeta?.grade)
+    const grade = paperGradeOptions(framework).some((g) => g.value === seededGrade)
+      ? seededGrade : '4'
+    return {
+      grade,
+      subject: toKbSubjectKey(paperMeta?.subject) || 'english',
+      framework,
+      assessmentType: isExam ? 'mock' : 'end_of_term',
+      term: paperMeta?.term || '1',
+      topicInput: '',
+      topics: [],
+      subtopicInput: '',
+      subtopics: [],
+      totalMarks: 40,
+      durationMinutes: 60,
+      questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
+      comprehension: false,
+      autoDiagrams: true,
+      extra: '',
+    }
+  })
   const [status, setStatus] = useState('idle') // idle | generating | done | error
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
