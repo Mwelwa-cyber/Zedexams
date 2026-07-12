@@ -71,9 +71,13 @@ export const TEACHER_SUBJECTS = [
   { value: 'religious_education', label: 'Religious Education' },
   { group: 'Business' },
   { value: 'accounts',         label: 'Principles of Accounts' },
+  { value: 'commerce_and_principles_of_accounts', label: 'Commerce & Principles of Accounts' },
   { group: 'Technical & Creative' },
   { value: 'technology_studies',              label: 'Technology Studies' },
   { value: 'creative_and_technology_studies', label: 'Creative & Technology Studies' },
+  { value: 'design_and_technology_studies',   label: 'Design & Technology Studies' },
+  { value: 'art_and_design',   label: 'Art & Design' },
+  { value: 'music_and_creative_arts', label: 'Music & Creative Arts' },
   { value: 'home_economics',   label: 'Home Economics' },
   { value: 'expressive_arts',  label: 'Expressive Arts' },
   { value: 'physical_education', label: 'Physical Education' },
@@ -146,14 +150,23 @@ const SUBJECT_GRADE_MAP = {
   civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
   religious_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
-  // Business — commercial subjects offered at senior secondary only.
+  // Business — Principles of Accounts is the 2013 senior-secondary subject;
+  // the CBC (2023) teaches the combined Commerce & Principles of Accounts
+  // across Forms 1-4 (G8-G11).
   accounts:          ['G10','G11','G12'],
+  commerce_and_principles_of_accounts: ['G8','G9','G10','G11'],
 
   // Technical & creative — Creative & Technology Studies is the primary-
   // level integrated subject; Technology Studies and Home Economics take
   // over from upper primary onwards. Expressive Arts runs ECE–junior.
+  // Design & Technology Studies, Art & Design and Music & Creative Arts are
+  // the CBC (2023) Forms 1-4 electives (Art & Design also exists as a 2013
+  // Grades 10-12 syllabus, so it extends to G12).
   technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
   creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
+  design_and_technology_studies: ['G8','G9','G10','G11'],
+  art_and_design:    ['G8','G9','G10','G11','G12'],
+  music_and_creative_arts: ['G8','G9','G10','G11'],
   home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
   expressive_arts:   ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   physical_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],

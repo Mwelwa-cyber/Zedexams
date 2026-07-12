@@ -161,14 +161,22 @@ test("Client + server subject map have identical keys + values", () => {
   }
 });
 
-test("Map covers all 20 syllabi", () => {
-  ok(Object.keys(CLIENT_MAP).length >= 20, "expected at least 20 syllabi mapped");
+test("Map covers all 25 syllabi", () => {
+  ok(Object.keys(CLIENT_MAP).length >= 25, "expected at least 25 syllabi mapped");
 });
 
 test("studioSubjectToKbSubject returns the canonical key", () => {
   eq(studioSubjectToKbSubject("Mathematics Syllabus (Forms 1-4)"), "mathematics");
   eq(studioSubjectToKbSubject("Physics Syllabus (Forms 1-4)"), "physics");
   eq(studioSubjectToKbSubject("Made-up subject"), "");
+});
+
+test("Forms 1-4 additions map to their canonical subject keys", () => {
+  eq(studioSubjectToKbSubject("Art & Design Syllabus (Forms 1-4)"), "art_and_design");
+  eq(studioSubjectToKbSubject("Zambian Languages Syllabus (Forms 1-4)"), "zambian_language");
+  eq(studioSubjectToKbSubject("Commerce & Principles of Accounts Syllabus (Forms 1-4)"), "commerce_and_principles_of_accounts");
+  eq(studioSubjectToKbSubject("Design & Technology Studies Syllabus (Forms 1-4)"), "design_and_technology_studies");
+  eq(studioSubjectToKbSubject("Music & Creative Arts Syllabus (Forms 1-4)"), "music_and_creative_arts");
 });
 
 console.log("\nresolveKbSubject (sheet-aware for ECE + Lower Primary)");
@@ -382,14 +390,42 @@ test("getMergedStudioData passes data through when version=null", async () => {
 test("Real data: no ingestion-artifact topics leak into the KB", async () => {
   // Guards the Notes/teacher-studio topic pickers: the repeated column-header
   // line ("TOPIC") and the empty strand banners ("READING"/"WRITING"/…) must
-  // not appear as selectable topics.
+  // not appear as selectable topics. A leaked banner carries no sub-topics;
+  // a genuine topic that happens to share a banner's name (the Zambian
+  // Languages Forms 1-4 syllabus has a real "Vocabulary" topic with a
+  // "Word Meaning" sub-topic) does, and must be kept.
   const topics = await getCurriculumDataTopics(null);
   const bad = topics.filter((t) =>
     ["TOPIC", "SUB-TOPIC", "READING", "WRITING", "VOCABULARY", "COMPREHENSION", "PRE-READING", "PRE-WRITING"]
-        .includes(String(t.topic || "").trim().toUpperCase()),
+        .includes(String(t.topic || "").trim().toUpperCase()) &&
+    !(Array.isArray(t.subtopics) && t.subtopics.length > 0),
   );
   if (bad.length) {
     throw new Error(`leaked artifact topics: ${bad.map((t) => `${t.grade}/${t.subject}/${t.topic}`).join(", ")}`);
+  }
+});
+
+test("Real data: the Forms 1-4 additions produce topics at G8-G11", () => {
+  // The five CBC secondary syllabi ingested from the CDC workbooks (Art &
+  // Design, Zambian Languages, Commerce & Principles of Accounts, Design &
+  // Technology Studies, Music & Creative Arts) must resolve through
+  // STUDIO_SUBJECT_TO_KB and surface topics for every form.
+  const raw = loadRawData();
+  const topics = syllabiToKbTopics(raw);
+  const subjects = [
+    "art_and_design",
+    "zambian_language",
+    "commerce_and_principles_of_accounts",
+    "design_and_technology_studies",
+    "music_and_creative_arts",
+  ];
+  for (const subject of subjects) {
+    for (const grade of ["G8", "G9", "G10", "G11"]) {
+      ok(
+        topics.some((t) => t.subject === subject && t.grade === grade),
+        `expected ${subject} topics at ${grade}`,
+      );
+    }
   }
 });
 

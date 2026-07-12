@@ -85,6 +85,16 @@ const SUBJECT_NORMALISE = {
   "creative arts": "creative_and_technology_studies",
   "commerce": "commerce",
   "principles of accounts": "principles_of_accounts",
+  // CBC 2023 Forms 1-4 combined subjects. The "&" variants are explicit
+  // because the fallback slug drops the "and" ("commerce & principles of
+  // accounts" → commerce_principles_of_accounts, which no allowlist knows).
+  "commerce and principles of accounts": "commerce_and_principles_of_accounts",
+  "commerce & principles of accounts": "commerce_and_principles_of_accounts",
+  "design and technology studies": "design_and_technology_studies",
+  "design & technology studies": "design_and_technology_studies",
+  "music and creative arts": "music_and_creative_arts",
+  "music & creative arts": "music_and_creative_arts",
+  "art & design": "art_and_design",
   "literature in english": "literature_in_english",
   "literature": "literature_in_english",
   "zambian languages": "zambian_language",
@@ -176,7 +186,10 @@ async function downloadFile(bucketName, filePath) {
 // --- Filename hints -----------------------------------------------------
 
 function parseFilenameHints(filename) {
-  const base = filename.replace(/\.xlsx$/i, "").trim();
+  // Underscore-separated filenames ("Art_and_Design_Syllabus_Form_14.xlsx")
+  // arrive from browsers/OSes that replace spaces on download. Normalise to
+  // spaces so every word-boundary regex below still matches.
+  const base = filename.replace(/\.xlsx$/i, "").replace(/_+/g, " ").trim();
   const hints = {
     grade: null,
     subject: null,
@@ -189,10 +202,12 @@ function parseFilenameHints(filename) {
     hints.grade = "ECE";
   } else if ((m = base.match(/Grade\s*(\d{1,2})/i))) {
     hints.grade = `G${m[1]}`;
-  } else if ((m = base.match(/Form\s*(\d{1,2})/i))) {
-    hints.grade = `F${m[1]}`;
+  } else if ((m = base.match(/Forms?\s*(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?/i))) {
+    hints.grade = formGradeFromFilename(m[1], m[2]);
   } else if ((m = base.match(/\bG(\d{1,2})\b/i))) {
     hints.grade = `G${m[1]}`;
+  } else if ((m = base.match(/\bF(\d)\b/i))) {
+    hints.grade = formToGradeCode(m[1]);
   }
 
   let subject = base;
@@ -246,15 +261,36 @@ function subjectScope(sheetName) {
   return m ? m[1].trim() : "";
 }
 
+// Zambian secondary forms map to the KB grade codes the rest of the
+// platform stores and queries by: Form N ↔ Grade N+7 (Form 1 = G8 …
+// Form 5 = G12). Mirrors FORM_TO_GRADE in kbLookupCandidates.js — the
+// paper modal and the strict resolver both send G-codes, and
+// gradeCandidates() only folds F→G (never G→F), so topics parsed from a
+// "Form N" sheet must be written under the G-code to be reachable.
+function formToGradeCode(n) {
+  const num = Number(n);
+  return num >= 1 && num <= 5 ? `G${num + 7}` : null;
+}
+
+// "Form 3" → "G10"; "Forms 1-4" / "Form 1-4" → null (multi-grade workbook;
+// grade comes from the per-form sheets). "Form 14" is the same range with
+// the dash lost in filename sanitisation — forms only run 1-5, so a
+// two-digit "form number" can only be a collapsed range.
+function formGradeFromFilename(first, second) {
+  const raw = String(first || "");
+  if (second != null || raw.length > 1) return null;
+  return formToGradeCode(raw);
+}
+
 // "Grade 4"   -> "G4"
-// "Form 1"    -> "F1"
+// "Form 1"    -> "G8"  (see formToGradeCode)
 // "Level 4"   -> "L4"
 // Anything else returns null so the caller can fall back to filename hints.
 function gradeFromSheetName(sheetName) {
   const name = String(sheetName || "").trim();
   let m;
   if ((m = name.match(/^Grade\s*(\d{1,2})$/i))) return `G${m[1]}`;
-  if ((m = name.match(/^Form\s*(\d{1,2})$/i))) return `F${m[1]}`;
+  if ((m = name.match(/^Form\s*(\d{1,2})$/i))) return formToGradeCode(m[1]);
   if ((m = name.match(/^Level\s*(\d{1,2})$/i))) return `L${m[1]}`;
   return null;
 }
@@ -848,6 +884,7 @@ exports.__test__ = {
   competenceScope,
   subjectScope,
   gradeFromSheetName,
+  formToGradeCode,
   buildTopicId,
   splitBulleted,
   parseWorkbook,

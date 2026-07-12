@@ -51,7 +51,9 @@ eq(toKbSubjectKey('Numeracy (Maths & Science)'), 'numeracy',
 for (const k of ['english', 'mathematics', 'integrated_science', 'social_studies',
   'expressive_arts', 'technology_studies', 'home_economics', 'zambian_language',
   'numeracy', 'literacy', 'creative_and_technology_studies', 'religious_education',
-  'civic_education', 'physics', 'chemistry', 'biology', 'geography', 'history']) {
+  'civic_education', 'physics', 'chemistry', 'biology', 'geography', 'history',
+  'art_and_design', 'commerce_and_principles_of_accounts',
+  'design_and_technology_studies', 'music_and_creative_arts']) {
   eq(toKbSubjectKey(subjectLabel(k)), k, `label round-trip: ${k}`)
 }
 

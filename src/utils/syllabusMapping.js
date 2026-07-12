@@ -21,6 +21,9 @@
 // subject can map to several Studio subjects (one per grade band).
 
 export const STUDIO_SUBJECT_TO_KB = {
+  'Art & Design Syllabus (Forms 1-4)':             'art_and_design',
+  'Commerce & Principles of Accounts Syllabus (Forms 1-4)': 'commerce_and_principles_of_accounts',
+  'Design & Technology Studies Syllabus (Forms 1-4)': 'design_and_technology_studies',
   'Early Childhood Education Syllabi (3-5 Years)': 'expressive_arts',
   'Lower Primary Syllabi (Grades 1-3)':            'english',
   'English Language Syllabus (Grades 4-6)':        'english',
@@ -41,7 +44,9 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Food & Nutrition Syllabus (Forms 1-4)':         'home_economics',
   'Fashion & Fabrics Syllabus (Forms 1-4)':        'home_economics',
   'Hospitality Management Syllabus (Forms 1-4)':   'home_economics',
+  'Music & Creative Arts Syllabus (Forms 1-4)':    'music_and_creative_arts',
   'Travel & Tourism Syllabus (Forms 1-4)':         'social_studies',
+  'Zambian Languages Syllabus (Forms 1-4)':        'zambian_language',
 }
 
 // ── Sheet-name → grade ───────────────────────────────────────────────────
