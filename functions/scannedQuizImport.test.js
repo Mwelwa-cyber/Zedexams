@@ -13,6 +13,7 @@ const {
   validatePages,
   normaliseScannedQuestion,
   normaliseScannedSections,
+  normaliseScannedParts,
   countSectionQuestions,
   sanitiseOptionBoxes,
   classifyDiagram,
@@ -49,6 +50,30 @@ const mcq = (over = {}) => ({
 });
 
 console.log("scannedQuizImport");
+
+// ── normaliseScannedParts (declared Part ranges → ground truth) ─────────────
+
+test("normaliseScannedParts keeps valid Part ranges and drops junk", () => {
+  const parts = normaliseScannedParts([
+    {label: "Part 3", sectionTitle: "Section A", firstNumber: 26, lastNumber: 30, instruction: "Choose the sentence which is correctly punctuated.", hasExample: true},
+    {label: "Part 4", firstNumber: "31", lastNumber: "38"},   // string numbers coerce
+    {firstNumber: 5, lastNumber: 3},                            // reversed → dropped
+    {label: "bad"},                                             // no range → dropped
+    {firstNumber: 1, lastNumber: 999},                          // absurd span → dropped
+  ]);
+  assert.equal(parts.length, 2, "only the two sane ranges survive");
+  assert.equal(parts[0].firstNumber, 26);
+  assert.equal(parts[0].lastNumber, 30);
+  assert.equal(parts[0].instruction, "Choose the sentence which is correctly punctuated.");
+  assert.equal(parts[0].hasExample, true);
+  assert.equal(parts[1].firstNumber, 31, "string numbers are coerced to integers");
+  assert.equal(parts[1].lastNumber, 38);
+});
+
+test("normaliseScannedParts tolerates a non-array", () => {
+  assert.deepEqual(normaliseScannedParts(null), []);
+  assert.deepEqual(normaliseScannedParts(undefined), []);
+});
 
 // ── validatePages ──────────────────────────────────────────────────────────
 

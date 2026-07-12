@@ -27,6 +27,7 @@ import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } from './importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
+import { collectDeclaredRanges, reconcilePaperNumbering, assignPartsFromRanges } from './pastPaperParts.js'
 
 // How detected diagrams are handled when converting a scanned paper. The
 // DEFAULT is 'keep' — many Zambian assessment questions depend on their figure,
@@ -44,7 +45,7 @@ export const DEFAULT_DIAGRAM_HANDLING = 'keep'
 // and the server (engineVersion) ships via the Functions deploy — showing both
 // makes a half-deployed state (new UI, stale function, or vice-versa) obvious.
 // Bump on a meaningful change to this file's extraction/merge/recovery logic.
-export const SCANNED_IMPORTER_VERSION = '2026.07.09-zeroyield'
+export const SCANNED_IMPORTER_VERSION = '2026.07.11-parts'
 
 export function normaliseDiagramHandling(mode) {
   return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
@@ -396,10 +397,40 @@ export function mergeSectionBatches(batchResults = []) {
     return kept
   }
 
+  // Declared Part definitions (label / section / printed range / instruction)
+  // the model returns alongside the sections. Unioned across batches by range
+  // so a Part that straddles a batch boundary is kept once; the richest
+  // instruction wins. Consumed as ground truth by pastPaperParts.
+  const partByRange = new Map()
+
   batchResults.forEach(result => {
     if (!result) return
     if (Array.isArray(result.warnings)) warnings.push(...result.warnings)
     detectedTotal += Number(result.detectedCount) || 0
+
+    ;(Array.isArray(result.parts) ? result.parts : []).forEach(part => {
+      const start = Number(part?.firstNumber)
+      const end = Number(part?.lastNumber)
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) return
+      const key = `${start}-${end}`
+      const existing = partByRange.get(key)
+      const instruction = String(part?.instruction || '').trim()
+      if (!existing) {
+        partByRange.set(key, {
+          label: String(part?.label || '').trim(),
+          sectionTitle: String(part?.sectionTitle || '').trim(),
+          firstNumber: start,
+          lastNumber: end,
+          instruction,
+          hasExample: Boolean(part?.hasExample),
+        })
+      } else {
+        if (!existing.label && part?.label) existing.label = String(part.label).trim()
+        if (!existing.sectionTitle && part?.sectionTitle) existing.sectionTitle = String(part.sectionTitle).trim()
+        if (instruction.length > existing.instruction.length) existing.instruction = instruction
+        existing.hasExample = existing.hasExample || Boolean(part?.hasExample)
+      }
+    })
 
     ;(Array.isArray(result.sections) ? result.sections : []).forEach(section => {
       if (section?.kind === 'passage') {
@@ -430,7 +461,8 @@ export function mergeSectionBatches(batchResults = []) {
     })
   })
 
-  return { sections, warnings: [...new Set(warnings)], detectedTotal }
+  const parts = [...partByRange.values()].sort((a, b) => a.firstNumber - b.firstNumber)
+  return { sections, parts, warnings: [...new Set(warnings)], detectedTotal }
 }
 
 // Preserve line breaks the editor would otherwise collapse. importMarkupToRichHtml
@@ -1336,6 +1368,10 @@ export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX
  */
 export function groupSectionsIntoParts(sections = [], deps = {}) {
   const makePart = deps.createPart || createPartGroup
+  // Optional Map<partLabel, instruction> from the declared-range reconciler, so
+  // a rebuilt Part carries its printed instruction (e.g. "Choose the sentence
+  // which is correctly punctuated") instead of an empty instruction box.
+  const instructionByLabel = deps.instructionByLabel instanceof Map ? deps.instructionByLabel : null
   const labelOf = (section) => {
     if (section?.kind === 'passage') {
       // A passage rarely carries its own section heading — the "Section A" label
@@ -1354,7 +1390,8 @@ export function groupSectionsIntoParts(sections = [], deps = {}) {
   ;(Array.isArray(sections) ? sections : []).forEach((section) => {
     const label = labelOf(section)
     if (label && label !== currentLabel) {
-      const part = makePart({ title: label, order: parts.length })
+      const instructions = instructionByLabel?.get(label) || ''
+      const part = makePart({ title: label, order: parts.length, ...(instructions ? { instructions } : {}) })
       parts.push(part)
       currentPartId = part.id
       currentLabel = label
@@ -1583,6 +1620,34 @@ export async function runVisionImport({
       }
     }
   }
+
+  // ── Declared-range reconciliation (printed "Questions X–Y" as ground truth) ──
+  // ECZ / PSLE papers declare each Part's question range and instruction, so we
+  // use them to (a) drop questions numbered outside every declared range — the
+  // phantom over-count (60 → 65) — (b) dedupe same-number reads, (c) snap
+  // mis-read numbers back to the printed sequence when the count lines up, and
+  // (d) turn a stem-less spelling/punctuation item into a real question whose
+  // stem is the Part instruction and whose options are the four sentences.
+  // No-op on a paper that declares no ranges (returned untouched). Runs on the
+  // RAW merged sections so it flows through visionSectionsToLocal unchanged.
+  let rangeReport = null
+  let partInstructionByLabel = null
+  const declaredRanges = collectDeclaredRanges(merged)
+  if (declaredRanges.length) {
+    const rec = reconcilePaperNumbering(merged.sections, declaredRanges)
+    const assigned = assignPartsFromRanges(rec.sections, declaredRanges)
+    merged.sections = assigned.sections
+    partInstructionByLabel = assigned.instructionByLabel
+    rangeReport = {
+      declaredTotal: rec.declaredTotal,
+      droppedOutOfRange: rec.droppedOutOfRange,
+      droppedDuplicate: rec.droppedDuplicate,
+      missing: rec.missing,
+      snapped: rec.snapped,
+      stemsFilled: assigned.stemsFilled,
+    }
+  }
+
   const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
     pageAssetByNumber: assetByPage,
     diagramHandling: handling,
@@ -1664,22 +1729,47 @@ export async function runVisionImport({
   if (!sections.length) {
     warnings.push(`No questions could be read from this ${sourceNoun}.`)
   } else {
-    // Gap check: if the paper is numbered 1..N but some numbers never came
-    // back, tell the admin exactly which are missing so they can re-import the
-    // affected pages or add those questions by hand.
-    const missing = findMissingQuestionNumbers(merged.sections)
+    // Gap check. When the paper declared its ranges we trust the reconciler's
+    // declared-total gap list (accurate even for a block dropped at the very
+    // end); otherwise fall back to the observed-sequence heuristic.
+    const missing = rangeReport ? rangeReport.missing : findMissingQuestionNumbers(merged.sections)
     if (missing.length) {
       warnings.unshift(
         `${missing.length} question${missing.length === 1 ? '' : 's'} appear to be missing (${formatMissingList(missing)}). ` +
         'Re-import (it may catch them on a second pass) or add them by hand.',
       )
     }
+    // Declared-range reconciliation notices — honest about what was auto-fixed
+    // against the paper's own printed structure.
+    if (rangeReport) {
+      const removed = rangeReport.droppedOutOfRange + rangeReport.droppedDuplicate
+      if (removed > 0) {
+        warnings.unshift(
+          `Removed ${removed} extra question${removed === 1 ? '' : 's'} the scanner added that ${removed === 1 ? "isn't" : "aren't"} on the paper ` +
+          `(it prints ${rangeReport.declaredTotal} questions). Check the count looks right.`,
+        )
+      }
+      if (rangeReport.snapped) {
+        warnings.push(
+          `Question numbers were re-aligned to the paper's printed 1–${rangeReport.declaredTotal} sequence — ` +
+          'check a few land where you expect.',
+        )
+      }
+      if (rangeReport.stemsFilled > 0) {
+        warnings.push(
+          `${rangeReport.stemsFilled} question${rangeReport.stemsFilled === 1 ? '' : 's'} (e.g. spelling / punctuation) had no printed wording, so the Part's ` +
+          'instruction was used as the question and the printed choices as the options — review them before publishing.',
+        )
+      }
+    }
     warnings.unshift('Answers were left blank — set the correct answer for each question before publishing.')
   }
 
-  // Group the sections under their printed headings (Section A / B …) into
-  // part groups so the paper rebuilds with its original section structure.
-  const { parts } = groupSectionsIntoParts(sections)
+  // Group the sections under their printed headings (Section A / B … or the
+  // reconciled "Part N: Questions X–Y" labels) into part groups so the paper
+  // rebuilds with its original section structure — carrying each Part's printed
+  // instruction when the declared-range reconciler resolved one.
+  const { parts } = groupSectionsIntoParts(sections, { instructionByLabel: partInstructionByLabel || undefined })
 
   // The engine version the DEPLOYED function reported (first non-empty across
   // batches). Empty means the live function is older than version stamping —

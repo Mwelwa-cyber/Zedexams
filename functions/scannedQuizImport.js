@@ -65,7 +65,7 @@ const VISION_MODEL =
 // the latest code (the silent firebase-tools "exit 0 but stale" failure that
 // repeatedly made importer fixes look broken in production while passing every
 // test). Bump this whenever the server extraction logic changes.
-const SCANNED_IMPORT_ENGINE_VERSION = "2026.07.09-zeroyield";
+const SCANNED_IMPORT_ENGINE_VERSION = "2026.07.11-parts";
 
 // Caps. A batch is a handful of pages so each model call stays inside the
 // output-token budget and the function timeout. The client paginates a long
@@ -245,11 +245,75 @@ const CLAUDE_SYSTEM_PROMPT = [
   "short written-answer questions (questionType='short_answer'); skip only LONG",
   "essay/composition prompts (write a letter/story of several paragraphs). Do",
   "not invent questions.",
+  "",
+  "PARTS / SECTION STRUCTURE — return a top-level `parts` array. Zambian papers",
+  "group questions into numbered Parts, each with a heading that prints its",
+  "question range and a shared instruction, e.g.:",
+  "  'Part 3: Questions 26 – 30' then 'Choose the sentence which is correctly",
+  "  punctuated.' then an 'Example:' then the numbered items.",
+  "For EACH such Part return one entry with its label ('Part 3'), enclosing",
+  "sectionTitle ('Section A'), firstNumber (26) and lastNumber (30) read from the",
+  "heading, the shared instruction verbatim, and hasExample=true when a worked",
+  "Example is shown. These ranges are ground truth — they let the editor drop",
+  "any stray question and fix numbering, so read the 'Questions X – Y' heading",
+  "carefully.",
+  "",
+  "STEM-LESS ITEMS (spelling / punctuation). In some Parts the numbered item has",
+  "NO question sentence of its own — the four printed choices ARE the question",
+  "(e.g. 'Choose the correctly spelled word': A tributaly B tributary …; or",
+  "'Choose the correctly punctuated sentence': four near-identical sentences).",
+  "For these: set the item's prompt to '' (empty), put the four printed choices",
+  "in options[] exactly as printed, and rely on the Part instruction (returned in",
+  "`parts`) — the editor uses it as the question. Do NOT copy the instruction",
+  "into every item's prompt yourself, and do NOT invent a stem.",
 ].join("\n");
 
 const SCANNED_TOOL_SCHEMA = {
   type: "object",
   properties: {
+    // Declared Part/section structure — the paper's OWN ground truth. Used
+    // client-side to drop phantom over-counts, repair mis-read numbers, and
+    // turn a stem-less spelling/punctuation item into a real question.
+    parts: {
+      type: "array",
+      description:
+        "One entry per numbered Part / section group on these pages, read from " +
+        "its heading (e.g. 'Part 3: Questions 26 – 30'). Include a Part even if " +
+        "its items have no stem of their own (spelling / punctuation lists).",
+      items: {
+        type: "object",
+        properties: {
+          label: {
+            type: "string",
+            description: "The printed Part label, e.g. 'Part 3'. '' if none.",
+          },
+          sectionTitle: {
+            type: "string",
+            description: "The enclosing section heading, e.g. 'Section A'. '' if none.",
+          },
+          firstNumber: {
+            type: "integer",
+            description: "The FIRST printed question number in this Part (from 'Questions 26 – 30' → 26).",
+          },
+          lastNumber: {
+            type: "integer",
+            description: "The LAST printed question number in this Part (from 'Questions 26 – 30' → 30).",
+          },
+          instruction: {
+            type: "string",
+            description:
+              "The Part's shared instruction sentence, e.g. 'Choose the sentence " +
+              "which is correctly punctuated.' Copy it verbatim; do NOT include " +
+              "the worked Example.",
+          },
+          hasExample: {
+            type: "boolean",
+            description: "true if a worked 'Example' is shown under this Part (which you must NOT emit as a question).",
+          },
+        },
+        required: ["firstNumber", "lastNumber"],
+      },
+    },
     sections: {
       type: "array",
       items: {
@@ -833,6 +897,32 @@ function countSectionQuestions(sections = []) {
 }
 
 /**
+ * Normalise the model's declared `parts` array — one entry per numbered Part,
+ * with its printed range + shared instruction. The client reconciler uses these
+ * ranges as ground truth (drop phantoms, repair numbering, fill stem-less
+ * items). Drops any entry without a sane firstNumber ≤ lastNumber range.
+ */
+function normaliseScannedParts(rawParts) {
+  const list = Array.isArray(rawParts) ? rawParts : [];
+  const out = [];
+  for (const raw of list) {
+    const first = Number.parseInt(raw?.firstNumber, 10);
+    const last = Number.parseInt(raw?.lastNumber, 10);
+    if (!Number.isInteger(first) || !Number.isInteger(last) || first < 1 || last < first) continue;
+    if (last - first > 200) continue;
+    out.push({
+      label: clampString(raw?.label, 40).trim(),
+      sectionTitle: clampString(raw?.sectionTitle, 80).trim(),
+      firstNumber: first,
+      lastNumber: last,
+      instruction: clampString(raw?.instruction, 600).trim(),
+      hasExample: Boolean(raw?.hasExample),
+    });
+  }
+  return out;
+}
+
+/**
  * Compare the primary (Claude) extraction count against the assist (Gemini)
  * recall count for one batch. Returns a warning string when Claude returned
  * meaningfully fewer questions than Gemini saw — the classic "dropped
@@ -1137,6 +1227,10 @@ async function runScannedQuizImport(
     pageNumbers,
   );
 
+  // Declared Part structure (ranges + instructions) — ground truth the client
+  // reconciler uses to drop phantoms, repair numbering and fill stem-less items.
+  const parts = normaliseScannedParts(result?.parsed?.parts);
+
   // Number-driven completeness: hold Claude's first pass against the printed
   // numbers Gemini saw, and re-ask specifically for any it missed. Re-asking a
   // short explicit list is far more reliable than the model self-enumerating a
@@ -1221,6 +1315,7 @@ async function runScannedQuizImport(
 
   return {
     sections,
+    parts,
     warnings,
     pageNumbers,
     detectedCount: geminiCount,
@@ -1240,6 +1335,7 @@ module.exports = {
   validatePages,
   normaliseScannedQuestion,
   normaliseScannedSections,
+  normaliseScannedParts,
   countSectionQuestions,
   sanitiseOptionBoxes,
   classifyDiagram,
