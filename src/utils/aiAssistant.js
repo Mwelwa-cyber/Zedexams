@@ -600,6 +600,10 @@ export async function structureScannedQuiz(payload) {
     const data = response.data || {}
     return {
       sections: Array.isArray(data.sections) ? data.sections : [],
+      // Declared Part structure (printed ranges + shared instructions) the
+      // client reconciler uses as ground truth — drop phantom over-counts,
+      // repair mis-read numbers, and fill stem-less spelling/punctuation items.
+      parts: Array.isArray(data.parts) ? data.parts : [],
       warnings: Array.isArray(data.warnings) ? data.warnings : [],
       detectedCount: Number(data.detectedCount) || 0,
       extractedCount: Number(data.extractedCount) || 0,

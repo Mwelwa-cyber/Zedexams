@@ -775,6 +775,51 @@ await testAsync('runVisionImport batches, blanks answers, and flags for review',
   assert.ok(progress.some(e => e.phase === 'reading'))
 })
 
+await testAsync('runVisionImport reconciles against declared Part ranges: drops the phantom, fills a stem-less item, groups Parts', async () => {
+  // A tiny 3-question paper the model over-read as 4, with a declared parts
+  // array: Part 1 (Q1-2, meaning questions with real stems) + Part 2 (Q3,
+  // spelling item with NO stem — the four choices are the question).
+  const callVision = async () => ({
+    detectedCount: 4,
+    parts: [
+      { label: 'Part 1', sectionTitle: 'Section A', firstNumber: 1, lastNumber: 2, instruction: 'Choose the word that completes the sentence.' },
+      { label: 'Part 2', sectionTitle: 'Section A', firstNumber: 3, lastNumber: 3, instruction: 'Choose the correctly spelled word.' },
+    ],
+    sections: [
+      { kind: 'standalone', question: mcq({ text: 'The girl can sing … she cannot dance.', sourceQuestionNumber: 1, sectionTitle: 'Section A' }) },
+      { kind: 'standalone', question: mcq({ text: 'A … of girls was found.', sourceQuestionNumber: 2, sectionTitle: 'Section A' }) },
+      // Q3: no stem — spelling choices are the options; carries the shared instruction.
+      { kind: 'standalone', question: { text: '', options: ['tributaly', 'tributary', 'tributely', 'tributery'], sourceQuestionNumber: 3, sectionTitle: 'Section A', sharedInstruction: 'Choose the correctly spelled word.' } },
+      // Phantom: a number outside every declared range → must be dropped.
+      { kind: 'standalone', question: mcq({ text: 'Hallucinated extra', sourceQuestionNumber: 44, sectionTitle: 'Section A' }) },
+    ],
+  })
+
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'psle-english.jpg' },
+    callVision,
+    sourceNoun: 'image',
+  })
+
+  // The phantom (#44, outside declared 1-3) is dropped → 3 questions remain.
+  assert.equal(out.sections.length, 3, 'phantom question removed via declared-range reconciliation')
+  assert.ok(out.warnings.some(w => /Removed 1 extra question/i.test(w)), 'over-count removal is surfaced honestly')
+
+  // The stem-less spelling item now reads as a real question.
+  const spelling = out.sections.find(s => (s.question?.options || []).some(o => /tributary/.test(String(o).replace(/<[^>]*>/g, ''))))
+  assert.ok(spelling, 'spelling item survived')
+  const stem = String(spelling.question.text).replace(/<[^>]*>/g, '').trim()
+  assert.equal(stem, 'Choose the correctly spelled word.', 'the Part instruction became the question stem')
+  assert.ok(out.warnings.some(w => /instruction was used as the question/i.test(w)), 'stem-fill surfaced to the teacher')
+
+  // Parts were rebuilt from the reconciled labels, carrying their instruction.
+  assert.ok(out.parts.length >= 1, 'Part groups were created')
+  assert.ok(out.parts.some(p => /Questions 3–3/.test(p.title) || /Questions 1–2/.test(p.title)), 'Parts labelled with their printed ranges')
+  assert.ok(out.parts.some(p => /correctly spelled|completes the sentence/i.test(String(p.instructions || ''))), 'Part instruction carried onto the group')
+})
+
 await testAsync('runVisionImport reports the source noun when nothing is read', async () => {
   const callVision = async () => ({ detectedCount: 0, sections: [] })
   const out = await runVisionImport({
