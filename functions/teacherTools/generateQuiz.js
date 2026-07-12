@@ -53,6 +53,10 @@ const ALLOWED_SUBJECTS = new Set([
   "biology", "chemistry", "physics", "geography", "history",
   "environmental_science", "technology_studies", "home_economics",
   "expressive_arts",
+  // CBC 2023 Forms 1-4 subjects the Syllabus Studio exposes as their own
+  // canonical keys (Art & Design is shared with the 2013 syllabus).
+  "art_and_design", "commerce_and_principles_of_accounts",
+  "design_and_technology_studies", "music_and_creative_arts",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
