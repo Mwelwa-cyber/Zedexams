@@ -244,6 +244,7 @@
     "test:worksheet-schema": "node functions/teacherTools/worksheetSchema.test.js",
     "test:worksheet-prompt": "node functions/teacherTools/worksheetPrompt.test.js",
     "test:kb-candidates": "node functions/teacherTools/cbcGradeSubjectCandidates.test.js",
+    "test:generator-subject-allowlists": "node scripts/test-generator-subject-allowlists.mjs",
     "test:scheme-schema": "node functions/teacherTools/schemeOfWorkSchema.test.js",
     "test:scheme-outline": "node functions/teacherTools/schemeCurriculumOutline.test.js",
     "test:scheme-timetable": "node functions/teacherTools/schemeTimetable.test.js",
