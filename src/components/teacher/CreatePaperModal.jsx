@@ -19,8 +19,7 @@ import './studio/lessonStudio.css'
 import {
   PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
   paperGradeOptions, normalizePaperGrade, maxTopicsFor,
-  isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
-  FALLBACK_SUBJECT_KEYS,
+  isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
 import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
 import { canonicalizeAssessmentType } from '../../utils/questionType'
@@ -214,15 +213,15 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     }
   }, [form.framework, form.grade])
 
-  // Subjects actually present in the syllabus for this grade + framework.
-  // Falls back to a static list only after the fetch settles (so the
-  // dropdown isn't briefly empty), keeping every grade — including Grade 1
-  // and ECE — reachable.
+  // Subjects come STRICTLY from the Syllabus Studio for this curriculum +
+  // grade — no static fallback. CBC shows exactly the CBC syllabus subjects and
+  // the previous curriculum shows exactly its own, so the two never collapse to
+  // an identical hardcoded list. When a grade genuinely has no syllabus
+  // subjects the picker shows an explicit empty state rather than inventing any.
   const { subjects: syllabusSubjects, loading: subjectsLoading } =
     useSyllabusSubjectOptions(form.grade, form.framework)
-  const subjectChoices = (!subjectsLoading && syllabusSubjects.length > 0)
-    ? syllabusSubjects
-    : FALLBACK_SUBJECT_KEYS.map((key) => ({ key, label: subjectLabel(key) }))
+  const subjectChoices = subjectsLoading ? [] : syllabusSubjects
+  const noSubjects = !subjectsLoading && subjectChoices.length === 0
 
   // Keep the selected subject valid for the chosen grade. When the syllabus
   // for a grade doesn't carry the current subject, snap to the first one it
@@ -388,6 +387,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   }
 
   async function onGenerate() {
+    if (noSubjects || !form.subject) {
+      setError('This grade has no subjects in the chosen syllabus — pick another grade or curriculum.')
+      setStatus('error')
+      return
+    }
     if (topicList.length === 0) {
       setError('Add at least one topic.')
       setStatus('error')
@@ -501,14 +505,21 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               </div>
               <div>
                 <label className="sv-cpm-label">Subject</label>
-                <select className="sv-cpm-input" value={form.subject}
-                  disabled={subjectsLoading}
+                <select className="sv-cpm-input" value={noSubjects ? '' : form.subject}
+                  disabled={subjectsLoading || noSubjects}
                   onChange={(e) => setMeta('subject', e.target.value)}>
                   {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
+                  {noSubjects && <option value="">No subjects in this syllabus</option>}
                   {subjectChoices.map((s) => (
                     <option key={s.key} value={s.key}>{s.label}</option>
                   ))}
                 </select>
+                {noSubjects && (
+                  <p className="sv-cpm-hint">
+                    This grade has no subjects in the{' '}
+                    {form.framework === '2013' ? 'previous' : 'CBC'} syllabus yet.
+                  </p>
+                )}
               </div>
             </div>
             <div>
