@@ -766,6 +766,25 @@ function looksLikeDocFooter(line) {
   return false
 }
 
+function isExampleStartLine(line) {
+  const text = cleanImportedText(line)
+  if (!text) return false
+  if (questionMatch(text)) return false
+  // Match only unnumbered example labels / worked-example leads. Numbered
+  // stems such as "12. Which is an example of evaporation?" must still parse.
+  return /^(?:worked\s+)?examples?(?:\s+\d{1,2})?\s*(?:[:.)-]\s*.*)?$/i.test(text)
+}
+
+function isExampleBoundaryLine(line) {
+  const text = cleanImportedText(line)
+  if (!text) return false
+  return isQuestionRangeHeading(text)
+    || isReadingComprehensionHeading(text)
+    || isSectionHeading(text)
+    || isComprehensionInstruction(text)
+    || isPassageLabel(text)
+}
+
 // Walks the block stream and merges blocks whose entire text is just a
 // question-number marker (e.g. `6.`) with the next non-empty block.
 //
@@ -1170,6 +1189,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   let compPassageParts = []
   let compSubQuestions = []
   let current = null
+  let skippingExample = null
   // Active SECTION/PART heading. Stamped onto every question started while
   // this is non-null so processImportedQuestionBlocks can group questions
   // into parts[] downstream. Cleared by ANSWER_KEY_HEADING (no further
@@ -1346,6 +1366,33 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
     lines.forEach((line, lineIndex) => {
       const lineAssets = lineIndex === 0 ? (block.assets || []) : []
+      const exampleStart = isExampleStartLine(line)
+      if (exampleStart) {
+        if (compActive) finalizeSubQuestion()
+        else finalizeStandaloneQuestion()
+        sharedInstruction = ''
+        numberStemInstruction = ''
+        skippingExample = { sawTerminalOption: false, skippedLines: 0 }
+        return
+      }
+
+      if (skippingExample) {
+        const answerMatchForExample = line.match(ANSWER_RE)
+        const optionSegmentsForExample = extractOptionSegments(line)
+        const hasTerminalOption = optionSegmentsForExample.some(opt => opt.index >= 3)
+        const canResumeOnQuestion = skippingExample.sawTerminalOption || skippingExample.skippedLines >= 8
+        if (isExampleBoundaryLine(line) || (canResumeOnQuestion && questionMatch(line))) {
+          skippingExample = null
+          // Fall through and process this boundary / first real question.
+        } else {
+          skippingExample = {
+            sawTerminalOption: skippingExample.sawTerminalOption || hasTerminalOption,
+            skippedLines: skippingExample.skippedLines + 1,
+          }
+          if (answerMatchForExample) skippingExample = null
+          return
+        }
+      }
 
       if (ANSWER_KEY_HEADING_RE.test(line)) {
         finalizeComprehension()

@@ -100,10 +100,70 @@ const SUBTYPE_OPTIONS = [
   { value: 'sentence_ordering', label: 'Sentence ordering' },
 ]
 const SUBTYPE_LABEL = Object.fromEntries(SUBTYPE_OPTIONS.map(option => [option.value, option.label]))
+const QUESTION_TYPE_OPTIONS = [
+  { value: 'mcq', label: 'MCQ (4 options)' },
+  { value: 'tf', label: 'True / False' },
+  { value: 'short_answer', label: 'Short Answer' },
+  { value: 'fill', label: 'Fill in the blank' },
+  { value: 'fill_blanks', label: 'Fill in the Blanks (statements)' },
+  { value: 'numeric', label: 'Numeric (±tolerance)' },
+  { value: 'hotspot', label: 'Hotspot (click on image)' },
+  { value: 'diagram_label', label: 'Label the Diagram (type the parts)' },
+  { value: 'diagram', label: 'Diagram / Image' },
+]
 const PART_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
 function partLabel(index) {
   return `Part ${PART_LETTERS[index] ?? index + 1}`
+}
+
+function applyQuestionTypeChange(question, nextType, setField) {
+  setField('type', nextType)
+  if (nextType === 'tf') {
+    setField('options', ['True', 'False'])
+    setField('correctAnswer', 0)
+  } else if (nextType === 'short_answer' || nextType === 'diagram' || nextType === 'fill') {
+    setField('options', [])
+    setField('correctAnswer', typeof question.correctAnswer === 'string' ? question.correctAnswer : '')
+    // Subtype only makes sense for MCQ — clear it on type change.
+    if (question.subtype) setField('subtype', null)
+  } else if (nextType === 'fill_blanks') {
+    // Dedicated Fill-in-the-Blanks: no options; answers live on the statements.
+    // Seed 4 empty statements so the editor has shape.
+    setField('options', [])
+    setField('correctAnswer', '')
+    if (!Array.isArray(question.statements) || question.statements.length === 0) {
+      setField('statements', [
+        { text: '', answers: [''] },
+        { text: '', answers: [''] },
+        { text: '', answers: [''] },
+        { text: '', answers: [''] },
+      ])
+    }
+    if (question.subtype) setField('subtype', null)
+  } else if (nextType === 'numeric') {
+    setField('options', [])
+    setField('correctAnswer',
+      typeof question.correctAnswer === 'number' && Number.isFinite(question.correctAnswer)
+        ? question.correctAnswer : 0)
+    setField('tolerance',
+      typeof question.tolerance === 'number' && question.tolerance >= 0
+        ? question.tolerance : 0)
+    if (question.subtype) setField('subtype', null)
+  } else if (nextType === 'hotspot') {
+    setField('options', [])
+    if (question.subtype) setField('subtype', null)
+    if (!question.correctRegion) setField('correctRegion', null)
+  } else if (nextType === 'diagram_label') {
+    setField('options', [])
+    setField('correctAnswer', '')
+    setField('diagramMode', 'identify')
+    if (!Array.isArray(question.diagramLabels)) setField('diagramLabels', [])
+    if (question.subtype) setField('subtype', null)
+  } else if (!Array.isArray(question.options) || question.options.length < 4) {
+    setField('options', ['', '', '', ''])
+    setField('correctAnswer', 0)
+  }
 }
 
 // Dedicated Fill-in-the-Blanks editor for the Quiz Studio. The instruction is
@@ -787,77 +847,13 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
           <select
             value={question.type}
             onChange={event => {
-              const nextType = event.target.value
-              set('type', nextType)
-              if (nextType === 'tf') {
-                onChange(sectionIndex, 'options', ['True', 'False'])
-                onChange(sectionIndex, 'correctAnswer', 0)
-              } else if (nextType === 'short_answer' || nextType === 'diagram' || nextType === 'fill') {
-                onChange(sectionIndex, 'options', [])
-                onChange(sectionIndex, 'correctAnswer', typeof question.correctAnswer === 'string' ? question.correctAnswer : '')
-                // Subtype only makes sense for MCQ — clear it on type change.
-                if (question.subtype) onChange(sectionIndex, 'subtype', null)
-              } else if (nextType === 'fill_blanks') {
-                // Dedicated Fill-in-the-Blanks: no options; answers live on the
-                // statements. Seed 4 empty statements so the editor has shape.
-                onChange(sectionIndex, 'options', [])
-                onChange(sectionIndex, 'correctAnswer', '')
-                if (!Array.isArray(question.statements) || question.statements.length === 0) {
-                  onChange(sectionIndex, 'statements', [
-                    { text: '', answers: [''] },
-                    { text: '', answers: [''] },
-                    { text: '', answers: [''] },
-                    { text: '', answers: [''] },
-                  ])
-                }
-                if (question.subtype) onChange(sectionIndex, 'subtype', null)
-              } else if (nextType === 'numeric') {
-                // Numeric questions have no options and store correctAnswer
-                // as a real number. The runner accepts any typed answer
-                // within ±tolerance.
-                onChange(sectionIndex, 'options', [])
-                onChange(sectionIndex, 'correctAnswer',
-                  typeof question.correctAnswer === 'number' && Number.isFinite(question.correctAnswer)
-                    ? question.correctAnswer : 0)
-                onChange(sectionIndex, 'tolerance',
-                  typeof question.tolerance === 'number' && question.tolerance >= 0
-                    ? question.tolerance : 0)
-                if (question.subtype) onChange(sectionIndex, 'subtype', null)
-              } else if (nextType === 'hotspot') {
-                // Hotspot questions have no options either; the answer
-                // is a normalised (x, y) on the question image. correctRegion
-                // starts null — the schema rejects writes without it so the
-                // teacher is forced to click on the image to place the target
-                // before publishing.
-                onChange(sectionIndex, 'options', [])
-                if (question.subtype) onChange(sectionIndex, 'subtype', null)
-                if (!question.correctRegion) onChange(sectionIndex, 'correctRegion', null)
-              } else if (nextType === 'diagram_label') {
-                // Label-the-Diagram: no options; each numbered marker on the
-                // image carries the expected name in diagramLabels[i].text.
-                // diagramMode 'identify' is the "numbers on the image, learner
-                // names each" presentation the printed-paper renderer also uses.
-                onChange(sectionIndex, 'options', [])
-                onChange(sectionIndex, 'correctAnswer', '')
-                onChange(sectionIndex, 'diagramMode', 'identify')
-                if (!Array.isArray(question.diagramLabels)) onChange(sectionIndex, 'diagramLabels', [])
-                if (question.subtype) onChange(sectionIndex, 'subtype', null)
-              } else if (question.options.length < 4) {
-                onChange(sectionIndex, 'options', ['', '', '', ''])
-                onChange(sectionIndex, 'correctAnswer', 0)
-              }
+              applyQuestionTypeChange(question, event.target.value, (field, value) => onChange(sectionIndex, field, value))
             }}
             className={joinClasses('theme-input rounded-lg border px-2 py-1 text-xs outline-none', theme.focus)}
           >
-            <option value="mcq">MCQ (4 options)</option>
-            <option value="tf">True / False</option>
-            <option value="short_answer">Short Answer</option>
-            <option value="fill">Fill in the blank</option>
-            <option value="fill_blanks">Fill in the Blanks (statements)</option>
-            <option value="numeric">Numeric (±tolerance)</option>
-            <option value="hotspot">Hotspot (click on image)</option>
-            <option value="diagram_label">Label the Diagram (type the parts)</option>
-            <option value="diagram">Diagram / Image</option>
+            {QUESTION_TYPE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
           {question.type === 'mcq' && (
             <select
@@ -1516,15 +1512,28 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
             onApply={applyAiPatch}
           />
           <select
-            value={question.subtype ?? ''}
-            onChange={event => set('subtype', event.target.value || null)}
+            value={question.type}
+            onChange={event => {
+              applyQuestionTypeChange(question, event.target.value, set)
+            }}
             className="theme-input rounded-lg border px-2 py-1 text-xs outline-none focus:border-[var(--accent)]"
-            title="MCQ subtype"
           >
-            {SUBTYPE_OPTIONS.map(option => (
+            {QUESTION_TYPE_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          {question.type === 'mcq' && (
+            <select
+              value={question.subtype ?? ''}
+              onChange={event => set('subtype', event.target.value || null)}
+              className="theme-input rounded-lg border px-2 py-1 text-xs outline-none focus:border-[var(--accent)]"
+              title="MCQ subtype"
+            >
+              {SUBTYPE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          )}
           {Array.isArray(passageOptions) && passageOptions.length > 1 && onMoveToPassage && currentSectionId && (
             <select
               value={currentSectionId}
