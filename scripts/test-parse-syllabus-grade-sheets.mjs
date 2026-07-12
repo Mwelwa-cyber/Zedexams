@@ -75,6 +75,7 @@ Module._load = origLoad
 
 const {
   gradeFromSheetName,
+  formToGradeCode,
   parseFilenameHints,
   parseWorkbook,
   GRADE_SHEET_REGEX,
@@ -159,9 +160,21 @@ await test('case + whitespace insensitive', () => {
   assert(gradeFromSheetName('  GRADE 7  ') === 'G7')
 })
 
-await test('"Form 1" → "F1", "Level 4" → "L4"', () => {
-  assert(gradeFromSheetName('Form 1') === 'F1', 'Form 1')
+await test('"Form N" → the KB grade code G(N+7), "Level 4" → "L4"', () => {
+  // The KB stores secondary topics by G-code (Form 1 = G8 … Form 5 = G12,
+  // matching kbLookupCandidates.FORM_TO_GRADE); gradeCandidates only folds
+  // F→G, so a topic parsed under "F1" would be unreachable for a "G8"
+  // request. The parser must write G-codes directly.
+  assert(gradeFromSheetName('Form 1') === 'G8', `Form 1 → ${gradeFromSheetName('Form 1')}`)
+  assert(gradeFromSheetName('Form 4') === 'G11', `Form 4 → ${gradeFromSheetName('Form 4')}`)
   assert(gradeFromSheetName('Level 4') === 'L4', 'Level 4')
+})
+
+await test('formToGradeCode maps 1-5 and rejects everything else', () => {
+  assert(formToGradeCode('1') === 'G8', 'Form 1')
+  assert(formToGradeCode('5') === 'G12', 'Form 5')
+  assert(formToGradeCode('6') === null, 'Form 6 is not a Zambian form')
+  assert(formToGradeCode('14') === null, 'collapsed range is not a form')
 })
 
 await test('returns null for non-grade sheet names', () => {
@@ -210,6 +223,41 @@ await test('"Grades" plural without parens does not leak into subject', () => {
   const h = parseFilenameHints('History Syllabus Grades 8-9.xlsx')
   assert(h.subject === 'history', `subject expected "history", got "${h.subject}"`)
   assert(h.subjectDisplay === 'History', `subjectDisplay got "${h.subjectDisplay}"`)
+})
+
+await test('underscore-separated CDC filenames parse like spaced ones', () => {
+  // Browsers/OSes replace spaces with underscores on download; the CDC 2026
+  // Forms 1-4 workbooks arrive as e.g.
+  // "Commerce_and_Principles_of_Accounts_Syllabus_Form_14.xlsx" where
+  // "Form_14" is "Form 1-4" with the dash lost. Subject must resolve to the
+  // canonical key and grade must stay null (grade comes from the Form sheets).
+  const cases = [
+    ['Art_and_Design_Syllabus_Form_14.xlsx', 'art_and_design', 'Art and Design'],
+    ['Zambian_Languages_Syllabus_Form_14.xlsx', 'zambian_language', 'Zambian Languages'],
+    ['Commerce_and_Principles_of_Accounts_Syllabus_Form_14.xlsx',
+      'commerce_and_principles_of_accounts', 'Commerce and Principles of Accounts'],
+    ['Design_and_Technology_Studies_Syllabus_Form_14.xlsx',
+      'design_and_technology_studies', 'Design and Technology Studies'],
+    ['Music_and_Creative_Arts_Syllabus_Form_14.xlsx',
+      'music_and_creative_arts', 'Music and Creative Arts'],
+  ]
+  for (const [filename, subject, display] of cases) {
+    const h = parseFilenameHints(filename)
+    assert(h.subject === subject,
+      `${filename}: subject expected "${subject}", got "${h.subject}"`)
+    assert(h.subjectDisplay === display,
+      `${filename}: subjectDisplay expected "${display}", got "${h.subjectDisplay}"`)
+    assert(h.grade === null, `${filename}: grade expected null, got "${h.grade}"`)
+  }
+})
+
+await test('Form filename hints: single form → G-code, ranges → null', () => {
+  assert(parseFilenameHints('Physics Syllabus Form 3.xlsx').grade === 'G10',
+    'single form must map to its G-code')
+  assert(parseFilenameHints('Physics Syllabus Forms 1-4.xlsx').grade === null,
+    'explicit range must not pin a grade')
+  assert(parseFilenameHints('Physics_Syllabus_Form_14.xlsx').grade === null,
+    'collapsed range must not pin a grade')
 })
 
 console.log('\nparseSyllabusUpload — parseWorkbook (multi-grade layout)')
@@ -307,6 +355,51 @@ await test('subtopics survive the round-trip with their per-row fields', async (
     `specificCompetence missing or wrong: "${respiratory.specificCompetence}"`)
   assert(Array.isArray(respiratory.learningActivities) && respiratory.learningActivities.length === 2,
     `learningActivities expected 2 items, got ${respiratory.learningActivities?.length}`)
+})
+
+await test('Forms 1-4 workbook: Form sheets land under G8-G11 with the combined subject key', async () => {
+  // Mirrors the CDC 2026 secondary workbooks: a "Key Competences" sheet plus
+  // one sheet per form, uploaded with an underscore-separated filename.
+  const wb = makeWorkbook([
+    {
+      name: 'Key Competences',
+      rows: [
+        ['Competences'],
+        ['Critical Thinking'],
+        ['Creativity and Innovation'],
+      ],
+    },
+    {
+      name: 'Form 1',
+      rows: [
+        ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCE', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
+        ['1.1 Commerce', '1.1.1 Introduction to Commerce', 'Show understanding of the importance of Commerce', '• Describing Commerce', 'Understanding shown accordingly'],
+      ],
+    },
+    {
+      name: 'Form 2',
+      rows: [
+        ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCE', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
+        ['2.1 Trade', '2.1.1 Home Trade', 'Demonstrate knowledge of home trade', '• Discussing home trade', 'Knowledge demonstrated accordingly'],
+      ],
+    },
+  ])
+  const filename = 'Commerce_and_Principles_of_Accounts_Syllabus_Form_14.xlsx'
+  const filenameHints = parseFilenameHints(filename)
+  const result = parseWorkbook(wb, {
+    filename, version: 'cbc-kb-test', filenameHints,
+  })
+  assert(result.sheetsProcessed === 3,
+    `expected 3 sheets processed (competences + 2 forms), got ${result.sheetsProcessed}`)
+  const grades = result.topicDocs.map((t) => t.grade).sort()
+  assert(JSON.stringify(grades) === JSON.stringify(['G8', 'G9']),
+    `grades expected [G8, G9], got ${JSON.stringify(grades)}`)
+  for (const t of result.topicDocs) {
+    assert(t.subject === 'commerce_and_principles_of_accounts',
+      `topic "${t.topic}" got subject "${t.subject}"`)
+    assert(t.keyCompetencies.includes('Critical Thinking'),
+      'key competences from the shared sheet must attach to every topic')
+  }
 })
 
 await test('legacy single-sheet "Syllabus" layout still parses (regression)', async () => {

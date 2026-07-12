@@ -217,6 +217,10 @@ const SUBJECT_LABELS = {
   history: 'History',
   accounts: 'Accounts',
   cinyanja: 'Cinyanja',
+  art_and_design: 'Art & Design',
+  commerce_and_principles_of_accounts: 'Commerce & Principles of Accounts',
+  design_and_technology_studies: 'Design & Technology Studies',
+  music_and_creative_arts: 'Music & Creative Arts',
 }
 
 export function subjectLabel(key) {
@@ -263,6 +267,12 @@ const SUBJECT_FIXES = {
   // "Creative & Technology Studies" Grades 1-4 → creative_technology_studies).
   art_design: 'art_and_design',
   creative_technology_studies: 'creative_and_technology_studies',
+  // CBC 2023 Forms 1-4 subjects whose "&" display names slug without the
+  // "and" ("Commerce & Principles of Accounts" → commerce_principles_of_
+  // accounts) — fold back to the canonical KB keys.
+  commerce_principles_of_accounts: 'commerce_and_principles_of_accounts',
+  design_technology_studies: 'design_and_technology_studies',
+  music_creative_arts: 'music_and_creative_arts',
 }
 
 export function toKbSubjectKey(subject) {

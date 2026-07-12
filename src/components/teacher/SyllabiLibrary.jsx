@@ -27,6 +27,11 @@ const META = {
   'Fashion & Fabrics Syllabus (Forms 1-4)':              { icon: '🧵', cat: 'Secondary',       short: 'Fashion & Fabrics' },
   'Hospitality Management Syllabus (Forms 1-4)':         { icon: '🏨', cat: 'Secondary',       short: 'Hospitality Management' },
   'Travel & Tourism Syllabus (Forms 1-4)':               { icon: '✈️', cat: 'Secondary',       short: 'Travel & Tourism' },
+  'Art & Design Syllabus (Forms 1-4)':                   { icon: '🎨', cat: 'Secondary',       short: 'Art & Design' },
+  'Zambian Languages Syllabus (Forms 1-4)':              { icon: '🗣️', cat: 'Secondary',       short: 'Zambian Languages' },
+  'Commerce & Principles of Accounts Syllabus (Forms 1-4)': { icon: '🧾', cat: 'Secondary',    short: 'Commerce & Accounts' },
+  'Design & Technology Studies Syllabus (Forms 1-4)':    { icon: '🛠️', cat: 'Secondary',       short: 'Design & Technology' },
+  'Music & Creative Arts Syllabus (Forms 1-4)':          { icon: '🎵', cat: 'Secondary',       short: 'Music & Creative Arts' },
 }
 
 const CAT_ORDER = ['Early Childhood', 'Lower Primary', 'Upper Primary', 'Secondary']

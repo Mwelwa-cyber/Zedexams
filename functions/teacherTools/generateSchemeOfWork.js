@@ -76,6 +76,10 @@ const ALLOWED_SUBJECTS = new Set([
   // 2013-framework subjects exposed by curriculum-data-2013.json
   // (Agricultural Science / Art & Design / Home Management, Grades 10-12).
   "agricultural_science", "art_and_design", "home_management",
+  // CBC 2023 Forms 1-4 subjects the Syllabus Studio exposes as their own
+  // canonical keys (Art & Design is shared with the 2013 line above).
+  "commerce_and_principles_of_accounts", "design_and_technology_studies",
+  "music_and_creative_arts",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",

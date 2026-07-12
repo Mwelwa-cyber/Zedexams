@@ -105,6 +105,25 @@ const {
     ["creative_technology_studies", "creative_and_technology_studies"],
   );
 
+  // CBC 2023 Forms 1-4 additions — the "&" studio names slug without the
+  // "and", so the derived fold must recover the canonical keys.
+  assert.deepStrictEqual(
+    subjectCandidates("commerce_principles_of_accounts"),
+    ["commerce_principles_of_accounts", "commerce_and_principles_of_accounts"],
+  );
+  assert.deepStrictEqual(
+    subjectCandidates("design_technology_studies"),
+    ["design_technology_studies", "design_and_technology_studies"],
+  );
+  assert.deepStrictEqual(
+    subjectCandidates("music_creative_arts"),
+    ["music_creative_arts", "music_and_creative_arts"],
+  );
+  assert.deepStrictEqual(
+    subjectCandidates("zambian_languages"),
+    ["zambian_languages", "zambian_language"],
+  );
+
   // Grade 4-6 verbose keys the selector may still surface.
   assert.deepStrictEqual(
     subjectCandidates("english_language"), ["english_language", "english"],
