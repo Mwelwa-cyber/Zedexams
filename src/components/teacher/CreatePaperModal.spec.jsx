@@ -12,13 +12,19 @@ import {
 const TOPICS = ['Numbers', 'Fractions', 'Geometry', 'Measurement']
 const SUBTOPICS = ['Adding fractions', 'Subtracting fractions']
 
+// Mutable so a test can simulate a grade whose curriculum has NO syllabus
+// subjects — the picker must show an empty state, never a hardcoded fallback.
+const syllabusMock = vi.hoisted(() => ({
+  subjects: [{ key: 'mathematics', label: 'Mathematics' }],
+}))
+
 vi.mock('./syllabusTopicOptions', () => ({
   CURRICULUM_FRAMEWORKS: [
     { value: '2023', label: '2023 CBC' },
     { value: '2013', label: '2013' },
   ],
   useSyllabusSubjectOptions: () => ({
-    subjects: [{ key: 'mathematics', label: 'Mathematics' }],
+    subjects: syllabusMock.subjects,
     loading: false,
   }),
   useSyllabusTopicOptions: () => ({
@@ -79,13 +85,30 @@ function topicGroup() {
 }
 
 describe('CreatePaperModal — topic checkboxes', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    syllabusMock.subjects = [{ key: 'mathematics', label: 'Mathematics' }]
+  })
 
   it('renders every syllabus topic as a checkbox in "From syllabus" mode', () => {
     renderModal()
     for (const t of TOPICS) {
       expect(screen.getByRole('checkbox', { name: t })).toBeInTheDocument()
     }
+  })
+
+  it('shows only the syllabus subjects — no hardcoded fallback when the syllabus is empty', () => {
+    // Grade whose curriculum carries no syllabus subjects.
+    syllabusMock.subjects = []
+    renderModal()
+    // The empty state is shown instead of a fabricated subject list.
+    expect(screen.getByText(/no subjects in this syllabus/i)).toBeInTheDocument()
+    // None of the old static fallback subjects leak in.
+    expect(screen.queryByRole('option', { name: 'English' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Social Studies' })).not.toBeInTheDocument()
+    // Generating is blocked with a clear message rather than sending a stale subject.
+    fireEvent.click(screen.getByRole('button', { name: /Generate/i }))
+    expect(screen.getByText(/no subjects in the chosen syllabus/i)).toBeInTheDocument()
   })
 
   it('ticks multiple topics without re-opening a control', () => {

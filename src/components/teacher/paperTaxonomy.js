@@ -17,32 +17,92 @@ import { normalizeSubject } from '../../config/curriculum.js'
 
 // ── Grades ─────────────────────────────────────────────────────────────────
 // The studio's own grade picker stays 1–12 (assessmentStudioMeta.js); the AI
-// paper modal additionally offers the ECE pre-primary bands, which are fully
-// populated in the 2023 syllabus (ECE_N = Nursery 3–4, ECE_R = Reception 4–5)
-// but were previously unreachable because the modal only listed numbered
-// grades. Values match functions/teacherTools/assessmentAllowlists.js.
-export const PAPER_GRADE_OPTIONS = [
+// paper modal offers a CURRICULUM-AWARE grade + form list so CBC and the
+// previous syllabus no longer show an identical set of grades/subjects:
+//
+//   • CBC (2023): ECE Nursery/Reception, Grade 1–6 (primary) and Form 1–4
+//     (secondary). Grade 7 was abolished from primary in the 3-6-4-2
+//     restructure. Secondary is labelled with FORMS — the CBC syllabus keys
+//     Form 1–4 as G8–G11 (see syllabusMapping.sheetNameToGrade), so a form
+//     option carries its G-code as the VALUE while it DISPLAYS "Form N".
+//
+//   • Previous (2013): Grade 1–7 (primary) + Form 1–5 (secondary). The 2013
+//     syllabus keys secondary by Grade 8–12; those are surfaced as Form 1–5
+//     (the historical labelling Zambian teachers know), mapping Form N →
+//     G(N+7). No ECE bands — the 2013 data has none.
+//
+// Keeping the form VALUE as the KB grade code (G8…G12) means the syllabus
+// subject/topic lookups and the server grounding both resolve; only the label
+// changes. Values match functions/teacherTools/assessmentAllowlists.js.
+const ECE_GRADE_OPTIONS = [
   { value: 'ECE_N', label: 'ECE — Nursery (3–4 yrs)' },
   { value: 'ECE_R', label: 'ECE — Reception (4–5 yrs)' },
-  ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-    .map((g) => ({ value: g, label: `Grade ${g}` })),
 ]
 
-const PAPER_GRADE_VALUES = new Set(PAPER_GRADE_OPTIONS.map((g) => g.value))
+const gradeOpt = (n) => ({ value: String(n), label: `Grade ${n}` })
+// Form N → Grade (N+7); the value keeps the G-code the syllabus is keyed by.
+const formOpt = (n) => ({ value: `G${n + 7}`, label: `Form ${n}` })
+
+// CBC (2023): ECE + Grade 1–6 + Form 1–4.
+const CBC_GRADE_OPTIONS = [
+  ...ECE_GRADE_OPTIONS,
+  ...[1, 2, 3, 4, 5, 6].map(gradeOpt),
+  ...[1, 2, 3, 4].map(formOpt),
+]
+
+// Previous (2013): Grade 1–7 + Form 1–5.
+const PREVIOUS_GRADE_OPTIONS = [
+  ...[1, 2, 3, 4, 5, 6, 7].map(gradeOpt),
+  ...[1, 2, 3, 4, 5].map(formOpt),
+]
+
+// The full universe of selectable grade values across both frameworks. Still
+// exported for callers/tests that want the superset rather than one framework.
+export const PAPER_GRADE_OPTIONS = [
+  ...ECE_GRADE_OPTIONS,
+  ...[1, 2, 3, 4, 5, 6, 7].map(gradeOpt),
+  ...[1, 2, 3, 4, 5].map(formOpt),
+]
+
+const PAPER_GRADE_VALUES = new Set(
+  [...CBC_GRADE_OPTIONS, ...PREVIOUS_GRADE_OPTIONS].map((g) => g.value),
+)
 
 export function isPaperGrade(value) {
   return PAPER_GRADE_VALUES.has(String(value || ''))
 }
 
-// Grade 7 was removed from primary in the 2023 curriculum: the system
-// restructured from 4-7-2-3 to 3-6-4-2, so primary now ends at Grade 6
-// (lower primary G1–G3, upper primary G4–G6). Grade 7 remains valid under
-// the 2013 framework, which is still being phased out grade by grade.
+// Grade options for the chosen curriculum — CBC (2023) vs the previous 2013
+// syllabus. See the note above for why the two lists differ (and why secondary
+// is labelled with forms in both).
 export function paperGradeOptions(framework = '2023') {
-  if (String(framework) === '2023') {
-    return PAPER_GRADE_OPTIONS.filter((g) => g.value !== '7')
+  return String(framework) === '2013' ? PREVIOUS_GRADE_OPTIONS : CBC_GRADE_OPTIONS
+}
+
+// Coerce a grade arriving from the studio header (bare '4'…'12', 'Grade 8'),
+// a legacy paper (KB code 'G10'), or a form label ('Form 2') into the value
+// scheme the modal's grade <select> uses: primary grades stay bare numbers,
+// secondary becomes its G-code (shown as a Form). Unrecognised values pass
+// through so downstream validation can still reject genuine garbage.
+export function normalizePaperGrade(grade) {
+  const raw = String(grade || '').trim()
+  if (!raw) return ''
+  if (isPaperGrade(raw)) return raw
+  const upper = raw.toUpperCase()
+  if (upper === 'ECE') return 'ECE_N'
+  if (upper === 'ECE_N' || upper === 'ECE_R') return upper
+  const form = upper.match(/^F(?:ORM)?\s*(\d)$/)
+  if (form) {
+    const n = Number(form[1])
+    if (n >= 1 && n <= 5) return `G${n + 7}`
   }
-  return PAPER_GRADE_OPTIONS
+  const num = upper.match(/^(?:GRADE\s*|G)?(\d{1,2})$/)
+  if (num) {
+    const n = Number(num[1])
+    if (n >= 1 && n <= 7) return String(n)
+    if (n >= 8 && n <= 12) return `G${n}`
+  }
+  return raw
 }
 
 // Studio grade value ('4', 'ECE_N') → KB grade code ('G4', 'ECE_N'). The ECE

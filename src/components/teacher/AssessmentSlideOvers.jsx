@@ -319,11 +319,18 @@ function CheckboxList({ options, selected, onToggle }) {
       {options.map((opt) => {
         const checked = selected.includes(opt)
         return (
-          <label key={opt} className="sv-cpm-checkrow" style={{ cursor: 'pointer' }}>
+          // Inline flex + fixed-size box (not just .sv-cpm-checkrow) so the
+          // checkbox and label always sit tight together — see the matching
+          // CheckboxList in CreatePaperModal.
+          <label key={opt} className="sv-cpm-checkrow"
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={checked}
               onChange={() => onToggle(opt)}
-              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
+              style={{
+                accentColor: 'var(--sv-primary)',
+                width: 16, height: 16, flex: '0 0 auto', margin: '2px 0 0',
+              }} />
+            <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
           </label>
         )
       })}
@@ -496,9 +503,12 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
   // The paper's curriculum framework drives both pickers below — one choice
   // shared with the header and the full-paper modal, not a slide-local one.
   const framework = normalizeStudioFramework(form.framework)
-  // Subjects the syllabus actually carries for this grade + framework (falls
-  // back to the static eight while loading / when no rows exist).
-  const { options: subjectChoices } = useStudioSubjectChoices(form.grade, framework, form.subject)
+  // Subjects the syllabus actually carries for this grade + framework — strictly
+  // from the Syllabus Studio, no static fallback (the paper's saved subject is
+  // kept selectable by the hook).
+  const { options: subjectChoices, loading: subjectsLoading } =
+    useStudioSubjectChoices(form.grade, framework, form.subject)
+  const noSubjects = !subjectsLoading && subjectChoices.length === 0
   // A pending review batch takes over the slide: the generated questions
   // must be accepted or discarded before the tool list distracts from them.
   if (review) {
@@ -558,9 +568,12 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           <div className="sv-field">
             <label>Subject</label>
             <select
-              value={form.subject}
+              value={noSubjects ? '' : form.subject}
+              disabled={subjectsLoading || noSubjects}
               onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
+              {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
+              {noSubjects && <option value="">No subjects in this syllabus</option>}
               {subjectChoices.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}

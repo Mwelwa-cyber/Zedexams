@@ -12,7 +12,7 @@
 import assert from 'node:assert'
 import {
   PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
-  PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade,
+  PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade, normalizePaperGrade,
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
   assessmentRouteBase, assessmentEditPath,
@@ -68,20 +68,59 @@ ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_N'), 'ECE Nursery selectable
 ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_R'), 'ECE Reception selectable')
 ok(PAPER_GRADE_OPTIONS.some((g) => g.value === '1'), 'Grade 1 selectable')
 ok(isPaperGrade('ECE_N') && isPaperGrade('1') && !isPaperGrade('99'), 'isPaperGrade')
+// Secondary is now surfaced as forms whose VALUE is the KB grade code.
+ok(isPaperGrade('G8') && isPaperGrade('G12'), 'form grade codes are valid values')
+ok(!isPaperGrade('8'), 'bare secondary numbers are no longer option values')
 eq(studioGradeToKbGrade('ECE_N'), 'ECE_N', 'ECE_N passes through')
 eq(studioGradeToKbGrade('4'), 'G4', 'bare number → G-prefixed')
+eq(studioGradeToKbGrade('G8'), 'G8', 'form value (G8) passes through')
 eq(studioGradeToKbGrade('g7'), 'G7', 'already-prefixed normalised to upper')
 
-// Grade 7 was abolished from primary in the 2023 curriculum (3-6-4-2):
-// not selectable under 2023, still available under 2013.
-const grades2023 = paperGradeOptions('2023').map((g) => g.value)
-const grades2013 = paperGradeOptions('2013').map((g) => g.value)
-ok(!grades2023.includes('7'), '2023 framework drops Grade 7')
-ok(grades2013.includes('7'), '2013 framework keeps Grade 7')
-ok(grades2023.includes('6') && grades2023.includes('1'), '2023 keeps G1–G6')
-ok(grades2023.includes('ECE_N') && grades2023.includes('ECE_R'), '2023 keeps ECE bands')
-ok(grades2023.includes('8') && grades2023.includes('12'),
-  '2023 keeps secondary grades (only primary G7 removed)')
+// Curriculum-aware grade + form lists. CBC uses ECE + Grade 1–6 + Form 1–4;
+// the previous syllabus uses Grade 1–7 + Form 1–5. The two must differ so the
+// subject picker no longer looks identical across curricula.
+const grades2023 = paperGradeOptions('2023')
+const grades2013 = paperGradeOptions('2013')
+const values2023 = grades2023.map((g) => g.value)
+const values2013 = grades2013.map((g) => g.value)
+const labels2023 = grades2023.map((g) => g.label)
+const labels2013 = grades2013.map((g) => g.label)
+
+// Grade 7 was abolished from primary in the 2023 curriculum (3-6-4-2).
+ok(!values2023.includes('7'), '2023 framework drops Grade 7')
+ok(values2013.includes('7'), '2013 framework keeps Grade 7')
+ok(values2023.includes('6') && values2023.includes('1'), '2023 keeps G1–G6')
+ok(values2023.includes('ECE_N') && values2023.includes('ECE_R'), '2023 keeps ECE bands')
+ok(!values2013.includes('ECE_N') && !values2013.includes('ECE_R'),
+  '2013 has no ECE bands (the previous syllabus has none)')
+
+// CBC secondary = Form 1–4 (values G8–G11, no Form 5).
+ok(['G8', 'G9', 'G10', 'G11'].every((v) => values2023.includes(v)),
+  'CBC offers Form 1–4 (G8–G11)')
+ok(!values2023.includes('G12'), 'CBC has no Form 5')
+ok(labels2023.includes('Form 1') && labels2023.includes('Form 4'),
+  'CBC forms are labelled Form 1–4')
+
+// Previous secondary = Form 1–5 (values G8–G12).
+ok(['G8', 'G9', 'G10', 'G11', 'G12'].every((v) => values2013.includes(v)),
+  'previous curriculum offers Form 1–5 (G8–G12)')
+ok(labels2013.includes('Form 1') && labels2013.includes('Form 5'),
+  'previous forms are labelled Form 1–5')
+
+// The two curricula must genuinely differ (the reported bug: identical lists).
+ok(JSON.stringify(values2023) !== JSON.stringify(values2013),
+  'CBC and previous grade lists are not identical')
+
+// ── Grade normalisation (studio → modal handoff) ─────────────────────────
+eq(normalizePaperGrade('4'), '4', 'primary grade stays a bare number')
+eq(normalizePaperGrade('7'), '7', 'Grade 7 stays a bare number')
+eq(normalizePaperGrade('8'), 'G8', 'bare secondary number → G-code (Form 1)')
+eq(normalizePaperGrade('12'), 'G12', 'bare Grade 12 → G12 (Form 5)')
+eq(normalizePaperGrade('Grade 10'), 'G10', 'label "Grade 10" → G10')
+eq(normalizePaperGrade('G10'), 'G10', 'KB code passes through')
+eq(normalizePaperGrade('Form 2'), 'G9', 'form label → G-code')
+eq(normalizePaperGrade('ECE_N'), 'ECE_N', 'ECE band passes through')
+eq(normalizePaperGrade(''), '', 'empty → empty')
 
 // ── Test types ───────────────────────────────────────────────────────────
 // The studio exposes exactly four types, in increasing scope.

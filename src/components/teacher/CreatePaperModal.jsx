@@ -18,9 +18,8 @@ import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
 import {
   PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
-  paperGradeOptions, isPaperGrade, maxTopicsFor,
-  isCumulativeType, subjectLabel, toKbSubjectKey, studioGradeToKbGrade,
-  FALLBACK_SUBJECT_KEYS,
+  paperGradeOptions, normalizePaperGrade, maxTopicsFor,
+  isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
 import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
 import { canonicalizeAssessmentType } from '../../utils/questionType'
@@ -85,12 +84,25 @@ function CheckboxList({ options, selected, onToggle, disabledMore = false }) {
         const checked = selected.includes(opt)
         const disabled = !checked && disabledMore
         return (
+          // Layout is set inline (not just via .sv-cpm-checkrow) so the
+          // checkbox and its label always sit tight together: a fixed-size,
+          // non-shrinking box + a flexing label. Relying on the scoped class
+          // alone let ambient form CSS stretch the checkbox and shove the
+          // topic text far to the right on desktop.
           <label key={opt}
-            className="sv-cpm-checkrow" style={{ opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+            className="sv-cpm-checkrow"
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              opacity: disabled ? 0.45 : 1,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}>
             <input type="checkbox" checked={checked} disabled={disabled}
               onChange={() => onToggle(opt)}
-              style={{ accentColor: 'var(--sv-primary)', marginTop: 2 }} />
-            <span style={{ fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
+              style={{
+                accentColor: 'var(--sv-primary)',
+                width: 16, height: 16, flex: '0 0 auto', margin: '2px 0 0',
+              }} />
+            <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 13, color: 'var(--sv-text)' }}>{opt}</span>
           </label>
         )
       })}
@@ -137,25 +149,35 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   // format profile below).
   const isExam = variant === 'exam'
   const paperTypes = isExam ? EXAM_PAPER_TYPES : PAPER_TYPES
-  const [form, setForm] = useState(() => ({
-    grade: isPaperGrade(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
-    subject: toKbSubjectKey(paperMeta?.subject) || 'english',
+  const [form, setForm] = useState(() => {
     // Follow the paper's curriculum choice (set in the builder header / AI
     // slide); '2023' for papers from before the field existed.
-    framework: paperMeta?.framework === '2013' ? '2013' : '2023',
-    assessmentType: isExam ? 'mock' : 'end_of_term',
-    term: paperMeta?.term || '1',
-    topicInput: '',
-    topics: [],
-    subtopicInput: '',
-    subtopics: [],
-    totalMarks: 40,
-    durationMinutes: 60,
-    questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
-    comprehension: false,
-    autoDiagrams: true,
-    extra: '',
-  }))
+    const framework = paperMeta?.framework === '2013' ? '2013' : '2023'
+    // Normalise the studio's grade ('4', '8', 'G10') into the modal's value
+    // scheme, then keep it only if it's a valid option for this curriculum
+    // (secondary is now shown as forms, and Grade 7 / Form 5 don't exist under
+    // CBC) — otherwise fall back to Grade 4.
+    const seededGrade = normalizePaperGrade(paperMeta?.grade)
+    const grade = paperGradeOptions(framework).some((g) => g.value === seededGrade)
+      ? seededGrade : '4'
+    return {
+      grade,
+      subject: toKbSubjectKey(paperMeta?.subject) || 'english',
+      framework,
+      assessmentType: isExam ? 'mock' : 'end_of_term',
+      term: paperMeta?.term || '1',
+      topicInput: '',
+      topics: [],
+      subtopicInput: '',
+      subtopics: [],
+      totalMarks: 40,
+      durationMinutes: 60,
+      questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
+      comprehension: false,
+      autoDiagrams: true,
+      extra: '',
+    }
+  })
   const [status, setStatus] = useState('idle') // idle | generating | done | error
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
@@ -191,15 +213,15 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     }
   }, [form.framework, form.grade])
 
-  // Subjects actually present in the syllabus for this grade + framework.
-  // Falls back to a static list only after the fetch settles (so the
-  // dropdown isn't briefly empty), keeping every grade — including Grade 1
-  // and ECE — reachable.
+  // Subjects come STRICTLY from the Syllabus Studio for this curriculum +
+  // grade — no static fallback. CBC shows exactly the CBC syllabus subjects and
+  // the previous curriculum shows exactly its own, so the two never collapse to
+  // an identical hardcoded list. When a grade genuinely has no syllabus
+  // subjects the picker shows an explicit empty state rather than inventing any.
   const { subjects: syllabusSubjects, loading: subjectsLoading } =
     useSyllabusSubjectOptions(form.grade, form.framework)
-  const subjectChoices = (!subjectsLoading && syllabusSubjects.length > 0)
-    ? syllabusSubjects
-    : FALLBACK_SUBJECT_KEYS.map((key) => ({ key, label: subjectLabel(key) }))
+  const subjectChoices = subjectsLoading ? [] : syllabusSubjects
+  const noSubjects = !subjectsLoading && subjectChoices.length === 0
 
   // Keep the selected subject valid for the chosen grade. When the syllabus
   // for a grade doesn't carry the current subject, snap to the first one it
@@ -365,6 +387,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
   }
 
   async function onGenerate() {
+    if (noSubjects || !form.subject) {
+      setError('This grade has no subjects in the chosen syllabus — pick another grade or curriculum.')
+      setStatus('error')
+      return
+    }
     if (topicList.length === 0) {
       setError('Add at least one topic.')
       setStatus('error')
@@ -478,14 +505,21 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               </div>
               <div>
                 <label className="sv-cpm-label">Subject</label>
-                <select className="sv-cpm-input" value={form.subject}
-                  disabled={subjectsLoading}
+                <select className="sv-cpm-input" value={noSubjects ? '' : form.subject}
+                  disabled={subjectsLoading || noSubjects}
                   onChange={(e) => setMeta('subject', e.target.value)}>
                   {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
+                  {noSubjects && <option value="">No subjects in this syllabus</option>}
                   {subjectChoices.map((s) => (
                     <option key={s.key} value={s.key}>{s.label}</option>
                   ))}
                 </select>
+                {noSubjects && (
+                  <p className="sv-cpm-hint">
+                    This grade has no subjects in the{' '}
+                    {form.framework === '2013' ? 'previous' : 'CBC'} syllabus yet.
+                  </p>
+                )}
               </div>
             </div>
             <div>

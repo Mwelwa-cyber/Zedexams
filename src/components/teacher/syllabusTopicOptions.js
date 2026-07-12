@@ -11,7 +11,6 @@ import { extract2013TopicLookup } from '../../utils/syllabus2013Topics'
 import {
   studioGradeToKbGrade, toKbSubjectKey, subjectLabel,
 } from './paperTaxonomy'
-import { STUDIO_SUBJECTS } from './assessmentStudioMeta'
 
 // Curriculum frameworks the pickers can suggest from. Values match the
 // server's normalizeFramework whitelist (resolveCbcContext grounds the
@@ -145,19 +144,20 @@ export function useSyllabusSubjectOptions(grade, framework = '2023') {
  * Hook: subject choices for the studio's OWN <select>s (the paper-header
  * builder + the AI quick-questions slide), as display LABELS — unlike
  * CreatePaperModal, the studio form stores the label ('Integrated Science'),
- * which is what prints on the paper. Options come from the live syllabus for
- * the chosen grade + framework, so every level offers the subjects it is
- * actually taught (Grade 10 gets Physics/Chemistry/Biology, Grade 1 gets
- * Literacy/Numeracy) instead of the fixed upper-primary eight. Falls back to
- * the static STUDIO_SUBJECTS while loading or when the syllabus has no rows
- * for the selection, and always keeps `currentSubject` selectable so an
- * existing paper never loses its saved subject when the list changes under it.
+ * which is what prints on the paper.
+ *
+ * Subjects come STRICTLY from the live Syllabus Studio for the chosen grade +
+ * curriculum — no static fallback. Every level offers exactly the subjects it
+ * is actually taught (Grade 10 → Physics/Chemistry/Biology, Grade 1 →
+ * Literacy/Numeracy), and CBC vs the previous syllabus never collapse to one
+ * identical hardcoded list. While the syllabus is still loading the list is
+ * empty (callers surface a loading state via the returned `loading` flag).
+ * `currentSubject` is always kept selectable so an existing paper never loses
+ * its saved subject when the syllabus list changes under it.
  */
 export function useStudioSubjectChoices(grade, framework = '2023', currentSubject = '') {
   const { subjects, loading } = useSyllabusSubjectOptions(grade, normalizeStudioFramework(framework))
-  const labels = (!loading && subjects.length > 0)
-    ? subjects.map((s) => s.label)
-    : STUDIO_SUBJECTS
+  const labels = loading ? [] : subjects.map((s) => s.label)
   const current = String(currentSubject || '').trim()
   const options = current && !labels.includes(current) ? [current, ...labels] : labels
   return { options, loading }

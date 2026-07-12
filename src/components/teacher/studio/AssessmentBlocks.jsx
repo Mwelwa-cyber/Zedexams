@@ -93,7 +93,9 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
   // Grade 1 → Literacy/Numeracy) rather than a fixed upper-primary list. The
   // paper's saved subject always stays selectable.
   const framework = normalizeStudioFramework(form.framework)
-  const { options: subjectChoices } = useStudioSubjectChoices(form.grade, framework, form.subject)
+  const { options: subjectChoices, loading: subjectsLoading } =
+    useStudioSubjectChoices(form.grade, framework, form.subject)
+  const noSubjects = !subjectsLoading && subjectChoices.length === 0
 
   return (
     <div className="sv-block b-header">
@@ -180,9 +182,17 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
       <div className="sv-field-grid two">
         <div className="sv-field">
           <label>Subject <span className="sv-req">*</span></label>
-          <select value={form.subject} onChange={e => setF('subject', e.target.value)}>
+          <select value={form.subject} onChange={e => setF('subject', e.target.value)}
+            disabled={subjectsLoading || noSubjects}>
+            {subjectsLoading && <option value={form.subject}>Loading subjects…</option>}
+            {noSubjects && <option value="">No subjects in this syllabus</option>}
             {subjectChoices.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          {noSubjects && (
+            <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+              This grade has no subjects in the chosen syllabus yet.
+            </div>
+          )}
         </div>
         <div className="sv-field">
           <label>Paper name <small style={{ color: 'var(--sv-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</small></label>
