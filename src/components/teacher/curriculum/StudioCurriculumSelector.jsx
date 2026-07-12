@@ -29,6 +29,10 @@
  *   onChange(payload)  fired on any change with the payload documented below.
  *   showTopicSubtopic  default true; false for roster/marks tools (Class
  *                      Register, Mark Schedule) that stop at subject.
+ *   showSpecificOutcome default false; true adds a per-outcome dropdown under
+ *                      the subtopic where EACH specific outcome is
+ *                      independently selectable (selecting one never selects
+ *                      its siblings). '' = whole subtopic.
  *   showCurriculumPicker default true.
  *   gradeOptions       optional [{group, value, label}] override. When given,
  *                      this exact list is offered for BOTH curricula (no
@@ -49,6 +53,8 @@
  *     curriculum: 'cbc'|'previous',
  *     gradeLabel, subjectKey, subjectLabel, topic, subtopic,
  *     subtopicRow,                 // CBC {specificCompetence,…}|Previous {specificOutcomes[]}
+ *     specificOutcome,             // '' or the single independently-chosen outcome
+ *                                  // (only user-settable when showSpecificOutcome)
  *     grade, subject,              // server-ready shapes (G5 / mathematics)
  *   }
  */
@@ -76,6 +82,7 @@ export default function StudioCurriculumSelector({
   value = null,
   onChange,
   showTopicSubtopic = true,
+  showSpecificOutcome = false,
   showCurriculumPicker = true,
   gradeOptions = null,
   subjectFallback = null,
@@ -92,6 +99,10 @@ export default function StudioCurriculumSelector({
   const [subjectKey, setSubjectKey] = useState(seed.subjectKey)
   const [topic, setTopic] = useState(seed.topic)
   const [subtopic, setSubtopic] = useState(seed.subtopic)
+  // Independent specific-outcome selection (opt-in via showSpecificOutcome).
+  // Selecting one outcome never selects its siblings — the value is the single
+  // chosen outcome string; '' means "whole subtopic" (the legacy behaviour).
+  const [specificOutcome, setSpecificOutcome] = useState('')
 
   const hasCustomGrades = Array.isArray(gradeOptions) && gradeOptions.length > 0
 
@@ -142,21 +153,29 @@ export default function StudioCurriculumSelector({
     setSubjectKey('')
     setTopic('')
     setSubtopic('')
+    setSpecificOutcome('')
   }
   function chooseGrade(v) {
     setGradeLabel(v)
     setSubjectKey('')
     setTopic('')
     setSubtopic('')
+    setSpecificOutcome('')
   }
   function chooseSubject(v) {
     setSubjectKey(v)
     setTopic('')
     setSubtopic('')
+    setSpecificOutcome('')
   }
   function chooseTopic(v) {
     setTopic(v)
     setSubtopic('')
+    setSpecificOutcome('')
+  }
+  function chooseSubtopic(v) {
+    setSubtopic(v)
+    setSpecificOutcome('')
   }
 
   // Clear a grade that isn't valid for the active curriculum's grade list
@@ -224,10 +243,11 @@ export default function StudioCurriculumSelector({
       topic,
       subtopic,
       subtopicRow: subtopicRow ?? null,
+      specificOutcome: specificOutcome || '',
       grade: server.grade,
       subject: server.subject,
     })
-  }, [curriculumMode, gradeLabel, subjectKey, topic, subtopic, subtopicRow])
+  }, [curriculumMode, gradeLabel, subjectKey, topic, subtopic, subtopicRow, specificOutcome])
 
   // Grades to render: the host's own list verbatim, or the curriculum's list
   // filtered to grades with data once availability is known (falling back to
@@ -240,6 +260,17 @@ export default function StudioCurriculumSelector({
   const grouped = groupedGrades(gradeList)
 
   const selectedTopicObj = topics.find((t) => t.label === topic) ?? null
+
+  // Per-outcome options for the selected subtopic. 2013 rows carry an already-
+  // split specificOutcomes[] (via the canonical parser); CBC rows carry a single
+  // specificCompetence string.
+  const outcomeOptions = !subtopicRow
+    ? []
+    : Array.isArray(subtopicRow.specificOutcomes)
+      ? subtopicRow.specificOutcomes.filter(Boolean)
+      : subtopicRow.specificCompetence
+        ? [subtopicRow.specificCompetence]
+        : []
 
   const cascadeDisabled = disabled || !curriculumMode
   const subjectDisabled = cascadeDisabled || !gradeLabel || subjectsLoading
@@ -339,7 +370,7 @@ export default function StudioCurriculumSelector({
               id={`${uid}-subtopic`}
               className={inputClassName}
               value={subtopic}
-              onChange={(e) => setSubtopic(e.target.value)}
+              onChange={(e) => chooseSubtopic(e.target.value)}
               disabled={cascadeDisabled || !selectedTopicObj}
             >
               <option value="">
@@ -351,6 +382,33 @@ export default function StudioCurriculumSelector({
                 ))}
             </select>
           </div>
+
+          {/* Specific outcome (opt-in): each outcome from the selected subtopic
+              is independently selectable — choosing one never selects its
+              siblings. '' = the whole subtopic (legacy behaviour preserved). */}
+          {showSpecificOutcome && (
+            <div>
+              <label htmlFor={`${uid}-outcome`} className={labelClassName}>Specific outcome</label>
+              <select
+                id={`${uid}-outcome`}
+                className={inputClassName}
+                value={specificOutcome}
+                onChange={(e) => setSpecificOutcome(e.target.value)}
+                disabled={cascadeDisabled || !subtopic || outcomeOptions.length === 0}
+              >
+                <option value="">
+                  {!subtopic
+                    ? 'Select a subtopic first…'
+                    : outcomeOptions.length === 0
+                      ? 'No listed outcomes — whole subtopic'
+                      : 'All outcomes for this subtopic'}
+                </option>
+                {outcomeOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -307,64 +307,126 @@ function applyOverridesToRaw(raw, overrides) {
 }
 
 // ── 2013 schema parser ───────────────────────────────────────────────────
-// Legacy sheets use a different column layout to the current 2023 sheets:
-//   2023: TOPIC, SUB-TOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD
-//   2013: <topic-code column>, TOPIC, SPECIFIC OUTCOMES, KNOWLEDGE, SKILLS, VALUES
-// The "topic-code column" is named after the first topic on the sheet
-// (e.g. "4.1 SETS") and contains all topic codes for that sheet, so we
-// detect it dynamically.
+// Legacy sheets use a different column layout to the current 2023 sheets AND
+// vary wildly among themselves (~28 header spellings incl. OCR artefacts and
+// leading THEME/COMPONENT/UNIT columns). The single hardcoded read this used to
+// do (TOPIC + KNOWLEDGE-as-subtopics) DROPPED the real SUB-TOPIC + CONTENT
+// columns on most sheets and mis-filed content as sub-topics. We now resolve
+// each column's ROLE and split joined outcomes the same way the client-side
+// canonical parser (src/utils/curriculum2013Parser.js) does — keep the two in
+// lock-step.
 
-const _2013_KNOWN_COLS = new Set([
-  "TOPIC", "SPECIFIC OUTCOMES", "KNOWLEDGE", "SKILLS", "VALUES",
+const _2013_norm = (c) => String(c == null ? "" : c).toLowerCase().replace(/[^a-z]/g, "");
+const _2013_HEADER_WORDS = new Set([
+  "knowledge", "skills", "skill", "values", "value", "content", "contents",
+  "specificoutcomes", "specificoutcome", "activities", "activity", "topic",
+  "topics", "subtopic", "subtopics", "theme", "component", "unit", "strand",
 ]);
 
-function detect2013TopicColumn(sheet) {
-  const cols = Array.isArray(sheet?.columns) ? sheet.columns : [];
-  const dataRows = (sheet?.rows || []).filter((r) => r.type === "data");
-  const hasData = (col) => dataRows.some((r) => String(r.cells?.[col] || "").trim());
-  // A properly-headed sheet keeps its topic under a real "TOPIC" column — use
-  // it when it actually carries values.
-  if (cols.includes("TOPIC") && hasData("TOPIC")) return "TOPIC";
-  // Legacy mis-headed sheets (the data-value-as-header bug): the topic lives in
-  // a column whose header is itself a stray data value, not a known column name.
-  for (const c of cols) {
-    if (c && !_2013_KNOWN_COLS.has(c)) return c;
+// Map a 2013 sheet's actual headers to canonical roles (mirror of
+// resolveColumnRoles in the client parser).
+function resolve2013ColumnRoles(columns) {
+  const cols = (Array.isArray(columns) ? columns : []).filter(Boolean);
+  const roles = {theme: null, topic: null, subtopic: null, outcomes: null, content: [], skills: null, values: null, activities: null};
+  for (const col of cols) {
+    const n = _2013_norm(col);
+    if (!n) continue;
+    if (/^(theme|component|unit|strand)/.test(n)) { if (!roles.theme) roles.theme = col; }
+    else if (n.includes("subtopic")) { if (!roles.subtopic) roles.subtopic = col; }
+    else if (n === "topic" || n === "topics") { if (!roles.topic) roles.topic = col; }
+    else if (n.includes("specificout") || n.includes("outcome")) { if (!roles.outcomes) roles.outcomes = col; }
+    else if (n.includes("content") || n.includes("knowledge")) { roles.content.push(col); }
+    else if (n.includes("activit")) { if (!roles.activities) roles.activities = col; }
+    else if (n.includes("skill")) { if (!roles.skills) roles.skills = col; }
+    else if (n.includes("value")) { if (!roles.values) roles.values = col; }
   }
-  // Last resort: a "TOPIC" column even if we couldn't confirm values.
-  return cols.includes("TOPIC") ? "TOPIC" : null;
+  if (!roles.topic && roles.theme) { roles.topic = roles.theme; roles.theme = null; }
+  return roles;
 }
 
-function rows2013WithPropagatedTopic(rows, topicColumn) {
+function is2013HeaderEchoRow(cells) {
+  const values = Object.values(cells || {}).map((v) => String(v || "").trim()).filter(Boolean);
+  if (values.length === 0) return false;
+  return values.every((v) => _2013_HEADER_WORDS.has(_2013_norm(v)) || /^(sub\s*-?\s*topic|specific\s+outcomes?)$/i.test(v.trim()));
+}
+
+// Re-align a page-break row whose cells shifted left (outcome text lands in
+// the TOPIC column). The tell: a real TOPIC cell never starts with a 4+-segment
+// outcome code. Mirrors repairColumnShiftedRow in the client parser.
+function repair2013ColumnShiftedRow(cells, columns, roles) {
+  const src = cells || {};
+  const cols = Array.isArray(columns) ? columns : [];
+  if (!roles || !roles.topic || !roles.outcomes) return src;
+  const topicRaw = String(src[roles.topic] || "").trim();
+  const m = topicRaw.match(/^(\d+(?:\.\d+)*)/);
+  if (!m || m[1].split(".").length < 4) return src;
+  const from = cols.indexOf(roles.topic);
+  const to = cols.indexOf(roles.outcomes);
+  if (from < 0 || to <= from) return src;
+  const offset = to - from;
+  const out = {};
+  for (let j = 0; j < cols.length; j++) {
+    const srcIdx = j - offset;
+    out[cols[j]] = srcIdx >= 0 ? String(src[cols[srcIdx]] || "") : "";
+  }
+  return out;
+}
+
+function rows2013WithPropagatedTopic(rows, roles, columns) {
   const out = [];
   let topic = "";
+  let subtopic = "";
   for (const row of rows || []) {
     if (row.type !== "data") continue;
-    const cells = row.cells || {};
-    const codeRaw = topicColumn ? String(cells[topicColumn] || "").trim() : "";
-    if (codeRaw) topic = codeRaw;
-    if (!topic) continue;
+    let cells = row.cells || {};
+    if (is2013HeaderEchoRow(cells)) continue;
+    cells = repair2013ColumnShiftedRow(cells, columns, roles);
+    const topicRaw = roles.topic ? String(cells[roles.topic] || "").trim() : "";
+    const subRaw = roles.subtopic ? String(cells[roles.subtopic] || "").trim() : "";
+    if (topicRaw) { topic = topicRaw; subtopic = ""; }         // new topic resets subtopic scope
+    if (subRaw) subtopic = subRaw;                              // else inherit merged cell
+    if (!topic && !subtopic) continue;
     out.push({
-      topic,
-      specificOutcomes: String(cells["SPECIFIC OUTCOMES"] || "").trim(),
-      knowledge: String(cells.KNOWLEDGE || "").trim(),
-      skills: String(cells.SKILLS || "").trim(),
-      values: String(cells.VALUES || "").trim(),
+      topic: topic || subtopic,
+      subtopic,
+      specificOutcomes: roles.outcomes ? String(cells[roles.outcomes] || "").trim() : "",
+      content: (roles.content || []).map((c) => String(cells[c] || "").trim()).filter(Boolean).join(" "),
+      skills: roles.skills ? String(cells[roles.skills] || "").trim() : "",
+      values: roles.values ? String(cells[roles.values] || "").trim() : "",
     });
   }
   return out;
 }
 
-// Split a "4.1.1 Foo. 4.1.2 Bar. 4.1.3 Baz" string into discrete outcomes.
-// Codes have 2–4 dotted segments (e.g. "10.1.1" or the primary "5.1.1.1").
-// The code must start at the beginning or right after whitespace, otherwise
-// a 4-segment code like "5.1.1.1" would itself be split on its inner ".1.1"
-// boundaries into "5.", "1.", "1.1 …" fragments.
+// Split a joined SPECIFIC OUTCOMES cell into discrete outcome strings. Outcome
+// depth is detected PER CELL (3 segments for primary Maths, 4 for Integrated
+// Science / secondary) and the split is driven by the code structure, never
+// punctuation — so a statement's own decimals never break it (mirror of the
+// client parser's splitSpecificOutcomes).
 function splitNumberedOutcomes(s) {
-  const str = String(s || "").trim();
+  const str = String(s || "")
+      .replace(/(\d)\s*\.\s*\.+\s*(\d)/g, "$1.$2")  // OCR double-dots "10.1.3..5"
+      .replace(/(\d)\s+\.(\d)/g, "$1.$2")            // stray space before dot
+      .trim();
   if (!str) return [];
-  const parts = str.split(/(?=(?:^|(?<=\s))\d+(?:\.\d+){1,3}\.?\s)/g)
-      .map((p) => p.trim()).filter(Boolean);
-  return parts.length ? parts : [str];
+  const re = /\d+(?:\.\d+)+/g;
+  const cand = [];
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    const prev = m.index > 0 ? str[m.index - 1] : "";
+    if (prev && /[\d.]/.test(prev)) continue;
+    cand.push({idx: m.index, depth: m[0].split(".").length});
+  }
+  const anchor = cand.find((c) => c.depth >= 3);
+  if (!anchor) return [str];
+  const starts = cand.filter((c) => c.depth === anchor.depth).map((c) => c.idx);
+  if (starts[0] !== anchor.idx) starts.unshift(anchor.idx);
+  const out = [];
+  for (let i = 0; i < starts.length; i++) {
+    const seg = str.slice(starts[i], i + 1 < starts.length ? starts[i + 1] : str.length).trim();
+    if (seg) out.push(seg);
+  }
+  return out.length ? out : [str];
 }
 
 // Split bullet-led lists (• Foo • Bar) into discrete items. Falls back to
@@ -372,8 +434,37 @@ function splitNumberedOutcomes(s) {
 function splitBulletList(s) {
   const str = String(s || "").trim();
   if (!str) return [];
-  const parts = str.split(/[•●·•]\s*/g).map((p) => p.trim()).filter(Boolean);
+  const parts = str.split(/[•●·▪◦]\s*/g).map((p) => p.trim()).filter(Boolean);
   return parts.length ? parts : [str];
+}
+
+// True when two adjacent fragments were split MID-PHRASE by a page break
+// (mirror of isMidPhraseBreak in the client parser): unclosed bracket, or no
+// sentence-terminal punctuation + lowercase/connector boundary.
+function is2013MidPhraseBreak(prev, next) {
+  const a = String(prev || "").trim();
+  const b = String(next || "").trim();
+  if (!a || !b) return false;
+  const opens = (a.match(/\(/g) || []).length;
+  const closes = (a.match(/\)/g) || []).length;
+  if (opens > closes) return true;
+  if (/[.!?;:]$/.test(a)) return false;
+  if (/^[a-z(]/.test(b)) return true;
+  if (/,$/.test(a) || /\b(and|or|of|in|on|for|to|the|a|an|with|by|from|such as|e\.g)$/i.test(a)) return true;
+  return false;
+}
+
+// Push items onto a list, healing a mid-phrase page-break fragment by merging
+// it into the previous item ("Comparing" + "urban and rural environment").
+function pushJoined(arr, items) {
+  for (const it of items) {
+    const last = arr.length ? arr[arr.length - 1] : "";
+    if (last && is2013MidPhraseBreak(last, it)) {
+      arr[arr.length - 1] = `${last} ${it}`;
+    } else {
+      arr.push(it);
+    }
+  }
 }
 
 function get2013CurriculumDataTopics() {
@@ -385,8 +476,8 @@ function get2013CurriculumDataTopics() {
     for (const [sheetName, sheet] of Object.entries(sheets || {})) {
       const grade = sheetNameToGrade(sheetName);
       if (!grade) continue;
-      const topicCol = detect2013TopicColumn(sheet);
-      const parsed = rows2013WithPropagatedTopic(sheet?.rows || [], topicCol);
+      const roles = resolve2013ColumnRoles(sheet?.columns);
+      const parsed = rows2013WithPropagatedTopic(sheet?.rows || [], roles, sheet?.columns);
       for (const r of parsed) {
         const key = `${grade}|${subject}|${r.topic.toLowerCase()}`;
         let entry = byKey.get(key);
@@ -406,23 +497,39 @@ function get2013CurriculumDataTopics() {
           };
           byKey.set(key, entry);
         }
-        for (const o of splitNumberedOutcomes(r.specificOutcomes)) {
+        // Real sub-topics come from the SUB-TOPIC column (deduped), NOT from
+        // the content/knowledge bullets as before. Sheets with no sub-topic
+        // column at all (schema E, e.g. primary Mathematics) synthesise one
+        // selectable sub-topic per split outcome so the subject stays usable —
+        // mirroring propagatePreviousRows in the client data service.
+        const outcomes = splitNumberedOutcomes(r.specificOutcomes);
+        if (r.subtopic) {
+          if (!entry.subtopics.some((st) => st.name === r.subtopic)) {
+            entry.subtopics.push({
+              name: r.subtopic,
+              specificCompetence: "",
+              learningActivities: "",
+              expectedStandard: "",
+            });
+          }
+        } else if (!roles.subtopic) {
+          for (const o of outcomes) {
+            if (!entry.subtopics.some((st) => st.name === o)) {
+              entry.subtopics.push({
+                name: o,
+                specificCompetence: o,
+                learningActivities: "",
+                expectedStandard: "",
+              });
+            }
+          }
+        }
+        for (const o of outcomes) {
           entry.specificOutcomes.push(o);
         }
-        for (const k of splitBulletList(r.knowledge)) {
-          entry.subtopics.push({
-            name: k,
-            specificCompetence: "",
-            learningActivities: "",
-            expectedStandard: "",
-          });
-        }
-        for (const sk of splitBulletList(r.skills)) {
-          entry.keyCompetencies.push(sk);
-        }
-        for (const v of splitBulletList(r.values)) {
-          entry.values.push(v);
-        }
+        pushJoined(entry.keyCompetencies, splitBulletList(r.skills));
+        pushJoined(entry.values, splitBulletList(r.values));
+        pushJoined(entry.suggestedMaterials, splitBulletList(r.content));
       }
     }
   }
