@@ -123,18 +123,21 @@ function DeviceSelfTest() {
         ? 'placeholder'
         : 'real'
     let attested = null
+    let pingError = null
     try {
       const ping = httpsCallable(getFunctions(app, 'us-central1'), 'appCheckPing')
       const res = await ping({})
       attested = Boolean(res?.data?.attested)
     } catch (err) {
       console.warn('[AdminAppCheck] appCheckPing failed', err)
+      pingError = err?.code || err?.message || 'unknown'
     }
     setResult({
       state,
       tokenKind,
       attested,
-      verdict: classifyDeviceAttestation({ ...state, tokenKind, attested }),
+      pingError,
+      verdict: classifyDeviceAttestation({ ...state, tokenKind, attested, pingError }),
     })
     setRunning(false)
   }, [])
@@ -145,7 +148,9 @@ function DeviceSelfTest() {
     ['Platform', result.state.native ? 'Android wrapper' : 'Web'],
     ['Build key', result.state.native ? 'n/a (Play Integrity)' : result.state.recaptchaKeyConfigured ? 'configured' : 'MISSING'],
     ['Token minted', result.tokenKind],
-    ['Server verdict', result.attested == null ? 'unreachable' : result.attested ? 'valid' : 'not attested'],
+    ['Server verdict', result.attested == null
+      ? `unreachable${result.pingError ? ` (${String(result.pingError).replace(/^functions\//, '')})` : ''}`
+      : result.attested ? 'valid' : 'not attested'],
   ]
 
   return (

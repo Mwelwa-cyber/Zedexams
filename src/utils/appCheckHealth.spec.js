@@ -60,4 +60,23 @@ describe('classifyDeviceAttestation', () => {
     const v = classifyDeviceAttestation({ ...base, attested: null })
     expect(v.tone).toBe('warn')
   })
+
+  it('names a not-yet-deployed diagnostic when the ping 404s', () => {
+    const v = classifyDeviceAttestation({ ...base, attested: null, pingError: 'functions/not-found' })
+    expect(v.tone).toBe('warn')
+    expect(v.title).toContain('not deployed')
+    expect(v.detail).toContain('not-found')
+  })
+
+  it('points at the session when the ping is rejected as unauthenticated', () => {
+    const v = classifyDeviceAttestation({ ...base, attested: null, pingError: { code: 'unauthenticated' } })
+    expect(v.tone).toBe('warn')
+    expect(v.title).toContain('authenticated')
+  })
+
+  it('surfaces any other ping error code in the detail', () => {
+    const v = classifyDeviceAttestation({ ...base, attested: null, pingError: 'unavailable' })
+    expect(v.tone).toBe('warn')
+    expect(v.detail).toContain('unavailable')
+  })
 })
