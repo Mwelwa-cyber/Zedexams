@@ -21,7 +21,10 @@
 // subject can map to several Studio subjects (one per grade band).
 
 export const STUDIO_SUBJECT_TO_KB = {
+  'Agricultural Science Syllabus (Forms 1-4)':     'agricultural_science',
   'Art & Design Syllabus (Forms 1-4)':             'art_and_design',
+  'Biology Syllabus (Forms 1-4)':                  'biology',
+  'English Syllabus (Forms 1-4)':                  'english',
   'Commerce & Principles of Accounts Syllabus (Forms 1-4)': 'commerce_and_principles_of_accounts',
   'Design & Technology Studies Syllabus (Forms 1-4)': 'design_and_technology_studies',
   'Early Childhood Education Syllabi (3-5 Years)': 'expressive_arts',

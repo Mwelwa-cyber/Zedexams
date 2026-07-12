@@ -161,8 +161,8 @@ test("Client + server subject map have identical keys + values", () => {
   }
 });
 
-test("Map covers all 25 syllabi", () => {
-  ok(Object.keys(CLIENT_MAP).length >= 25, "expected at least 25 syllabi mapped");
+test("Map covers all 28 syllabi", () => {
+  ok(Object.keys(CLIENT_MAP).length >= 28, "expected at least 28 syllabi mapped");
 });
 
 test("studioSubjectToKbSubject returns the canonical key", () => {
@@ -177,6 +177,9 @@ test("Forms 1-4 additions map to their canonical subject keys", () => {
   eq(studioSubjectToKbSubject("Commerce & Principles of Accounts Syllabus (Forms 1-4)"), "commerce_and_principles_of_accounts");
   eq(studioSubjectToKbSubject("Design & Technology Studies Syllabus (Forms 1-4)"), "design_and_technology_studies");
   eq(studioSubjectToKbSubject("Music & Creative Arts Syllabus (Forms 1-4)"), "music_and_creative_arts");
+  eq(studioSubjectToKbSubject("Biology Syllabus (Forms 1-4)"), "biology");
+  eq(studioSubjectToKbSubject("Agricultural Science Syllabus (Forms 1-4)"), "agricultural_science");
+  eq(studioSubjectToKbSubject("English Syllabus (Forms 1-4)"), "english");
 });
 
 console.log("\nresolveKbSubject (sheet-aware for ECE + Lower Primary)");
@@ -418,6 +421,9 @@ test("Real data: the Forms 1-4 additions produce topics at G8-G11", () => {
     "commerce_and_principles_of_accounts",
     "design_and_technology_studies",
     "music_and_creative_arts",
+    "biology",
+    "agricultural_science",
+    "english",
   ];
   for (const subject of subjects) {
     for (const grade of ["G8", "G9", "G10", "G11"]) {

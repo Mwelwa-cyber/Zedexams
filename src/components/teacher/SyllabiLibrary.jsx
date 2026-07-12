@@ -36,6 +36,9 @@ const META = {
   'Commerce & Principles of Accounts Syllabus (Forms 1-4)': { icon: '🧾', cat: 'Secondary',    short: 'Commerce & Accounts' },
   'Design & Technology Studies Syllabus (Forms 1-4)':    { icon: '🛠️', cat: 'Secondary',       short: 'Design & Technology' },
   'Music & Creative Arts Syllabus (Forms 1-4)':          { icon: '🎵', cat: 'Secondary',       short: 'Music & Creative Arts' },
+  'Biology Syllabus (Forms 1-4)':                        { icon: '🧬', cat: 'Secondary',       short: 'Biology' },
+  'Agricultural Science Syllabus (Forms 1-4)':           { icon: '🌾', cat: 'Secondary',       short: 'Agricultural Science' },
+  'English Syllabus (Forms 1-4)':                        { icon: '📖', cat: 'Secondary',       short: 'English' },
 }
 
 const CAT_ORDER = ['Early Childhood', 'Lower Primary', 'Upper Primary', 'Secondary']

@@ -21,7 +21,8 @@ const ALLOWED_SUBJECTS = new Set([
   "expressive_arts", "accounts",
   // CBC 2023 Forms 1-4 subjects the Syllabus Studio exposes as their own
   // canonical keys (the paper modal sends these verbatim).
-  "art_and_design", "commerce_and_principles_of_accounts",
+  "agricultural_science", "art_and_design",
+  "commerce_and_principles_of_accounts",
   "design_and_technology_studies", "music_and_creative_arts",
 ]);
 
