@@ -55,6 +55,11 @@ const {
   buildImportReport,
   dedupeExtractedQuestions,
 } = require("./pastPaperImportHelpers");
+// Declared-range reconciliation — drops phantom over-counts, repairs mis-read
+// numbering, and turns stem-less spelling/punctuation items into real questions,
+// using the paper's printed "Questions X–Y" ranges as ground truth. Mirrors the
+// client scanned importer (src/components/quiz/pastPaperParts.js).
+const {reconcilePastPaper} = require("./pastPaperImportReconcile");
 // Shared Document Understanding Engine — the single validation stage every
 // import surface runs. `gateImport` fails the import gracefully (with a report)
 // on a structural blocker BEFORE anything is written; `computeValidationStatus`
@@ -118,7 +123,7 @@ const MAX_GAP_NUMBERS_PER_ASK = 40;
 // (the silent firebase-tools "exit 0 but stale" deploy failure that made
 // importer fixes look broken in production while passing every test). Bump on
 // any change to the extraction/dedup/recovery logic in this pipeline.
-const PAST_PAPER_ENGINE_VERSION = "2026.07.02-faithful2";
+const PAST_PAPER_ENGINE_VERSION = "2026.07.12-parts";
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -131,6 +136,28 @@ const DOC_MIME = "application/msword";
 const QUESTIONS_TOOL_SCHEMA = {
   type: "object",
   properties: {
+    // Declared Part/section structure — the paper's OWN ground truth. The
+    // server reconciler uses these ranges to drop phantom over-counts, repair
+    // mis-read numbers, and fill stem-less spelling/punctuation items.
+    parts: {
+      type: "array",
+      description:
+        "One entry per numbered Part / section group on these pages, read from " +
+        "its heading (e.g. 'Part 3: Questions 26 – 30'). Include a Part even " +
+        "when its items have no stem of their own (spelling / punctuation lists).",
+      items: {
+        type: "object",
+        properties: {
+          label: {type: "string", description: "Printed Part label, e.g. 'Part 3'. '' if none."},
+          sectionLabel: {type: "string", description: "Enclosing section heading, e.g. 'SECTION A'. '' if none."},
+          firstNumber: {type: "integer", description: "FIRST printed question number in this Part (from 'Questions 26 – 30' → 26)."},
+          lastNumber: {type: "integer", description: "LAST printed question number in this Part (from 'Questions 26 – 30' → 30)."},
+          instruction: {type: "string", description: "The Part's shared instruction sentence, verbatim; do NOT include the worked Example."},
+          hasExample: {type: "boolean", description: "true if a worked 'Example' is shown under this Part (which you must NOT emit as a question)."},
+        },
+        required: ["firstNumber", "lastNumber"],
+      },
+    },
     questions: {
       type: "array",
       items: {
@@ -259,6 +286,10 @@ For each question:
 - sectionLabel: the printed section heading the question sits under ("SECTION A", "SECTION B: STRUCTURED QUESTIONS"), copied verbatim — null when the paper has no section headings. Papers often RESTART numbering at 1 in each section; the label is what keeps a restarted Q1 distinct from Section A's Q1, so never omit it when headings are printed. A section continues until the next heading: questions on a continuation page (no heading visible on that page) still belong to the most recent heading — report that same label for them, spelled identically every time.
 - explanation: one short sentence on the concept tested, or empty if unsure.
 - confidence: 0-1, how sure you are you read this question correctly. Use > 0.95 only for crisp, unambiguous text; use < 0.8 for anything smudged, cut off or ambiguous so the admin checks it first. Be honest — a low score is a helpful flag, not a failure.
+
+PARTS / SECTION STRUCTURE — return a top-level "parts" array. Zambian papers group questions into numbered Parts, each with a heading that prints its question range and a shared instruction, e.g. 'Part 3: Questions 26 – 30' then 'Choose the sentence which is correctly punctuated.' then an 'Example:' then the numbered items. For EACH such Part return one entry: label ('Part 3'), sectionLabel ('SECTION A'), firstNumber (26) and lastNumber (30) read from the heading, the shared instruction verbatim, and hasExample=true when a worked Example is shown. These ranges are ground truth — read the 'Questions X – Y' heading carefully.
+
+STEM-LESS ITEMS (spelling / punctuation). In some Parts a numbered item has NO question sentence of its own — the printed choices ARE the question (e.g. 'Choose the correctly spelled word': A tributaly B tributary …; or 'Choose the correctly punctuated sentence': four near-identical sentences). For these: set the item's prompt to '' (empty), put the printed choices in options[] exactly as printed, and rely on the Part instruction (returned in "parts") — the editor uses it as the question. Do NOT copy the instruction into every item's prompt yourself, and never invent a stem. The worked Example under such a Part is NOT a question — skip it.
 
 Transcribe faithfully. It is far better to return a complete paper with a few questions flagged for review than a tidy subset.`;
 
@@ -569,7 +600,7 @@ function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
  * ones, until a round adds nothing (or the round cap is hit). This is what
  * makes a single truncated call unable to lose questions.
  */
-async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, accum}) {
+async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum}) {
   const segmentQuestions = [];
   let rounds = 0;
   let truncationHit = false;
@@ -611,6 +642,12 @@ async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, ac
 
     usage.inputTokens += Number(result?.usage?.inputTokens || 0);
     usage.outputTokens += Number(result?.usage?.outputTokens || 0);
+
+    // Declared Part ranges the model read on this segment — ground truth for
+    // the reconciler. Accumulated raw; deduped/merged after extraction.
+    if (partsAccum && Array.isArray(result?.parsed?.parts)) {
+      partsAccum.push(...result.parsed.parts);
+    }
 
     const rawQuestions = Array.isArray(result?.parsed?.questions) ?
       result.parsed.questions : [];
@@ -854,6 +891,10 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // dedupes across segments AND rounds; `accum` is the running question list.
   const accum = [];
   const seenKeys = new Set();
+  // Declared Part ranges + instructions the model read across all segments —
+  // ground truth for the reconciler below (drop phantoms, repair numbering,
+  // fill stem-less spelling/punctuation items).
+  const partsAccum = [];
   // Printed question numbers captured so far — a re-read of an already-seen
   // number (OCR drift across continuation rounds) is dropped rather than
   // inflating the count. Shared across segments + the gap-recovery pass.
@@ -865,7 +906,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
 
   for (const segment of segments) {
     const segResult = await extractSegment({
-      apiKey, paper, segment, seenKeys, seenNumbers, accum,
+      apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum,
     });
     extractionRounds += segResult.rounds;
     if (segResult.truncationHit) truncationHit = true;
@@ -885,10 +926,20 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   const questionsFound = accum.length;
   const merged = mergeAndRenumber(accum);
   const duplicatesRemoved = merged.duplicatesRemoved;
+
+  // ── Declared-range reconciliation (printed "Questions X–Y" as ground truth) ──
+  // Drop questions numbered outside every declared range (the phantom
+  // over-count), dedupe same-number reads, snap mis-read numbers to the printed
+  // sequence when the count lines up, and give a stem-less spelling/punctuation
+  // item the Part instruction as its question. Skips the number reconcile on a
+  // restart-numbering paper (overlapping ranges) and no-ops when the paper
+  // declares no ranges. Same logic as the client scanned importer.
+  const reconciled = reconcilePastPaper(merged.questions, partsAccum);
+
   // Lift shared reading passages / maps out of the flat list into the editor's
   // passage model: a deduped passages[] array + a passageId stamped on each
   // child question.
-  const {passages, questions} = collectPassages(merged.questions);
+  const {passages, questions} = collectPassages(reconciled.questions);
   const passagesForQuiz = passages.map((p) => ({
     id: p.id,
     title: p.title || "",
@@ -1026,6 +1077,27 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   if (truncationHit) {
     warnings.push("A very long section reached the extraction round limit — " +
       "re-run the import to be sure every question was captured.");
+  }
+  // Declared-range reconciliation notices — honest about what was auto-fixed
+  // against the paper's own printed structure.
+  {
+    const removed = reconciled.droppedOutOfRange + reconciled.droppedDuplicate;
+    if (removed > 0) {
+      warnings.push(
+        `Removed ${removed} extra question${removed === 1 ? "" : "s"} the reader added that ` +
+        `${removed === 1 ? "isn't" : "aren't"} on the paper (it prints ${reconciled.declaredTotal} questions). ` +
+        "Check the count looks right.");
+    }
+    if (reconciled.snapped) {
+      warnings.push(
+        `Question numbers were re-aligned to the paper's printed 1–${reconciled.declaredTotal} sequence — ` +
+        "check a few land where you expect.");
+    }
+    if (reconciled.stemsFilled > 0) {
+      warnings.push(
+        `${reconciled.stemsFilled} question${reconciled.stemsFilled === 1 ? "" : "s"} (e.g. spelling / punctuation) had no printed wording, ` +
+        "so the Part's instruction was used as the question and the printed choices as the options — review them before publishing.");
+    }
   }
   if (questions.length === 0) {
     warnings.push("The AI could not extract any questions from this paper.");

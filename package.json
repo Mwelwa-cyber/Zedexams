@@ -266,6 +266,7 @@
     "test:html-to-pdf-pagination": "node scripts/test-html-to-pdf-pagination.test.js",
     "test:past-papers-index": "node functions/pastPapersIndex.test.js",
     "test:past-paper-import": "node functions/teacherTools/pastPaperImport.test.js",
+    "test:past-paper-reconcile": "node functions/teacherTools/pastPaperImportReconcile.test.js",
     "test:document-engine": "node functions/documentEngine/validationEngineCore.test.js && node functions/documentEngine/structuredDocumentCore.test.js",
     "test:quiz-engine-adapter": "node scripts/test-quiz-engine-adapter.mjs",
     "test:bulk-question-ops": "node src/components/quiz/bulkQuestionOps.test.js",
