@@ -127,9 +127,12 @@ export function summarise(rawDays) {
  * @param {boolean} p.initialized — App Check init completed on this platform
  * @param {'real'|'placeholder'|'none'} p.tokenKind — what getAppCheckToken() minted
  * @param {boolean|null} p.attested — appCheckPing verdict (null = ping unreachable)
+ * @param {string|{code?:string}|null} [p.pingError] — the error that made the
+ *   ping unreachable (Firebase callable code, e.g. 'functions/not-found'), so
+ *   the attested===null branch can say WHY rather than "check connectivity".
  * @returns {{tone:'good'|'warn'|'block', title:string, detail:string}}
  */
-export function classifyDeviceAttestation({ native, recaptchaKeyConfigured, initialized, tokenKind, attested }) {
+export function classifyDeviceAttestation({ native, recaptchaKeyConfigured, initialized, tokenKind, attested, pingError }) {
   if (attested === true) {
     return {
       tone: 'good',
@@ -174,6 +177,33 @@ export function classifyDeviceAttestation({ native, recaptchaKeyConfigured, init
       tone: 'block',
       title: 'Server rejected this device’s token',
       detail: 'A real-looking token was minted but verification failed — the reCAPTCHA site key (web) or Play Integrity registration (Android) in Firebase Console → App Check does not match this app.',
+    }
+  }
+  // attested === null → the appCheckPing call itself threw, so we never got a
+  // verdict. The captured error code separates the causes that otherwise all
+  // read as a vague "check connectivity": a not-yet-deployed diagnostic, a
+  // stale auth session, or a genuine network failure.
+  const code = (typeof pingError === 'string' ? pingError : pingError?.code || '')
+    .replace(/^functions\//, '')
+  if (code === 'not-found') {
+    return {
+      tone: 'warn',
+      title: 'Diagnostic not deployed here',
+      detail: 'appCheckPing returned not-found — this build calls the self-test before the function exists in this environment. Deploy Cloud Functions (or update to a build that ships it). The per-endpoint counters below are unaffected.',
+    }
+  }
+  if (code === 'unauthenticated') {
+    return {
+      tone: 'warn',
+      title: 'Session not authenticated',
+      detail: 'appCheckPing rejected this session as unauthenticated. Sign out and back in, then re-run the test.',
+    }
+  }
+  if (code) {
+    return {
+      tone: 'warn',
+      title: 'Server verdict unavailable',
+      detail: `The appCheckPing call failed (${code}) before the server could return a verdict. Check connectivity and retry; if it persists, check the function logs.`,
     }
   }
   return {
