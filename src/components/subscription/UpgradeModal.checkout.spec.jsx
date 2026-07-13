@@ -157,6 +157,36 @@ describe('Lenco checkout step', () => {
     expect(capture).toHaveBeenCalledWith('lenco_quote_changed', { planId: 'pro_monthly' })
   })
 
+  it('ignores a double-click on Pay: exactly one initiation request', async () => {
+    let resolveInitiate
+    initiateLencoPayment.mockImplementation(() => new Promise((res) => { resolveInitiate = res }))
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    const btn = payButton()
+    fireEvent.click(btn)
+    fireEvent.click(btn) // second tap while the first is in flight
+    expect(initiateLencoPayment).toHaveBeenCalledTimes(1)
+    // The button reflects the in-flight state and is disabled.
+    expect(screen.getByRole('button', { name: /Starting…/ })).toBeDisabled()
+    resolveInitiate({ paymentId: 'p1', status: 'pending' })
+  })
+
+  it('shows success (not a second charge) when the server reports already-paid', async () => {
+    initiateLencoPayment.mockResolvedValue({
+      paymentId: 'p0',
+      status: 'successful',
+      reused: true,
+      alreadyPaid: true,
+      amountZMW: 59,
+    })
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/Payment confirmed/)).toBeInTheDocument())
+  })
+
   it('flags an unsupported prefix and enables Pay only after a manual network choice', async () => {
     openCheckout()
     await waitFor(() => expect(getUpgradeQuote).toHaveBeenCalled())

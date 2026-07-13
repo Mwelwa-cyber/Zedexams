@@ -13,7 +13,7 @@
 const assert = require("node:assert");
 const {
   REUSE_WINDOW_MS,
-  findReusablePendingPayment,
+  findReusableRecentPayment,
   quoteMismatch,
 } = require("./paymentInitiationCore");
 
@@ -44,40 +44,56 @@ function cand(id, overrides = {}) {
 
 console.log("paymentInitiationCore");
 
-// ── findReusablePendingPayment ─────────────────────────────────────────────
+// ── findReusableRecentPayment ─────────────────────────────────────────────
 ok("reuses a fresh pending collection for the same phone",
-    findReusablePendingPayment([cand("a")], {phone: "0977740465", nowMs: NOW})?.id === "a");
+    findReusableRecentPayment([cand("a")], {phone: "0977740465", nowMs: NOW})?.id === "a");
 ok("matches across phone formats (+260 vs national)",
-    findReusablePendingPayment([cand("a")], {phone: "+260 977 740 465", nowMs: NOW})?.id === "a");
+    findReusableRecentPayment([cand("a")], {phone: "+260 977 740 465", nowMs: NOW})?.id === "a");
 ok("double-tap: two candidates → newest wins",
-    findReusablePendingPayment([
+    findReusableRecentPayment([
       cand("old", {createdAt: agoMs(120 * 1000)}),
       cand("new", {createdAt: agoMs(5 * 1000)}),
     ], {phone: "0977740465", nowMs: NOW})?.id === "new");
 
 ok("different phone is a NEW attempt, not a duplicate",
-    findReusablePendingPayment([cand("a")], {phone: "0966123456", nowMs: NOW}) === null);
+    findReusableRecentPayment([cand("a")], {phone: "0966123456", nowMs: NOW}) === null);
 ok("stale pending (outside the reuse window) is not reused",
-    findReusablePendingPayment([cand("a", {createdAt: agoMs(REUSE_WINDOW_MS + 1000)})],
+    findReusableRecentPayment([cand("a", {createdAt: agoMs(REUSE_WINDOW_MS + 1000)})],
         {phone: "0977740465", nowMs: NOW}) === null);
 ok("doc without a Lenco collection id is not reused (no prompt exists)",
-    findReusablePendingPayment([cand("a", {lencoCollectionId: null})],
+    findReusableRecentPayment([cand("a", {lencoCollectionId: null})],
         {phone: "0977740465", nowMs: NOW}) === null);
 ok("settled doc is not reused even if status field lagged",
-    findReusablePendingPayment([cand("a", {lencoStatus: "failed"})],
+    findReusableRecentPayment([cand("a", {lencoStatus: "failed"})],
         {phone: "0977740465", nowMs: NOW}) === null);
-ok("non-pending doc is not reused",
-    findReusablePendingPayment([cand("a", {status: "successful"})],
+ok("failed doc is not reused",
+    findReusableRecentPayment([cand("a", {status: "failed"})],
         {phone: "0977740465", nowMs: NOW}) === null);
+
+// ── already-paid protection (lost response + retry must not double-charge) ─
+ok("fresh SUCCESSFUL payment for the same purchase is returned (already paid)",
+    findReusableRecentPayment([cand("a", {status: "successful", lencoStatus: "successful"})],
+        {phone: "0977740465", nowMs: NOW})?.id === "a");
+ok("fresh successful payment reused even without a collection id",
+    findReusableRecentPayment([cand("a", {status: "successful", lencoCollectionId: null})],
+        {phone: "0977740465", nowMs: NOW})?.id === "a");
+ok("stale successful payment (outside window) → new purchase is legitimate",
+    findReusableRecentPayment([cand("a", {status: "successful", createdAt: agoMs(REUSE_WINDOW_MS + 1000)})],
+        {phone: "0977740465", nowMs: NOW}) === null);
+ok("a completed attempt outranks a newer still-pending one",
+    findReusableRecentPayment([
+      cand("done", {status: "successful", createdAt: agoMs(90 * 1000)}),
+      cand("waiting", {createdAt: agoMs(5 * 1000)}),
+    ], {phone: "0977740465", nowMs: NOW})?.id === "done");
 ok("otp-required collection IS reusable (still awaiting the customer)",
-    findReusablePendingPayment([cand("a", {lencoStatus: "otp-required"})],
+    findReusableRecentPayment([cand("a", {lencoStatus: "otp-required"})],
         {phone: "0977740465", nowMs: NOW})?.id === "a");
 ok("invalid requester phone → no reuse",
-    findReusablePendingPayment([cand("a")], {phone: "abc", nowMs: NOW}) === null);
+    findReusableRecentPayment([cand("a")], {phone: "abc", nowMs: NOW}) === null);
 ok("empty candidate list → null",
-    findReusablePendingPayment([], {phone: "0977740465", nowMs: NOW}) === null);
+    findReusableRecentPayment([], {phone: "0977740465", nowMs: NOW}) === null);
 ok("Timestamp-like createdAt supported",
-    findReusablePendingPayment([cand("a", {createdAt: {toMillis: () => NOW - 10_000}})],
+    findReusableRecentPayment([cand("a", {createdAt: {toMillis: () => NOW - 10_000}})],
         {phone: "0977740465", nowMs: NOW})?.id === "a");
 
 // ── quoteMismatch ──────────────────────────────────────────────────────────
@@ -87,5 +103,33 @@ ok("string expected amount is coerced", quoteMismatch("57", 57) === false);
 ok("no expected amount → check skipped (legacy clients)",
     quoteMismatch(undefined, 57) === false && quoteMismatch(null, 57) === false && quoteMismatch("", 57) === false);
 ok("garbage expected amount → check skipped", quoteMismatch("abc", 57) === false);
+
+// ── quote drift end-to-end (quoteUpgradeForUser × quoteMismatch) ───────────
+// These pin the review's boundary cases: a quote displayed before midnight
+// and paid after it recomputes to fewer prorated days, and the mismatch
+// check must catch it (server rejects with 'quote-changed', charges nothing).
+{
+  const {quoteUpgradeForUser} = require("./subscriptionUpgrade");
+  const user = {subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: "2026-07-20T00:00:00Z"};
+  const beforeMidnight = quoteUpgradeForUser(user, "max_monthly", new Date("2026-07-13T23:59:00Z"));
+  const afterMidnight = quoteUpgradeForUser(user, "max_monthly", new Date("2026-07-14T00:01:00Z"));
+  ok("day boundary changes the prorated days-remaining",
+      beforeMidnight.daysRemaining === afterMidnight.daysRemaining + 1);
+  ok("quote shown before midnight, paid after → mismatch caught",
+      quoteMismatch(beforeMidnight.amountZMW, afterMidnight.amountZMW) === true);
+  // Renewal-day boundary: quote displayed while Pro was live, paid after it
+  // lapsed → the charge becomes full price and the stale prorated display
+  // must be refused.
+  const lapsed = quoteUpgradeForUser(user, "max_monthly", new Date("2026-07-21T00:01:00Z"));
+  ok("paid after the sub lapsed → full price, not prorated", lapsed.isUpgrade === false);
+  ok("stale prorated display vs full price → mismatch caught",
+      quoteMismatch(beforeMidnight.amountZMW, 149) === true);
+  // Already-upgraded teacher: quoted as Pro, but the account is on Max by
+  // pay time (other tab / other device already upgraded).
+  const alreadyMax = quoteUpgradeForUser({teacherPlan: "max"}, "max_monthly", new Date("2026-07-13T12:00:00Z"));
+  ok("already-on-Max recomputes as not-an-upgrade", alreadyMax.isUpgrade === false);
+  ok("stale Pro-era quote vs Max account → mismatch caught",
+      quoteMismatch(beforeMidnight.amountZMW, alreadyMax.isUpgrade ? alreadyMax.amountZMW : 149) === true);
+}
 
 console.log(`\n✓ paymentInitiationCore: ${passed} assertions passed`);

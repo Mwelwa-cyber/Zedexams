@@ -3187,7 +3187,7 @@ exports.initiateLencoPayment = onCall({
   // must refresh its quote and re-confirm with the buyer. Legacy clients
   // that send nothing skip the check (the server amount is charged either
   // way; this only protects the display promise).
-  const {findReusablePendingPayment, quoteMismatch} = require("./paymentInitiationCore");
+  const {findReusableRecentPayment, quoteMismatch} = require("./paymentInitiationCore");
   if (quoteMismatch(request.data?.expectedAmountZMW, amount)) {
     const renewal = projectRenewalDate(user, planId);
     throw new HttpsError(
@@ -3207,19 +3207,34 @@ exports.initiateLencoPayment = onCall({
   // Duplicate-initiation guard: a fresh pending collection for the same
   // plan + phone is the SAME purchase attempt (double-tap, reopened modal,
   // refresh) — return it instead of pushing a second mobile-money prompt.
-  // Equality-only query, so no composite index is needed.
-  const pendingSnap = await db.collection("payments")
+  // A fresh SUCCESSFUL payment for the same purchase means the first attempt
+  // already completed (lost response + retry) — return it as already-paid
+  // instead of charging twice. Equality/in-only query, no composite index.
+  const recentSnap = await db.collection("payments")
       .where("userId", "==", uid)
-      .where("status", "==", "pending")
+      .where("status", "in", ["pending", "successful"])
       .where("planId", "==", planId)
       .limit(10)
       .get();
-  const reusable = findReusablePendingPayment(
-      pendingSnap.docs.map((d) => ({id: d.id, data: d.data()})),
+  const reusable = findReusableRecentPayment(
+      recentSnap.docs.map((d) => ({id: d.id, data: d.data()})),
       {phone: rawPhone},
   );
   if (reusable) {
     const existing = reusable.data;
+    if (existing.status === "successful") {
+      return {
+        paymentId: reusable.id,
+        reference: reusable.id,
+        status: "successful",
+        requiresOtp: false,
+        amountZMW: Number(existing.amountZMW) || amount,
+        reused: true,
+        alreadyPaid: true,
+        message: "This payment was already completed — your access is active.",
+        authorization: null,
+      };
+    }
     const existingStatus = String(existing.lencoStatus || "pending");
     return {
       paymentId: reusable.id,
