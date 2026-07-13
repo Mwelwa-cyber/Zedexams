@@ -20,7 +20,10 @@ import {
   buildCelebrations,
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
+import { buildWeekPrep } from '../../utils/prepareThisWeek'
+import { getCurrentForecastWeek } from '../../utils/moeCalendar'
 import SeoHelmet from '../seo/SeoHelmet'
+import PrepareThisWeek from './PrepareThisWeek'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
@@ -685,6 +688,11 @@ export default function TeacherDashboard() {
   const [generations, setGenerations] = useState([])
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
+  // True when the generations fetch itself failed (not merely returned
+  // empty) — Prepare This Week shows its error state with a retry instead
+  // of a misleading "set up your week" empty state.
+  const [gensError, setGensError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [activityRange, setActivityRange] = useState('week')
 
@@ -692,18 +700,20 @@ export default function TeacherDashboard() {
     if (!currentUser) return
     let cancelled = false
     async function load() {
+      let gensFailed = false
       const [gens, papers] = await Promise.all([
-        listMyGenerations({ uid: currentUser.uid }).catch(() => []),
+        listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
         getMyAssessments(currentUser.uid).catch(() => []),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
+      setGensError(gensFailed)
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser, getMyAssessments])
+  }, [currentUser, getMyAssessments, reloadKey])
 
   // byTool keys stay snake_cased (the Firestore tool ids) — StudioCard
   // normalizes its dash-cased libraryKey before looking up.
@@ -780,6 +790,19 @@ export default function TeacherDashboard() {
   const celebration = useMemo(
     () => buildCelebrations({ resources })[0] || null,
     [resources],
+  )
+
+  // Weekly preparation model — derived from the SAME generations fetch the
+  // rest of the dashboard uses (no extra Firestore reads) + the MoE
+  // calendar's current teaching week.
+  const weekPrep = useMemo(
+    () => buildWeekPrep({
+      generations,
+      calendar: getCurrentForecastWeek(),
+      profileSubject: userProfile?.subject || '',
+      now: Date.now(),
+    }),
+    [generations, userProfile],
   )
 
   const continueItems = useMemo(() => {
@@ -892,6 +915,14 @@ export default function TeacherDashboard() {
           <Icon as={ArrowRight} size="sm" />
         </button>
       </form>
+
+      {/* ── Prepare This Week (weekly preparation guide) ──────────── */}
+      <PrepareThisWeek
+        loading={loading}
+        error={gensError}
+        prep={weekPrep}
+        onRetry={() => { setLoading(true); setReloadKey((k) => k + 1) }}
+      />
 
       {/* ── Continue where you left off ───────────────────────────── */}
       <section className="teacher-continue">
