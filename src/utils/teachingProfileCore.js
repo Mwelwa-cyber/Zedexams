@@ -1,0 +1,306 @@
+// Teaching Profile — pure normalizers + validators (no Firebase, unit-testable).
+//
+// The Teaching Profile is the single source of truth for WHO a teacher teaches:
+// their school level, the school calendar they follow (by reference, never a
+// copy), and a list of discrete TEACHING ASSIGNMENTS — one per (grade, subject,
+// class) responsibility, each carrying its own curriculum and weekly periods.
+//
+// Storage (dedicated collection, decided in Phase 2):
+//   teacherProfiles/{uid}                      — the profile doc (this file's
+//                                                normalizeTeachingProfile shape)
+//   teacherProfiles/{uid}/assignments/{id}     — one doc per assignment
+//
+// Term / week / holiday status is DERIVED at read time from the referenced
+// calendar (see ./calendarResolver.js) — it is never stored here, so a calendar
+// change is reflected everywhere without a migration.
+//
+// All shaping is Firebase-free so plain `node` test scripts cover it. The IO
+// layer is ./teachingProfileService.js.
+//
+// Run tests: npm run test:teaching-profile
+
+import {
+  TEACHER_GRADES,
+  TEACHER_SUBJECTS,
+  ECE_SUBJECTS,
+  ECE_GRADE_CODES,
+  isSubjectValidForGrade,
+} from '../config/teacherTaxonomy.js'
+
+// ── value spaces ─────────────────────────────────────────────────────────────
+
+// The three MoE school levels. Values are lowercase codes; labels match the
+// setup-wizard copy ("Early Childhood Education" / "Primary" / "Secondary").
+export const SCHOOL_LEVELS = [
+  { value: 'ece', label: 'Early Childhood Education' },
+  { value: 'primary', label: 'Primary' },
+  { value: 'secondary', label: 'Secondary' },
+]
+const SCHOOL_LEVEL_VALUES = SCHOOL_LEVELS.map((l) => l.value)
+
+// Where the referenced calendar comes from. 'national' is the only source that
+// resolves today (the hardcoded MoE calendar) — 'school' / 'teacher' are the
+// forward seam for the Level-2 / Level-3 hierarchy (see ./calendarResolver.js).
+export const CALENDAR_SOURCES = ['national', 'school', 'teacher']
+
+// Canonical curriculum codes. The rest of the app uses two encodings —
+// 'cbc'/'previous' (teacherPreferences.curriculum) and 'CBC'/'previous'
+// (lessonPlans docs). normalizeCurriculumType folds every spelling — "new",
+// "CBC", "2023" → 'cbc'; "old", "OBC", "previous", "2013" → 'previous' — so the
+// Teaching Profile has exactly ONE representation.
+export const CURRICULUM_TYPES = ['cbc', 'previous']
+
+// Bounds — periods across a whole week (a heavy secondary load can top 40), and
+// a single lesson period length in minutes.
+export const MAX_PERIODS_PER_WEEK = 60
+export const MIN_LESSON_MINUTES = 5
+export const MAX_LESSON_MINUTES = 240
+
+const VALID_GRADE_VALUES = new Set([
+  ...TEACHER_GRADES.filter((g) => g.value).map((g) => g.value),
+  'ECE', // legacy band code still accepted by the backend
+])
+const VALID_SUBJECT_VALUES = new Set([
+  ...TEACHER_SUBJECTS.filter((s) => s.value).map((s) => s.value),
+  ...ECE_SUBJECTS.filter((s) => s.value).map((s) => s.value),
+])
+
+// ── coercion helpers (mirrors teacherSettingsCore.js) ────────────────────────
+
+function obj(v) {
+  return v && typeof v === 'object' ? v : {}
+}
+function str(v, max) {
+  return typeof v === 'string' ? v.trim().slice(0, max) : ''
+}
+function intInRange(v, min, max) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return null
+  const r = Math.round(n)
+  return r >= min && r <= max ? r : null
+}
+function bool(v, def) {
+  return typeof v === 'boolean' ? v : def
+}
+function oneOf(v, allowed, def) {
+  return allowed.includes(v) ? v : def
+}
+
+// ── curriculum type ──────────────────────────────────────────────────────────
+
+/** Fold any spelling of the two curricula into 'cbc' | 'previous'. */
+export function normalizeCurriculumType(v) {
+  const s = String(v ?? '').trim().toLowerCase()
+  if (['previous', 'obc', 'old', '2013'].includes(s)) return 'previous'
+  // 'cbc', 'new', '2023', '' and anything unknown default to the current CBC.
+  return 'cbc'
+}
+
+/** Human label for a curriculum type — matches the wizard's radio copy. */
+export function curriculumTypeLabel(v) {
+  return normalizeCurriculumType(v) === 'previous'
+    ? 'Old Curriculum (OBC)'
+    : 'New Curriculum (CBC)'
+}
+
+// ── grade / subject / school-level helpers ───────────────────────────────────
+
+/** Display label for a grade value (e.g. 'G4' → 'Grade 4'), else the raw value. */
+export function gradeLabel(value) {
+  const found = TEACHER_GRADES.find((g) => g.value === value)
+  return found ? found.label : String(value ?? '')
+}
+
+/** Display label for a subject slug (e.g. 'integrated_science' → 'Integrated Science'). */
+export function subjectLabel(value) {
+  const found =
+    TEACHER_SUBJECTS.find((s) => s.value === value) ||
+    ECE_SUBJECTS.find((s) => s.value === value)
+  return found ? found.label : String(value ?? '')
+}
+
+/** Which school level a grade belongs to: ECE / primary (G1–G7) / secondary (G8+). */
+export function schoolLevelForGrade(grade) {
+  const g = String(grade ?? '').toUpperCase()
+  if (ECE_GRADE_CODES.includes(g)) return 'ece'
+  const m = g.match(/^G(\d{1,2})$/)
+  if (m) return Number(m[1]) <= 7 ? 'primary' : 'secondary'
+  return ''
+}
+
+// ── assignment ───────────────────────────────────────────────────────────────
+
+/**
+ * Coerce a stored/partial/tampered assignment into the canonical shape. Note
+ * the `id` is NOT part of this shape — it's the Firestore doc id, carried
+ * alongside by the service layer.
+ */
+export function normalizeAssignment(data = {}) {
+  const d = obj(data)
+  return {
+    grade: str(d.grade, 12),
+    subject: str(d.subject, 40),
+    className: str(d.className, 40),
+    curriculumType: normalizeCurriculumType(d.curriculumType),
+    periodsPerWeek: intInRange(d.periodsPerWeek, 0, MAX_PERIODS_PER_WEEK),
+    lessonDurationMinutes: intInRange(d.lessonDurationMinutes, MIN_LESSON_MINUTES, MAX_LESSON_MINUTES),
+    isDefault: bool(d.isDefault, false),
+    isActive: bool(d.isActive, true),
+  }
+}
+
+/** Partial normalizer for merge-writes: only shapes the keys actually present. */
+export function normalizeAssignmentPartial(data = {}) {
+  const d = obj(data)
+  const out = {}
+  if ('grade' in d) out.grade = str(d.grade, 12)
+  if ('subject' in d) out.subject = str(d.subject, 40)
+  if ('className' in d) out.className = str(d.className, 40)
+  if ('curriculumType' in d) out.curriculumType = normalizeCurriculumType(d.curriculumType)
+  if ('periodsPerWeek' in d) out.periodsPerWeek = intInRange(d.periodsPerWeek, 0, MAX_PERIODS_PER_WEEK)
+  if ('lessonDurationMinutes' in d)
+    out.lessonDurationMinutes = intInRange(d.lessonDurationMinutes, MIN_LESSON_MINUTES, MAX_LESSON_MINUTES)
+  if ('isDefault' in d) out.isDefault = bool(d.isDefault, false)
+  if ('isActive' in d) out.isActive = bool(d.isActive, true)
+  return out
+}
+
+/**
+ * Stable identity of an assignment for duplicate detection — grade + subject +
+ * class (case-insensitive). Two assignments with the same key are "the same
+ * teaching responsibility" (section 12: prevent duplicate assignments).
+ */
+export function assignmentKey(a) {
+  const n = normalizeAssignment(a)
+  return `${n.grade}::${n.subject}::${n.className.toLowerCase()}`
+}
+
+/** A short human label for an assignment card / selector ("Grade 4 · Mathematics"). */
+export function assignmentLabel(a) {
+  const n = normalizeAssignment(a)
+  const parts = [gradeLabel(n.grade), subjectLabel(n.subject)]
+  if (n.className) parts.push(n.className)
+  return parts.filter(Boolean).join(' · ')
+}
+
+/**
+ * Validate an assignment for saving. Grade + subject are required; an
+ * out-of-syllabus subject/grade pairing is a soft warning (kept forward-
+ * compatible — the taxonomy map is not exhaustive for every future grade).
+ * Returns { valid, errors[], warnings[] }.
+ */
+export function validateAssignment(data = {}) {
+  const n = normalizeAssignment(data)
+  const errors = []
+  const warnings = []
+  if (!n.grade) errors.push('Choose a grade or form.')
+  else if (!VALID_GRADE_VALUES.has(n.grade)) warnings.push(`Unrecognised grade "${n.grade}".`)
+  if (!n.subject) errors.push('Choose a subject.')
+  else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
+  if (n.grade && n.subject && VALID_GRADE_VALUES.has(n.grade) && VALID_SUBJECT_VALUES.has(n.subject)) {
+    if (!isSubjectValidForGrade(n.subject, n.grade)) {
+      warnings.push(`${subjectLabel(n.subject)} is not usually taught at ${gradeLabel(n.grade)}.`)
+    }
+  }
+  return { valid: errors.length === 0, errors, warnings }
+}
+
+/**
+ * Find an existing assignment that duplicates `candidate` (same key), ignoring
+ * the assignment with id === exceptId (so editing an assignment doesn't clash
+ * with itself). Returns the duplicate or null. `assignments` items may carry an
+ * `id`.
+ */
+export function findDuplicateAssignment(assignments, candidate, exceptId = null) {
+  if (!Array.isArray(assignments)) return null
+  const key = assignmentKey(candidate)
+  return (
+    assignments.find((a) => a && a.id !== exceptId && assignmentKey(a) === key) || null
+  )
+}
+
+// ── profile ──────────────────────────────────────────────────────────────────
+
+/**
+ * Coerce the stored/partial/tampered teacher profile into the canonical shape.
+ * Calendar is a REFERENCE (calendarId + source), never a copy of dates.
+ */
+export function normalizeTeachingProfile(data = {}) {
+  const d = obj(data)
+  return {
+    schoolId: str(d.schoolId, 128),
+    schoolLevel: oneOf(d.schoolLevel, SCHOOL_LEVEL_VALUES, ''),
+    calendarId: str(d.calendarId, 64),
+    calendarSource: oneOf(d.calendarSource, CALENDAR_SOURCES, 'national'),
+    calendarInheritedFromSchool: bool(d.calendarInheritedFromSchool, false),
+    academicYear: str(d.academicYear, 10),
+    defaultAssignmentId: str(d.defaultAssignmentId, 64),
+    onboardingCompleted: bool(d.onboardingCompleted, false),
+    // A stored snapshot for cheap display; the live value is always recomputable
+    // via computeProfileCompletion(), which is what the settings card should use.
+    profileCompletion: intInRange(d.profileCompletion, 0, 100) ?? 0,
+  }
+}
+
+/** Partial normalizer for merge-writes: only shapes the keys actually present. */
+export function normalizeTeachingProfilePartial(data = {}) {
+  const d = obj(data)
+  const out = {}
+  if ('schoolId' in d) out.schoolId = str(d.schoolId, 128)
+  if ('schoolLevel' in d) out.schoolLevel = oneOf(d.schoolLevel, SCHOOL_LEVEL_VALUES, '')
+  if ('calendarId' in d) out.calendarId = str(d.calendarId, 64)
+  if ('calendarSource' in d) out.calendarSource = oneOf(d.calendarSource, CALENDAR_SOURCES, 'national')
+  if ('calendarInheritedFromSchool' in d)
+    out.calendarInheritedFromSchool = bool(d.calendarInheritedFromSchool, false)
+  if ('academicYear' in d) out.academicYear = str(d.academicYear, 10)
+  if ('defaultAssignmentId' in d) out.defaultAssignmentId = str(d.defaultAssignmentId, 64)
+  if ('onboardingCompleted' in d) out.onboardingCompleted = bool(d.onboardingCompleted, false)
+  if ('profileCompletion' in d) out.profileCompletion = intInRange(d.profileCompletion, 0, 100) ?? 0
+  return out
+}
+
+/**
+ * The completion checklist shown on the Teaching Profile settings card
+ * (section 9). Recomputed from live data so it never drifts from the stored
+ * snapshot. `assignments` items may carry an `id` (needed for the default
+ * check). Returns { percent, items:[{key,label,done}] }.
+ */
+export function computeProfileCompletion({
+  profile = {},
+  assignments = [],
+  timetableConnected = false,
+  schoolName = '',
+} = {}) {
+  const p = normalizeTeachingProfile(profile)
+  const list = Array.isArray(assignments) ? assignments : []
+  const hasActive = list.some((a) => normalizeAssignment(a).isActive)
+  const defaultOk =
+    !!p.defaultAssignmentId && list.some((a) => a && a.id === p.defaultAssignmentId)
+
+  const items = [
+    { key: 'school', label: 'School selected', done: !!(p.schoolId || str(schoolName, 200)) },
+    { key: 'calendar', label: 'School Calendar connected', done: !!p.calendarId },
+    { key: 'term', label: 'Current term confirmed', done: p.onboardingCompleted || !!p.academicYear },
+    { key: 'assignments', label: 'Teaching assignments added', done: hasActive },
+    { key: 'default', label: 'Default assignment selected', done: defaultOk },
+    { key: 'timetable', label: 'Class Timetable connected', done: !!timetableConnected },
+  ]
+  const done = items.filter((i) => i.done).length
+  const percent = Math.round((done / items.length) * 100)
+  return { percent, items }
+}
+
+/**
+ * Given the current assignment list and a profile, decide which assignment id
+ * is the effective default: the stored default if it still points at an active
+ * assignment, else the first active assignment, else null. Used by the
+ * dashboard context selector so a removed/deactivated default degrades safely.
+ */
+export function resolveDefaultAssignmentId(profile = {}, assignments = []) {
+  const p = normalizeTeachingProfile(profile)
+  const list = Array.isArray(assignments) ? assignments : []
+  const stored = list.find((a) => a && a.id === p.defaultAssignmentId && normalizeAssignment(a).isActive)
+  if (stored) return stored.id
+  const firstActive = list.find((a) => a && normalizeAssignment(a).isActive)
+  return firstActive ? firstActive.id : null
+}

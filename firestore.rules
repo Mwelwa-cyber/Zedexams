@@ -960,6 +960,57 @@ service cloud.firestore {
         && (!('letterheadPath' in incoming()) || (incoming().letterheadPath is string && incoming().letterheadPath.size() <= 500));
     }
 
+    // ── teacherProfiles (Teaching Profile) ─────────────────────
+    // The single source of truth for WHO a teacher teaches: school level, a
+    // calendar REFERENCE (calendarId + source — never a copy of dates), the
+    // default dashboard assignment, and the onboarding flag. Doc id == uid, so
+    // ownership is the path. Owner-only writes; owner + admin reads (admins read
+    // for support, like schoolProfiles/teacherLibraries). Field validators are
+    // presence-gated tampered-client backstops — UI caps mirror these in
+    // src/utils/teachingProfileCore.js. Term/week/holiday status is DERIVED from
+    // the referenced calendar at read time, never stored here.
+    match /teacherProfiles/{uid} {
+      allow read: if isVerified() && (isOwner(uid) || isAdmin());
+      allow write: if isVerified() && isOwner(uid)
+        && (!('teacherId' in incoming()) || incoming().teacherId == uid)
+        && (!('schoolLevel' in incoming()) || (incoming().schoolLevel is string && incoming().schoolLevel in ['ece', 'primary', 'secondary']))
+        && (!('calendarSource' in incoming()) || (incoming().calendarSource is string && incoming().calendarSource in ['national', 'school', 'teacher']))
+        && (!('calendarId' in incoming()) || (incoming().calendarId is string && incoming().calendarId.size() <= 64))
+        && (!('calendarInheritedFromSchool' in incoming()) || incoming().calendarInheritedFromSchool is bool)
+        && (!('schoolId' in incoming()) || (incoming().schoolId is string && incoming().schoolId.size() <= 128))
+        && (!('academicYear' in incoming()) || (incoming().academicYear is string && incoming().academicYear.size() <= 10))
+        && (!('defaultAssignmentId' in incoming()) || (incoming().defaultAssignmentId is string && incoming().defaultAssignmentId.size() <= 64))
+        && (!('onboardingCompleted' in incoming()) || incoming().onboardingCompleted is bool)
+        && (!('profileCompletion' in incoming()) || (incoming().profileCompletion is int && incoming().profileCompletion >= 0 && incoming().profileCompletion <= 100));
+
+      // One doc per teaching assignment (grade · subject · class). Named
+      // `teachingAssignments` to stay distinct from the unrelated top-level
+      // `assignments` collection (class-work pointers). The parent path already
+      // pins ownership via {uid}; the denormalized teacherId is a belt-and-
+      // suspenders guard (and keeps a future collectionGroup query safe).
+      // teacherId is immutable and must equal the owner on every write.
+      match /teachingAssignments/{assignmentId} {
+        function validAssignmentWrite() {
+          return incoming().teacherId is string
+            && incoming().teacherId == uid
+            && (!('grade' in incoming()) || (incoming().grade is string && incoming().grade.size() <= 12))
+            && (!('subject' in incoming()) || (incoming().subject is string && incoming().subject.size() <= 40))
+            && (!('className' in incoming()) || (incoming().className is string && incoming().className.size() <= 40))
+            && (!('curriculumType' in incoming()) || incoming().curriculumType in ['cbc', 'previous'])
+            && (!('periodsPerWeek' in incoming()) || (incoming().periodsPerWeek is int && incoming().periodsPerWeek >= 0 && incoming().periodsPerWeek <= 60))
+            && (!('lessonDurationMinutes' in incoming()) || (incoming().lessonDurationMinutes is int && incoming().lessonDurationMinutes >= 5 && incoming().lessonDurationMinutes <= 240))
+            && (!('isDefault' in incoming()) || incoming().isDefault is bool)
+            && (!('isActive' in incoming()) || incoming().isActive is bool);
+        }
+        allow read:   if isVerified() && (isOwner(uid) || isAdmin());
+        allow create: if isVerified() && isOwner(uid) && validAssignmentWrite();
+        allow update: if isVerified() && isOwner(uid)
+                         && incoming().teacherId == resource.data.teacherId
+                         && validAssignmentWrite();
+        allow delete: if isVerified() && (isOwner(uid) || isAdmin());
+      }
+    }
+
     // ── usageMeters ───────────────────────────────────────────
     match /usageMeters/{uid} {
       allow read: if isVerified() && (isOwner(uid) || isAdmin());
