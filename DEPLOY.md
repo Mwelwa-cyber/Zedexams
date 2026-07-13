@@ -100,9 +100,18 @@ once:
 
 1. Google Cloud Console → **IAM & Admin → Service Accounts** (project
    `examsprepzambia`) → **Create service account** (e.g. `github-deploy`).
-2. Grant it **Firebase Admin** (`roles/firebase.admin`) and **Service Account
-   User** (`roles/iam.serviceAccountUser`). If a later deploy fails with
-   `PERMISSION_DENIED` naming a specific permission, add the role it names.
+2. Grant it three roles: **Firebase Admin** (`roles/firebase.admin`),
+   **Service Account User** (`roles/iam.serviceAccountUser`), and
+   **Secret Manager Admin** (`roles/secretmanager.admin`). The third is not
+   optional: the functions deploy reads every bound secret
+   (`ANTHROPIC_API_KEY`, `GITHUB_BOT_TOKEN`, …) from Secret Manager and
+   manages the runtime account's access grants, and Firebase Admin does not
+   include those permissions — without it the deploy fails with
+   `403 Permission 'secretmanager.secrets.get' denied` (first hit 2026-07-13).
+   If a later deploy fails with `PERMISSION_DENIED` naming a different
+   permission, add the role it names. Note: a freshly granted role can lose a
+   race against an already-running deploy (IAM propagation takes a minute or
+   two) — re-run the failed jobs before assuming the grant didn't work.
 3. On the new account: **Keys → Add key → Create new key → JSON** — download it.
 4. Paste the **entire file contents** into a new secret named
    `FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON` at
