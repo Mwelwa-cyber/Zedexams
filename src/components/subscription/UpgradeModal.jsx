@@ -8,6 +8,7 @@ import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
 import { friendlyMessage } from '../../utils/friendlyErrors'
 import {
+  OPERATORS,
   getUpgradeQuote,
   initiateLencoPayment,
   looksLikeZambianPhone,
@@ -19,6 +20,7 @@ import { formatZambianPhoneInput, zambianPhoneDigits } from '../../utils/phoneFo
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import NetworkField from './NetworkField'
+import PaymentStatusTracker from './PaymentStatusTracker'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
   learner: ['weekly', 'monthly'],
@@ -134,6 +136,11 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const [payState, setPayState] = useState('idle')
   const [error, setError] = useState('')
   const [timedOut, setTimedOut] = useState(false)
+  // Visual stage of the pending screen: 'waiting' (check your phone) →
+  // 'verifying' (after "I have approved"). Purely presentational — the poll
+  // + webhook confirm regardless of which stage is on screen.
+  const [approvalStage, setApprovalStage] = useState('waiting')
+  const [checkingStatus, setCheckingStatus] = useState(false)
 
   // Server-authoritative price for the checkout screen. The client mirror
   // (getUpgradeQuoteForProfile) paints instantly as a placeholder; the
@@ -236,17 +243,18 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     }
     if (status === 'failed') {
       setPayState('failed')
-      setError('The payment did not go through. No money was taken — please try again.')
+      setError('The mobile-money provider did not confirm the payment. No money was taken — you can try again.')
       capture('lenco_payment_failed', { planId: selectedPlanId, method })
       return true
     }
     return false
   }
 
-  async function beginPolling(ref) {
+  async function beginPolling(ref, { maxAttempts = 40 } = {}) {
     setPayState('processing')
     setTimedOut(false)
     const final = await pollLencoStatus(ref, {
+      maxAttempts,
       signal: pollAbortRef.current,
       onTick: (status) => { if (status === 'successful' || status === 'failed') resolveTerminal(status) },
     })
@@ -255,6 +263,28 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
       // Still pending after the poll window — the webhook will finish it.
       setTimedOut(true)
     }
+  }
+
+  // Timeout screen's "Check payment status": one short re-poll of the SAME
+  // transaction — never a new payment.
+  async function handleCheckStatus() {
+    if (!paymentId || checkingStatus) return
+    setCheckingStatus(true)
+    try {
+      await beginPolling(paymentId, { maxAttempts: 4 })
+    } finally {
+      setCheckingStatus(false)
+    }
+  }
+
+  // Confirmed cancel from the pending screen: stop the poll and close. The
+  // payment doc stays pending server-side — if the buyer already approved on
+  // the phone, the webhook (or Till) still activates them, and reopening the
+  // checkout resumes this same reference via the duplicate-initiation guard.
+  function handleCancelPending() {
+    pollAbortRef.current.aborted = true
+    capture('lenco_payment_cancelled', { planId: selectedPlanId, via: 'pending-screen' })
+    onClose()
   }
 
   async function handlePay() {
@@ -335,6 +365,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     setOtp('')
     setPaymentId(null)
     setTimedOut(false)
+    setApprovalStage('waiting')
+    setCheckingStatus(false)
   }
 
   return (
@@ -621,22 +653,20 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 </div>
               )}
 
-              {/* ── Processing / waiting ────────────────────────── */}
+              {/* ── Pending lifecycle: check phone → verifying → timeout ── */}
               {payState === 'processing' && (
-                <div className="text-center py-6">
-                  <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-orange-500" />
-                  <h3 className="text-base font-black text-gray-800 mt-3">Approve the prompt on your phone</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute —
-                    keep this page open and your access unlocks automatically.
-                  </p>
-                  {timedOut && (
-                    <p className="text-xs text-gray-500 mt-3">
-                      Still waiting… you can safely close this — we&apos;ll unlock your access and email a receipt as soon as
-                      the payment confirms.
-                    </p>
-                  )}
-                </div>
+                <PaymentStatusTracker
+                  stage={approvalStage}
+                  timedOut={timedOut}
+                  checking={checkingStatus}
+                  phoneDisplay={phone}
+                  reference={paymentId}
+                  operatorLabel={OPERATORS.find((op) => op.id === detectedOperator)?.label || ''}
+                  amountZMW={effectivePrice}
+                  onApproved={() => setApprovalStage('verifying')}
+                  onCheckStatus={handleCheckStatus}
+                  onCancelPayment={handleCancelPending}
+                />
               )}
 
               {/* ── OTP entry ───────────────────────────────────── */}
@@ -669,17 +699,33 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 </div>
               )}
 
-              {/* ── Failed ──────────────────────────────────────── */}
+              {/* ── Failed / declined ───────────────────────────── */}
               {payState === 'failed' && (
                 <div className="text-center py-4">
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
                     <Icon as={X} size="lg" strokeWidth={2.4} />
                   </div>
-                  <h3 className="text-lg font-black text-gray-800">Payment not completed</h3>
+                  <h3 className="text-lg font-black text-gray-800">Payment was not completed</h3>
                   <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
-                  <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={resetCheckout}>
-                    Try again
-                  </Button>
+                  <div className="mt-5 space-y-2">
+                    <Button variant="primary" size="lg" fullWidth onClick={resetCheckout}>
+                      Try again
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => { resetCheckout(); setPhone('') }}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:border-gray-400"
+                    >
+                      Use a different number
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full rounded-xl px-3 py-2 text-[13px] font-medium text-gray-500 hover:text-gray-800 bg-transparent shadow-none"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
