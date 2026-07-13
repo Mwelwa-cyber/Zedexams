@@ -78,15 +78,6 @@ export default function ContextualUpgradeModal({
   return (
     <ResponsiveModal onClose={onDismiss} labelledBy="cup-title" footer={footer}>
       <div className="relative px-5 pt-3 pb-2 text-center sm:px-6 sm:pt-5">
-        <button
-          type="button"
-          onClick={() => onDismiss('close')}
-          aria-label="Close"
-          className="absolute right-3 top-1 grid h-9 w-9 place-items-center rounded-full text-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 sm:top-3"
-        >
-          ✕
-        </button>
-
         <div
           className="mx-auto mb-2.5 grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl"
           aria-hidden="true"

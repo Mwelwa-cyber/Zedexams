@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // ResponsiveModal — the shared dialog shell for compact pop-ups (paywalls,
 // payment steps). One component, two presentations:
@@ -22,8 +22,34 @@ export default function ResponsiveModal({
   children,
   footer,
   initialFocusRef,
+  showClose = true,
 }) {
   const dialogRef = useRef(null)
+  const scrollRef = useRef(null)
+  // "More below" cue for short screens: a bottom fade over the scroll area,
+  // shown only while the content actually overflows and isn't scrolled to the
+  // end — so it never suggests hidden content when everything fits.
+  const [showScrollCue, setShowScrollCue] = useState(false)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    function update() {
+      const overflowing = el.scrollHeight - el.clientHeight > 4
+      const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 8
+      setShowScrollCue(overflowing && !atEnd)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null
+    ro?.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro?.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
 
   // Body scroll lock + restore focus to the element that opened the modal.
   useEffect(() => {
@@ -88,7 +114,31 @@ export default function ResponsiveModal({
         <div className="flex shrink-0 justify-center pt-2.5 sm:hidden" aria-hidden="true">
           <div className="h-1 w-10 rounded-full bg-gray-300" />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        {/* Close lives on the shell, above the scroll area, so it can never
+            scroll out of reach on short screens. */}
+        {showClose && (
+          <button
+            type="button"
+            onClick={() => onClose?.('close')}
+            aria-label="Close"
+            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-lg text-gray-400 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-gray-100 hover:text-gray-700 sm:top-3"
+          >
+            ✕
+          </button>
+        )}
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {children}
+          {/* Scroll cue lives INSIDE the scroller (sticky to its bottom edge,
+              overlaying the last 40px via the negative margin) so the scroller
+              keeps its natural flex sizing — a sibling overlay needed a
+              percentage-height wrapper that collapsed on short screens. */}
+          {showScrollCue && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none sticky bottom-0 -mt-10 h-10 bg-gradient-to-t from-white to-transparent"
+            />
+          )}
+        </div>
         {footer && (
           <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-2.5 pb-[max(14px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
             {footer}

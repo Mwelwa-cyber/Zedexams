@@ -28,7 +28,7 @@ const TOPUP_SECONDARY = { action: 'topup', label: 'Pay K25 — one extra now' }
 
 const PRO_BENEFITS = [
   'More AI generations every day',
-  'Word & PDF downloads without ZedExams branding',
+  'Unbranded Word & PDF downloads',
   'Unlocks worksheets, schemes, notes and more',
 ]
 
