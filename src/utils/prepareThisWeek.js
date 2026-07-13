@@ -74,17 +74,18 @@ function parseIsoMs(iso) {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime()
 }
 
-/* ── generation field accessors (server + client doc shapes) ───────── */
+/* ── generation field accessors (server + client doc shapes) ─────────
+   Exported: teacherRecommendations.js reads the same doc shapes. */
 
-function genSubject(g) {
+export function genSubject(g) {
   return normSubject(g?.output?.header?.subject || g?.inputs?.subject || g?.meta?.subject || '')
 }
 
-function genGrade(g) {
+export function genGrade(g) {
   return normGrade(g?.output?.header?.grade || g?.output?.header?.class || g?.inputs?.grade || g?.meta?.klass || '')
 }
 
-function genTerm(g) {
+export function genTerm(g) {
   return termNumberOf(g?.output?.header?.term ?? g?.inputs?.term)
 }
 

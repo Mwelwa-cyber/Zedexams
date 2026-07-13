@@ -2065,6 +2065,74 @@ body.theme-midnight .moe-calendar {
     color: #566f76;
   }
 
+  /* ── AI Recommendations (actionable cards) ────────────────────── */
+  .studio-theme .teacher-reco { margin-bottom: 26px; }
+  .studio-theme .teacher-reco__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .studio-theme .teacher-reco-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 4px 14px rgba(14,42,50,.04);
+  }
+  .studio-theme .teacher-reco-card__icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    background: #f5efe1;
+    font-size: 19px;
+  }
+  .studio-theme .teacher-reco-card__title {
+    margin: 4px 0 0;
+    font-size: 14.5px;
+    font-weight: 800;
+    color: #0e2a32;
+  }
+  .studio-theme .teacher-reco-card__text {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #566f76;
+    flex: 1;
+  }
+  .studio-theme .teacher-reco-card__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 8px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1.5px solid #ff7a2e;
+    color: #c2531a;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    min-height: 42px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .studio-theme .teacher-reco-card__action:hover,
+  .studio-theme .teacher-reco-card__action:focus-visible {
+    background: #ff7a2e;
+    color: #fff;
+  }
+  .studio-theme .teacher-reco-card__action:focus-visible {
+    outline: 2px solid #ff7a2e;
+    outline-offset: 2px;
+  }
+
   /* ── AI insights ──────────────────────────────────────────────── */
   .studio-theme .teacher-insights { margin-bottom: 26px; }
   .studio-theme .teacher-insights__grid {

@@ -14,16 +14,16 @@ import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
   getTimeGreeting,
   buildAiMessage,
-  buildInsights,
-  rotateInsights,
   buildActivityStats,
   buildCelebrations,
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
+import { buildRecommendations } from '../../utils/teacherRecommendations'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
+import AiRecommendations from './AiRecommendations'
 import PrepareThisWeek from './PrepareThisWeek'
 import QuickCreate from './QuickCreate'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
@@ -792,10 +792,6 @@ export default function TeacherDashboard() {
     () => buildAiMessage({ resources, usage, now: Date.now() }),
     [resources, usage],
   )
-  const insights = useMemo(
-    () => rotateInsights(buildInsights({ resources, usage, now: Date.now() }), Date.now(), 3),
-    [resources, usage],
-  )
   const activityStats = useMemo(
     () => buildActivityStats({ resources, now: Date.now(), range: activityRange }),
     [resources, activityRange],
@@ -805,33 +801,45 @@ export default function TeacherDashboard() {
     [resources],
   )
 
-  // Weekly preparation model — derived from the SAME generations fetch the
-  // rest of the dashboard uses (no extra Firestore reads) + the MoE
-  // calendar's current teaching week. During holidays the calendar points
-  // at Week 1 of the next term; isActiveTermNow + the opening-date extras
-  // switch the card into its "Prepare for Next Term" mode.
-  const weekPrep = useMemo(
-    () => {
-      const wk = getCurrentForecastWeek()
-      let calendar = null
-      if (wk) {
-        calendar = { ...wk, isActiveTermNow: Boolean(getActiveTerm()) }
-        if (!calendar.isActiveTermNow) {
-          const next = getNextTerm()
-          if (next) {
-            calendar.openLabel = fmtDate(next.term.open, 'full')
-            calendar.daysToOpen = daysUntil(next.term.open)
-          }
-        }
+  // The MoE calendar context both weekly-preparation surfaces share. During
+  // holidays the calendar points at Week 1 of the next term; isActiveTermNow
+  // + the opening-date extras switch the cards into "next term" behaviour.
+  const prepCalendar = useMemo(() => {
+    const wk = getCurrentForecastWeek()
+    if (!wk) return null
+    const calendar = { ...wk, isActiveTermNow: Boolean(getActiveTerm()) }
+    if (!calendar.isActiveTermNow) {
+      const next = getNextTerm()
+      if (next) {
+        calendar.openLabel = fmtDate(next.term.open, 'full')
+        calendar.daysToOpen = daysUntil(next.term.open)
       }
-      return buildWeekPrep({
-        generations,
-        calendar,
-        profileSubject: userProfile?.subject || '',
-        now: Date.now(),
-      })
-    },
-    [generations, userProfile],
+    }
+    return calendar
+  }, [])
+
+  // Weekly preparation model — derived from the SAME generations fetch the
+  // rest of the dashboard uses (no extra Firestore reads).
+  const weekPrep = useMemo(
+    () => buildWeekPrep({
+      generations,
+      calendar: prepCalendar,
+      profileSubject: userProfile?.subject || '',
+      now: Date.now(),
+    }),
+    [generations, userProfile, prepCalendar],
+  )
+
+  // Actionable AI Recommendations (replaces the passive insights) — same
+  // inputs, no extra reads; every card's condition is verified in data.
+  const recommendations = useMemo(
+    () => buildRecommendations({
+      generations,
+      assessments,
+      calendar: prepCalendar,
+      profileSubject: userProfile?.subject || '',
+    }),
+    [generations, assessments, userProfile, prepCalendar],
   )
 
   const continueItems = useMemo(() => {
@@ -1006,20 +1014,8 @@ export default function TeacherDashboard() {
       {/* ── Quick create (the four primary studio actions) ────────── */}
       <QuickCreate />
 
-      {/* ── AI insights ───────────────────────────────────────────── */}
-      {!loading && insights.length > 0 && (
-        <section className="teacher-insights teacher-defer">
-          <SectionLabel>AI insights</SectionLabel>
-          <div className="teacher-insights__grid">
-            {insights.map((it) => (
-              <div key={it.id} className="teacher-insight-card">
-                <span className="teacher-insight-card__icon" aria-hidden="true">{it.icon}</span>
-                <p className="teacher-insight-card__text">{it.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
+      {!loading && <AiRecommendations recommendations={recommendations} />}
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
       <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">

@@ -1,0 +1,165 @@
+/**
+ * Unit tests for teacherRecommendations.js — plain-node assertion script,
+ * run via `npm run test:recommendations`. Every condition is exercised both
+ * ways: the recommendation appears when its condition is true and is absent
+ * when it is not (no false or padded recommendations).
+ */
+
+import { buildRecommendations, subjectsTaught } from './teacherRecommendations.js'
+
+let passed = 0
+function check(name, cond) {
+  if (!cond) throw new Error(`FAIL: ${name}`)
+  passed += 1
+  console.log(`  ✓ ${name}`)
+}
+
+const CAL = {
+  year: 2026,
+  termNumber: 2,
+  weekNumber: 8,
+  beginning: '2026-05-18',
+  ending: '2026-05-22',
+  beginningLabel: '18 May 2026',
+  endingLabel: '22 May 2026',
+  isActiveTermNow: true,
+}
+const IN_WEEK = new Date(2026, 4, 19, 10, 0, 0).getTime()
+
+let idSeq = 0
+function gen(tool, { subject, grade, term, createdAt = IN_WEEK, output = {}, header = {}, meta } = {}) {
+  return {
+    id: `g${++idSeq}`,
+    tool,
+    createdAt,
+    inputs: { subject, grade, term: term != null ? String(term) : null },
+    output: { header: { subject, grade, term, ...header }, ...output },
+    ...(meta ? { meta } : {}),
+  }
+}
+
+const FOCUS_W8 = (subject) => gen('weekly_forecast', {
+  subject, grade: 'G4', term: 2, header: { weekNumber: 8 },
+  output: { days: [{ day: 'Monday', topic: 'Topic A' }, { day: 'Wednesday', topic: 'Topic B' }] },
+})
+
+function ids(args) {
+  return buildRecommendations(args).map((r) => r.id)
+}
+
+/* ── subjectsTaught ranking ──────────────────────────────────────── */
+{
+  const gens = [
+    gen('lesson_plan', { subject: 'mathematics', term: 2 }),
+    gen('lesson_plan', { subject: 'mathematics', term: 2 }),
+    gen('notes', { subject: 'english', term: 1 }),
+  ]
+  const ranked = subjectsTaught({ generations: gens, profileSubject: '', termNumber: 2 })
+  check('current-term activity outranks old activity', ranked[0].subject === 'mathematics')
+  const withProfile = subjectsTaught({ generations: [], profileSubject: 'creative_arts', termNumber: 2 })
+  check('profile subject counts as evidence', withProfile[0]?.subject === 'creative arts')
+}
+
+/* ── 1. subject not planned yet ──────────────────────────────────── */
+{
+  const gens = [FOCUS_W8('mathematics')]
+  const recs = buildRecommendations({ generations: gens, calendar: CAL })
+  const scheme = recs.find((r) => r.id.startsWith('scheme-'))
+  check('unschemed subject → Create Scheme recommendation', Boolean(scheme))
+  check('scheme card names the subject and routes to the studio',
+    scheme.title.startsWith('Mathematics') && scheme.to === '/teacher/generate/scheme-of-work')
+
+  const withScheme = [...gens, gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2 })]
+  check('scheme exists → no scheme recommendation',
+    !ids({ generations: withScheme, calendar: CAL }).some((i) => i.startsWith('scheme-')))
+}
+
+/* ── 2. record of work behind ────────────────────────────────────── */
+{
+  const base = [
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }),
+    FOCUS_W8('english'),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
+  ]
+  check('lessons this week + no record → Record of Work is behind',
+    ids({ generations: base, calendar: CAL }).includes('record-behind'))
+
+  const recorded = [...base, gen('record_of_work', {
+    subject: 'english', grade: 'G4', term: 2,
+    output: { weeks: [{ week: '8', coverage: 'full' }] },
+  })]
+  check('record updated this week → recommendation gone',
+    !ids({ generations: recorded, calendar: CAL }).includes('record-behind'))
+}
+
+/* ── 3. create worksheet ─────────────────────────────────────────── */
+{
+  const base = [
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
+  ]
+  check('lesson without worksheet → Create worksheet',
+    ids({ generations: base, calendar: CAL }).includes('worksheet-missing'))
+  const withWs = [...base, gen('worksheet', { subject: 'english', grade: 'G4', term: 2 })]
+  check('worksheet exists this week → recommendation gone',
+    !ids({ generations: withWs, calendar: CAL }).includes('worksheet-missing'))
+}
+
+/* ── 4. Friday quiz ──────────────────────────────────────────────── */
+{
+  const gens = [gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }), FOCUS_W8('english')]
+  check('weekly topics + no test → Prepare Friday’s quiz',
+    ids({ generations: gens, calendar: CAL }).includes('friday-quiz'))
+  const withTest = { generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 5, createdAt: IN_WEEK }] }
+  check('a test created this week → quiz recommendation gone',
+    !ids(withTest).includes('friday-quiz'))
+}
+
+/* ── 5. draft test papers ────────────────────────────────────────── */
+{
+  const args = { generations: [], calendar: CAL, assessments: [
+    { id: 'a1', questionCount: 0, createdAt: IN_WEEK },
+    { id: 'a2', questionCount: 7, createdAt: IN_WEEK },
+  ] }
+  const recs = buildRecommendations(args)
+  const drafts = recs.find((r) => r.id === 'draft-papers')
+  check('empty paper → Review drafts, routed to Test Papers',
+    Boolean(drafts) && drafts.to === '/teacher/test-papers')
+  check('papers with questions are not called drafts', drafts.text.includes('your unfinished test paper'))
+  check('no empty papers → no draft recommendation',
+    !ids({ generations: [], calendar: CAL, assessments: [{ id: 'a2', questionCount: 7, createdAt: IN_WEEK }] })
+      .includes('draft-papers'))
+}
+
+/* ── holidays suppress week-scoped nags ──────────────────────────── */
+{
+  const gens = [
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }),
+    FOCUS_W8('english'),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
+  ]
+  const holidayIds = ids({ generations: gens, calendar: { ...CAL, isActiveTermNow: false } })
+  check('holiday suppresses record/worksheet/quiz recommendations',
+    !holidayIds.includes('record-behind') && !holidayIds.includes('worksheet-missing') && !holidayIds.includes('friday-quiz'))
+}
+
+/* ── no data → no recommendations (never padded) ─────────────────── */
+{
+  check('empty inputs produce an empty list', buildRecommendations({ calendar: CAL }).length === 0)
+  const list = buildRecommendations({})
+  check('missing calendar produces no week-scoped or scheme cards',
+    !list.some((r) => r.id.startsWith('scheme-') || r.id === 'record-behind' || r.id === 'friday-quiz'))
+}
+
+/* ── uniqueness ──────────────────────────────────────────────────── */
+{
+  const gens = [
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }),
+    FOCUS_W8('english'),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
+  ]
+  const list = ids({ generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 0, createdAt: IN_WEEK }] })
+  check('every recommendation id is unique', new Set(list).size === list.length)
+}
+
+console.log(`\nteacherRecommendations: ${passed} checks passed`)
