@@ -8,6 +8,7 @@ import {
   normalizeTeachingProfile,
   computeProfileCompletion,
   resolveDefaultAssignmentId,
+  academicYearMismatch,
 } from '../../../utils/teachingProfileCore'
 import { resolveTeachingContext } from '../../../utils/calendarResolver'
 
@@ -71,10 +72,17 @@ export function useTeachingProfile() {
   const completion = computeProfileCompletion({
     profile: normalizedProfile,
     assignments,
-    // Phase 3 does not yet detect a saved Class Timetable (Phase 7 wires this).
+    teachingPeriodResolved: context.status === 'ok',
+    // Phase 3 does not yet detect a saved Class Timetable or Scheme (Phase 7).
     timetableConnected: false,
-    schoolName,
+    schemeConnected: false,
   })
+
+  // Non-blocking: stored academic year vs the year the calendar resolved today.
+  const yearMismatch = academicYearMismatch(
+    normalizedProfile,
+    context.status === 'ok' ? context.academicYear : null,
+  )
 
   const effectiveDefaultId = resolveDefaultAssignmentId(normalizedProfile, assignments)
 
@@ -88,6 +96,7 @@ export function useTeachingProfile() {
     schoolName,
     context,
     completion,
+    yearMismatch,
     effectiveDefaultId,
     reload: load,
   }

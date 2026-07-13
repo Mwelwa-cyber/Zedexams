@@ -266,12 +266,18 @@ export function isContextUsable(context) {
  * Note: a blank/missing calendarId falls back to the national calendar (so an
  * un-migrated profile still resolves) — that is 'ok', not 'unavailable'. Only a
  * NON-EMPTY id we don't recognise is 'unavailable'.
+ *
+ * `referenceDate` is the date to resolve the term/week for — a Lesson Plan's
+ * planned date, a Weekly Focus week, a historical Record of Work, etc. It
+ * defaults to today ONLY when no date is supplied, so a consumer resolving a
+ * document for another date never accidentally gets "today". (`date` is kept as
+ * a backwards-compatible alias.)
  */
-export function resolveTeachingContext({ calendarId, date } = {}) {
+export function resolveTeachingContext({ calendarId, referenceDate, date } = {}) {
   const calendar = resolveCalendar(calendarId)
   if (!calendar) return unavailableContext('unavailable', 'calendar_not_found', null)
 
-  const parsed = parseDateInput(date)
+  const parsed = parseDateInput(referenceDate !== undefined ? referenceDate : date)
   if (parsed.invalid) return unavailableContext('invalid_date', 'invalid_date', calendar)
   const d = parsed.date
 

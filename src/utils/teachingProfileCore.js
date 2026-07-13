@@ -43,6 +43,11 @@ const SCHOOL_LEVEL_VALUES = SCHOOL_LEVELS.map((l) => l.value)
 // forward seam for the Level-2 / Level-3 hierarchy (see ./calendarResolver.js).
 export const CALENDAR_SOURCES = ['national', 'school', 'teacher']
 
+// Profile lifecycle. A baseline record created before the setup wizard runs is
+// a 'draft' (onboardingCompleted stays false); the wizard flips it to 'active'
+// only after the required steps are saved.
+export const PROFILE_STATUSES = ['draft', 'active']
+
 // Canonical curriculum codes. The rest of the app uses two encodings —
 // 'cbc'/'previous' (teacherPreferences.curriculum) and 'CBC'/'previous'
 // (lessonPlans docs). normalizeCurriculumType folds every spelling — "new",
@@ -235,6 +240,7 @@ export function normalizeTeachingProfile(data = {}) {
     calendarInheritedFromSchool: bool(d.calendarInheritedFromSchool, false),
     academicYear: str(d.academicYear, 10),
     defaultAssignmentId: str(d.defaultAssignmentId, 64),
+    profileStatus: oneOf(d.profileStatus, PROFILE_STATUSES, 'draft'),
     onboardingCompleted: bool(d.onboardingCompleted, false),
     // A stored snapshot for cheap display; the live value is always recomputable
     // via computeProfileCompletion(), which is what the settings card should use.
@@ -254,6 +260,7 @@ export function normalizeTeachingProfilePartial(data = {}) {
     out.calendarInheritedFromSchool = bool(d.calendarInheritedFromSchool, false)
   if ('academicYear' in d) out.academicYear = str(d.academicYear, 10)
   if ('defaultAssignmentId' in d) out.defaultAssignmentId = str(d.defaultAssignmentId, 64)
+  if ('profileStatus' in d) out.profileStatus = oneOf(d.profileStatus, PROFILE_STATUSES, 'draft')
   if ('onboardingCompleted' in d) out.onboardingCompleted = bool(d.onboardingCompleted, false)
   if ('profileCompletion' in d) out.profileCompletion = intInRange(d.profileCompletion, 0, 100) ?? 0
   return out
@@ -263,31 +270,76 @@ export function normalizeTeachingProfilePartial(data = {}) {
  * The completion checklist shown on the Teaching Profile settings card
  * (section 9). Recomputed from live data so it never drifts from the stored
  * snapshot. `assignments` items may carry an `id` (needed for the default
- * check). Returns { percent, items:[{key,label,done}] }.
+ * check).
+ *
+ * REQUIRED items drive the percentage — a complete core profile reaches 100%
+ * WITHOUT a Class Timetable (a timetable is an optional enhancement, never a
+ * requirement). RECOMMENDED items (timetable, scheme, lesson duration, extra
+ * classes) improve planning accuracy but are NOT counted in the percentage.
+ *
+ * `teachingPeriodResolved` is true when the connected calendar resolves a live
+ * term/week for the reference date (context.status === 'ok') — the caller
+ * passes it because the resolver lives outside this pure module.
+ *
+ * Returns { percent, complete, items:[required], recommended:[…] }.
  */
 export function computeProfileCompletion({
   profile = {},
   assignments = [],
+  teachingPeriodResolved = false,
   timetableConnected = false,
-  schoolName = '',
+  schemeConnected = false,
 } = {}) {
   const p = normalizeTeachingProfile(profile)
-  const list = Array.isArray(assignments) ? assignments : []
-  const hasActive = list.some((a) => normalizeAssignment(a).isActive)
+  const list = (Array.isArray(assignments) ? assignments : []).map((a) => ({
+    id: a?.id,
+    ...normalizeAssignment(a),
+  }))
+  const hasActive = list.some((a) => a.isActive)
   const defaultOk =
-    !!p.defaultAssignmentId && list.some((a) => a && a.id === p.defaultAssignmentId)
+    !!p.defaultAssignmentId && list.some((a) => a.id === p.defaultAssignmentId && a.isActive)
 
+  // Required — the core profile. A timetable is deliberately absent here so a
+  // complete profile reaches 100% without one.
   const items = [
-    { key: 'school', label: 'School selected', done: !!(p.schoolId || str(schoolName, 200)) },
-    { key: 'calendar', label: 'School Calendar connected', done: !!p.calendarId },
-    { key: 'term', label: 'Current term confirmed', done: p.onboardingCompleted || !!p.academicYear },
-    { key: 'assignments', label: 'Teaching assignments added', done: hasActive },
+    { key: 'calendar', label: 'School Calendar selected', done: !!p.calendarId },
+    { key: 'academicYear', label: 'Academic year set', done: !!p.academicYear },
+    { key: 'period', label: 'Current teaching period resolved', done: !!teachingPeriodResolved },
+    { key: 'assignments', label: 'Teaching assignment added', done: hasActive },
     { key: 'default', label: 'Default assignment selected', done: defaultOk },
-    { key: 'timetable', label: 'Class Timetable connected', done: !!timetableConnected },
   ]
   const done = items.filter((i) => i.done).length
   const percent = Math.round((done / items.length) * 100)
-  return { percent, items }
+
+  // Recommended — enhancements NOT counted in the percentage.
+  const lessonDurationAdded = list.some((a) => a.isActive && a.lessonDurationMinutes != null)
+  const additionalClasses = list.filter((a) => a.isActive).length > 1
+  const recommended = [
+    { key: 'timetable', label: 'Class Timetable connected', done: !!timetableConnected },
+    { key: 'scheme', label: 'Scheme of Work connected', done: !!schemeConnected },
+    { key: 'lessonDuration', label: 'Lesson duration added', done: lessonDurationAdded },
+    { key: 'additionalClasses', label: 'Additional classes added', done: additionalClasses },
+  ]
+
+  return { percent, complete: percent === 100, items, recommended }
+}
+
+/**
+ * Compare the profile's stored academic year with the year the calendar
+ * actually resolved for the current reference date. A mismatch (e.g. profile
+ * says 2026 but the live term is 2027) is surfaced NON-blockingly so the
+ * teacher can review it — never silently combined. Returns
+ * { mismatch, profileYear, resolvedYear }.
+ */
+export function academicYearMismatch(profile = {}, resolvedYear = null) {
+  const p = normalizeTeachingProfile(profile)
+  // Guard truthiness first — Number('') is 0, which would falsely "mismatch".
+  const stored = p.academicYear ? Number(p.academicYear) : NaN
+  const resolved = resolvedYear === null || resolvedYear === '' ? NaN : Number(resolvedYear)
+  if (!Number.isFinite(stored) || !Number.isFinite(resolved)) {
+    return { mismatch: false, profileYear: p.academicYear || null, resolvedYear: resolvedYear ?? null }
+  }
+  return { mismatch: stored !== resolved, profileYear: stored, resolvedYear: resolved }
 }
 
 /**

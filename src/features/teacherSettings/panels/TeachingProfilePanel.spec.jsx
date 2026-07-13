@@ -60,7 +60,7 @@ describe('TeachingProfilePanel', () => {
     renderPanel()
     expect(await screen.findByText('Grade 4 — Integrated Science')).toBeInTheDocument()
     expect(screen.getByText('Grade 4 — Mathematics')).toBeInTheDocument()
-    expect(screen.getByText(/% complete/)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'School Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Your Teaching Assignments' })).toBeInTheDocument()
     // The default assignment shows a Default badge.
@@ -72,9 +72,10 @@ describe('TeachingProfilePanel', () => {
     svc.listAssignments.mockResolvedValue([])
     renderPanel()
     expect(await screen.findByText('Set up your Teaching Profile')).toBeInTheDocument()
-    const btn = screen.getByRole('button', { name: /Set up Teaching Profile/i })
+    const btn = screen.getByRole('button', { name: /Start Teaching Profile/i })
     fireEvent.click(btn)
-    await waitFor(() => expect(svc.saveTeachingProfile).toHaveBeenCalledWith('uid-1', expect.objectContaining({ calendarSource: 'national' })))
+    // Idempotent baseline draft: never marks onboarding complete.
+    await waitFor(() => expect(svc.saveTeachingProfile).toHaveBeenCalledWith('uid-1', expect.objectContaining({ calendarSource: 'national', profileStatus: 'draft' })))
   })
 
   it('opens the add-assignment modal', async () => {

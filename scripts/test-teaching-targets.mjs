@@ -44,7 +44,13 @@ test('timetable wins when present', () => {
   eq(t.periods, 7)
   eq(t.source, 'timetable')
 })
-test('curriculum framework supplies primary allocation (not five-per-subject)', () => {
+test('teacher-entered wins over curriculum (interim order)', () => {
+  // A primary subject the framework DOES cover, but the teacher entered a value.
+  const t = weeklyTargetForAssignment({ grade: 'G5', subject: 'mathematics', periodsPerWeek: 3 })
+  eq(t.source, 'teacher')
+  eq(t.periods, 3)
+})
+test('curriculum framework supplies primary allocation when no teacher value (not five-per-subject)', () => {
   // Upper-primary framework: Integrated Science is 6 periods, Social Studies 5.
   const sci = weeklyTargetForAssignment({ grade: 'G5', subject: 'integrated_science' })
   eq(sci.source, 'curriculum')
@@ -58,6 +64,11 @@ test('teacher-entered used when framework does not cover the subject (secondary)
   const t = weeklyTargetForAssignment({ grade: 'G10', subject: 'physics', periodsPerWeek: 4 })
   eq(t.source, 'teacher')
   eq(t.periods, 4)
+})
+test('no fabricated estimate: secondary with no value is "none"/Not set', () => {
+  const t = weeklyTargetForAssignment({ grade: 'G10', subject: 'physics' })
+  eq(t.source, 'none')
+  eq(t.periods, null)
 })
 test('none when nothing available', () => {
   const t = weeklyTargetForAssignment({ grade: 'G10', subject: 'physics' })

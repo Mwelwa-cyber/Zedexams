@@ -1,41 +1,49 @@
 // Weekly teaching targets — pure resolver (no Firebase, unit-testable).
 //
 // For each teaching assignment, work out the expected number of weekly periods
-// and WHERE that number came from, using the priority order from the spec
-// (section 13):
-//   1. Class Timetable         — the real placed periods (most authoritative)
+// and WHERE that number came from.
+//
+// INTERIM order (until Phase 7 wires real Class Timetable detection), per the
+// Phase 3 risk review:
+//   1. Teacher-entered value   — the periodsPerWeek the teacher typed (trusted)
 //   2. Curriculum allocation   — the official 2023 Framework periods/week
-//   3. Teacher-entered value   — the periodsPerWeek the teacher typed
+//   3. No target               — when no safe value can be produced (we do NOT
+//                                fabricate an estimate; the card shows "Not set"
+//                                and prompts the teacher to enter periods)
+//
+// Phase 7 will reintroduce the Class Timetable as the TOP priority — the
+// `timetablePeriods` tier below stays in place but is only ever supplied then.
 //
 // Deliberately does NOT assume five periods for every subject — English/Maths
-// are 6, Integrated Science 6, Social Studies 5, etc. in the primary framework,
-// and secondary subjects fall back to the teacher-entered value.
+// are 6, Integrated Science 6, Social Studies 5, etc. in the primary framework.
 //
-// The timetable source is passed in (Phase 3 has no timetable wiring yet, so it
-// is null and targets come from curriculum/teacher — Phase 7 supplies it).
-//
-// Run tests: npm run test:teaching-profile  (covered by test-teaching-targets)
+// Run tests: npm run test:teaching-targets
 
 import { matchFrameworkSubject } from './frameworkSubjectMatch.js'
 
 /**
  * @param {{grade,subject,periodsPerWeek}} assignment  a normalized assignment
- * @param {{timetablePeriods?:number|null}} sources
- * @returns {{periods:number|null, source:'timetable'|'curriculum'|'teacher'|'none', label:string}}
+ * @param {{timetablePeriods?:number|null}} sources  timetablePeriods is Phase-7-only
+ * @returns {{periods:number|null, source:'timetable'|'teacher'|'curriculum'|'none', label:string}}
  */
 export function weeklyTargetForAssignment(assignment = {}, { timetablePeriods = null } = {}) {
+  // Phase 7: a real timetable, when supplied, is the most authoritative source.
   const tt = Number(timetablePeriods)
   if (Number.isFinite(tt) && tt > 0) {
     return { periods: tt, source: 'timetable', label: 'From Class Timetable' }
   }
-  const fw = matchFrameworkSubject(assignment.grade, assignment.subject)
-  if (fw && fw.periodsPerWeek > 0) {
-    return { periods: fw.periodsPerWeek, source: 'curriculum', label: 'From Curriculum' }
-  }
+  // Interim priority 1: the teacher's own entry is trusted over a generic
+  // allocation (they know their real timetable better than the framework does).
   const entered = Number(assignment.periodsPerWeek)
   if (Number.isFinite(entered) && entered > 0) {
     return { periods: entered, source: 'teacher', label: 'Teacher-entered' }
   }
+  // Interim priority 2: the official 2023 Framework allocation (primary only).
+  const fw = matchFrameworkSubject(assignment.grade, assignment.subject)
+  if (fw && fw.periodsPerWeek > 0) {
+    return { periods: fw.periodsPerWeek, source: 'curriculum', label: 'From Curriculum' }
+  }
+  // Interim priority 3: no safe value — do not fabricate an estimate.
   return { periods: null, source: 'none', label: 'Not set' }
 }
 

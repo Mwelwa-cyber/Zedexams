@@ -157,6 +157,13 @@ test('missing calendarId falls back to national (ok, not a failure)', () => {
   eq(ctx.status, 'ok')
   eq(ctx.calendarId, NATIONAL_CALENDAR_ID)
 })
+test('referenceDate resolves the term for that date (not today)', () => {
+  // A document planned for Term 3 resolves Term 3 regardless of "today".
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, referenceDate: '2026-09-14' })
+  eq(ctx.status, 'ok')
+  eq(ctx.termNumber, 3)
+  eq(ctx.academicYear, 2026)
+})
 test('term break: ok, isClosed true, points at the next term to prepare', () => {
   const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2026-04-20' })
   eq(ctx.status, 'ok')

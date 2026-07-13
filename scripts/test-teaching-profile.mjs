@@ -19,6 +19,7 @@ import {
   normalizeTeachingProfile,
   normalizeTeachingProfilePartial,
   computeProfileCompletion,
+  academicYearMismatch,
   resolveDefaultAssignmentId,
 } from '../src/utils/teachingProfileCore.js'
 import {
@@ -168,6 +169,11 @@ test('normalizeTeachingProfile defaults calendarSource to national', () => {
   eq(p.onboardingCompleted, false)
   eq(p.profileCompletion, 0)
 })
+test('profileStatus defaults to draft and rejects unknown values', () => {
+  eq(normalizeTeachingProfile({}).profileStatus, 'draft')
+  eq(normalizeTeachingProfile({ profileStatus: 'active' }).profileStatus, 'active')
+  eq(normalizeTeachingProfile({ profileStatus: 'bogus' }).profileStatus, 'draft')
+})
 test('normalizeTeachingProfilePartial only shapes present keys', () => {
   const p = normalizeTeachingProfilePartial({ calendarId: 'moe-national' })
   eq(Object.keys(p).length, 1)
@@ -179,36 +185,54 @@ test('rejects unknown schoolLevel / calendarSource', () => {
   eq(p.calendarSource, 'national')
 })
 
-// ── completion ───────────────────────────────────────────────────────────────
+// ── completion (required drives %, timetable is recommended only) ────────────
 console.log('\ncompletion')
-test('empty profile is 0%', () => {
-  const { percent, items } = computeProfileCompletion({})
+test('empty profile is 0% with 5 required items and no timetable in them', () => {
+  const { percent, items, recommended } = computeProfileCompletion({})
   eq(percent, 0)
-  eq(items.length, 6)
+  eq(items.length, 5)
+  eq(items.some((i) => i.key === 'timetable'), false, 'timetable must NOT be a required item')
+  eq(recommended.some((r) => r.key === 'timetable'), true, 'timetable is a recommended item')
 })
-test('default item needs the id to still exist', () => {
-  const profile = {
-    schoolId: 'x',
-    calendarId: 'moe-national',
-    academicYear: '2026',
-    defaultAssignmentId: 'missing',
-  }
+test('default item needs an active id to still exist', () => {
+  const profile = { calendarId: 'moe-national', academicYear: '2026', defaultAssignmentId: 'missing' }
   const assignments = [{ id: 'a1', grade: 'G4', subject: 'mathematics', isActive: true }]
   const { items } = computeProfileCompletion({ profile, assignments })
   eq(items.find((i) => i.key === 'default').done, false)
   eq(items.find((i) => i.key === 'assignments').done, true)
 })
-test('full profile is 100%', () => {
-  const profile = {
-    schoolId: 'x',
-    calendarId: 'moe-national',
-    academicYear: '2026',
-    onboardingCompleted: true,
-    defaultAssignmentId: 'a1',
-  }
+test('a complete core profile reaches 100% WITHOUT a timetable', () => {
+  const profile = { calendarId: 'moe-national', academicYear: '2026', defaultAssignmentId: 'a1' }
   const assignments = [{ id: 'a1', grade: 'G4', subject: 'mathematics', isActive: true }]
-  const { percent } = computeProfileCompletion({ profile, assignments, timetableConnected: true })
-  eq(percent, 100)
+  const res = computeProfileCompletion({ profile, assignments, teachingPeriodResolved: true })
+  eq(res.percent, 100)
+  eq(res.complete, true)
+  // The timetable recommendation is still shown as not-done (optional).
+  eq(res.recommended.find((r) => r.key === 'timetable').done, false)
+})
+test('recommended: lesson duration + additional classes reflect the assignments', () => {
+  const profile = { calendarId: 'moe-national', academicYear: '2026', defaultAssignmentId: 'a1' }
+  const assignments = [
+    { id: 'a1', grade: 'G4', subject: 'mathematics', isActive: true, lessonDurationMinutes: 40 },
+    { id: 'a2', grade: 'G4', subject: 'english', isActive: true },
+  ]
+  const { recommended } = computeProfileCompletion({ profile, assignments, teachingPeriodResolved: true })
+  eq(recommended.find((r) => r.key === 'lessonDuration').done, true)
+  eq(recommended.find((r) => r.key === 'additionalClasses').done, true)
+})
+
+// ── academic-year mismatch (non-blocking) ────────────────────────────────────
+console.log('\nacademic-year mismatch')
+test('flags a mismatch between stored and resolved year', () => {
+  const r = academicYearMismatch({ academicYear: '2026' }, 2027)
+  eq(r.mismatch, true)
+  eq(r.profileYear, 2026)
+  eq(r.resolvedYear, 2027)
+})
+test('no mismatch when years agree or data is missing', () => {
+  eq(academicYearMismatch({ academicYear: '2026' }, 2026).mismatch, false)
+  eq(academicYearMismatch({ academicYear: '' }, 2026).mismatch, false)
+  eq(academicYearMismatch({ academicYear: '2026' }, null).mismatch, false)
 })
 
 // ── default resolution ───────────────────────────────────────────────────────

@@ -43,7 +43,7 @@ const CALENDAR_REASON_TEXT = {
 export default function TeachingProfilePanel() {
   const {
     uid, loading, error, hasProfile, profile, assignments,
-    schoolName, context, completion, effectiveDefaultId, reload,
+    schoolName, context, completion, yearMismatch, effectiveDefaultId, reload,
   } = useTeachingProfile()
 
   const [modal, setModal] = useState(null) // { mode:'add'|'edit', initial }
@@ -51,7 +51,12 @@ export default function TeachingProfilePanel() {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
 
-  // ── first-run: create the baseline profile record (wizard is Phase 4) ──────
+  // ── first-run: create an idempotent baseline DRAFT (wizard is Phase 4) ─────
+  // Merge semantics (setDoc merge, doc id == uid) mean this never duplicates a
+  // profile and never overwrites assignments, the default, or a
+  // previously-chosen calendar. It writes profileStatus:'draft' and leaves
+  // onboardingCompleted false — the profile is an incomplete draft until the
+  // Phase 4 wizard marks it complete.
   const createBaseline = async () => {
     setBusy(true)
     setActionError('')
@@ -60,10 +65,11 @@ export default function TeachingProfilePanel() {
         calendarId: NATIONAL_CALENDAR_ID,
         calendarSource: 'national',
         academicYear: String(context.status === 'ok' ? context.academicYear : new Date().getFullYear()),
+        profileStatus: 'draft',
       })
       await reload()
     } catch {
-      setActionError('Could not set up your profile. Please try again.')
+      setActionError('Could not start your profile. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -146,12 +152,12 @@ export default function TeachingProfilePanel() {
           <Icon as={GraduationCap} size="lg" className="tset-tp-empty__icon" />
           <p className="tset-tp-empty__title">Set up your Teaching Profile</p>
           <p className="tset-tp-empty__desc">
-            Tell ZedExams which school calendar, grades and subjects you use so your dashboard and
-            studios can prepare the correct teaching work.
+            Add the grades, subjects and classes you teach so your dashboard and studios can prepare
+            the correct teaching work.
           </p>
           {actionError && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>}
           <button type="button" className="tset-btn" onClick={createBaseline} disabled={busy}>
-            {busy ? 'Setting up…' : 'Set up Teaching Profile'}
+            {busy ? 'Starting…' : 'Start Teaching Profile'}
           </button>
         </div>
       </SettingsDetailShell>
@@ -168,12 +174,29 @@ export default function TeachingProfilePanel() {
         <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>
       )}
 
+      {/* Academic-year mismatch (non-blocking) -------------------------------- */}
+      {yearMismatch.mismatch && (
+        <div className="tset-card tset-tp-warn" role="status">
+          <Icon as={AlertTriangle} size="md" className="tset-tp-warn__icon" aria-hidden="true" />
+          <div className="tset-tp-warn__body">
+            <p className="tset-tp-warn__title">Review academic year</p>
+            <p className="tset-tp-warn__desc">
+              Your Teaching Profile is set to {yearMismatch.profileYear}, but the connected calendar is
+              currently resolving {yearMismatch.resolvedYear}.
+            </p>
+            <Link to="/settings/calendar" className="tset-btn tset-btn--ghost tset-btn--sm">Review profile</Link>
+          </div>
+        </div>
+      )}
+
       {/* Completion card ------------------------------------------------------ */}
       <section className="tset-card tset-tp-completion" aria-label="Profile completion">
         <div className="tset-tp-completion__head">
           <div>
             <p className="tset-tp-completion__title">Teaching Profile</p>
-            <p className="tset-tp-completion__pct">{completion.percent}% complete</p>
+            <p className="tset-tp-completion__pct">
+              {completion.complete ? 'Teaching Profile complete' : `${completion.percent}% complete`}
+            </p>
           </div>
           <div className="tset-tp-meter" role="progressbar" aria-valuenow={completion.percent} aria-valuemin={0} aria-valuemax={100} aria-label={`Profile ${completion.percent}% complete`}>
             <span className="tset-tp-meter__fill" style={{ width: `${completion.percent}%` }} />
@@ -185,6 +208,16 @@ export default function TeachingProfilePanel() {
               <Icon as={CheckCircle} size="sm" aria-hidden="true" />
               <span>{item.label}</span>
               <span className="tset-tp-checkitem__state">{item.done ? 'Done' : 'To do'}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="tset-tp-reco-eyebrow">Recommended enhancements (optional)</p>
+        <ul className="tset-tp-checklist tset-tp-checklist--reco">
+          {completion.recommended.map((item) => (
+            <li key={item.key} className={`tset-tp-checkitem${item.done ? ' is-done' : ''}`}>
+              <Icon as={CheckCircle} size="sm" aria-hidden="true" />
+              <span>{item.label}</span>
+              <span className="tset-tp-checkitem__state">{item.done ? 'Done' : 'Optional'}</span>
             </li>
           ))}
         </ul>
@@ -304,9 +337,16 @@ export default function TeachingProfilePanel() {
               </li>
             ))}
           </ul>
-          <Link to="/teacher/generate/class-timetable" className="tset-btn tset-btn--ghost tset-btn--sm">
-            <Icon as={Clock} size="sm" aria-hidden="true" /> Connect Class Timetable
-          </Link>
+          <div className="tset-tp-reco">
+            <span className="tset-row__badge tset-row__badge--orange"><Icon as={Clock} size="sm" /></span>
+            <div className="tset-tp-reco__body">
+              <p className="tset-tp-reco__title">Improve weekly planning accuracy</p>
+              <p className="tset-tp-reco__desc">
+                Connect your Class Timetable so ZedExams can calculate the correct lesson targets for each subject.
+              </p>
+              <Link to="/teacher/generate/class-timetable" className="tset-btn tset-btn--ghost tset-btn--sm">Connect Class Timetable</Link>
+            </div>
+          </div>
         </section>
       )}
 
