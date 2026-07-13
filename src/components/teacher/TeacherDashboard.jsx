@@ -893,22 +893,6 @@ export default function TeacherDashboard() {
         </button>
       </form>
 
-      {/* ── Free Plan card (compact subscription indicator) ───────── */}
-      <PlanQuickCard plan={teacherPlan} />
-
-      {/* ── Your usage this month (compact, collapsed) ────────────── */}
-      <section className="teacher-usage-section">
-        <div className="teacher-section-head">
-          <SectionLabel>Your usage this month</SectionLabel>
-          {usage && usage.plan !== 'free' && (
-            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
-              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
-            </span>
-          )}
-        </div>
-        <CompactUsage />
-      </section>
-
       {/* ── Continue where you left off ───────────────────────────── */}
       <section className="teacher-continue">
         <div className="teacher-section-head">
@@ -1063,6 +1047,23 @@ export default function TeacherDashboard() {
           </div>
         </section>
       ))}
+
+      {/* ── Compact plan + usage (bottom of the page by design: the dashboard
+          leads with teaching work, not usage statistics; the full breakdown
+          stays one tap away behind "View details") ─────────────────── */}
+      <PlanQuickCard plan={teacherPlan} />
+
+      <section className="teacher-usage-section teacher-defer">
+        <div className="teacher-section-head">
+          <SectionLabel>Your usage this month</SectionLabel>
+          {usage && usage.plan !== 'free' && (
+            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
+              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
+            </span>
+          )}
+        </div>
+        <CompactUsage />
+      </section>
 
       <div className="mt-6">
         <FeedbackButton source="teacher-dashboard" />
