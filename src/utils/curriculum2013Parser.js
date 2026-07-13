@@ -56,12 +56,19 @@ const CODE_CANDIDATE_GLOBAL = /\d+(?:\.\d+)+/g
 // glued directly to the first word (OCR dropped the space): "1.3.1.1Identify".
 const LEADING_CODE = /^\s*(\d+(?:\.\d+)*)/
 
-/** Table-heading / domain-label words that must never become curriculum records. */
+/**
+ * Table-heading / domain-label words that must never become curriculum
+ * records. Covers both eras: the 2013 books (KNOWLEDGE/SKILLS/VALUES/…) and
+ * the 2023 CBC sheets (SPECIFIC COMPETENCES/LEARNING ACTIVITIES/EXPECTED
+ * STANDARD), whose header lines are also echoed mid-sheet at page breaks.
+ */
 export const HEADER_WORDS = new Set([
   'knowledge', 'skills', 'skill', 'values', 'value', 'content', 'contents',
   'specific outcomes', 'specific outcome', 'activities', 'activity', 'topic',
   'topics', 'sub-topic', 'subtopic', 'sub topic', 'subtopics', 'theme',
   'component', 'unit', 'strand',
+  'specific competences', 'specific competence', 'learning activities',
+  'expected standard', 'expected standards',
 ])
 
 /**
@@ -312,7 +319,9 @@ export function resolveColumnRoles(columns) {
       if (!roles.subtopic) roles.subtopic = col
     } else if (n === 'topic' || n === 'topics') {
       if (!roles.topic) roles.topic = col
-    } else if (n.includes('specificout') || n.includes('outcome')) {
+    } else if (n.includes('specificout') || n.includes('outcome') || n.includes('competence')) {
+      // "SPECIFIC OUTCOMES" (2013) and "SPECIFIC COMPETENCES" (2023 CBC) play
+      // the same role: the per-subtopic learning statements column.
       if (!roles.outcomes) roles.outcomes = col
     } else if (n.includes('content') || n.includes('knowledge')) {
       roles.content.push(col)

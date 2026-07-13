@@ -186,13 +186,27 @@ function rowsWithPropagatedTopic(rows) {
     if (isHeaderEchoRow(cells)) continue;
     const raw = String(cells.TOPIC || "").trim();
     if (raw) topic = raw;
+    const subtopic = String(cells["SUB-TOPIC"] || cells.SUBTOPIC || "").trim();
+    const specificCompetence = String(cells["SPECIFIC COMPETENCES"] || "").trim();
+    const learningActivities = String(cells["LEARNING ACTIVITIES"] || "").trim();
+    const expectedStandard = String(cells["EXPECTED STANDARD"] || "").trim();
+    // Page-break continuation row (no sub-topic/competence, only the tail of
+    // the previous row's activities/standard, often cut mid-phrase): join it
+    // back onto the previous row — mirror of rowsWithPropagatedTopic in
+    // src/utils/syllabusMapping.js.
+    const prev = out.length ? out[out.length - 1] : null;
+    if (prev && !raw && !subtopic && !specificCompetence && (learningActivities || expectedStandard)) {
+      prev.learningActivities = joinCellTextSrv(prev.learningActivities, learningActivities);
+      prev.expectedStandard = joinCellTextSrv(prev.expectedStandard, expectedStandard);
+      continue;
+    }
     out.push({
       topic,
       section,
-      subtopic: String(cells["SUB-TOPIC"] || cells.SUBTOPIC || "").trim(),
-      specificCompetence: String(cells["SPECIFIC COMPETENCES"] || "").trim(),
-      learningActivities: String(cells["LEARNING ACTIVITIES"] || "").trim(),
-      expectedStandard: String(cells["EXPECTED STANDARD"] || "").trim(),
+      subtopic,
+      specificCompetence,
+      learningActivities,
+      expectedStandard,
     });
   }
 
@@ -454,6 +468,18 @@ function is2013MidPhraseBreak(prev, next) {
   return false;
 }
 
+// Join two raw cell strings across a page break: glued with a space when the
+// break was mid-phrase, otherwise as separate bullet points (mirror of
+// joinCellText in the client parser). Era-agnostic despite the 2013-named
+// break detector — the CBC sheets have the same page-break artefacts.
+function joinCellTextSrv(prevRaw, nextRaw) {
+  const a = String(prevRaw || "").trim();
+  const b = String(nextRaw || "").trim();
+  if (!a) return b;
+  if (!b) return a;
+  return is2013MidPhraseBreak(a, b) ? `${a} ${b}` : `${a} • ${b}`;
+}
+
 // Push items onto a list, healing a mid-phrase page-break fragment by merging
 // it into the previous item ("Comparing" + "urban and rural environment").
 function pushJoined(arr, items) {
@@ -586,7 +612,11 @@ async function getCurriculumDataTopics(version, opts = {}) {
             expectedStandard: r.expectedStandard || "",
           });
           if (r.specificCompetence) {
-            entry.specificOutcomes.push(r.specificCompetence);
+            // A cell can hold SEVERAL coded competences (the ECE sheets join
+            // "0.1.1.6.1 Name… 0.1.1.6.2 Use…") — one outcome per code.
+            for (const o of splitNumberedOutcomes(r.specificCompetence)) {
+              entry.specificOutcomes.push(o);
+            }
           }
         }
       }

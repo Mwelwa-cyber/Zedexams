@@ -14,6 +14,10 @@
  * require the JSON-mapping subset without touching the SDKs.
  */
 
+// Pure text helpers shared with the curriculum parser (page-break fragment
+// healing + joined-competence splitting) — no SDK imports there either.
+import { joinCellText, splitSpecificOutcomes } from './curriculum2013Parser.js'
+
 // ── Subject-key mapping ──────────────────────────────────────────────────
 // The Syllabi Studio uses long human-readable subject names (e.g.
 // "Mathematics Syllabus (Forms 1-4)"). The CBC KB uses canonical slug
@@ -182,13 +186,27 @@ export function rowsWithPropagatedTopic(rows) {
     if (isHeaderEchoRow(cells)) continue
     const raw = String(cells.TOPIC || '').trim()
     if (raw) topic = raw
+    const subtopic = String(cells['SUB-TOPIC'] || cells.SUBTOPIC || '').trim()
+    const specificCompetence = String(cells['SPECIFIC COMPETENCES'] || '').trim()
+    const learningActivities = String(cells['LEARNING ACTIVITIES'] || '').trim()
+    const expectedStandard = String(cells['EXPECTED STANDARD'] || '').trim()
+    // Page-break continuation row: no sub-topic and no competence, only the
+    // tail of the previous row's activities/standard cells (the PDFs split
+    // those cells mid-phrase at page breaks). Join it back onto the previous
+    // row instead of emitting a fragment row the pickers can't attach.
+    const prev = out.length ? out[out.length - 1] : null
+    if (prev && !raw && !subtopic && !specificCompetence && (learningActivities || expectedStandard)) {
+      prev.learningActivities = joinCellText(prev.learningActivities, learningActivities)
+      prev.expectedStandard = joinCellText(prev.expectedStandard, expectedStandard)
+      continue
+    }
     out.push({
       topic,
       section,
-      subtopic: String(cells['SUB-TOPIC'] || cells.SUBTOPIC || '').trim(),
-      specificCompetence: String(cells['SPECIFIC COMPETENCES'] || '').trim(),
-      learningActivities: String(cells['LEARNING ACTIVITIES'] || '').trim(),
-      expectedStandard: String(cells['EXPECTED STANDARD'] || '').trim(),
+      subtopic,
+      specificCompetence,
+      learningActivities,
+      expectedStandard,
     })
   }
 
@@ -275,8 +293,12 @@ export function fragmentsToTopics(fragments) {
       // outcome too so the legacy renderContextBlock() path still has
       // something to put under "Typical Specific Outcomes" for callers
       // that match at the topic level (not at the subtopic level).
+      // A cell can hold SEVERAL coded competences (the ECE sheets join
+      // "0.1.1.6.1 Name… 0.1.1.6.2 Use…") — split so each is its own outcome.
       if (frag.subtopic.specificCompetence) {
-        entry.specificOutcomes.push(frag.subtopic.specificCompetence)
+        for (const o of splitSpecificOutcomes(frag.subtopic.specificCompetence)) {
+          entry.specificOutcomes.push(o.code ? `${o.code} ${o.statement}` : o.statement)
+        }
       }
     }
   }

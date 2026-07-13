@@ -294,6 +294,52 @@ test("A topic with content but no sub-topic is kept (ICT/PE style)", () => {
   eq(out[0].topic, "Cybersecurity");
 });
 
+test("Page-break continuation rows join the previous row's activities", () => {
+  // The CDC PDFs split a LEARNING ACTIVITIES cell across a page break —
+  // ingestion captures the tail as its own row with no sub-topic and no
+  // competence (real case: Literature in English Form 1 "1.2.2.2. Prose").
+  // The fragment must rejoin the previous row, healed when cut mid-phrase.
+  const out = rowsWithPropagatedTopic([
+    {type: "data", cells: {
+      TOPIC: "1.2 Genres", "SUB-TOPIC": "1.2.2.2. Prose",
+      "SPECIFIC COMPETENCES": "Analyse prose structure",
+      "LEARNING ACTIVITIES": "• Discussing prose and its structure organised in paragraphs and",
+    }},
+    {type: "data", cells: {
+      TOPIC: "", "SUB-TOPIC": "", "SPECIFIC COMPETENCES": "",
+      "LEARNING ACTIVITIES": "chapter: fiction and non-fiction, exposition, rising action",
+    }},
+    {type: "data", cells: {TOPIC: "", "SUB-TOPIC": "1.2.2.3. Drama", "SPECIFIC COMPETENCES": "X"}},
+  ]);
+  eq(out.length, 2); // the fragment row merged, not emitted
+  ok(out[0].learningActivities.includes("paragraphs and chapter: fiction"),
+      `mid-phrase fragment healed: ${out[0].learningActivities}`);
+  eq(out[1].subtopic, "1.2.2.3. Drama");
+});
+
+test("Joined multi-code competences split into separate KB outcomes (ECE)", () => {
+  const fixture = {
+    "Early Childhood Education Syllabi (3-5 Years)": {
+      "3-4 Years - Zambian Languages": {
+        columns: ["TOPIC", "SUB-TOPIC", "SPECIFIC COMPETENCES", "LEARNING ACTIVITIES", "EXPECTED STANDARD"],
+        rows: [
+          {type: "data", cells: {
+            TOPIC: "0.1.1 Oral Language", "SUB-TOPIC": "0.1.1.6 Objects at home",
+            "SPECIFIC COMPETENCES": "0.1.1.6.1 Name objects in the home environment 0.1.1.6.2 Use appropriate language to state the functions of objects in the home environment",
+          }},
+        ],
+      },
+    },
+  };
+  const topics = syllabiToKbTopics(fixture);
+  eq(topics.length, 1);
+  eq(topics[0].specificOutcomes.length, 2);
+  ok(topics[0].specificOutcomes[0].startsWith("0.1.1.6.1 Name objects"),
+      topics[0].specificOutcomes[0]);
+  ok(topics[0].specificOutcomes[1].startsWith("0.1.1.6.2 Use appropriate"),
+      topics[0].specificOutcomes[1]);
+});
+
 console.log("\nsyllabiToKbTopics");
 
 test("Collapses rows under the same topic into one entry", () => {

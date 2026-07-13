@@ -66,6 +66,7 @@ import { useSubjectsForGrade } from '../studio/hooks/useSubjectsForGrade.js'
 import { useSubjectTopics } from '../studio/hooks/useSubjectTopics.js'
 import { useSubtopicDetail } from '../studio/hooks/useSubtopicDetail.js'
 import { cleanSubjectName } from '../studio/utils/subjectName.js'
+import { splitSpecificOutcomes } from '../../../utils/curriculum2013Parser.js'
 import {
   gradeListFor,
   gradeValuesFor,
@@ -262,14 +263,17 @@ export default function StudioCurriculumSelector({
   const selectedTopicObj = topics.find((t) => t.label === topic) ?? null
 
   // Per-outcome options for the selected subtopic. 2013 rows carry an already-
-  // split specificOutcomes[] (via the canonical parser); CBC rows carry a single
-  // specificCompetence string.
+  // split specificOutcomes[]; CBC rows carry a specificCompetence string that
+  // can itself hold several coded competences (the ECE sheets join
+  // "0.1.1.6.1 Name… 0.1.1.6.2 Use…") — split so each is its own option.
   const outcomeOptions = !subtopicRow
     ? []
     : Array.isArray(subtopicRow.specificOutcomes)
       ? subtopicRow.specificOutcomes.filter(Boolean)
       : subtopicRow.specificCompetence
-        ? [subtopicRow.specificCompetence]
+        ? splitSpecificOutcomes(subtopicRow.specificCompetence)
+            .map((o) => (o.code ? `${o.code} ${o.statement}` : o.statement))
+            .filter(Boolean)
         : []
 
   const cascadeDisabled = disabled || !curriculumMode
