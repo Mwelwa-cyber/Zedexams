@@ -44,7 +44,11 @@ describe('PlanUsageCard', () => {
     expect(screen.getAllByText('30')).toHaveLength(2)
     expect(screen.getByText('of 30')).toBeInTheDocument()
     expect(screen.getByText(/ai generations remaining today/i)).toBeInTheDocument()
-    expect(screen.getByText(/resets in/i)).toBeInTheDocument()
+    // Countdown + the exact reset time converted to the device's local
+    // clock (the server boundary is UTC midnight ≈ 02:00 in Zambia) —
+    // and never the word "midnight".
+    expect(screen.getByText(/resets in .+ · at \d{2}:\d{2} local time/i)).toBeInTheDocument()
+    expect(screen.queryByText(/midnight/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /manage plan/i })).toHaveAttribute('href', '/my-subscription')
     expect(screen.queryByRole('link', { name: /upgrade/i })).not.toBeInTheDocument()
   })
