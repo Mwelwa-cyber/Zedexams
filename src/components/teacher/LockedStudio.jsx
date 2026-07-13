@@ -106,7 +106,7 @@ export default function LockedStudio({ tool }) {
   const feature = sample?.feature || 'This studio'
 
   function upgrade() {
-    paywall.show('feature-locked', { feature })
+    paywall.show('feature-locked', { feature, tool })
   }
 
   // A Free teacher only ever reaches this component by pressing a studio that's
@@ -116,7 +116,7 @@ export default function LockedStudio({ tool }) {
   // per mount, so navigating to a different locked studio re-shows it. The
   // sample stays rendered behind the modal as context.
   useEffect(() => {
-    paywall.show('feature-locked', { feature })
+    paywall.show('feature-locked', { feature, tool })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool])
 

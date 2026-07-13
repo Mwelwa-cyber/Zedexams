@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import PaywallHost from './PaywallHost'
 import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
 import { isNativePlatform } from '../../utils/runtime'
 
-// capture() is the funnel hook we're asserting on; ensureProFonts touches the
-// document <head>, which we don't care about here.
+// capture() is the funnel hook we're asserting on.
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../../utils/proFonts', () => ({ ensureProFonts: vi.fn() }))
 // Platform switchable per test: web (default) keeps the Lenco/K25 surfaces,
 // native (Android) must route everything to Google Play Billing.
 vi.mock('../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
@@ -22,6 +21,16 @@ vi.mock('./TopUpModal', () => ({
   default: () => <div data-testid="topup-modal" />,
 }))
 
+// The host navigates to /pricing from the "Compare plans" link, so it needs a
+// router context.
+function renderHost() {
+  return render(
+    <MemoryRouter>
+      <PaywallHost />
+    </MemoryRouter>,
+  )
+}
+
 describe('PaywallHost conversion analytics', () => {
   beforeEach(() => {
     act(() => paywall.hide()) // reset the shared singleton between tests
@@ -29,7 +38,7 @@ describe('PaywallHost conversion analytics', () => {
   })
 
   it('fires paywall_shown with plan_target "max" for the Max upsell', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('max-feature', { feature: 'Exam papers' }))
     expect(capture).toHaveBeenCalledWith('paywall_shown', {
       reason: 'max-feature',
@@ -39,7 +48,7 @@ describe('PaywallHost conversion analytics', () => {
   })
 
   it('segments Pro paywalls from the Max upsell via plan_target', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('monthly-limit', { feature: 'lesson plans' }))
     expect(capture).toHaveBeenCalledWith('paywall_shown', {
       reason: 'monthly-limit',
@@ -49,7 +58,7 @@ describe('PaywallHost conversion analytics', () => {
   })
 
   it('fires paywall_upgrade_clicked when the upgrade CTA is pressed', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('max-feature', { feature: 'Exam papers' }))
     capture.mockClear()
     act(() => screen.getByRole('button', { name: /Upgrade to Max/i }).click())
@@ -60,7 +69,7 @@ describe('PaywallHost conversion analytics', () => {
   })
 
   it('does not fire for an unknown reason', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('not-a-real-scenario', {}))
     expect(capture).not.toHaveBeenCalled()
   })
@@ -75,7 +84,7 @@ describe('PaywallHost web (Lenco) surfaces — regression lock', () => {
   })
 
   it('shows the K25 one-off secondary and ZMW price on web', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('monthly-limit', { feature: 'lesson plans' }))
     expect(screen.getByRole('button', { name: /Pay K25 — one extra now/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Upgrade to Pro · K59\/mo/i })).toBeInTheDocument()
@@ -84,7 +93,7 @@ describe('PaywallHost web (Lenco) surfaces — regression lock', () => {
   })
 
   it('topup bus opens the TopUpModal on web', async () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => topup.show({ feature: 'Lesson plans' }))
     expect(await screen.findByTestId('topup-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('upgrade-modal')).toBeNull()
@@ -100,7 +109,7 @@ describe('PaywallHost native (Google Play) routing', () => {
   })
 
   it('hides the K25 one-off, price literals, and MoMo/Airtel badges', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('monthly-limit', { feature: 'lesson plans' }))
     expect(screen.queryByRole('button', { name: /Pay K25/i })).toBeNull()
     // Primary CTA keeps its intent but loses the ZMW price suffix.
@@ -113,14 +122,14 @@ describe('PaywallHost native (Google Play) routing', () => {
   })
 
   it('strips the compare-table ZMW prices on native', () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => paywall.show('max-feature', { feature: 'Exam papers' }))
     expect(screen.queryByText('K149')).toBeNull()
     expect(screen.queryByText('K59')).toBeNull()
   })
 
   it('topup bus routes to the Play upgrade flow instead of the Lenco top-up', async () => {
-    render(<PaywallHost />)
+    renderHost()
     act(() => topup.show({ feature: 'Lesson plans' }))
     const modal = await screen.findByTestId('upgrade-modal')
     expect(modal).toBeInTheDocument()

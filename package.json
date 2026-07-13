@@ -240,6 +240,7 @@
     "test:google-play-verify": "node functions/googlePlayVerify.test.js",
     "test:play-catalog-mirror": "node scripts/test-play-catalog-mirror.mjs",
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
+    "test:payment-initiation": "node functions/paymentInitiationCore.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",
     "test:lesson-plan-prompt": "node functions/teacherTools/lessonPlanPrompt.test.js",
     "test:lesson-batch-export": "node scripts/test-lesson-batch-export.test.js",
