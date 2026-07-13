@@ -63,7 +63,7 @@ describe('SettingsHome', () => {
       )
       expect(hit, `row link for ${row.id}`).toBeTruthy()
     }
-    expect(ALL_SETTINGS_ROWS).toHaveLength(16)
+    expect(ALL_SETTINGS_ROWS).toHaveLength(17)
   })
 
   it('shows the hero with greeting, plan badge, school and stats', () => {

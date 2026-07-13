@@ -65,6 +65,7 @@
     "test:schema": "node scripts/test-question-schema.mjs",
     "test:teaching-profile": "node scripts/test-teaching-profile.mjs",
     "test:calendar-resolver": "node scripts/test-calendar-resolver.mjs",
+    "test:teaching-targets": "node scripts/test-teaching-targets.mjs",
     "test:curriculum-2013": "node scripts/test-curriculum-2013-parser.mjs",
     "test:curriculum-2013-migration": "node scripts/test-migrate-2013-curriculum.mjs",
     "test:curriculum-selector": "node src/components/teacher/curriculum/curriculumSelectorConstants.test.js",
