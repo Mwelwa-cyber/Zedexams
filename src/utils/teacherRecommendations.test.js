@@ -105,14 +105,36 @@ function ids(args) {
     !ids({ generations: withWs, calendar: CAL }).includes('worksheet-missing'))
 }
 
-/* ── 4. Friday quiz ──────────────────────────────────────────────── */
+/* ── 4. Friday short test ────────────────────────────────────────── */
 {
   const gens = [gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }), FOCUS_W8('english')]
-  check('weekly topics + no test → Prepare Friday’s quiz',
-    ids({ generations: gens, calendar: CAL }).includes('friday-quiz'))
+  const recs = buildRecommendations({ generations: gens, calendar: CAL })
+  const test = recs.find((r) => r.id === 'friday-short-test')
+  check('weekly topics + no test → Create Friday’s short test', Boolean(test))
+  check('short-test copy never promises a Quiz Studio',
+    test.title === 'Create Friday’s short test' &&
+    test.actionLabel === 'Create short test' &&
+    !/quiz/i.test(test.title) && !/quiz/i.test(test.actionLabel))
+  check('short-test deep link preselects grade, subject and term',
+    test.to.startsWith('/teacher/test-papers/new?') &&
+    test.to.includes('grade=G4') && test.to.includes('subject=english') && test.to.includes('term=2'))
   const withTest = { generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 5, createdAt: IN_WEEK }] }
-  check('a test created this week → quiz recommendation gone',
-    !ids(withTest).includes('friday-quiz'))
+  check('a test created this week → short-test recommendation gone',
+    !ids(withTest).includes('friday-short-test'))
+}
+
+/* ── preferred subject keeps recommendations on the visible context ─ */
+{
+  const gens = [
+    FOCUS_W8('english'),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 }),
+    // Newer maths forecast would win context WITHOUT the preference.
+    gen('weekly_forecast', { subject: 'mathematics', grade: 'G5', term: 2, header: { weekNumber: 8 }, output: { days: [{ day: 'Monday', topic: 'Algebra' }] } }),
+  ]
+  const recs = buildRecommendations({ generations: gens, calendar: CAL, preferredSubject: 'english' })
+  const record = recs.find((r) => r.id === 'record-behind')
+  check('week-scoped recommendations follow the persisted subject context', Boolean(record))
 }
 
 /* ── 5. draft test papers ────────────────────────────────────────── */
@@ -139,8 +161,8 @@ function ids(args) {
     gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2 }),
   ]
   const holidayIds = ids({ generations: gens, calendar: { ...CAL, isActiveTermNow: false } })
-  check('holiday suppresses record/worksheet/quiz recommendations',
-    !holidayIds.includes('record-behind') && !holidayIds.includes('worksheet-missing') && !holidayIds.includes('friday-quiz'))
+  check('holiday suppresses record/worksheet/short-test recommendations',
+    !holidayIds.includes('record-behind') && !holidayIds.includes('worksheet-missing') && !holidayIds.includes('friday-short-test'))
 }
 
 /* ── no data → no recommendations (never padded) ─────────────────── */
@@ -148,7 +170,7 @@ function ids(args) {
   check('empty inputs produce an empty list', buildRecommendations({ calendar: CAL }).length === 0)
   const list = buildRecommendations({})
   check('missing calendar produces no week-scoped or scheme cards',
-    !list.some((r) => r.id.startsWith('scheme-') || r.id === 'record-behind' || r.id === 'friday-quiz'))
+    !list.some((r) => r.id.startsWith('scheme-') || r.id === 'record-behind' || r.id === 'friday-short-test'))
 }
 
 /* ── uniqueness ──────────────────────────────────────────────────── */

@@ -86,6 +86,7 @@ export function buildRecommendations({
   assessments = [],
   calendar = null,
   profileSubject = '',
+  preferredSubject = '',
 } = {}) {
   const out = []
   const termNumber = calendar?.termNumber ?? null
@@ -97,8 +98,11 @@ export function buildRecommendations({
     ? { weekStartMs, weekEndMs, termNumber }
     : null
 
+  // Same context resolution (including the persisted preferred subject) as
+  // Prepare This Week, so recommendations always belong to the grade +
+  // subject the teacher can SEE on that card.
   const context = calendar
-    ? resolveWeekContext({ generations, calendar, profileSubject })
+    ? resolveWeekContext({ generations, calendar, profileSubject, preferredSubject })
     : null
 
   /* 1 ── "<Subject> is not planned yet" — the teacher teaches it but has no
@@ -180,19 +184,29 @@ export function buildRecommendations({
       })
     }
 
-    /* 4 ── "Prepare Friday's quiz" — the week has topics but no test yet. */
+    /* 4 ── "Create Friday's short test" — the week has topics but no test
+           yet. Worded for what actually exists: the standalone Quiz Studio
+           was retired, so short assessments live in Test Paper Studio. The
+           deep link preselects grade/subject/term through the studio's
+           existing lesson-kit params (assessmentDefaultsFromParams); test
+           type and question count are not supported params, so they are
+           not promised. */
     const testsThisWeek = assessments.filter((a) => {
       const t = toMs(a.createdAt)
       return t >= weekStartMs && t < weekEndMs + DAY_MS
     }).length
     if (focusDays > 0 && testsThisWeek === 0) {
+      const qs = new URLSearchParams()
+      if (context.grade) qs.set('grade', context.grade)
+      if (context.subject) qs.set('subject', context.subject.replace(/ /g, '_'))
+      if (termNumber != null) qs.set('term', String(termNumber))
       out.push({
-        id: 'friday-quiz',
+        id: 'friday-short-test',
         icon: '🧪',
-        title: 'Prepare Friday’s quiz',
-        text: 'Create a short test using this week’s topics.',
-        actionLabel: 'Create quiz',
-        to: '/teacher/test-papers/new',
+        title: 'Create Friday’s short test',
+        text: 'Create a short assessment using this week’s topics.',
+        actionLabel: 'Create short test',
+        to: `/teacher/test-papers/new?${qs.toString()}`,
       })
     }
   }

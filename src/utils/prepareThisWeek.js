@@ -140,15 +140,37 @@ export function timetableAllocation(generations, { subject, grade } = {}) {
 /* ── context: which grade + subject is "this week" about? ──────────── */
 
 /**
- * Resolve the teaching context for the week from the newest relevant saved
- * documents: this week's Weekly Focus, then the current term's Scheme of
+ * Resolve the teaching context for the week.
+ *
+ * `preferredSubject` (the persisted last-used context) wins whenever the
+ * teacher still has any evidence of teaching that subject — so the card
+ * never silently switches subject just because another subject's document
+ * was edited more recently. Otherwise the newest relevant saved documents
+ * decide: this week's Weekly Focus, then the current term's Scheme of
  * Work, then the current term's Record of Work, then the newest Class
  * Timetable (grade) + profile subject. Null when no subject can be
  * determined — the card then shows its set-up empty state.
  */
-export function resolveWeekContext({ generations = [], calendar, profileSubject = '' } = {}) {
+export function resolveWeekContext({ generations = [], calendar, profileSubject = '', preferredSubject = '' } = {}) {
   if (!calendar) return null
   const { termNumber, weekNumber } = calendar
+
+  const preferred = normSubject(preferredSubject)
+  if (preferred) {
+    const docsFor = newestFirst(generations.filter((g) => genSubject(g) === preferred))
+    if (docsFor.length || preferred === normSubject(profileSubject)) {
+      // Grade: prefer a current-term doc of this subject, else its newest
+      // doc, else the newest timetable.
+      const graded = docsFor.find((g) => genTerm(g) === termNumber && genGrade(g)) ||
+        docsFor.find((g) => genGrade(g))
+      const timetable = newestFirst(generations.filter((g) => g.tool === 'class_timetable'))[0]
+      return {
+        subject: preferred,
+        grade: graded ? genGrade(graded) : (timetable ? genGrade(timetable) : ''),
+        source: 'preferred',
+      }
+    }
+  }
 
   const focus = newestFirst(generations.filter((g) =>
     g.tool === 'weekly_forecast' &&
@@ -243,11 +265,11 @@ function forecastPreparedDays(focus) {
  * Each row: { key, label, detail, status:'done'|'progress'|'todo'|'alert',
  *             done, target (nullable), to, meta }
  */
-export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', now = Date.now() } = {}) {
+export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', preferredSubject = '', now = Date.now() } = {}) {
   if (!calendar) {
     return { empty: true, emptyReason: 'no-calendar', rows: [] }
   }
-  const context = resolveWeekContext({ generations, calendar, profileSubject })
+  const context = resolveWeekContext({ generations, calendar, profileSubject, preferredSubject })
   if (!context) {
     return { empty: true, emptyReason: 'no-context', rows: [] }
   }

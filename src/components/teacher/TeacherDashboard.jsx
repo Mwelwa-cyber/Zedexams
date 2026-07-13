@@ -801,6 +801,16 @@ export default function TeacherDashboard() {
     [resources],
   )
 
+  // The last subject context the dashboard resolved for this teacher —
+  // persisted so Prepare This Week + AI Recommendations never silently
+  // switch subject just because a document in another subject was edited
+  // more recently. Replaced by Teaching Profile assignments when those land.
+  const prepContextKey = currentUser ? `zedexams:prep-context:${currentUser.uid}` : null
+  const preferredSubject = useMemo(() => {
+    if (!prepContextKey) return ''
+    try { return localStorage.getItem(prepContextKey) || '' } catch { return '' }
+  }, [prepContextKey])
+
   // The MoE calendar context both weekly-preparation surfaces share. During
   // holidays the calendar points at Week 1 of the next term; isActiveTermNow
   // + the opening-date extras switch the cards into "next term" behaviour.
@@ -825,10 +835,18 @@ export default function TeacherDashboard() {
       generations,
       calendar: prepCalendar,
       profileSubject: userProfile?.subject || '',
+      preferredSubject,
       now: Date.now(),
     }),
-    [generations, userProfile, prepCalendar],
+    [generations, userProfile, prepCalendar, preferredSubject],
   )
+
+  // Persist whatever context was resolved so the next visit sticks with it.
+  useEffect(() => {
+    const subject = weekPrep?.context?.subject
+    if (!prepContextKey || !subject) return
+    try { localStorage.setItem(prepContextKey, subject) } catch { /* storage unavailable */ }
+  }, [weekPrep, prepContextKey])
 
   // Actionable AI Recommendations (replaces the passive insights) — same
   // inputs, no extra reads; every card's condition is verified in data.
@@ -838,8 +856,9 @@ export default function TeacherDashboard() {
       assessments,
       calendar: prepCalendar,
       profileSubject: userProfile?.subject || '',
+      preferredSubject,
     }),
-    [generations, assessments, userProfile, prepCalendar],
+    [generations, assessments, userProfile, prepCalendar, preferredSubject],
   )
 
   const continueItems = useMemo(() => {

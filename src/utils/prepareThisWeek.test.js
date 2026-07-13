@@ -91,6 +91,20 @@ check('subjectLabelOf title-cases slug', subjectLabelOf('integrated_science') ==
   const ctx = resolveWeekContext({ generations: gens, calendar: CAL })
   check('a different week’s focus is ignored for context', ctx === null)
 }
+{
+  // The persisted preferred subject wins over a newer other-subject doc —
+  // the card must not silently switch context.
+  const gens = [
+    gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2, createdAt: BEFORE_WEEK }),
+    gen('weekly_forecast', { subject: 'mathematics', grade: 'G5', term: 2, header: { weekNumber: 8 }, output: { days: [] } }),
+  ]
+  const ctx = resolveWeekContext({ generations: gens, calendar: CAL, preferredSubject: 'english' })
+  check('preferred subject beats a newer other-subject document',
+    ctx.subject === 'english' && ctx.grade === 'G4' && ctx.source === 'preferred')
+  // A preferred subject with no remaining evidence falls back to the ladder.
+  const stale = resolveWeekContext({ generations: gens, calendar: CAL, preferredSubject: 'music' })
+  check('stale preferred subject falls back to the newest context', stale.subject === 'mathematics')
+}
 
 /* ── timetable allocation (the real weekly target) ───────────────── */
 {

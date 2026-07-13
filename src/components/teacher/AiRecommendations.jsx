@@ -16,33 +16,46 @@ import { ArrowRight, ChevronDown } from '../ui/icons'
 import { capture } from '../../utils/analytics'
 
 const VISIBLE = 3
+// Hard ceiling on rendered cards even when expanded — keeps a very long
+// list from stretching the dashboard. The engine emits ~5 today; if it
+// ever grows past this, a dedicated page becomes the right home.
+const MAX_RENDERED = 9
 
 export default function AiRecommendations({ recommendations = [] }) {
   const [showAll, setShowAll] = useState(false)
   if (!recommendations.length) return null
 
-  const visible = showAll ? recommendations : recommendations.slice(0, VISIBLE)
-  const hiddenCount = recommendations.length - VISIBLE
+  const capped = recommendations.slice(0, MAX_RENDERED)
+  const visible = showAll ? capped : capped.slice(0, VISIBLE)
+  const hiddenCount = capped.length - VISIBLE
 
   return (
     <section className="teacher-reco teacher-defer" aria-label="AI recommendations">
       <div className="teacher-section-head">
         <div className="teacher-dashboard-eyebrow">AI Recommendations</div>
-        {hiddenCount > 0 && !showAll && (
+        {hiddenCount > 0 && (
           <button
             type="button"
             className="teacher-section-head__link teacher-section-head__link--button"
+            aria-expanded={showAll}
+            aria-controls="teacher-reco-grid"
             onClick={() => {
-              setShowAll(true)
-              capture('ai_recommendations_expanded', { hidden: hiddenCount })
+              setShowAll((v) => {
+                if (!v) capture('ai_recommendations_expanded', { hidden: hiddenCount })
+                return !v
+              })
             }}
           >
-            View all recommendations
-            <Icon as={ChevronDown} size="xs" />
+            {showAll ? 'Show fewer recommendations' : 'View all recommendations'}
+            <Icon
+              as={ChevronDown}
+              size="xs"
+              className={showAll ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'}
+            />
           </button>
         )}
       </div>
-      <div className="teacher-reco__grid">
+      <div id="teacher-reco-grid" className="teacher-reco__grid">
         {visible.map((r) => (
           <div key={r.id} className="teacher-reco-card">
             <span className="teacher-reco-card__icon" aria-hidden="true">{r.icon}</span>
