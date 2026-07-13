@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
 import { isNativePlatform } from '../../utils/runtime'
+import { clearPremiumAction, rememberPremiumAction } from '../../utils/pendingPremiumAction'
 import ContextualUpgradeModal from './ContextualUpgradeModal'
 import { resolveUpgradeScenario } from './upgradeScenarios'
 
@@ -23,6 +24,7 @@ export default function PaywallHost() {
   // Computed per render (not module scope) so specs can mock runtime.
   const native = isNativePlatform()
   const navigate = useNavigate()
+  const location = useLocation()
   const [state, setState] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   // Plan routing of the scenario that triggered the upgrade modal — captured
@@ -53,6 +55,15 @@ export default function PaywallHost() {
       reason: state.reason,
       feature: state.ctx?.feature || null,
       plan_target: shown.planTarget,
+    })
+    // Remember where the teacher was interrupted so a successful payment can
+    // return them to this exact spot ("Continue to my work"). Cleared again
+    // in handleDismiss if they close without upgrading.
+    rememberPremiumAction({
+      sourceRoute: location.pathname + location.search,
+      reason: state.reason,
+      tool: state.ctx?.tool || null,
+      feature: state.ctx?.feature || null,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
@@ -89,6 +100,9 @@ export default function PaywallHost() {
       feature: ctx.feature || null,
       via: via || 'close',
     })
+    // Dismissed without upgrading — forget the interruption so a later,
+    // unrelated upgrade doesn't teleport them back here.
+    clearPremiumAction()
     paywall.hide()
   }
 

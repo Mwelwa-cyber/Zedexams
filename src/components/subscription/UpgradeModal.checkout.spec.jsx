@@ -2,7 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import UpgradeModal from './UpgradeModal'
 import { getUpgradeQuote, initiateLencoPayment, pollLencoStatus } from '../../utils/lenco'
+import { resolveInvoicePdfUrl } from '../../utils/invoices'
 import { capture } from '../../utils/analytics'
+import { peekPremiumAction, rememberPremiumAction } from '../../utils/pendingPremiumAction'
+
+// The success screen navigates back to the interrupted studio — mock the
+// router hooks so the spec doesn't need a <Router> around every render.
+const navigateSpy = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useNavigate: () => navigateSpy,
+  useLocation: () => ({ pathname: '/pricing', search: '' }),
+}))
+// utils/invoices imports firebase/config — stub the receipt-URL resolver.
+vi.mock('../../utils/invoices', () => ({ resolveInvoicePdfUrl: vi.fn(async () => null) }))
 
 // Behaviour contract of the Lenco checkout step (Phase 3 payment-window
 // redesign): the server quote drives the displayed amount, Pay stays disabled
@@ -15,7 +28,7 @@ vi.mock('../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     userProfile: { email: 'teacher@example.zm' },
-    currentUser: { email: 'teacher@example.zm' },
+    currentUser: { uid: 'u1', email: 'teacher@example.zm' },
   }),
 }))
 vi.mock('../../contexts/DataSaverContext', () => ({
@@ -87,6 +100,7 @@ const payButton = () => screen.getByRole('button', { name: /Pay K\d+/ })
 describe('Lenco checkout step', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
     getUpgradeQuote.mockResolvedValue({ ...QUOTE })
   })
 
@@ -184,7 +198,7 @@ describe('Lenco checkout step', () => {
     await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
     fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
     fireEvent.click(payButton())
-    await waitFor(() => expect(screen.getByText(/Payment confirmed/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
   })
 
   it('flags an unsupported prefix and enables Pay only after a manual network choice', async () => {
@@ -267,6 +281,82 @@ describe('Lenco checkout step', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(initiateLencoPayment).toHaveBeenCalledTimes(1)
     expect(capture).toHaveBeenCalledWith('lenco_payment_cancelled', { planId: 'pro_monthly', via: 'pending-screen' })
+  })
+
+  it('success screen shows plan, amount, date, masked number and receipt confirmation', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'successful' })
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
+    expect(screen.getByText(/Pro · Monthly plan is now active/)).toBeInTheDocument()
+    expect(screen.getByText(/work has been preserved/)).toBeInTheDocument()
+    expect(screen.getByText('K59', { selector: 'dd' })).toBeInTheDocument()
+    expect(screen.getByText('12 August 2026')).toBeInTheDocument()
+    // Full number never shown on the receipt view — middle digits masked.
+    expect(screen.getByText('0977 ••• 465')).toBeInTheDocument()
+    expect(screen.getByText(/Receipt sent to/)).toBeInTheDocument()
+    expect(screen.getByText('teacher@example.zm')).toBeInTheDocument()
+  })
+
+  it('Continue to my work returns to the interrupted studio and consumes the action', async () => {
+    rememberPremiumAction({ sourceRoute: '/teacher/generate/worksheet', tool: 'worksheet', reason: 'monthly-limit' })
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'successful' })
+    const onClose = vi.fn()
+    render(
+      <UpgradeModal portal="teacher" planIds={['pro_monthly']} defaultPlanId="pro_monthly" onClose={onClose} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to my work' }))
+    expect(navigateSpy).toHaveBeenCalledWith('/teacher/generate/worksheet')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(peekPremiumAction()).toBeNull() // honoured exactly once
+    expect(capture).toHaveBeenCalledWith('paywall_return_to_work', {
+      tool: 'worksheet',
+      reason: 'monthly-limit',
+      navigated: true,
+    })
+  })
+
+  it('Continue with no pending action just closes in place (studio still mounted behind)', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'successful' })
+    const onClose = vi.fn()
+    render(
+      <UpgradeModal portal="teacher" planIds={['pro_monthly']} defaultPlanId="pro_monthly" onClose={onClose} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to my work' }))
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('View receipt opens the PDF when ready, or explains it is on its way', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'successful' })
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
+    // Not generated yet → reassurance, no crash.
+    resolveInvoicePdfUrl.mockResolvedValueOnce(null)
+    fireEvent.click(screen.getByRole('button', { name: 'View receipt' }))
+    await waitFor(() => expect(screen.getByText(/still being prepared/)).toBeInTheDocument())
+    // Ready → opens in a new tab from the owner-scoped Storage path.
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    resolveInvoicePdfUrl.mockResolvedValueOnce('https://storage.example/receipt.pdf')
+    fireEvent.click(screen.getByRole('button', { name: 'View receipt' }))
+    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://storage.example/receipt.pdf', '_blank', 'noopener'))
+    expect(resolveInvoicePdfUrl).toHaveBeenCalledWith('invoices/u1/p1.pdf')
+    openSpy.mockRestore()
   })
 
   it('captures number-entered and network-detected funnel events without the number', async () => {

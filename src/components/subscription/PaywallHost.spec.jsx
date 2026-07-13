@@ -6,6 +6,7 @@ import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
 import { isNativePlatform } from '../../utils/runtime'
+import { peekPremiumAction } from '../../utils/pendingPremiumAction'
 
 // capture() is the funnel hook we're asserting on.
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
@@ -72,6 +73,39 @@ describe('PaywallHost conversion analytics', () => {
     renderHost()
     act(() => paywall.show('not-a-real-scenario', {}))
     expect(capture).not.toHaveBeenCalled()
+  })
+})
+
+describe('PaywallHost pending-premium-action (return-after-payment)', () => {
+  beforeEach(() => {
+    act(() => paywall.hide())
+    sessionStorage.clear()
+    capture.mockClear()
+  })
+
+  it('remembers the interrupted route + tool when the paywall shows', () => {
+    renderHost()
+    act(() => paywall.show('monthly-limit', { feature: 'lesson plans', tool: 'lesson_plan' }))
+    expect(peekPremiumAction()).toMatchObject({
+      sourceRoute: '/',
+      reason: 'monthly-limit',
+      tool: 'lesson_plan',
+      feature: 'lesson plans',
+    })
+  })
+
+  it('clears the memory when the teacher dismisses without upgrading', () => {
+    renderHost()
+    act(() => paywall.show('monthly-limit', { feature: 'lesson plans', tool: 'lesson_plan' }))
+    act(() => screen.getByRole('button', { name: 'Not now' }).click())
+    expect(peekPremiumAction()).toBeNull()
+  })
+
+  it('keeps the memory when the teacher heads into the upgrade checkout', () => {
+    renderHost()
+    act(() => paywall.show('monthly-limit', { feature: 'lesson plans', tool: 'lesson_plan' }))
+    act(() => screen.getByRole('button', { name: /Upgrade to Pro/ }).click())
+    expect(peekPremiumAction()).toMatchObject({ tool: 'lesson_plan' })
   })
 })
 
