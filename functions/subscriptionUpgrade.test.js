@@ -121,4 +121,26 @@ ok("free teacher (no expiry) → not an upgrade, full price applies",
   ok("falls back to subscriptionExpiry for the days-left calc", q.isUpgrade && q.daysRemaining === 15);
 }
 
+// ── projectRenewalDate (checkout's promised date must match activation) ───
+{
+  const {projectRenewalDate} = require("./subscriptionUpgrade");
+  // Prorated upgrade keeps the current renewal date — no days added.
+  const upgradeDate = projectRenewalDate(
+      {subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: inDays(19)}, "max_monthly", NOW);
+  ok("upgrade keeps the current renewal date", upgradeDate.getTime() === inDays(19).getTime());
+  // Fresh purchase with no active sub → now + durationDays.
+  const fresh = projectRenewalDate({}, "pro_monthly", NOW);
+  ok("fresh purchase renews durationDays from now", fresh.getTime() === inDays(30).getTime());
+  // Early renewal stacks onto the still-active expiry (mirror of activation).
+  const stacked = projectRenewalDate(
+      {subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: inDays(10)}, "pro_monthly", NOW);
+  ok("early renewal stacks onto the active expiry", stacked.getTime() === inDays(40).getTime());
+  // Lapsed sub → a fresh period from now, not from the old expiry.
+  const lapsed = projectRenewalDate(
+      {subscriptionPlan: "pro_monthly", teacherPlanExpiresAt: inDays(-5)}, "pro_monthly", NOW);
+  ok("lapsed sub starts a fresh period from now", lapsed.getTime() === inDays(30).getTime());
+  // Top-up has no duration → no renewal date.
+  ok("top-up has no renewal date", projectRenewalDate({}, "topup_generation", NOW) === null);
+}
+
 console.log(`\n${passed} passed`);

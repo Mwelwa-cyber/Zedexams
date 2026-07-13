@@ -108,6 +108,26 @@ function quoteUpgradeForUser(user, toPlanId, now = new Date()) {
   return {...computeUpgradeQuote({fromPlan, toPlan, expiry, now}), fromPlanId, toPlanId};
 }
 
+/**
+ * Project the renewal/expiry date a successful purchase of `toPlanId` would
+ * produce for this user — mirrors subscriptionActivation's grant logic so the
+ * checkout can promise a date the activation will actually deliver: a
+ * prorated upgrade keeps the current expiry (no days added); anything else
+ * stacks a fresh durationDays onto the current expiry while it's still
+ * active, otherwise onto now. Returns null for plans with no duration
+ * (top-ups). Referral bonus days are granted at activation and are NOT
+ * included here.
+ */
+function projectRenewalDate(user, toPlanId, now = new Date()) {
+  const plan = getPlan(toPlanId);
+  if (!plan || !Number(plan.durationDays)) return null;
+  const quote = quoteUpgradeForUser(user, toPlanId, now);
+  if (quote.isUpgrade) return quote.expiry;
+  const current = toDate(user?.teacherPlanExpiresAt || user?.subscriptionExpiry);
+  const base = current && current.getTime() > now.getTime() ? current : now;
+  return new Date(base.getTime() + Number(plan.durationDays) * DAY);
+}
+
 module.exports = {
   MIN_UPGRADE_ZMW,
   planTier,
@@ -117,4 +137,5 @@ module.exports = {
   computeUpgradeQuote,
   resolveCurrentProPlanId,
   quoteUpgradeForUser,
+  projectRenewalDate,
 };

@@ -3094,6 +3094,40 @@ function lencoEmailSecrets() {
   };
 }
 
+// Read-only quote for the checkout screen: the server-computed amount due
+// today, whether it's a prorated Pro→Max upgrade, and the renewal date a
+// successful payment would produce. The client DISPLAYS this and echoes
+// amountZMW back as expectedAmountZMW on initiation, where it's verified —
+// the server remains the only authority for the amount actually charged.
+exports.getUpgradeQuote = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = await assertVerifiedAuth(request, "Please sign in first.");
+  const {getPlan} = require("./plans");
+  const planId = cleanString(request.data?.planId, 60);
+  const plan = getPlan(planId);
+  if (!plan) throw new HttpsError("invalid-argument", "Unknown plan.");
+
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(uid).get();
+  const user = userSnap.exists ? (userSnap.data() || {}) : {};
+  const {quoteUpgradeForUser, projectRenewalDate} = require("./subscriptionUpgrade");
+  const quote = quoteUpgradeForUser(user, planId);
+  const renewal = projectRenewalDate(user, planId);
+  return {
+    planId,
+    currency: "ZMW",
+    amountZMW: quote.isUpgrade ? quote.amountZMW : Number(plan.priceZMW),
+    fullPriceZMW: Number(plan.priceZMW),
+    isUpgrade: quote.isUpgrade,
+    daysRemaining: quote.daysRemaining,
+    renewalDate: renewal ? renewal.toISOString() : null,
+    quotedAt: new Date().toISOString(),
+  };
+});
+
 exports.initiateLencoPayment = onCall({
   secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
   region: "us-central1",
@@ -3127,14 +3161,78 @@ exports.initiateLencoPayment = onCall({
   const user = userSnap.exists ? (userSnap.data() || {}) : {};
   const bearer = process.env.LENCO_FEE_BEARER === "customer" ? "customer" : "merchant";
 
+  // Validate the destination BEFORE any write — an invalid number should
+  // never mint a payments doc.
+  const rawPhone = cleanString(request.data?.phone, 20);
+  const phoneNumber = lenco.normalizePhone(rawPhone);
+  if (!phoneNumber) {
+    throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
+  }
+  const operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
+  if (!operator) {
+    throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
+  }
+
   // Pro → Max upgrade: charge ONLY the prorated daily-rate difference for the
   // days the teacher has left, and keep their existing renewal date (the
   // activation step preserves the expiry when isUpgrade is set). Recomputed
   // server-side from the user record so the client can never dictate the
   // prorated amount.
-  const {quoteUpgradeForUser} = require("./subscriptionUpgrade");
+  const {quoteUpgradeForUser, projectRenewalDate} = require("./subscriptionUpgrade");
   const quote = quoteUpgradeForUser(user, planId);
   const amount = quote.isUpgrade ? quote.amountZMW : Number(plan.priceZMW);
+
+  // Displayed-price integrity: when the client echoes the amount it showed
+  // (from getUpgradeQuote), refuse to charge a different one — the client
+  // must refresh its quote and re-confirm with the buyer. Legacy clients
+  // that send nothing skip the check (the server amount is charged either
+  // way; this only protects the display promise).
+  const {findReusablePendingPayment, quoteMismatch} = require("./paymentInitiationCore");
+  if (quoteMismatch(request.data?.expectedAmountZMW, amount)) {
+    const renewal = projectRenewalDate(user, planId);
+    throw new HttpsError(
+        "failed-precondition",
+        "The amount for this purchase has changed. Please review the updated amount.",
+        {
+          code: "quote-changed",
+          amountZMW: amount,
+          fullPriceZMW: Number(plan.priceZMW),
+          isUpgrade: quote.isUpgrade,
+          daysRemaining: quote.daysRemaining,
+          renewalDate: renewal ? renewal.toISOString() : null,
+        },
+    );
+  }
+
+  // Duplicate-initiation guard: a fresh pending collection for the same
+  // plan + phone is the SAME purchase attempt (double-tap, reopened modal,
+  // refresh) — return it instead of pushing a second mobile-money prompt.
+  // Equality-only query, so no composite index is needed.
+  const pendingSnap = await db.collection("payments")
+      .where("userId", "==", uid)
+      .where("status", "==", "pending")
+      .where("planId", "==", planId)
+      .limit(10)
+      .get();
+  const reusable = findReusablePendingPayment(
+      pendingSnap.docs.map((d) => ({id: d.id, data: d.data()})),
+      {phone: rawPhone},
+  );
+  if (reusable) {
+    const existing = reusable.data;
+    const existingStatus = String(existing.lencoStatus || "pending");
+    return {
+      paymentId: reusable.id,
+      reference: reusable.id,
+      status: existingStatus,
+      requiresOtp: existingStatus === "otp-required",
+      amountZMW: Number(existing.amountZMW) || amount,
+      reused: true,
+      message: "Your payment request is already in progress — approve the prompt on your phone.",
+      authorization: null,
+    };
+  }
+
   const upgradeFields = quote.isUpgrade ? {
     isUpgrade: true,
     upgradeFromPlanId: quote.fromPlanId,
@@ -3159,6 +3257,8 @@ exports.initiateLencoPayment = onCall({
     currency: "ZMW",
     provider: "lenco",
     method,
+    phoneNumber,
+    operator,
     paymentReference: "",
     status: "pending",
     lencoStatus: "pending",
@@ -3168,20 +3268,7 @@ exports.initiateLencoPayment = onCall({
   const reference = payRef.id;
 
   try {
-    let resp;
-    let phoneNumber = null;
-    let operator = null;
-
-    const rawPhone = cleanString(request.data?.phone, 20);
-    phoneNumber = lenco.normalizePhone(rawPhone);
-    if (!phoneNumber) {
-      throw new HttpsError("invalid-argument", "Enter a valid Zambian mobile number, e.g. 0977 740 465.");
-    }
-    operator = cleanString(request.data?.operator, 12).toLowerCase() || lenco.detectOperator(rawPhone);
-    if (!operator) {
-      throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
-    }
-    resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
+    const resp = await lenco.initiateMobileMoneyCollection({apiKey, operator, phone: phoneNumber, amount, reference, bearer});
 
     const data = resp?.data || {};
     const lencoStatus = String(data.status || "pending");
@@ -3210,6 +3297,7 @@ exports.initiateLencoPayment = onCall({
       reference,
       status: lencoStatus,
       requiresOtp: lencoStatus === "otp-required",
+      amountZMW: amount,
       message: data.message || resp?.message || null,
       authorization: null,
     };
